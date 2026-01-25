@@ -1,0 +1,77 @@
+{
+  "name": "visualsynth",
+  "productName": "VisualSynth",
+  "version": "0.1.0",
+  "description": "Realtime audio + MIDI reactive visual synthesizer.",
+  "main": "dist/main/main.js",
+  "author": "VisualSynth Team",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently -k \"tsc -w -p tsconfig.main.json\" \"node scripts/build-renderer.js --watch\" \"wait-on dist/main/main.js && electron .\"",
+    "prepare:assets": "node scripts/prepare-assets.js",
+    "build": "npm run prepare:assets && tsc -p tsconfig.main.json && node scripts/build-renderer.js",
+    "dist": "npm run build && electron-builder",
+    "test": "vitest run"
+  },
+  "build": {
+    "appId": "com.visualsynth.app",
+    "productName": "VisualSynth",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/presets",
+        "to": "presets"
+      }
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico",
+      "publisherName": "VisualSynth Labs"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "shortcutName": "VisualSynth",
+      "uninstallDisplayName": "VisualSynth",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "perMachine": true
+    },
+    "publish": null
+  },
+  "dependencies": {
+    "midi": "^2.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3",
+    "esbuild": "^0.20.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.5.0",
+    "wait-on": "^7.2.0"
+  }
+}
