@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VisualSynth</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="top-bar">
+        <div class="brand">VisualSynth</div>
+        <div class="controls">
+          <label>
+            Audio Input
+            <select id="audio-device"></select>
+          </label>
+          <label>
+            MIDI Input
+            <select id="midi-device"></select>
+          </label>
+          <button id="toggle-midi">Enable MIDI</button>
+          <button id="btn-save">Save</button>
+          <button id="btn-load">Load</button>
+          <select id="preset-select"></select>
+          <button id="btn-apply-preset">Apply Preset</button>
+          <button id="toggle-mode">Advanced</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="left-panel">
+          <h2>Layers</h2>
+          <div class="layer-list">
+            <label><input type="checkbox" id="layer-plasma" checked /> Plasma Shader</label>
+            <label><input type="checkbox" id="layer-spectrum" checked /> Spectrum Bars</label>
+          </div>
+          <div class="panel-block">
+            <h3>64-Pad Performance</h3>
+            <div id="pad-grid" class="pad-grid"></div>
+            <div class="pad-hint">Pads 0-31 toggle plasma layer. Pads 32-63 trigger strobe.</div>
+          </div>
+        </section>
+
+        <section class="center-panel">
+          <canvas id="gl-canvas" width="1280" height="720"></canvas>
+        </section>
+
+        <section class="right-panel" id="advanced-panel">
+          <h2>Advanced</h2>
+          <div class="panel-block">
+            <h3>Mod Matrix (Preview)</h3>
+            <div class="matrix-row">audio.rms → layer.plasma.intensity (0.7)</div>
+            <div class="matrix-row">midi.cc1 → layer.spectrum.gain (0.4)</div>
+          </div>
+          <div class="panel-block">
+            <h3>Diagnostics</h3>
+            <div id="diag-fps">FPS: --</div>
+            <div id="diag-gpu">GPU: WebGL2</div>
+            <div id="diag-latency">Audio Latency: --</div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="status-bar">
+        <div id="status">Ready</div>
+        <div class="shortcuts">Space: tempo • F: fullscreen • R: record • Ctrl+S save • Ctrl+O open</div>
+      </footer>
+    </div>
+
+    <script src="index.js"></script>
+  </body>
+</html>
