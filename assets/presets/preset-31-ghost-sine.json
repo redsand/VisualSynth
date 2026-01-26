@@ -1,24 +1,24 @@
 {
   "version": 2,
-  "name": "Ambient Bloom",
+  "name": "Ghost Sine",
   "createdAt": "2026-01-26T18:16:36.205401",
   "updatedAt": "2026-01-26T18:16:36.205401",
   "effects": {
     "enabled": true,
-    "bloom": 0.22,
-    "blur": 0.22,
+    "bloom": 0.12,
+    "blur": 0.15,
     "chroma": 0.05,
     "posterize": 0.0,
-    "kaleidoscope": 0.05,
-    "feedback": 0.0,
-    "persistence": 0.7
+    "kaleidoscope": 0.0,
+    "feedback": 0.12,
+    "persistence": 0.65
   },
   "particles": {
     "enabled": true,
-    "density": 0.6,
-    "speed": 0.35,
-    "size": 0.35,
-    "glow": 0.8
+    "density": 0.55,
+    "speed": 0.3,
+    "size": 0.4,
+    "glow": 0.7
   },
   "sdf": {
     "enabled": true,
@@ -26,13 +26,13 @@
     "scale": 0.5,
     "edge": 0.06,
     "glow": 0.6,
-    "rotation": 0.2,
+    "rotation": 0.3,
     "fill": 0.4
   },
   "scenes": [
     {
       "id": "scene-1",
-      "name": "Primary",
+      "name": "Main Scene",
       "layers": [
         {
           "id": "layer-plasma",
@@ -52,38 +52,6 @@
           "name": "Audio Spectrum",
           "enabled": false,
           "opacity": 0.9,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    },
-    {
-      "id": "scene-2",
-      "name": "Lift",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1.06,
-            "rotation": 0.04
-          }
-        },
-        {
-          "id": "layer-spectrum",
-          "name": "Audio Spectrum",
-          "enabled": true,
-          "opacity": 0.95,
           "blendMode": "add",
           "transform": {
             "x": 0,

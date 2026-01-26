@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "name": "Ambient Bloom",
+  "name": "Psytrance Spiral",
   "createdAt": "2026-01-26T18:16:36.205401",
   "updatedAt": "2026-01-26T18:16:36.205401",
   "effects": {
     "enabled": true,
-    "bloom": 0.22,
-    "blur": 0.22,
-    "chroma": 0.05,
-    "posterize": 0.0,
-    "kaleidoscope": 0.05,
-    "feedback": 0.0,
-    "persistence": 0.7
+    "bloom": 0.3,
+    "blur": 0.08,
+    "chroma": 0.18,
+    "posterize": 0.1,
+    "kaleidoscope": 0.5,
+    "feedback": 0.25,
+    "persistence": 0.4
   },
   "particles": {
     "enabled": true,
@@ -22,7 +22,7 @@
   },
   "sdf": {
     "enabled": true,
-    "shape": "circle",
+    "shape": "triangle",
     "scale": 0.5,
     "edge": 0.06,
     "glow": 0.6,
@@ -50,7 +50,7 @@
         {
           "id": "layer-spectrum",
           "name": "Audio Spectrum",
-          "enabled": false,
+          "enabled": true,
           "opacity": 0.9,
           "blendMode": "add",
           "transform": {

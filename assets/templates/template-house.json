@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "name": "Ambient Bloom",
+  "name": "House Skyline",
   "createdAt": "2026-01-26T18:16:36.205401",
   "updatedAt": "2026-01-26T18:16:36.205401",
   "effects": {
     "enabled": true,
-    "bloom": 0.22,
-    "blur": 0.22,
-    "chroma": 0.05,
+    "bloom": 0.28,
+    "blur": 0.1,
+    "chroma": 0.12,
     "posterize": 0.0,
-    "kaleidoscope": 0.05,
-    "feedback": 0.0,
-    "persistence": 0.7
+    "kaleidoscope": 0.1,
+    "feedback": 0.15,
+    "persistence": 0.35
   },
   "particles": {
     "enabled": true,
@@ -50,7 +50,7 @@
         {
           "id": "layer-spectrum",
           "name": "Audio Spectrum",
-          "enabled": false,
+          "enabled": true,
           "opacity": 0.9,
           "blendMode": "add",
           "transform": {

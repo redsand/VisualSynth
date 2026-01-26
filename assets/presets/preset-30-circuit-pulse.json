@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "name": "Circuit Pulse",
+  "createdAt": "2026-01-26T18:16:36.205401",
+  "updatedAt": "2026-01-26T18:16:36.205401",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.3,
+    "blur": 0.08,
+    "chroma": 0.2,
+    "posterize": 0.2,
+    "kaleidoscope": 0.3,
+    "feedback": 0.22,
+    "persistence": 0.25
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.55,
+    "speed": 0.3,
+    "size": 0.4,
+    "glow": 0.7
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "box",
+    "scale": 0.5,
+    "edge": 0.06,
+    "glow": 0.6,
+    "rotation": 0.3,
+    "fill": 0.4
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": false,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.0,
+            "rotation": 0.0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}
