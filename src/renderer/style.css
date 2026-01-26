@@ -567,6 +567,53 @@ body {
   cursor: pointer;
 }
 
+.plugin-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 70px 70px 34px;
+  gap: 6px;
+  align-items: center;
+  background: #162335;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.plugin-row button {
+  background: transparent;
+  color: #8fd6ff;
+  border: 1px solid #2c4159;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.diff-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: 18px 1fr 70px;
+  gap: 6px;
+  align-items: center;
+  background: #162335;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.diff-row span {
+  color: #9fb6cf;
+}
+
+.diff-flag {
+  text-transform: uppercase;
+  font-size: 10px;
+  color: #ffb86b;
+}
+
 .mod-section {
   margin-top: 10px;
 }

@@ -52,6 +52,6 @@ This document tracks the feature request list and upcoming milestones.
 - [x] Screenshot export and timeline markers.
 
 ## Milestone 5: Collaboration & Pro Toolkit
-- [ ] Project diff/merge tool for teams.
-- [ ] Asset manager for custom shaders and textures.
-- [ ] Plugin SDK for generators/effects.
+- [x] Project diff/merge tool for teams.
+- [x] Asset manager for custom shaders and textures.
+- [x] Plugin SDK for generators/effects.

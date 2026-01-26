@@ -180,6 +180,17 @@ const assetItemSchema = z.object({
   addedAt: z.string()
 });
 
+const pluginEntrySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  author: z.string(),
+  kind: z.enum(['generator', 'effect']),
+  entry: z.string(),
+  enabled: z.boolean(),
+  addedAt: z.string()
+});
+
 const defaultPadMappings = (() => {
   const mappings = new Array(256).fill('none');
   for (let i = 0; i < 32; i += 1) {
@@ -288,6 +299,7 @@ export const projectSchema = z.object({
   padMappings: z.array(padActionSchema).default(defaultPadMappings),
   timelineMarkers: z.array(timelineMarkerSchema).default([]),
   assets: z.array(assetItemSchema).default([]),
+  plugins: z.array(pluginEntrySchema).default([]),
   scenes: z.array(sceneSchema),
   modMatrix: z.array(modConnectionSchema),
   midiMappings: z.array(midiMappingSchema),

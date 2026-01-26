@@ -280,6 +280,21 @@ ipcMain.handle('assets:import', async (_event, kind: 'texture' | 'shader' | 'vid
   return { canceled: false, filePath };
 });
 
+ipcMain.handle('plugins:import', async () => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import Plugin',
+    filters: [{ name: 'Plugin Manifest', extensions: ['json'] }],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true };
+  }
+  const filePath = result.filePaths[0];
+  const payload = fs.readFileSync(filePath, 'utf-8');
+  return { canceled: false, filePath, payload };
+});
+
 ipcMain.handle('presets:list', async () => {
   const presetDir = app.isPackaged
     ? path.join(process.resourcesPath, 'presets')

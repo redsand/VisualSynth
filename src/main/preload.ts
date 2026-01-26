@@ -42,5 +42,6 @@ contextBridge.exposeInMainWorld('visualSynth', {
   ) => ipcRenderer.invoke('capture:transcode', data, defaultName, format),
   importAsset: (
     kind: 'texture' | 'shader' | 'video'
-  ) => ipcRenderer.invoke('assets:import', kind)
+  ) => ipcRenderer.invoke('assets:import', kind),
+  importPlugin: () => ipcRenderer.invoke('plugins:import')
 });

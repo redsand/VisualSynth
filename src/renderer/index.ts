@@ -15,6 +15,8 @@ import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMa
 import { applyModMatrix } from '../shared/modMatrix';
 import { reorderLayers } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
+import { pluginManifestSchema } from '../shared/pluginSchema';
+import { mergeProjectSections, MergeOptions } from '../shared/projectMerge';
 
 declare global {
   interface Window {
@@ -65,6 +67,7 @@ declare global {
       importAsset: (
         kind: 'texture' | 'shader' | 'video'
       ) => Promise<{ canceled: boolean; filePath?: string }>;
+      importPlugin: () => Promise<{ canceled: boolean; filePath?: string; payload?: string }>;
     };
   }
 }
@@ -157,6 +160,13 @@ const assetImportButton = document.getElementById('asset-import') as HTMLButtonE
 const assetKindSelect = document.getElementById('asset-kind') as HTMLSelectElement;
 const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement;
 const assetList = document.getElementById('asset-list') as HTMLDivElement;
+const pluginImportButton = document.getElementById('plugin-import') as HTMLButtonElement;
+const pluginList = document.getElementById('plugin-list') as HTMLDivElement;
+const diffUseCurrentButton = document.getElementById('diff-use-current') as HTMLButtonElement;
+const diffLoadIncomingButton = document.getElementById('diff-load-incoming') as HTMLButtonElement;
+const diffApplyButton = document.getElementById('diff-apply') as HTMLButtonElement;
+const diffStatus = document.getElementById('diff-status') as HTMLDivElement;
+const diffSections = document.getElementById('diff-sections') as HTMLDivElement;
 
 const fpsLabel = document.getElementById('diag-fps') as HTMLDivElement;
 const latencyLabel = document.getElementById('diag-latency') as HTMLDivElement;
@@ -213,6 +223,8 @@ let mediaRecorder: MediaRecorder | null = null;
 let recordingChunks: Blob[] = [];
 let recordingStartedAt = 0;
 let lastRenderTimeMs = 0;
+let diffBaseProject: VisualSynthProject | null = null;
+let diffIncomingProject: VisualSynthProject | null = null;
 
 const audioState = {
   rms: 0,
@@ -795,6 +807,161 @@ const importAsset = async () => {
   ];
   assetTagsInput.value = '';
   renderAssets();
+};
+
+const renderPlugins = () => {
+  pluginList.innerHTML = '';
+  if (currentProject.plugins.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No plugins yet.';
+    pluginList.appendChild(empty);
+    return;
+  }
+  currentProject.plugins.forEach((plugin) => {
+    const row = document.createElement('div');
+    row.className = 'plugin-row';
+    const kind = document.createElement('div');
+    kind.textContent = plugin.kind;
+    const name = document.createElement('div');
+    name.textContent = `${plugin.name} ${plugin.version}`;
+    const author = document.createElement('div');
+    author.textContent = plugin.author;
+    const toggle = document.createElement('button');
+    toggle.textContent = plugin.enabled ? 'Disable' : 'Enable';
+    toggle.addEventListener('click', () => {
+      plugin.enabled = !plugin.enabled;
+      toggle.textContent = plugin.enabled ? 'Disable' : 'Enable';
+    });
+    const remove = document.createElement('button');
+    remove.textContent = '✕';
+    remove.addEventListener('click', () => {
+      currentProject.plugins = currentProject.plugins.filter((item) => item.id !== plugin.id);
+      renderPlugins();
+    });
+    row.appendChild(kind);
+    row.appendChild(name);
+    row.appendChild(author);
+    row.appendChild(toggle);
+    row.appendChild(remove);
+    pluginList.appendChild(row);
+  });
+};
+
+const importPlugin = async () => {
+  const result = await window.visualSynth.importPlugin();
+  if (result.canceled || !result.payload) return;
+  try {
+    const parsed = pluginManifestSchema.safeParse(JSON.parse(result.payload));
+    if (!parsed.success) {
+      setStatus('Plugin manifest invalid.');
+      return;
+    }
+    const manifest = parsed.data;
+    currentProject.plugins = [
+      ...currentProject.plugins,
+      {
+        id: manifest.id,
+        name: manifest.name,
+        version: manifest.version,
+        author: manifest.author,
+        kind: manifest.kind,
+        entry: manifest.entry,
+        enabled: true,
+        addedAt: new Date().toISOString()
+      }
+    ];
+    renderPlugins();
+    setStatus(`Plugin added: ${manifest.name}`);
+  } catch {
+    setStatus('Failed to import plugin.');
+  }
+};
+
+const diffSectionConfig = [
+  { key: 'metadata', label: 'Project Info', get: (p: VisualSynthProject) => ({ name: p.name, createdAt: p.createdAt }) },
+  { key: 'output', label: 'Output', get: (p: VisualSynthProject) => p.output },
+  { key: 'stylePresets', label: 'Style Presets', get: (p: VisualSynthProject) => p.stylePresets },
+  { key: 'macros', label: 'Macros', get: (p: VisualSynthProject) => p.macros },
+  { key: 'effects', label: 'Effects', get: (p: VisualSynthProject) => p.effects },
+  { key: 'particles', label: 'Particles', get: (p: VisualSynthProject) => p.particles },
+  { key: 'sdf', label: 'SDF', get: (p: VisualSynthProject) => p.sdf },
+  { key: 'lfos', label: 'LFOs', get: (p: VisualSynthProject) => p.lfos },
+  { key: 'envelopes', label: 'Envelopes', get: (p: VisualSynthProject) => p.envelopes },
+  { key: 'sampleHold', label: 'Sample & Hold', get: (p: VisualSynthProject) => p.sampleHold },
+  { key: 'scenes', label: 'Scenes', get: (p: VisualSynthProject) => p.scenes },
+  { key: 'modMatrix', label: 'Mod Matrix', get: (p: VisualSynthProject) => p.modMatrix },
+  { key: 'midiMappings', label: 'MIDI Mappings', get: (p: VisualSynthProject) => p.midiMappings },
+  { key: 'padMappings', label: 'Pad Mappings', get: (p: VisualSynthProject) => p.padMappings },
+  { key: 'timelineMarkers', label: 'Timeline Markers', get: (p: VisualSynthProject) => p.timelineMarkers },
+  { key: 'assets', label: 'Assets', get: (p: VisualSynthProject) => p.assets },
+  { key: 'plugins', label: 'Plugins', get: (p: VisualSynthProject) => p.plugins }
+];
+
+const serializeSection = (value: unknown) => JSON.stringify(value ?? null);
+
+const renderDiffSections = () => {
+  diffSections.innerHTML = '';
+  if (!diffIncomingProject) {
+    diffStatus.textContent = 'No incoming project loaded.';
+    return;
+  }
+  const base = diffBaseProject ?? currentProject;
+  diffStatus.textContent = `Incoming loaded: ${diffIncomingProject.name}`;
+  diffSectionConfig.forEach((section) => {
+    const row = document.createElement('div');
+    row.className = 'diff-row';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.dataset.diffKey = section.key;
+    const baseValue = serializeSection(section.get(base));
+    const incomingValue = serializeSection(section.get(diffIncomingProject));
+    const changed = baseValue !== incomingValue;
+    checkbox.checked = changed;
+    const label = document.createElement('span');
+    label.textContent = section.label;
+    const flag = document.createElement('span');
+    flag.className = 'diff-flag';
+    flag.textContent = changed ? 'changed' : 'same';
+    row.appendChild(checkbox);
+    row.appendChild(label);
+    row.appendChild(flag);
+    diffSections.appendChild(row);
+  });
+};
+
+const getMergeOptions = (): MergeOptions => {
+  const inputs = diffSections.querySelectorAll<HTMLInputElement>('input[data-diff-key]');
+  const selections = new Set<string>();
+  inputs.forEach((input) => {
+    if (input.checked) selections.add(input.dataset.diffKey ?? '');
+  });
+  return {
+    metadata: selections.has('metadata'),
+    output: selections.has('output'),
+    stylePresets: selections.has('stylePresets'),
+    macros: selections.has('macros'),
+    effects: selections.has('effects'),
+    particles: selections.has('particles'),
+    sdf: selections.has('sdf'),
+    lfos: selections.has('lfos'),
+    envelopes: selections.has('envelopes'),
+    sampleHold: selections.has('sampleHold'),
+    scenes: selections.has('scenes'),
+    modMatrix: selections.has('modMatrix'),
+    midiMappings: selections.has('midiMappings'),
+    padMappings: selections.has('padMappings'),
+    timelineMarkers: selections.has('timelineMarkers'),
+    assets: selections.has('assets'),
+    plugins: selections.has('plugins')
+  };
+};
+
+const applyDiffMerge = async () => {
+  if (!diffIncomingProject) return;
+  const merged = mergeProjectSections(currentProject, diffIncomingProject, getMergeOptions());
+  await applyProject(merged);
+  setStatus('Merge applied.');
 };
 
 const setCaptureStatus = (message: string) => {
@@ -1954,6 +2121,9 @@ const applyProject = async (project: VisualSynthProject) => {
   renderPadMapGrid();
   renderMarkers();
   renderAssets();
+  renderPlugins();
+  diffBaseProject = { ...currentProject };
+  renderDiffSections();
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
@@ -1983,14 +2153,6 @@ applyTemplateButton.addEventListener('click', async () => {
   if (result.project) {
     await applyProject(result.project);
   }
-});
-
-plasmaToggle.addEventListener('change', () => {
-  setStatus(`Plasma ${plasmaToggle.checked ? 'enabled' : 'disabled'}`);
-});
-
-spectrumToggle.addEventListener('change', () => {
-  setStatus(`Spectrum ${spectrumToggle.checked ? 'enabled' : 'disabled'}`);
 });
 
 sceneSelect.addEventListener('change', () => {
@@ -2069,7 +2231,7 @@ padBank.addEventListener('click', (event) => {
   setStatus(`Pad bank: ${padBanks[activePadBank]}`);
 });
 
-padMapBank.addEventListener('click', (event) => {
+padMapBank?.addEventListener('click', (event) => {
   const target = event.target as HTMLElement;
   const bank = target.closest<HTMLButtonElement>('button[data-bank]');
   if (!bank) return;
@@ -2079,28 +2241,48 @@ padMapBank.addEventListener('click', (event) => {
   renderPadMapGrid();
 });
 
-modMatrixAdd.addEventListener('click', () => {
+modMatrixAdd?.addEventListener('click', () => {
   addModConnection();
 });
 
-midiMapAdd.addEventListener('click', () => {
+midiMapAdd?.addEventListener('click', () => {
   addMidiMapping();
 });
 
-captureScreenshotButton.addEventListener('click', () => {
+captureScreenshotButton?.addEventListener('click', () => {
   void takeScreenshot();
 });
 
-captureRecordToggle.addEventListener('click', () => {
+captureRecordToggle?.addEventListener('click', () => {
   toggleRecording();
 });
 
-markerAddButton.addEventListener('click', () => {
+markerAddButton?.addEventListener('click', () => {
   addMarker();
 });
 
-assetImportButton.addEventListener('click', () => {
+assetImportButton?.addEventListener('click', () => {
   void importAsset();
+});
+
+pluginImportButton?.addEventListener('click', () => {
+  void importPlugin();
+});
+
+diffUseCurrentButton?.addEventListener('click', () => {
+  diffBaseProject = { ...currentProject };
+  renderDiffSections();
+});
+
+diffLoadIncomingButton?.addEventListener('click', async () => {
+  const result = await window.visualSynth.openProject();
+  if (result.canceled || !result.project) return;
+  diffIncomingProject = result.project;
+  renderDiffSections();
+});
+
+diffApplyButton?.addEventListener('click', () => {
+  void applyDiffMerge();
 });
 
 exportSceneButton.addEventListener('click', async () => {
@@ -2642,6 +2824,8 @@ const init = async () => {
   renderPadMapGrid();
   renderMarkers();
   renderAssets();
+  renderPlugins();
+  renderDiffSections();
   bpmRangeSelect.dispatchEvent(new Event('change'));
   await initAudioDevices();
   await setupAudio();

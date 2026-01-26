@@ -140,6 +140,17 @@ export interface AssetItem {
   addedAt: string;
 }
 
+export interface PluginEntry {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  kind: 'generator' | 'effect';
+  entry: string;
+  enabled: boolean;
+  addedAt: string;
+}
+
 export type PadAction =
   | 'none'
   | 'toggle-plasma'
@@ -174,6 +185,7 @@ export interface VisualSynthProject {
   padMappings: PadAction[];
   timelineMarkers: TimelineMarker[];
   assets: AssetItem[];
+  plugins: PluginEntry[];
   scenes: SceneConfig[];
   modMatrix: ModConnection[];
   midiMappings: MidiMapping[];
@@ -361,6 +373,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   })(),
   timelineMarkers: [],
   assets: [],
+  plugins: [],
   scenes: [
     {
       id: 'scene-1',
