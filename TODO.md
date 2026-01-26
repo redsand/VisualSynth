@@ -86,9 +86,9 @@ This document tracks the feature request list and upcoming milestones.
 - [x] Ensure BPM ranges sourced from networking or analysis can be smoothed before driving FX.
 
 ## Visual Identity & Color Pipeline
-- [ ] Formalize color management (sRGB vs linear assets, gamma-correct blending, tone mapping controls).
-- [ ] Add LUT (3D LUT) support plus palette/ramp presets with locking options and consistent dithering/film-grain helpers.
-- [ ] Create high-level palette/system presets that can be applied per scene or master layer for a professional finish.
+- [x] Formalize color management (sRGB vs linear assets, gamma-correct blending, tone mapping controls).
+- [x] Add LUT (3D LUT) support plus palette/ramp presets with locking options and consistent dithering/film-grain helpers.
+- [x] Create high-level palette/system presets that can be applied per scene or master layer for a professional finish.
 
 ## Performance & Safety Engineering
 - [ ] Build guardrails such as FBO/texture pooling, dynamic resolution negotiation, and quality scaling (sample counts, particle detail) when budgets are exceeded.
