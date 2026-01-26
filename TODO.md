@@ -80,10 +80,10 @@ This document tracks the feature request list and upcoming milestones.
 - [x] Track resource lifecycle requirements (FBO/texture pooling, resolution negotiation per node, shared texture reuse).
 
 ## Timing, Automation & Modulation
-- [ ] Expand the transport to cover play/stop, BPM, time signature, and shared beat phase/quantization across scenes.
-- [ ] Add beat grid, tap-tempo, quantized scene clips, and lightweight automation lanes that can record+play back parameter moves.
-- [ ] Strengthen the modulation source list: onset detection, band-limited envelopes (sub/low/mid/high), spectral centroid/flux/rolloff, pitch estimates, peak hold/gating/hysteresis utilities.
-- [ ] Ensure BPM ranges sourced from networking or analysis can be smoothed before driving FX.
+- [x] Expand the transport to cover play/stop, BPM, time signature, and shared beat phase/quantization across scenes.
+- [x] Add beat grid, tap-tempo, quantized scene clips, and lightweight automation lanes that can record+play back parameter moves.
+- [x] Strengthen the modulation source list: onset detection, band-limited envelopes (sub/low/mid/high), spectral centroid/flux/rolloff, pitch estimates, peak hold/gating/hysteresis utilities.
+- [x] Ensure BPM ranges sourced from networking or analysis can be smoothed before driving FX.
 
 ## Visual Identity & Color Pipeline
 - [ ] Formalize color management (sRGB vs linear assets, gamma-correct blending, tone mapping controls).
