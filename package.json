@@ -1,10 +1,10 @@
 {
   "name": "visualsynth",
   "productName": "VisualSynth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Realtime audio + MIDI reactive visual synthesizer.",
-  "main": "dist/main/main.js",
-  "author": "VisualSynth Team",
+  "main": "dist/main/main/main.js",
+  "author": "Note Sniffer",
   "license": "MIT",
   "scripts": {
     "dev": "concurrently -k \"tsc -w -p tsconfig.main.json\" \"node scripts/build-renderer.js --watch\" \"wait-on dist/main/main.js && electron .\"",
@@ -40,8 +40,8 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.ico",
-      "publisherName": "VisualSynth Labs"
+      "icon": "resources/UndertowFX.ico",
+      "publisherName": "Redsand Networks"
     },
     "nsis": {
       "oneClick": false,
@@ -49,9 +49,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
+      "installerIcon": "resources/UndertowFX.ico",
+      "uninstallerIcon": "resources/UndertowFX.ico",
+      "installerHeaderIcon": "resources/UndertowFX.ico",
       "shortcutName": "VisualSynth",
       "uninstallDisplayName": "VisualSynth",
       "deleteAppDataOnUninstall": false,
@@ -70,7 +70,7 @@
     "electron": "^30.0.1",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.20.2",
-    "typescript": "^5.4.5",
+    "typescript": "^5.9.3",
     "vitest": "^1.5.0",
     "wait-on": "^7.2.0"
   }

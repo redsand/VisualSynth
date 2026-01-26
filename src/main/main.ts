@@ -2,10 +2,29 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { projectSchema } from '../shared/projectSchema';
+import {
+  DEFAULT_OUTPUT_CONFIG,
+  OUTPUT_BASE_HEIGHT,
+  OUTPUT_BASE_WIDTH,
+  OutputConfig
+} from '../shared/project';
 
 const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
+let outputWindow: BrowserWindow | null = null;
+let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
+
+const clampScale = (value: number) => Math.min(1, Math.max(0.25, value));
+
+const applyOutputConfig = (config: OutputConfig) => {
+  outputConfig = { ...outputConfig, ...config, scale: clampScale(config.scale ?? outputConfig.scale) };
+  if (!outputWindow) return;
+  const width = Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale);
+  const height = Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale);
+  outputWindow.setContentSize(width, height);
+  outputWindow.setFullScreen(outputConfig.fullscreen);
+};
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -30,6 +49,38 @@ const createWindow = () => {
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
+};
+
+const createOutputWindow = () => {
+  if (outputWindow) {
+    outputWindow.focus();
+    return;
+  }
+  const width = Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale);
+  const height = Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale);
+  outputWindow = new BrowserWindow({
+    width,
+    height,
+    backgroundColor: '#000000',
+    autoHideMenuBar: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  const outputPath = path.join(__dirname, '../renderer/output.html');
+  void outputWindow.loadFile(outputPath);
+
+  outputWindow.on('closed', () => {
+    outputWindow = null;
+    outputConfig = { ...outputConfig, enabled: false };
+    if (mainWindow) {
+      mainWindow.webContents.send('output:closed');
+    }
+  });
+
+  applyOutputConfig(outputConfig);
 };
 
 app.whenReady().then(() => {
@@ -103,6 +154,30 @@ ipcMain.handle('presets:load', async (_event, presetPath: string) => {
     return { error: 'Invalid preset file.' };
   }
   return { project: parsed.data };
+});
+
+ipcMain.handle('output:get-config', () => outputConfig);
+
+ipcMain.handle('output:is-open', () => Boolean(outputWindow));
+
+ipcMain.handle('output:open', (_event, config: OutputConfig) => {
+  outputConfig = { ...outputConfig, ...config, enabled: true };
+  createOutputWindow();
+  applyOutputConfig(outputConfig);
+  return { opened: true, config: outputConfig };
+});
+
+ipcMain.handle('output:close', () => {
+  if (outputWindow) {
+    outputWindow.close();
+  }
+  outputConfig = { ...outputConfig, enabled: false };
+  return { closed: true, config: outputConfig };
+});
+
+ipcMain.handle('output:set-config', (_event, config: OutputConfig) => {
+  applyOutputConfig(config);
+  return outputConfig;
 });
 
 ipcMain.handle('midi:list-node', async () => {

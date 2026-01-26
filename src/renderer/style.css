@@ -106,6 +106,45 @@ body {
   border: 1px solid #22344a;
 }
 
+.output-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.output-row button,
+.output-row select,
+.output-row input[type='checkbox'],
+.output-label select {
+  background: #162235;
+  color: #e4f4ff;
+  border: 1px solid #2c4159;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.output-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.output-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.output-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #95b6d6;
+}
+
 .pad-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);

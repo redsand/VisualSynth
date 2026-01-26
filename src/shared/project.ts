@@ -1,5 +1,20 @@
 export type LayerBlendMode = 'normal' | 'add' | 'multiply' | 'screen' | 'overlay' | 'difference';
 
+export const OUTPUT_BASE_WIDTH = 1280;
+export const OUTPUT_BASE_HEIGHT = 720;
+
+export interface OutputConfig {
+  enabled: boolean;
+  fullscreen: boolean;
+  scale: number;
+}
+
+export const DEFAULT_OUTPUT_CONFIG: OutputConfig = {
+  enabled: false,
+  fullscreen: false,
+  scale: 1
+};
+
 export interface LayerConfig {
   id: string;
   name: string;
@@ -46,6 +61,7 @@ export interface VisualSynthProject {
   name: string;
   createdAt: string;
   updatedAt: string;
+  output: OutputConfig;
   scenes: SceneConfig[];
   modMatrix: ModConnection[];
   midiMappings: MidiMapping[];
@@ -57,6 +73,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   name: 'Untitled VisualSynth Project',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  output: { ...DEFAULT_OUTPUT_CONFIG },
   scenes: [
     {
       id: 'scene-1',

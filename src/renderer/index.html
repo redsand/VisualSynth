@@ -60,6 +60,26 @@
             <div id="diag-gpu">GPU: WebGL2</div>
             <div id="diag-latency">Audio Latency: --</div>
           </div>
+          <div class="panel-block">
+            <h3>Output</h3>
+            <div class="output-row">
+              <button id="output-toggle">Open Output</button>
+              <label class="output-toggle">
+                <input type="checkbox" id="output-fullscreen" />
+                Fullscreen
+              </label>
+            </div>
+            <label class="output-label">
+              Resolution Scale
+              <select id="output-scale">
+                <option value="1">100%</option>
+                <option value="0.75">75%</option>
+                <option value="0.5">50%</option>
+                <option value="0.25">25%</option>
+              </select>
+            </label>
+            <div id="output-resolution" class="output-hint">Output: 1280 × 720</div>
+          </div>
         </section>
       </main>
 

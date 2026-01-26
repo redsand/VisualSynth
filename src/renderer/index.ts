@@ -1,5 +1,13 @@
-import { DEFAULT_PROJECT, VisualSynthProject } from '../shared/project';
+import {
+  DEFAULT_OUTPUT_CONFIG,
+  DEFAULT_PROJECT,
+  OUTPUT_BASE_HEIGHT,
+  OUTPUT_BASE_WIDTH,
+  OutputConfig,
+  VisualSynthProject
+} from '../shared/project';
 import { projectSchema } from '../shared/projectSchema';
+import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 
 declare global {
   interface Window {
@@ -11,6 +19,12 @@ declare global {
       listNodeMidi: () => Promise<{ index: number; name: string }[]>;
       openNodeMidi: (portIndex: number) => Promise<{ opened: boolean; error?: string }>;
       onNodeMidiMessage: (handler: (message: number[]) => void) => void;
+      getOutputConfig: () => Promise<OutputConfig>;
+      isOutputOpen: () => Promise<boolean>;
+      openOutput: (config: OutputConfig) => Promise<{ opened: boolean; config: OutputConfig }>;
+      closeOutput: () => Promise<{ closed: boolean; config: OutputConfig }>;
+      setOutputConfig: (config: OutputConfig) => Promise<OutputConfig>;
+      onOutputClosed: (handler: () => void) => void;
     };
   }
 }
@@ -28,6 +42,10 @@ const statusLabel = document.getElementById('status') as HTMLDivElement;
 const padGrid = document.getElementById('pad-grid') as HTMLDivElement;
 const advancedPanel = document.getElementById('advanced-panel') as HTMLDivElement;
 const toggleMode = document.getElementById('toggle-mode') as HTMLButtonElement;
+const outputToggleButton = document.getElementById('output-toggle') as HTMLButtonElement;
+const outputFullscreenToggle = document.getElementById('output-fullscreen') as HTMLInputElement;
+const outputScaleSelect = document.getElementById('output-scale') as HTMLSelectElement;
+const outputResolutionLabel = document.getElementById('output-resolution') as HTMLDivElement;
 
 const fpsLabel = document.getElementById('diag-fps') as HTMLDivElement;
 const latencyLabel = document.getElementById('diag-latency') as HTMLDivElement;
@@ -40,6 +58,10 @@ let midiAccess: MIDIAccess | null = null;
 let strobeIntensity = 0;
 let strobeDecay = 0.92;
 let isAdvanced = true;
+let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
+let outputOpen = false;
+const outputChannel = new BroadcastChannel('visualsynth-output');
+let lastOutputBroadcast = 0;
 
 const audioState = {
   rms: 0,
@@ -52,6 +74,52 @@ const padStates = Array.from({ length: 64 }, () => false);
 
 const setStatus = (message: string) => {
   statusLabel.textContent = message;
+};
+
+const normalizeOutputScale = (value: number) => Math.min(1, Math.max(0.25, value));
+
+const updateOutputResolution = () => {
+  const width = Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale);
+  const height = Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale);
+  outputResolutionLabel.textContent = `Output: ${width} × ${height}`;
+};
+
+const updateOutputUI = () => {
+  outputToggleButton.textContent = outputOpen ? 'Close Output' : 'Open Output';
+  outputFullscreenToggle.checked = outputConfig.fullscreen;
+  outputScaleSelect.value = String(outputConfig.scale);
+  updateOutputResolution();
+};
+
+const syncOutputConfig = async (next: Partial<OutputConfig>) => {
+  outputConfig = {
+    ...outputConfig,
+    ...next,
+    scale: normalizeOutputScale(next.scale ?? outputConfig.scale)
+  };
+  currentProject = { ...currentProject, output: outputConfig };
+  if (outputOpen) {
+    await window.visualSynth.setOutputConfig(outputConfig);
+  }
+  updateOutputUI();
+};
+
+const setOutputEnabled = async (enabled: boolean) => {
+  if (enabled === outputOpen) {
+    await syncOutputConfig({ enabled });
+    return;
+  }
+  if (enabled) {
+    const result = await window.visualSynth.openOutput({ ...outputConfig, enabled: true });
+    outputOpen = result.opened;
+    outputConfig = result.config;
+  } else {
+    await window.visualSynth.closeOutput();
+    outputOpen = false;
+    outputConfig = { ...outputConfig, enabled: false };
+  }
+  currentProject = { ...currentProject, output: outputConfig };
+  updateOutputUI();
 };
 
 const initPads = () => {
@@ -212,6 +280,7 @@ const serializeProject = () => {
   currentProject = {
     ...currentProject,
     updatedAt: now,
+    output: outputConfig,
     scenes: currentProject.scenes.map((scene) => ({
       ...scene,
       layers: scene.layers.map((layer) => {
@@ -228,7 +297,7 @@ const serializeProject = () => {
   return JSON.stringify(currentProject, null, 2);
 };
 
-const applyProject = (project: VisualSynthProject) => {
+const applyProject = async (project: VisualSynthProject) => {
   const parsed = projectSchema.safeParse(project);
   if (!parsed.success) {
     setStatus('Invalid project loaded.');
@@ -242,6 +311,9 @@ const applyProject = (project: VisualSynthProject) => {
     plasmaToggle.checked = plasma?.enabled ?? true;
     spectrumToggle.checked = spectrum?.enabled ?? true;
   }
+  outputConfig = { ...DEFAULT_OUTPUT_CONFIG, ...currentProject.output };
+  await syncOutputConfig(outputConfig);
+  await setOutputEnabled(outputConfig.enabled);
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
@@ -253,7 +325,7 @@ saveButton.addEventListener('click', async () => {
 loadButton.addEventListener('click', async () => {
   const result = await window.visualSynth.openProject();
   if (!result.canceled && result.project) {
-    applyProject(result.project);
+    await applyProject(result.project);
   }
 });
 
@@ -261,7 +333,7 @@ applyPresetButton.addEventListener('click', async () => {
   const presetPath = presetSelect.value;
   const result = await window.visualSynth.loadPreset(presetPath);
   if (result.project) {
-    applyProject(result.project);
+    await applyProject(result.project);
   }
 });
 
@@ -287,6 +359,18 @@ toggleMode.addEventListener('click', () => {
   toggleMode.textContent = isAdvanced ? 'Advanced' : 'Simple';
 });
 
+outputToggleButton.addEventListener('click', async () => {
+  await setOutputEnabled(!outputOpen);
+});
+
+outputFullscreenToggle.addEventListener('change', async () => {
+  await syncOutputConfig({ fullscreen: outputFullscreenToggle.checked });
+});
+
+outputScaleSelect.addEventListener('change', async () => {
+  await syncOutputConfig({ scale: Number(outputScaleSelect.value) });
+});
+
 const initPresets = async () => {
   const presets = await window.visualSynth.listPresets();
   presetSelect.innerHTML = '';
@@ -295,6 +379,18 @@ const initPresets = async () => {
     option.value = preset.path;
     option.textContent = preset.name;
     presetSelect.appendChild(option);
+  });
+};
+
+const initOutputConfig = async () => {
+  const savedConfig = await window.visualSynth.getOutputConfig();
+  outputOpen = await window.visualSynth.isOutputOpen();
+  await syncOutputConfig({ ...DEFAULT_OUTPUT_CONFIG, ...savedConfig });
+  window.visualSynth.onOutputClosed(() => {
+    outputOpen = false;
+    outputConfig = { ...outputConfig, enabled: false };
+    updateOutputUI();
+    setStatus('Output window closed.');
   });
 };
 
@@ -321,120 +417,13 @@ const initShortcuts = () => {
 };
 
 const canvas = document.getElementById('gl-canvas') as HTMLCanvasElement;
-const gl = canvas.getContext('webgl2');
-
-if (!gl) {
+let renderer: ReturnType<typeof createGLRenderer>;
+try {
+  renderer = createGLRenderer(canvas);
+} catch (error) {
   setStatus('WebGL2 not supported.');
-  throw new Error('WebGL2 required');
+  throw error;
 }
-
-const vertexShaderSrc = `#version 300 es
-in vec2 position;
-out vec2 vUv;
-void main() {
-  vUv = position * 0.5 + 0.5;
-  gl_Position = vec4(position, 0.0, 1.0);
-}`;
-
-const fragmentShaderSrc = `#version 300 es
-precision highp float;
-
-uniform float uTime;
-uniform float uRms;
-uniform float uPeak;
-uniform float uStrobe;
-uniform float uPlasmaEnabled;
-uniform float uSpectrumEnabled;
-uniform float uSpectrum[64];
-
-in vec2 vUv;
-out vec4 outColor;
-
-float plasma(vec2 uv, float t) {
-  float v = sin(uv.x * 8.0 + t) + sin(uv.y * 6.0 - t * 1.1);
-  v += sin((uv.x + uv.y) * 4.0 + t * 0.7);
-  return v * 0.5 + 0.5;
-}
-
-void main() {
-  vec2 uv = vUv;
-  vec3 color = vec3(0.02, 0.04, 0.08);
-  if (uPlasmaEnabled > 0.5) {
-    float p = plasma(uv, uTime);
-    color += vec3(0.1 + p * 0.4, 0.2 + p * 0.5, 0.3 + p * 0.6);
-  }
-
-  if (uSpectrumEnabled > 0.5) {
-    float band = floor(uv.x * 64.0);
-    int index = int(clamp(band, 0.0, 63.0));
-    float amp = uSpectrum[index];
-    float bar = step(uv.y, amp);
-    color += vec3(0.1, 0.6, 1.0) * bar * 0.8;
-  }
-
-  float flash = uStrobe * 1.5;
-  color += vec3(flash);
-  color += vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
-
-  outColor = vec4(color, 1.0);
-}`;
-
-const compileShader = (type: number, source: string) => {
-  const shader = gl.createShader(type);
-  if (!shader) throw new Error('Shader creation failed');
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(gl.getShaderInfoLog(shader) || 'Shader compile error');
-  }
-  return shader;
-};
-
-const vertexShader = compileShader(gl.VERTEX_SHADER, vertexShaderSrc);
-const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentShaderSrc);
-
-const program = gl.createProgram();
-if (!program) throw new Error('Program creation failed');
-
-gl.attachShader(program, vertexShader);
-
-gl.attachShader(program, fragmentShader);
-
-gl.linkProgram(program);
-
-if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-  throw new Error(gl.getProgramInfoLog(program) || 'Program link error');
-}
-
-gl.useProgram(program);
-
-const positionBuffer = gl.createBuffer();
-if (!positionBuffer) throw new Error('Buffer creation failed');
-
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-const vertices = new Float32Array([
-  -1, -1,
-  1, -1,
-  -1, 1,
-  -1, 1,
-  1, -1,
-  1, 1
-]);
-
-gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-const positionLocation = gl.getAttribLocation(program, 'position');
-
-gl.enableVertexAttribArray(positionLocation);
-
-gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
-const timeLocation = gl.getUniformLocation(program, 'uTime');
-const rmsLocation = gl.getUniformLocation(program, 'uRms');
-const peakLocation = gl.getUniformLocation(program, 'uPeak');
-const strobeLocation = gl.getUniformLocation(program, 'uStrobe');
-const plasmaLocation = gl.getUniformLocation(program, 'uPlasmaEnabled');
-const spectrumLocation = gl.getUniformLocation(program, 'uSpectrumEnabled');
-const spectrumArrayLocation = gl.getUniformLocation(program, 'uSpectrum');
 
 let lastTime = performance.now();
 let fpsAccumulator = 0;
@@ -455,22 +444,29 @@ const render = (time: number) => {
   updateAudioAnalysis();
   strobeIntensity *= strobeDecay;
 
-  gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.clearColor(0.02, 0.03, 0.06, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  resizeCanvasToDisplaySize(canvas);
+  const renderState: RenderState = {
+    timeMs: time,
+    rms: audioState.rms,
+    peak: audioState.peak,
+    strobe: strobeIntensity,
+    plasmaEnabled: plasmaToggle.checked,
+    spectrumEnabled: spectrumToggle.checked,
+    spectrum: audioState.spectrum
+  };
+  renderer.render(renderState);
 
-  gl.useProgram(program);
-  gl.uniform1f(timeLocation, time * 0.001);
-  gl.uniform1f(rmsLocation, audioState.rms);
-  gl.uniform1f(peakLocation, audioState.peak);
-  gl.uniform1f(strobeLocation, strobeIntensity);
-  gl.uniform1f(plasmaLocation, plasmaToggle.checked ? 1 : 0);
-  gl.uniform1f(spectrumLocation, spectrumToggle.checked ? 1 : 0);
-  if (spectrumArrayLocation) {
-    gl.uniform1fv(spectrumArrayLocation, audioState.spectrum);
+  if (outputOpen && time - lastOutputBroadcast > 33) {
+    lastOutputBroadcast = time;
+    outputChannel.postMessage({
+      rms: renderState.rms,
+      peak: renderState.peak,
+      strobe: renderState.strobe,
+      plasmaEnabled: renderState.plasmaEnabled,
+      spectrumEnabled: renderState.spectrumEnabled,
+      spectrum: renderState.spectrum.slice()
+    });
   }
-
-  gl.drawArrays(gl.TRIANGLES, 0, 6);
 
   requestAnimationFrame(render);
 };
@@ -479,6 +475,7 @@ const init = async () => {
   initPads();
   initShortcuts();
   await initPresets();
+  await initOutputConfig();
   await initAudioDevices();
   await setupAudio();
   await setupMIDI();

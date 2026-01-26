@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_OUTPUT_CONFIG } from './project';
 
 const transformSchema = z.object({
   x: z.number(),
@@ -43,11 +44,18 @@ const sceneSchema = z.object({
   layers: z.array(layerSchema)
 });
 
+const outputConfigSchema = z.object({
+  enabled: z.boolean(),
+  fullscreen: z.boolean(),
+  scale: z.number().min(0.25).max(1)
+});
+
 export const projectSchema = z.object({
   version: z.number(),
   name: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
   scenes: z.array(sceneSchema),
   modMatrix: z.array(modConnectionSchema),
   midiMappings: z.array(midiMappingSchema),
