@@ -23,6 +23,10 @@ const state: RenderState = {
   paletteShift: 0,
   plasmaOpacity: 1,
   spectrumOpacity: 1,
+  plasmaAssetBlendMode: 3,
+  plasmaAssetAudioReact: 0.6,
+  spectrumAssetBlendMode: 1,
+  spectrumAssetAudioReact: 0.8,
   effectsEnabled: true,
   bloom: 0.2,
   blur: 0,
@@ -59,6 +63,10 @@ channel.onmessage = (event) => {
   if (typeof data.paletteShift === 'number') state.paletteShift = data.paletteShift;
   if (typeof data.plasmaOpacity === 'number') state.plasmaOpacity = data.plasmaOpacity;
   if (typeof data.spectrumOpacity === 'number') state.spectrumOpacity = data.spectrumOpacity;
+  if (typeof data.plasmaAssetBlendMode === 'number') state.plasmaAssetBlendMode = data.plasmaAssetBlendMode;
+  if (typeof data.plasmaAssetAudioReact === 'number') state.plasmaAssetAudioReact = data.plasmaAssetAudioReact;
+  if (typeof data.spectrumAssetBlendMode === 'number') state.spectrumAssetBlendMode = data.spectrumAssetBlendMode;
+  if (typeof data.spectrumAssetAudioReact === 'number') state.spectrumAssetAudioReact = data.spectrumAssetAudioReact;
   if (typeof data.effectsEnabled === 'boolean') state.effectsEnabled = data.effectsEnabled;
   if (typeof data.bloom === 'number') state.bloom = data.bloom;
   if (typeof data.blur === 'number') state.blur = data.blur;

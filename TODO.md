@@ -51,13 +51,16 @@ This document tracks the feature request list and upcoming milestones.
 - [x] Recording via MediaRecorder and optional ffmpeg integration.
 - [x] Screenshot export and timeline markers.
 
-## Input & Content Sources (Post-Milestone 4)
-- [ ] Image ingestion pipeline (import PNG/JPG/WebP, textures, mipmaps, color space handling).
-  - [ ] Capture texture color space metadata alongside dimensions.
-  - [ ] Surface texture sampling/mipmap toggles in the UI.
-- [ ] Video ingestion pipeline (file playback, frame-accurate seek, looping, reverse, blend modes).
-  - [ ] Store playback preferences (loop, reverse, playback rate, frame blend) with each asset.
-  - [ ] Capture duration/metadata for accurate frame-sync tooling.
+- ## Input & Content Sources (Post-Milestone 4)
+- [x] Image ingestion pipeline (import PNG/JPG/WebP, textures, mipmaps, color space handling).
+  - [x] Capture texture color space metadata alongside dimensions.
+  - [x] Surface texture sampling/mipmap toggles in the UI.
+- [x] Video ingestion pipeline (file playback, frame-accurate seek, looping, reverse, blend modes).
+  - [x] Store playback preferences (loop, reverse, playback rate, frame blend) with each asset.
+  - [x] Capture duration/metadata for accurate frame-sync tooling.
+  - [x] Asset blend modes (Normal, Add, Multiply, Screen, Overlay, Difference) for layer composition.
+  - [x] Audio reactivity for assets (scale/brightness modulated by RMS, peak, and spectrum bands).
+  - [x] UV effects applied to assets (kaleidoscope, feedback transforms match procedural layers).
 - [ ] Live capture support (webcam/capture card + NDI/Spout/Syphon + screen capture).
 - [ ] Text input layer (SDF typography, captions, lyrics, dynamic text overlays).
 - [ ] Asset pipeline enhancements (hashing, caching, thumbnails, recovery for missing assets).

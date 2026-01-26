@@ -15,6 +15,10 @@ export interface RenderState {
   paletteShift: number;
   plasmaOpacity: number;
   spectrumOpacity: number;
+  plasmaAssetBlendMode: number;
+  plasmaAssetAudioReact: number;
+  spectrumAssetBlendMode: number;
+  spectrumAssetAudioReact: number;
   effectsEnabled: boolean;
   bloom: number;
   blur: number;
@@ -102,11 +106,57 @@ uniform float uSdfRotation;
 uniform float uSdfFill;
 uniform float uPlasmaAssetEnabled;
 uniform sampler2D uPlasmaAsset;
+uniform float uPlasmaAssetBlend;
 uniform float uSpectrumAssetEnabled;
 uniform sampler2D uSpectrumAsset;
+uniform float uSpectrumAssetBlend;
+uniform float uPlasmaAssetAudioReact;
+uniform float uSpectrumAssetAudioReact;
 
 in vec2 vUv;
 out vec4 outColor;
+
+vec3 blendAdd(vec3 base, vec3 blend) {
+  return min(base + blend, 1.0);
+}
+
+vec3 blendMultiply(vec3 base, vec3 blend) {
+  return base * blend;
+}
+
+vec3 blendScreen(vec3 base, vec3 blend) {
+  return 1.0 - (1.0 - base) * (1.0 - blend);
+}
+
+vec3 blendOverlay(vec3 base, vec3 blend) {
+  return mix(
+    2.0 * base * blend,
+    1.0 - 2.0 * (1.0 - base) * (1.0 - blend),
+    step(0.5, base)
+  );
+}
+
+vec3 blendDifference(vec3 base, vec3 blend) {
+  return abs(base - blend);
+}
+
+vec3 applyBlendMode(vec3 base, vec3 blend, float mode, float opacity) {
+  vec3 result;
+  if (mode < 0.5) {
+    result = blend;
+  } else if (mode < 1.5) {
+    result = blendAdd(base, blend);
+  } else if (mode < 2.5) {
+    result = blendMultiply(base, blend);
+  } else if (mode < 3.5) {
+    result = blendScreen(base, blend);
+  } else if (mode < 4.5) {
+    result = blendOverlay(base, blend);
+  } else {
+    result = blendDifference(base, blend);
+  }
+  return mix(base, result, opacity);
+}
 
 float plasma(vec2 uv, float t) {
   float v = sin(uv.x * 8.0 + t) + sin(uv.y * 6.0 - t * 1.1);
@@ -215,8 +265,14 @@ void main() {
   }
 
   if (uPlasmaAssetEnabled > 0.5) {
-    vec3 assetColor = texture(uPlasmaAsset, uv).rgb;
-    color = mix(color, assetColor, clamp(uPlasmaOpacity, 0.0, 1.0));
+    vec2 assetUv = effectUv;
+    float audioMod = 1.0 + (uRms * 0.3 + uPeak * 0.5) * uPlasmaAssetAudioReact;
+    vec2 centeredAssetUv = (assetUv - 0.5) / audioMod + 0.5;
+    centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
+    vec4 assetSample = texture(uPlasmaAsset, centeredAssetUv);
+    vec3 assetColor = assetSample.rgb * (0.85 + audioMod * 0.15);
+    float alpha = assetSample.a * clamp(uPlasmaOpacity, 0.0, 1.0);
+    color = applyBlendMode(color, assetColor, uPlasmaAssetBlend, alpha);
   }
 
   if (uSpectrumEnabled > 0.5) {
@@ -233,8 +289,17 @@ void main() {
   }
 
   if (uSpectrumAssetEnabled > 0.5) {
-    vec3 assetColor = texture(uSpectrumAsset, uv).rgb;
-    color = mix(color, assetColor, clamp(uSpectrumOpacity * 0.8, 0.0, 1.0));
+    vec2 assetUv = effectUv;
+    float band = floor(assetUv.x * 64.0);
+    int specIndex = int(clamp(band, 0.0, 63.0));
+    float specVal = uSpectrum[specIndex];
+    float audioMod = 1.0 + (specVal * 0.4 + uRms * 0.3) * uSpectrumAssetAudioReact;
+    vec2 centeredAssetUv = (assetUv - 0.5) / audioMod + 0.5;
+    centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
+    vec4 assetSample = texture(uSpectrumAsset, centeredAssetUv);
+    vec3 assetColor = assetSample.rgb * (0.8 + audioMod * 0.2);
+    float alpha = assetSample.a * clamp(uSpectrumOpacity, 0.0, 1.0);
+    color = applyBlendMode(color, assetColor, uSpectrumAssetBlend, alpha);
   }
 
   if (uParticlesEnabled > 0.5) {
@@ -360,8 +425,12 @@ void main() {
   const trailSpectrumLocation = gl.getUniformLocation(program, 'uTrailSpectrum');
   const plasmaAssetEnabledLocation = gl.getUniformLocation(program, 'uPlasmaAssetEnabled');
   const plasmaAssetSamplerLocation = gl.getUniformLocation(program, 'uPlasmaAsset');
+  const plasmaAssetBlendLocation = gl.getUniformLocation(program, 'uPlasmaAssetBlend');
+  const plasmaAssetAudioReactLocation = gl.getUniformLocation(program, 'uPlasmaAssetAudioReact');
   const spectrumAssetEnabledLocation = gl.getUniformLocation(program, 'uSpectrumAssetEnabled');
   const spectrumAssetSamplerLocation = gl.getUniformLocation(program, 'uSpectrumAsset');
+  const spectrumAssetBlendLocation = gl.getUniformLocation(program, 'uSpectrumAssetBlend');
+  const spectrumAssetAudioReactLocation = gl.getUniformLocation(program, 'uSpectrumAssetAudioReact');
   const particlesEnabledLocation = gl.getUniformLocation(program, 'uParticlesEnabled');
   const particleDensityLocation = gl.getUniformLocation(program, 'uParticleDensity');
   const particleSpeedLocation = gl.getUniformLocation(program, 'uParticleSpeed');
@@ -387,6 +456,9 @@ void main() {
     video?: HTMLVideoElement;
     width?: number;
     height?: number;
+    options?: AssetItem['options'];
+    frameBlendCanvas?: HTMLCanvasElement;
+    frameBlendBackCanvas?: HTMLCanvasElement;
   }
 
   const assetCache = new Map<string, AssetCacheEntry>();
@@ -485,7 +557,21 @@ void main() {
         video.autoplay = true;
         video.playbackRate = asset.options?.playbackRate ?? 1;
       }
+      const applyPlaybackDirection = () => {
+        const baseRate = asset.options?.playbackRate ?? 1;
+        if (asset.options?.reverse) {
+          const rate = Math.max(0.01, Math.abs(baseRate));
+          video.playbackRate = -rate;
+          if (video.duration) {
+            video.currentTime = video.duration;
+          }
+        } else {
+          video.playbackRate = baseRate;
+        }
+      };
+
       const finalize = () => {
+        applyPlaybackDirection();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
@@ -495,7 +581,16 @@ void main() {
           texture,
           video,
           width: video.videoWidth || asset.width,
-          height: video.videoHeight || asset.height
+          height: video.videoHeight || asset.height,
+          options: asset.options
+        });
+      };
+      const ensureReverseLoop = () => {
+        if (!asset.options?.reverse) return;
+        video.addEventListener('ended', () => {
+          video.currentTime = video.duration || 0;
+          video.playbackRate = -Math.abs(asset.options?.playbackRate ?? 1);
+          void video.play().catch(() => undefined);
         });
       };
       const scheduleFinalize = () => {
@@ -521,12 +616,19 @@ void main() {
           return;
         }
       }
+      ensureReverseLoop();
       scheduleFinalize();
     });
 
+  const assetOptionsHash = (options?: AssetItem['options']) => JSON.stringify(options ?? {});
+
   const ensureAssetEntry = (asset: AssetItem, videoOverride?: HTMLVideoElement) => {
     if (assetCache.has(asset.id)) {
-      return Promise.resolve(assetCache.get(asset.id)!);
+      const cached = assetCache.get(asset.id)!;
+      if (assetOptionsHash(cached.options) === assetOptionsHash(asset.options)) {
+        return Promise.resolve(cached);
+      }
+      assetCache.delete(asset.id);
     }
     if (pendingAssetLoads.has(asset.id)) {
       return pendingAssetLoads.get(asset.id)!;
@@ -543,6 +645,50 @@ void main() {
     return loader;
   };
 
+  const ensureFrameBlendCanvases = (entry: AssetCacheEntry, width: number, height: number) => {
+    const make = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      return canvas;
+    };
+    if (!entry.frameBlendCanvas) {
+      entry.frameBlendCanvas = make();
+    }
+    if (!entry.frameBlendBackCanvas) {
+      entry.frameBlendBackCanvas = make();
+    }
+    [entry.frameBlendCanvas, entry.frameBlendBackCanvas].forEach((canvas) => {
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+    });
+  };
+
+  const blendVideoTexture = (entry: AssetCacheEntry, width: number, height: number, blend: number) => {
+    if (!entry.video || blend <= 0) return null;
+    ensureFrameBlendCanvases(entry, width, height);
+    const target = entry.frameBlendCanvas!;
+    const prev = entry.frameBlendBackCanvas!;
+    const ctx = target.getContext('2d');
+    if (!ctx) return null;
+    ctx.clearRect(0, 0, width, height);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1 - blend;
+    ctx.drawImage(entry.video, 0, 0, width, height);
+    ctx.globalAlpha = blend;
+    ctx.drawImage(prev, 0, 0, width, height);
+    [entry.frameBlendCanvas, entry.frameBlendBackCanvas] = [prev, target];
+    return target;
+  };
+
+  const getVideoDimensions = (entry: AssetCacheEntry) => {
+    const width = entry.video?.videoWidth || entry.width || canvas.width;
+    const height = entry.video?.videoHeight || entry.height || canvas.height;
+    return { width, height };
+  };
+
   const updateVideoTextures = () => {
     (Object.keys(ASSET_LAYER_UNITS) as AssetLayerId[]).forEach((layerId) => {
       const entry = layerBindings[layerId];
@@ -551,7 +697,13 @@ void main() {
         gl.activeTexture(gl.TEXTURE0 + unitIndex);
         gl.bindTexture(gl.TEXTURE_2D, entry.texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.video);
+        const { width, height } = getVideoDimensions(entry);
+        const blend = entry.options?.frameBlend ?? 0;
+        const blendedSource = blendVideoTexture(entry, width, height, blend);
+        const source = blendedSource ?? entry.video;
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+        entry.width = width;
+        entry.height = height;
       }
     });
   };
@@ -631,7 +783,11 @@ void main() {
     if (sdfRotationLocation) gl.uniform1f(sdfRotationLocation, state.sdfRotation);
     if (sdfFillLocation) gl.uniform1f(sdfFillLocation, state.sdfFill);
     applyLayerBinding('layer-plasma', plasmaAssetEnabledLocation, plasmaAssetSamplerLocation);
+    if (plasmaAssetBlendLocation) gl.uniform1f(plasmaAssetBlendLocation, state.plasmaAssetBlendMode);
+    if (plasmaAssetAudioReactLocation) gl.uniform1f(plasmaAssetAudioReactLocation, state.plasmaAssetAudioReact);
     applyLayerBinding('layer-spectrum', spectrumAssetEnabledLocation, spectrumAssetSamplerLocation);
+    if (spectrumAssetBlendLocation) gl.uniform1f(spectrumAssetBlendLocation, state.spectrumAssetBlendMode);
+    if (spectrumAssetAudioReactLocation) gl.uniform1f(spectrumAssetAudioReactLocation, state.spectrumAssetAudioReact);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   };

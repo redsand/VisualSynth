@@ -488,6 +488,46 @@ const renderLayerList = () => {
     const assetControl = document.createElement('div');
     assetControl.className = 'layer-asset-control';
     assetControl.appendChild(buildLayerAssetSelect(layer));
+
+    if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum') {
+      const layerId = layer.id as AssetLayerId;
+
+      const blendLabel = document.createElement('label');
+      blendLabel.textContent = 'Blend:';
+      blendLabel.className = 'asset-control-label';
+      const blendSelect = document.createElement('select');
+      blendSelect.className = 'asset-blend-select';
+      const blendModes = ['Normal', 'Add', 'Multiply', 'Screen', 'Overlay', 'Difference'];
+      blendModes.forEach((mode, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = mode;
+        blendSelect.appendChild(opt);
+      });
+      blendSelect.value = String(assetLayerBlendModes[layerId]);
+      blendSelect.addEventListener('change', () => {
+        assetLayerBlendModes[layerId] = Number(blendSelect.value);
+      });
+      assetControl.appendChild(blendLabel);
+      assetControl.appendChild(blendSelect);
+
+      const reactLabel = document.createElement('label');
+      reactLabel.textContent = 'Audio:';
+      reactLabel.className = 'asset-control-label';
+      const reactSlider = document.createElement('input');
+      reactSlider.type = 'range';
+      reactSlider.min = '0';
+      reactSlider.max = '1';
+      reactSlider.step = '0.05';
+      reactSlider.value = String(assetLayerAudioReact[layerId]);
+      reactSlider.className = 'asset-audio-react';
+      reactSlider.addEventListener('input', () => {
+        assetLayerAudioReact[layerId] = Number(reactSlider.value);
+      });
+      assetControl.appendChild(reactLabel);
+      assetControl.appendChild(reactSlider);
+    }
+
     row.appendChild(assetControl);
     layerList.appendChild(row);
     if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
@@ -872,6 +912,7 @@ const updateAssetOptions = (assetId: string, patch: Partial<AssetItem['options']
       ...patch
     }
   }));
+  refreshLayersForAsset(assetId);
 };
 
 const createMetadataPanel = (asset: AssetItem) => {
@@ -1051,13 +1092,26 @@ const renderAssets = () => {
 const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum'] as const;
 type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
 
+const assetLayerBlendModes: Record<AssetLayerId, number> = {
+  'layer-plasma': 3,
+  'layer-spectrum': 1
+};
+const assetLayerAudioReact: Record<AssetLayerId, number> = {
+  'layer-plasma': 0.6,
+  'layer-spectrum': 0.8
+};
+const getAssetBlendModeValue = (layerId: AssetLayerId): number =>
+  assetLayerBlendModes[layerId] ?? 0;
+const getAssetAudioReactValue = (layerId: AssetLayerId): number =>
+  assetLayerAudioReact[layerId] ?? 0.5;
+
 const formatAssetLabel = (asset: AssetItem) => `${asset.name} (${asset.kind})`;
 
 const isAssetLayerId = (value: string): value is AssetLayerId =>
   (ASSET_LAYER_IDS as readonly string[]).includes(value);
 
-const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null) => {
-  if (layer.assetId === assetId) return;
+const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
+  if (!forceRefresh && layer.assetId === assetId) return;
   layer.assetId = assetId ?? undefined;
   const target = assetId ? currentProject.assets.find((item) => item.id === assetId) ?? null : null;
   if (!isAssetLayerId(layer.id)) {
@@ -1079,6 +1133,16 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null) =>
 
 const syncLayerAsset = (layer: LayerConfig) => {
   void assignAssetToLayer(layer, layer.assetId ?? null);
+};
+
+const refreshLayersForAsset = (assetId: string) => {
+  currentProject.scenes.forEach((scene) => {
+    scene.layers.forEach((layer) => {
+      if (layer.assetId === assetId) {
+        void assignAssetToLayer(layer, assetId, true);
+      }
+    });
+  });
 };
 
 const buildLayerAssetSelect = (layer: LayerConfig) => {
@@ -3205,6 +3269,10 @@ const render = (time: number) => {
   const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', spectrumOpacity);
   const plasmaEnabled = plasmaToggle?.checked ?? true;
   const spectrumEnabled = spectrumToggle?.checked ?? true;
+  const plasmaAssetBlendMode = getAssetBlendModeValue('layer-plasma');
+  const plasmaAssetAudioReact = getAssetAudioReactValue('layer-plasma');
+  const spectrumAssetBlendMode = getAssetBlendModeValue('layer-spectrum');
+  const spectrumAssetAudioReact = getAssetAudioReactValue('layer-spectrum');
   const renderState: RenderState = {
     timeMs: time,
     rms: audioState.rms,
@@ -3218,6 +3286,10 @@ const render = (time: number) => {
     paletteShift: moddedStyle.paletteShift,
     plasmaOpacity: moddedPlasmaOpacity,
     spectrumOpacity: moddedSpectrumOpacity,
+    plasmaAssetBlendMode: plasmaAssetBlendMode,
+    plasmaAssetAudioReact: plasmaAssetAudioReact,
+    spectrumAssetBlendMode: spectrumAssetBlendMode,
+    spectrumAssetAudioReact: spectrumAssetAudioReact,
     effectsEnabled: effects.enabled,
     bloom: moddedEffects.bloom,
     blur: moddedEffects.blur,
@@ -3256,6 +3328,10 @@ const render = (time: number) => {
       paletteShift: renderState.paletteShift,
       plasmaOpacity: renderState.plasmaOpacity,
       spectrumOpacity: renderState.spectrumOpacity,
+      plasmaAssetBlendMode: renderState.plasmaAssetBlendMode,
+      plasmaAssetAudioReact: renderState.plasmaAssetAudioReact,
+      spectrumAssetBlendMode: renderState.spectrumAssetBlendMode,
+      spectrumAssetAudioReact: renderState.spectrumAssetAudioReact,
       effectsEnabled: renderState.effectsEnabled,
       bloom: renderState.bloom,
       blur: renderState.blur,
