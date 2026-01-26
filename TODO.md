@@ -51,6 +51,60 @@ This document tracks the feature request list and upcoming milestones.
 - [x] Recording via MediaRecorder and optional ffmpeg integration.
 - [x] Screenshot export and timeline markers.
 
+## Input & Content Sources (Post-Milestone 4)
+- [ ] Image ingestion pipeline (import PNG/JPG/WebP, textures, mipmaps, color space handling).
+  - [ ] Capture texture color space metadata alongside dimensions.
+  - [ ] Surface texture sampling/mipmap toggles in the UI.
+- [ ] Video ingestion pipeline (file playback, frame-accurate seek, looping, reverse, blend modes).
+  - [ ] Store playback preferences (loop, reverse, playback rate, frame blend) with each asset.
+  - [ ] Capture duration/metadata for accurate frame-sync tooling.
+- [ ] Live capture support (webcam/capture card + NDI/Spout/Syphon + screen capture).
+- [ ] Text input layer (SDF typography, captions, lyrics, dynamic text overlays).
+- [ ] Asset pipeline enhancements (hashing, caching, thumbnails, recovery for missing assets).
+- [ ] Asset manager UI (thumbnails/previews, tagging/metadata editing, live-source handling, ingest state control before output window opens).
+- [ ] Bind cached textures/videos to the renderer (upload textures, bind video frames, link layer selectors) so the ingestion pipeline feeds visuals.
+
+## Networking & Clock Systems
+- [ ] Integrate a Pro DJ Link listener (using `prolink-connect`) so the engine can surface Pioneer network state.
+- [ ] Expose a BPM detection interface that can read via Pioneer protocol, via internal audio analysis, and via user-configurable presets (ranges such as 40-120, 80-150, 100-200).
+- [ ] Provide a stub network service so future DJ-link data sources can be replayed or simulated.
+- [ ] Replace the fast/simple FFT mode with a more stable tempo analyzer (onset smoothing, confidence gating, hysteresis) that can act as a fallback audio clock source.
+
+## Render Graph & FX System
+- [ ] Define and document a strict Visual Node API for Generators/Effects/Compositors (parameter schema, modulation targets, deterministic defaults, GPU cost tiers, test hooks).
+- [ ] Build the FX catalog standard so every effect declares inputs/outputs, default values, modulation targets, GPU cost tier, and verification guidance.
+- [ ] Implement a generator -> FX -> compositor node model with sends/returns, multi-output routing, and feedback taps.
+- [ ] Track resource lifecycle requirements (FBO/texture pooling, resolution negotiation per node, shared texture reuse).
+
+## Timing, Automation & Modulation
+- [ ] Expand the transport to cover play/stop, BPM, time signature, and shared beat phase/quantization across scenes.
+- [ ] Add beat grid, tap-tempo, quantized scene clips, and lightweight automation lanes that can record+play back parameter moves.
+- [ ] Strengthen the modulation source list: onset detection, band-limited envelopes (sub/low/mid/high), spectral centroid/flux/rolloff, pitch estimates, peak hold/gating/hysteresis utilities.
+- [ ] Ensure BPM ranges sourced from networking or analysis can be smoothed before driving FX.
+
+## Visual Identity & Color Pipeline
+- [ ] Formalize color management (sRGB vs linear assets, gamma-correct blending, tone mapping controls).
+- [ ] Add LUT (3D LUT) support plus palette/ramp presets with locking options and consistent dithering/film-grain helpers.
+- [ ] Create high-level palette/system presets that can be applied per scene or master layer for a professional finish.
+
+## Performance & Safety Engineering
+- [ ] Build guardrails such as FBO/texture pooling, dynamic resolution negotiation, and quality scaling (sample counts, particle detail) when budgets are exceeded.
+- [ ] Introduce GPU timing instrumentation (EXT_disjoint_timer_query or equivalent) and shader compilation strategies (warm-up, async compile, fallback shaders).
+- [ ] Surface a performance dashboard (watchdog) that triggers adjustments and logs metrics.
+
+## Testing & Validation
+- [ ] Author deterministic render modes (fixed seed, fixed timestep) for golden-image captures and regression tests.
+- [ ] Create shader validation checks (compile-time + uniform binding) and schema validators for project files.
+- [ ] Establish pixel/pipeline regression harnesses (golden image diff with tolerance, buffer snapshot comparison).
+
+## Plugin Toolkit & Generative Content
+- [ ] Define a versioned plugin API with capability flags, sandbox boundaries, crash isolation, and asset access rules.
+- [ ] Scope generative content beyond shaders (procedural noise, fractals, SDF worlds, particles, typographic generators, optional ML-assisted modules like optical flow/style transfer if realtime-safe).
+- [ ] Provide seeded randomness controls so saved scenes can replay deterministically or mutate from the same seed.
+
+## Templates, Presets & Libraries
+- [ ] Expand generator/effect libraries with many templates (neuro bass tunnel, liquid chrome field, glitch cathedral, data storm, psychedelic mandala, cinematic slow-burn, aggressive DnB/dubstep mode, ambient generative art).
+- [ ] Ship signature presets per FX category and curated packs inspired by Redsand Networks/Note Sniffer DNA.
 ## Milestone 5: Collaboration & Pro Toolkit
 - [x] Project diff/merge tool for teams.
 - [x] Asset manager for custom shaders and textures.

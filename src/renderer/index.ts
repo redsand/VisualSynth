@@ -4,7 +4,10 @@ import {
   OUTPUT_BASE_HEIGHT,
   OUTPUT_BASE_WIDTH,
   OutputConfig,
-  VisualSynthProject
+  VisualSynthProject,
+  LayerConfig,
+  AssetItem,
+  AssetColorSpace
 } from '../shared/project';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
@@ -17,6 +20,9 @@ import { reorderLayers } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
 import { pluginManifestSchema } from '../shared/pluginSchema';
 import { mergeProjectSections, MergeOptions } from '../shared/projectMerge';
+import { toFileUrl } from '../shared/fileUrl';
+import { createAssetItem, normalizeAssetTags } from '../shared/assets';
+import type { AssetImportResult } from '../shared/assets';
 
 declare global {
   interface Window {
@@ -158,8 +164,43 @@ const markerAddButton = document.getElementById('marker-add') as HTMLButtonEleme
 const markerList = document.getElementById('marker-list') as HTMLDivElement;
 const assetImportButton = document.getElementById('asset-import') as HTMLButtonElement;
 const assetKindSelect = document.getElementById('asset-kind') as HTMLSelectElement;
+const assetColorSpaceSelect = document.getElementById('asset-color-space') as HTMLSelectElement | null;
+const assetTextureSamplingSelect = document.getElementById('asset-texture-sampling') as HTMLSelectElement | null;
+const assetGenerateMipmapsToggle = document.getElementById('asset-generate-mipmaps') as HTMLInputElement | null;
+const assetVideoLoopToggle = document.getElementById('asset-video-loop') as HTMLInputElement | null;
+const assetVideoReverseToggle = document.getElementById('asset-video-reverse') as HTMLInputElement | null;
+const assetVideoRateInput = document.getElementById('asset-video-rate') as HTMLInputElement | null;
+const assetVideoFrameBlendInput = document.getElementById('asset-video-frameblend') as HTMLInputElement | null;
+const assetImportVideoButton = document.getElementById('asset-import-video') as HTMLButtonElement | null;
+const assetLiveWebcamButton = document.getElementById('asset-live-webcam') as HTMLButtonElement | null;
+const assetLiveScreenButton = document.getElementById('asset-live-screen') as HTMLButtonElement | null;
 const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement;
 const assetList = document.getElementById('asset-list') as HTMLDivElement;
+
+const livePreviewElements = new Map<string, HTMLVideoElement>();
+const liveStreams = new Map<string, MediaStream>();
+
+const stopLiveAssetStream = (assetId: string) => {
+  const stream = liveStreams.get(assetId);
+  if (stream) {
+    stream.getTracks().forEach((track) => track.stop());
+    liveStreams.delete(assetId);
+  }
+  const video = livePreviewElements.get(assetId);
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    livePreviewElements.delete(assetId);
+  }
+};
+
+const patchAsset = (assetId: string, updater: (asset: AssetItem) => AssetItem) => {
+  currentProject.assets = currentProject.assets.map((asset) =>
+    asset.id === assetId ? updater(asset) : asset
+  );
+  renderAssets();
+  renderLayerList();
+};
 const pluginImportButton = document.getElementById('plugin-import') as HTMLButtonElement;
 const pluginList = document.getElementById('plugin-list') as HTMLDivElement;
 const diffUseCurrentButton = document.getElementById('diff-use-current') as HTMLButtonElement;
@@ -225,6 +266,7 @@ let recordingStartedAt = 0;
 let lastRenderTimeMs = 0;
 let diffBaseProject: VisualSynthProject | null = null;
 let diffIncomingProject: VisualSynthProject | null = null;
+let renderer: ReturnType<typeof createGLRenderer>;
 
 const audioState = {
   rms: 0,
@@ -443,9 +485,14 @@ const renderLayerList = () => {
 
     row.appendChild(label);
     row.appendChild(controls);
+    const assetControl = document.createElement('div');
+    assetControl.className = 'layer-asset-control';
+    assetControl.appendChild(buildLayerAssetSelect(layer));
+    row.appendChild(assetControl);
     layerList.appendChild(row);
     if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
     if (layer.id === 'layer-spectrum') spectrumToggle = checkbox;
+    syncLayerAsset(layer);
   });
   initLearnables();
 };
@@ -753,6 +800,188 @@ const addMarker = () => {
   renderMarkers();
 };
 
+const buildAssetMetaParts = (asset: AssetItem) => {
+  const parts: string[] = [];
+  if (asset.width && asset.height) {
+    parts.push(`${asset.width} × ${asset.height}`);
+  }
+  if (asset.colorSpace) {
+    parts.push(asset.colorSpace.toUpperCase());
+  }
+  if (asset.mime) {
+    parts.push(asset.mime);
+  }
+  if (asset.options?.liveSource) {
+    parts.push(`Live: ${asset.options.liveSource}`);
+  }
+  if (asset.options?.duration) {
+    parts.push(`${asset.options.duration.toFixed(1)}s`);
+  }
+  return parts;
+};
+
+const configurePreviewVideo = (video: HTMLVideoElement, asset: AssetItem, isLive = false) => {
+  video.className = 'asset-preview-video';
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  video.controls = false;
+  if (!isLive && asset.path) {
+    video.src = toFileUrl(asset.path);
+  }
+  video.addEventListener(
+    'canplay',
+    () => {
+      void video.play().catch(() => undefined);
+    },
+    { once: true }
+  );
+};
+
+const createAssetPreviewElement = (asset: AssetItem) => {
+  const preview = document.createElement('div');
+  preview.className = 'asset-preview';
+  if (asset.kind === 'texture') {
+    const previewUrl = asset.thumbnail ?? (asset.path ? toFileUrl(asset.path) : undefined);
+    if (previewUrl) {
+      preview.style.backgroundImage = `url(${previewUrl})`;
+      return preview;
+    }
+  }
+  if (asset.kind === 'video') {
+    const liveVideo = livePreviewElements.get(asset.id);
+    if (liveVideo) {
+      preview.appendChild(liveVideo);
+      return preview;
+    }
+    const video = document.createElement('video');
+    configurePreviewVideo(video, asset);
+    preview.appendChild(video);
+    return preview;
+  }
+  preview.textContent = '—';
+  return preview;
+};
+
+const updateAssetOptions = (assetId: string, patch: Partial<AssetItem['options']>) => {
+  patchAsset(assetId, (asset) => ({
+    ...asset,
+    options: {
+      ...asset.options,
+      ...patch
+    }
+  }));
+};
+
+const createMetadataPanel = (asset: AssetItem) => {
+  const panel = document.createElement('div');
+  panel.className = 'asset-metadata-panel';
+
+  const makeField = (labelText: string, control: HTMLElement) => {
+    const row = document.createElement('div');
+    row.className = 'asset-metadata-row';
+    const label = document.createElement('span');
+    label.textContent = labelText;
+    row.appendChild(label);
+    row.appendChild(control);
+    return row;
+  };
+
+  const tagsInput = document.createElement('input');
+  tagsInput.type = 'text';
+  tagsInput.value = asset.tags.join(', ');
+  tagsInput.addEventListener('change', () => {
+    const tags = normalizeAssetTags(tagsInput.value);
+    patchAsset(asset.id, (existing) => ({ ...existing, tags }));
+    tagsInput.value = tags.join(', ');
+  });
+  panel.appendChild(makeField('Tags', tagsInput));
+
+  const colorSpaceSelect = document.createElement('select');
+  ['srgb', 'linear'].forEach((space) => {
+    const option = document.createElement('option');
+    option.value = space;
+    option.textContent = space.toUpperCase();
+    if (asset.colorSpace === space) option.selected = true;
+    colorSpaceSelect.appendChild(option);
+  });
+  colorSpaceSelect.addEventListener('change', () => {
+    patchAsset(asset.id, (existing) => ({
+      ...existing,
+      colorSpace: colorSpaceSelect.value as AssetColorSpace
+    }));
+  });
+  panel.appendChild(makeField('Color Space', colorSpaceSelect));
+
+  const samplingSelect = document.createElement('select');
+  ['linear', 'nearest'].forEach((sampling) => {
+    const option = document.createElement('option');
+    option.value = sampling;
+    option.textContent = sampling;
+    if (asset.options?.textureSampling === sampling) option.selected = true;
+    samplingSelect.appendChild(option);
+  });
+  samplingSelect.addEventListener('change', () => {
+    updateAssetOptions(asset.id, { textureSampling: samplingSelect.value as AssetTextureSampling });
+  });
+  panel.appendChild(makeField('Sampling', samplingSelect));
+
+  const mipmapsToggle = document.createElement('input');
+  mipmapsToggle.type = 'checkbox';
+  mipmapsToggle.checked = Boolean(asset.options?.generateMipmaps);
+  mipmapsToggle.addEventListener('change', () => {
+    updateAssetOptions(asset.id, { generateMipmaps: mipmapsToggle.checked });
+  });
+  panel.appendChild(makeField('Mipmaps', mipmapsToggle));
+
+  if (asset.kind === 'video') {
+    const loopToggle = document.createElement('input');
+    loopToggle.type = 'checkbox';
+    loopToggle.checked = Boolean(asset.options?.loop);
+    loopToggle.addEventListener('change', () => updateAssetOptions(asset.id, { loop: loopToggle.checked }));
+    panel.appendChild(makeField('Loop', loopToggle));
+
+    const reverseToggle = document.createElement('input');
+    reverseToggle.type = 'checkbox';
+    reverseToggle.checked = Boolean(asset.options?.reverse);
+    reverseToggle.addEventListener('change', () => updateAssetOptions(asset.id, { reverse: reverseToggle.checked }));
+    panel.appendChild(makeField('Reverse', reverseToggle));
+
+    const rateInput = document.createElement('input');
+    rateInput.type = 'number';
+    rateInput.min = '0.1';
+    rateInput.max = '4';
+    rateInput.step = '0.1';
+    rateInput.value = (asset.options?.playbackRate ?? 1).toString();
+    rateInput.addEventListener('change', () => {
+      const value = Number(rateInput.value) || 1;
+      updateAssetOptions(asset.id, { playbackRate: value });
+    });
+    panel.appendChild(makeField('Rate', rateInput));
+
+    const blendInput = document.createElement('input');
+    blendInput.type = 'range';
+    blendInput.min = '0';
+    blendInput.max = '1';
+    blendInput.step = '0.1';
+    blendInput.value = (asset.options?.frameBlend ?? 0).toString();
+    blendInput.addEventListener('change', () => {
+      const value = Number(blendInput.value) || 0;
+      updateAssetOptions(asset.id, { frameBlend: value });
+    });
+    panel.appendChild(makeField('Blend', blendInput));
+  }
+
+  const details = document.createElement('div');
+  details.className = 'asset-meta-details';
+  const metaParts = buildAssetMetaParts(asset);
+  details.textContent = metaParts.length > 0 ? metaParts.join(' • ') : 'No metadata';
+  panel.appendChild(details);
+
+  return panel;
+};
+
 const renderAssets = () => {
   assetList.innerHTML = '';
   if (currentProject.assets.length === 0) {
@@ -763,50 +992,249 @@ const renderAssets = () => {
     return;
   }
   currentProject.assets.forEach((asset) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'asset-row-wrapper';
+
     const row = document.createElement('div');
     row.className = 'asset-row';
+    const preview = createAssetPreviewElement(asset);
     const kind = document.createElement('div');
+    kind.className = 'asset-kind';
     kind.textContent = asset.kind;
+    const info = document.createElement('div');
+    info.className = 'asset-info';
     const name = document.createElement('div');
+    name.className = 'asset-name';
     name.textContent = asset.name;
+    info.appendChild(name);
+    const metaParts = buildAssetMetaParts(asset);
+    if (metaParts.length > 0) {
+      const meta = document.createElement('div');
+      meta.className = 'asset-meta';
+      meta.textContent = metaParts.join(' • ');
+      info.appendChild(meta);
+    }
     const tags = document.createElement('div');
-    tags.textContent = asset.tags.join(', ');
+    tags.className = 'asset-tags';
+    tags.textContent = asset.tags.length === 0 ? '—' : asset.tags.join(', ');
+    const actions = document.createElement('div');
+    actions.className = 'asset-actions';
+    if (asset.options?.liveSource) {
+      const liveBadge = document.createElement('span');
+      liveBadge.className = 'asset-live-badge';
+      liveBadge.textContent = asset.options.liveSource.toUpperCase();
+      actions.appendChild(liveBadge);
+    }
     const remove = document.createElement('button');
     remove.textContent = '✕';
     remove.addEventListener('click', () => {
+      stopLiveAssetStream(asset.id);
+      unassignAssetFromLayers(asset.id);
       currentProject.assets = currentProject.assets.filter((item) => item.id !== asset.id);
       renderAssets();
+      renderLayerList();
+      setStatus(`Asset removed: ${asset.name}`);
     });
-    row.appendChild(kind);
-    row.appendChild(name);
+    actions.appendChild(remove);
+
+    row.appendChild(preview);
+    row.appendChild(info);
     row.appendChild(tags);
-    row.appendChild(remove);
-    assetList.appendChild(row);
+    row.appendChild(actions);
+
+    wrapper.appendChild(row);
+    wrapper.appendChild(createMetadataPanel(asset));
+    assetList.appendChild(wrapper);
   });
 };
 
+const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum'] as const;
+type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
+
+const formatAssetLabel = (asset: AssetItem) => `${asset.name} (${asset.kind})`;
+
+const isAssetLayerId = (value: string): value is AssetLayerId =>
+  (ASSET_LAYER_IDS as readonly string[]).includes(value);
+
+const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null) => {
+  if (layer.assetId === assetId) return;
+  layer.assetId = assetId ?? undefined;
+  const target = assetId ? currentProject.assets.find((item) => item.id === assetId) ?? null : null;
+  if (!isAssetLayerId(layer.id)) {
+    setStatus(`${layer.name} does not support texture overrides yet`);
+    return;
+  }
+  try {
+    const previewVideo = target ? livePreviewElements.get(target.id) : undefined;
+    await renderer.setLayerAsset(layer.id, target, previewVideo);
+    if (target) {
+      setStatus(`${layer.name} now using ${target.name}`);
+    } else {
+      setStatus(`${layer.name} asset cleared`);
+    }
+  } catch {
+    setStatus(`Failed to bind asset to ${layer.name}`);
+  }
+};
+
+const syncLayerAsset = (layer: LayerConfig) => {
+  void assignAssetToLayer(layer, layer.assetId ?? null);
+};
+
+const buildLayerAssetSelect = (layer: LayerConfig) => {
+  const select = document.createElement('select');
+  select.className = 'layer-asset-select';
+  const noneOption = document.createElement('option');
+  noneOption.value = '';
+  noneOption.textContent = 'None';
+  select.appendChild(noneOption);
+  currentProject.assets.forEach((asset) => {
+    const option = document.createElement('option');
+    option.value = asset.id;
+    option.textContent = formatAssetLabel(asset);
+    select.appendChild(option);
+  });
+  select.value = layer.assetId ?? '';
+  select.addEventListener('change', () => {
+    void assignAssetToLayer(layer, select.value || null);
+  });
+  return select;
+};
+
+const unassignAssetFromLayers = (assetId: string) => {
+  currentProject.scenes.forEach((scene) => {
+    let removed = false;
+    scene.layers.forEach((layer) => {
+      if (layer.assetId === assetId) {
+        layer.assetId = undefined;
+        void renderer.setLayerAsset(layer.id as AssetLayerId, null);
+        removed = true;
+      }
+    });
+    if (removed) {
+      setStatus(`Asset unassigned from ${scene.name}`);
+    }
+  });
+};
+
+const loadVideoMetadata = (filePath: string) =>
+  new Promise<{ width?: number; height?: number; duration?: number }>((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    const cleanup = () => {
+      video.src = '';
+      void video.load();
+    };
+    const report = () => {
+      cleanup();
+      const duration = Number.isFinite(video.duration) ? video.duration : undefined;
+      resolve({
+        width: video.videoWidth || undefined,
+        height: video.videoHeight || undefined,
+        duration
+      });
+    };
+    video.addEventListener('loadedmetadata', report, { once: true });
+    video.addEventListener('error', () => resolve({}), { once: true });
+    video.src = toFileUrl(filePath);
+    void video.load();
+  });
+
+const buildTextureOptions = (): AssetItem['options'] | undefined => {
+  const opts: AssetItem['options'] = {};
+  const sampling = assetTextureSamplingSelect?.value as AssetTextureSampling | undefined;
+  if (sampling) {
+    opts.textureSampling = sampling;
+  }
+  if (assetGenerateMipmapsToggle?.checked) {
+    opts.generateMipmaps = true;
+  }
+  return Object.keys(opts).length > 0 ? opts : undefined;
+};
+
+const buildVideoOptions = (): AssetItem['options'] => {
+  const opts: AssetItem['options'] = {};
+  if (assetVideoLoopToggle?.checked) {
+    opts.loop = true;
+  }
+  if (assetVideoReverseToggle?.checked) {
+    opts.reverse = true;
+  }
+  const rate = Number(assetVideoRateInput?.value ?? 1);
+  if (!Number.isNaN(rate)) {
+    opts.playbackRate = rate;
+  }
+  const blend = Number(assetVideoFrameBlendInput?.value ?? 0);
+  if (!Number.isNaN(blend) && blend > 0) {
+    opts.frameBlend = blend;
+  }
+  return opts;
+};
+
 const importAsset = async () => {
-  const kind = assetKindSelect.value as 'texture' | 'shader' | 'video';
+  const kind = assetKindSelect.value as 'texture' | 'shader';
   const result = await window.visualSynth.importAsset(kind);
   if (result.canceled || !result.filePath) return;
   const name = result.filePath.split(/[\\/]/).pop() ?? 'Asset';
-  const tags = assetTagsInput.value
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+  const tags = normalizeAssetTags(assetTagsInput.value);
+  const metadata = {
+    hash: result.hash,
+    mime: result.mime,
+    width: result.width,
+    height: result.height,
+    colorSpace: (assetColorSpaceSelect?.value as AssetColorSpace) ?? result.colorSpace
+  };
   currentProject.assets = [
     ...currentProject.assets,
-    {
-      id: `asset-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    createAssetItem({
       name,
       kind,
       path: result.filePath,
       tags,
-      addedAt: new Date().toISOString()
-    }
+      metadata,
+      options: buildTextureOptions()
+    })
   ];
   assetTagsInput.value = '';
   renderAssets();
+  renderLayerList();
+  setStatus(`Asset imported: ${name}`);
+};
+
+const importVideoAsset = async () => {
+  const result = await window.visualSynth.importAsset('video');
+  if (result.canceled || !result.filePath) return;
+  const name = result.filePath.split(/[\\/]/).pop() ?? 'Video Asset';
+  const tags = normalizeAssetTags(assetTagsInput.value);
+  const videoMeta = await loadVideoMetadata(result.filePath);
+  const metadata = {
+    hash: result.hash,
+    mime: result.mime,
+    width: result.width ?? videoMeta.width,
+    height: result.height ?? videoMeta.height,
+    colorSpace: result.colorSpace
+  };
+  const options = buildVideoOptions();
+  if (videoMeta.duration) {
+    options.duration = videoMeta.duration;
+  }
+  currentProject.assets = [
+    ...currentProject.assets,
+    createAssetItem({
+      name,
+      kind: 'video',
+      path: result.filePath,
+      tags,
+      metadata,
+      options
+    })
+  ];
+  assetTagsInput.value = '';
+  renderAssets();
+  renderLayerList();
+  setStatus(`Video imported: ${name}`);
 };
 
 const renderPlugins = () => {
@@ -2317,6 +2745,10 @@ assetImportButton?.addEventListener('click', () => {
   void importAsset();
 });
 
+assetImportVideoButton?.addEventListener('click', () => {
+  void importVideoAsset();
+});
+
 pluginImportButton?.addEventListener('click', () => {
   void importPlugin();
 });
@@ -2554,7 +2986,6 @@ const initShortcuts = () => {
 };
 
 const canvas = document.getElementById('gl-canvas') as HTMLCanvasElement;
-let renderer: ReturnType<typeof createGLRenderer>;
 try {
   renderer = createGLRenderer(canvas);
 } catch (error) {
@@ -2570,7 +3001,8 @@ try {
       ctx.fillStyle = '#ffd0d0';
       ctx.font = '16px Segoe UI, sans-serif';
       ctx.fillText('Safe mode: WebGL2 unavailable', 24, 32);
-    }
+    },
+    setLayerAsset: async () => undefined
   };
 }
 

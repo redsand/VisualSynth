@@ -174,10 +174,33 @@ const timelineMarkerSchema = z.object({
 const assetItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  kind: z.enum(['texture', 'shader', 'video']),
-  path: z.string(),
+  kind: z.enum(['texture', 'shader', 'video', 'live', 'text']),
+  path: z.string().optional(),
   tags: z.array(z.string()),
-  addedAt: z.string()
+  addedAt: z.string(),
+  hash: z.string().optional(),
+  mime: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  colorSpace: z.enum(['srgb', 'linear']).default('srgb'),
+  thumbnail: z.string().optional(),
+  missing: z.boolean().optional(),
+  options: z
+    .object({
+      loop: z.boolean().optional(),
+      playbackRate: z.number().optional(),
+      reverse: z.boolean().optional(),
+      frameBlend: z.number().optional(),
+      textureSampling: z.enum(['linear', 'nearest']).optional(),
+      generateMipmaps: z.boolean().optional(),
+      duration: z.number().optional(),
+      liveSource: z.enum(['webcam', 'screen', 'ndi', 'spout']).optional(),
+      text: z.string().optional(),
+      font: z.string().optional(),
+      fontSize: z.number().optional(),
+      fontColor: z.string().optional()
+    })
+    .optional()
 });
 
 const pluginEntrySchema = z.object({

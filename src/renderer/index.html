@@ -374,12 +374,59 @@
           <div class="panel-block">
             <h3>Assets</h3>
             <div class="scene-row">
-              <button id="asset-import">Import Asset</button>
+              <button id="asset-import">Import Texture / Shader</button>
               <select id="asset-kind">
                 <option value="texture">Texture</option>
                 <option value="shader">Shader</option>
-                <option value="video">Video</option>
               </select>
+              <button id="asset-import-video">Import Video</button>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Color Space
+                <select id="asset-color-space">
+                  <option value="srgb" selected>sRGB</option>
+                  <option value="linear">Linear</option>
+                </select>
+              </label>
+              <label class="scene-inline">
+                Texture Sampling
+                <select id="asset-texture-sampling">
+                  <option value="linear" selected>Linear</option>
+                  <option value="nearest">Nearest</option>
+                </select>
+              </label>
+              <label class="scene-inline">
+                Generate mipmaps
+                <input id="asset-generate-mipmaps" type="checkbox" />
+              </label>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Loop
+                <input id="asset-video-loop" type="checkbox" />
+              </label>
+              <label class="scene-inline">
+                Reverse
+                <input id="asset-video-reverse" type="checkbox" />
+              </label>
+              <label class="scene-inline">
+                Playback Rate
+                <input id="asset-video-rate" type="number" min="0.1" max="4" step="0.1" value="1" />
+              </label>
+              <label class="scene-inline">
+                Frame Blend
+                <input id="asset-video-frameblend" type="range" min="0" max="1" step="0.1" value="0" />
+              </label>
+            </div>
+            <div class="scene-row">
+              <button id="asset-live-webcam">Start Webcam</button>
+              <button id="asset-live-screen">Screen Capture</button>
+            </div>
+            <div class="scene-row">
+              <input id="asset-text-input" type="text" placeholder="Caption / lyrics" />
+              <input id="asset-font-input" type="text" placeholder="Font (e.g. 48px Arial)" />
+              <button id="asset-text-add">Add Text Layer</button>
             </div>
             <div class="scene-row">
               <input id="asset-tags" type="text" placeholder="tags (comma separated)" />

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { AssetImportResult } from '../shared/assets';
 import { OutputConfig } from '../shared/project';
 
 contextBridge.exposeInMainWorld('visualSynth', {
@@ -40,8 +41,9 @@ contextBridge.exposeInMainWorld('visualSynth', {
     defaultName: string,
     format: 'mp4'
   ) => ipcRenderer.invoke('capture:transcode', data, defaultName, format),
-  importAsset: (
-    kind: 'texture' | 'shader' | 'video'
-  ) => ipcRenderer.invoke('assets:import', kind),
+  importAsset: (kind: 'texture' | 'shader' | 'video') =>
+    ipcRenderer.invoke('assets:import', kind) as Promise<AssetImportResult>,
+  analyzeAsset: (filePath: string) => ipcRenderer.invoke('assets:analyze', filePath),
+  copyAssetToCache: (sourcePath: string) => ipcRenderer.invoke('assets:copy', sourcePath),
   importPlugin: () => ipcRenderer.invoke('plugins:import')
 });

@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VisualSynth Plugin Manifest",
+  "type": "object",
+  "required": ["id", "name", "version", "author", "kind", "entry", "nodes"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "author": { "type": "string" },
+    "kind": { "type": "string", "enum": ["generator", "effect"] },
+    "entry": { "type": "string" },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "FX_SCHEMA.json" }
+    }
+  }
+}

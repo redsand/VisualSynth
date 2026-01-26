@@ -1,3 +1,7 @@
+import { toFileUrl } from '../shared/fileUrl';
+import type { AssetItem } from '../shared/project';
+import type { AssetTextureSampling } from '../shared/assets';
+
 export interface RenderState {
   timeMs: number;
   rms: number;
@@ -96,6 +100,10 @@ uniform float uSdfEdge;
 uniform float uSdfGlow;
 uniform float uSdfRotation;
 uniform float uSdfFill;
+uniform float uPlasmaAssetEnabled;
+uniform sampler2D uPlasmaAsset;
+uniform float uSpectrumAssetEnabled;
+uniform sampler2D uSpectrumAsset;
 
 in vec2 vUv;
 out vec4 outColor;
@@ -206,6 +214,11 @@ void main() {
     color += vec3(0.1 + p * 0.4, 0.2 + p * 0.5, 0.3 + p * 0.6) * uPlasmaOpacity;
   }
 
+  if (uPlasmaAssetEnabled > 0.5) {
+    vec3 assetColor = texture(uPlasmaAsset, uv).rgb;
+    color = mix(color, assetColor, clamp(uPlasmaOpacity, 0.0, 1.0));
+  }
+
   if (uSpectrumEnabled > 0.5) {
     float band = floor(effectUv.x * 64.0);
     int index = int(clamp(band, 0.0, 63.0));
@@ -217,6 +230,11 @@ void main() {
     if (uPersistence > 0.01) {
       color += vec3(0.1, 0.4, 0.8) * trailBar * 0.5 * uPersistence;
     }
+  }
+
+  if (uSpectrumAssetEnabled > 0.5) {
+    vec3 assetColor = texture(uSpectrumAsset, uv).rgb;
+    color = mix(color, assetColor, clamp(uSpectrumOpacity * 0.8, 0.0, 1.0));
   }
 
   if (uParticlesEnabled > 0.5) {
@@ -340,6 +358,10 @@ void main() {
   const feedbackLocation = gl.getUniformLocation(program, 'uFeedback');
   const persistenceLocation = gl.getUniformLocation(program, 'uPersistence');
   const trailSpectrumLocation = gl.getUniformLocation(program, 'uTrailSpectrum');
+  const plasmaAssetEnabledLocation = gl.getUniformLocation(program, 'uPlasmaAssetEnabled');
+  const plasmaAssetSamplerLocation = gl.getUniformLocation(program, 'uPlasmaAsset');
+  const spectrumAssetEnabledLocation = gl.getUniformLocation(program, 'uSpectrumAssetEnabled');
+  const spectrumAssetSamplerLocation = gl.getUniformLocation(program, 'uSpectrumAsset');
   const particlesEnabledLocation = gl.getUniformLocation(program, 'uParticlesEnabled');
   const particleDensityLocation = gl.getUniformLocation(program, 'uParticleDensity');
   const particleSpeedLocation = gl.getUniformLocation(program, 'uParticleSpeed');
@@ -353,50 +375,269 @@ void main() {
   const sdfRotationLocation = gl.getUniformLocation(program, 'uSdfRotation');
   const sdfFillLocation = gl.getUniformLocation(program, 'uSdfFill');
 
-  return {
-    render: (state: RenderState) => {
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.clearColor(0.02, 0.03, 0.06, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+  type AssetLayerId = 'layer-plasma' | 'layer-spectrum';
+  const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = {
+    'layer-plasma': 1,
+    'layer-spectrum': 2
+  };
 
-      gl.useProgram(program);
-      if (timeLocation) gl.uniform1f(timeLocation, state.timeMs * 0.001);
-      if (rmsLocation) gl.uniform1f(rmsLocation, state.rms);
-      if (peakLocation) gl.uniform1f(peakLocation, state.peak);
-      if (strobeLocation) gl.uniform1f(strobeLocation, state.strobe);
-      if (plasmaLocation) gl.uniform1f(plasmaLocation, state.plasmaEnabled ? 1 : 0);
-      if (spectrumLocation) gl.uniform1f(spectrumLocation, state.spectrumEnabled ? 1 : 0);
-      if (spectrumArrayLocation) {
-        gl.uniform1fv(spectrumArrayLocation, state.spectrum);
-      }
-      if (contrastLocation) gl.uniform1f(contrastLocation, state.contrast);
-      if (saturationLocation) gl.uniform1f(saturationLocation, state.saturation);
-      if (paletteLocation) gl.uniform1f(paletteLocation, state.paletteShift);
-      if (plasmaOpacityLocation) gl.uniform1f(plasmaOpacityLocation, state.plasmaOpacity);
-      if (spectrumOpacityLocation) gl.uniform1f(spectrumOpacityLocation, state.spectrumOpacity);
-      if (effectsEnabledLocation) gl.uniform1f(effectsEnabledLocation, state.effectsEnabled ? 1 : 0);
-      if (bloomLocation) gl.uniform1f(bloomLocation, state.bloom);
-      if (blurLocation) gl.uniform1f(blurLocation, state.blur);
-      if (chromaLocation) gl.uniform1f(chromaLocation, state.chroma);
-      if (posterizeLocation) gl.uniform1f(posterizeLocation, state.posterize);
-      if (kaleidoscopeLocation) gl.uniform1f(kaleidoscopeLocation, state.kaleidoscope);
-      if (feedbackLocation) gl.uniform1f(feedbackLocation, state.feedback);
-      if (persistenceLocation) gl.uniform1f(persistenceLocation, state.persistence);
-      if (trailSpectrumLocation) gl.uniform1fv(trailSpectrumLocation, state.trailSpectrum);
-      if (particlesEnabledLocation) gl.uniform1f(particlesEnabledLocation, state.particlesEnabled ? 1 : 0);
-      if (particleDensityLocation) gl.uniform1f(particleDensityLocation, state.particleDensity);
-      if (particleSpeedLocation) gl.uniform1f(particleSpeedLocation, state.particleSpeed);
-      if (particleSizeLocation) gl.uniform1f(particleSizeLocation, state.particleSize);
-      if (particleGlowLocation) gl.uniform1f(particleGlowLocation, state.particleGlow);
-      if (sdfEnabledLocation) gl.uniform1f(sdfEnabledLocation, state.sdfEnabled ? 1 : 0);
-      if (sdfShapeLocation) gl.uniform1f(sdfShapeLocation, state.sdfShape);
-      if (sdfScaleLocation) gl.uniform1f(sdfScaleLocation, state.sdfScale);
-      if (sdfEdgeLocation) gl.uniform1f(sdfEdgeLocation, state.sdfEdge);
-      if (sdfGlowLocation) gl.uniform1f(sdfGlowLocation, state.sdfGlow);
-      if (sdfRotationLocation) gl.uniform1f(sdfRotationLocation, state.sdfRotation);
-      if (sdfFillLocation) gl.uniform1f(sdfFillLocation, state.sdfFill);
+  interface AssetCacheEntry {
+    assetId: string;
+    texture: WebGLTexture;
+    video?: HTMLVideoElement;
+    width?: number;
+    height?: number;
+  }
 
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
+  const assetCache = new Map<string, AssetCacheEntry>();
+  const pendingAssetLoads = new Map<string, Promise<AssetCacheEntry>>();
+  const layerBindings: Partial<Record<AssetLayerId, AssetCacheEntry>> = {};
+
+  const isPowerOf2 = (value: number) => (value & (value - 1)) === 0;
+  const getSamplingFilter = (sampling: AssetTextureSampling | undefined) =>
+    sampling === 'nearest' ? gl.NEAREST : gl.LINEAR;
+
+  const applyTextureSampling = (
+    sampling: AssetTextureSampling | undefined,
+    generateMipmaps: boolean,
+    width?: number,
+    height?: number
+  ) => {
+    const filter = getSamplingFilter(sampling);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    if (generateMipmaps && width && height && isPowerOf2(width) && isPowerOf2(height)) {
+      gl.generateMipmap(gl.TEXTURE_2D);
     }
+  };
+
+  const loadImageAsset = (asset: AssetItem): Promise<AssetCacheEntry> =>
+    new Promise((resolve) => {
+      const texture = gl.createTexture();
+      if (!texture) {
+        resolve({ assetId: asset.id, texture: gl.createTexture()! });
+        return;
+      }
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      if (!asset.path) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        resolve({
+          assetId: asset.id,
+          texture,
+          width: asset.width,
+          height: asset.height
+        });
+        return;
+      }
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.onload = () => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        applyTextureSampling(
+          asset.options?.textureSampling,
+          Boolean(asset.options?.generateMipmaps),
+          image.width,
+          image.height
+        );
+        resolve({
+          assetId: asset.id,
+          texture,
+          width: image.width,
+          height: image.height
+        });
+      };
+      image.onerror = () => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        resolve({
+          assetId: asset.id,
+          texture,
+          width: asset.width,
+          height: asset.height
+        });
+      };
+      image.src = toFileUrl(asset.path);
+    });
+
+  const loadVideoAsset = (asset: AssetItem, videoOverride?: HTMLVideoElement): Promise<AssetCacheEntry> =>
+    new Promise((resolve) => {
+      const texture = gl.createTexture();
+      if (!texture) {
+        resolve({ assetId: asset.id, texture: gl.createTexture()! });
+        return;
+      }
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      const video = videoOverride ?? document.createElement('video');
+      if (!videoOverride) {
+        video.crossOrigin = 'anonymous';
+        video.muted = true;
+        video.loop = asset.options?.loop ?? true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.autoplay = true;
+        video.playbackRate = asset.options?.playbackRate ?? 1;
+      }
+      const finalize = () => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+        applyTextureSampling(asset.options?.textureSampling, false, video.videoWidth, video.videoHeight);
+        resolve({
+          assetId: asset.id,
+          texture,
+          video,
+          width: video.videoWidth || asset.width,
+          height: video.videoHeight || asset.height
+        });
+      };
+      const scheduleFinalize = () => {
+        if (video.readyState >= video.HAVE_CURRENT_DATA) {
+          finalize();
+        } else {
+          video.addEventListener('loadeddata', finalize, { once: true });
+        }
+      };
+      if (!videoOverride) {
+        video.addEventListener(
+          'error',
+          () => {
+            resolve({ assetId: asset.id, texture, video });
+          },
+          { once: true }
+        );
+        if (asset.path) {
+          video.src = toFileUrl(asset.path);
+          void video.play().catch(() => undefined);
+        } else {
+          resolve({ assetId: asset.id, texture, video });
+          return;
+        }
+      }
+      scheduleFinalize();
+    });
+
+  const ensureAssetEntry = (asset: AssetItem, videoOverride?: HTMLVideoElement) => {
+    if (assetCache.has(asset.id)) {
+      return Promise.resolve(assetCache.get(asset.id)!);
+    }
+    if (pendingAssetLoads.has(asset.id)) {
+      return pendingAssetLoads.get(asset.id)!;
+    }
+    const loader =
+      asset.kind === 'video'
+        ? loadVideoAsset(asset, videoOverride)
+        : loadImageAsset(asset);
+    pendingAssetLoads.set(asset.id, loader);
+    loader.then((entry) => {
+      assetCache.set(asset.id, entry);
+      pendingAssetLoads.delete(asset.id);
+    });
+    return loader;
+  };
+
+  const updateVideoTextures = () => {
+    (Object.keys(ASSET_LAYER_UNITS) as AssetLayerId[]).forEach((layerId) => {
+      const entry = layerBindings[layerId];
+      if (entry?.video && entry.texture && entry.video.readyState >= entry.video.HAVE_CURRENT_DATA) {
+        const unitIndex = ASSET_LAYER_UNITS[layerId];
+        gl.activeTexture(gl.TEXTURE0 + unitIndex);
+        gl.bindTexture(gl.TEXTURE_2D, entry.texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.video);
+      }
+    });
+  };
+
+  const applyLayerBinding = (
+    layerId: AssetLayerId,
+    enabledLocation: WebGLUniformLocation | null,
+    samplerLocation: WebGLUniformLocation | null
+  ) => {
+    const entry = layerBindings[layerId];
+    const unitIndex = ASSET_LAYER_UNITS[layerId];
+    const enabled = Boolean(entry);
+    if (enabledLocation) {
+      gl.uniform1f(enabledLocation, enabled ? 1 : 0);
+    }
+    if (samplerLocation) {
+      gl.uniform1i(samplerLocation, unitIndex);
+    }
+    gl.activeTexture(gl.TEXTURE0 + unitIndex);
+    gl.bindTexture(gl.TEXTURE_2D, entry?.texture ?? null);
+  };
+
+  const setLayerAsset = async (
+    layerId: AssetLayerId,
+    asset: AssetItem | null,
+    videoOverride?: HTMLVideoElement
+  ) => {
+    if (!ASSET_LAYER_UNITS[layerId]) return;
+    if (!asset) {
+      delete layerBindings[layerId];
+      return;
+    }
+    const entry = await ensureAssetEntry(asset, videoOverride);
+    layerBindings[layerId] = entry;
+  };
+
+  const render = (state: RenderState) => {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.02, 0.03, 0.06, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(program);
+    updateVideoTextures();
+    if (timeLocation) gl.uniform1f(timeLocation, state.timeMs * 0.001);
+    if (rmsLocation) gl.uniform1f(rmsLocation, state.rms);
+    if (peakLocation) gl.uniform1f(peakLocation, state.peak);
+    if (strobeLocation) gl.uniform1f(strobeLocation, state.strobe);
+    if (plasmaLocation) gl.uniform1f(plasmaLocation, state.plasmaEnabled ? 1 : 0);
+    if (spectrumLocation) gl.uniform1f(spectrumLocation, state.spectrumEnabled ? 1 : 0);
+    if (spectrumArrayLocation) {
+      gl.uniform1fv(spectrumArrayLocation, state.spectrum);
+    }
+    if (contrastLocation) gl.uniform1f(contrastLocation, state.contrast);
+    if (saturationLocation) gl.uniform1f(saturationLocation, state.saturation);
+    if (paletteLocation) gl.uniform1f(paletteLocation, state.paletteShift);
+    if (plasmaOpacityLocation) gl.uniform1f(plasmaOpacityLocation, state.plasmaOpacity);
+    if (spectrumOpacityLocation) gl.uniform1f(spectrumOpacityLocation, state.spectrumOpacity);
+    if (effectsEnabledLocation) gl.uniform1f(effectsEnabledLocation, state.effectsEnabled ? 1 : 0);
+    if (bloomLocation) gl.uniform1f(bloomLocation, state.bloom);
+    if (blurLocation) gl.uniform1f(blurLocation, state.blur);
+    if (chromaLocation) gl.uniform1f(chromaLocation, state.chroma);
+    if (posterizeLocation) gl.uniform1f(posterizeLocation, state.posterize);
+    if (kaleidoscopeLocation) gl.uniform1f(kaleidoscopeLocation, state.kaleidoscope);
+    if (feedbackLocation) gl.uniform1f(feedbackLocation, state.feedback);
+    if (persistenceLocation) gl.uniform1f(persistenceLocation, state.persistence);
+    if (trailSpectrumLocation) gl.uniform1fv(trailSpectrumLocation, state.trailSpectrum);
+    if (particlesEnabledLocation) gl.uniform1f(particlesEnabledLocation, state.particlesEnabled ? 1 : 0);
+    if (particleDensityLocation) gl.uniform1f(particleDensityLocation, state.particleDensity);
+    if (particleSpeedLocation) gl.uniform1f(particleSpeedLocation, state.particleSpeed);
+    if (particleSizeLocation) gl.uniform1f(particleSizeLocation, state.particleSize);
+    if (particleGlowLocation) gl.uniform1f(particleGlowLocation, state.particleGlow);
+    if (sdfEnabledLocation) gl.uniform1f(sdfEnabledLocation, state.sdfEnabled ? 1 : 0);
+    if (sdfShapeLocation) gl.uniform1f(sdfShapeLocation, state.sdfShape);
+    if (sdfScaleLocation) gl.uniform1f(sdfScaleLocation, state.sdfScale);
+    if (sdfEdgeLocation) gl.uniform1f(sdfEdgeLocation, state.sdfEdge);
+    if (sdfGlowLocation) gl.uniform1f(sdfGlowLocation, state.sdfGlow);
+    if (sdfRotationLocation) gl.uniform1f(sdfRotationLocation, state.sdfRotation);
+    if (sdfFillLocation) gl.uniform1f(sdfFillLocation, state.sdfFill);
+    applyLayerBinding('layer-plasma', plasmaAssetEnabledLocation, plasmaAssetSamplerLocation);
+    applyLayerBinding('layer-spectrum', spectrumAssetEnabledLocation, spectrumAssetSamplerLocation);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  };
+
+  return {
+    render,
+    setLayerAsset
   };
 };

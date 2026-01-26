@@ -107,6 +107,22 @@ body {
   gap: 8px;
 }
 
+.layer-asset-control {
+  display: flex;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.layer-asset-select {
+  background: #162235;
+  color: #e4f4ff;
+  border: 1px solid #2c4159;
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-width: 160px;
+  font-size: 11px;
+}
+
 .layer-controls {
   display: flex;
   gap: 4px;
@@ -565,6 +581,51 @@ body {
   border: 1px solid #4d2f3a;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.asset-kind {
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #91c6ff;
+  font-size: 10px;
+}
+
+.asset-name {
+  font-weight: 600;
+  color: #f7fbff;
+}
+
+.asset-meta {
+  color: #8aa5c2;
+  font-size: 10px;
+}
+
+.asset-tags {
+  color: #a5c7f7;
+  font-size: 10px;
+}
+
+.asset-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  border: 1px solid #23334a;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.asset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.asset-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .plugin-row {

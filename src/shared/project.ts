@@ -131,13 +131,37 @@ export interface TimelineMarker {
   label: string;
 }
 
+export type AssetKind = 'texture' | 'shader' | 'video' | 'live' | 'text';
+export type AssetColorSpace = 'srgb' | 'linear';
+
 export interface AssetItem {
   id: string;
   name: string;
-  kind: 'texture' | 'shader' | 'video';
-  path: string;
+  kind: AssetKind;
+  path?: string;
   tags: string[];
   addedAt: string;
+  hash?: string;
+  mime?: string;
+  width?: number;
+  height?: number;
+  colorSpace?: AssetColorSpace;
+  thumbnail?: string;
+  missing?: boolean;
+  options?: {
+    loop?: boolean;
+    playbackRate?: number;
+    reverse?: boolean;
+    frameBlend?: number;
+    textureSampling?: 'linear' | 'nearest';
+    generateMipmaps?: boolean;
+    duration?: number;
+    liveSource?: 'webcam' | 'screen' | 'ndi' | 'spout';
+    text?: string;
+    font?: string;
+    fontSize?: number;
+    fontColor?: string;
+  };
 }
 
 export interface PluginEntry {

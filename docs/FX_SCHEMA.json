@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VisualSynth FX Node",
+  "type": "object",
+  "required": ["id", "name", "category", "type", "parameters"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "category": { "type": "string" },
+    "type": { "type": "string", "enum": ["generator", "effect", "compositor", "utility"] },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["texture", "mask", "depth", "audio", "data"] }
+        },
+        "required": ["name", "kind"]
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["texture", "mask", "depth", "data"] }
+        },
+        "required": ["name", "kind"]
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "default"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["float", "int", "bool", "enum", "color", "vec2", "vec3"] },
+          "default": {},
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "step": { "type": "number" },
+          "options": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "audioModulation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target": { "type": "string" },
+          "source": { "type": "string" },
+          "depth": { "type": "number" },
+          "smoothing": { "type": "number" }
+        },
+        "required": ["target", "source"]
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "tier": { "type": "string", "enum": ["low", "mid", "high"] },
+        "historyBuffers": { "type": "integer" },
+        "samples": { "type": "integer" }
+      }
+    }
+  }
+}

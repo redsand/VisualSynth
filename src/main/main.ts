@@ -1,16 +1,18 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { spawn } from 'child_process';
 import type { NetworkInterfaceInfoIPv4 } from 'os';
+import crypto from 'crypto';
 import { bringOnline, ProlinkNetwork } from 'prolink-connect';
 import { projectSchema } from '../shared/projectSchema';
 import {
   DEFAULT_OUTPUT_CONFIG,
   OUTPUT_BASE_HEIGHT,
   OUTPUT_BASE_WIDTH,
-  OutputConfig
+  OutputConfig,
+  AssetColorSpace
 } from '../shared/project';
 import { deserializeProject } from '../shared/serialization';
 
@@ -23,6 +25,8 @@ let prolinkNetwork: ProlinkNetwork | null = null;
 let prolinkStatusHandler: ((status: { trackBPM: number | null; isMaster: boolean; isOnAir: boolean; deviceId: number }) => void) | null =
   null;
 let lastMasterBpmAt = 0;
+const ASSET_STORAGE = path.join(app.getPath('userData'), 'assets');
+fs.mkdirSync(ASSET_STORAGE, { recursive: true });
 
 const clampScale = (value: number) => Math.min(1, Math.max(0.25, value));
 const captureFilters: Record<string, { name: string; extensions: string[] }> = {
@@ -30,6 +34,8 @@ const captureFilters: Record<string, { name: string; extensions: string[] }> = {
   webm: { name: 'WebM Video', extensions: ['webm'] },
   mp4: { name: 'MP4 Video', extensions: ['mp4'] }
 };
+
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 
 const runFfmpeg = (inputPath: string, outputPath: string) =>
   new Promise<void>((resolve, reject) => {
@@ -49,6 +55,56 @@ const runFfmpeg = (inputPath: string, outputPath: string) =>
       else reject(new Error(`ffmpeg exited with code ${code ?? 'unknown'}`));
     });
   });
+
+const hashFile = (filePath: string) => {
+  const data = fs.readFileSync(filePath);
+  return crypto.createHash('sha256').update(data).digest('hex');
+};
+
+const mimeFromExt = (ext: string) => {
+  const map: Record<string, string> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm'
+  };
+  return map[ext.toLowerCase()] ?? 'application/octet-stream';
+};
+
+const gatherAssetMetadata = (filePath: string) => {
+  const ext = path.extname(filePath).toLowerCase();
+  const stats = fs.statSync(filePath);
+  const metadata: { mime: string; size: number; colorSpace: AssetColorSpace } & Partial<{
+      width: number;
+      height: number;
+      thumbnail: string;
+    }> = {
+    mime: mimeFromExt(ext),
+    size: stats.size,
+    colorSpace: 'srgb'
+  };
+
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    try {
+      const image = nativeImage.createFromPath(filePath);
+      if (!image.isEmpty()) {
+        const { width, height } = image.getSize();
+        metadata.width = width;
+        metadata.height = height;
+        const preview = image.resize({ width: 200, height: 200, quality: 'good' });
+        if (!preview.isEmpty()) {
+          metadata.thumbnail = preview.toDataURL();
+        }
+      }
+    } catch {
+      // ignore metadata errors
+    }
+  }
+
+  return metadata;
+};
 
 const applyOutputConfig = (config: OutputConfig) => {
   outputConfig = { ...outputConfig, ...config, scale: clampScale(config.scale ?? outputConfig.scale) };
@@ -277,7 +333,40 @@ ipcMain.handle('assets:import', async (_event, kind: 'texture' | 'shader' | 'vid
     return { canceled: true };
   }
   const filePath = result.filePaths[0];
-  return { canceled: false, filePath };
+  const hash = hashFile(filePath);
+  const ext = path.extname(filePath);
+  const dest = path.join(ASSET_STORAGE, `${hash}${ext}`);
+  if (!fs.existsSync(dest)) {
+    fs.copyFileSync(filePath, dest);
+  }
+  const metadata = gatherAssetMetadata(dest);
+  return {
+    canceled: false,
+    filePath: dest,
+    hash,
+    ...metadata
+  };
+});
+
+ipcMain.handle('assets:copy', async (_event, sourcePath: string) => {
+  if (!fs.existsSync(sourcePath)) return { success: false };
+  const hash = hashFile(sourcePath);
+  const ext = path.extname(sourcePath);
+  const dest = path.join(ASSET_STORAGE, `${hash}${ext}`);
+  if (!fs.existsSync(dest)) {
+    fs.copyFileSync(sourcePath, dest);
+  }
+  return { success: true, filePath: dest };
+});
+
+ipcMain.handle('assets:analyze', async (_event, filePath: string) => {
+  if (!fs.existsSync(filePath)) return { exists: false };
+  const hash = hashFile(filePath);
+  return {
+    exists: true,
+    hash,
+    ...gatherAssetMetadata(filePath)
+  };
 });
 
 ipcMain.handle('plugins:import', async () => {
