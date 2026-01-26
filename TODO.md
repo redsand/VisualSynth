@@ -61,23 +61,23 @@ This document tracks the feature request list and upcoming milestones.
   - [x] Asset blend modes (Normal, Add, Multiply, Screen, Overlay, Difference) for layer composition.
   - [x] Audio reactivity for assets (scale/brightness modulated by RMS, peak, and spectrum bands).
   - [x] UV effects applied to assets (kaleidoscope, feedback transforms match procedural layers).
-- [ ] Live capture support (webcam/capture card + NDI/Spout/Syphon + screen capture).
-- [ ] Text input layer (SDF typography, captions, lyrics, dynamic text overlays).
-- [ ] Asset pipeline enhancements (hashing, caching, thumbnails, recovery for missing assets).
-- [ ] Asset manager UI (thumbnails/previews, tagging/metadata editing, live-source handling, ingest state control before output window opens).
-- [ ] Bind cached textures/videos to the renderer (upload textures, bind video frames, link layer selectors) so the ingestion pipeline feeds visuals.
+- [x] Live capture support (webcam/capture card + NDI/Spout/Syphon + screen capture).
+- [x] Text input layer (SDF typography, captions, lyrics, dynamic text overlays).
+- [x] Asset pipeline enhancements (hashing, caching, thumbnails, recovery for missing assets).
+- [x] Asset manager UI (thumbnails/previews, tagging/metadata editing, live-source handling, ingest state control before output window opens).
+- [x] Bind cached textures/videos to the renderer (upload textures, bind video frames, link layer selectors) so the ingestion pipeline feeds visuals.
 
 ## Networking & Clock Systems
-- [ ] Integrate a Pro DJ Link listener (using `prolink-connect`) so the engine can surface Pioneer network state.
-- [ ] Expose a BPM detection interface that can read via Pioneer protocol, via internal audio analysis, and via user-configurable presets (ranges such as 40-120, 80-150, 100-200).
-- [ ] Provide a stub network service so future DJ-link data sources can be replayed or simulated.
-- [ ] Replace the fast/simple FFT mode with a more stable tempo analyzer (onset smoothing, confidence gating, hysteresis) that can act as a fallback audio clock source.
+- [x] Integrate a Pro DJ Link listener (using `prolink-connect`) so the engine can surface Pioneer network state.
+- [x] Expose a BPM detection interface that can read via Pioneer protocol, via internal audio analysis, and via user-configurable presets (ranges such as 40-120, 80-150, 100-200).
+- [x] Provide a stub network service so future DJ-link data sources can be replayed or simulated.
+- [x] Replace the fast/simple FFT mode with a more stable tempo analyzer (onset smoothing, confidence gating, hysteresis) that can act as a fallback audio clock source.
 
 ## Render Graph & FX System
-- [ ] Define and document a strict Visual Node API for Generators/Effects/Compositors (parameter schema, modulation targets, deterministic defaults, GPU cost tiers, test hooks).
-- [ ] Build the FX catalog standard so every effect declares inputs/outputs, default values, modulation targets, GPU cost tier, and verification guidance.
-- [ ] Implement a generator -> FX -> compositor node model with sends/returns, multi-output routing, and feedback taps.
-- [ ] Track resource lifecycle requirements (FBO/texture pooling, resolution negotiation per node, shared texture reuse).
+- [x] Define and document a strict Visual Node API for Generators/Effects/Compositors (parameter schema, modulation targets, deterministic defaults, GPU cost tiers, test hooks).
+- [x] Build the FX catalog standard so every effect declares inputs/outputs, default values, modulation targets, GPU cost tier, and verification guidance.
+- [x] Implement a generator -> FX -> compositor node model with sends/returns, multi-output routing, and feedback taps.
+- [x] Track resource lifecycle requirements (FBO/texture pooling, resolution negotiation per node, shared texture reuse).
 
 ## Timing, Automation & Modulation
 - [ ] Expand the transport to cover play/stop, BPM, time signature, and shared beat phase/quantization across scenes.

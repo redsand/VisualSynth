@@ -174,6 +174,9 @@ const assetVideoFrameBlendInput = document.getElementById('asset-video-frameblen
 const assetImportVideoButton = document.getElementById('asset-import-video') as HTMLButtonElement | null;
 const assetLiveWebcamButton = document.getElementById('asset-live-webcam') as HTMLButtonElement | null;
 const assetLiveScreenButton = document.getElementById('asset-live-screen') as HTMLButtonElement | null;
+const assetTextInput = document.getElementById('asset-text-input') as HTMLInputElement | null;
+const assetFontInput = document.getElementById('asset-font-input') as HTMLInputElement | null;
+const assetTextAddButton = document.getElementById('asset-text-add') as HTMLButtonElement | null;
 const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement;
 const assetList = document.getElementById('asset-list') as HTMLDivElement;
 
@@ -881,7 +884,16 @@ const configurePreviewVideo = (video: HTMLVideoElement, asset: AssetItem, isLive
 
 const createAssetPreviewElement = (asset: AssetItem) => {
   const preview = document.createElement('div');
-  preview.className = 'asset-preview';
+  preview.className = asset.missing ? 'asset-preview asset-preview-missing' : 'asset-preview';
+
+  if (asset.missing) {
+    const missingIcon = document.createElement('span');
+    missingIcon.className = 'asset-preview-missing-icon';
+    missingIcon.textContent = '⚠';
+    preview.appendChild(missingIcon);
+    return preview;
+  }
+
   if (asset.kind === 'texture') {
     const previewUrl = asset.thumbnail ?? (asset.path ? toFileUrl(asset.path) : undefined);
     if (previewUrl) {
@@ -889,17 +901,52 @@ const createAssetPreviewElement = (asset: AssetItem) => {
       return preview;
     }
   }
-  if (asset.kind === 'video') {
+
+  if (asset.kind === 'live') {
     const liveVideo = livePreviewElements.get(asset.id);
     if (liveVideo) {
-      preview.appendChild(liveVideo);
+      const videoClone = liveVideo.cloneNode(false) as HTMLVideoElement;
+      videoClone.className = 'asset-preview-video';
+      videoClone.srcObject = liveVideo.srcObject;
+      videoClone.muted = true;
+      void videoClone.play().catch(() => undefined);
+      preview.appendChild(videoClone);
+      const liveIndicator = document.createElement('span');
+      liveIndicator.className = 'asset-preview-live-indicator';
+      liveIndicator.textContent = '●';
+      preview.appendChild(liveIndicator);
       return preview;
     }
+    preview.textContent = '◉';
+    return preview;
+  }
+
+  if (asset.kind === 'video') {
     const video = document.createElement('video');
     configurePreviewVideo(video, asset);
     preview.appendChild(video);
     return preview;
   }
+
+  if (asset.kind === 'shader') {
+    preview.textContent = '{ }';
+    preview.style.fontSize = '20px';
+    preview.style.display = 'flex';
+    preview.style.alignItems = 'center';
+    preview.style.justifyContent = 'center';
+    return preview;
+  }
+
+  if (asset.kind === 'text') {
+    preview.textContent = 'Aa';
+    preview.style.fontSize = '18px';
+    preview.style.fontWeight = '600';
+    preview.style.display = 'flex';
+    preview.style.alignItems = 'center';
+    preview.style.justifyContent = 'center';
+    return preview;
+  }
+
   preview.textContent = '—';
   return preview;
 };
@@ -1023,6 +1070,41 @@ const createMetadataPanel = (asset: AssetItem) => {
   return panel;
 };
 
+const checkMissingAssets = async () => {
+  const paths = currentProject.assets
+    .filter((asset) => asset.path && !asset.options?.liveSource)
+    .map((asset) => asset.path!);
+  if (paths.length === 0) return;
+  const results = await window.visualSynth.checkAssetPaths(paths);
+  let changed = false;
+  currentProject.assets.forEach((asset) => {
+    if (asset.path && !asset.options?.liveSource) {
+      const exists = results[asset.path] ?? false;
+      if (asset.missing !== !exists) {
+        asset.missing = !exists;
+        changed = true;
+      }
+    }
+  });
+  if (changed) {
+    renderAssets();
+  }
+};
+
+const relinkAsset = async (asset: AssetItem) => {
+  const result = await window.visualSynth.relinkAsset(asset.id, asset.kind);
+  if (result.canceled || !result.filePath) return;
+  asset.path = result.filePath;
+  asset.hash = result.hash;
+  asset.missing = false;
+  if (result.width) asset.width = result.width;
+  if (result.height) asset.height = result.height;
+  if (result.mime) asset.mime = result.mime;
+  renderAssets();
+  renderLayerList();
+  setStatus(`Asset relinked: ${asset.name}`);
+};
+
 const renderAssets = () => {
   assetList.innerHTML = '';
   if (currentProject.assets.length === 0) {
@@ -1037,11 +1119,17 @@ const renderAssets = () => {
     wrapper.className = 'asset-row-wrapper';
 
     const row = document.createElement('div');
-    row.className = 'asset-row';
+    row.className = asset.missing ? 'asset-row asset-missing' : 'asset-row';
     const preview = createAssetPreviewElement(asset);
     const kind = document.createElement('div');
     kind.className = 'asset-kind';
     kind.textContent = asset.kind;
+    if (asset.missing) {
+      const missingBadge = document.createElement('span');
+      missingBadge.className = 'asset-missing-badge';
+      missingBadge.textContent = 'MISSING';
+      kind.appendChild(missingBadge);
+    }
     const info = document.createElement('div');
     info.className = 'asset-info';
     const name = document.createElement('div');
@@ -1060,6 +1148,15 @@ const renderAssets = () => {
     tags.textContent = asset.tags.length === 0 ? '—' : asset.tags.join(', ');
     const actions = document.createElement('div');
     actions.className = 'asset-actions';
+    if (asset.missing) {
+      const relinkBtn = document.createElement('button');
+      relinkBtn.className = 'asset-relink-btn';
+      relinkBtn.textContent = 'Relink';
+      relinkBtn.addEventListener('click', () => {
+        void relinkAsset(asset);
+      });
+      actions.appendChild(relinkBtn);
+    }
     if (asset.options?.liveSource) {
       const liveBadge = document.createElement('span');
       liveBadge.className = 'asset-live-badge';
@@ -1120,7 +1217,8 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, fo
   }
   try {
     const previewVideo = target ? livePreviewElements.get(target.id) : undefined;
-    await renderer.setLayerAsset(layer.id, target, previewVideo);
+    const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
+    await renderer.setLayerAsset(layer.id, target, previewVideo, textCanvas);
     if (target) {
       setStatus(`${layer.name} now using ${target.name}`);
     } else {
@@ -1299,6 +1397,182 @@ const importVideoAsset = async () => {
   renderAssets();
   renderLayerList();
   setStatus(`Video imported: ${name}`);
+};
+
+const renderTextToCanvas = (
+  text: string,
+  font: string,
+  color: string,
+  width = 512,
+  height = 128
+): HTMLCanvasElement => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = 'transparent';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const metrics = ctx.measureText(text);
+  const textWidth = metrics.width;
+  const neededWidth = Math.max(width, Math.ceil(textWidth * 1.2));
+  if (neededWidth > width) {
+    canvas.width = neededWidth;
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+  }
+
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+
+  return canvas;
+};
+
+const textCanvasCache = new Map<string, HTMLCanvasElement>();
+
+const getTextCanvas = (asset: AssetItem): HTMLCanvasElement | null => {
+  if (asset.kind !== 'text' || !asset.options?.text) return null;
+
+  const cacheKey = `${asset.id}-${asset.options.text}-${asset.options.font}-${asset.options.fontColor}`;
+  if (textCanvasCache.has(cacheKey)) {
+    return textCanvasCache.get(cacheKey)!;
+  }
+
+  const text = asset.options.text;
+  const font = asset.options.font || '48px Arial';
+  const color = asset.options.fontColor || '#ffffff';
+
+  const canvas = renderTextToCanvas(text, font, color);
+  textCanvasCache.set(cacheKey, canvas);
+  return canvas;
+};
+
+const createTextAsset = () => {
+  const text = assetTextInput?.value?.trim();
+  if (!text) {
+    setStatus('Enter text to create a text layer');
+    return;
+  }
+
+  const fontSpec = assetFontInput?.value?.trim() || '48px Arial';
+  const fontMatch = fontSpec.match(/(\d+)px\s+(.+)/i);
+  const fontSize = fontMatch ? parseInt(fontMatch[1], 10) : 48;
+  const fontFamily = fontMatch ? fontMatch[2] : fontSpec || 'Arial';
+  const font = `${fontSize}px ${fontFamily}`;
+
+  const tags = normalizeAssetTags(assetTagsInput.value);
+  const canvas = renderTextToCanvas(text, font, '#ffffff');
+
+  const asset = createAssetItem({
+    name: text.length > 20 ? `${text.substring(0, 20)}...` : text,
+    kind: 'text',
+    tags,
+    metadata: {
+      width: canvas.width,
+      height: canvas.height,
+      colorSpace: 'srgb'
+    },
+    options: {
+      text,
+      font,
+      fontSize,
+      fontColor: '#ffffff'
+    }
+  });
+
+  textCanvasCache.set(
+    `${asset.id}-${text}-${font}-#ffffff`,
+    canvas
+  );
+
+  currentProject.assets = [...currentProject.assets, asset];
+
+  if (assetTextInput) assetTextInput.value = '';
+  assetTagsInput.value = '';
+  renderAssets();
+  renderLayerList();
+  setStatus(`Text layer created: ${asset.name}`);
+};
+
+const startLiveCapture = async (source: 'webcam' | 'screen') => {
+  try {
+    const constraints =
+      source === 'webcam'
+        ? { video: { width: 1280, height: 720 }, audio: false }
+        : { video: { displaySurface: 'monitor' }, audio: false };
+
+    const stream =
+      source === 'webcam'
+        ? await navigator.mediaDevices.getUserMedia(constraints)
+        : await navigator.mediaDevices.getDisplayMedia(constraints as DisplayMediaStreamOptions);
+
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings();
+    const width = settings.width ?? 1280;
+    const height = settings.height ?? 720;
+
+    const name = source === 'webcam' ? `Webcam (${track.label})` : `Screen (${track.label})`;
+    const tags = normalizeAssetTags(assetTagsInput.value);
+
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    void video.play();
+
+    const asset = createAssetItem({
+      name,
+      kind: 'live',
+      tags,
+      metadata: {
+        width,
+        height,
+        colorSpace: 'srgb'
+      },
+      options: {
+        liveSource: source
+      }
+    });
+
+    livePreviewElements.set(asset.id, video);
+    liveStreams.set(asset.id, stream);
+
+    track.addEventListener('ended', () => {
+      stopLiveAssetStream(asset.id);
+      asset.missing = true;
+      renderAssets();
+      setStatus(`Live source ended: ${name}`);
+    });
+
+    currentProject.assets = [...currentProject.assets, asset];
+    assetTagsInput.value = '';
+    renderAssets();
+    renderLayerList();
+    setStatus(`Live capture started: ${name}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    setStatus(`Failed to start ${source}: ${msg}`);
+  }
 };
 
 const renderPlugins = () => {
@@ -2668,6 +2942,7 @@ const applyProject = async (project: VisualSynthProject) => {
   renderPlugins();
   diffBaseProject = { ...currentProject };
   renderDiffSections();
+  void checkMissingAssets();
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
@@ -2811,6 +3086,18 @@ assetImportButton?.addEventListener('click', () => {
 
 assetImportVideoButton?.addEventListener('click', () => {
   void importVideoAsset();
+});
+
+assetLiveWebcamButton?.addEventListener('click', () => {
+  void startLiveCapture('webcam');
+});
+
+assetLiveScreenButton?.addEventListener('click', () => {
+  void startLiveCapture('screen');
+});
+
+assetTextAddButton?.addEventListener('click', () => {
+  createTextAsset();
 });
 
 pluginImportButton?.addEventListener('click', () => {

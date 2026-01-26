@@ -622,7 +622,34 @@ void main() {
 
   const assetOptionsHash = (options?: AssetItem['options']) => JSON.stringify(options ?? {});
 
-  const ensureAssetEntry = (asset: AssetItem, videoOverride?: HTMLVideoElement) => {
+  const loadTextAsset = (asset: AssetItem, canvas: HTMLCanvasElement): Promise<AssetCacheEntry> =>
+    new Promise((resolve) => {
+      const texture = gl.createTexture();
+      if (!texture) {
+        resolve({ assetId: asset.id, texture: gl.createTexture()! });
+        return;
+      }
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      resolve({
+        assetId: asset.id,
+        texture,
+        width: canvas.width,
+        height: canvas.height,
+        options: asset.options
+      });
+    });
+
+  const ensureAssetEntry = (
+    asset: AssetItem,
+    videoOverride?: HTMLVideoElement,
+    textCanvas?: HTMLCanvasElement
+  ) => {
     if (assetCache.has(asset.id)) {
       const cached = assetCache.get(asset.id)!;
       if (assetOptionsHash(cached.options) === assetOptionsHash(asset.options)) {
@@ -633,10 +660,14 @@ void main() {
     if (pendingAssetLoads.has(asset.id)) {
       return pendingAssetLoads.get(asset.id)!;
     }
-    const loader =
-      asset.kind === 'video'
-        ? loadVideoAsset(asset, videoOverride)
-        : loadImageAsset(asset);
+    let loader: Promise<AssetCacheEntry>;
+    if (asset.kind === 'video' || asset.kind === 'live') {
+      loader = loadVideoAsset(asset, videoOverride);
+    } else if (asset.kind === 'text' && textCanvas) {
+      loader = loadTextAsset(asset, textCanvas);
+    } else {
+      loader = loadImageAsset(asset);
+    }
     pendingAssetLoads.set(asset.id, loader);
     loader.then((entry) => {
       assetCache.set(asset.id, entry);
@@ -729,14 +760,15 @@ void main() {
   const setLayerAsset = async (
     layerId: AssetLayerId,
     asset: AssetItem | null,
-    videoOverride?: HTMLVideoElement
+    videoOverride?: HTMLVideoElement,
+    textCanvas?: HTMLCanvasElement
   ) => {
     if (!ASSET_LAYER_UNITS[layerId]) return;
     if (!asset) {
       delete layerBindings[layerId];
       return;
     }
-    const entry = await ensureAssetEntry(asset, videoOverride);
+    const entry = await ensureAssetEntry(asset, videoOverride, textCanvas);
     layerBindings[layerId] = entry;
   };
 

@@ -628,6 +628,83 @@ body {
   gap: 6px;
 }
 
+.asset-missing {
+  background: linear-gradient(to right, #2d1f1f, #162335);
+  border-left: 3px solid #ff6b6b;
+}
+
+.asset-missing-badge {
+  display: inline-block;
+  background: #ff6b6b;
+  color: #1a0a0a;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.asset-relink-btn {
+  background: #2d4a3d !important;
+  color: #7dffb3 !important;
+  border: 1px solid #3d6a52 !important;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.asset-relink-btn:hover {
+  background: #3d6a52 !important;
+}
+
+.asset-live-badge {
+  display: inline-block;
+  background: #2d3d5a;
+  color: #7db3ff;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.asset-preview-missing {
+  background: #2d1f1f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.asset-preview-missing-icon {
+  font-size: 24px;
+  color: #ff6b6b;
+}
+
+.asset-preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.asset-preview-live-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #ff4444;
+  font-size: 10px;
+  text-shadow: 0 0 4px #ff0000;
+  animation: live-blink 1s infinite;
+}
+
+@keyframes live-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
+.asset-preview {
+  position: relative;
+}
+
 .plugin-row {
   display: grid;
   grid-template-columns: 80px 1fr 70px 70px 34px;

@@ -45,5 +45,9 @@ contextBridge.exposeInMainWorld('visualSynth', {
     ipcRenderer.invoke('assets:import', kind) as Promise<AssetImportResult>,
   analyzeAsset: (filePath: string) => ipcRenderer.invoke('assets:analyze', filePath),
   copyAssetToCache: (sourcePath: string) => ipcRenderer.invoke('assets:copy', sourcePath),
+  checkAssetPaths: (paths: string[]) =>
+    ipcRenderer.invoke('assets:checkPaths', paths) as Promise<Record<string, boolean>>,
+  relinkAsset: (assetId: string, kind: string) =>
+    ipcRenderer.invoke('assets:relink', assetId, kind) as Promise<AssetImportResult & { assetId?: string }>,
   importPlugin: () => ipcRenderer.invoke('plugins:import')
 });

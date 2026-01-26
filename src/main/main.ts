@@ -369,6 +369,46 @@ ipcMain.handle('assets:analyze', async (_event, filePath: string) => {
   };
 });
 
+ipcMain.handle('assets:checkPaths', async (_event, paths: string[]) => {
+  const results: Record<string, boolean> = {};
+  for (const p of paths) {
+    results[p] = fs.existsSync(p);
+  }
+  return results;
+});
+
+ipcMain.handle('assets:relink', async (_event, assetId: string, kind: string) => {
+  if (!mainWindow) return { canceled: true };
+  const filters =
+    kind === 'video'
+      ? [{ name: 'Video', extensions: ['mp4', 'webm', 'mov'] }]
+      : kind === 'shader'
+        ? [{ name: 'Shader', extensions: ['glsl', 'frag', 'vert'] }]
+        : [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp'] }];
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Relink Asset',
+    filters,
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true };
+  }
+  const filePath = result.filePaths[0];
+  const hash = hashFile(filePath);
+  const ext = path.extname(filePath);
+  const dest = path.join(ASSET_STORAGE, `${hash}${ext}`);
+  if (!fs.existsSync(dest)) {
+    fs.copyFileSync(filePath, dest);
+  }
+  return {
+    canceled: false,
+    assetId,
+    filePath: dest,
+    hash,
+    ...gatherAssetMetadata(dest)
+  };
+});
+
 ipcMain.handle('plugins:import', async () => {
   if (!mainWindow) return { canceled: true };
   const result = await dialog.showOpenDialog(mainWindow, {
