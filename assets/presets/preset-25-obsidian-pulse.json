@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "name": "Obsidian Pulse",
+  "createdAt": "2026-01-26T18:12:47.550062",
+  "updatedAt": "2026-01-26T18:12:47.550062",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.12,
+    "blur": 0.18,
+    "chroma": 0.05,
+    "posterize": 0.2,
+    "kaleidoscope": 0.0,
+    "feedback": 0.2,
+    "persistence": 0.2
+  },
+  "particles": {
+    "enabled": false,
+    "density": 0.3,
+    "speed": 0.2,
+    "size": 0.3,
+    "glow": 0.4
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "triangle",
+    "scale": 0.42,
+    "edge": 0.07,
+    "glow": 0.5,
+    "rotation": 0.9,
+    "fill": 0.3
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.0,
+            "rotation": 0.0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

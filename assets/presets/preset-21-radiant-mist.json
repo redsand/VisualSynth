@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "name": "Radiant Mist",
+  "createdAt": "2026-01-26T18:12:47.550062",
+  "updatedAt": "2026-01-26T18:12:47.550062",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.3,
+    "blur": 0.25,
+    "chroma": 0.05,
+    "posterize": 0.0,
+    "kaleidoscope": 0.1,
+    "feedback": 0.0,
+    "persistence": 0.6
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.7,
+    "speed": 0.2,
+    "size": 0.3,
+    "glow": 0.9
+  },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.4,
+    "edge": 0.06,
+    "glow": 0.5,
+    "rotation": 0.0,
+    "fill": 0.2
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.0,
+            "rotation": 0.0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

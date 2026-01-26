@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "name": "Lunar Echo",
+  "createdAt": "2026-01-26T18:12:47.550062",
+  "updatedAt": "2026-01-26T18:12:47.550062",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.18,
+    "blur": 0.12,
+    "chroma": 0.1,
+    "posterize": 0.1,
+    "kaleidoscope": 0.2,
+    "feedback": 0.2,
+    "persistence": 0.3
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.4,
+    "speed": 0.25,
+    "size": 0.4,
+    "glow": 0.65
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "circle",
+    "scale": 0.52,
+    "edge": 0.05,
+    "glow": 0.6,
+    "rotation": 0.3,
+    "fill": 0.45
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": false,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.0,
+            "rotation": 0.0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

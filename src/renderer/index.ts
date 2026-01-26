@@ -1494,6 +1494,58 @@ const addGenerator = (id: GeneratorId) => {
     if (spectrumToggle) spectrumToggle.checked = true;
     setStatus('Spectrum layer enabled.');
   }
+  if (id === 'gen-particles') {
+    particlesEnabled.checked = true;
+    currentProject.particles.enabled = true;
+    setStatus('Particle field enabled.');
+  }
+  if (id === 'gen-sdf') {
+    sdfEnabled.checked = true;
+    currentProject.sdf.enabled = true;
+    setStatus('SDF shapes enabled.');
+  }
+  if (id === 'fx-bloom') {
+    effectsEnabled.checked = true;
+    effectBloom.value = '0.35';
+    applyEffectControls();
+    setStatus('Bloom effect boosted.');
+  }
+  if (id === 'fx-feedback') {
+    effectsEnabled.checked = true;
+    effectFeedback.value = '0.45';
+    applyEffectControls();
+    setStatus('Feedback tunnel enabled.');
+  }
+  if (id === 'fx-kaleidoscope') {
+    effectsEnabled.checked = true;
+    effectKaleidoscope.value = '0.5';
+    applyEffectControls();
+    setStatus('Kaleidoscope effect enabled.');
+  }
+  if (id === 'fx-chroma') {
+    effectsEnabled.checked = true;
+    effectChroma.value = '0.2';
+    applyEffectControls();
+    setStatus('Chromatic aberration enabled.');
+  }
+  if (id === 'fx-posterize') {
+    effectsEnabled.checked = true;
+    effectPosterize.value = '0.4';
+    applyEffectControls();
+    setStatus('Posterize effect enabled.');
+  }
+  if (id === 'fx-blur') {
+    effectsEnabled.checked = true;
+    effectBlur.value = '0.4';
+    applyEffectControls();
+    setStatus('Blur effect enabled.');
+  }
+  if (id === 'fx-trails') {
+    effectsEnabled.checked = true;
+    effectPersistence.value = '0.6';
+    applyEffectControls();
+    setStatus('Trails enabled.');
+  }
   generatorRecentsState = updateRecents(generatorRecentsState, id);
   saveGeneratorLibrary();
   refreshGeneratorUI();

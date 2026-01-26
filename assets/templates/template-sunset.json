@@ -1,0 +1,101 @@
+{
+  "version": 2,
+  "name": "Sunset Mirage",
+  "createdAt": "2026-01-26T18:12:47.550062",
+  "updatedAt": "2026-01-26T18:12:47.550062",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.32,
+    "blur": 0.15,
+    "chroma": 0.12,
+    "posterize": 0.05,
+    "kaleidoscope": 0.1,
+    "feedback": 0.1,
+    "persistence": 0.4
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.6,
+    "speed": 0.25,
+    "size": 0.4,
+    "glow": 0.85
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.06,
+    "glow": 0.65,
+    "rotation": 0.2,
+    "fill": 0.4
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Amber Wash",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.88,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.0,
+            "rotation": 0.0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.75,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "name": "Horizon Glow",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.92,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.04,
+            "rotation": -0.02
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": false,
+          "opacity": 0.0,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

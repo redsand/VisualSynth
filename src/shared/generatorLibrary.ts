@@ -1,4 +1,15 @@
-export type GeneratorId = 'layer-plasma' | 'layer-spectrum';
+export type GeneratorId =
+  | 'layer-plasma'
+  | 'layer-spectrum'
+  | 'gen-particles'
+  | 'gen-sdf'
+  | 'fx-bloom'
+  | 'fx-feedback'
+  | 'fx-kaleidoscope'
+  | 'fx-chroma'
+  | 'fx-posterize'
+  | 'fx-blur'
+  | 'fx-trails';
 
 export interface GeneratorEntry {
   id: GeneratorId;
@@ -7,7 +18,16 @@ export interface GeneratorEntry {
 
 export const GENERATORS: GeneratorEntry[] = [
   { id: 'layer-plasma', name: 'Shader Plasma' },
-  { id: 'layer-spectrum', name: 'Audio Spectrum' }
+  { id: 'layer-spectrum', name: 'Audio Spectrum' },
+  { id: 'gen-particles', name: 'Particle Field' },
+  { id: 'gen-sdf', name: 'SDF Shapes' },
+  { id: 'fx-bloom', name: 'Effect: Bloom' },
+  { id: 'fx-feedback', name: 'Effect: Feedback Tunnel' },
+  { id: 'fx-kaleidoscope', name: 'Effect: Kaleidoscope' },
+  { id: 'fx-chroma', name: 'Effect: Chromatic Aberration' },
+  { id: 'fx-posterize', name: 'Effect: Posterize' },
+  { id: 'fx-blur', name: 'Effect: Blur' },
+  { id: 'fx-trails', name: 'Effect: Trails' }
 ];
 
 export const updateRecents = (recents: GeneratorId[], next: GeneratorId, limit = 5) => {

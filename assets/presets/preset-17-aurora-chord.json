@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "name": "Aurora Chord",
+  "createdAt": "2026-01-26T18:12:47.550062",
+  "updatedAt": "2026-01-26T18:12:47.550062",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.25,
+    "blur": 0.12,
+    "chroma": 0.15,
+    "posterize": 0.05,
+    "kaleidoscope": 0.1,
+    "feedback": 0.1,
+    "persistence": 0.3
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.5,
+    "speed": 0.35,
+    "size": 0.35,
+    "glow": 0.7
+  },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.45,
+    "edge": 0.08,
+    "glow": 0.5,
+    "rotation": 0.0,
+    "fill": 0.3
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.0,
+            "rotation": 0.0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

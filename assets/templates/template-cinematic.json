@@ -1,0 +1,101 @@
+{
+  "version": 2,
+  "name": "Cinematic VJ",
+  "createdAt": "2026-01-26T18:12:47.550062",
+  "updatedAt": "2026-01-26T18:12:47.550062",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.4,
+    "blur": 0.1,
+    "chroma": 0.1,
+    "posterize": 0.0,
+    "kaleidoscope": 0.15,
+    "feedback": 0.2,
+    "persistence": 0.35
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.6,
+    "speed": 0.3,
+    "size": 0.4,
+    "glow": 0.8
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.06,
+    "glow": 0.6,
+    "rotation": 0.2,
+    "fill": 0.4
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Intro Wash",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.02,
+            "rotation": 0.02
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "name": "Lift Bloom",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.05,
+            "rotation": -0.03
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": false,
+          "opacity": 0.0,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}
