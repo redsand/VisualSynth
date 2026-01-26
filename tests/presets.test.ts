@@ -4,6 +4,7 @@ import path from 'path';
 import { projectSchema } from '../src/shared/projectSchema';
 
 const presetsDir = path.resolve(__dirname, '..', 'assets', 'presets');
+const templatesDir = path.resolve(__dirname, '..', 'assets', 'templates');
 
 describe('preset library', () => {
   it('contains at least 10 presets', () => {
@@ -23,5 +24,31 @@ describe('preset library', () => {
       names.add(parsed.data.name);
     }
     expect(names.size).toBe(files.length);
+  });
+
+  it('includes VisualSynth DNA presets', () => {
+    const files = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json'));
+    const names = files.map((file) => {
+      const payload = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
+      return JSON.parse(payload).name as string;
+    });
+    const dnaPresets = names.filter((name) => name.includes('VisualSynth DNA'));
+    expect(dnaPresets.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('contains template projects', () => {
+    const files = fs.readdirSync(templatesDir).filter((file) => file.endsWith('.json'));
+    expect(files.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('validates all template JSON files', () => {
+    const files = fs.readdirSync(templatesDir).filter((file) => file.endsWith('.json'));
+    for (const file of files) {
+      const payload = fs.readFileSync(path.join(templatesDir, file), 'utf-8');
+      const parsed = projectSchema.safeParse(JSON.parse(payload));
+      expect(parsed.success).toBe(true);
+      if (!parsed.success) continue;
+      expect(parsed.data.scenes.length).toBeGreaterThan(0);
+    }
   });
 });

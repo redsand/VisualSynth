@@ -25,6 +25,8 @@
           <button id="btn-load">Load</button>
           <select id="preset-select"></select>
           <button id="btn-apply-preset">Apply Preset</button>
+          <select id="template-select"></select>
+          <button id="btn-apply-template">Apply Template</button>
           <button id="toggle-mode">Advanced</button>
         </div>
       </header>
@@ -32,33 +34,278 @@
       <main class="layout">
         <section class="left-panel">
           <h2>Layers</h2>
-          <div class="layer-list">
-            <label><input type="checkbox" id="layer-plasma" checked /> Plasma Shader</label>
-            <label><input type="checkbox" id="layer-spectrum" checked /> Spectrum Bars</label>
+          <div class="layer-list" id="layer-list"></div>
+          <div class="panel-block">
+            <h3>Scenes</h3>
+            <label class="scene-label">
+              Active Scene
+              <select id="scene-select"></select>
+            </label>
+            <label class="scene-label">
+              BPM Source
+              <select id="bpm-source">
+                <option value="manual">Manual</option>
+                <option value="auto">Auto Detect</option>
+                <option value="network">Network (Pioneer)</option>
+              </select>
+            </label>
+            <label class="scene-label">
+              BPM Range
+              <select id="bpm-range">
+                <option value="40-120">40 - 120</option>
+                <option value="80-150">80 - 150</option>
+                <option value="100-200">100 - 200</option>
+                <option value="custom" selected>Custom</option>
+              </select>
+            </label>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Min
+                <input id="bpm-min" type="number" min="40" max="300" step="1" value="80" />
+              </label>
+              <label class="scene-inline">
+                Max
+                <input id="bpm-max" type="number" min="40" max="300" step="1" value="150" />
+              </label>
+            </div>
+            <label class="scene-label">
+              Manual BPM
+              <input id="tempo-input" type="number" min="40" max="240" step="1" value="120" />
+            </label>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Network Interface
+                <select id="bpm-interface"></select>
+              </label>
+              <button id="bpm-network-toggle">Start Network</button>
+            </div>
+            <label class="scene-label">
+              Quantize
+              <select id="quantize-select">
+                <option value="quarter">1/4</option>
+                <option value="half">1/2</option>
+                <option value="bar" selected>1 Bar</option>
+              </select>
+            </label>
+            <button id="queue-scene">Queue Scene Switch</button>
+            <div id="bpm-display" class="bpm-display">BPM: --</div>
           </div>
           <div class="panel-block">
             <h3>64-Pad Performance</h3>
+            <div class="bank-row" id="pad-bank">
+              <button type="button" data-bank="A" class="bank-button active">A</button>
+              <button type="button" data-bank="B" class="bank-button">B</button>
+              <button type="button" data-bank="C" class="bank-button">C</button>
+              <button type="button" data-bank="D" class="bank-button">D</button>
+            </div>
             <div id="pad-grid" class="pad-grid"></div>
             <div class="pad-hint">Pads 0-31 toggle plasma layer. Pads 32-63 trigger strobe.</div>
+          </div>
+          <div class="panel-block">
+            <h3>Generator Library</h3>
+            <label class="scene-label">
+              Add Generator
+              <select id="generator-select"></select>
+            </label>
+            <button id="generator-add">Add Generator</button>
+            <div class="generator-section">
+              <div class="generator-title">Favorites</div>
+              <div id="generator-favorites" class="generator-list"></div>
+            </div>
+            <div class="generator-section">
+              <div class="generator-title">Recent</div>
+              <div id="generator-recents" class="generator-list"></div>
+            </div>
+          </div>
+          <div class="panel-block">
+            <h3>Style Presets</h3>
+            <label class="scene-label">
+              Preset
+              <select id="style-select"></select>
+            </label>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Contrast
+                <input id="style-contrast" type="range" min="0.6" max="1.6" step="0.05" value="1" data-learn-target="style.contrast" data-learn-label="Style Contrast" />
+              </label>
+              <label class="scene-inline">
+                Saturation
+                <input id="style-saturation" type="range" min="0.6" max="1.8" step="0.05" value="1" data-learn-target="style.saturation" data-learn-label="Style Saturation" />
+              </label>
+              <label class="scene-inline">
+                Palette Shift
+                <input id="style-shift" type="range" min="-0.5" max="0.5" step="0.02" value="0" data-learn-target="style.paletteShift" data-learn-label="Palette Shift" />
+              </label>
+            </div>
+          </div>
+          <div class="panel-block">
+            <h3>Layer Effects</h3>
+            <label class="scene-label">
+              <input type="checkbox" id="effects-enabled" checked /> Enable Effects
+            </label>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Bloom
+                <input id="effect-bloom" type="range" min="0" max="1" step="0.05" value="0.2" />
+              </label>
+              <label class="scene-inline">
+                Blur
+                <input id="effect-blur" type="range" min="0" max="1" step="0.05" value="0" />
+              </label>
+              <label class="scene-inline">
+                Chromatic
+                <input id="effect-chroma" type="range" min="0" max="0.5" step="0.02" value="0.1" />
+              </label>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Posterize
+                <input id="effect-posterize" type="range" min="0" max="1" step="0.05" value="0" />
+              </label>
+              <label class="scene-inline">
+                Kaleidoscope
+                <input id="effect-kaleidoscope" type="range" min="0" max="1" step="0.05" value="0" />
+              </label>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Feedback
+                <input id="effect-feedback" type="range" min="0" max="1" step="0.05" value="0" />
+              </label>
+              <label class="scene-inline">
+                Persistence
+                <input id="effect-persistence" type="range" min="0" max="1" step="0.05" value="0" />
+              </label>
+            </div>
+          </div>
+          <div class="panel-block">
+            <h3>Particle Field</h3>
+            <label class="scene-label">
+              <input type="checkbox" id="particles-enabled" checked /> Enable Particles
+            </label>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Density
+                <input id="particles-density" type="range" min="0" max="1" step="0.05" value="0.35" />
+              </label>
+              <label class="scene-inline">
+                Speed
+                <input id="particles-speed" type="range" min="0" max="1" step="0.05" value="0.3" />
+              </label>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Size
+                <input id="particles-size" type="range" min="0" max="1" step="0.05" value="0.45" />
+              </label>
+              <label class="scene-inline">
+                Glow
+                <input id="particles-glow" type="range" min="0" max="1" step="0.05" value="0.6" />
+              </label>
+            </div>
+          </div>
+          <div class="panel-block">
+            <h3>SDF Shapes</h3>
+            <label class="scene-label">
+              <input type="checkbox" id="sdf-enabled" checked /> Enable SDF
+            </label>
+            <label class="scene-label">
+              Shape
+              <select id="sdf-shape">
+                <option value="circle">Circle</option>
+                <option value="box">Box</option>
+                <option value="triangle">Triangle</option>
+              </select>
+            </label>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Scale
+                <input id="sdf-scale" type="range" min="0" max="1" step="0.05" value="0.45" />
+              </label>
+              <label class="scene-inline">
+                Rotation
+                <input id="sdf-rotation" type="range" min="-3.14" max="3.14" step="0.05" value="0" />
+              </label>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Edge
+                <input id="sdf-edge" type="range" min="0" max="0.5" step="0.02" value="0.08" />
+              </label>
+              <label class="scene-inline">
+                Glow
+                <input id="sdf-glow" type="range" min="0" max="1" step="0.05" value="0.5" />
+              </label>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Fill
+                <input id="sdf-fill" type="range" min="0" max="1" step="0.05" value="0.35" />
+              </label>
+            </div>
+          </div>
+          <div class="panel-block">
+            <h3>Macros</h3>
+            <div id="macro-list" class="macro-list"></div>
+          </div>
+          <div class="panel-block">
+            <h3>Preset Exchange</h3>
+            <div class="scene-row">
+              <button id="export-scene">Export Scene</button>
+              <button id="import-scene">Import Scene</button>
+            </div>
+            <div class="scene-row">
+              <button id="export-macros">Export Macros</button>
+              <button id="import-macros">Import Macros</button>
+            </div>
           </div>
         </section>
 
         <section class="center-panel">
           <canvas id="gl-canvas" width="1280" height="720"></canvas>
+          <div id="quantize-hud" class="quantize-hud hidden">Switching in --</div>
+          <div id="safe-mode-banner" class="safe-mode hidden">Safe mode: --</div>
         </section>
 
         <section class="right-panel" id="advanced-panel">
           <h2>Advanced</h2>
           <div class="panel-block">
-            <h3>Mod Matrix (Preview)</h3>
-            <div class="matrix-row">audio.rms → layer.plasma.intensity (0.7)</div>
-            <div class="matrix-row">midi.cc1 → layer.spectrum.gain (0.4)</div>
+            <h3>Mod Matrix</h3>
+            <div class="matrix-header">
+              <button id="mod-matrix-add">Add Mod</button>
+            </div>
+            <div id="mod-matrix-list" class="matrix-list"></div>
+          </div>
+          <div class="panel-block">
+            <h3>MIDI Mapping</h3>
+            <div class="matrix-header">
+              <button id="midi-map-add">Add Mapping</button>
+            </div>
+            <div id="midi-map-list" class="matrix-list"></div>
+          </div>
+          <div class="panel-block">
+            <h3>Modulators</h3>
+            <div class="mod-section">
+              <div class="mod-title">LFOs</div>
+              <div id="lfo-list" class="mod-list"></div>
+            </div>
+            <div class="mod-section">
+              <div class="mod-title">Envelopes</div>
+              <div id="env-list" class="mod-list"></div>
+            </div>
+            <div class="mod-section">
+              <div class="mod-title">Sample &amp; Hold</div>
+              <div id="sh-list" class="mod-list"></div>
+            </div>
           </div>
           <div class="panel-block">
             <h3>Diagnostics</h3>
             <div id="diag-fps">FPS: --</div>
             <div id="diag-gpu">GPU: WebGL2</div>
             <div id="diag-latency">Audio Latency: --</div>
+            <div id="diag-output-latency">Output Latency: --</div>
+            <div id="diag-midi-latency">MIDI Latency: --</div>
+            <div id="diag-watchdog">Watchdog: OK</div>
           </div>
           <div class="panel-block">
             <h3>Output</h3>
@@ -80,12 +327,71 @@
             </label>
             <div id="output-resolution" class="output-hint">Output: 1280 × 720</div>
           </div>
+          <div class="panel-block">
+            <h3>Pad Mapping</h3>
+            <div class="bank-row" id="pad-map-bank">
+              <button type="button" data-bank="A" class="bank-button active">A</button>
+              <button type="button" data-bank="B" class="bank-button">B</button>
+              <button type="button" data-bank="C" class="bank-button">C</button>
+              <button type="button" data-bank="D" class="bank-button">D</button>
+            </div>
+            <div id="pad-map-grid" class="pad-map-grid"></div>
+            <div class="pad-hint">Click a pad to cycle its action. Bank buttons switch pages.</div>
+          </div>
+          <div class="panel-block">
+            <h3>Capture</h3>
+            <div class="scene-row">
+              <button id="capture-screenshot">Screenshot</button>
+              <button id="capture-record-toggle">Start Recording</button>
+            </div>
+            <div class="scene-row">
+              <label class="scene-inline">
+                Format
+                <select id="capture-format">
+                  <option value="webm">WebM</option>
+                  <option value="mp4">MP4 (ffmpeg)</option>
+                </select>
+              </label>
+              <label class="scene-inline">
+                FPS
+                <select id="capture-fps">
+                  <option value="24">24</option>
+                  <option value="30" selected>30</option>
+                  <option value="60">60</option>
+                </select>
+              </label>
+            </div>
+            <div id="capture-status" class="output-hint">Idle</div>
+          </div>
+          <div class="panel-block">
+            <h3>Timeline</h3>
+            <div class="scene-row">
+              <input id="marker-label" type="text" placeholder="Marker label" />
+              <button id="marker-add">Add Marker</button>
+            </div>
+            <div id="marker-list" class="marker-list"></div>
+          </div>
+          <div class="panel-block">
+            <h3>Assets</h3>
+            <div class="scene-row">
+              <button id="asset-import">Import Asset</button>
+              <select id="asset-kind">
+                <option value="texture">Texture</option>
+                <option value="shader">Shader</option>
+                <option value="video">Video</option>
+              </select>
+            </div>
+            <div class="scene-row">
+              <input id="asset-tags" type="text" placeholder="tags (comma separated)" />
+            </div>
+            <div id="asset-list" class="marker-list"></div>
+          </div>
         </section>
       </main>
 
       <footer class="status-bar">
         <div id="status">Ready</div>
-        <div class="shortcuts">Space: tempo • F: fullscreen • R: record • Ctrl+S save • Ctrl+O open</div>
+        <div class="shortcuts">Space: tempo • F: fullscreen • R: record • P: screenshot • Ctrl+S save • Ctrl+O open</div>
       </footer>
     </div>
 

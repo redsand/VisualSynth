@@ -13,3 +13,17 @@ export const mapNoteToPad = (note: number) => {
   const normalized = note % 64;
   return Math.max(0, Math.min(63, normalized));
 };
+
+export const getMidiChannel = (status: number) => (status & 0x0f) + 1;
+
+export const scaleMidiValue = (value: number, min: number, max: number) => {
+  const clamped = Math.max(0, Math.min(127, value));
+  const normalized = clamped / 127;
+  return min + (max - min) * normalized;
+};
+
+export const mapPadWithBank = (note: number, bankIndex: number) => {
+  const base = mapNoteToPad(note);
+  const offset = Math.max(0, Math.min(3, bankIndex)) * 64;
+  return base + offset;
+};

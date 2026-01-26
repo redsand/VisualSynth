@@ -56,24 +56,311 @@ export interface SceneConfig {
   layers: LayerConfig[];
 }
 
+export interface MacroTarget {
+  target: string;
+  amount: number;
+}
+
+export interface MacroConfig {
+  id: string;
+  name: string;
+  value: number;
+  targets: MacroTarget[];
+}
+
+export interface StylePreset {
+  id: string;
+  name: string;
+  settings: {
+    contrast: number;
+    saturation: number;
+    paletteShift: number;
+  };
+}
+
+export interface ParticleConfig {
+  enabled: boolean;
+  density: number;
+  speed: number;
+  size: number;
+  glow: number;
+}
+
+export interface SdfConfig {
+  enabled: boolean;
+  shape: 'circle' | 'box' | 'triangle';
+  scale: number;
+  edge: number;
+  glow: number;
+  rotation: number;
+  fill: number;
+}
+
+export interface LfoConfig {
+  id: string;
+  name: string;
+  shape: 'sine' | 'triangle' | 'saw' | 'square';
+  rate: number;
+  sync: boolean;
+  phase: number;
+}
+
+export interface EnvelopeConfig {
+  id: string;
+  name: string;
+  attack: number;
+  decay: number;
+  sustain: number;
+  release: number;
+  hold: number;
+  trigger: 'audio.peak' | 'strobe' | 'manual';
+  threshold: number;
+}
+
+export interface SampleHoldConfig {
+  id: string;
+  name: string;
+  rate: number;
+  sync: boolean;
+  smooth: number;
+}
+
+export interface TimelineMarker {
+  id: string;
+  timeMs: number;
+  label: string;
+}
+
+export interface AssetItem {
+  id: string;
+  name: string;
+  kind: 'texture' | 'shader' | 'video';
+  path: string;
+  tags: string[];
+  addedAt: string;
+}
+
+export type PadAction =
+  | 'none'
+  | 'toggle-plasma'
+  | 'toggle-spectrum'
+  | 'strobe'
+  | 'scene-next'
+  | 'scene-prev'
+  | 'macro-1'
+  | 'macro-2'
+  | 'macro-3'
+  | 'macro-4'
+  | 'macro-5'
+  | 'macro-6'
+  | 'macro-7'
+  | 'macro-8';
+
 export interface VisualSynthProject {
   version: number;
   name: string;
   createdAt: string;
   updatedAt: string;
   output: OutputConfig;
+  stylePresets: StylePreset[];
+  activeStylePresetId: string;
+  macros: MacroConfig[];
+  effects: EffectConfig;
+  particles: ParticleConfig;
+  sdf: SdfConfig;
+  lfos: LfoConfig[];
+  envelopes: EnvelopeConfig[];
+  sampleHold: SampleHoldConfig[];
+  padMappings: PadAction[];
+  timelineMarkers: TimelineMarker[];
+  assets: AssetItem[];
   scenes: SceneConfig[];
   modMatrix: ModConnection[];
   midiMappings: MidiMapping[];
   activeSceneId: string;
 }
 
+export interface EffectConfig {
+  enabled: boolean;
+  bloom: number;
+  blur: number;
+  chroma: number;
+  posterize: number;
+  kaleidoscope: number;
+  feedback: number;
+  persistence: number;
+}
+
 export const DEFAULT_PROJECT: VisualSynthProject = {
-  version: 1,
+  version: 2,
   name: 'Untitled VisualSynth Project',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   output: { ...DEFAULT_OUTPUT_CONFIG },
+  stylePresets: [
+    {
+      id: 'style-neutral',
+      name: 'Neutral',
+      settings: { contrast: 1, saturation: 1, paletteShift: 0 }
+    },
+    {
+      id: 'style-surge',
+      name: 'Surge',
+      settings: { contrast: 1.2, saturation: 1.4, paletteShift: 0.08 }
+    },
+    {
+      id: 'style-noir',
+      name: 'Noir',
+      settings: { contrast: 1.4, saturation: 0.7, paletteShift: -0.12 }
+    }
+  ],
+  activeStylePresetId: 'style-neutral',
+  macros: [
+    {
+      id: 'macro-1',
+      name: 'Macro 1',
+      value: 0.5,
+      targets: [{ target: 'layer-plasma.opacity', amount: 1 }]
+    },
+    {
+      id: 'macro-2',
+      name: 'Macro 2',
+      value: 0.5,
+      targets: [{ target: 'layer-spectrum.opacity', amount: 1 }]
+    },
+    {
+      id: 'macro-3',
+      name: 'Macro 3',
+      value: 0.5,
+      targets: []
+    },
+    {
+      id: 'macro-4',
+      name: 'Macro 4',
+      value: 0.5,
+      targets: []
+    },
+    {
+      id: 'macro-5',
+      name: 'Macro 5',
+      value: 0.5,
+      targets: []
+    },
+    {
+      id: 'macro-6',
+      name: 'Macro 6',
+      value: 0.5,
+      targets: []
+    },
+    {
+      id: 'macro-7',
+      name: 'Macro 7',
+      value: 0.5,
+      targets: []
+    },
+    {
+      id: 'macro-8',
+      name: 'Macro 8',
+      value: 0.5,
+      targets: []
+    }
+  ],
+  effects: {
+    enabled: true,
+    bloom: 0.2,
+    blur: 0,
+    chroma: 0.1,
+    posterize: 0,
+    kaleidoscope: 0,
+    feedback: 0,
+    persistence: 0
+  },
+  particles: {
+    enabled: true,
+    density: 0.35,
+    speed: 0.3,
+    size: 0.45,
+    glow: 0.6
+  },
+  sdf: {
+    enabled: true,
+    shape: 'circle',
+    scale: 0.45,
+    edge: 0.08,
+    glow: 0.5,
+    rotation: 0,
+    fill: 0.35
+  },
+  lfos: [
+    {
+      id: 'lfo-1',
+      name: 'LFO 1',
+      shape: 'sine',
+      rate: 0.5,
+      sync: true,
+      phase: 0
+    },
+    {
+      id: 'lfo-2',
+      name: 'LFO 2',
+      shape: 'triangle',
+      rate: 1,
+      sync: true,
+      phase: 0.25
+    }
+  ],
+  envelopes: [
+    {
+      id: 'env-1',
+      name: 'Env 1',
+      attack: 0.05,
+      decay: 0.2,
+      sustain: 0.6,
+      release: 0.3,
+      hold: 0.4,
+      trigger: 'audio.peak',
+      threshold: 0.6
+    },
+    {
+      id: 'env-2',
+      name: 'Env 2',
+      attack: 0.1,
+      decay: 0.3,
+      sustain: 0.5,
+      release: 0.4,
+      hold: 0.5,
+      trigger: 'strobe',
+      threshold: 0.4
+    }
+  ],
+  sampleHold: [
+    {
+      id: 'sh-1',
+      name: 'S&H 1',
+      rate: 0.5,
+      sync: true,
+      smooth: 0.2
+    },
+    {
+      id: 'sh-2',
+      name: 'S&H 2',
+      rate: 2,
+      sync: false,
+      smooth: 0.1
+    }
+  ],
+  padMappings: (() => {
+    const mappings: PadAction[] = new Array(256).fill('none');
+    for (let i = 0; i < 32; i += 1) {
+      mappings[i] = 'toggle-plasma';
+    }
+    for (let i = 32; i < 64; i += 1) {
+      mappings[i] = 'strobe';
+    }
+    return mappings;
+  })(),
+  timelineMarkers: [],
+  assets: [],
   scenes: [
     {
       id: 'scene-1',
@@ -92,6 +379,28 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
           name: 'Audio Spectrum',
           enabled: true,
           opacity: 0.9,
+          blendMode: 'add',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        }
+      ]
+    },
+    {
+      id: 'scene-2',
+      name: 'Pulse Scene',
+      layers: [
+        {
+          id: 'layer-plasma',
+          name: 'Shader Plasma',
+          enabled: false,
+          opacity: 0.8,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1.05, rotation: 0.04 }
+        },
+        {
+          id: 'layer-spectrum',
+          name: 'Audio Spectrum',
+          enabled: true,
+          opacity: 0.95,
           blendMode: 'add',
           transform: { x: 0, y: 0, scale: 1, rotation: 0 }
         }

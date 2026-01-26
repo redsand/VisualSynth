@@ -10,9 +10,16 @@ export const applyModMatrix = (
   sources: ModSourceValues,
   connections: ModConnection[]
 ) => {
-  let value = baseValue;
   const mods = connections.filter((conn) => conn.target === targetId);
+  if (mods.length === 0) {
+    return baseValue;
+  }
+  let value = baseValue;
+  let minClamp: number | null = null;
+  let maxClamp: number | null = null;
   for (const mod of mods) {
+    minClamp = minClamp === null ? mod.min : Math.min(minClamp, mod.min);
+    maxClamp = maxClamp === null ? mod.max : Math.max(maxClamp, mod.max);
     const sourceValue = sources[mod.source] ?? 0;
     const scaled = mod.bipolar ? (sourceValue * 2 - 1) : sourceValue;
     let shaped = scaled;
@@ -22,7 +29,13 @@ export const applyModMatrix = (
     if (mod.curve === 'log') {
       shaped = Math.sign(scaled) * Math.sqrt(Math.abs(scaled));
     }
+    const smoothing = Math.min(Math.max(mod.smoothing, 0), 1);
+    shaped *= 1 - smoothing;
     value += shaped * mod.amount;
   }
-  return Math.min(Math.max(value, 0), 1);
+  const minValue = minClamp ?? 0;
+  const maxValue = maxClamp ?? 1;
+  const clampedMin = Math.min(minValue, maxValue);
+  const clampedMax = Math.max(minValue, maxValue);
+  return Math.min(Math.max(value, clampedMin), clampedMax);
 };

@@ -1,0 +1,110 @@
+{
+  "version": 2,
+  "name": "Ambient Drift",
+  "createdAt": "2026-01-26T10:02:00.000Z",
+  "updatedAt": "2026-01-26T10:02:00.000Z",
+  "output": {
+    "enabled": false,
+    "fullscreen": false,
+    "scale": 1
+  },
+  "stylePresets": [
+    {
+      "id": "style-neutral",
+      "name": "Neutral",
+      "settings": {
+        "contrast": 1,
+        "saturation": 1,
+        "paletteShift": 0
+      }
+    }
+  ],
+  "activeStylePresetId": "style-neutral",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Macro 1",
+      "value": 0.4,
+      "targets": []
+    },
+    {
+      "id": "macro-2",
+      "name": "Macro 2",
+      "value": 0.4,
+      "targets": []
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.4,
+      "targets": []
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.4,
+      "targets": []
+    },
+    {
+      "id": "macro-5",
+      "name": "Macro 5",
+      "value": 0.4,
+      "targets": []
+    },
+    {
+      "id": "macro-6",
+      "name": "Macro 6",
+      "value": 0.4,
+      "targets": []
+    },
+    {
+      "id": "macro-7",
+      "name": "Macro 7",
+      "value": 0.4,
+      "targets": []
+    },
+    {
+      "id": "macro-8",
+      "name": "Macro 8",
+      "value": 0.4,
+      "targets": []
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Ambient Bed",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.7,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.1,
+            "rotation": 0.03
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Audio Spectrum",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

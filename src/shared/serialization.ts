@@ -1,5 +1,26 @@
 import { projectSchema } from './projectSchema';
-import { VisualSynthProject } from './project';
+import { DEFAULT_PROJECT, VisualSynthProject } from './project';
+
+const CURRENT_VERSION = 2;
+
+const upgradeProject = (project: VisualSynthProject): VisualSynthProject => {
+  if (project.version >= CURRENT_VERSION) return project;
+  let upgraded = { ...project };
+  if (upgraded.version < 2) {
+    upgraded = {
+      ...DEFAULT_PROJECT,
+      ...upgraded,
+      output: { ...DEFAULT_PROJECT.output, ...upgraded.output },
+      stylePresets: upgraded.stylePresets?.length
+        ? upgraded.stylePresets
+        : DEFAULT_PROJECT.stylePresets,
+      activeStylePresetId: upgraded.activeStylePresetId || DEFAULT_PROJECT.activeStylePresetId,
+      macros: upgraded.macros?.length ? upgraded.macros : DEFAULT_PROJECT.macros
+    };
+  }
+  upgraded.version = CURRENT_VERSION;
+  return upgraded;
+};
 
 export const serializeProject = (project: VisualSynthProject) => {
   const parsed = projectSchema.safeParse(project);
@@ -14,5 +35,5 @@ export const deserializeProject = (payload: string): VisualSynthProject => {
   if (!parsed.success) {
     throw new Error('Invalid project data');
   }
-  return parsed.data;
+  return upgradeProject(parsed.data);
 };

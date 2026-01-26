@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "name": "Noir Spectrum",
-  "createdAt": "2026-01-25T19:05:43.040937",
-  "updatedAt": "2026-01-25T19:05:43.043249",
+  "name": "VisualSynth DNA - Plasma Drift",
+  "createdAt": "2026-01-26T09:05:12.177Z",
+  "updatedAt": "2026-01-26T09:05:12.177Z",
   "scenes": [
     {
       "id": "scene-1",
@@ -11,21 +11,21 @@
         {
           "id": "layer-plasma",
           "name": "Shader Plasma",
-          "enabled": false,
+          "enabled": true,
           "opacity": 0.95,
           "blendMode": "screen",
           "transform": {
             "x": 0,
             "y": 0,
-            "scale": 1,
-            "rotation": 0
+            "scale": 1.2,
+            "rotation": 0.12
           }
         },
         {
           "id": "layer-spectrum",
           "name": "Audio Spectrum",
-          "enabled": true,
-          "opacity": 0.9,
+          "enabled": false,
+          "opacity": 0.5,
           "blendMode": "add",
           "transform": {
             "x": 0,

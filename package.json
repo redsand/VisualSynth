@@ -1,13 +1,13 @@
 {
   "name": "visualsynth",
   "productName": "VisualSynth",
-  "version": "0.2.0",
+  "version": "0.9.0",
   "description": "Realtime audio + MIDI reactive visual synthesizer.",
   "main": "dist/main/main/main.js",
   "author": "Note Sniffer",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently -k \"tsc -w -p tsconfig.main.json\" \"node scripts/build-renderer.js --watch\" \"wait-on dist/main/main.js && electron .\"",
+    "dev": "concurrently -k \"tsc -w -p tsconfig.main.json\" \"node scripts/build-renderer.js --watch\" \"wait-on dist/main/main/main.js && electron .\"",
     "prepare:assets": "node scripts/prepare-assets.js",
     "build": "npm run prepare:assets && tsc -p tsconfig.main.json && node scripts/build-renderer.js",
     "dist": "npm run build && electron-builder",
@@ -26,6 +26,10 @@
       {
         "from": "assets/presets",
         "to": "presets"
+      },
+      {
+        "from": "assets/templates",
+        "to": "templates"
       }
     ],
     "directories": {
@@ -62,6 +66,7 @@
   },
   "dependencies": {
     "midi": "^2.0.0",
+    "prolink-connect": "^0.11.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "name": "Noir Spectrum",
-  "createdAt": "2026-01-25T19:05:43.040937",
-  "updatedAt": "2026-01-25T19:05:43.043249",
+  "name": "VisualSynth DNA - Spectral Bloom",
+  "createdAt": "2026-01-26T09:05:12.140Z",
+  "updatedAt": "2026-01-26T09:05:12.140Z",
   "scenes": [
     {
       "id": "scene-1",
@@ -11,22 +11,22 @@
         {
           "id": "layer-plasma",
           "name": "Shader Plasma",
-          "enabled": false,
-          "opacity": 0.95,
-          "blendMode": "screen",
+          "enabled": true,
+          "opacity": 0.85,
+          "blendMode": "overlay",
           "transform": {
             "x": 0,
             "y": 0,
-            "scale": 1,
-            "rotation": 0
+            "scale": 1.05,
+            "rotation": 0.02
           }
         },
         {
           "id": "layer-spectrum",
           "name": "Audio Spectrum",
           "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "add",
+          "opacity": 0.95,
+          "blendMode": "screen",
           "transform": {
             "x": 0,
             "y": 0,
