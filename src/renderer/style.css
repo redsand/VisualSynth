@@ -14,6 +14,11 @@ body {
   height: 100vh;
 }
 
+body[data-mode='performance'] .left-panel,
+body[data-mode='performance'] .right-panel {
+  overflow-y: hidden;
+}
+
 #app {
   display: flex;
   flex-direction: column;
@@ -35,22 +40,101 @@ body {
   letter-spacing: 0.06em;
 }
 
-.controls {
+.top-controls {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.controls label {
+.mode-switcher {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: #0b111b;
+  border: 1px solid #22344a;
+  border-radius: 10px;
+}
+
+.mode-button {
+  background: transparent;
+  color: #9fb6cf;
+  border: 1px solid transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mode-button.active {
+  background: #1ec8ff;
+  color: #0b111b;
+  border-color: #1ec8ff;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transport-label {
   display: flex;
   flex-direction: column;
   font-size: 12px;
   gap: 4px;
 }
 
-.controls select,
-.controls button {
+.transport button,
+.transport input,
+.output-route select {
+  background: #162235;
+  color: #e4f4ff;
+  border: 1px solid #2c4159;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.output-route {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.health-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #9fb6cf;
+}
+
+.summary-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary-chip {
+  background: #162335;
+  color: #8fd6ff;
+  border: 1px solid #2c4159;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.top-controls label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.top-controls select,
+.top-controls button {
   background: #162235;
   color: #e4f4ff;
   border: 1px solid #2c4159;
@@ -75,6 +159,22 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+}
+
+.mode-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.render-graph {
+  border: 1px dashed #2c4159;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 11px;
+  color: #8da7c1;
+  background: rgba(12, 20, 32, 0.6);
 }
 
 .center-panel {
@@ -92,6 +192,67 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 12px;
+}
+
+#visualizer-canvas {
+  position: absolute;
+  inset: 10px;
+  width: calc(100% - 20px);
+  height: calc(100% - 20px);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.fade-overlay {
+  position: absolute;
+  inset: 10px;
+  border-radius: 12px;
+  background: #0b111b;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.preset-browser {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.preset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid #22344a;
+  background: #111c2d;
+  cursor: pointer;
+}
+
+.preset-thumb {
+  height: 64px;
+  border-radius: 8px;
+  border: 1px solid #22344a;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.preset-name {
+  font-size: 11px;
+  color: #e4f4ff;
+}
+
+.preset-tag {
+  font-size: 10px;
+  color: #95b6d6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .layer-list {
@@ -361,6 +522,53 @@ body {
   margin-top: 6px;
   font-size: 11px;
   color: #95b6d6;
+}
+
+.search-input {
+  width: 100%;
+  background: #162235;
+  color: #e4f4ff;
+  border: 1px solid #2c4159;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.shader-editor {
+  width: 100%;
+  min-height: 140px;
+  background: #0b111b;
+  color: #d6ecff;
+  border: 1px solid #2c4159;
+  border-radius: 8px;
+  padding: 8px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #1a2536;
+  border: 1px solid #2c4159;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #d6ecff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hint button {
+  background: #162235;
+  color: #8fd6ff;
+  border: 1px solid #2c4159;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
 }
 
 .pad-grid {

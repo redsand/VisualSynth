@@ -125,6 +125,14 @@ export interface SampleHoldConfig {
   smooth: number;
 }
 
+export interface VisualizerConfig {
+  enabled: boolean;
+  mode: 'off' | 'spectrum' | 'waveform' | 'oscilloscope';
+  opacity: number;
+  macroEnabled: boolean;
+  macroId: number;
+}
+
 export interface TimelineMarker {
   id: string;
   timeMs: number;
@@ -179,6 +187,10 @@ export type PadAction =
   | 'none'
   | 'toggle-plasma'
   | 'toggle-spectrum'
+  | 'origami-mountain'
+  | 'origami-valley'
+  | 'origami-collapse'
+  | 'origami-explode'
   | 'strobe'
   | 'scene-next'
   | 'scene-prev'
@@ -203,6 +215,7 @@ export interface VisualSynthProject {
   effects: EffectConfig;
   particles: ParticleConfig;
   sdf: SdfConfig;
+  visualizer: VisualizerConfig;
   lfos: LfoConfig[];
   envelopes: EnvelopeConfig[];
   sampleHold: SampleHoldConfig[];
@@ -303,29 +316,36 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   ],
   effects: {
     enabled: true,
-    bloom: 0.2,
-    blur: 0,
-    chroma: 0.1,
-    posterize: 0,
-    kaleidoscope: 0,
-    feedback: 0,
-    persistence: 0
+    bloom: 0.25,
+    blur: 0.05,
+    chroma: 0.15,
+    posterize: 0.1,
+    kaleidoscope: 0.2,
+    feedback: 0.1,
+    persistence: 0.25
   },
   particles: {
     enabled: true,
-    density: 0.35,
-    speed: 0.3,
-    size: 0.45,
-    glow: 0.6
+    density: 0.55,
+    speed: 0.35,
+    size: 0.5,
+    glow: 0.8
   },
   sdf: {
     enabled: true,
-    shape: 'circle',
-    scale: 0.45,
-    edge: 0.08,
-    glow: 0.5,
-    rotation: 0,
-    fill: 0.35
+    shape: 'triangle',
+    scale: 0.55,
+    edge: 0.06,
+    glow: 0.65,
+    rotation: 0.2,
+    fill: 0.4
+  },
+  visualizer: {
+    enabled: false,
+    mode: 'off',
+    opacity: 0.8,
+    macroEnabled: false,
+    macroId: 8
   },
   lfos: [
     {
@@ -393,6 +413,10 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     for (let i = 32; i < 64; i += 1) {
       mappings[i] = 'strobe';
     }
+    mappings[64] = 'origami-mountain';
+    mappings[65] = 'origami-valley';
+    mappings[66] = 'origami-collapse';
+    mappings[67] = 'origami-explode';
     return mappings;
   })(),
   timelineMarkers: [],
@@ -407,16 +431,24 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
           id: 'layer-plasma',
           name: 'Shader Plasma',
           enabled: true,
-          opacity: 0.95,
+          opacity: 0.75,
           blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+          transform: { x: 0, y: 0, scale: 1.05, rotation: 0.05 }
         },
         {
           id: 'layer-spectrum',
-          name: 'Audio Spectrum',
+          name: 'Spectrum Bars',
           enabled: true,
-          opacity: 0.9,
+          opacity: 0.75,
           blendMode: 'add',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-origami',
+          name: 'Origami Fold',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
           transform: { x: 0, y: 0, scale: 1, rotation: 0 }
         }
       ]
@@ -435,10 +467,18 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         },
         {
           id: 'layer-spectrum',
-          name: 'Audio Spectrum',
+          name: 'Spectrum Bars',
           enabled: true,
           opacity: 0.95,
           blendMode: 'add',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-origami',
+          name: 'Origami Fold',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
           transform: { x: 0, y: 0, scale: 1, rotation: 0 }
         }
       ]

@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "name": "SDF Prism",
+  "createdAt": "2026-01-26T19:11:00.000Z",
+  "updatedAt": "2026-01-26T19:11:00.000Z",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.15,
+    "blur": 0.0,
+    "chroma": 0.05,
+    "posterize": 0.2,
+    "kaleidoscope": 0.3,
+    "feedback": 0.05,
+    "persistence": 0.2
+  },
+  "particles": {
+    "enabled": false,
+    "density": 0.2,
+    "speed": 0.2,
+    "size": 0.4,
+    "glow": 0.4
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "triangle",
+    "scale": 0.7,
+    "edge": 0.05,
+    "glow": 0.8,
+    "rotation": 0.3,
+    "fill": 0.6
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Prism Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": false,
+          "opacity": 0.6,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "enabled": false,
+          "opacity": 0.5,
+          "blendMode": "add",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

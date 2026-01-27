@@ -9,12 +9,16 @@ export interface RenderState {
   strobe: number;
   plasmaEnabled: boolean;
   spectrumEnabled: boolean;
+  origamiEnabled: boolean;
   spectrum: Float32Array;
   contrast: number;
   saturation: number;
   paletteShift: number;
   plasmaOpacity: number;
   spectrumOpacity: number;
+  origamiOpacity: number;
+  origamiFoldState: number;
+  origamiFoldSharpness: number;
   plasmaAssetBlendMode: number;
   plasmaAssetAudioReact: number;
   spectrumAssetBlendMode: number;
@@ -77,12 +81,16 @@ uniform float uPeak;
 uniform float uStrobe;
 uniform float uPlasmaEnabled;
 uniform float uSpectrumEnabled;
+uniform float uOrigamiEnabled;
 uniform float uSpectrum[64];
 uniform float uContrast;
 uniform float uSaturation;
 uniform float uPaletteShift;
 uniform float uPlasmaOpacity;
 uniform float uSpectrumOpacity;
+uniform float uOrigamiOpacity;
+uniform float uOrigamiFoldState;
+uniform float uOrigamiFoldSharpness;
 uniform float uEffectsEnabled;
 uniform float uBloom;
 uniform float uBlur;
@@ -302,6 +310,64 @@ void main() {
     color = applyBlendMode(color, assetColor, uSpectrumAssetBlend, alpha);
   }
 
+  if (uOrigamiEnabled > 0.5) {
+    float low = 0.0;
+    for (int i = 0; i < 8; i += 1) {
+      low += uSpectrum[i];
+    }
+    low /= 8.0;
+    float mid = 0.0;
+    for (int i = 8; i < 24; i += 1) {
+      mid += uSpectrum[i];
+    }
+    mid /= 16.0;
+    float high = 0.0;
+    for (int i = 24; i < 64; i += 1) {
+      high += uSpectrum[i];
+    }
+    high /= 40.0;
+    low = pow(low, 1.2);
+    mid = pow(mid, 1.1);
+    high = pow(high, 1.0);
+
+    vec2 centered = effectUv * 2.0 - 1.0;
+    float baseGrid = mix(2.5, 7.5, low);
+    float midGrid = mix(6.0, 18.0, mid);
+    float highGrid = mix(18.0, 60.0, high);
+    float sharp = mix(0.12, 0.02, clamp(uOrigamiFoldSharpness, 0.0, 1.0));
+    float baseLine = abs(sin((centered.x * 0.9 + centered.y * 0.4) * baseGrid + uTime * 0.35));
+    float diagLine = abs(sin((centered.x * -0.4 + centered.y * 0.9) * baseGrid + 1.7));
+    float creaseBase = 1.0 - smoothstep(0.0, sharp, min(baseLine, diagLine));
+    float midLine = abs(sin(centered.x * midGrid)) * abs(sin(centered.y * midGrid));
+    float creaseMid = 1.0 - smoothstep(0.0, sharp * 0.8, midLine);
+    float ripple = sin(centered.x * highGrid + uTime) * sin(centered.y * highGrid - uTime * 0.8);
+
+    float foldField = (creaseBase * (0.6 + low) + creaseMid * (0.4 + mid)) * (0.6 + uOrigamiFoldSharpness);
+    foldField += ripple * high * 0.3;
+
+    float foldMode = uOrigamiFoldState;
+    float foldSign = foldMode < 0.5 ? 1.0 : (foldMode < 1.5 ? -1.0 : (foldMode < 2.5 ? 1.0 : -1.0));
+    float radial = smoothstep(0.9, 0.0, length(centered));
+    float collapse = step(1.5, foldMode) * (1.0 - step(2.5, foldMode));
+    float explode = step(2.5, foldMode);
+    float radialFold = (collapse - explode) * radial * (0.4 + low);
+    float displacement = (foldField + radialFold) * foldSign;
+
+    vec3 normal = normalize(vec3(-dFdx(displacement), -dFdy(displacement), 1.0));
+    vec3 lightDir = normalize(vec3(-0.4, 0.6, 0.9));
+    float diff = clamp(dot(normal, lightDir), 0.0, 1.0);
+    float edge = smoothstep(0.2, 0.75, foldField);
+    float grain = hash21(effectUv * 420.0) * 0.12 + hash21(effectUv * 1200.0) * 0.06;
+    float fiber = sin((effectUv.y + grain) * 900.0) * 0.03;
+    float tear = smoothstep(0.7, 0.98, abs(ripple)) * high * (0.6 + grain);
+    vec3 paper = vec3(0.92, 0.9, 0.86);
+    vec3 shade = paper * (0.65 + diff * 0.45) + edge * vec3(0.12, 0.1, 0.08);
+    shade += vec3(fiber + grain) * 0.15;
+    shade -= tear * vec3(0.18, 0.12, 0.08);
+    shade = clamp(shade, 0.0, 1.0);
+    color = applyBlendMode(color, shade, 3.0, clamp(uOrigamiOpacity, 0.0, 1.0));
+  }
+
   if (uParticlesEnabled > 0.5) {
     float particles = particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize);
     float lift = 0.5 + uRms * 0.8;
@@ -408,12 +474,16 @@ void main() {
   const strobeLocation = gl.getUniformLocation(program, 'uStrobe');
   const plasmaLocation = gl.getUniformLocation(program, 'uPlasmaEnabled');
   const spectrumLocation = gl.getUniformLocation(program, 'uSpectrumEnabled');
+  const origamiLocation = gl.getUniformLocation(program, 'uOrigamiEnabled');
   const spectrumArrayLocation = gl.getUniformLocation(program, 'uSpectrum');
   const contrastLocation = gl.getUniformLocation(program, 'uContrast');
   const saturationLocation = gl.getUniformLocation(program, 'uSaturation');
   const paletteLocation = gl.getUniformLocation(program, 'uPaletteShift');
   const plasmaOpacityLocation = gl.getUniformLocation(program, 'uPlasmaOpacity');
   const spectrumOpacityLocation = gl.getUniformLocation(program, 'uSpectrumOpacity');
+  const origamiOpacityLocation = gl.getUniformLocation(program, 'uOrigamiOpacity');
+  const origamiFoldStateLocation = gl.getUniformLocation(program, 'uOrigamiFoldState');
+  const origamiFoldSharpnessLocation = gl.getUniformLocation(program, 'uOrigamiFoldSharpness');
   const effectsEnabledLocation = gl.getUniformLocation(program, 'uEffectsEnabled');
   const bloomLocation = gl.getUniformLocation(program, 'uBloom');
   const blurLocation = gl.getUniformLocation(program, 'uBlur');
@@ -785,6 +855,7 @@ void main() {
     if (strobeLocation) gl.uniform1f(strobeLocation, state.strobe);
     if (plasmaLocation) gl.uniform1f(plasmaLocation, state.plasmaEnabled ? 1 : 0);
     if (spectrumLocation) gl.uniform1f(spectrumLocation, state.spectrumEnabled ? 1 : 0);
+    if (origamiLocation) gl.uniform1f(origamiLocation, state.origamiEnabled ? 1 : 0);
     if (spectrumArrayLocation) {
       gl.uniform1fv(spectrumArrayLocation, state.spectrum);
     }
@@ -793,6 +864,9 @@ void main() {
     if (paletteLocation) gl.uniform1f(paletteLocation, state.paletteShift);
     if (plasmaOpacityLocation) gl.uniform1f(plasmaOpacityLocation, state.plasmaOpacity);
     if (spectrumOpacityLocation) gl.uniform1f(spectrumOpacityLocation, state.spectrumOpacity);
+    if (origamiOpacityLocation) gl.uniform1f(origamiOpacityLocation, state.origamiOpacity);
+    if (origamiFoldStateLocation) gl.uniform1f(origamiFoldStateLocation, state.origamiFoldState);
+    if (origamiFoldSharpnessLocation) gl.uniform1f(origamiFoldSharpnessLocation, state.origamiFoldSharpness);
     if (effectsEnabledLocation) gl.uniform1f(effectsEnabledLocation, state.effectsEnabled ? 1 : 0);
     if (bloomLocation) gl.uniform1f(bloomLocation, state.bloom);
     if (blurLocation) gl.uniform1f(blurLocation, state.blur);

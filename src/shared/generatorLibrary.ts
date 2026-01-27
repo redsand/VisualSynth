@@ -1,8 +1,13 @@
 export type GeneratorId =
   | 'layer-plasma'
   | 'layer-spectrum'
+  | 'layer-origami'
   | 'gen-particles'
   | 'gen-sdf'
+  | 'viz-off'
+  | 'viz-spectrum'
+  | 'viz-waveform'
+  | 'viz-oscilloscope'
   | 'fx-bloom'
   | 'fx-feedback'
   | 'fx-kaleidoscope'
@@ -18,9 +23,14 @@ export interface GeneratorEntry {
 
 export const GENERATORS: GeneratorEntry[] = [
   { id: 'layer-plasma', name: 'Shader Plasma' },
-  { id: 'layer-spectrum', name: 'Audio Spectrum' },
+  { id: 'layer-spectrum', name: 'Spectrum Bars' },
+  { id: 'layer-origami', name: 'Origami Fold' },
   { id: 'gen-particles', name: 'Particle Field' },
   { id: 'gen-sdf', name: 'SDF Shapes' },
+  { id: 'viz-off', name: 'Visualizer: Off' },
+  { id: 'viz-spectrum', name: 'Visualizer: Spectrum' },
+  { id: 'viz-waveform', name: 'Visualizer: Waveform' },
+  { id: 'viz-oscilloscope', name: 'Visualizer: Oscilloscope' },
   { id: 'fx-bloom', name: 'Effect: Bloom' },
   { id: 'fx-feedback', name: 'Effect: Feedback Tunnel' },
   { id: 'fx-kaleidoscope', name: 'Effect: Kaleidoscope' },

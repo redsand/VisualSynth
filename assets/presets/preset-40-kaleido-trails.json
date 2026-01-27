@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "name": "Kaleido Trails",
+  "createdAt": "2026-01-26T19:12:00.000Z",
+  "updatedAt": "2026-01-26T19:12:00.000Z",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.3,
+    "blur": 0.05,
+    "chroma": 0.12,
+    "posterize": 0.0,
+    "kaleidoscope": 0.6,
+    "feedback": 0.2,
+    "persistence": 0.6
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.6,
+    "speed": 0.25,
+    "size": 0.4,
+    "glow": 0.7
+  },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.08,
+    "glow": 0.5,
+    "rotation": 0,
+    "fill": 0.3
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Trails Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1.1, "rotation": 0.08 }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "enabled": true,
+          "opacity": 0.55,
+          "blendMode": "add",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "name": "Feedback Veil",
+  "createdAt": "2026-01-26T19:14:00.000Z",
+  "updatedAt": "2026-01-26T19:14:00.000Z",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.4,
+    "blur": 0.1,
+    "chroma": 0.08,
+    "posterize": 0.0,
+    "kaleidoscope": 0.0,
+    "feedback": 0.45,
+    "persistence": 0.7
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.4,
+    "speed": 0.2,
+    "size": 0.5,
+    "glow": 0.6
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.08,
+    "glow": 0.6,
+    "rotation": 0.0,
+    "fill": 0.3
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Veil Scene",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.55,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1.2, "rotation": 0.1 }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "enabled": true,
+          "opacity": 0.45,
+          "blendMode": "add",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

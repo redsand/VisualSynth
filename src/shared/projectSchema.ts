@@ -119,6 +119,14 @@ const sdfSchema = z.object({
   fill: z.number()
 });
 
+const visualizerSchema = z.object({
+  enabled: z.boolean(),
+  mode: z.enum(['off', 'spectrum', 'waveform', 'oscilloscope']),
+  opacity: z.number(),
+  macroEnabled: z.boolean(),
+  macroId: z.number()
+});
+
 const lfoSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -152,6 +160,10 @@ const padActionSchema = z.enum([
   'none',
   'toggle-plasma',
   'toggle-spectrum',
+  'origami-mountain',
+  'origami-valley',
+  'origami-collapse',
+  'origami-explode',
   'strobe',
   'scene-next',
   'scene-prev',
@@ -222,6 +234,10 @@ const defaultPadMappings = (() => {
   for (let i = 32; i < 64; i += 1) {
     mappings[i] = 'strobe';
   }
+  mappings[64] = 'origami-mountain';
+  mappings[65] = 'origami-valley';
+  mappings[66] = 'origami-collapse';
+  mappings[67] = 'origami-explode';
   return mappings;
 })();
 
@@ -257,29 +273,36 @@ export const projectSchema = z.object({
     ]),
   effects: effectsSchema.default({
     enabled: true,
-    bloom: 0.2,
-    blur: 0,
-    chroma: 0.1,
-    posterize: 0,
-    kaleidoscope: 0,
-    feedback: 0,
-    persistence: 0
+    bloom: 0.25,
+    blur: 0.05,
+    chroma: 0.15,
+    posterize: 0.1,
+    kaleidoscope: 0.2,
+    feedback: 0.1,
+    persistence: 0.25
   }),
   particles: particlesSchema.default({
     enabled: true,
-    density: 0.35,
-    speed: 0.3,
-    size: 0.45,
-    glow: 0.6
+    density: 0.55,
+    speed: 0.35,
+    size: 0.5,
+    glow: 0.8
   }),
   sdf: sdfSchema.default({
     enabled: true,
-    shape: 'circle',
-    scale: 0.45,
-    edge: 0.08,
-    glow: 0.5,
-    rotation: 0,
-    fill: 0.35
+    shape: 'triangle',
+    scale: 0.55,
+    edge: 0.06,
+    glow: 0.65,
+    rotation: 0.2,
+    fill: 0.4
+  }),
+  visualizer: visualizerSchema.default({
+    enabled: false,
+    mode: 'off',
+    opacity: 0.8,
+    macroEnabled: false,
+    macroId: 8
   }),
   lfos: z
     .array(lfoSchema)

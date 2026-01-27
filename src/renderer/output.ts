@@ -17,12 +17,16 @@ const state: RenderState = {
   strobe: 0,
   plasmaEnabled: true,
   spectrumEnabled: true,
+  origamiEnabled: false,
   spectrum: new Float32Array(64),
   contrast: 1,
   saturation: 1,
   paletteShift: 0,
   plasmaOpacity: 1,
   spectrumOpacity: 1,
+  origamiOpacity: 0.9,
+  origamiFoldState: 0,
+  origamiFoldSharpness: 0.65,
   plasmaAssetBlendMode: 3,
   plasmaAssetAudioReact: 0.6,
   spectrumAssetBlendMode: 1,
@@ -58,11 +62,16 @@ channel.onmessage = (event) => {
   if (typeof data.strobe === 'number') state.strobe = data.strobe;
   if (typeof data.plasmaEnabled === 'boolean') state.plasmaEnabled = data.plasmaEnabled;
   if (typeof data.spectrumEnabled === 'boolean') state.spectrumEnabled = data.spectrumEnabled;
+  if (typeof data.origamiEnabled === 'boolean') state.origamiEnabled = data.origamiEnabled;
   if (typeof data.contrast === 'number') state.contrast = data.contrast;
   if (typeof data.saturation === 'number') state.saturation = data.saturation;
   if (typeof data.paletteShift === 'number') state.paletteShift = data.paletteShift;
   if (typeof data.plasmaOpacity === 'number') state.plasmaOpacity = data.plasmaOpacity;
   if (typeof data.spectrumOpacity === 'number') state.spectrumOpacity = data.spectrumOpacity;
+  if (typeof data.origamiOpacity === 'number') state.origamiOpacity = data.origamiOpacity;
+  if (typeof data.origamiFoldState === 'number') state.origamiFoldState = data.origamiFoldState;
+  if (typeof data.origamiFoldSharpness === 'number')
+    state.origamiFoldSharpness = data.origamiFoldSharpness;
   if (typeof data.plasmaAssetBlendMode === 'number') state.plasmaAssetBlendMode = data.plasmaAssetBlendMode;
   if (typeof data.plasmaAssetAudioReact === 'number') state.plasmaAssetAudioReact = data.plasmaAssetAudioReact;
   if (typeof data.spectrumAssetBlendMode === 'number') state.spectrumAssetBlendMode = data.spectrumAssetBlendMode;

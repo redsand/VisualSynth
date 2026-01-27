@@ -20,6 +20,9 @@ Realtime audio + MIDI reactive visual synthesizer for live performance and creat
 - **Clear feedback:** status bar always reports audio/MIDI state, recording, and performance.
 - **Progressive disclosure:** simple mode for performers, advanced mode for deep control.
 
+## UX Reimagination (Four-Mode Architecture)
+See the full product experience redesign in `docs/UX_REIMAGINE.md`.
+
 ## Differentiators & Feature Exploration
 
 ### Performance-first Experience

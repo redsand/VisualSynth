@@ -23,6 +23,7 @@ import { mergeProjectSections, MergeOptions } from '../shared/projectMerge';
 import { toFileUrl } from '../shared/fileUrl';
 import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult } from '../shared/assets';
+import { getModeVisibility, UiMode } from '../shared/uiModes';
 
 declare global {
   interface Window {
@@ -50,6 +51,7 @@ declare global {
       setOutputConfig: (config: OutputConfig) => Promise<OutputConfig>;
       onOutputClosed: (handler: () => void) => void;
       listNetworkInterfaces: () => Promise<{ name: string; address: string }[]>;
+      isProlinkAvailable: () => Promise<boolean>;
       startNetworkBpm: (
         iface: { name: string; address: string } | null
       ) => Promise<{ started: boolean; message?: string }>;
@@ -74,6 +76,7 @@ declare global {
         kind: 'texture' | 'shader' | 'video'
       ) => Promise<{ canceled: boolean; filePath?: string }>;
       importPlugin: () => Promise<{ canceled: boolean; filePath?: string; payload?: string }>;
+      openAssetFolder: (filePath: string) => Promise<{ opened: boolean }>;
     };
   }
 }
@@ -85,18 +88,68 @@ const saveButton = document.getElementById('btn-save') as HTMLButtonElement;
 const loadButton = document.getElementById('btn-load') as HTMLButtonElement;
 const presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
 const applyPresetButton = document.getElementById('btn-apply-preset') as HTMLButtonElement;
+const presetPrevButton = document.getElementById('preset-prev') as HTMLButtonElement;
+const presetNextButton = document.getElementById('preset-next') as HTMLButtonElement;
+const presetCategorySelect = document.getElementById('preset-category') as HTMLSelectElement;
+const presetShuffleButton = document.getElementById('preset-shuffle') as HTMLButtonElement;
+const presetBrowser = document.getElementById('preset-browser') as HTMLDivElement;
 const templateSelect = document.getElementById('template-select') as HTMLSelectElement;
 const applyTemplateButton = document.getElementById('btn-apply-template') as HTMLButtonElement;
+const modeSwitcher = document.getElementById('mode-switcher') as HTMLDivElement;
+const modeButtons = Array.from(
+  modeSwitcher.querySelectorAll<HTMLButtonElement>('button[data-mode]')
+);
+const performanceLeft = document.getElementById('mode-performance-left') as HTMLDivElement;
+const performanceRight = document.getElementById('mode-performance-right') as HTMLDivElement;
+const sceneLeft = document.getElementById('mode-scene-left') as HTMLDivElement;
+const sceneRight = document.getElementById('mode-scene-right') as HTMLDivElement;
+const designLeft = document.getElementById('mode-design-left') as HTMLDivElement;
+const designRight = document.getElementById('mode-design-right') as HTMLDivElement;
+const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
+const systemRight = document.getElementById('mode-system-right') as HTMLDivElement;
+const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement;
+const sceneStripAnchor = document.getElementById('scene-strip-anchor') as HTMLDivElement;
+const transportPlay = document.getElementById('transport-play') as HTMLButtonElement;
+const transportStop = document.getElementById('transport-stop') as HTMLButtonElement;
+const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
+const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
+const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
+const healthFps = document.getElementById('health-fps') as HTMLSpanElement;
+const healthLatency = document.getElementById('health-latency') as HTMLSpanElement;
+const healthWatchdog = document.getElementById('health-watchdog') as HTMLSpanElement;
+const summaryMods = document.getElementById('summary-mods') as HTMLButtonElement;
+const summaryFx = document.getElementById('summary-fx') as HTMLButtonElement;
+const summaryAuto = document.getElementById('summary-auto') as HTMLButtonElement;
+const latencySummary = document.getElementById('latency-summary') as HTMLDivElement;
+const guardrailStatus = document.getElementById('guardrail-status') as HTMLDivElement;
+const guardrailHint = document.getElementById('guardrail-hint') as HTMLDivElement;
+const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
+const perfTogglePlasma = document.getElementById('perf-toggle-plasma') as HTMLInputElement;
+const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement;
+const spectrumHintDismiss = document.getElementById('spectrum-hint-dismiss') as HTMLButtonElement;
+const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
+const generatorPanel = document.getElementById('generator-panel') as HTMLDivElement;
+const playlistAddButton = document.getElementById('playlist-add') as HTMLButtonElement;
+const playlistRemoveButton = document.getElementById('playlist-remove') as HTMLButtonElement;
+const playlistPlayButton = document.getElementById('playlist-play') as HTMLButtonElement;
+const playlistStopButton = document.getElementById('playlist-stop') as HTMLButtonElement;
+const playlistList = document.getElementById('playlist-list') as HTMLDivElement;
+const playlistSlotSeconds = document.getElementById('playlist-slot-seconds') as HTMLInputElement;
+const playlistFadeSeconds = document.getElementById('playlist-fade-seconds') as HTMLInputElement;
+const shaderTargetSelect = document.getElementById('shader-target') as HTMLSelectElement;
+const shaderEditor = document.getElementById('shader-editor') as HTMLTextAreaElement;
+const shaderApplyButton = document.getElementById('shader-apply') as HTMLButtonElement;
+const shaderSaveButton = document.getElementById('shader-save') as HTMLButtonElement;
+const shaderStatus = document.getElementById('shader-status') as HTMLDivElement;
 const layerList = document.getElementById('layer-list') as HTMLDivElement;
 let plasmaToggle: HTMLInputElement | null = null;
 let spectrumToggle: HTMLInputElement | null = null;
+let origamiToggle: HTMLInputElement | null = null;
 const statusLabel = document.getElementById('status') as HTMLDivElement;
 const padGrid = document.getElementById('pad-grid') as HTMLDivElement;
 const padBank = document.getElementById('pad-bank') as HTMLDivElement;
 const padMapGrid = document.getElementById('pad-map-grid') as HTMLDivElement;
 const padMapBank = document.getElementById('pad-map-bank') as HTMLDivElement;
-const advancedPanel = document.getElementById('advanced-panel') as HTMLDivElement;
-const toggleMode = document.getElementById('toggle-mode') as HTMLButtonElement;
 const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement;
 const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
 const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement;
@@ -114,6 +167,11 @@ const generatorSelect = document.getElementById('generator-select') as HTMLSelec
 const generatorAddButton = document.getElementById('generator-add') as HTMLButtonElement;
 const generatorFavorites = document.getElementById('generator-favorites') as HTMLDivElement;
 const generatorRecents = document.getElementById('generator-recents') as HTMLDivElement;
+const visualizerModeSelect = document.getElementById('visualizer-mode') as HTMLSelectElement;
+const visualizerEnabledToggle = document.getElementById('visualizer-enabled') as HTMLInputElement;
+const visualizerOpacityInput = document.getElementById('visualizer-opacity') as HTMLInputElement;
+const visualizerMacroToggle = document.getElementById('visualizer-macro-enabled') as HTMLInputElement;
+const visualizerMacroSelect = document.getElementById('visualizer-macro-select') as HTMLSelectElement;
 const styleSelect = document.getElementById('style-select') as HTMLSelectElement;
 const styleContrast = document.getElementById('style-contrast') as HTMLInputElement;
 const styleSaturation = document.getElementById('style-saturation') as HTMLInputElement;
@@ -225,7 +283,9 @@ let mediaStream: MediaStream | null = null;
 let midiAccess: MIDIAccess | null = null;
 let strobeIntensity = 0;
 let strobeDecay = 0.92;
-let isAdvanced = true;
+let origamiFoldState = 0;
+let origamiFoldSharpness = 0.65;
+let activeMode: UiMode = 'performance';
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
 const outputChannel = new BroadcastChannel('visualsynth-output');
@@ -270,12 +330,22 @@ let lastRenderTimeMs = 0;
 let diffBaseProject: VisualSynthProject | null = null;
 let diffIncomingProject: VisualSynthProject | null = null;
 let renderer: ReturnType<typeof createGLRenderer>;
+let lastSummaryUpdate = 0;
+let visualizerMode: 'off' | 'spectrum' | 'waveform' | 'oscilloscope' = 'off';
+let playlist: { name: string; path: string }[] = [];
+let playlistIndex = 0;
+let playlistTimer: number | null = null;
+let presetLibrary: { name: string; path: string; category: string }[] = [];
+const presetThumbStorageKey = 'vs.preset.thumbs';
+let presetThumbs: Record<string, string> = {};
+const shaderDraftKey = 'vs.shader.draft';
 
 const audioState = {
   rms: 0,
   peak: 0,
   bands: new Array(8).fill(0),
-  spectrum: new Float32Array(64)
+  spectrum: new Float32Array(64),
+  waveform: new Float32Array(256)
 };
 
 const padStates = Array.from({ length: 256 }, () => false);
@@ -287,6 +357,10 @@ const padActionCycle = [
   'none',
   'toggle-plasma',
   'toggle-spectrum',
+  'origami-mountain',
+  'origami-valley',
+  'origami-collapse',
+  'origami-explode',
   'strobe',
   'scene-next',
   'scene-prev',
@@ -304,6 +378,10 @@ const padActionLabels: Record<(typeof padActionCycle)[number], string> = {
   none: '—',
   'toggle-plasma': 'Plasma',
   'toggle-spectrum': 'Spectrum',
+  'origami-mountain': 'Origami: Mountain',
+  'origami-valley': 'Origami: Valley',
+  'origami-collapse': 'Origami: Collapse',
+  'origami-explode': 'Origami: Explode',
   strobe: 'Strobe',
   'scene-next': 'Scene +',
   'scene-prev': 'Scene -',
@@ -319,6 +397,327 @@ const padActionLabels: Record<(typeof padActionCycle)[number], string> = {
 
 const setStatus = (message: string) => {
   statusLabel.textContent = message;
+};
+
+const setMode = (mode: UiMode) => {
+  activeMode = mode;
+  const visibility = getModeVisibility(mode);
+  document.body.dataset.mode = mode;
+  modeButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.mode === mode);
+  });
+  performanceLeft.classList.toggle('hidden', !visibility.performance);
+  performanceRight.classList.toggle('hidden', !visibility.performance);
+  sceneLeft.classList.toggle('hidden', !visibility.scene);
+  sceneRight.classList.toggle('hidden', !visibility.scene);
+  designLeft.classList.toggle('hidden', !visibility.design);
+  designRight.classList.toggle('hidden', !visibility.design);
+  systemLeft.classList.toggle('hidden', !visibility.system);
+  systemRight.classList.toggle('hidden', !visibility.system);
+  if (mode === 'scene') {
+    sceneStripAnchor.appendChild(sceneStrip);
+  } else {
+    performanceLeft.insertBefore(sceneStrip, performanceLeft.children[1] ?? null);
+  }
+};
+
+const syncTempoInputs = (value: number) => {
+  const normalized = Number.isFinite(value) ? value : 120;
+  tempoInput.value = String(normalized);
+  transportBpmInput.value = String(normalized);
+};
+
+const loadPlaylist = () => {
+  try {
+    const stored = localStorage.getItem('vs.preset.playlist');
+    playlist = stored ? (JSON.parse(stored) as { name: string; path: string }[]) : [];
+  } catch {
+    playlist = [];
+  }
+};
+
+const savePlaylist = () => {
+  localStorage.setItem('vs.preset.playlist', JSON.stringify(playlist));
+};
+
+const loadPresetThumbnails = () => {
+  try {
+    const stored = localStorage.getItem(presetThumbStorageKey);
+    presetThumbs = stored ? (JSON.parse(stored) as Record<string, string>) : {};
+  } catch {
+    presetThumbs = {};
+  }
+};
+
+const savePresetThumbnails = () => {
+  localStorage.setItem(presetThumbStorageKey, JSON.stringify(presetThumbs));
+};
+
+const hashPreset = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const categorizePreset = (name: string) => {
+  const key = name.toLowerCase();
+  if (key.includes('dna')) return 'DNA';
+  if (key.includes('particle')) return 'Particles';
+  if (key.includes('sdf') || key.includes('prism')) return 'SDF';
+  if (key.includes('feedback') || key.includes('trail')) return 'Feedback';
+  if (key.includes('kaleido')) return 'Kaleido';
+  if (key.includes('strobe')) return 'Strobe';
+  if (key.includes('nebula') || key.includes('no bars')) return 'No Bars';
+  return 'General';
+};
+
+const renderPresetBrowser = () => {
+  presetBrowser.innerHTML = '';
+  const filter = presetCategorySelect.value;
+  const entries =
+    filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
+  entries.forEach((preset) => {
+    const card = document.createElement('div');
+    card.className = 'preset-card';
+    const thumb = document.createElement('div');
+    thumb.className = 'preset-thumb';
+    const cachedThumb = presetThumbs[preset.path];
+    if (cachedThumb) {
+      thumb.style.backgroundImage = `url('${cachedThumb}')`;
+    } else {
+      const hue = hashPreset(preset.name) % 360;
+      thumb.style.background = `linear-gradient(135deg, hsl(${hue},70%,45%), hsl(${(hue + 60) % 360},70%,35%))`;
+    }
+    const name = document.createElement('div');
+    name.className = 'preset-name';
+    name.textContent = preset.name;
+    const tag = document.createElement('div');
+    tag.className = 'preset-tag';
+    tag.textContent = preset.category;
+    card.appendChild(thumb);
+    card.appendChild(name);
+    card.appendChild(tag);
+    card.addEventListener('click', async () => {
+      presetSelect.value = preset.path;
+      await applySelectedPreset('Browser');
+    });
+    presetBrowser.appendChild(card);
+  });
+};
+
+const refreshPresetCategories = () => {
+  const categories = Array.from(new Set(presetLibrary.map((item) => item.category)));
+  presetCategorySelect.innerHTML = '';
+  const all = document.createElement('option');
+  all.value = 'All';
+  all.textContent = 'All';
+  presetCategorySelect.appendChild(all);
+  categories.sort().forEach((category) => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    presetCategorySelect.appendChild(option);
+  });
+};
+
+const captureCanvasSnapshot = () => {
+  try {
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } catch {
+    return null;
+  }
+};
+
+const capturePresetThumbnail = async (path: string) => {
+  if (!path) return;
+  try {
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(resolve);
+      });
+    });
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = 240;
+    thumbCanvas.height = 135;
+    const ctx = thumbCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+    const dataUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
+    presetThumbs[path] = dataUrl;
+    savePresetThumbnails();
+    renderPresetBrowser();
+  } catch {
+    // Ignore thumbnail capture failures (likely tainted canvas).
+  }
+};
+
+const crossfadeToPreset = async (path: string, name: string, fadeSeconds: number) => {
+  const duration = Math.max(0, fadeSeconds);
+  if (duration === 0) {
+    await applyPresetPath(path, 'Playlist');
+    return;
+  }
+  const snapshot = captureCanvasSnapshot();
+  fadeOverlay.classList.remove('hidden');
+  fadeOverlay.style.transitionDuration = '0s';
+  fadeOverlay.style.backgroundImage = snapshot ? `url('${snapshot}')` : '';
+  fadeOverlay.style.opacity = '1';
+  await applyPresetPath(path, 'Playlist');
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  fadeOverlay.style.transitionDuration = `${duration}s`;
+  fadeOverlay.style.opacity = '0';
+  await new Promise((resolve) => setTimeout(resolve, duration * 1000));
+  fadeOverlay.classList.add('hidden');
+  fadeOverlay.style.backgroundImage = '';
+  setStatus(`Playlist: ${name}`);
+};
+
+const renderPlaylist = () => {
+  playlistList.innerHTML = '';
+  if (playlist.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No presets queued.';
+    playlistList.appendChild(empty);
+    return;
+  }
+  playlist.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'marker-row';
+    const indexLabel = document.createElement('div');
+    indexLabel.textContent = String(index + 1);
+    const name = document.createElement('div');
+    name.textContent = item.name;
+    const remove = document.createElement('button');
+    remove.textContent = '✕';
+    remove.addEventListener('click', () => {
+      playlist = playlist.filter((_entry, i) => i !== index);
+      if (playlistIndex >= playlist.length) playlistIndex = 0;
+      savePlaylist();
+      renderPlaylist();
+    });
+    row.appendChild(indexLabel);
+    row.appendChild(name);
+    row.appendChild(remove);
+    playlistList.appendChild(row);
+  });
+};
+
+const stopPlaylist = () => {
+  if (playlistTimer !== null) {
+    window.clearInterval(playlistTimer);
+    playlistTimer = null;
+  }
+};
+
+const applyPresetPath = async (path: string, reason?: string) => {
+  const result = await window.visualSynth.loadPreset(path);
+  if (result.project) {
+    await applyProject(result.project);
+    const presetName = playlist.find((item) => item.path === path)?.name ?? path;
+    setStatus(`${reason ? `${reason}: ` : ''}Preset applied: ${presetName}`);
+    void capturePresetThumbnail(path);
+  }
+};
+
+const advancePlaylist = async () => {
+  if (playlist.length === 0) return;
+  const item = playlist[playlistIndex];
+  playlistIndex = (playlistIndex + 1) % playlist.length;
+  const fadeSeconds = Math.max(0, Number(playlistFadeSeconds.value) || 0);
+  if (fadeSeconds > 0) {
+    setStatus(`Transitioning to ${item.name}...`);
+    await crossfadeToPreset(item.path, item.name, fadeSeconds);
+  } else {
+    await applyPresetPath(item.path, 'Playlist');
+  }
+};
+
+const updateSummaryChips = () => {
+  const modCount = currentProject.modMatrix?.length ?? 0;
+  summaryMods.textContent = `Mods: ${modCount}`;
+  summaryMods.classList.toggle('hidden', modCount === 0);
+
+  const effects = currentProject.effects;
+  const fxActive = Boolean(
+    effects?.enabled &&
+      (effects.bloom > 0 ||
+        effects.blur > 0 ||
+        effects.chroma > 0 ||
+        effects.posterize > 0 ||
+        effects.kaleidoscope > 0 ||
+        effects.feedback > 0 ||
+        effects.persistence > 0)
+  );
+  summaryFx.textContent = fxActive ? 'FX: Active' : 'FX: Off';
+  summaryFx.classList.toggle('hidden', !effects);
+
+  const markerCount = currentProject.timelineMarkers?.length ?? 0;
+  summaryAuto.textContent = `Auto: ${markerCount}`;
+  summaryAuto.classList.toggle('hidden', markerCount === 0);
+};
+
+const setVisualizerMode = (mode: typeof visualizerMode) => {
+  visualizerMode = mode;
+  visualizerModeSelect.value = mode;
+  currentProject.visualizer.mode = mode;
+  visualizerEnabledToggle.checked = currentProject.visualizer.enabled;
+  visualizerOpacityInput.value = String(currentProject.visualizer.opacity);
+  visualizerMacroToggle.checked = currentProject.visualizer.macroEnabled;
+  visualizerMacroSelect.value = String(currentProject.visualizer.macroId);
+  visualizerMacroSelect.disabled = !currentProject.visualizer.macroEnabled;
+  visualizerCanvas.classList.toggle('hidden', mode === 'off' || !currentProject.visualizer.enabled);
+};
+
+const syncVisualizerFromProject = () => {
+  visualizerMode = currentProject.visualizer.mode;
+  visualizerModeSelect.value = visualizerMode;
+  visualizerEnabledToggle.checked = currentProject.visualizer.enabled;
+  visualizerOpacityInput.value = String(currentProject.visualizer.opacity);
+  visualizerMacroToggle.checked = currentProject.visualizer.macroEnabled;
+  visualizerMacroSelect.value = String(currentProject.visualizer.macroId);
+  visualizerMacroSelect.disabled = !currentProject.visualizer.macroEnabled;
+  visualizerCanvas.classList.toggle('hidden', visualizerMode === 'off' || !currentProject.visualizer.enabled);
+};
+
+const loadShaderDraft = () => {
+  try {
+    const stored = localStorage.getItem(shaderDraftKey);
+    if (stored) {
+      const parsed = JSON.parse(stored) as { target: string; code: string };
+      shaderTargetSelect.value = parsed.target;
+      shaderEditor.value = parsed.code;
+      shaderStatus.textContent = 'Draft loaded.';
+    }
+  } catch {
+    shaderStatus.textContent = 'Draft load failed.';
+  }
+};
+
+const saveShaderDraft = () => {
+  const payload = {
+    target: shaderTargetSelect.value,
+    code: shaderEditor.value
+  };
+  localStorage.setItem(shaderDraftKey, JSON.stringify(payload));
+  shaderStatus.textContent = 'Draft saved locally.';
+};
+
+const syncPerformanceToggles = () => {
+  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  if (!scene) return;
+  const plasmaLayer = scene.layers.find((layer) => layer.id === 'layer-plasma');
+  const spectrumLayer = scene.layers.find((layer) => layer.id === 'layer-spectrum');
+  if (plasmaLayer) perfTogglePlasma.checked = plasmaLayer.enabled;
+  if (spectrumLayer) perfToggleSpectrum.checked = spectrumLayer.enabled;
+};
+
+const initSpectrumHint = () => {
+  const dismissed = localStorage.getItem('visualsynth.spectrumHintDismissed') === '1';
+  spectrumHint.classList.toggle('hidden', dismissed);
 };
 
 const updateSafeModeBanner = () => {
@@ -354,6 +753,7 @@ const modSourceOptions = [
 const modTargetOptions = [
   { id: 'layer-plasma.opacity', label: 'Plasma Opacity', min: 0, max: 1 },
   { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity', min: 0, max: 1 },
+  { id: 'layer-origami.opacity', label: 'Origami Opacity', min: 0, max: 1 },
   { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
   { id: 'style.saturation', label: 'Style Saturation', min: 0.6, max: 1.8 },
   { id: 'style.paletteShift', label: 'Palette Shift', min: -0.5, max: 0.5 },
@@ -381,8 +781,10 @@ const getTargetDefaults = (targetId: string) =>
 const midiTargetOptions = [
   { id: 'layer-plasma.enabled', label: 'Plasma Enabled' },
   { id: 'layer-spectrum.enabled', label: 'Spectrum Enabled' },
+  { id: 'layer-origami.enabled', label: 'Origami Enabled' },
   { id: 'layer-plasma.opacity', label: 'Plasma Opacity' },
   { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity' },
+  { id: 'layer-origami.opacity', label: 'Origami Opacity' },
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
   { id: 'style.paletteShift', label: 'Palette Shift' },
@@ -417,13 +819,15 @@ const normalizeOutputScale = (value: number) => Math.min(1, Math.max(0.25, value
 const updateOutputResolution = () => {
   const width = Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale);
   const height = Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale);
-  outputResolutionLabel.textContent = `Output: ${width} × ${height}`;
+  outputResolutionLabel.textContent = `Output: ${width} x ${height}`;
 };
 
 const updateOutputUI = () => {
   outputToggleButton.textContent = outputOpen ? 'Close Output' : 'Open Output';
   outputFullscreenToggle.checked = outputConfig.fullscreen;
   outputScaleSelect.value = String(outputConfig.scale);
+  outputRouteSelect.value = outputOpen ? 'output' : 'preview';
+  guardrailHint.textContent = `Output scale: ${Math.round(outputConfig.scale * 100)}%`;
   updateOutputResolution();
 };
 
@@ -466,6 +870,8 @@ const renderLayerList = () => {
       layer.enabled = checkbox.checked;
       if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
       if (layer.id === 'layer-spectrum') spectrumToggle = checkbox;
+      if (layer.id === 'layer-origami') origamiToggle = checkbox;
+      syncPerformanceToggles();
       setStatus(`${layer.name} ${checkbox.checked ? 'enabled' : 'disabled'}`);
     });
     const text = document.createElement('span');
@@ -535,8 +941,33 @@ const renderLayerList = () => {
     layerList.appendChild(row);
     if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
     if (layer.id === 'layer-spectrum') spectrumToggle = checkbox;
+    if (layer.id === 'layer-origami') origamiToggle = checkbox;
     syncLayerAsset(layer);
   });
+  const visualizerRow = document.createElement('div');
+  visualizerRow.className = 'layer-row';
+  const vizLabel = document.createElement('label');
+  const vizToggle = document.createElement('input');
+  vizToggle.type = 'checkbox';
+  vizToggle.checked = currentProject.visualizer.enabled;
+  vizToggle.addEventListener('change', () => {
+    currentProject.visualizer.enabled = vizToggle.checked;
+    visualizerEnabledToggle.checked = vizToggle.checked;
+    visualizerCanvas.classList.toggle(
+      'hidden',
+      visualizerMode === 'off' || !currentProject.visualizer.enabled
+    );
+    setStatus(`Visualizer ${vizToggle.checked ? 'enabled' : 'disabled'}`);
+  });
+  const vizText = document.createElement('span');
+  vizText.textContent = 'Visualizer Overlay';
+  vizLabel.appendChild(vizToggle);
+  vizLabel.appendChild(vizText);
+  const vizControls = document.createElement('div');
+  vizControls.className = 'layer-controls';
+  visualizerRow.appendChild(vizLabel);
+  visualizerRow.appendChild(vizControls);
+  layerList.appendChild(visualizerRow);
   initLearnables();
 };
 
@@ -1148,6 +1579,14 @@ const renderAssets = () => {
     tags.textContent = asset.tags.length === 0 ? '—' : asset.tags.join(', ');
     const actions = document.createElement('div');
     actions.className = 'asset-actions';
+    if (asset.path) {
+      const revealBtn = document.createElement('button');
+      revealBtn.textContent = 'Open Folder';
+      revealBtn.addEventListener('click', () => {
+        void window.visualSynth.openAssetFolder(asset.path!);
+      });
+      actions.appendChild(revealBtn);
+    }
     if (asset.missing) {
       const relinkBtn = document.createElement('button');
       relinkBtn.className = 'asset-relink-btn';
@@ -1250,6 +1689,13 @@ const buildLayerAssetSelect = (layer: LayerConfig) => {
   noneOption.value = '';
   noneOption.textContent = 'None';
   select.appendChild(noneOption);
+  if (currentProject.assets.length === 0) {
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = 'No assets loaded (System > Assets)';
+    emptyOption.disabled = true;
+    select.appendChild(emptyOption);
+  }
   currentProject.assets.forEach((asset) => {
     const option = document.createElement('option');
     option.value = asset.id;
@@ -2148,6 +2594,7 @@ const applyScene = (sceneId: string) => {
   if (!scene) return;
   currentProject = { ...currentProject, activeSceneId: sceneId };
   renderLayerList();
+  syncPerformanceToggles();
 };
 
 const updateQuantizeHud = (message: string | null) => {
@@ -2260,6 +2707,35 @@ const addGenerator = (id: GeneratorId) => {
     if (spectrumToggle) spectrumToggle.checked = true;
     setStatus('Spectrum layer enabled.');
   }
+  if (id === 'layer-origami') {
+    const layer = ensureOrigamiLayer(true);
+    if (origamiToggle) origamiToggle.checked = true;
+    if (layer) {
+      layer.enabled = true;
+      renderLayerList();
+    }
+    setStatus('Origami fold layer enabled.');
+  }
+  if (id === 'viz-off') {
+    currentProject.visualizer.enabled = false;
+    setVisualizerMode('off');
+    setStatus('Visualizer off.');
+  }
+  if (id === 'viz-spectrum') {
+    currentProject.visualizer.enabled = true;
+    setVisualizerMode('spectrum');
+    setStatus('Visualizer: Spectrum.');
+  }
+  if (id === 'viz-waveform') {
+    currentProject.visualizer.enabled = true;
+    setVisualizerMode('waveform');
+    setStatus('Visualizer: Waveform.');
+  }
+  if (id === 'viz-oscilloscope') {
+    currentProject.visualizer.enabled = true;
+    setVisualizerMode('oscilloscope');
+    setStatus('Visualizer: Oscilloscope.');
+  }
   if (id === 'gen-particles') {
     particlesEnabled.checked = true;
     currentProject.particles.enabled = true;
@@ -2327,6 +2803,22 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
   if (target === 'layer-spectrum.enabled') {
     if (spectrumToggle) {
       spectrumToggle.checked = isToggle ? !spectrumToggle.checked : value > 0.5;
+    }
+    return;
+  }
+  if (target === 'layer-origami.enabled') {
+    const layer = ensureOrigamiLayer(true);
+    const next = isToggle ? !layer?.enabled : value > 0.5;
+    if (layer) layer.enabled = Boolean(next);
+    if (origamiToggle) origamiToggle.checked = Boolean(next);
+    renderLayerList();
+    return;
+  }
+  if (target === 'layer-origami.opacity') {
+    const layer = ensureOrigamiLayer();
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
     }
     return;
   }
@@ -2608,6 +3100,27 @@ const renderPadMapGrid = () => {
   updatePadMapBankUI();
 };
 
+const ensureOrigamiLayer = (enable = false) => {
+  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  if (!scene) return null;
+  let layer = scene.layers.find((item) => item.id === 'layer-origami');
+  if (!layer) {
+    layer = {
+      id: 'layer-origami',
+      name: 'Origami Fold',
+      enabled: enable,
+      opacity: 0.85,
+      blendMode: 'screen',
+      transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+    };
+    scene.layers.push(layer);
+    renderLayerList();
+  } else if (enable) {
+    layer.enabled = true;
+  }
+  return layer;
+};
+
 const handlePadTrigger = (logicalIndex: number, velocity: number) => {
   const localIndex = logicalIndex % 64;
   const action = currentProject.padMappings[logicalIndex] ?? 'none';
@@ -2621,6 +3134,24 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
     padStates[logicalIndex] = !padStates[logicalIndex];
     updatePadUI(localIndex, padStates[logicalIndex]);
     if (spectrumToggle) spectrumToggle.checked = padStates[logicalIndex];
+    return;
+  }
+  if (action.startsWith('origami-')) {
+    const foldMap: Record<string, number> = {
+      'origami-mountain': 0,
+      'origami-valley': 1,
+      'origami-collapse': 2,
+      'origami-explode': 3
+    };
+    origamiFoldState = foldMap[action] ?? 0;
+    origamiFoldSharpness = Math.min(1, Math.max(0.2, velocity));
+    const layer = ensureOrigamiLayer(true);
+    if (layer) {
+      layer.enabled = true;
+      renderLayerList();
+    }
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
     return;
   }
   if (action === 'strobe') {
@@ -2702,6 +3233,8 @@ const updateAudioAnalysis = () => {
   const bufferLength = analyser.frequencyBinCount;
   const data = new Uint8Array(bufferLength);
   analyser.getByteFrequencyData(data);
+  const timeData = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(timeData);
 
   let sum = 0;
   let peak = 0;
@@ -2726,6 +3259,10 @@ const updateAudioAnalysis = () => {
   for (let i = 0; i < 64; i += 1) {
     const index = Math.floor((i / 64) * bufferLength);
     audioState.spectrum[i] = data[index] / 255;
+  }
+  for (let i = 0; i < audioState.waveform.length; i += 1) {
+    const sample = timeData[Math.floor((i / audioState.waveform.length) * timeData.length)];
+    audioState.waveform[i] = (sample - 128) / 128;
   }
 
   const now = performance.now();
@@ -2932,6 +3469,7 @@ const applyProject = async (project: VisualSynthProject) => {
   initEffects();
   initParticles();
   initSdf();
+  syncVisualizerFromProject();
   initModulators();
   renderModulators();
   renderModMatrix();
@@ -2959,11 +3497,37 @@ loadButton.addEventListener('click', async () => {
 });
 
 applyPresetButton.addEventListener('click', async () => {
-  const presetPath = presetSelect.value;
-  const result = await window.visualSynth.loadPreset(presetPath);
-  if (result.project) {
-    await applyProject(result.project);
-  }
+  await applySelectedPreset();
+});
+
+presetPrevButton.addEventListener('click', async () => {
+  if (presetSelect.options.length === 0) return;
+  const nextIndex =
+    (presetSelect.selectedIndex - 1 + presetSelect.options.length) % presetSelect.options.length;
+  presetSelect.selectedIndex = nextIndex;
+  await applySelectedPreset('Previous');
+});
+
+presetNextButton.addEventListener('click', async () => {
+  if (presetSelect.options.length === 0) return;
+  const nextIndex = (presetSelect.selectedIndex + 1) % presetSelect.options.length;
+  presetSelect.selectedIndex = nextIndex;
+  await applySelectedPreset('Next');
+});
+
+presetCategorySelect.addEventListener('change', () => {
+  renderPresetBrowser();
+});
+
+presetShuffleButton.addEventListener('click', async () => {
+  if (presetLibrary.length === 0) return;
+  const filter = presetCategorySelect.value;
+  const entries =
+    filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
+  const pick = entries[Math.floor(Math.random() * entries.length)];
+  if (!pick) return;
+  presetSelect.value = pick.path;
+  await applySelectedPreset('Shuffle');
 });
 
 applyTemplateButton.addEventListener('click', async () => {
@@ -2977,6 +3541,7 @@ applyTemplateButton.addEventListener('click', async () => {
 sceneSelect.addEventListener('change', () => {
   applyScene(sceneSelect.value);
   setStatus(`Scene active: ${sceneSelect.selectedOptions[0]?.textContent ?? sceneSelect.value}`);
+  syncPerformanceToggles();
 });
 
 queueSceneButton.addEventListener('click', () => {
@@ -3031,6 +3596,30 @@ bpmNetworkToggle.addEventListener('click', async () => {
     bpmNetworkToggle.textContent = 'Start Network';
     setStatus('Network BPM stopped.');
   }
+});
+
+visualizerModeSelect.addEventListener('change', () => {
+  setVisualizerMode(visualizerModeSelect.value as typeof visualizerMode);
+});
+
+visualizerEnabledToggle.addEventListener('change', () => {
+  currentProject.visualizer.enabled = visualizerEnabledToggle.checked;
+  visualizerCanvas.classList.toggle(
+    'hidden',
+    visualizerMode === 'off' || !currentProject.visualizer.enabled
+  );
+  renderLayerList();
+});
+
+visualizerOpacityInput.addEventListener('input', () => {
+  currentProject.visualizer.opacity = Number(visualizerOpacityInput.value);
+});
+visualizerMacroToggle.addEventListener('change', () => {
+  currentProject.visualizer.macroEnabled = visualizerMacroToggle.checked;
+  visualizerMacroSelect.disabled = !visualizerMacroToggle.checked;
+});
+visualizerMacroSelect.addEventListener('change', () => {
+  currentProject.visualizer.macroId = Number(visualizerMacroSelect.value);
 });
 
 generatorAddButton.addEventListener('click', () => {
@@ -3227,14 +3816,124 @@ audioSelect.addEventListener('change', async () => {
   await setupAudio(audioSelect.value);
 });
 
+perfToggleSpectrum.addEventListener('change', () => {
+  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
+  if (spectrumLayer) {
+    spectrumLayer.enabled = perfToggleSpectrum.checked;
+    renderLayerList();
+    setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
+  }
+});
+
+perfTogglePlasma.addEventListener('change', () => {
+  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  const plasmaLayer = scene?.layers.find((layer) => layer.id === 'layer-plasma');
+  if (plasmaLayer) {
+    plasmaLayer.enabled = perfTogglePlasma.checked;
+    renderLayerList();
+    setStatus(`Plasma Layer ${perfTogglePlasma.checked ? 'enabled' : 'disabled'}`);
+  }
+});
+
+spectrumHintDismiss.addEventListener('click', () => {
+  localStorage.setItem('visualsynth.spectrumHintDismissed', '1');
+  spectrumHint.classList.add('hidden');
+});
+
+perfAddLayerButton.addEventListener('click', () => {
+  setMode('scene');
+  generatorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  generatorSelect.focus();
+  setStatus('Scene mode: use Generator Library to add layers.');
+});
+
+playlistAddButton.addEventListener('click', () => {
+  if (!presetSelect.value) return;
+  const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
+  const exists = playlist.some((item) => item.path === presetSelect.value);
+  if (!exists) {
+    playlist.push({ name, path: presetSelect.value });
+    savePlaylist();
+    renderPlaylist();
+    setStatus(`Added to playlist: ${name}`);
+  }
+});
+
+playlistRemoveButton.addEventListener('click', () => {
+  if (playlist.length === 0) return;
+  playlist.pop();
+  if (playlistIndex >= playlist.length) playlistIndex = 0;
+  savePlaylist();
+  renderPlaylist();
+});
+
+playlistPlayButton.addEventListener('click', async () => {
+  if (playlist.length === 0) return;
+  stopPlaylist();
+  playlistIndex = 0;
+  await advancePlaylist();
+  const slotMs = Math.max(2000, Number(playlistSlotSeconds.value) * 1000 || 16000);
+  playlistTimer = window.setInterval(() => {
+    void advancePlaylist();
+  }, slotMs);
+});
+
+playlistStopButton.addEventListener('click', () => {
+  stopPlaylist();
+  setStatus('Playlist stopped.');
+});
+
+shaderSaveButton.addEventListener('click', () => {
+  saveShaderDraft();
+});
+
+shaderApplyButton.addEventListener('click', () => {
+  saveShaderDraft();
+  setStatus(`Shader draft saved for ${shaderTargetSelect.value}.`);
+});
+
 toggleMidiButton.addEventListener('click', async () => {
   await startMidiInput();
 });
 
-toggleMode.addEventListener('click', () => {
-  isAdvanced = !isAdvanced;
-  advancedPanel.classList.toggle('hidden', !isAdvanced);
-  toggleMode.textContent = isAdvanced ? 'Advanced' : 'Simple';
+modeButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const mode = button.dataset.mode as 'performance' | 'scene' | 'design' | 'system';
+    setMode(mode);
+  });
+});
+
+[summaryMods, summaryFx, summaryAuto].forEach((chip) => {
+  chip.addEventListener('click', () => {
+    const mode = chip.dataset.mode as UiMode | undefined;
+    if (mode) setMode(mode);
+  });
+});
+
+transportPlay.addEventListener('click', () => {
+  setStatus('Transport play (placeholder).');
+});
+
+transportStop.addEventListener('click', () => {
+  setStatus('Transport stop (placeholder).');
+});
+
+transportTap.addEventListener('click', () => {
+  setStatus('Tap tempo (placeholder).');
+});
+
+transportBpmInput.addEventListener('change', () => {
+  syncTempoInputs(Number(transportBpmInput.value));
+  setStatus(`Tempo set to ${transportBpmInput.value} BPM`);
+});
+
+tempoInput.addEventListener('change', () => {
+  syncTempoInputs(Number(tempoInput.value));
+});
+
+outputRouteSelect.addEventListener('change', async () => {
+  await setOutputEnabled(outputRouteSelect.value === 'output');
 });
 
 outputToggleButton.addEventListener('click', async () => {
@@ -3250,14 +3949,39 @@ outputScaleSelect.addEventListener('change', async () => {
 });
 
 const initPresets = async () => {
+  loadPresetThumbnails();
   const presets = await window.visualSynth.listPresets();
   presetSelect.innerHTML = '';
+  presetLibrary = presets.map((preset) => ({
+    name: preset.name,
+    path: preset.path,
+    category: categorizePreset(preset.name)
+  }));
   presets.forEach((preset) => {
     const option = document.createElement('option');
     option.value = preset.path;
     option.textContent = preset.name;
     presetSelect.appendChild(option);
   });
+  refreshPresetCategories();
+  renderPresetBrowser();
+  const hasPresets = presets.length > 0;
+  presetPrevButton.disabled = !hasPresets;
+  presetNextButton.disabled = !hasPresets;
+  applyPresetButton.disabled = !hasPresets;
+  presetShuffleButton.disabled = !hasPresets;
+};
+
+const applySelectedPreset = async (reason?: string) => {
+  if (!presetSelect.value) return;
+  const presetPath = presetSelect.value;
+  const result = await window.visualSynth.loadPreset(presetPath);
+  if (result.project) {
+    await applyProject(result.project);
+    const name = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
+    setStatus(`${reason ? `${reason}: ` : ''}Preset applied: ${name}`);
+    void capturePresetThumbnail(presetPath);
+  }
 };
 
 const initTemplates = async () => {
@@ -3284,6 +4008,17 @@ const initOutputConfig = async () => {
 };
 
 const initBpmNetworking = async () => {
+  const prolinkAvailable = await window.visualSynth.isProlinkAvailable();
+  const prolinkOption = bpmSourceSelect.querySelector('option[value="network"]');
+  if (!prolinkAvailable) {
+    prolinkOption?.remove();
+    bpmNetworkToggle.disabled = true;
+    if (bpmSource === 'network') {
+      bpmSource = 'manual';
+      bpmSourceSelect.value = 'manual';
+    }
+  }
+
   const interfaces = await window.visualSynth.listNetworkInterfaces();
   bpmInterfaceSelect.innerHTML = '';
   interfaces.forEach((iface) => {
@@ -3303,12 +4038,13 @@ const initBpmNetworking = async () => {
     updateBpmDisplay();
     if (bpmSource === 'network') {
       setStatus(
-        `Network BPM ${payload.bpm.toFixed(1)} from device ${payload.deviceId}${
+        `Prolink BPM ${payload.bpm.toFixed(1)} from device ${payload.deviceId}${
           payload.isMaster ? ' (master)' : payload.isOnAir ? ' (on-air)' : ''
         }`
       );
     }
   });
+  syncPerformanceToggles();
 };
 
 const initShortcuts = () => {
@@ -3337,6 +4073,8 @@ const initShortcuts = () => {
 };
 
 const canvas = document.getElementById('gl-canvas') as HTMLCanvasElement;
+const visualizerCanvas = document.getElementById('visualizer-canvas') as HTMLCanvasElement;
+const fadeOverlay = document.getElementById('fade-overlay') as HTMLDivElement;
 try {
   renderer = createGLRenderer(canvas);
 } catch (error) {
@@ -3390,6 +4128,59 @@ const buildModSources = (bpm: number) => {
   };
 };
 
+const drawVisualizer = () => {
+  const ctx = visualizerCanvas.getContext('2d');
+  if (!ctx) return;
+  const width = visualizerCanvas.width;
+  const height = visualizerCanvas.height;
+  ctx.clearRect(0, 0, width, height);
+  if (visualizerMode === 'off' || !currentProject.visualizer.enabled) return;
+
+  let visualizerAlpha = currentProject.visualizer.opacity;
+  if (currentProject.visualizer.macroEnabled) {
+    const macroId = Math.min(Math.max(Math.round(currentProject.visualizer.macroId), 1), 8);
+    const macroValue = Number(macroInputs[macroId - 1]?.value ?? 1);
+    visualizerAlpha *= Math.min(Math.max(macroValue, 0), 1);
+  }
+  ctx.globalAlpha = visualizerAlpha;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#8fd6ff';
+  ctx.beginPath();
+  if (visualizerMode === 'spectrum') {
+    const barCount = audioState.spectrum.length;
+    for (let i = 0; i < barCount; i += 1) {
+      const value = audioState.spectrum[i];
+      const x = (i / (barCount - 1)) * width;
+      const y = height - value * height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+  } else {
+    const data = audioState.waveform;
+    for (let i = 0; i < data.length; i += 1) {
+      const x = (i / (data.length - 1)) * width;
+      const y = height / 2 + data[i] * (height * 0.45);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    if (visualizerMode === 'oscilloscope') {
+      ctx.stroke();
+      ctx.strokeStyle = '#ffd166';
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i += 1) {
+        const phase = (i / data.length) * Math.PI * 2;
+        const radius = height * 0.3 + data[i] * height * 0.15;
+        const x = width / 2 + Math.cos(phase) * radius;
+        const y = height / 2 + Math.sin(phase) * radius;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    }
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+};
+
 const render = (time: number) => {
   const delta = time - lastTime;
   lastTime = time;
@@ -3398,6 +4189,7 @@ const render = (time: number) => {
   if (fpsAccumulator > 1000) {
     const fps = Math.round((frameCount / fpsAccumulator) * 1000);
     fpsLabel.textContent = `FPS: ${fps}`;
+    healthFps.textContent = `FPS: ${fps}`;
     fpsAccumulator = 0;
     frameCount = 0;
   }
@@ -3416,9 +4208,13 @@ const render = (time: number) => {
     if (frameDropScore > 0.3) {
       watchdogLabel.textContent = 'Watchdog: Frame drops detected — try lowering output scale.';
       watchdogLabel.classList.add('watchdog-warning');
+      healthWatchdog.textContent = 'Watchdog: Warning';
+      guardrailStatus.textContent = 'Guardrails: Active';
     } else {
       watchdogLabel.textContent = 'Watchdog: OK';
       watchdogLabel.classList.remove('watchdog-warning');
+      healthWatchdog.textContent = 'Watchdog: OK';
+      guardrailStatus.textContent = 'Guardrails: OK';
     }
   }
 
@@ -3427,12 +4223,25 @@ const render = (time: number) => {
     const payload = serializeProject();
     void window.visualSynth.autosaveProject(payload);
   }
+  if (time - lastSummaryUpdate > 500) {
+    lastSummaryUpdate = time;
+    updateSummaryChips();
+  }
   if (audioContext) {
     latencyLabel.textContent = `Audio Latency: ${Math.round(audioContext.baseLatency * 1000)}ms`;
+    healthLatency.textContent = `Latency: ${Math.round(audioContext.baseLatency * 1000)}ms`;
     const outputLatency = audioContext.outputLatency ?? 0;
     outputLatencyLabel.textContent = outputLatency
       ? `Output Latency: ${Math.round(outputLatency * 1000)}ms`
       : 'Output Latency: --';
+    latencySummary.textContent = `Audio: ${Math.round(audioContext.baseLatency * 1000)}ms | Output: ${
+      outputLatency ? `${Math.round(outputLatency * 1000)}ms` : '--'
+    } | MIDI: ${
+      lastMidiLatencyMs === null ? '--' : `${Math.round(lastMidiLatencyMs)}ms`
+    }`;
+  } else {
+    healthLatency.textContent = 'Latency: --';
+    latencySummary.textContent = 'Audio: -- | Output: -- | MIDI: --';
   }
   midiLatencyLabel.textContent =
     lastMidiLatencyMs === null
@@ -3544,6 +4353,7 @@ const render = (time: number) => {
   const activeScene = currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
   const plasmaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-plasma');
   const spectrumLayer = activeScene?.layers.find((layer) => layer.id === 'layer-spectrum');
+  const origamiLayer = activeScene?.layers.find((layer) => layer.id === 'layer-origami');
   const plasmaOpacity = Math.min(
     1,
     Math.max(0, (plasmaLayer?.opacity ?? 1) * (1 + (macroSum['layer-plasma.opacity'] ?? 0)))
@@ -3552,10 +4362,16 @@ const render = (time: number) => {
     1,
     Math.max(0, (spectrumLayer?.opacity ?? 1) * (1 + (macroSum['layer-spectrum.opacity'] ?? 0)))
   );
+  const origamiOpacity = Math.min(
+    1,
+    Math.max(0, (origamiLayer?.opacity ?? 1) * (1 + (macroSum['layer-origami.opacity'] ?? 0)))
+  );
   const moddedPlasmaOpacity = modValue('layer-plasma.opacity', plasmaOpacity);
   const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', spectrumOpacity);
+  const moddedOrigamiOpacity = modValue('layer-origami.opacity', origamiOpacity);
   const plasmaEnabled = plasmaToggle?.checked ?? true;
   const spectrumEnabled = spectrumToggle?.checked ?? true;
+  const origamiEnabled = origamiLayer?.enabled ?? false;
   const plasmaAssetBlendMode = getAssetBlendModeValue('layer-plasma');
   const plasmaAssetAudioReact = getAssetAudioReactValue('layer-plasma');
   const spectrumAssetBlendMode = getAssetBlendModeValue('layer-spectrum');
@@ -3567,12 +4383,16 @@ const render = (time: number) => {
     strobe: strobeIntensity,
     plasmaEnabled,
     spectrumEnabled,
+    origamiEnabled,
     spectrum: audioState.spectrum,
     contrast: moddedStyle.contrast,
     saturation: moddedStyle.saturation,
     paletteShift: moddedStyle.paletteShift,
     plasmaOpacity: moddedPlasmaOpacity,
     spectrumOpacity: moddedSpectrumOpacity,
+    origamiOpacity: moddedOrigamiOpacity,
+    origamiFoldState,
+    origamiFoldSharpness,
     plasmaAssetBlendMode: plasmaAssetBlendMode,
     plasmaAssetAudioReact: plasmaAssetAudioReact,
     spectrumAssetBlendMode: spectrumAssetBlendMode,
@@ -3600,6 +4420,8 @@ const render = (time: number) => {
     sdfFill: moddedSdf.fill
   };
   renderer.render(renderState);
+  resizeCanvasToDisplaySize(visualizerCanvas);
+  drawVisualizer();
 
   if (outputOpen && time - lastOutputBroadcast > 33) {
     lastOutputBroadcast = time;
@@ -3609,12 +4431,16 @@ const render = (time: number) => {
       strobe: renderState.strobe,
       plasmaEnabled: renderState.plasmaEnabled,
       spectrumEnabled: renderState.spectrumEnabled,
+      origamiEnabled: renderState.origamiEnabled,
       spectrum: renderState.spectrum.slice(),
       contrast: renderState.contrast,
       saturation: renderState.saturation,
       paletteShift: renderState.paletteShift,
       plasmaOpacity: renderState.plasmaOpacity,
       spectrumOpacity: renderState.spectrumOpacity,
+      origamiOpacity: renderState.origamiOpacity,
+      origamiFoldState: renderState.origamiFoldState,
+      origamiFoldSharpness: renderState.origamiFoldSharpness,
       plasmaAssetBlendMode: renderState.plasmaAssetBlendMode,
       plasmaAssetAudioReact: renderState.plasmaAssetAudioReact,
       spectrumAssetBlendMode: renderState.spectrumAssetBlendMode,
@@ -3650,6 +4476,11 @@ const init = async () => {
   initPads();
   initShortcuts();
   initLearnables();
+  initSpectrumHint();
+  loadPlaylist();
+  renderPlaylist();
+  loadShaderDraft();
+  syncVisualizerFromProject();
   setCaptureStatus('Idle');
   await initPresets();
   await initTemplates();
@@ -3687,6 +4518,8 @@ const init = async () => {
       setStatus('Recovery session found but failed to load.');
     }
   }
+  syncTempoInputs(Number(tempoInput.value));
+  setMode('performance');
   requestAnimationFrame(render);
 };
 

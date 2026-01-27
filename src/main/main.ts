@@ -5,7 +5,7 @@ import os from 'os';
 import { spawn } from 'child_process';
 import type { NetworkInterfaceInfoIPv4 } from 'os';
 import crypto from 'crypto';
-import { bringOnline, ProlinkNetwork } from 'prolink-connect';
+type ProlinkNetwork = import('prolink-connect').ProlinkNetwork;
 import { projectSchema } from '../shared/projectSchema';
 import {
   DEFAULT_OUTPUT_CONFIG,
@@ -24,6 +24,7 @@ let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let prolinkNetwork: ProlinkNetwork | null = null;
 let prolinkStatusHandler: ((status: { trackBPM: number | null; isMaster: boolean; isOnAir: boolean; deviceId: number }) => void) | null =
   null;
+let prolinkModule: typeof import('prolink-connect') | null = null;
 let lastMasterBpmAt = 0;
 const ASSET_STORAGE = path.join(app.getPath('userData'), 'assets');
 fs.mkdirSync(ASSET_STORAGE, { recursive: true });
@@ -36,6 +37,16 @@ const captureFilters: Record<string, { name: string; extensions: string[] }> = {
 };
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+
+const getProlinkModule = async () => {
+  if (prolinkModule) return prolinkModule;
+  try {
+    prolinkModule = await import('prolink-connect');
+  } catch {
+    prolinkModule = null;
+  }
+  return prolinkModule;
+};
 
 const runFfmpeg = (inputPath: string, outputPath: string) =>
   new Promise<void>((resolve, reject) => {
@@ -424,6 +435,12 @@ ipcMain.handle('plugins:import', async () => {
   return { canceled: false, filePath, payload };
 });
 
+ipcMain.handle('assets:open-folder', async (_event, filePath: string) => {
+  if (!filePath) return { opened: false };
+  shell.showItemInFolder(filePath);
+  return { opened: true };
+});
+
 ipcMain.handle('presets:list', async () => {
   const presetDir = app.isPackaged
     ? path.join(process.resourcesPath, 'presets')
@@ -433,10 +450,18 @@ ipcMain.handle('presets:list', async () => {
   return fs
     .readdirSync(presetDir)
     .filter((file) => file.endsWith('.json'))
-    .map((file) => ({
-      name: file,
-      path: path.join(presetDir, file)
-    }));
+    .map((file) => {
+      const presetPath = path.join(presetDir, file);
+      try {
+        const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+        return {
+          name: typeof data.name === 'string' && data.name.length > 0 ? data.name : file,
+          path: presetPath
+        };
+      } catch {
+        return { name: file, path: presetPath };
+      }
+    });
 });
 
 ipcMain.handle('presets:load', async (_event, presetPath: string) => {
@@ -509,6 +534,11 @@ ipcMain.handle('network:list-interfaces', () => {
   return items;
 });
 
+ipcMain.handle('bpm:prolink-available', async () => {
+  const module = await getProlinkModule();
+  return Boolean(module);
+});
+
 const findInterface = (iface: { name: string; address: string } | null): NetworkInterfaceInfoIPv4 | null => {
   if (!iface) return null;
   const interfaces = os.networkInterfaces();
@@ -526,9 +556,14 @@ ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; addres
     return { started: true, message: 'Pro DJ Link already running.' };
   }
 
+  const module = await getProlinkModule();
+  if (!module) {
+    return { started: false, message: 'Prolink Connect not available.' };
+  }
+
   const selected = findInterface(iface);
   const config = selected ? { iface: selected, vcdjId: 7 } : undefined;
-  prolinkNetwork = await bringOnline(config);
+  prolinkNetwork = await module.bringOnline(config);
 
   if (!prolinkNetwork.isConfigured) {
     await prolinkNetwork.autoconfigFromPeers();

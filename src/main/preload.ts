@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('visualSynth', {
   listNetworkInterfaces: () => ipcRenderer.invoke('network:list-interfaces') as Promise<
     { name: string; address: string }[]
   >,
+  isProlinkAvailable: () => ipcRenderer.invoke('bpm:prolink-available') as Promise<boolean>,
   startNetworkBpm: (iface: { name: string; address: string } | null) =>
     ipcRenderer.invoke('bpm:network-start', iface),
   stopNetworkBpm: () => ipcRenderer.invoke('bpm:network-stop'),
@@ -49,5 +50,6 @@ contextBridge.exposeInMainWorld('visualSynth', {
     ipcRenderer.invoke('assets:checkPaths', paths) as Promise<Record<string, boolean>>,
   relinkAsset: (assetId: string, kind: string) =>
     ipcRenderer.invoke('assets:relink', assetId, kind) as Promise<AssetImportResult & { assetId?: string }>,
-  importPlugin: () => ipcRenderer.invoke('plugins:import')
+  importPlugin: () => ipcRenderer.invoke('plugins:import'),
+  openAssetFolder: (filePath: string) => ipcRenderer.invoke('assets:open-folder', filePath)
 });
