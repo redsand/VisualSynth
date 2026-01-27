@@ -598,27 +598,27 @@ export class RenderGraph {
     const moddedPortalOpacity = modValue('layer-portal.opacity', layerOpacity(portalLayer, 'layer-portal.opacity', 0));
     const moddedOscilloOpacity = modValue('layer-oscillo.opacity', layerOpacity(oscilloLayer, 'layer-oscillo.opacity', 0));
 
-    // Effect Mappings
-    const getFxVal = (layer: any, macroTarget: string, globalVal: number, modTarget: string) => {
-      const base = layer ? layer.opacity : globalVal;
-      const withMacro = base + macroVal(macroTarget); // Effects usually additive macros or multiplicative? 
-      // Most presets use additive targets for effects.
-      return modValue(modTarget, modValue(`effects.${modTarget.split('-')[1]}`, withMacro));
+    // Effect Mappings - More consistent handling
+    const getFxVal = (layer: any, macroTarget: string, globalVal: number) => {
+      const base = layer && layer.enabled ? layer.opacity : globalVal;
+      return base + macroVal(macroTarget);
     };
 
-    const moddedFeedback = getFxVal(feedbackLayer, 'fx-feedback.amount', effects.feedback, 'fx-feedback.amount');
+    const moddedFeedback = getFxVal(feedbackLayer, 'fx-feedback.amount', effects.feedback);
     const moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
     const moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
     
-    const moddedChromaValue = getFxVal(chromaLayer, 'fx-chroma.amount', effects.chroma, 'fx-chroma.amount');
-    const moddedBloom = getFxVal(bloomLayer, 'fx-bloom.intensity', effects.bloom, 'fx-bloom.intensity');
-    const moddedBlur = getFxVal(blurLayer, 'fx-blur.radius', effects.blur, 'fx-blur.radius');
-    const moddedPosterize = getFxVal(posterizeLayer, 'fx-posterize.levels', effects.posterize, 'fx-posterize.levels');
-    const moddedKaleido = getFxVal(kaleidoLayer, 'fx-kaleidoscope.amount', effects.kaleidoscope, 'fx-kaleidoscope.amount');
-    const moddedPersistence = getFxVal(trailsLayer, 'fx-trails.persistence', effects.persistence, 'fx-trails.persistence');
+    const moddedChromaValue = getFxVal(chromaLayer, 'fx-chroma.amount', effects.chroma);
+    const moddedBloom = getFxVal(bloomLayer, 'fx-bloom.intensity', effects.bloom);
+    const moddedBlur = getFxVal(blurLayer, 'fx-blur.radius', effects.blur);
+    const moddedPosterize = getFxVal(posterizeLayer, 'fx-posterize.levels', effects.posterize);
+    const moddedKaleido = getFxVal(kaleidoLayer, 'fx-kaleidoscope.amount', effects.kaleidoscope);
+    const moddedKaleidoRotation = modValue('fx-kaleidoscope.rotation', macroVal('fx-kaleidoscope.rotation'));
+    const moddedPersistence = getFxVal(trailsLayer, 'fx-trails.persistence', effects.persistence);
 
-    const plasmaEnabled = plasmaLayer ? plasmaLayer.enabled : false;
-    const spectrumEnabled = spectrumLayer ? spectrumLayer.enabled : false;
+    const hasActiveScene = Boolean(activeScene);
+    const plasmaEnabled = plasmaLayer?.enabled ?? (hasActiveScene ? false : true);
+    const spectrumEnabled = spectrumLayer?.enabled ?? (hasActiveScene ? false : true);
     const origamiEnabled = origamiLayer?.enabled ?? false;
     const glyphEnabled = glyphLayer?.enabled ?? false;
     const crystalEnabled = crystalLayer?.enabled ?? false;
@@ -696,6 +696,7 @@ export class RenderGraph {
       chroma: moddedChromaValue,
       posterize: moddedPosterize,
       kaleidoscope: moddedKaleido,
+      kaleidoscopeRotation: moddedKaleidoRotation,
       feedback: moddedFeedback,
       feedbackZoom: moddedFeedbackZoom,
       feedbackRotation: moddedFeedbackRotation,
@@ -706,7 +707,7 @@ export class RenderGraph {
       particleSpeed: moddedParticles.speed,
       particleSize: moddedParticles.size,
       particleGlow: moddedParticles.glow,
-      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf' || l.id === 'gen-sdf-scene')) : sdf.enabled),
+      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf')) : sdf.enabled),
       sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
       sdfScale: moddedSdf.scale,
       sdfEdge: moddedSdf.edge,

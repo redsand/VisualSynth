@@ -21,17 +21,19 @@ export const applyModMatrix = (
     minClamp = minClamp === null ? mod.min : Math.min(minClamp, mod.min);
     maxClamp = maxClamp === null ? mod.max : Math.max(maxClamp, mod.max);
     const sourceValue = sources[mod.source] ?? 0;
-    const scaled = mod.bipolar ? (sourceValue * 2 - 1) : sourceValue;
-    let shaped = scaled;
+    let shaped = sourceValue;
     if (mod.curve === 'exp') {
-      shaped = Math.sign(scaled) * Math.pow(Math.abs(scaled), 2);
+      shaped = Math.pow(sourceValue, 2);
     }
     if (mod.curve === 'log') {
-      shaped = Math.sign(scaled) * Math.sqrt(Math.abs(scaled));
+      shaped = Math.sqrt(sourceValue);
     }
+    
     const smoothing = Math.min(Math.max(mod.smoothing, 0), 1);
-    shaped *= 1 - smoothing;
-    value += shaped * mod.amount;
+    shaped = shaped * (1 - smoothing) + (sourceValue * smoothing);
+    
+    const modAmount = mod.bipolar ? (mod.amount * 2 - mod.amount) : mod.amount;
+    value += shaped * modAmount;
   }
   const minValue = minClamp ?? 0;
   const maxValue = maxClamp ?? 1;

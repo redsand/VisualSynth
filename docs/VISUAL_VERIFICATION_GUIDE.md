@@ -321,10 +321,9 @@ Use this guide to verify all major features are functioning correctly. Take scre
 - Multiple portals possible
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-portal.png]
-Expected: Portal/wormhole distortion
-```
+![Wormhole Portal](./screenshots/generator-portal.png)
+
+*Expected: Portal/wormhole distortion*
 
 **Verification**:
 - [ ] Circular portal shapes visible
@@ -340,10 +339,9 @@ Expected: Portal/wormhole distortion
 - Audio waveform visible
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-oscillo.png]
-Expected: Circular oscilloscope
-```
+![Sacred Oscilloscope](./screenshots/generator-oscillo.png)
+
+*Expected: Circular oscilloscope*
 
 **Verification**:
 - [ ] Circular waveform visible
@@ -363,10 +361,9 @@ Expected: Circular oscilloscope
 - Soft light bloom around elements
 
 **Screenshot**:
-```
-[PLACEHOLDER: effect-bloom.png]
-Expected: Bloom glow effect
-```
+![Bloom Effect](./screenshots/effect-bloom.png)
+
+*Expected: Bloom glow effect*
 
 **Verification**:
 - [ ] Highlights glow
@@ -382,10 +379,9 @@ Expected: Bloom glow effect
 - Loss of fine detail
 
 **Screenshot**:
-```
-[PLACEHOLDER: effect-blur.png]
-Expected: Blurred visual
-```
+![Blur Effect](./screenshots/effect-blur.png)
+
+*Expected: Blurred visual*
 
 **Verification**:
 - [ ] Image is blurred
@@ -401,10 +397,9 @@ Expected: Blurred visual
 - Edges show color fringing
 
 **Screenshot**:
-```
-[PLACEHOLDER: effect-chroma.png]
-Expected: RGB color splitting
-```
+![Chromatic Aberration](./screenshots/effect-chroma.png)
+
+*Expected: RGB color splitting*
 
 **Verification**:
 - [ ] RGB colors separated
