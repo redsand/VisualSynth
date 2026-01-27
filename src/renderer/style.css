@@ -326,11 +326,18 @@ body[data-mode='matrix'] .safe-mode {
   background: #162335;
   border: 1px solid #25384d;
   cursor: pointer;
+  position: relative;
 }
 
 .scene-card.active {
   border-color: #1ec8ff;
   box-shadow: 0 0 10px rgba(30, 200, 255, 0.3);
+}
+
+.scene-card.selected:not(.active),
+.scene-list-row.selected:not(.active) {
+  border-color: #9fb6cf;
+  box-shadow: 0 0 10px rgba(159, 182, 207, 0.2);
 }
 
 .scene-card-title {
@@ -393,6 +400,23 @@ body[data-mode='matrix'] .safe-mode {
   background: #162335;
   border: 1px solid #25384d;
   cursor: pointer;
+}
+
+.scene-remove {
+  background: transparent;
+  color: #ffb1b1;
+  border: 1px solid #4d2f3a;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.scene-card .scene-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
 }
 
 .scene-list-row.active {
@@ -458,6 +482,8 @@ body[data-mode='matrix'] .safe-mode {
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #22344a;
 }
 
 .layer-row label {
@@ -474,6 +500,7 @@ body[data-mode='matrix'] .safe-mode {
   gap: 6px;
   flex-wrap: wrap;
   grid-column: 1 / -1;
+  flex-direction: column;
 }
 
 .layer-asset-select {
@@ -484,13 +511,46 @@ body[data-mode='matrix'] .safe-mode {
   padding: 4px 8px;
   min-width: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: 200px;
   font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-control-label {
+  font-size: 11px;
+  color: #8da7c1;
+}
+
+.asset-blend-select {
+  max-width: 160px;
+}
+
+.asset-audio-react {
+  width: 160px;
+}
+
+.layer-opacity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layer-opacity-label {
+  font-size: 11px;
+  color: #8da7c1;
+  min-width: 48px;
+}
+
+.layer-opacity-row .layer-opacity {
+  width: 120px;
 }
 
 .layer-controls {
   display: flex;
   gap: 4px;
+  align-items: center;
 }
 
 .layer-controls button {
@@ -501,6 +561,10 @@ body[data-mode='matrix'] .safe-mode {
   border-radius: 6px;
   font-size: 11px;
   cursor: pointer;
+}
+
+.layer-opacity {
+  width: 90px;
 }
 
 .layer-remove {
@@ -514,6 +578,12 @@ body[data-mode='matrix'] .safe-mode {
   gap: 6px;
   font-size: 12px;
   margin-top: 8px;
+}
+
+.scene-label.scene-label-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 
 .scene-label input,

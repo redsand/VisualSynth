@@ -79,7 +79,10 @@
                   <option value="bar" selected>1 Bar</option>
                 </select>
               </label>
-              <button id="queue-scene">Queue Scene Switch</button>
+              <div class="scene-row">
+                <button id="queue-scene">Queue</button>
+                <button id="activate-scene" type="button">Activate</button>
+              </div>
               <div id="bpm-display" class="bpm-display">BPM: --</div>
               <div id="scene-strip-cards" class="scene-strip-cards"></div>
               <div id="scene-strip-list" class="scene-strip-list hidden"></div>
@@ -180,7 +183,7 @@
             <h2>Design</h2>
             <div class="panel-block">
               <h3>Layer Effects</h3>
-              <label class="scene-label">
+              <label class="scene-label scene-label-inline">
                 <input type="checkbox" id="effects-enabled" checked /> Enable Effects
               </label>
               <div class="scene-row">
@@ -220,7 +223,7 @@
             </div>
             <div class="panel-block">
               <h3>Particle Field</h3>
-              <label class="scene-label">
+              <label class="scene-label scene-label-inline">
                 <input type="checkbox" id="particles-enabled" checked /> Enable Particles
               </label>
               <div class="scene-row">
@@ -246,7 +249,7 @@
             </div>
             <div class="panel-block">
               <h3>SDF Shapes</h3>
-              <label class="scene-label">
+              <label class="scene-label scene-label-inline">
                 <input type="checkbox" id="sdf-enabled" checked /> Enable SDF
               </label>
               <label class="scene-label">
@@ -470,6 +473,9 @@
             </div>
             <div class="panel-block">
               <h3>Visualizers</h3>
+              <label class="scene-label scene-label-inline">
+                <input type="checkbox" id="visualizer-enabled" /> Enabled
+              </label>
               <label class="scene-label">
                 Mode
                 <select id="visualizer-mode">
@@ -478,9 +484,6 @@
                   <option value="waveform">Waveform</option>
                   <option value="oscilloscope">Oscilloscope</option>
                 </select>
-              </label>
-              <label class="scene-label">
-                <input type="checkbox" id="visualizer-enabled" /> Enabled
               </label>
               <label class="scene-label">
                 Opacity

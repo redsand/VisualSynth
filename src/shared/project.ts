@@ -54,6 +54,7 @@ export interface SceneConfig {
   id: string;
   name: string;
   layers: LayerConfig[];
+  look?: SceneLook;
 }
 
 export interface MacroTarget {
@@ -311,6 +312,25 @@ export interface EffectConfig {
   kaleidoscope: number;
   feedback: number;
   persistence: number;
+}
+
+export interface SceneLook {
+  effects?: EffectConfig;
+  particles?: ParticleConfig;
+  sdf?: SdfConfig;
+  visualizer?: {
+    enabled: boolean;
+    mode: 'off' | 'spectrum' | 'waveform' | 'oscilloscope';
+    opacity: number;
+    macroEnabled: boolean;
+    macroId: number;
+  };
+  stylePresets?: StylePreset[];
+  activeStylePresetId?: string;
+  palettes?: ColorPalette[];
+  activePaletteId?: string;
+  macros?: MacroConfig[];
+  modMatrix?: ModConnection[];
 }
 
 export const DEFAULT_PROJECT: VisualSynthProject = {

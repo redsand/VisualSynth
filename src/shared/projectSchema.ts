@@ -38,12 +38,6 @@ const midiMappingSchema = z.object({
   mode: z.enum(['toggle', 'momentary', 'trigger'])
 });
 
-const sceneSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  layers: z.array(layerSchema)
-});
-
 const macroSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -131,6 +125,28 @@ const visualizerSchema = z.object({
   opacity: z.number(),
   macroEnabled: z.boolean(),
   macroId: z.number()
+});
+
+const sceneLookSchema = z
+  .object({
+    effects: effectsSchema,
+    particles: particlesSchema,
+    sdf: sdfSchema,
+    visualizer: visualizerSchema,
+    stylePresets: z.array(stylePresetSchema),
+    activeStylePresetId: z.string(),
+    palettes: z.array(colorPaletteSchema),
+    activePaletteId: z.string(),
+    macros: z.array(macroSchema),
+    modMatrix: z.array(modConnectionSchema)
+  })
+  .partial();
+
+const sceneSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  layers: z.array(layerSchema),
+  look: sceneLookSchema.optional()
 });
 
 const lfoSchema = z.object({

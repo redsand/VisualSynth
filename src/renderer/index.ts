@@ -5,6 +5,7 @@ import {
   OUTPUT_BASE_WIDTH,
   OutputConfig,
   VisualSynthProject,
+  SceneLook,
   SceneConfig,
   LayerConfig,
   AssetItem,
@@ -171,6 +172,7 @@ const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement
 const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
 const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement;
 const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonElement;
+const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement;
 const quantizeHud = document.getElementById('quantize-hud') as HTMLDivElement;
 const safeModeBanner = document.getElementById('safe-mode-banner') as HTMLDivElement;
 const bpmSourceSelect = document.getElementById('bpm-source') as HTMLSelectElement;
@@ -333,6 +335,7 @@ let transportTimeMs = 0;
 let activeMode: UiMode = 'performance';
 let sceneStripView: 'cards' | 'list' =
   (localStorage.getItem('vs.sceneStrip.view') as 'cards' | 'list' | null) ?? 'cards';
+let selectedSceneId: string | null = null;
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
 const outputChannel = new BroadcastChannel('visualsynth-output');
@@ -1048,10 +1051,23 @@ const midiTargetOptions = [
 
 const normalizeOutputScale = (value: number) => Math.min(1, Math.max(0.25, value));
 
+const cloneValue = <T>(value: T): T => {
+  if (value === undefined) return value;
+  return JSON.parse(JSON.stringify(value)) as T;
+};
+
 const cloneLayerConfig = (layer: LayerConfig): LayerConfig => ({
   ...layer,
   transform: { ...layer.transform }
 });
+
+const getNextAssetId = () => {
+  let candidate = `asset-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  while (currentProject.assets.some((asset) => asset.id === candidate)) {
+    candidate = `asset-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  }
+  return candidate;
+};
 
 const getNextSceneId = () => {
   const used = new Set(currentProject.scenes.map((scene) => scene.id));
@@ -1078,20 +1094,46 @@ const getUniqueSceneName = (base: string) => {
 
 const createBlankScene = (): SceneConfig => {
   const template = DEFAULT_PROJECT.scenes[0];
+  const baseLayer = template.layers[0];
   return {
     id: getNextSceneId(),
     name: getUniqueSceneName('Blank Scene'),
-    layers: template.layers.map((layer) => ({
-      ...cloneLayerConfig(layer),
-      enabled: false
-    }))
+    layers: baseLayer
+      ? [
+          {
+            ...cloneLayerConfig(baseLayer),
+            enabled: true
+          }
+        ]
+      : []
   };
 };
 
-const addSceneToProject = (scene: SceneConfig, activate = true) => {
+const addSceneToProject = (scene: SceneConfig, activate = false) => {
   currentProject.scenes = [...currentProject.scenes, scene];
   refreshSceneSelect();
   if (activate) applyScene(scene.id);
+};
+
+const removeScene = (sceneId: string) => {
+  if (currentProject.scenes.length <= 1) {
+    setStatus('At least one scene is required.');
+    return;
+  }
+  const nextScenes = currentProject.scenes.filter((scene) => scene.id !== sceneId);
+  if (nextScenes.length === currentProject.scenes.length) return;
+  currentProject.scenes = nextScenes;
+  const nextActive = currentProject.activeSceneId === sceneId
+    ? nextScenes[0]?.id
+    : currentProject.activeSceneId;
+  if (nextActive) {
+    currentProject.activeSceneId = nextActive;
+    applyScene(nextActive);
+  } else {
+    refreshSceneSelect();
+  }
+  renderSceneStrip();
+  setStatus('Scene removed.');
 };
 
 const updateOutputResolution = () => {
@@ -1133,39 +1175,58 @@ const renderSceneStrip = () => {
 
   currentProject.scenes.forEach((scene) => {
     const isActive = scene.id === currentProject.activeSceneId;
+    const isSelected = scene.id === (selectedSceneId ?? currentProject.activeSceneId);
     const layerCount = scene.layers.length;
 
     const card = document.createElement('div');
-    card.className = `scene-card${isActive ? ' active' : ''}`;
+    card.className = `scene-card${isActive ? ' active' : ''}${isSelected ? ' selected' : ''}`;
     const title = document.createElement('div');
     title.className = 'scene-card-title';
     title.textContent = scene.name;
     const meta = document.createElement('div');
     meta.className = 'scene-card-meta';
     meta.textContent = `${layerCount} layer${layerCount === 1 ? '' : 's'}`;
+    const remove = document.createElement('button');
+    remove.className = 'scene-remove';
+    remove.textContent = '✕';
+    remove.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (!window.confirm(`Remove scene "${scene.name}"?`)) return;
+      removeScene(scene.id);
+    });
     card.appendChild(title);
     card.appendChild(meta);
+    card.appendChild(remove);
     card.addEventListener('click', () => {
-      sceneSelect.value = scene.id;
-      applyScene(scene.id);
-      setStatus(`Scene active: ${scene.name}`);
+      selectedSceneId = scene.id;
+      renderSceneStrip();
+      setStatus(`Scene selected: ${scene.name}`);
     });
     sceneStripCards.appendChild(card);
 
     const row = document.createElement('div');
-    row.className = `scene-list-row${isActive ? ' active' : ''}`;
+    row.className = `scene-list-row${isActive ? ' active' : ''}${isSelected ? ' selected' : ''}`;
     const name = document.createElement('div');
     name.className = 'scene-list-name';
     name.textContent = scene.name;
     const rowMeta = document.createElement('div');
     rowMeta.className = 'scene-list-meta';
     rowMeta.textContent = `${layerCount} layer${layerCount === 1 ? '' : 's'}`;
+    const rowRemove = document.createElement('button');
+    rowRemove.className = 'scene-remove';
+    rowRemove.textContent = '✕';
+    rowRemove.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (!window.confirm(`Remove scene "${scene.name}"?`)) return;
+      removeScene(scene.id);
+    });
     row.appendChild(name);
     row.appendChild(rowMeta);
+    row.appendChild(rowRemove);
     row.addEventListener('click', () => {
-      sceneSelect.value = scene.id;
-      applyScene(scene.id);
-      setStatus(`Scene active: ${scene.name}`);
+      selectedSceneId = scene.id;
+      renderSceneStrip();
+      setStatus(`Scene selected: ${scene.name}`);
     });
     sceneStripList.appendChild(row);
   });
@@ -1180,6 +1241,9 @@ const refreshSceneSelect = () => {
     sceneSelect.appendChild(option);
   });
   sceneSelect.value = currentProject.activeSceneId;
+  if (!selectedSceneId) {
+    selectedSceneId = currentProject.activeSceneId;
+  }
   renderSceneStrip();
 };
 
@@ -1243,6 +1307,25 @@ const renderLayerList = () => {
 
     const controls = document.createElement('div');
     controls.className = 'layer-controls';
+    const opacity = document.createElement('input');
+    opacity.type = 'range';
+    opacity.min = '0';
+    opacity.max = '1';
+    opacity.step = '0.01';
+    opacity.value = String(layer.opacity);
+    opacity.className = 'layer-opacity';
+    opacity.dataset.learnTarget = `${layer.id}.opacity`;
+    opacity.dataset.learnLabel = `${layer.name} Opacity`;
+    opacity.addEventListener('input', () => {
+      layer.opacity = Number(opacity.value);
+    });
+    const opacityRow = document.createElement('div');
+    opacityRow.className = 'layer-opacity-row';
+    const opacityLabel = document.createElement('span');
+    opacityLabel.className = 'layer-opacity-label';
+    opacityLabel.textContent = 'Opacity';
+    opacityRow.appendChild(opacityLabel);
+    opacityRow.appendChild(opacity);
     const upButton = document.createElement('button');
     upButton.textContent = '↑';
     upButton.disabled = index === 0;
@@ -1255,6 +1338,7 @@ const renderLayerList = () => {
     removeButton.className = 'layer-remove';
     removeButton.textContent = '✕';
     removeButton.addEventListener('click', () => {
+      if (!window.confirm(`Remove "${layer.name}" from this scene?`)) return;
       removeLayer(scene.id, layer.id);
     });
     controls.appendChild(upButton);
@@ -1266,6 +1350,7 @@ const renderLayerList = () => {
     const assetControl = document.createElement('div');
     assetControl.className = 'layer-asset-control';
     assetControl.appendChild(buildLayerAssetSelect(layer));
+    assetControl.appendChild(opacityRow);
 
     if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum') {
       const layerId = layer.id as AssetLayerId;
@@ -2068,7 +2153,7 @@ const buildLayerAssetSelect = (layer: LayerConfig) => {
   if (currentProject.assets.length === 0) {
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
-    emptyOption.textContent = 'No assets loaded (System > Assets)';
+    emptyOption.textContent = 'No assets loaded (Design > Assets)';
     emptyOption.disabled = true;
     select.appendChild(emptyOption);
   }
@@ -2969,6 +3054,28 @@ const applyScene = (sceneId: string) => {
   const scene = currentProject.scenes.find((item) => item.id === sceneId);
   if (!scene) return;
   currentProject = { ...currentProject, activeSceneId: sceneId };
+  if (scene.look) {
+    currentProject = {
+      ...currentProject,
+      effects: scene.look.effects ?? currentProject.effects,
+      particles: scene.look.particles ?? currentProject.particles,
+      sdf: scene.look.sdf ?? currentProject.sdf,
+      visualizer: scene.look.visualizer ?? currentProject.visualizer,
+      stylePresets: scene.look.stylePresets ?? currentProject.stylePresets,
+      activeStylePresetId: scene.look.activeStylePresetId ?? currentProject.activeStylePresetId,
+      palettes: scene.look.palettes ?? currentProject.palettes,
+      activePaletteId: scene.look.activePaletteId ?? currentProject.activePaletteId,
+      macros: scene.look.macros ?? currentProject.macros,
+      modMatrix: scene.look.modMatrix ?? currentProject.modMatrix
+    };
+    initStylePresets();
+    initMacros();
+    initEffects();
+    initParticles();
+    initSdf();
+    syncVisualizerFromProject();
+    renderModMatrix();
+  }
   sceneSelect.value = sceneId;
   renderLayerList();
   syncPerformanceToggles();
@@ -2989,12 +3096,50 @@ const addSceneFromPreset = async (presetPath: string) => {
     result.project.scenes.find((scene) => scene.id === result.project?.activeSceneId) ??
     result.project.scenes[0];
   const presetName = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
+  const assetIdMap = new Map<string, string>();
+  const referencedAssetIds = new Set<string>();
+  sourceScene.layers.forEach((layer) => {
+    const assetId = (layer as LayerConfig & { assetId?: string }).assetId;
+    if (assetId) referencedAssetIds.add(assetId);
+  });
+  if (result.project.assets.length > 0 && referencedAssetIds.size > 0) {
+    const nextAssets = [...currentProject.assets];
+    result.project.assets.forEach((asset) => {
+      if (!referencedAssetIds.has(asset.id)) return;
+      const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
+      const newId = hasCollision ? getNextAssetId() : asset.id;
+      assetIdMap.set(asset.id, newId);
+      nextAssets.push({ ...cloneValue(asset), id: newId });
+    });
+    currentProject.assets = nextAssets;
+    renderAssets();
+  }
+  const look: SceneLook = {
+    effects: cloneValue(result.project.effects),
+    particles: cloneValue(result.project.particles),
+    sdf: cloneValue(result.project.sdf),
+    visualizer: cloneValue(result.project.visualizer),
+    stylePresets: cloneValue(result.project.stylePresets),
+    activeStylePresetId: cloneValue(result.project.activeStylePresetId),
+    palettes: cloneValue(result.project.palettes),
+    activePaletteId: cloneValue(result.project.activePaletteId),
+    macros: cloneValue(result.project.macros),
+    modMatrix: cloneValue(result.project.modMatrix)
+  };
   const newScene: SceneConfig = {
     id: getNextSceneId(),
     name: getUniqueSceneName(presetName),
-    layers: sourceScene.layers.map(cloneLayerConfig)
+    layers: sourceScene.layers.map((layer) => {
+      const cloned = cloneLayerConfig(layer);
+      const assetId = (cloned as LayerConfig & { assetId?: string }).assetId;
+      if (assetId && assetIdMap.has(assetId)) {
+        (cloned as LayerConfig & { assetId?: string }).assetId = assetIdMap.get(assetId);
+      }
+      return cloned;
+    }),
+    look
   };
-  addSceneToProject(newScene, true);
+  addSceneToProject(newScene, false);
   setStatus(`Scene added from preset: ${newScene.name}`);
   void capturePresetThumbnail(presetPath);
 };
@@ -4618,7 +4763,7 @@ if (presetCategorySelect) {
 if (addBlankSceneButton) {
   addBlankSceneButton.addEventListener('click', () => {
     const scene = createBlankScene();
-    addSceneToProject(scene, true);
+    addSceneToProject(scene, false);
     setStatus(`Scene added: ${scene.name}`);
   });
 }
@@ -4648,25 +4793,32 @@ if (applyTemplateButton) {
 }
 
 if (sceneSelect) {
-  sceneSelect.addEventListener('change', () => {
-    applyScene(sceneSelect.value);
-    setStatus(`Scene active: ${sceneSelect.selectedOptions[0]?.textContent ?? sceneSelect.value}`);
-    syncPerformanceToggles();
-  });
+  sceneSelect.disabled = true;
 }
 
 if (queueSceneButton) {
   queueSceneButton.addEventListener('click', () => {
     if (currentProject.scenes.length === 0) return;
-    const targetSceneId = sceneSelect?.value;
+    const targetSceneId = selectedSceneId ?? sceneSelect?.value;
     if (!targetSceneId) return;
     const bpm = getActiveBpm();
     const unit = quantizeSelect.value as QuantizationUnit;
     const scheduledTimeMs = getNextQuantizedTimeMs(performance.now(), bpm, unit);
     pendingSceneSwitch = { targetSceneId, scheduledTimeMs };
-    setStatus(
-      `Queued scene switch to ${sceneSelect?.selectedOptions[0]?.textContent ?? targetSceneId}`
-    );
+    const targetName =
+      currentProject.scenes.find((scene) => scene.id === targetSceneId)?.name ?? targetSceneId;
+    setStatus(`Queued scene switch to ${targetName}`);
+  });
+}
+
+if (activateSceneButton) {
+  activateSceneButton.addEventListener('click', () => {
+    const targetSceneId = selectedSceneId ?? sceneSelect?.value;
+    if (!targetSceneId) return;
+    applyScene(targetSceneId);
+    const targetName =
+      currentProject.scenes.find((scene) => scene.id === targetSceneId)?.name ?? targetSceneId;
+    setStatus(`Scene active: ${targetName}`);
   });
 }
 
