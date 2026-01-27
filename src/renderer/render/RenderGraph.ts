@@ -570,69 +570,52 @@ export class RenderGraph {
     const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
     const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
     const advancedSdfLayer = activeScene?.layers.find((layer) => layer.id === 'gen-sdf-scene');
+    
+    // Effect layers
     const feedbackLayer = activeScene?.layers.find((layer) => layer.id === 'fx-feedback');
     const chromaLayer = activeScene?.layers.find((layer) => layer.id === 'fx-chroma');
+    const bloomLayer = activeScene?.layers.find((layer) => layer.id === 'fx-bloom');
+    const blurLayer = activeScene?.layers.find((layer) => layer.id === 'fx-blur');
+    const posterizeLayer = activeScene?.layers.find((layer) => layer.id === 'fx-posterize');
+    const kaleidoLayer = activeScene?.layers.find((layer) => layer.id === 'fx-kaleidoscope');
+    const trailsLayer = activeScene?.layers.find((layer) => layer.id === 'fx-trails' || layer.id === 'fx-persistence');
 
-    const plasmaOpacity = Math.min(
-      1,
-      Math.max(0, (plasmaLayer?.opacity ?? 1) * (1 + (macroSum['layer-plasma.opacity'] ?? 0)))
-    );
-    const spectrumOpacity = Math.min(
-      1,
-      Math.max(0, (spectrumLayer?.opacity ?? 1) * (1 + (macroSum['layer-spectrum.opacity'] ?? 0)))
-    );
-    const origamiOpacity = Math.min(
-      1,
-      Math.max(0, (origamiLayer?.opacity ?? 1) * (1 + (macroSum['layer-origami.opacity'] ?? 0)))
-    );
-    const glyphOpacity = Math.min(
-      1,
-      Math.max(0, (glyphLayer?.opacity ?? 1) * (1 + (macroSum['layer-glyph.opacity'] ?? 0)))
-    );
-    const crystalOpacity = Math.min(
-      1,
-      Math.max(0, (crystalLayer?.opacity ?? 1) * (1 + (macroSum['layer-crystal.opacity'] ?? 0)))
-    );
-    const inkOpacity = Math.min(
-      1,
-      Math.max(0, (inkLayer?.opacity ?? 1) * (1 + (macroSum['layer-inkflow.opacity'] ?? 0)))
-    );
-    const topoOpacity = Math.min(
-      1,
-      Math.max(0, (topoLayer?.opacity ?? 1) * (1 + (macroSum['layer-topo.opacity'] ?? 0)))
-    );
-    const weatherOpacity = Math.min(
-      1,
-      Math.max(0, (weatherLayer?.opacity ?? 1) * (1 + (macroSum['layer-weather.opacity'] ?? 0)))
-    );
-    const portalOpacity = Math.min(
-      1,
-      Math.max(0, (portalLayer?.opacity ?? 1) * (1 + (macroSum['layer-portal.opacity'] ?? 0)))
-    );
-    const oscilloOpacity = Math.min(
-      1,
-      Math.max(0, (oscilloLayer?.opacity ?? 1) * (1 + (macroSum['layer-oscillo.opacity'] ?? 0)))
-    );
+    const macroVal = (target: string) => macroSum[target] ?? 0;
 
-    const moddedPlasmaOpacity = modValue('layer-plasma.opacity', plasmaOpacity);
-    const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', spectrumOpacity);
-    const moddedOrigamiOpacity = modValue('layer-origami.opacity', origamiOpacity);
-    const moddedGlyphOpacity = modValue('layer-glyph.opacity', glyphOpacity);
-    const moddedCrystalOpacity = modValue('layer-crystal.opacity', crystalOpacity);
-    const moddedInkOpacity = modValue('layer-inkflow.opacity', inkOpacity);
-    const moddedTopoOpacity = modValue('layer-topo.opacity', topoOpacity);
-    const moddedWeatherOpacity = modValue('layer-weather.opacity', weatherOpacity);
-    const moddedPortalOpacity = modValue('layer-portal.opacity', portalOpacity);
-    const moddedOscilloOpacity = modValue('layer-oscillo.opacity', oscilloOpacity);
+    const layerOpacity = (layer: any, macroTarget: string, defaultVal: number) => {
+      const base = layer ? layer.opacity : defaultVal;
+      return Math.min(1, Math.max(0, base * (1 + macroVal(macroTarget))));
+    };
 
-    // Feedback and Chroma can be layers or global.
-    const baseFeedback = feedbackLayer ? feedbackLayer.opacity : effects.feedback;
-    const moddedFeedback = modValue('fx-feedback.amount', modValue('effects.feedback', baseFeedback));
-    const moddedFeedbackZoom = modValue('fx-feedback.zoom', 0.0);
-    const moddedFeedbackRotation = modValue('fx-feedback.rotation', 0.0);
+    const moddedPlasmaOpacity = modValue('layer-plasma.opacity', layerOpacity(plasmaLayer, 'layer-plasma.opacity', 1));
+    const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', layerOpacity(spectrumLayer, 'layer-spectrum.opacity', 1));
+    const moddedOrigamiOpacity = modValue('layer-origami.opacity', layerOpacity(origamiLayer, 'layer-origami.opacity', 0));
+    const moddedGlyphOpacity = modValue('layer-glyph.opacity', layerOpacity(glyphLayer, 'layer-glyph.opacity', 0));
+    const moddedCrystalOpacity = modValue('layer-crystal.opacity', layerOpacity(crystalLayer, 'layer-crystal.opacity', 0));
+    const moddedInkOpacity = modValue('layer-inkflow.opacity', layerOpacity(inkLayer, 'layer-inkflow.opacity', 0));
+    const moddedTopoOpacity = modValue('layer-topo.opacity', layerOpacity(topoLayer, 'layer-topo.opacity', 0));
+    const moddedWeatherOpacity = modValue('layer-weather.opacity', layerOpacity(weatherLayer, 'layer-weather.opacity', 0));
+    const moddedPortalOpacity = modValue('layer-portal.opacity', layerOpacity(portalLayer, 'layer-portal.opacity', 0));
+    const moddedOscilloOpacity = modValue('layer-oscillo.opacity', layerOpacity(oscilloLayer, 'layer-oscillo.opacity', 0));
 
-    const baseChroma = chromaLayer ? chromaLayer.opacity : effects.chroma;
-    const moddedChromaValue = modValue('fx-chroma.amount', modValue('effects.chroma', baseChroma));
+    // Effect Mappings
+    const getFxVal = (layer: any, macroTarget: string, globalVal: number, modTarget: string) => {
+      const base = layer ? layer.opacity : globalVal;
+      const withMacro = base + macroVal(macroTarget); // Effects usually additive macros or multiplicative? 
+      // Most presets use additive targets for effects.
+      return modValue(modTarget, modValue(`effects.${modTarget.split('-')[1]}`, withMacro));
+    };
+
+    const moddedFeedback = getFxVal(feedbackLayer, 'fx-feedback.amount', effects.feedback, 'fx-feedback.amount');
+    const moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
+    const moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
+    
+    const moddedChromaValue = getFxVal(chromaLayer, 'fx-chroma.amount', effects.chroma, 'fx-chroma.amount');
+    const moddedBloom = getFxVal(bloomLayer, 'fx-bloom.intensity', effects.bloom, 'fx-bloom.intensity');
+    const moddedBlur = getFxVal(blurLayer, 'fx-blur.radius', effects.blur, 'fx-blur.radius');
+    const moddedPosterize = getFxVal(posterizeLayer, 'fx-posterize.levels', effects.posterize, 'fx-posterize.levels');
+    const moddedKaleido = getFxVal(kaleidoLayer, 'fx-kaleidoscope.amount', effects.kaleidoscope, 'fx-kaleidoscope.amount');
+    const moddedPersistence = getFxVal(trailsLayer, 'fx-trails.persistence', effects.persistence, 'fx-trails.persistence');
 
     const plasmaEnabled = plasmaLayer ? plasmaLayer.enabled : false;
     const spectrumEnabled = spectrumLayer ? spectrumLayer.enabled : false;
@@ -708,22 +691,22 @@ export class RenderGraph {
       spectrumAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-spectrum'],
       spectrumAssetAudioReact: state.renderSettings.assetLayerAudioReact['layer-spectrum'],
       effectsEnabled: effects.enabled,
-      bloom: moddedEffects.bloom,
-      blur: moddedEffects.blur,
+      bloom: moddedBloom,
+      blur: moddedBlur,
       chroma: moddedChromaValue,
-      posterize: moddedEffects.posterize,
-      kaleidoscope: moddedEffects.kaleidoscope,
+      posterize: moddedPosterize,
+      kaleidoscope: moddedKaleido,
       feedback: moddedFeedback,
       feedbackZoom: moddedFeedbackZoom,
       feedbackRotation: moddedFeedbackRotation,
-      persistence: moddedEffects.persistence,
+      persistence: moddedPersistence,
       trailSpectrum: this.trailSpectrum,
       particlesEnabled: particles.enabled,
       particleDensity: moddedParticles.density,
       particleSpeed: moddedParticles.speed,
       particleSize: moddedParticles.size,
       particleGlow: moddedParticles.glow,
-      sdfEnabled: advancedSdfEnabled || (activeScene ? false : sdf.enabled),
+      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf' || l.id === 'gen-sdf-scene')) : sdf.enabled),
       sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
       sdfScale: moddedSdf.scale,
       sdfEdge: moddedSdf.edge,

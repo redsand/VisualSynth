@@ -23,10 +23,9 @@ Use this guide to verify all major features are functioning correctly. Take scre
 - Status bar at bottom
 
 **Screenshot**:
-```
-[PLACEHOLDER: initial-launch-screen.png]
-Expected: Full application window with default UI layout
-```
+![Initial Launch Screen](./screenshots/initial-launch-screen.png)
+
+*Expected: Full application window with default UI layout*
 
 **Verification**:
 - [ ] Window opens without errors
@@ -45,10 +44,9 @@ Expected: Full application window with default UI layout
 - Default audio device selected
 
 **Screenshot**:
-```
-[PLACEHOLDER: audio-device-selection.png]
-Expected: System mode left panel with audio device dropdown
-```
+![System Mode](./screenshots/system-mode.png)
+
+*Expected: System mode left panel with audio device dropdown*
 
 **Verification**:
 - [ ] Audio devices are listed
@@ -63,10 +61,9 @@ Expected: System mode left panel with audio device dropdown
 - Health strip shows activity
 
 **Screenshot**:
-```
-[PLACEHOLDER: audio-response.png]
-Expected: Visual output showing movement/spectrum activity
-```
+![Audio Response](./screenshots/audio-response.png)
+
+*Expected: Visual output showing movement/spectrum activity*
 
 **Verification**:
 - [ ] Visuals respond to audio input
@@ -86,10 +83,9 @@ Expected: Visual output showing movement/spectrum activity
 - Macros panel on right
 
 **Screenshot**:
-```
-[PLACEHOLDER: performance-mode.png]
-Expected: Performance mode full UI
-```
+![Performance Mode](./screenshots/performance-mode.png)
+
+*Expected: Performance mode full UI*
 
 **Verification**:
 - [ ] All Performance mode controls visible
@@ -105,10 +101,9 @@ Expected: Performance mode full UI
 - Style Presets panel on right
 
 **Screenshot**:
-```
-[PLACEHOLDER: scene-mode.png]
-Expected: Scene mode UI with layer list
-```
+![Scene Mode](./screenshots/scene-mode.png)
+
+*Expected: Scene mode UI with layer list*
 
 **Verification**:
 - [ ] Layer list displays correctly
@@ -124,9 +119,9 @@ Expected: Scene mode UI with layer list
 - Assets panel on right
 
 **Screenshot**:
-```
-[PLACEHOLDER: design-mode.png]
-Expected: Design mode UI with effects controls
+![Design Mode](./screenshots/design-mode.png)
+
+*Expected: Design mode UI with effects controls*
 ```
 
 **Verification**:
@@ -142,10 +137,9 @@ Expected: Design mode UI with effects controls
 - Modulators panel on right (LFOs, Envelopes, S&H)
 
 **Screenshot**:
-```
-[PLACEHOLDER: matrix-mode.png]
-Expected: Matrix mode with modulators
-```
+![Matrix Mode](./screenshots/matrix-mode.png)
+
+*Expected: Matrix mode with modulators*
 
 **Verification**:
 - [ ] Mod Matrix list is visible
@@ -160,10 +154,9 @@ Expected: Matrix mode with modulators
 - Diagnostics panel on right
 
 **Screenshot**:
-```
-[PLACEHOLDER: system-mode.png]
-Expected: System mode with diagnostics
-```
+![System Mode](./screenshots/system-mode.png)
+
+*Expected: System mode with diagnostics*
 
 **Verification**:
 - [ ] Audio/MIDI device selection works
@@ -183,10 +176,9 @@ Expected: System mode with diagnostics
 - Movement responds to audio
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-plasma.png]
-Expected: Colorful fluid plasma patterns
-```
+![Shader Plasma](./screenshots/generator-plasma.png)
+
+*Expected: Colorful fluid plasma patterns*
 
 **Verification**:
 - [ ] Plasma patterns are smooth
@@ -203,10 +195,9 @@ Expected: Colorful fluid plasma patterns
 - Colors shift based on frequency
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-spectrum.png]
-Expected: Vertical spectrum bars
-```
+![Spectrum Bars](./screenshots/generator-spectrum.png)
+
+*Expected: Vertical spectrum bars*
 
 **Verification**:
 - [ ] Bars animate with music
@@ -222,10 +213,9 @@ Expected: Vertical spectrum bars
 - Patterns shift with audio
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-origami.png]
-Expected: Geometric origami fold patterns
-```
+![Origami Fold](./screenshots/generator-origami.png)
+
+*Expected: Geometric origami fold patterns*
 
 **Verification**:
 - [ ] Fold lines are visible
@@ -241,10 +231,9 @@ Expected: Geometric origami fold patterns
 - Symbols change with audio
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-glyph.png]
-Expected: Grid of procedural glyphs
-```
+![Glyph Language](./screenshots/generator-glyph.png)
+
+*Expected: Grid of procedural glyphs*
 
 **Verification**:
 - [ ] Glyphs are clearly visible
@@ -260,10 +249,9 @@ Expected: Grid of procedural glyphs
 - Shimmering appearance
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-crystal.png]
-Expected: Crystal/glass formations
-```
+![Crystal Harmonics](./screenshots/generator-crystal.png)
+
+*Expected: Crystal/glass formations*
 
 **Verification**:
 - [ ] Crystal shapes visible
@@ -279,10 +267,9 @@ Expected: Crystal/glass formations
 - Ink-like appearance
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-ink.png]
-Expected: Ink flow brush strokes
-```
+![Ink Flow](./screenshots/generator-ink.png)
+
+*Expected: Ink flow brush strokes*
 
 **Verification**:
 - [ ] Brush strokes visible
@@ -298,10 +285,9 @@ Expected: Ink flow brush strokes
 - Terrain-like depth
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-topo.png]
-Expected: Topographic terrain patterns
-```
+![Topo Terrain](./screenshots/generator-topo.png)
+
+*Expected: Topographic terrain patterns*
 
 **Verification**:
 - [ ] Contour lines visible
@@ -317,10 +303,9 @@ Expected: Topographic terrain patterns
 - Intensity varies with music
 
 **Screenshot**:
-```
-[PLACEHOLDER: generator-weather.png]
-Expected: Weather effects (rain/snow)
-```
+![Audio Weather](./screenshots/generator-weather.png)
+
+*Expected: Weather effects (rain/snow)*
 
 **Verification**:
 - [ ] Rain/snow particles visible

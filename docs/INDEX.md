@@ -62,6 +62,22 @@ Step-by-step verification of every major feature:
 
 ---
 
+### [Screenshot Generation Guide](SCREENSHOT_GUIDE.md)
+**Creating screenshots for documentation**
+
+Complete guide for generating documentation screenshots:
+- Three methods for screenshot generation
+- Placeholder generator for initial docs
+- Automated capture from running app
+- Test suite integration
+- 39 categorized screenshots (UI modes, generators, effects, SDF, visualizers, components)
+- Customization options
+- Troubleshooting
+
+**Best for**: Creating documentation images, verifying visual output, generating placeholder screenshots.
+
+---
+
 ### [Preset Catalog](PRESET_CATALOG.md)
 **Complete guide to all 100+ presets**
 
