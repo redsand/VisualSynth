@@ -51,5 +51,7 @@ contextBridge.exposeInMainWorld('visualSynth', {
   relinkAsset: (assetId: string, kind: string) =>
     ipcRenderer.invoke('assets:relink', assetId, kind) as Promise<AssetImportResult & { assetId?: string }>,
   importPlugin: () => ipcRenderer.invoke('plugins:import'),
-  openAssetFolder: (filePath: string) => ipcRenderer.invoke('assets:open-folder', filePath)
+  openAssetFolder: (filePath: string) => ipcRenderer.invoke('assets:open-folder', filePath),
+  captureAutomatedScreenshot: (data: Uint8Array, filePath: string) =>
+    ipcRenderer.invoke('screenshot:capture-automated', data, filePath)
 });

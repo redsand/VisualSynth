@@ -62,6 +62,20 @@ Step-by-step verification of every major feature:
 
 ---
 
+### [Preset Catalog](PRESET_CATALOG.md)
+**Complete guide to all 100+ presets**
+
+Comprehensive catalog of bundled presets:
+- All presets organized by category
+- Description of each preset's visual style
+- Best musical genres for each preset
+- Macro controls for each preset
+- Preset browsing by genre and feature
+
+**Best for**: Exploring presets, finding the right visual style for your music, or learning from preset configurations.
+
+---
+
 ## Developer Documentation
 
 ### [FX System](FX_SYSTEM.md)

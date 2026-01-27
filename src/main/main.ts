@@ -662,3 +662,15 @@ ipcMain.handle('midi:open-node', async (event, portIndex: number) => {
     return { opened: false, error: 'Unable to open node-midi input.' };
   }
 });
+
+// Automated screenshot capture for documentation
+ipcMain.handle('screenshot:capture-automated', async (_event, data: Uint8Array, filePath: string) => {
+  try {
+    const dir = path.dirname(filePath);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, Buffer.from(data));
+    return { success: true, filePath };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});

@@ -11,7 +11,15 @@
     "prepare:assets": "node scripts/prepare-assets.js",
     "build": "npm run prepare:assets && tsc -p tsconfig.main.json && node scripts/build-renderer.js",
     "dist": "npm run build && electron-builder",
-    "test": "vitest run"
+    "test": "vitest run",
+    "screenshots:generate": "node scripts/generate-screenshots.js",
+    "screenshots:all": "node scripts/generate-screenshots.js --all",
+    "screenshots:clean": "node scripts/generate-screenshots.js --clean",
+    "screenshots:list": "node scripts/generate-screenshots.js --list",
+    "screenshots:ui-modes": "node scripts/generate-screenshots.js --category ui-modes",
+    "screenshots:generators": "node scripts/generate-screenshots.js --category generators",
+    "screenshots:effects": "node scripts/generate-screenshots.js --category effects",
+    "screenshots:test": "npm test -- screenshot.test.ts"
   },
   "build": {
     "appId": "com.visualsynth.app",

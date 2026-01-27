@@ -17,7 +17,7 @@ import { allOperations } from './ops';
 import { allDomainTransforms } from './domain';
 import { allFields } from './fields';
 import type { SdfNodeDefinition } from '../api';
-import { registerSdfNodes } from '../registry';
+import { registerSdfNodes as registerInternalNodes } from '../registry';
 
 /**
  * All built-in SDF node definitions
@@ -33,8 +33,8 @@ export const allSdfNodes: SdfNodeDefinition[] = [
 /**
  * Register all built-in SDF nodes with the global registry
  */
-export const registerAllSdfNodes = (): void => {
-  registerSdfNodes(allSdfNodes);
+export const registerSdfNodes = (): void => {
+  registerInternalNodes(allSdfNodes);
 };
 
 /**

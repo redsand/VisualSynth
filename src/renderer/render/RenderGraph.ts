@@ -570,6 +570,8 @@ export class RenderGraph {
     const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
     const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
     const advancedSdfLayer = activeScene?.layers.find((layer) => layer.id === 'gen-sdf-scene');
+    const feedbackLayer = activeScene?.layers.find((layer) => layer.id === 'fx-feedback');
+    const chromaLayer = activeScene?.layers.find((layer) => layer.id === 'fx-chroma');
 
     const plasmaOpacity = Math.min(
       1,
@@ -623,8 +625,17 @@ export class RenderGraph {
     const moddedPortalOpacity = modValue('layer-portal.opacity', portalOpacity);
     const moddedOscilloOpacity = modValue('layer-oscillo.opacity', oscilloOpacity);
 
-    const plasmaEnabled = plasmaLayer?.enabled ?? true;
-    const spectrumEnabled = spectrumLayer?.enabled ?? true;
+    // Feedback and Chroma can be layers or global.
+    const baseFeedback = feedbackLayer ? feedbackLayer.opacity : effects.feedback;
+    const moddedFeedback = modValue('fx-feedback.amount', modValue('effects.feedback', baseFeedback));
+    const moddedFeedbackZoom = modValue('fx-feedback.zoom', 0.0);
+    const moddedFeedbackRotation = modValue('fx-feedback.rotation', 0.0);
+
+    const baseChroma = chromaLayer ? chromaLayer.opacity : effects.chroma;
+    const moddedChromaValue = modValue('fx-chroma.amount', modValue('effects.chroma', baseChroma));
+
+    const plasmaEnabled = plasmaLayer ? plasmaLayer.enabled : false;
+    const spectrumEnabled = spectrumLayer ? spectrumLayer.enabled : false;
     const origamiEnabled = origamiLayer?.enabled ?? false;
     const glyphEnabled = glyphLayer?.enabled ?? false;
     const crystalEnabled = crystalLayer?.enabled ?? false;
@@ -633,6 +644,7 @@ export class RenderGraph {
     const weatherEnabled = weatherLayer?.enabled ?? false;
     const portalEnabled = portalLayer?.enabled ?? false;
     const oscilloEnabled = oscilloLayer?.enabled ?? false;
+    const advancedSdfEnabled = advancedSdfLayer?.enabled ?? false;
 
     if (runtime.oscilloFreeze < 0.5) {
       this.oscilloCapture.set(state.audio.waveform);
@@ -698,10 +710,12 @@ export class RenderGraph {
       effectsEnabled: effects.enabled,
       bloom: moddedEffects.bloom,
       blur: moddedEffects.blur,
-      chroma: moddedEffects.chroma,
+      chroma: moddedChromaValue,
       posterize: moddedEffects.posterize,
       kaleidoscope: moddedEffects.kaleidoscope,
-      feedback: moddedEffects.feedback,
+      feedback: moddedFeedback,
+      feedbackZoom: moddedFeedbackZoom,
+      feedbackRotation: moddedFeedbackRotation,
       persistence: moddedEffects.persistence,
       trailSpectrum: this.trailSpectrum,
       particlesEnabled: particles.enabled,
@@ -709,7 +723,7 @@ export class RenderGraph {
       particleSpeed: moddedParticles.speed,
       particleSize: moddedParticles.size,
       particleGlow: moddedParticles.glow,
-      sdfEnabled: sdf.enabled,
+      sdfEnabled: advancedSdfEnabled || (activeScene ? false : sdf.enabled),
       sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
       sdfScale: moddedSdf.scale,
       sdfEdge: moddedSdf.edge,

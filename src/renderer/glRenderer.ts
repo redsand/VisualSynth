@@ -93,6 +93,8 @@ export interface RenderState {
   sdfRotation: number;
   sdfFill: number;
   sdfScene?: any; // Config for Advanced mode
+  feedbackZoom: number;
+  feedbackRotation: number;
   gravityPositions: Float32Array;
   gravityStrengths: Float32Array;
   gravityPolarities: Float32Array;
@@ -208,6 +210,8 @@ uniform float uPosterize;
 uniform float uKaleidoscope;
 uniform float uKaleidoscopeRotation;
 uniform float uFeedback;
+uniform float uFeedbackZoom;
+uniform float uFeedbackRotation;
 uniform float uPersistence;
 uniform float uTrailSpectrum[64];
 uniform float uParticlesEnabled;
@@ -499,14 +503,22 @@ void main() {
     gravityLens = lens;
     gravityRing = ringAcc;
   }
-  if (uFeedback > 0.01) {
+  if (uFeedback > 0.01 || abs(uFeedbackZoom) > 0.01 || abs(uFeedbackRotation) > 0.01) {
     vec2 centered = effectUv * 2.0 - 1.0;
     float radius = length(centered);
-    float twist = uFeedback * 2.0;
-    float angle = atan(centered.y, centered.x) + twist * radius * 2.0;
-    float zoom = 1.0 - uFeedback * 0.4;
+    float angle = atan(centered.y, centered.x);
+    
+    // Twist from amount
+    angle += uFeedback * radius * 2.0;
+    
+    // Explicit rotation
+    angle += uFeedbackRotation;
+    
+    // Zoom/Scale (Zoom in if zoom > 0)
+    float zoomFactor = 1.0 - uFeedbackZoom * 0.5;
     float stretch = 1.0 + uFeedback * 0.5;
-    float newRadius = pow(radius * zoom, stretch);
+    float newRadius = pow(radius * zoomFactor, stretch);
+    
     effectUv = vec2(cos(angle), sin(angle)) * newRadius * 0.5 + 0.5;
   }
   vec3 color = vec3(0.02, 0.04, 0.08);
@@ -839,6 +851,8 @@ void main() {
     gl.uniform1f(getLocation('uKaleidoscope'), state.kaleidoscope);
     gl.uniform1f(getLocation('uKaleidoscopeRotation'), state.kaleidoscopeRotation || 0.0);
     gl.uniform1f(getLocation('uFeedback'), state.feedback);
+    gl.uniform1f(getLocation('uFeedbackZoom'), state.feedbackZoom || 0.0);
+    gl.uniform1f(getLocation('uFeedbackRotation'), state.feedbackRotation || 0.0);
     gl.uniform1f(getLocation('uPersistence'), state.persistence);
     gl.uniform1fv(getLocation('uTrailSpectrum[0]'), state.trailSpectrum);
     gl.uniform1f(getLocation('uParticlesEnabled'), state.particlesEnabled ? 1 : 0);
