@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "name": "Crystal Void",
+  "createdAt": "2026-01-27T10:00:00.000Z",
+  "updatedAt": "2026-01-27T10:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-crystal",
+          "name": "Crystal Harmonics",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-kaleidoscope",
+          "name": "Kaleidoscope",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-9073",
+      "source": "audio.rms",
+      "target": "layer-crystal.speed",
+      "amount": 0.21,
+      "min": 0.59,
+      "max": 0.8,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1",
+  "category": "Organic"
+}

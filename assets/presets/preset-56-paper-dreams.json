@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "name": "Paper Dreams",
+  "createdAt": "2026-01-27T10:00:00.000Z",
+  "updatedAt": "2026-01-27T10:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-origami",
+          "name": "Origami Fold",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-blur",
+          "name": "Blur",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-bloom",
+          "name": "Bloom",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-36",
+      "source": "audio.rms",
+      "target": "layer-origami.speed",
+      "amount": 0.51,
+      "min": 0.42,
+      "max": 0.93,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1",
+  "category": "Organic"
+}

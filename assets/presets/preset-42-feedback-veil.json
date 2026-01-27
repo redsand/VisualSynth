@@ -8,8 +8,8 @@
     "bloom": 0.4,
     "blur": 0.1,
     "chroma": 0.08,
-    "posterize": 0.0,
-    "kaleidoscope": 0.0,
+    "posterize": 0,
+    "kaleidoscope": 0,
     "feedback": 0.45,
     "persistence": 0.7
   },
@@ -26,7 +26,7 @@
     "scale": 0.5,
     "edge": 0.08,
     "glow": 0.6,
-    "rotation": 0.0,
+    "rotation": 0,
     "fill": 0.3
   },
   "scenes": [
@@ -40,7 +40,12 @@
           "enabled": true,
           "opacity": 0.55,
           "blendMode": "screen",
-          "transform": { "x": 0, "y": 0, "scale": 1.2, "rotation": 0.1 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.2,
+            "rotation": 0.1
+          }
         },
         {
           "id": "layer-spectrum",
@@ -48,12 +53,30 @@
           "enabled": true,
           "opacity": 0.45,
           "blendMode": "add",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-6689",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.25,
+      "min": 0.53,
+      "max": 0.78,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Audio Reactive"
 }

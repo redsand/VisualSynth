@@ -6,7 +6,7 @@
   "effects": {
     "enabled": true,
     "bloom": 0.15,
-    "blur": 0.0,
+    "blur": 0,
     "chroma": 0.05,
     "posterize": 0.2,
     "kaleidoscope": 0.3,
@@ -40,7 +40,12 @@
           "enabled": false,
           "opacity": 0.6,
           "blendMode": "screen",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         },
         {
           "id": "layer-spectrum",
@@ -48,12 +53,18 @@
           "enabled": false,
           "opacity": 0.5,
           "blendMode": "add",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
       ]
     }
   ],
   "modMatrix": [],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Geometry"
 }

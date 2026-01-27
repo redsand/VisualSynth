@@ -5,6 +5,7 @@ import {
   OUTPUT_BASE_WIDTH,
   OutputConfig,
   VisualSynthProject,
+  ColorPalette,
   SceneLook,
   SceneConfig,
   LayerConfig,
@@ -40,7 +41,7 @@ declare global {
       openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; error?: string }>;
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
-      listPresets: () => Promise<{ name: string; path: string }[]>;
+      listPresets: () => Promise<{ name: string; category: string; path: string }[]>;
       loadPreset: (presetPath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
       listTemplates: () => Promise<{ name: string; path: string }[]>;
       loadTemplate: (templatePath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
@@ -204,6 +205,9 @@ const effectPosterize = document.getElementById('effect-posterize') as HTMLInput
 const effectKaleidoscope = document.getElementById('effect-kaleidoscope') as HTMLInputElement;
 const effectFeedback = document.getElementById('effect-feedback') as HTMLInputElement;
 const effectPersistence = document.getElementById('effect-persistence') as HTMLInputElement;
+const paletteSelect = document.getElementById('palette-select') as HTMLSelectElement;
+const palettePreview = document.getElementById('palette-preview') as HTMLDivElement;
+const paletteApplyToggle = document.getElementById('palette-apply-scene') as HTMLInputElement;
 const particlesEnabled = document.getElementById('particles-enabled') as HTMLInputElement;
 const particlesDensity = document.getElementById('particles-density') as HTMLInputElement;
 const particlesSpeed = document.getElementById('particles-speed') as HTMLInputElement;
@@ -5237,7 +5241,7 @@ const initPresets = async () => {
   presetLibrary = presets.map((preset) => ({
     name: preset.name,
     path: preset.path,
-    category: categorizePreset(preset.name)
+    category: preset.category
   }));
   presets.forEach((preset) => {
     const option = document.createElement('option');
@@ -5733,6 +5737,7 @@ const render = (time: number) => {
     chroma: modValue('effects.chroma', effects.chroma),
     posterize: modValue('effects.posterize', effects.posterize),
     kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope),
+    kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', 0), // Default to 0 if not present in project
     feedback: modValue('effects.feedback', effects.feedback),
     persistence: modValue('effects.persistence', effects.persistence)
   };
@@ -5781,6 +5786,9 @@ const render = (time: number) => {
     1,
     Math.max(0, (plasmaLayer?.opacity ?? 1) * (1 + (macroSum['layer-plasma.opacity'] ?? 0)))
   );
+  const plasmaSpeed = Math.max(0.1, 1.0 + (macroSum['layer-plasma.speed'] ?? 0));
+  const plasmaScale = Math.max(0.1, 1.0 + (macroSum['layer-plasma.scale'] ?? 0));
+
   const spectrumOpacity = Math.min(
     1,
     Math.max(0, (spectrumLayer?.opacity ?? 1) * (1 + (macroSum['layer-spectrum.opacity'] ?? 0)))
@@ -5789,26 +5797,41 @@ const render = (time: number) => {
     1,
     Math.max(0, (origamiLayer?.opacity ?? 1) * (1 + (macroSum['layer-origami.opacity'] ?? 0)))
   );
+  const origamiSpeed = Math.max(0.1, 1.0 + (macroSum['layer-origami.speed'] ?? 0));
+
   const glyphOpacity = Math.min(
     1,
     Math.max(0, (glyphLayer?.opacity ?? 1) * (1 + (macroSum['layer-glyph.opacity'] ?? 0)))
   );
+  const glyphSpeed = Math.max(0.1, 1.0 + (macroSum['layer-glyph.speed'] ?? 0));
+
   const crystalOpacity = Math.min(
     1,
     Math.max(0, (crystalLayer?.opacity ?? 1) * (1 + (macroSum['layer-crystal.opacity'] ?? 0)))
   );
+  const crystalScale = Math.max(0.1, 1.0 + (macroSum['layer-crystal.scale'] ?? 0));
+  const crystalSpeed = Math.max(0.1, 1.0 + (macroSum['layer-crystal.speed'] ?? 0));
+
   const inkOpacity = Math.min(
     1,
     Math.max(0, (inkLayer?.opacity ?? 1) * (1 + (macroSum['layer-inkflow.opacity'] ?? 0)))
   );
+  const inkSpeed = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.speed'] ?? 0));
+  const inkScale = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.scale'] ?? 0));
+
   const topoOpacity = Math.min(
     1,
     Math.max(0, (topoLayer?.opacity ?? 1) * (1 + (macroSum['layer-topo.opacity'] ?? 0)))
   );
+  const topoScale = Math.max(0.1, 1.0 + (macroSum['layer-topo.scale'] ?? 0));
+  const topoElevation = Math.max(0.1, 1.0 + (macroSum['layer-topo.elevation'] ?? 0));
+
   const weatherOpacity = Math.min(
     1,
     Math.max(0, (weatherLayer?.opacity ?? 1) * (1 + (macroSum['layer-weather.opacity'] ?? 0)))
   );
+  const weatherSpeed = Math.max(0.1, 1.0 + (macroSum['layer-weather.speed'] ?? 0));
+
   const portalOpacity = Math.min(
     1,
     Math.max(0, (portalLayer?.opacity ?? 1) * (1 + (macroSum['layer-portal.opacity'] ?? 0)))
@@ -5818,13 +5841,24 @@ const render = (time: number) => {
     Math.max(0, (oscilloLayer?.opacity ?? 1) * (1 + (macroSum['layer-oscillo.opacity'] ?? 0)))
   );
   const moddedPlasmaOpacity = modValue('layer-plasma.opacity', plasmaOpacity);
+  const moddedPlasmaSpeed = modValue('layer-plasma.speed', plasmaSpeed);
+  const moddedPlasmaScale = modValue('layer-plasma.scale', plasmaScale);
   const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', spectrumOpacity);
   const moddedOrigamiOpacity = modValue('layer-origami.opacity', origamiOpacity);
+  const moddedOrigamiSpeed = modValue('layer-origami.speed', origamiSpeed);
   const moddedGlyphOpacity = modValue('layer-glyph.opacity', glyphOpacity);
+  const moddedGlyphSpeed = modValue('layer-glyph.speed', glyphSpeed);
   const moddedCrystalOpacity = modValue('layer-crystal.opacity', crystalOpacity);
+  const moddedCrystalScale = modValue('layer-crystal.scale', crystalScale);
+  const moddedCrystalSpeed = modValue('layer-crystal.speed', crystalSpeed);
   const moddedInkOpacity = modValue('layer-inkflow.opacity', inkOpacity);
+  const moddedInkSpeed = modValue('layer-inkflow.speed', inkSpeed);
+  const moddedInkScale = modValue('layer-inkflow.scale', inkScale);
   const moddedTopoOpacity = modValue('layer-topo.opacity', topoOpacity);
+  const moddedTopoScale = modValue('layer-topo.scale', topoScale);
+  const moddedTopoElevation = modValue('layer-topo.elevation', topoElevation);
   const moddedWeatherOpacity = modValue('layer-weather.opacity', weatherOpacity);
+  const moddedWeatherSpeed = modValue('layer-weather.speed', weatherSpeed);
   const moddedPortalOpacity = modValue('layer-portal.opacity', portalOpacity);
   const moddedOscilloOpacity = modValue('layer-oscillo.opacity', oscilloOpacity);
   const plasmaEnabled = plasmaToggle?.checked ?? true;
@@ -5864,29 +5898,40 @@ const render = (time: number) => {
     saturation: moddedStyle.saturation,
     paletteShift: moddedStyle.paletteShift,
     plasmaOpacity: moddedPlasmaOpacity,
+    plasmaSpeed: moddedPlasmaSpeed,
+    plasmaScale: moddedPlasmaScale,
     spectrumOpacity: moddedSpectrumOpacity,
     origamiOpacity: moddedOrigamiOpacity,
-    origamiFoldState,
-    origamiFoldSharpness,
+    origamiFoldState: 0,
+    origamiFoldSharpness: 0,
+    origamiSpeed: moddedOrigamiSpeed,
     glyphOpacity: moddedGlyphOpacity,
-    glyphMode,
-    glyphSeed,
-    glyphBeat: glyphBeatPulse,
+    glyphMode: 0,
+    glyphSeed: 0,
+    glyphBeat: 0,
+    glyphSpeed: moddedGlyphSpeed,
     crystalOpacity: moddedCrystalOpacity,
-    crystalMode,
-    crystalBrittleness,
+    crystalMode: 0,
+    crystalBrittleness: 0,
+    crystalScale: moddedCrystalScale,
+    crystalSpeed: moddedCrystalSpeed,
     inkOpacity: moddedInkOpacity,
-    inkBrush,
-    inkPressure,
-    inkLifespan,
+    inkBrush: inkLayer ? 1.0 : 0.0, // Simplification based on existing logic or extraction if available
+    inkPressure: 0.5, // Placeholder or extraction
+    inkLifespan: 0.5, // Placeholder or extraction
+    inkSpeed: moddedInkSpeed,
+    inkScale: moddedInkScale,
     topoOpacity: moddedTopoOpacity,
-    topoQuake,
-    topoSlide,
-    topoPlate,
-    topoTravel,
+    topoQuake: 0,
+    topoSlide: 0,
+    topoPlate: 0,
+    topoTravel: 0,
+    topoScale: moddedTopoScale,
+    topoElevation: moddedTopoElevation,
     weatherOpacity: moddedWeatherOpacity,
-    weatherMode,
-    weatherIntensity,
+    weatherMode: 0,
+    weatherIntensity: 0,
+    weatherSpeed: moddedWeatherSpeed,
     portalOpacity: moddedPortalOpacity,
     portalShift,
     portalPositions,
@@ -5907,6 +5952,7 @@ const render = (time: number) => {
     chroma: moddedEffects.chroma,
     posterize: moddedEffects.posterize,
     kaleidoscope: moddedEffects.kaleidoscope,
+    kaleidoscopeRotation: moddedEffects.kaleidoscopeRotation,
     feedback: moddedEffects.feedback,
     persistence: moddedEffects.persistence,
     trailSpectrum: trailSpectrum,

@@ -26,7 +26,7 @@
     "scale": 0.52,
     "edge": 0.05,
     "glow": 0.7,
-    "rotation": 1.0,
+    "rotation": 1,
     "fill": 0.5
   },
   "scenes": [
@@ -43,8 +43,8 @@
           "transform": {
             "x": 0,
             "y": 0,
-            "scale": 1.0,
-            "rotation": 0.0
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -63,7 +63,20 @@
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-1842",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.43,
+      "min": 0.67,
+      "max": 1.1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "DNA"
 }

@@ -298,6 +298,7 @@ const defaultPadMappings = (() => {
 export const projectSchema = z.object({
   version: z.number(),
   name: z.string(),
+  category: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),

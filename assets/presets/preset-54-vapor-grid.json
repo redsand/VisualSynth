@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "name": "Vapor Grid",
+  "createdAt": "2026-01-27T10:00:00.000Z",
+  "updatedAt": "2026-01-27T10:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-topo",
+          "name": "Topo Terrain",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "viz-waveform",
+          "name": "Waveform",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-chroma",
+          "name": "Chromatic Aberration",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1144",
+      "source": "audio.rms",
+      "target": "layer-topo.scale",
+      "amount": 0.24,
+      "min": 0.45,
+      "max": 0.69,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1",
+  "category": "Geometry"
+}

@@ -8,7 +8,7 @@
     "bloom": 0.3,
     "blur": 0.05,
     "chroma": 0.12,
-    "posterize": 0.0,
+    "posterize": 0,
     "kaleidoscope": 0.6,
     "feedback": 0.2,
     "persistence": 0.6
@@ -40,7 +40,12 @@
           "enabled": true,
           "opacity": 0.6,
           "blendMode": "screen",
-          "transform": { "x": 0, "y": 0, "scale": 1.1, "rotation": 0.08 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.1,
+            "rotation": 0.08
+          }
         },
         {
           "id": "layer-spectrum",
@@ -48,12 +53,30 @@
           "enabled": true,
           "opacity": 0.55,
           "blendMode": "add",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-3292",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.35,
+      "min": 1.18,
+      "max": 1.53,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Audio Reactive"
 }

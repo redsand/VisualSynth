@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "name": "Red Code",
+  "createdAt": "2026-01-27T10:00:00.000Z",
+  "updatedAt": "2026-01-27T10:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-glyph",
+          "name": "Glyph Language",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-feedback",
+          "name": "Feedback Tunnel",
+          "enabled": true,
+          "opacity": 0.7,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-9313",
+      "source": "audio.rms",
+      "target": "layer-glyph.speed",
+      "amount": 0.59,
+      "min": 1,
+      "max": 1.59,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1",
+  "category": "Abstract"
+}

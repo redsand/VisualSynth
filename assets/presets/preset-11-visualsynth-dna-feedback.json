@@ -37,7 +37,20 @@
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-2165",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.23,
+      "min": 0.64,
+      "max": 0.87,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "DNA"
 }

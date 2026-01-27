@@ -26,7 +26,7 @@
     "scale": 0.45,
     "edge": 0.08,
     "glow": 0.5,
-    "rotation": 0.0,
+    "rotation": 0,
     "fill": 0.3
   },
   "scenes": [
@@ -43,8 +43,8 @@
           "transform": {
             "x": 0,
             "y": 0,
-            "scale": 1.0,
-            "rotation": 0.0
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -63,7 +63,20 @@
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-6077",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.53,
+      "min": 0.76,
+      "max": 1.29,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Abstract"
 }

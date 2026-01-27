@@ -1,0 +1,137 @@
+{
+  "version": 2,
+  "name": "Ice Tunnel",
+  "category": "Hydro & Pyro",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Frost",
+      "value": 0.4,
+      "targets": [
+        {
+          "target": "fx-glitch.intensity",
+          "amount": 0.8
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Shard Glint",
+      "value": 0.7,
+      "targets": [
+        {
+          "target": "layer-crystal.brightness",
+          "amount": 1.5
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Tunnel Speed",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "fx-feedback.zoom",
+          "amount": 0.1
+        }
+      ]
+    },
+    {
+      "id": "macro-4",
+      "name": "Ice Color",
+      "value": 0.9,
+      "targets": [
+        {
+          "target": "layer-crystal.hue",
+          "amount": 0.2
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Ice",
+      "layers": [
+        {
+          "id": "layer-crystal",
+          "name": "Ice Shards",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-glitch",
+          "name": "Cracks",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "overlay",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-feedback",
+          "name": "Passage",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "audio.high",
+      "target": "fx-glitch.intensity",
+      "amount": 0.6,
+      "min": 0,
+      "max": 0.8,
+      "smoothing": 0.05,
+      "curve": "linear",
+      "bipolar": false
+    },
+    {
+      "id": "mod-2",
+      "source": "audio.mid",
+      "target": "layer-crystal.brightness",
+      "amount": 0.3,
+      "min": 0.8,
+      "max": 1.5,
+      "smoothing": 0.1,
+      "curve": "linear",
+      "bipolar": false
+    },
+    {
+      "id": "mod-7371",
+      "source": "audio.rms",
+      "target": "layer-crystal.speed",
+      "amount": 0.53,
+      "min": 0.4,
+      "max": 0.93,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

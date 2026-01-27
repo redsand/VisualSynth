@@ -463,10 +463,11 @@ ipcMain.handle('presets:list', async () => {
         const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
         return {
           name: typeof data.name === 'string' && data.name.length > 0 ? data.name : file,
+          category: typeof data.category === 'string' ? data.category : 'General',
           path: presetPath
         };
       } catch {
-        return { name: file, path: presetPath };
+        return { name: file, category: 'General', path: presetPath };
       }
     });
 });

@@ -43,8 +43,8 @@
           "transform": {
             "x": 0,
             "y": 0,
-            "scale": 1.0,
-            "rotation": 0.0
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -63,7 +63,20 @@
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-5596",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.32,
+      "min": 0.55,
+      "max": 0.87,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Abstract"
 }

@@ -8,8 +8,8 @@
     "bloom": 0.12,
     "blur": 0.15,
     "chroma": 0.05,
-    "posterize": 0.0,
-    "kaleidoscope": 0.0,
+    "posterize": 0,
+    "kaleidoscope": 0,
     "feedback": 0.12,
     "persistence": 0.65
   },
@@ -43,8 +43,8 @@
           "transform": {
             "x": 0,
             "y": 0,
-            "scale": 1.0,
-            "rotation": 0.0
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -63,7 +63,20 @@
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-2558",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.46,
+      "min": 0.73,
+      "max": 1.19,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Abstract"
 }

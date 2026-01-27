@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "name": "Warp Core",
+  "category": "Space",
+  "createdAt": "2026-01-27T10:00:00.000Z",
+  "updatedAt": "2026-01-27T10:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main Scene",
+      "layers": [
+        {
+          "id": "layer-portal",
+          "name": "Wormhole Portal",
+          "enabled": true,
+          "opacity": 1.0,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        },
+        {
+          "id": "fx-feedback",
+          "name": "Feedback Tunnel",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        },
+        {
+          "id": "fx-bloom",
+          "name": "Bloom",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "add",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

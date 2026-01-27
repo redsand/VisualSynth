@@ -37,7 +37,20 @@
       ]
     }
   ],
-  "modMatrix": [],
+  "modMatrix": [
+    {
+      "id": "mod-1831",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.25,
+      "min": 0.74,
+      "max": 0.99,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Essentials"
 }

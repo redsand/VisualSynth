@@ -8,8 +8,8 @@
     "bloom": 0.35,
     "blur": 0.08,
     "chroma": 0.2,
-    "posterize": 0.0,
-    "kaleidoscope": 0.0,
+    "posterize": 0,
+    "kaleidoscope": 0,
     "feedback": 0.15,
     "persistence": 0.45
   },
@@ -40,7 +40,12 @@
           "enabled": false,
           "opacity": 0.5,
           "blendMode": "screen",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         },
         {
           "id": "layer-spectrum",
@@ -48,12 +53,18 @@
           "enabled": true,
           "opacity": 0.6,
           "blendMode": "add",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
       ]
     }
   ],
   "modMatrix": [],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "category": "Particles"
 }

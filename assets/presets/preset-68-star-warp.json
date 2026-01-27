@@ -1,0 +1,117 @@
+{
+  "version": 2,
+  "name": "Star Warp",
+  "category": "Space",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Warp Speed",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-particles.speed",
+          "amount": 1
+        },
+        {
+          "target": "fx-feedback.zoom",
+          "amount": 0.2
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Twist",
+      "value": 0,
+      "targets": [
+        {
+          "target": "fx-feedback.rotation",
+          "amount": 0.1
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Star Density",
+      "value": 0.4,
+      "targets": [
+        {
+          "target": "gen-particles.density",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "macro-4",
+      "name": "Color Shift",
+      "value": 0,
+      "targets": [
+        {
+          "target": "fx-feedback.hueShift",
+          "amount": 1
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Warp Tunnel",
+      "layers": [
+        {
+          "id": "gen-particles",
+          "name": "Stars",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-feedback",
+          "name": "Tunnel",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "audio.peak",
+      "target": "fx-feedback.zoom",
+      "amount": 0.1,
+      "min": 0.9,
+      "max": 1.1,
+      "smoothing": 0.1,
+      "curve": "linear",
+      "bipolar": false
+    },
+    {
+      "id": "mod-2",
+      "source": "audio.rms",
+      "target": "gen-particles.speed",
+      "amount": 0.5,
+      "min": 0.5,
+      "max": 2,
+      "smoothing": 0.3,
+      "curve": "linear",
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

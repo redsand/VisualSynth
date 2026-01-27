@@ -1,0 +1,126 @@
+{
+  "version": 2,
+  "name": "Whirlpool",
+  "category": "Hydro & Pyro",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Spin Speed",
+      "value": 0.6,
+      "targets": [
+        {
+          "target": "fx-feedback.rotation",
+          "amount": 0.5
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Turbulence",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-particles.turbulence",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Underwater",
+      "value": 0.4,
+      "targets": [
+        {
+          "target": "fx-blur.radius",
+          "amount": 0.8
+        }
+      ]
+    },
+    {
+      "id": "macro-4",
+      "name": "Debris",
+      "value": 0.7,
+      "targets": [
+        {
+          "target": "gen-particles.density",
+          "amount": 1
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Vortex",
+      "layers": [
+        {
+          "id": "gen-particles",
+          "name": "Debris",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-feedback",
+          "name": "Swirl",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-blur",
+          "name": "Water",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "audio.rms",
+      "target": "fx-feedback.rotation",
+      "amount": 0.3,
+      "min": 0.1,
+      "max": 0.5,
+      "smoothing": 0.2,
+      "curve": "linear",
+      "bipolar": false
+    },
+    {
+      "id": "mod-2",
+      "source": "audio.peak",
+      "target": "gen-particles.turbulence",
+      "amount": 0.4,
+      "min": 0.2,
+      "max": 1,
+      "smoothing": 0.1,
+      "curve": "linear",
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

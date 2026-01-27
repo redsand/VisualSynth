@@ -1,572 +1,579 @@
 {
-    "version":  2,
-    "name":  "Crystal Harmonics",
-    "createdAt":  "2026-01-27T00:50:49.000Z",
-    "updatedAt":  "2026-01-27T00:50:49.000Z",
-    "stylePresets":  [
-                         {
-                             "id":  "style-prism",
-                             "name":  "Prism",
-                             "settings":  {
-                                              "contrast":  1.3,
-                                              "saturation":  0.8,
-                                              "paletteShift":  0.04
-                                          }
-                         },
-                         {
-                             "id":  "style-frost",
-                             "name":  "Frost",
-                             "settings":  {
-                                              "contrast":  1.15,
-                                              "saturation":  0.7,
-                                              "paletteShift":  -0.1
-                                          }
-                         }
-                     ],
-    "activeStylePresetId":  "style-prism",
-    "macros":  [
-                   {
-                       "id":  "macro-1",
-                       "name":  "Crystal Opacity",
-                       "value":  0.6,
-                       "targets":  [
-                                       {
-                                           "target":  "layer-crystal.opacity",
-                                           "amount":  0.7
-                                       }
-                                   ]
-                   },
-                   {
-                       "id":  "macro-2",
-                       "name":  "Refraction",
-                       "value":  0.4,
-                       "targets":  [
-                                       {
-                                           "target":  "effects.chroma",
-                                           "amount":  0.2
-                                       },
-                                       {
-                                           "target":  "effects.kaleidoscope",
-                                           "amount":  0.2
-                                       }
-                                   ]
-                   },
-                   {
-                       "id":  "macro-3",
-                       "name":  "Caustics",
-                       "value":  0.4,
-                       "targets":  [
-                                       {
-                                           "target":  "effects.bloom",
-                                           "amount":  0.3
-                                       },
-                                       {
-                                           "target":  "effects.blur",
-                                           "amount":  0.15
-                                       }
-                                   ]
-                   },
-                   {
-                       "id":  "macro-4",
-                       "name":  "Fracture",
-                       "value":  0.2,
-                       "targets":  [
-                                       {
-                                           "target":  "effects.feedback",
-                                           "amount":  0.25
-                                       },
-                                       {
-                                           "target":  "effects.persistence",
-                                           "amount":  0.35
-                                       }
-                                   ]
-                   },
-                   {
-                       "id":  "macro-5",
-                       "name":  "Macro 5",
-                       "value":  0.5,
-                       "targets":  [
-
-                                   ]
-                   },
-                   {
-                       "id":  "macro-6",
-                       "name":  "Macro 6",
-                       "value":  0.5,
-                       "targets":  [
-
-                                   ]
-                   },
-                   {
-                       "id":  "macro-7",
-                       "name":  "Macro 7",
-                       "value":  0.5,
-                       "targets":  [
-
-                                   ]
-                   },
-                   {
-                       "id":  "macro-8",
-                       "name":  "Macro 8",
-                       "value":  0.5,
-                       "targets":  [
-
-                                   ]
-                   }
-               ],
-    "effects":  {
-                    "enabled":  true,
-                    "bloom":  0.22,
-                    "blur":  0.08,
-                    "chroma":  0.08,
-                    "posterize":  0,
-                    "kaleidoscope":  0.25,
-                    "feedback":  0.25,
-                    "persistence":  0.55
-                },
-    "particles":  {
-                      "enabled":  true,
-                      "density":  0.2,
-                      "speed":  0.2,
-                      "size":  0.35,
-                      "glow":  0.55
-                  },
-    "sdf":  {
-                "enabled":  true,
-                "shape":  "triangle",
-                "scale":  0.6,
-                "edge":  0.05,
-                "glow":  0.7,
-                "rotation":  0.12,
-                "fill":  0.3
-            },
-    "visualizer":  {
-                       "enabled":  false,
-                       "mode":  "off",
-                       "opacity":  0.6,
-                       "macroEnabled":  false,
-                       "macroId":  8
-                   },
-    "lfos":  [
-                 {
-                     "id":  "lfo-1",
-                     "name":  "Harmonic Lock",
-                     "shape":  "sine",
-                     "rate":  0.05,
-                     "sync":  false,
-                     "phase":  0
-                 },
-                 {
-                     "id":  "lfo-2",
-                     "name":  "Fracture Drift",
-                     "shape":  "triangle",
-                     "rate":  0.08,
-                     "sync":  false,
-                     "phase":  0.2
-                 }
-             ],
-    "envelopes":  [
-                      {
-                          "id":  "env-1",
-                          "name":  "Seed Burst",
-                          "attack":  0.03,
-                          "decay":  0.2,
-                          "sustain":  0.45,
-                          "release":  0.35,
-                          "hold":  0.2,
-                          "trigger":  "audio.peak",
-                          "threshold":  0.55
-                      },
-                      {
-                          "id":  "env-2",
-                          "name":  "Shatter",
-                          "attack":  0.02,
-                          "decay":  0.18,
-                          "sustain":  0.3,
-                          "release":  0.3,
-                          "hold":  0.15,
-                          "trigger":  "audio.peak",
-                          "threshold":  0.7
-                      }
-                  ],
-    "sampleHold":  [
-                       {
-                           "id":  "sh-1",
-                           "name":  "Facet Jitter",
-                           "rate":  0.2,
-                           "sync":  false,
-                           "smooth":  0.3
-                       },
-                       {
-                           "id":  "sh-2",
-                           "name":  "Refraction Drift",
-                           "rate":  0.12,
-                           "sync":  false,
-                           "smooth":  0.35
-                       }
-                   ],
-    "padMappings":  [
-                        "crystal-seed",
-                        "crystal-grow",
-                        "crystal-fracture",
-                        "crystal-melt",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none",
-                        "none"
-                    ],
-    "timelineMarkers":  [
-
-                        ],
-    "assets":  [
-
-               ],
-    "plugins":  [
-
-                ],
-    "scenes":  [
-                   {
-                       "id":  "scene-1",
-                       "name":  "Crystal Vault",
-                       "layers":  [
-                                      {
-                                          "id":  "layer-crystal",
-                                          "name":  "Crystal Harmonics",
-                                          "enabled":  true,
-                                          "opacity":  0.75,
-                                          "blendMode":  "screen",
-                                          "transform":  {
-                                                            "x":  0,
-                                                            "y":  0,
-                                                            "scale":  1,
-                                                            "rotation":  0
-                                                        }
-                                      },
-                                      {
-                                          "id":  "layer-plasma",
-                                          "name":  "Shader Plasma",
-                                          "enabled":  true,
-                                          "opacity":  0.25,
-                                          "blendMode":  "screen",
-                                          "transform":  {
-                                                            "x":  0,
-                                                            "y":  0,
-                                                            "scale":  1.1,
-                                                            "rotation":  0.04
-                                                        }
-                                      },
-                                      {
-                                          "id":  "layer-spectrum",
-                                          "name":  "Spectrum Bars",
-                                          "enabled":  false,
-                                          "opacity":  0.2,
-                                          "blendMode":  "add",
-                                          "transform":  {
-                                                            "x":  0,
-                                                            "y":  0,
-                                                            "scale":  1,
-                                                            "rotation":  0
-                                                        }
-                                      }
-                                  ]
-                   }
-               ],
-    "modMatrix":  [
-                      {
-                          "id":  "mod-1",
-                          "source":  "audio.rms",
-                          "target":  "effects.feedback",
-                          "amount":  0.25,
-                          "curve":  "exp",
-                          "smoothing":  0.2,
-                          "bipolar":  false,
-                          "min":  0.1,
-                          "max":  0.5
-                      },
-                      {
-                          "id":  "mod-2",
-                          "source":  "audio.rms",
-                          "target":  "effects.persistence",
-                          "amount":  0.3,
-                          "curve":  "log",
-                          "smoothing":  0.3,
-                          "bipolar":  false,
-                          "min":  0.3,
-                          "max":  0.8
-                      },
-                      {
-                          "id":  "mod-3",
-                          "source":  "audio.peak",
-                          "target":  "effects.chroma",
-                          "amount":  0.2,
-                          "curve":  "exp",
-                          "smoothing":  0.15,
-                          "bipolar":  false,
-                          "min":  0.05,
-                          "max":  0.35
-                      },
-                      {
-                          "id":  "mod-4",
-                          "source":  "lfo-1",
-                          "target":  "style.paletteShift",
-                          "amount":  0.2,
-                          "curve":  "log",
-                          "smoothing":  0.6,
-                          "bipolar":  true,
-                          "min":  -0.2,
-                          "max":  0.2
-                      }
-                  ],
-    "midiMappings":  [
-
-                     ],
-    "activeSceneId":  "scene-1"
+  "version": 2,
+  "name": "Crystal Harmonics",
+  "createdAt": "2026-01-27T00:50:49.000Z",
+  "updatedAt": "2026-01-27T00:50:49.000Z",
+  "stylePresets": [
+    {
+      "id": "style-prism",
+      "name": "Prism",
+      "settings": {
+        "contrast": 1.3,
+        "saturation": 0.8,
+        "paletteShift": 0.04
+      }
+    },
+    {
+      "id": "style-frost",
+      "name": "Frost",
+      "settings": {
+        "contrast": 1.15,
+        "saturation": 0.7,
+        "paletteShift": -0.1
+      }
+    }
+  ],
+  "activeStylePresetId": "style-prism",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Crystal Opacity",
+      "value": 0.6,
+      "targets": [
+        {
+          "target": "layer-crystal.opacity",
+          "amount": 0.7
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Refraction",
+      "value": 0.4,
+      "targets": [
+        {
+          "target": "effects.chroma",
+          "amount": 0.2
+        },
+        {
+          "target": "effects.kaleidoscope",
+          "amount": 0.2
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Caustics",
+      "value": 0.4,
+      "targets": [
+        {
+          "target": "effects.bloom",
+          "amount": 0.3
+        },
+        {
+          "target": "effects.blur",
+          "amount": 0.15
+        }
+      ]
+    },
+    {
+      "id": "macro-4",
+      "name": "Fracture",
+      "value": 0.2,
+      "targets": [
+        {
+          "target": "effects.feedback",
+          "amount": 0.25
+        },
+        {
+          "target": "effects.persistence",
+          "amount": 0.35
+        }
+      ]
+    },
+    {
+      "id": "macro-5",
+      "name": "Macro 5",
+      "value": 0.5,
+      "targets": []
+    },
+    {
+      "id": "macro-6",
+      "name": "Macro 6",
+      "value": 0.5,
+      "targets": []
+    },
+    {
+      "id": "macro-7",
+      "name": "Macro 7",
+      "value": 0.5,
+      "targets": []
+    },
+    {
+      "id": "macro-8",
+      "name": "Macro 8",
+      "value": 0.5,
+      "targets": []
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.22,
+    "blur": 0.08,
+    "chroma": 0.08,
+    "posterize": 0,
+    "kaleidoscope": 0.25,
+    "feedback": 0.25,
+    "persistence": 0.55
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.2,
+    "speed": 0.2,
+    "size": 0.35,
+    "glow": 0.55
+  },
+  "sdf": {
+    "enabled": true,
+    "shape": "triangle",
+    "scale": 0.6,
+    "edge": 0.05,
+    "glow": 0.7,
+    "rotation": 0.12,
+    "fill": 0.3
+  },
+  "visualizer": {
+    "enabled": false,
+    "mode": "off",
+    "opacity": 0.6,
+    "macroEnabled": false,
+    "macroId": 8
+  },
+  "lfos": [
+    {
+      "id": "lfo-1",
+      "name": "Harmonic Lock",
+      "shape": "sine",
+      "rate": 0.05,
+      "sync": false,
+      "phase": 0
+    },
+    {
+      "id": "lfo-2",
+      "name": "Fracture Drift",
+      "shape": "triangle",
+      "rate": 0.08,
+      "sync": false,
+      "phase": 0.2
+    }
+  ],
+  "envelopes": [
+    {
+      "id": "env-1",
+      "name": "Seed Burst",
+      "attack": 0.03,
+      "decay": 0.2,
+      "sustain": 0.45,
+      "release": 0.35,
+      "hold": 0.2,
+      "trigger": "audio.peak",
+      "threshold": 0.55
+    },
+    {
+      "id": "env-2",
+      "name": "Shatter",
+      "attack": 0.02,
+      "decay": 0.18,
+      "sustain": 0.3,
+      "release": 0.3,
+      "hold": 0.15,
+      "trigger": "audio.peak",
+      "threshold": 0.7
+    }
+  ],
+  "sampleHold": [
+    {
+      "id": "sh-1",
+      "name": "Facet Jitter",
+      "rate": 0.2,
+      "sync": false,
+      "smooth": 0.3
+    },
+    {
+      "id": "sh-2",
+      "name": "Refraction Drift",
+      "rate": 0.12,
+      "sync": false,
+      "smooth": 0.35
+    }
+  ],
+  "padMappings": [
+    "crystal-seed",
+    "crystal-grow",
+    "crystal-fracture",
+    "crystal-melt",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none",
+    "none"
+  ],
+  "timelineMarkers": [],
+  "assets": [],
+  "plugins": [],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Crystal Vault",
+      "layers": [
+        {
+          "id": "layer-crystal",
+          "name": "Crystal Harmonics",
+          "enabled": true,
+          "opacity": 0.75,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "enabled": true,
+          "opacity": 0.25,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.1,
+            "rotation": 0.04
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "enabled": false,
+          "opacity": 0.2,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "audio.rms",
+      "target": "effects.feedback",
+      "amount": 0.25,
+      "curve": "exp",
+      "smoothing": 0.2,
+      "bipolar": false,
+      "min": 0.1,
+      "max": 0.5
+    },
+    {
+      "id": "mod-2",
+      "source": "audio.rms",
+      "target": "effects.persistence",
+      "amount": 0.3,
+      "curve": "log",
+      "smoothing": 0.3,
+      "bipolar": false,
+      "min": 0.3,
+      "max": 0.8
+    },
+    {
+      "id": "mod-3",
+      "source": "audio.peak",
+      "target": "effects.chroma",
+      "amount": 0.2,
+      "curve": "exp",
+      "smoothing": 0.15,
+      "bipolar": false,
+      "min": 0.05,
+      "max": 0.35
+    },
+    {
+      "id": "mod-4",
+      "source": "lfo-1",
+      "target": "style.paletteShift",
+      "amount": 0.2,
+      "curve": "log",
+      "smoothing": 0.6,
+      "bipolar": true,
+      "min": -0.2,
+      "max": 0.2
+    },
+    {
+      "id": "mod-8237",
+      "source": "audio.rms",
+      "target": "layer-crystal.speed",
+      "amount": 0.6,
+      "min": 1.19,
+      "max": 1.79,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    },
+    {
+      "id": "mod-874",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 0.35,
+      "min": 1.15,
+      "max": 1.5,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1",
+  "category": "Organic"
 }

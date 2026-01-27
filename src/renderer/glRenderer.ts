@@ -22,6 +22,8 @@ export interface RenderState {
   saturation: number;
   paletteShift: number;
   plasmaOpacity: number;
+  plasmaSpeed: number;
+  plasmaScale: number;
   spectrumOpacity: number;
   origamiOpacity: number;
   origamiFoldState: number;
@@ -30,21 +32,29 @@ export interface RenderState {
   glyphMode: number;
   glyphSeed: number;
   glyphBeat: number;
+  glyphSpeed: number;
   crystalOpacity: number;
   crystalMode: number;
   crystalBrittleness: number;
+  crystalScale: number;
+  crystalSpeed: number;
   inkOpacity: number;
   inkBrush: number;
   inkPressure: number;
   inkLifespan: number;
+  inkSpeed: number;
+  inkScale: number;
   topoOpacity: number;
   topoQuake: number;
   topoSlide: number;
   topoPlate: number;
   topoTravel: number;
+  topoScale: number;
+  topoElevation: number;
   weatherOpacity: number;
   weatherMode: number;
   weatherIntensity: number;
+  weatherSpeed: number;
   portalOpacity: number;
   portalShift: number;
   portalPositions: Float32Array;
@@ -65,6 +75,7 @@ export interface RenderState {
   chroma: number;
   posterize: number;
   kaleidoscope: number;
+  kaleidoscopeRotation: number;
   feedback: number;
   persistence: number;
   trailSpectrum: Float32Array;
@@ -86,6 +97,7 @@ export interface RenderState {
   gravityActives: Float32Array;
   gravityCollapse: number;
   debugTint?: number;
+  origamiSpeed: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -129,25 +141,33 @@ uniform float uGlyphOpacity;
 uniform float uGlyphMode;
 uniform float uGlyphSeed;
 uniform float uGlyphBeat;
+uniform float uGlyphSpeed;
 uniform float uCrystalEnabled;
 uniform float uCrystalOpacity;
 uniform float uCrystalMode;
 uniform float uCrystalBrittleness;
+uniform float uCrystalScale;
+uniform float uCrystalSpeed;
 uniform float uInkEnabled;
 uniform float uInkOpacity;
 uniform float uInkBrush;
 uniform float uInkPressure;
 uniform float uInkLifespan;
+uniform float uInkSpeed;
+uniform float uInkScale;
 uniform float uTopoEnabled;
 uniform float uTopoOpacity;
 uniform float uTopoQuake;
 uniform float uTopoSlide;
 uniform float uTopoPlate;
 uniform float uTopoTravel;
+uniform float uTopoScale;
+uniform float uTopoElevation;
 uniform float uWeatherEnabled;
 uniform float uWeatherOpacity;
 uniform float uWeatherMode;
 uniform float uWeatherIntensity;
+uniform float uWeatherSpeed;
 uniform float uPortalEnabled;
 uniform float uPortalOpacity;
 uniform float uPortalShift;
@@ -171,16 +191,20 @@ uniform float uSaturation;
 uniform float uPaletteShift;
 uniform vec3 uPalette[5];
 uniform float uPlasmaOpacity;
+uniform float uPlasmaSpeed;
+uniform float uPlasmaScale;
 uniform float uSpectrumOpacity;
 uniform float uOrigamiOpacity;
 uniform float uOrigamiFoldState;
 uniform float uOrigamiFoldSharpness;
+uniform float uOrigamiSpeed;
 uniform float uEffectsEnabled;
 uniform float uBloom;
 uniform float uBlur;
 uniform float uChroma;
 uniform float uPosterize;
 uniform float uKaleidoscope;
+uniform float uKaleidoscopeRotation;
 uniform float uFeedback;
 uniform float uPersistence;
 uniform float uTrailSpectrum[64];
@@ -316,8 +340,8 @@ vec3 applyBlendMode(vec3 base, vec3 blend, float mode, float opacity) {
 }
 
 float plasma(vec2 uv, float t) {
-  float v = sin(uv.x * 8.0 + t) + sin(uv.y * 6.0 - t * 1.1);
-  v += sin((uv.x + uv.y) * 4.0 + t * 0.7);
+  float v = sin(uv.x * 8.0 * uPlasmaScale + t * uPlasmaSpeed) + sin(uv.y * 6.0 * uPlasmaScale - t * 1.1 * uPlasmaSpeed);
+  v += sin((uv.x + uv.y) * 4.0 * uPlasmaScale + t * 0.7 * uPlasmaSpeed);
   return v * 0.5 + 0.5;
 }
 
@@ -389,7 +413,7 @@ vec3 shiftPalette(vec3 color, float shift) {
 vec2 kaleidoscope(vec2 uv, float amount) {
   if (amount <= 0.01) return uv;
   vec2 centered = uv * 2.0 - 1.0;
-  float angle = atan(centered.y, centered.x);
+  float angle = atan(centered.y, centered.x) + uKaleidoscopeRotation;
   float radius = length(centered);
   float slices = mix(1.0, 8.0, amount);
   float slice = 6.28318 / slices;
@@ -466,7 +490,15 @@ void main() {
     float radius = length(centered);
     float twist = uFeedback * 2.0;
     float angle = atan(centered.y, centered.x) + twist * radius * 2.0;
-    effectUv = vec2(cos(angle), sin(angle)) * (radius * (1.0 - uFeedback * 0.2)) * 0.5 + 0.5;
+    
+    // Improved depth simulation:
+    // 1. Stronger linear zoom (uFeedback * 0.4 instead of 0.2)
+    // 2. Non-linear stretch (pow) to simulate perspective acceleration
+    float zoom = 1.0 - uFeedback * 0.4;
+    float stretch = 1.0 + uFeedback * 0.5;
+    float newRadius = pow(radius * zoom, stretch);
+    
+    effectUv = vec2(cos(angle), sin(angle)) * newRadius * 0.5 + 0.5;
   }
   vec3 color = vec3(0.02, 0.04, 0.08);
   if (uPlasmaEnabled > 0.5) {
@@ -532,13 +564,13 @@ void main() {
     if (uGlyphMode < 0.5) {
       local.y += (mod(cell.x, 3.0) - 1.0) * (0.08 + bandVal * 0.12);
     } else if (uGlyphMode < 1.5) {
-      float angle = uTime * 0.15 + cellId * 0.12;
+      float angle = uTime * 0.15 * uGlyphSpeed + cellId * 0.12;
       local = rotate2d(local, angle);
     } else if (uGlyphMode < 2.5) {
       vec2 dir = normalize(local + 0.0001);
       local += dir * (uGlyphBeat * 0.35 + bandVal * 0.12);
     } else {
-      float sweep = sin(uTime * 0.2 + cell.y * 0.6) * 0.2;
+      float sweep = sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.6) * 0.2;
       local.x += sweep;
       local.y += (cell.x / grid.x - 0.5) * 0.12;
     }
@@ -547,7 +579,7 @@ void main() {
       float row = mod(cell.y, 4.0);
       float lane = row - 1.5;
       local.y += lane * 0.06;
-      local.x += sin(uTime * 0.2 + cell.y * 0.8) * 0.06;
+      local.x += sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.8) * 0.06;
     }
 
     float dist = glyphShape(local, seed, band, complexity);
@@ -572,8 +604,9 @@ void main() {
     float bassStability = clamp(low * 1.4, 0.0, 1.0);
     float branch = clamp(mid * 1.6, 0.0, 1.0);
     float shimmer = clamp(high * 1.8, 0.0, 1.0);
-    float scale = mix(4.0, 10.0, bassStability);
-    float cell = crystalField(centered, uTime * 0.02 + uCrystalMode * 2.0, scale);
+    float scale = mix(4.0, 10.0, bassStability) * (uCrystalScale > 0.01 ? uCrystalScale : 1.0);
+    float timeScale = uCrystalSpeed > 0.01 ? uCrystalSpeed : 1.0;
+    float cell = crystalField(centered, uTime * 0.02 * timeScale + uCrystalMode * 2.0, scale);
     float shard = smoothstep(0.22, 0.02, cell);
     float fracture = smoothstep(0.1, 0.0, cell - shimmer * 0.05) * dissonance;
     float growth = mix(0.35, 0.9, alignment) + branch * 0.2;
@@ -596,10 +629,10 @@ void main() {
 
   if (uInkEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
-    float flowScale = mix(1.5, 4.0, uRms);
+    float flowScale = mix(1.5, 4.0, uRms) * uInkScale;
     vec2 flow = vec2(
-      sin(centered.y * flowScale + uTime * 0.4 + uPeak * 1.2),
-      cos(centered.x * flowScale - uTime * 0.35 + uRms)
+      sin(centered.y * flowScale + uTime * 0.4 * uInkSpeed + uPeak * 1.2),
+      cos(centered.x * flowScale - uTime * 0.35 * uInkSpeed + uRms)
     );
     flow += vec2(-centered.y, centered.x) * (0.25 + uPeak * 0.5);
     float beatKick = uGlyphBeat * 0.6;
@@ -607,7 +640,7 @@ void main() {
       flow = vec2(flow.y, -flow.x);
     }
     vec2 inkUv = effectUv + flow * 0.08;
-    float strand = abs(sin((inkUv.x + inkUv.y) * 18.0 + uTime * 0.6));
+    float strand = abs(sin((inkUv.x + inkUv.y) * 18.0 * uInkScale + uTime * 0.6 * uInkSpeed));
     float stroke = smoothstep(0.6, 0.0, strand) * (0.4 + uInkPressure * 0.8);
     float decay = mix(0.3, 0.9, uInkLifespan);
     vec3 inkColor;
@@ -615,7 +648,7 @@ void main() {
       inkColor = vec3(0.12, 0.08, 0.06);
     } else if (uInkBrush < 1.5) {
       inkColor = vec3(0.2, 0.15, 0.1);
-      stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4)) * 0.6;
+      stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
     } else {
       inkColor = vec3(0.1, 0.85, 0.95);
       stroke *= 0.8 + high * 0.5;
@@ -628,7 +661,10 @@ void main() {
 
   if (uTopoEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
-    float elevation = low * 0.6 + mid * 0.3 + high * 0.1;
+    // Scale adjustment (zoom)
+    centered *= (2.0 - clamp(uTopoScale, 0.1, 1.9)); 
+    
+    float elevation = (low * 0.6 + mid * 0.3 + high * 0.1) * uTopoElevation;
     float slope = mix(0.2, 1.0, mid);
     float contourDensity = mix(6.0, 18.0, high);
     float travel = uTopoTravel + uTopoPlate * 0.4;
@@ -666,11 +702,11 @@ void main() {
     float hurricane = mode > 2.5 ? 1.0 : 0.0;
 
     vec2 swirl = vec2(-centered.y, centered.x) * (0.2 + hurricane * 0.6);
-    vec2 flow = vec2(sin(centered.y * 1.6 + uTime * 0.2), cos(centered.x * 1.4 - uTime * 0.18));
+    vec2 flow = vec2(sin(centered.y * 1.6 + uTime * 0.2 * uWeatherSpeed), cos(centered.x * 1.4 - uTime * 0.18 * uWeatherSpeed));
     flow += swirl * (0.4 + pressure);
     vec2 weatherUv = effectUv + flow * (0.08 + wind * 0.15);
 
-    float cloud = sin(weatherUv.x * 3.2 + uTime * 0.1) + cos(weatherUv.y * 2.6 - uTime * 0.08);
+    float cloud = sin(weatherUv.x * 3.2 + uTime * 0.1 * uWeatherSpeed) + cos(weatherUv.y * 2.6 - uTime * 0.08 * uWeatherSpeed);
     cloud = cloud * 0.35 + pressure;
     float cloudMask = smoothstep(0.1, 0.7, cloud);
     vec3 cloudColor = mix(vec3(0.6, 0.65, 0.7), vec3(0.85, 0.88, 0.9), cloudMask);
@@ -678,9 +714,9 @@ void main() {
     cloudColor = mix(cloudColor, vec3(0.7, 0.75, 0.8), calm);
     cloudColor = mix(cloudColor, vec3(0.55, 0.6, 0.65), fog);
 
-    float rain = abs(sin((weatherUv.x + uTime * 0.4) * 30.0)) * precip;
+    float rain = abs(sin((weatherUv.x + uTime * 0.4 * uWeatherSpeed) * 30.0)) * precip;
     float rainMask = smoothstep(0.6, 0.0, rain) * (storm + hurricane);
-    float snow = abs(sin((weatherUv.y - uTime * 0.2) * 18.0)) * precip;
+    float snow = abs(sin((weatherUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * precip;
     float snowMask = smoothstep(0.65, 0.0, snow) * fog;
     vec3 rainColor = vec3(0.4, 0.55, 0.8) * rainMask;
     vec3 snowColor = vec3(0.8, 0.85, 0.9) * snowMask;
@@ -762,12 +798,12 @@ void main() {
     float midGrid = mix(6.0, 18.0, mid);
     float highGrid = mix(18.0, 60.0, high);
     float sharp = mix(0.12, 0.02, clamp(uOrigamiFoldSharpness, 0.0, 1.0));
-    float baseLine = abs(sin((centered.x * 0.9 + centered.y * 0.4) * baseGrid + uTime * 0.35));
+    float baseLine = abs(sin((centered.x * 0.9 + centered.y * 0.4) * baseGrid + uTime * 0.35 * uOrigamiSpeed));
     float diagLine = abs(sin((centered.x * -0.4 + centered.y * 0.9) * baseGrid + 1.7));
     float creaseBase = 1.0 - smoothstep(0.0, sharp, min(baseLine, diagLine));
     float midLine = abs(sin(centered.x * midGrid)) * abs(sin(centered.y * midGrid));
     float creaseMid = 1.0 - smoothstep(0.0, sharp * 0.8, midLine);
-    float ripple = sin(centered.x * highGrid + uTime) * sin(centered.y * highGrid - uTime * 0.8);
+    float ripple = sin(centered.x * highGrid + uTime * uOrigamiSpeed) * sin(centered.y * highGrid - uTime * 0.8 * uOrigamiSpeed);
 
     float foldField = (creaseBase * (0.6 + low) + creaseMid * (0.4 + mid)) * (0.6 + uOrigamiFoldSharpness);
     foldField += ripple * high * 0.3;
@@ -918,25 +954,33 @@ void main() {
   const glyphModeLocation = gl.getUniformLocation(program, 'uGlyphMode');
   const glyphSeedLocation = gl.getUniformLocation(program, 'uGlyphSeed');
   const glyphBeatLocation = gl.getUniformLocation(program, 'uGlyphBeat');
+  const glyphSpeedLocation = gl.getUniformLocation(program, 'uGlyphSpeed');
   const crystalLocation = gl.getUniformLocation(program, 'uCrystalEnabled');
   const crystalOpacityLocation = gl.getUniformLocation(program, 'uCrystalOpacity');
   const crystalModeLocation = gl.getUniformLocation(program, 'uCrystalMode');
   const crystalBrittleLocation = gl.getUniformLocation(program, 'uCrystalBrittleness');
+  const crystalScaleLocation = gl.getUniformLocation(program, 'uCrystalScale');
+  const crystalSpeedLocation = gl.getUniformLocation(program, 'uCrystalSpeed');
   const inkLocation = gl.getUniformLocation(program, 'uInkEnabled');
   const inkOpacityLocation = gl.getUniformLocation(program, 'uInkOpacity');
   const inkBrushLocation = gl.getUniformLocation(program, 'uInkBrush');
   const inkPressureLocation = gl.getUniformLocation(program, 'uInkPressure');
   const inkLifespanLocation = gl.getUniformLocation(program, 'uInkLifespan');
+  const inkSpeedLocation = gl.getUniformLocation(program, 'uInkSpeed');
+  const inkScaleLocation = gl.getUniformLocation(program, 'uInkScale');
   const topoLocation = gl.getUniformLocation(program, 'uTopoEnabled');
   const topoOpacityLocation = gl.getUniformLocation(program, 'uTopoOpacity');
   const topoQuakeLocation = gl.getUniformLocation(program, 'uTopoQuake');
   const topoSlideLocation = gl.getUniformLocation(program, 'uTopoSlide');
   const topoPlateLocation = gl.getUniformLocation(program, 'uTopoPlate');
   const topoTravelLocation = gl.getUniformLocation(program, 'uTopoTravel');
+  const topoScaleLocation = gl.getUniformLocation(program, 'uTopoScale');
+  const topoElevationLocation = gl.getUniformLocation(program, 'uTopoElevation');
   const weatherLocation = gl.getUniformLocation(program, 'uWeatherEnabled');
   const weatherOpacityLocation = gl.getUniformLocation(program, 'uWeatherOpacity');
   const weatherModeLocation = gl.getUniformLocation(program, 'uWeatherMode');
   const weatherIntensityLocation = gl.getUniformLocation(program, 'uWeatherIntensity');
+  const weatherSpeedLocation = gl.getUniformLocation(program, 'uWeatherSpeed');
   const portalLocation = gl.getUniformLocation(program, 'uPortalEnabled');
   const portalOpacityLocation = gl.getUniformLocation(program, 'uPortalOpacity');
   const portalShiftLocation = gl.getUniformLocation(program, 'uPortalShift');
@@ -960,16 +1004,20 @@ void main() {
   const paletteShiftLocation = gl.getUniformLocation(program, 'uPaletteShift');
   const paletteLocation = gl.getUniformLocation(program, 'uPalette');
   const plasmaOpacityLocation = gl.getUniformLocation(program, 'uPlasmaOpacity');
+  const plasmaSpeedLocation = gl.getUniformLocation(program, 'uPlasmaSpeed');
+  const plasmaScaleLocation = gl.getUniformLocation(program, 'uPlasmaScale');
   const spectrumOpacityLocation = gl.getUniformLocation(program, 'uSpectrumOpacity');
   const origamiOpacityLocation = gl.getUniformLocation(program, 'uOrigamiOpacity');
   const origamiFoldStateLocation = gl.getUniformLocation(program, 'uOrigamiFoldState');
   const origamiFoldSharpnessLocation = gl.getUniformLocation(program, 'uOrigamiFoldSharpness');
+  const origamiSpeedLocation = gl.getUniformLocation(program, 'uOrigamiSpeed');
   const effectsEnabledLocation = gl.getUniformLocation(program, 'uEffectsEnabled');
   const bloomLocation = gl.getUniformLocation(program, 'uBloom');
   const blurLocation = gl.getUniformLocation(program, 'uBlur');
   const chromaLocation = gl.getUniformLocation(program, 'uChroma');
   const posterizeLocation = gl.getUniformLocation(program, 'uPosterize');
   const kaleidoscopeLocation = gl.getUniformLocation(program, 'uKaleidoscope');
+  const kaleidoscopeRotationLocation = gl.getUniformLocation(program, 'uKaleidoscopeRotation');
   const feedbackLocation = gl.getUniformLocation(program, 'uFeedback');
   const persistenceLocation = gl.getUniformLocation(program, 'uPersistence');
   const trailSpectrumLocation = gl.getUniformLocation(program, 'uTrailSpectrum');
@@ -1352,25 +1400,33 @@ void main() {
     if (glyphModeLocation) gl.uniform1f(glyphModeLocation, state.glyphMode);
     if (glyphSeedLocation) gl.uniform1f(glyphSeedLocation, state.glyphSeed);
     if (glyphBeatLocation) gl.uniform1f(glyphBeatLocation, state.glyphBeat);
+    if (glyphSpeedLocation) gl.uniform1f(glyphSpeedLocation, state.glyphSpeed || 1.0);
     if (crystalLocation) gl.uniform1f(crystalLocation, state.crystalEnabled ? 1 : 0);
     if (crystalOpacityLocation) gl.uniform1f(crystalOpacityLocation, state.crystalOpacity);
     if (crystalModeLocation) gl.uniform1f(crystalModeLocation, state.crystalMode);
     if (crystalBrittleLocation) gl.uniform1f(crystalBrittleLocation, state.crystalBrittleness);
+    if (crystalScaleLocation) gl.uniform1f(crystalScaleLocation, state.crystalScale || 1.0);
+    if (crystalSpeedLocation) gl.uniform1f(crystalSpeedLocation, state.crystalSpeed || 1.0);
     if (inkLocation) gl.uniform1f(inkLocation, state.inkEnabled ? 1 : 0);
     if (inkOpacityLocation) gl.uniform1f(inkOpacityLocation, state.inkOpacity);
     if (inkBrushLocation) gl.uniform1f(inkBrushLocation, state.inkBrush);
     if (inkPressureLocation) gl.uniform1f(inkPressureLocation, state.inkPressure);
     if (inkLifespanLocation) gl.uniform1f(inkLifespanLocation, state.inkLifespan);
+    if (inkSpeedLocation) gl.uniform1f(inkSpeedLocation, state.inkSpeed || 1.0);
+    if (inkScaleLocation) gl.uniform1f(inkScaleLocation, state.inkScale || 1.0);
     if (topoLocation) gl.uniform1f(topoLocation, state.topoEnabled ? 1 : 0);
     if (topoOpacityLocation) gl.uniform1f(topoOpacityLocation, state.topoOpacity);
     if (topoQuakeLocation) gl.uniform1f(topoQuakeLocation, state.topoQuake);
     if (topoSlideLocation) gl.uniform1f(topoSlideLocation, state.topoSlide);
     if (topoPlateLocation) gl.uniform1f(topoPlateLocation, state.topoPlate);
     if (topoTravelLocation) gl.uniform1f(topoTravelLocation, state.topoTravel);
+    if (topoScaleLocation) gl.uniform1f(topoScaleLocation, state.topoScale || 1.0);
+    if (topoElevationLocation) gl.uniform1f(topoElevationLocation, state.topoElevation || 1.0);
     if (weatherLocation) gl.uniform1f(weatherLocation, state.weatherEnabled ? 1 : 0);
     if (weatherOpacityLocation) gl.uniform1f(weatherOpacityLocation, state.weatherOpacity);
     if (weatherModeLocation) gl.uniform1f(weatherModeLocation, state.weatherMode);
     if (weatherIntensityLocation) gl.uniform1f(weatherIntensityLocation, state.weatherIntensity);
+    if (weatherSpeedLocation) gl.uniform1f(weatherSpeedLocation, state.weatherSpeed || 1.0);
     if (portalLocation) gl.uniform1f(portalLocation, state.portalEnabled ? 1 : 0);
     if (portalOpacityLocation) gl.uniform1f(portalOpacityLocation, state.portalOpacity);
     if (portalShiftLocation) gl.uniform1f(portalShiftLocation, state.portalShift);
@@ -1395,16 +1451,20 @@ void main() {
     if (saturationLocation) gl.uniform1f(saturationLocation, state.saturation);
     if (paletteShiftLocation) gl.uniform1f(paletteShiftLocation, state.paletteShift);
     if (plasmaOpacityLocation) gl.uniform1f(plasmaOpacityLocation, state.plasmaOpacity);
+    if (plasmaSpeedLocation) gl.uniform1f(plasmaSpeedLocation, state.plasmaSpeed || 1.0);
+    if (plasmaScaleLocation) gl.uniform1f(plasmaScaleLocation, state.plasmaScale || 1.0);
     if (spectrumOpacityLocation) gl.uniform1f(spectrumOpacityLocation, state.spectrumOpacity);
     if (origamiOpacityLocation) gl.uniform1f(origamiOpacityLocation, state.origamiOpacity);
     if (origamiFoldStateLocation) gl.uniform1f(origamiFoldStateLocation, state.origamiFoldState);
     if (origamiFoldSharpnessLocation) gl.uniform1f(origamiFoldSharpnessLocation, state.origamiFoldSharpness);
+    if (origamiSpeedLocation) gl.uniform1f(origamiSpeedLocation, state.origamiSpeed || 1.0);
     if (effectsEnabledLocation) gl.uniform1f(effectsEnabledLocation, state.effectsEnabled ? 1 : 0);
     if (bloomLocation) gl.uniform1f(bloomLocation, state.bloom);
     if (blurLocation) gl.uniform1f(blurLocation, state.blur);
     if (chromaLocation) gl.uniform1f(chromaLocation, state.chroma);
     if (posterizeLocation) gl.uniform1f(posterizeLocation, state.posterize);
     if (kaleidoscopeLocation) gl.uniform1f(kaleidoscopeLocation, state.kaleidoscope);
+    if (kaleidoscopeRotationLocation) gl.uniform1f(kaleidoscopeRotationLocation, state.kaleidoscopeRotation || 0.0);
     if (feedbackLocation) gl.uniform1f(feedbackLocation, state.feedback);
     if (persistenceLocation) gl.uniform1f(persistenceLocation, state.persistence);
     if (trailSpectrumLocation) gl.uniform1fv(trailSpectrumLocation, state.trailSpectrum);
