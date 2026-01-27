@@ -145,6 +145,13 @@ const layerList = document.getElementById('layer-list') as HTMLDivElement;
 let plasmaToggle: HTMLInputElement | null = null;
 let spectrumToggle: HTMLInputElement | null = null;
 let origamiToggle: HTMLInputElement | null = null;
+let glyphToggle: HTMLInputElement | null = null;
+let crystalToggle: HTMLInputElement | null = null;
+let inkToggle: HTMLInputElement | null = null;
+let topoToggle: HTMLInputElement | null = null;
+let weatherToggle: HTMLInputElement | null = null;
+let portalToggle: HTMLInputElement | null = null;
+let oscilloToggle: HTMLInputElement | null = null;
 const statusLabel = document.getElementById('status') as HTMLDivElement;
 const padGrid = document.getElementById('pad-grid') as HTMLDivElement;
 const padBank = document.getElementById('pad-bank') as HTMLDivElement;
@@ -275,6 +282,9 @@ const latencyLabel = document.getElementById('diag-latency') as HTMLDivElement;
 const outputLatencyLabel = document.getElementById('diag-output-latency') as HTMLDivElement;
 const midiLatencyLabel = document.getElementById('diag-midi-latency') as HTMLDivElement;
 const watchdogLabel = document.getElementById('diag-watchdog') as HTMLDivElement;
+const gpuLabel = document.getElementById('diag-gpu') as HTMLDivElement;
+const webglDiag = document.getElementById('diag-webgl') as HTMLDivElement;
+const webglCopyButton = document.getElementById('diag-webgl-copy') as HTMLButtonElement;
 
 let currentProject: VisualSynthProject = DEFAULT_PROJECT;
 let audioContext: AudioContext | null = null;
@@ -285,6 +295,31 @@ let strobeIntensity = 0;
 let strobeDecay = 0.92;
 let origamiFoldState = 0;
 let origamiFoldSharpness = 0.65;
+let gravityGlobalPolarity = 1;
+let gravityCollapse = 0;
+let gravityFixedIndex = 0;
+let lastGravityIndex = -1;
+let glyphMode = 0;
+let glyphSeed = Math.random() * 1000;
+let glyphBeatPulse = 0;
+let crystalMode = 0;
+let crystalBrittleness = 0.4;
+let inkBrush = 0;
+let inkPressure = 0.6;
+let inkLifespan = 0.6;
+let topoQuake = 0;
+let topoSlide = 0;
+let topoPlate = 0;
+let topoTravel = 0;
+let weatherMode = 0;
+let weatherIntensity = 0.6;
+let portalShift = 0;
+let portalSeed = Math.random() * 1000;
+let oscilloMode = 0;
+let oscilloFreeze = 0;
+let oscilloRotate = 0;
+let isPlaying = true;
+let transportTimeMs = 0;
 let activeMode: UiMode = 'performance';
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
@@ -310,6 +345,7 @@ let activeStyleId = '';
 let macroInputs: HTMLInputElement[] = [];
 let learnTarget: { target: string; label: string } | null = null;
 let safeModeReasons: string[] = [];
+let webglInitError: string | null = null;
 let frameDropScore = 0;
 let lastWatchdogUpdate = 0;
 let lastAutosaveAt = 0;
@@ -348,6 +384,44 @@ const audioState = {
   waveform: new Float32Array(256)
 };
 
+const gravityWells = Array.from({ length: 8 }, () => ({
+  x: 0,
+  y: 0,
+  baseX: 0,
+  baseY: 0,
+  strength: 0,
+  polarity: 1,
+  active: false,
+  phase: Math.random() * Math.PI * 2
+}));
+const gravityPositions = new Float32Array(16);
+const gravityStrengths = new Float32Array(8);
+const gravityPolarities = new Float32Array(8);
+const gravityActives = new Float32Array(8);
+const gravityFixedSlots = [
+  { x: -0.45, y: -0.35 },
+  { x: 0.45, y: -0.35 },
+  { x: -0.45, y: 0.35 },
+  { x: 0.45, y: 0.35 },
+  { x: 0, y: -0.5 },
+  { x: 0, y: 0.5 },
+  { x: -0.6, y: 0 },
+  { x: 0.6, y: 0 }
+];
+
+const portals = Array.from({ length: 4 }, () => ({
+  x: 0,
+  y: 0,
+  radius: 0.2,
+  active: false,
+  phase: Math.random() * Math.PI * 2
+}));
+const portalPositions = new Float32Array(8);
+const portalRadii = new Float32Array(4);
+const portalActives = new Float32Array(4);
+
+const oscilloCapture = new Float32Array(256);
+
 const padStates = Array.from({ length: 256 }, () => false);
 const padBanks = ['A', 'B', 'C', 'D'] as const;
 let activePadBank = 0;
@@ -361,6 +435,38 @@ const padActionCycle = [
   'origami-valley',
   'origami-collapse',
   'origami-explode',
+  'gravity-spawn-fixed',
+  'gravity-spawn-audio',
+  'gravity-destroy',
+  'gravity-toggle-polarity',
+  'gravity-flip-last',
+  'gravity-collapse',
+  'glyph-stack',
+  'glyph-orbit',
+  'glyph-explode',
+  'glyph-sentence',
+  'crystal-seed',
+  'crystal-grow',
+  'crystal-fracture',
+  'crystal-melt',
+  'ink-fine',
+  'ink-dry',
+  'ink-neon',
+  'ink-lifespan',
+  'ink-pressure',
+  'topo-quake',
+  'topo-landslide',
+  'topo-plate',
+  'weather-storm',
+  'weather-fog',
+  'weather-calm',
+  'weather-hurricane',
+  'portal-spawn',
+  'portal-collapse',
+  'portal-transition',
+  'oscillo-capture',
+  'oscillo-freeze',
+  'oscillo-rotate',
   'strobe',
   'scene-next',
   'scene-prev',
@@ -382,6 +488,38 @@ const padActionLabels: Record<(typeof padActionCycle)[number], string> = {
   'origami-valley': 'Origami: Valley',
   'origami-collapse': 'Origami: Collapse',
   'origami-explode': 'Origami: Explode',
+  'gravity-spawn-fixed': 'Gravity: Spawn Fixed',
+  'gravity-spawn-audio': 'Gravity: Spawn Audio',
+  'gravity-destroy': 'Gravity: Destroy',
+  'gravity-toggle-polarity': 'Gravity: Polarity All',
+  'gravity-flip-last': 'Gravity: Flip Last',
+  'gravity-collapse': 'Gravity: Collapse',
+  'glyph-stack': 'Glyph: Stack',
+  'glyph-orbit': 'Glyph: Orbit',
+  'glyph-explode': 'Glyph: Explode',
+  'glyph-sentence': 'Glyph: Sentence',
+  'crystal-seed': 'Crystal: Seed',
+  'crystal-grow': 'Crystal: Grow',
+  'crystal-fracture': 'Crystal: Fracture',
+  'crystal-melt': 'Crystal: Melt',
+  'ink-fine': 'Ink: Fine',
+  'ink-dry': 'Ink: Dry',
+  'ink-neon': 'Ink: Neon',
+  'ink-lifespan': 'Ink: Lifespan',
+  'ink-pressure': 'Ink: Pressure',
+  'topo-quake': 'Topo: Quake',
+  'topo-landslide': 'Topo: Landslide',
+  'topo-plate': 'Topo: Plate Shift',
+  'weather-storm': 'Weather: Storm',
+  'weather-fog': 'Weather: Fog',
+  'weather-calm': 'Weather: Calm',
+  'weather-hurricane': 'Weather: Hurricane',
+  'portal-spawn': 'Portal: Spawn',
+  'portal-collapse': 'Portal: Collapse',
+  'portal-transition': 'Portal: Transition',
+  'oscillo-capture': 'Oscillo: Capture',
+  'oscillo-freeze': 'Oscillo: Freeze',
+  'oscillo-rotate': 'Oscillo: Rotate',
   strobe: 'Strobe',
   'scene-next': 'Scene +',
   'scene-prev': 'Scene -',
@@ -615,6 +753,10 @@ const stopPlaylist = () => {
 
 const applyPresetPath = async (path: string, reason?: string) => {
   const result = await window.visualSynth.loadPreset(path);
+  if (result.error) {
+    setStatus(`Preset load failed: ${result.error}`);
+    return;
+  }
   if (result.project) {
     await applyProject(result.project);
     const presetName = playlist.find((item) => item.path === path)?.name ?? path;
@@ -729,6 +871,56 @@ const updateSafeModeBanner = () => {
   safeModeBanner.classList.remove('hidden');
 };
 
+const getWebglDiagnostics = () => {
+  const lines: string[] = [];
+  lines.push(`User Agent: ${navigator.userAgent}`);
+  const tempCanvas = document.createElement('canvas');
+  let gl2: WebGL2RenderingContext | null = null;
+  let gl1: WebGLRenderingContext | null = null;
+  try {
+    gl2 = tempCanvas.getContext('webgl2');
+  } catch {
+    gl2 = null;
+  }
+  try {
+    gl1 = tempCanvas.getContext('webgl');
+  } catch {
+    gl1 = null;
+  }
+  lines.push(`WebGL2: ${gl2 ? 'available' : 'unavailable'}`);
+  lines.push(`WebGL1: ${gl1 ? 'available' : 'unavailable'}`);
+  const gl = gl2 ?? gl1;
+  if (gl) {
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    const vendor = debugInfo
+      ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL)
+      : gl.getParameter(gl.VENDOR);
+    const renderer = debugInfo
+      ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
+      : gl.getParameter(gl.RENDERER);
+    lines.push(`Vendor: ${vendor}`);
+    lines.push(`Renderer: ${renderer}`);
+    lines.push(`Version: ${gl.getParameter(gl.VERSION)}`);
+    lines.push(`GLSL: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`);
+    lines.push(`Max Texture: ${gl.getParameter(gl.MAX_TEXTURE_SIZE)}`);
+    lines.push(`Max Viewport: ${gl.getParameter(gl.MAX_VIEWPORT_DIMS)}`);
+  }
+  return { lines, hasWebgl2: Boolean(gl2), hasWebgl1: Boolean(gl1) };
+};
+
+const updateWebglDiagnostics = () => {
+  const { lines, hasWebgl2, hasWebgl1 } = getWebglDiagnostics();
+  if (webglInitError) {
+    lines.push(`Init Error: ${webglInitError}`);
+  }
+  if (gpuLabel) {
+    gpuLabel.textContent = `GPU: ${hasWebgl2 ? 'WebGL2' : hasWebgl1 ? 'WebGL1' : 'Unavailable'}`;
+  }
+  if (webglDiag) {
+    webglDiag.textContent = lines.join('\n');
+  }
+};
+
 const modSourceOptions = [
   { id: 'audio.rms', label: 'Audio RMS' },
   { id: 'audio.peak', label: 'Audio Peak' },
@@ -754,6 +946,13 @@ const modTargetOptions = [
   { id: 'layer-plasma.opacity', label: 'Plasma Opacity', min: 0, max: 1 },
   { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity', min: 0, max: 1 },
   { id: 'layer-origami.opacity', label: 'Origami Opacity', min: 0, max: 1 },
+  { id: 'layer-glyph.opacity', label: 'Glyph Opacity', min: 0, max: 1 },
+  { id: 'layer-crystal.opacity', label: 'Crystal Opacity', min: 0, max: 1 },
+  { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity', min: 0, max: 1 },
+  { id: 'layer-topo.opacity', label: 'Topo Opacity', min: 0, max: 1 },
+  { id: 'layer-weather.opacity', label: 'Weather Opacity', min: 0, max: 1 },
+  { id: 'layer-portal.opacity', label: 'Portal Opacity', min: 0, max: 1 },
+  { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity', min: 0, max: 1 },
   { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
   { id: 'style.saturation', label: 'Style Saturation', min: 0.6, max: 1.8 },
   { id: 'style.paletteShift', label: 'Palette Shift', min: -0.5, max: 0.5 },
@@ -782,9 +981,23 @@ const midiTargetOptions = [
   { id: 'layer-plasma.enabled', label: 'Plasma Enabled' },
   { id: 'layer-spectrum.enabled', label: 'Spectrum Enabled' },
   { id: 'layer-origami.enabled', label: 'Origami Enabled' },
+  { id: 'layer-glyph.enabled', label: 'Glyph Enabled' },
+  { id: 'layer-crystal.enabled', label: 'Crystal Enabled' },
+  { id: 'layer-inkflow.enabled', label: 'Ink Flow Enabled' },
+  { id: 'layer-topo.enabled', label: 'Topo Enabled' },
+  { id: 'layer-weather.enabled', label: 'Weather Enabled' },
+  { id: 'layer-portal.enabled', label: 'Portal Enabled' },
+  { id: 'layer-oscillo.enabled', label: 'Oscillo Enabled' },
   { id: 'layer-plasma.opacity', label: 'Plasma Opacity' },
   { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity' },
   { id: 'layer-origami.opacity', label: 'Origami Opacity' },
+  { id: 'layer-glyph.opacity', label: 'Glyph Opacity' },
+  { id: 'layer-crystal.opacity', label: 'Crystal Opacity' },
+  { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity' },
+  { id: 'layer-topo.opacity', label: 'Topo Opacity' },
+  { id: 'layer-weather.opacity', label: 'Weather Opacity' },
+  { id: 'layer-portal.opacity', label: 'Portal Opacity' },
+  { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity' },
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
   { id: 'style.paletteShift', label: 'Palette Shift' },
@@ -871,6 +1084,13 @@ const renderLayerList = () => {
       if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
       if (layer.id === 'layer-spectrum') spectrumToggle = checkbox;
       if (layer.id === 'layer-origami') origamiToggle = checkbox;
+      if (layer.id === 'layer-glyph') glyphToggle = checkbox;
+      if (layer.id === 'layer-crystal') crystalToggle = checkbox;
+      if (layer.id === 'layer-inkflow') inkToggle = checkbox;
+      if (layer.id === 'layer-topo') topoToggle = checkbox;
+      if (layer.id === 'layer-weather') weatherToggle = checkbox;
+      if (layer.id === 'layer-portal') portalToggle = checkbox;
+      if (layer.id === 'layer-oscillo') oscilloToggle = checkbox;
       syncPerformanceToggles();
       setStatus(`${layer.name} ${checkbox.checked ? 'enabled' : 'disabled'}`);
     });
@@ -942,6 +1162,13 @@ const renderLayerList = () => {
     if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
     if (layer.id === 'layer-spectrum') spectrumToggle = checkbox;
     if (layer.id === 'layer-origami') origamiToggle = checkbox;
+    if (layer.id === 'layer-glyph') glyphToggle = checkbox;
+    if (layer.id === 'layer-crystal') crystalToggle = checkbox;
+    if (layer.id === 'layer-inkflow') inkToggle = checkbox;
+    if (layer.id === 'layer-topo') topoToggle = checkbox;
+    if (layer.id === 'layer-weather') weatherToggle = checkbox;
+    if (layer.id === 'layer-portal') portalToggle = checkbox;
+    if (layer.id === 'layer-oscillo') oscilloToggle = checkbox;
     syncLayerAsset(layer);
   });
   const visualizerRow = document.createElement('div');
@@ -2716,6 +2943,160 @@ const addGenerator = (id: GeneratorId) => {
     }
     setStatus('Origami fold layer enabled.');
   }
+  if (id === 'layer-glyph') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-glyph');
+      if (!layer) {
+        layer = {
+          id: 'layer-glyph',
+          name: 'Glyph Language',
+          enabled: true,
+          opacity: 0.8,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    if (glyphToggle) glyphToggle.checked = true;
+    setStatus('Glyph language layer enabled.');
+  }
+  if (id === 'layer-crystal') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-crystal');
+      if (!layer) {
+        layer = {
+          id: 'layer-crystal',
+          name: 'Crystal Harmonics',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    if (crystalToggle) crystalToggle.checked = true;
+    setStatus('Crystal harmonics layer enabled.');
+  }
+  if (id === 'layer-inkflow') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-inkflow');
+      if (!layer) {
+        layer = {
+          id: 'layer-inkflow',
+          name: 'Ink Flow',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    if (inkToggle) inkToggle.checked = true;
+    setStatus('Ink flow layer enabled.');
+  }
+  if (id === 'layer-topo') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-topo');
+      if (!layer) {
+        layer = {
+          id: 'layer-topo',
+          name: 'Topo Terrain',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    if (topoToggle) topoToggle.checked = true;
+    setStatus('Topo terrain layer enabled.');
+  }
+  if (id === 'layer-weather') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-weather');
+      if (!layer) {
+        layer = {
+          id: 'layer-weather',
+          name: 'Audio Weather',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    if (weatherToggle) weatherToggle.checked = true;
+    setStatus('Audio weather layer enabled.');
+  }
+  if (id === 'layer-portal') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-portal');
+      if (!layer) {
+        layer = {
+          id: 'layer-portal',
+          name: 'Wormhole Portal',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    if (portalToggle) portalToggle.checked = true;
+    setStatus('Wormhole portal layer enabled.');
+  }
+  if (id === 'layer-oscillo') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-oscillo');
+      if (!layer) {
+        layer = {
+          id: 'layer-oscillo',
+          name: 'Sacred Oscilloscope',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    if (oscilloToggle) oscilloToggle.checked = true;
+    setStatus('Sacred oscilloscope layer enabled.');
+  }
   if (id === 'viz-off') {
     currentProject.visualizer.enabled = false;
     setVisualizerMode('off');
@@ -2816,6 +3197,223 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
   }
   if (target === 'layer-origami.opacity') {
     const layer = ensureOrigamiLayer();
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-glyph.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-glyph');
+      if (!layer) {
+        layer = {
+          id: 'layer-glyph',
+          name: 'Glyph Language',
+          enabled: true,
+          opacity: 0.8,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      if (glyphToggle) glyphToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-glyph.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-glyph');
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-crystal.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-crystal');
+      if (!layer) {
+        layer = {
+          id: 'layer-crystal',
+          name: 'Crystal Harmonics',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      if (crystalToggle) crystalToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-crystal.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-crystal');
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-inkflow.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-inkflow');
+      if (!layer) {
+        layer = {
+          id: 'layer-inkflow',
+          name: 'Ink Flow',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      if (inkToggle) inkToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-inkflow.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-inkflow');
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-topo.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-topo');
+      if (!layer) {
+        layer = {
+          id: 'layer-topo',
+          name: 'Topo Terrain',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      if (topoToggle) topoToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-topo.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-topo');
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-weather.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-weather');
+      if (!layer) {
+        layer = {
+          id: 'layer-weather',
+          name: 'Audio Weather',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      if (weatherToggle) weatherToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-weather.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-weather');
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-portal.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-portal');
+      if (!layer) {
+        layer = {
+          id: 'layer-portal',
+          name: 'Wormhole Portal',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      if (portalToggle) portalToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-portal.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-portal');
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-oscillo.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-oscillo');
+      if (!layer) {
+        layer = {
+          id: 'layer-oscillo',
+          name: 'Sacred Oscilloscope',
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      if (oscilloToggle) oscilloToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-oscillo.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-oscillo');
     if (layer) {
       layer.opacity = scaleMidiValue(value, 0, 1);
       renderLayerList();
@@ -3121,6 +3719,99 @@ const ensureOrigamiLayer = (enable = false) => {
   return layer;
 };
 
+const computeAudioCentroid = () => {
+  let sum = 0;
+  let weighted = 0;
+  for (let i = 0; i < audioState.spectrum.length; i += 1) {
+    const value = audioState.spectrum[i];
+    sum += value;
+    weighted += value * i;
+  }
+  const index = sum > 0 ? weighted / sum : 0;
+  const x = ((index / (audioState.spectrum.length - 1)) - 0.5) * 1.2;
+  const bass = audioState.bands[0] ?? 0;
+  const y = (0.45 - bass * 0.6);
+  return { x: Math.min(0.7, Math.max(-0.7, x)), y: Math.min(0.7, Math.max(-0.7, y)) };
+};
+
+const spawnGravityWell = (mode: 'fixed' | 'audio') => {
+  const slotIndex = gravityWells.findIndex((well) => !well.active);
+  const index = slotIndex === -1 ? 0 : slotIndex;
+  const slot = gravityFixedSlots[gravityFixedIndex % gravityFixedSlots.length];
+  const spawn = mode === 'audio' ? computeAudioCentroid() : slot;
+  const bass = audioState.bands[0] ?? 0;
+  const strength = 0.35 + bass * 0.8;
+  gravityWells[index] = {
+    ...gravityWells[index],
+    x: spawn.x,
+    y: spawn.y,
+    baseX: spawn.x,
+    baseY: spawn.y,
+    strength,
+    polarity: gravityGlobalPolarity,
+    active: true
+  };
+  gravityFixedIndex = (gravityFixedIndex + 1) % gravityFixedSlots.length;
+  lastGravityIndex = index;
+};
+
+const destroyGravityWell = () => {
+  if (lastGravityIndex >= 0 && gravityWells[lastGravityIndex]?.active) {
+    gravityWells[lastGravityIndex].active = false;
+    return;
+  }
+  const activeIndex = gravityWells.map((well, i) => (well.active ? i : -1)).filter((i) => i >= 0);
+  if (activeIndex.length > 0) {
+    gravityWells[activeIndex[activeIndex.length - 1]].active = false;
+  }
+};
+
+const flipGravityPolarity = (all = true) => {
+  if (all) {
+    gravityGlobalPolarity *= -1;
+    gravityWells.forEach((well) => {
+      if (well.active) {
+        well.polarity *= -1;
+      }
+    });
+    return;
+  }
+  if (lastGravityIndex >= 0 && gravityWells[lastGravityIndex]?.active) {
+    gravityWells[lastGravityIndex].polarity *= -1;
+  }
+};
+
+const collapseGravityWells = () => {
+  gravityCollapse = 1;
+};
+
+const spawnPortal = () => {
+  const index = portals.findIndex((portal) => !portal.active);
+  const slot = index === -1 ? 0 : index;
+  const x = (Math.random() - 0.5) * 1.2;
+  const y = (Math.random() - 0.5) * 1.2;
+  portals[slot] = {
+    ...portals[slot],
+    x,
+    y,
+    radius: 0.18 + (audioState.bands[2] ?? 0) * 0.35,
+    active: true,
+    phase: Math.random() * Math.PI * 2
+  };
+};
+
+const collapsePortal = () => {
+  const activeIndex = portals.map((portal, i) => (portal.active ? i : -1)).filter((i) => i >= 0);
+  if (activeIndex.length > 0) {
+    portals[activeIndex[activeIndex.length - 1]].active = false;
+  }
+};
+
+const triggerPortalTransition = () => {
+  portalShift = 0.2 + (audioState.bands[4] ?? 0) * 0.4;
+  portalSeed = (portalSeed + 17.3) % 1000;
+};
+
 const handlePadTrigger = (logicalIndex: number, velocity: number) => {
   const localIndex = logicalIndex % 64;
   const action = currentProject.padMappings[logicalIndex] ?? 'none';
@@ -3150,6 +3841,217 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
       layer.enabled = true;
       renderLayerList();
     }
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'gravity-spawn-fixed') {
+    spawnGravityWell('fixed');
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'gravity-spawn-audio') {
+    spawnGravityWell('audio');
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'gravity-destroy') {
+    destroyGravityWell();
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'gravity-toggle-polarity') {
+    flipGravityPolarity(true);
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'gravity-flip-last') {
+    flipGravityPolarity(false);
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'gravity-collapse') {
+    collapseGravityWells();
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'glyph-stack') {
+    glyphMode = 0;
+    glyphSeed = (glyphSeed + 11.1) % 1000;
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'glyph-orbit') {
+    glyphMode = 1;
+    glyphSeed = (glyphSeed + 17.7) % 1000;
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'glyph-explode') {
+    glyphMode = 2;
+    glyphSeed = (glyphSeed + 23.3) % 1000;
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'glyph-sentence') {
+    glyphMode = 3;
+    glyphSeed = (glyphSeed + 31.9) % 1000;
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'crystal-seed') {
+    crystalMode = 0;
+    crystalBrittleness = Math.min(1, Math.max(0.1, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'crystal-grow') {
+    crystalMode = 1;
+    crystalBrittleness = Math.min(1, Math.max(0.1, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'crystal-fracture') {
+    crystalMode = 2;
+    crystalBrittleness = Math.min(1, Math.max(0.1, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'crystal-melt') {
+    crystalMode = 3;
+    crystalBrittleness = Math.min(1, Math.max(0.1, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'ink-fine') {
+    inkBrush = 0;
+    inkPressure = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'ink-dry') {
+    inkBrush = 1;
+    inkPressure = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'ink-neon') {
+    inkBrush = 2;
+    inkPressure = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'ink-lifespan') {
+    inkLifespan = Math.min(1, Math.max(0.1, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'ink-pressure') {
+    inkPressure = Math.min(1, Math.max(0.1, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'topo-quake') {
+    topoQuake = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'topo-landslide') {
+    topoSlide = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'topo-plate') {
+    topoPlate = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'weather-storm') {
+    weatherMode = 0;
+    weatherIntensity = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'weather-fog') {
+    weatherMode = 1;
+    weatherIntensity = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'weather-calm') {
+    weatherMode = 2;
+    weatherIntensity = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'weather-hurricane') {
+    weatherMode = 3;
+    weatherIntensity = Math.min(1, Math.max(0.2, velocity));
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'portal-spawn') {
+    spawnPortal();
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'portal-collapse') {
+    collapsePortal();
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'portal-transition') {
+    triggerPortalTransition();
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'oscillo-capture') {
+    oscilloMode = (oscilloMode + 1) % 3;
+    oscilloCapture.set(audioState.waveform);
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'oscillo-freeze') {
+    oscilloFreeze = oscilloFreeze > 0.5 ? 0 : 1;
+    if (oscilloFreeze > 0.5) {
+      oscilloCapture.set(audioState.waveform);
+    }
+    updatePadUI(localIndex, true);
+    setTimeout(() => updatePadUI(localIndex, false), 140);
+    return;
+  }
+  if (action === 'oscillo-rotate') {
+    oscilloRotate = (oscilloRotate + 1) % 6;
     updatePadUI(localIndex, true);
     setTimeout(() => updatePadUI(localIndex, false), 140);
     return;
@@ -3291,6 +4193,7 @@ const updateAudioAnalysis = () => {
   if (fluxPrev > fluxPrevPrev && fluxPrev > flux && fluxPrev > threshold) {
     onsetTimes.push(fluxPrevTime);
     onsetTimes = onsetTimes.filter((time) => now - time < 8000);
+    glyphBeatPulse = 1;
   }
   fluxPrevPrev = fluxPrev;
   fluxPrev = flux;
@@ -3513,6 +4416,10 @@ presetNextButton.addEventListener('click', async () => {
   const nextIndex = (presetSelect.selectedIndex + 1) % presetSelect.options.length;
   presetSelect.selectedIndex = nextIndex;
   await applySelectedPreset('Next');
+});
+
+presetSelect.addEventListener('change', async () => {
+  await applySelectedPreset('Selected');
 });
 
 presetCategorySelect.addEventListener('change', () => {
@@ -3912,15 +4819,32 @@ modeButtons.forEach((button) => {
 });
 
 transportPlay.addEventListener('click', () => {
-  setStatus('Transport play (placeholder).');
+  if (isPlaying) return;
+  isPlaying = true;
+  setStatus('Transport playing.');
+  updateTransportUI();
 });
 
 transportStop.addEventListener('click', () => {
-  setStatus('Transport stop (placeholder).');
+  if (!isPlaying && transportTimeMs === 0) return;
+  isPlaying = false;
+  transportTimeMs = 0;
+  setStatus('Transport stopped.');
+  updateTransportUI();
 });
 
 transportTap.addEventListener('click', () => {
   setStatus('Tap tempo (placeholder).');
+});
+
+webglCopyButton.addEventListener('click', async () => {
+  if (!webglDiag) return;
+  try {
+    await navigator.clipboard.writeText(webglDiag.textContent ?? '');
+    setStatus('WebGL diagnostics copied.');
+  } catch {
+    setStatus('Failed to copy diagnostics.');
+  }
 });
 
 transportBpmInput.addEventListener('change', () => {
@@ -3976,12 +4900,72 @@ const applySelectedPreset = async (reason?: string) => {
   if (!presetSelect.value) return;
   const presetPath = presetSelect.value;
   const result = await window.visualSynth.loadPreset(presetPath);
+  if (result.error) {
+    setStatus(`Preset load failed: ${result.error}`);
+    return;
+  }
   if (result.project) {
     await applyProject(result.project);
     const name = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
     setStatus(`${reason ? `${reason}: ` : ''}Preset applied: ${name}`);
     void capturePresetThumbnail(presetPath);
   }
+};
+
+const updateGravityWells = (time: number, dt: number) => {
+  gravityCollapse = Math.max(0, gravityCollapse - dt * 0.18);
+  const bass = audioState.bands[0] ?? 0;
+  const mid = audioState.bands[3] ?? 0;
+  const orbitRate = 0.2 + mid * 0.6;
+  gravityWells.forEach((well, index) => {
+    if (!well.active) {
+      gravityPositions[index * 2] = 0;
+      gravityPositions[index * 2 + 1] = 0;
+      gravityStrengths[index] = 0;
+      gravityPolarities[index] = 0;
+      gravityActives[index] = 0;
+      return;
+    }
+    const angle = time * 0.00015 * orbitRate + well.phase;
+    const orbitRadius = 0.05 + mid * 0.18;
+    const targetX = well.baseX + Math.cos(angle) * orbitRadius;
+    const targetY = well.baseY + Math.sin(angle * 1.1) * orbitRadius;
+    const collapseMix = gravityCollapse * 0.85;
+    well.x = well.x + (targetX - well.x) * 0.08;
+    well.y = well.y + (targetY - well.y) * 0.08;
+    if (collapseMix > 0) {
+      well.x = well.x * (1 - collapseMix);
+      well.y = well.y * (1 - collapseMix);
+    }
+    const strength = well.strength + bass * 0.45 + gravityCollapse * 0.6;
+    gravityPositions[index * 2] = Math.min(0.9, Math.max(-0.9, well.x));
+    gravityPositions[index * 2 + 1] = Math.min(0.9, Math.max(-0.9, well.y));
+    gravityStrengths[index] = strength;
+    gravityPolarities[index] = well.polarity;
+    gravityActives[index] = 1;
+  });
+};
+
+const updatePortals = (time: number, dt: number) => {
+  const bands = audioState.bands;
+  const base = bands[1] ?? 0;
+  const harmonic = Math.abs((bands[2] ?? 0) - base * 0.66) + Math.abs((bands[3] ?? 0) - base * 0.5);
+  const energy = Math.min(1, (bands[2] ?? 0) + (bands[3] ?? 0) + (bands[4] ?? 0));
+  portals.forEach((portal, index) => {
+    if (!portal.active) {
+      portalPositions[index * 2] = 0;
+      portalPositions[index * 2 + 1] = 0;
+      portalRadii[index] = 0;
+      portalActives[index] = 0;
+      return;
+    }
+    const pulse = 0.02 * Math.sin(time * 0.001 + portal.phase) + energy * 0.08;
+    portal.radius = Math.min(0.45, portal.radius + (pulse - portal.radius) * 0.02);
+    portalPositions[index * 2] = portal.x;
+    portalPositions[index * 2 + 1] = portal.y;
+    portalRadii[index] = portal.radius * (0.8 + harmonic * 0.8);
+    portalActives[index] = 1;
+  });
 };
 
 const initTemplates = async () => {
@@ -4047,6 +5031,11 @@ const initBpmNetworking = async () => {
   syncPerformanceToggles();
 };
 
+const updateTransportUI = () => {
+  transportPlay.disabled = isPlaying;
+  transportStop.disabled = !isPlaying && transportTimeMs === 0;
+};
+
 const initShortcuts = () => {
   window.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key.toLowerCase() === 's') {
@@ -4067,20 +5056,57 @@ const initShortcuts = () => {
       void takeScreenshot();
     }
     if (event.code === 'Space') {
-      setStatus('Tempo play/pause placeholder.');
+      event.preventDefault();
+      if (isPlaying) {
+        isPlaying = false;
+        setStatus('Transport stopped.');
+      } else {
+        isPlaying = true;
+        setStatus('Transport playing.');
+      }
+      updateTransportUI();
     }
+  });
+};
+
+const initPanelCollapse = () => {
+  const panels = Array.from(document.querySelectorAll<HTMLDivElement>('.panel-block'));
+  panels.forEach((panel, index) => {
+    const header = panel.querySelector<HTMLHeadingElement>('h3');
+    if (!header) return;
+    const key = panel.id ? `vs.panel.${panel.id}` : `vs.panel.${header.textContent ?? index}`;
+    header.setAttribute('role', 'button');
+    header.setAttribute('tabindex', '0');
+    const stored = localStorage.getItem(key);
+    if (stored === 'collapsed') {
+      panel.classList.add('collapsed');
+    }
+    const toggle = () => {
+      panel.classList.toggle('collapsed');
+      localStorage.setItem(key, panel.classList.contains('collapsed') ? 'collapsed' : 'open');
+    };
+    header.addEventListener('click', toggle);
+    header.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggle();
+      }
+    });
   });
 };
 
 const canvas = document.getElementById('gl-canvas') as HTMLCanvasElement;
 const visualizerCanvas = document.getElementById('visualizer-canvas') as HTMLCanvasElement;
 const fadeOverlay = document.getElementById('fade-overlay') as HTMLDivElement;
+updateWebglDiagnostics();
 try {
   renderer = createGLRenderer(canvas);
 } catch (error) {
-  safeModeReasons.push('WebGL2 unavailable');
+  webglInitError = error instanceof Error ? error.message : String(error);
+  safeModeReasons.push('Renderer init failed');
   updateSafeModeBanner();
-  setStatus('WebGL2 not supported. Safe mode enabled.');
+  setStatus('Renderer init failed. Safe mode enabled.');
+  updateWebglDiagnostics();
   renderer = {
     render: () => {
       const ctx = canvas.getContext('2d');
@@ -4249,7 +5275,9 @@ const render = (time: number) => {
       : `MIDI Latency: ${Math.round(lastMidiLatencyMs)}ms`;
   updateBpmDisplay();
 
-  if (pendingSceneSwitch) {
+  if (!isPlaying) {
+    updateQuantizeHud(null);
+  } else if (pendingSceneSwitch) {
     const bpm = getActiveBpm();
     const beatsLeft = getBeatsUntil(time, pendingSceneSwitch.scheduledTimeMs, bpm);
     if (time >= pendingSceneSwitch.scheduledTimeMs) {
@@ -4265,12 +5293,28 @@ const render = (time: number) => {
   }
 
   updateAudioAnalysis();
+  updateGravityWells(time, delta * 0.001);
+  updatePortals(time, delta * 0.001);
+  if (glyphBeatPulse > 0) {
+    glyphBeatPulse = Math.max(0, glyphBeatPulse - delta * 0.006);
+  }
+  portalShift = Math.max(0, portalShift - delta * 0.0003);
+  topoQuake = Math.max(0, topoQuake - delta * 0.002);
+  topoSlide = Math.max(0, topoSlide - delta * 0.002);
+  topoPlate = Math.max(0, topoPlate - delta * 0.002);
+  topoTravel += delta * 0.0002;
   strobeIntensity *= strobeDecay;
 
+  if (isPlaying) {
+    transportTimeMs += delta;
+  }
+
   const activeBpm = getActiveBpm();
-  updateLfos(delta * 0.001, activeBpm);
-  updateEnvelopes(delta * 0.001);
-  updateSampleHold(delta * 0.001, activeBpm);
+  if (isPlaying) {
+    updateLfos(delta * 0.001, activeBpm);
+    updateEnvelopes(delta * 0.001);
+    updateSampleHold(delta * 0.001, activeBpm);
+  }
 
   resizeCanvasToDisplaySize(canvas);
   const activeStyle =
@@ -4309,7 +5353,7 @@ const render = (time: number) => {
   const moddedStyle = {
     contrast: modValue('style.contrast', styleSettings.contrast),
     saturation: modValue('style.saturation', styleSettings.saturation),
-    paletteShift: modValue('style.paletteShift', styleSettings.paletteShift)
+    paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift)
   };
   const moddedEffects = {
     bloom: modValue('effects.bloom', effects.bloom),
@@ -4354,6 +5398,13 @@ const render = (time: number) => {
   const plasmaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-plasma');
   const spectrumLayer = activeScene?.layers.find((layer) => layer.id === 'layer-spectrum');
   const origamiLayer = activeScene?.layers.find((layer) => layer.id === 'layer-origami');
+  const glyphLayer = activeScene?.layers.find((layer) => layer.id === 'layer-glyph');
+  const crystalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-crystal');
+  const inkLayer = activeScene?.layers.find((layer) => layer.id === 'layer-inkflow');
+  const topoLayer = activeScene?.layers.find((layer) => layer.id === 'layer-topo');
+  const weatherLayer = activeScene?.layers.find((layer) => layer.id === 'layer-weather');
+  const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
+  const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
   const plasmaOpacity = Math.min(
     1,
     Math.max(0, (plasmaLayer?.opacity ?? 1) * (1 + (macroSum['layer-plasma.opacity'] ?? 0)))
@@ -4366,24 +5417,76 @@ const render = (time: number) => {
     1,
     Math.max(0, (origamiLayer?.opacity ?? 1) * (1 + (macroSum['layer-origami.opacity'] ?? 0)))
   );
+  const glyphOpacity = Math.min(
+    1,
+    Math.max(0, (glyphLayer?.opacity ?? 1) * (1 + (macroSum['layer-glyph.opacity'] ?? 0)))
+  );
+  const crystalOpacity = Math.min(
+    1,
+    Math.max(0, (crystalLayer?.opacity ?? 1) * (1 + (macroSum['layer-crystal.opacity'] ?? 0)))
+  );
+  const inkOpacity = Math.min(
+    1,
+    Math.max(0, (inkLayer?.opacity ?? 1) * (1 + (macroSum['layer-inkflow.opacity'] ?? 0)))
+  );
+  const topoOpacity = Math.min(
+    1,
+    Math.max(0, (topoLayer?.opacity ?? 1) * (1 + (macroSum['layer-topo.opacity'] ?? 0)))
+  );
+  const weatherOpacity = Math.min(
+    1,
+    Math.max(0, (weatherLayer?.opacity ?? 1) * (1 + (macroSum['layer-weather.opacity'] ?? 0)))
+  );
+  const portalOpacity = Math.min(
+    1,
+    Math.max(0, (portalLayer?.opacity ?? 1) * (1 + (macroSum['layer-portal.opacity'] ?? 0)))
+  );
+  const oscilloOpacity = Math.min(
+    1,
+    Math.max(0, (oscilloLayer?.opacity ?? 1) * (1 + (macroSum['layer-oscillo.opacity'] ?? 0)))
+  );
   const moddedPlasmaOpacity = modValue('layer-plasma.opacity', plasmaOpacity);
   const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', spectrumOpacity);
   const moddedOrigamiOpacity = modValue('layer-origami.opacity', origamiOpacity);
+  const moddedGlyphOpacity = modValue('layer-glyph.opacity', glyphOpacity);
+  const moddedCrystalOpacity = modValue('layer-crystal.opacity', crystalOpacity);
+  const moddedInkOpacity = modValue('layer-inkflow.opacity', inkOpacity);
+  const moddedTopoOpacity = modValue('layer-topo.opacity', topoOpacity);
+  const moddedWeatherOpacity = modValue('layer-weather.opacity', weatherOpacity);
+  const moddedPortalOpacity = modValue('layer-portal.opacity', portalOpacity);
+  const moddedOscilloOpacity = modValue('layer-oscillo.opacity', oscilloOpacity);
   const plasmaEnabled = plasmaToggle?.checked ?? true;
   const spectrumEnabled = spectrumToggle?.checked ?? true;
   const origamiEnabled = origamiLayer?.enabled ?? false;
+  const glyphEnabled = glyphLayer?.enabled ?? false;
+  const crystalEnabled = crystalLayer?.enabled ?? false;
+  const inkEnabled = inkLayer?.enabled ?? false;
+  const topoEnabled = topoLayer?.enabled ?? false;
+  const weatherEnabled = weatherLayer?.enabled ?? false;
+  const portalEnabled = portalLayer?.enabled ?? false;
+  const oscilloEnabled = oscilloLayer?.enabled ?? false;
+  if (oscilloFreeze < 0.5) {
+    oscilloCapture.set(audioState.waveform);
+  }
   const plasmaAssetBlendMode = getAssetBlendModeValue('layer-plasma');
   const plasmaAssetAudioReact = getAssetAudioReactValue('layer-plasma');
   const spectrumAssetBlendMode = getAssetBlendModeValue('layer-spectrum');
   const spectrumAssetAudioReact = getAssetAudioReactValue('layer-spectrum');
   const renderState: RenderState = {
-    timeMs: time,
+    timeMs: transportTimeMs,
     rms: audioState.rms,
     peak: audioState.peak,
     strobe: strobeIntensity,
     plasmaEnabled,
     spectrumEnabled,
     origamiEnabled,
+    glyphEnabled,
+    crystalEnabled,
+    inkEnabled,
+    topoEnabled,
+    weatherEnabled,
+    portalEnabled,
+    oscilloEnabled,
     spectrum: audioState.spectrum,
     contrast: moddedStyle.contrast,
     saturation: moddedStyle.saturation,
@@ -4393,6 +5496,35 @@ const render = (time: number) => {
     origamiOpacity: moddedOrigamiOpacity,
     origamiFoldState,
     origamiFoldSharpness,
+    glyphOpacity: moddedGlyphOpacity,
+    glyphMode,
+    glyphSeed,
+    glyphBeat: glyphBeatPulse,
+    crystalOpacity: moddedCrystalOpacity,
+    crystalMode,
+    crystalBrittleness,
+    inkOpacity: moddedInkOpacity,
+    inkBrush,
+    inkPressure,
+    inkLifespan,
+    topoOpacity: moddedTopoOpacity,
+    topoQuake,
+    topoSlide,
+    topoPlate,
+    topoTravel,
+    weatherOpacity: moddedWeatherOpacity,
+    weatherMode,
+    weatherIntensity,
+    portalOpacity: moddedPortalOpacity,
+    portalShift,
+    portalPositions,
+    portalRadii,
+    portalActives,
+    oscilloOpacity: moddedOscilloOpacity,
+    oscilloMode,
+    oscilloFreeze,
+    oscilloRotate,
+    oscilloData: oscilloCapture,
     plasmaAssetBlendMode: plasmaAssetBlendMode,
     plasmaAssetAudioReact: plasmaAssetAudioReact,
     spectrumAssetBlendMode: spectrumAssetBlendMode,
@@ -4417,7 +5549,12 @@ const render = (time: number) => {
     sdfEdge: moddedSdf.edge,
     sdfGlow: moddedSdf.glow,
     sdfRotation: moddedSdf.rotation,
-    sdfFill: moddedSdf.fill
+    sdfFill: moddedSdf.fill,
+    gravityPositions,
+    gravityStrengths,
+    gravityPolarities,
+    gravityActives,
+    gravityCollapse
   };
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
@@ -4426,12 +5563,20 @@ const render = (time: number) => {
   if (outputOpen && time - lastOutputBroadcast > 33) {
     lastOutputBroadcast = time;
     outputChannel.postMessage({
+      timeMs: renderState.timeMs,
       rms: renderState.rms,
       peak: renderState.peak,
       strobe: renderState.strobe,
       plasmaEnabled: renderState.plasmaEnabled,
       spectrumEnabled: renderState.spectrumEnabled,
       origamiEnabled: renderState.origamiEnabled,
+      glyphEnabled: renderState.glyphEnabled,
+      crystalEnabled: renderState.crystalEnabled,
+      inkEnabled: renderState.inkEnabled,
+      topoEnabled: renderState.topoEnabled,
+      weatherEnabled: renderState.weatherEnabled,
+      portalEnabled: renderState.portalEnabled,
+      oscilloEnabled: renderState.oscilloEnabled,
       spectrum: renderState.spectrum.slice(),
       contrast: renderState.contrast,
       saturation: renderState.saturation,
@@ -4441,6 +5586,35 @@ const render = (time: number) => {
       origamiOpacity: renderState.origamiOpacity,
       origamiFoldState: renderState.origamiFoldState,
       origamiFoldSharpness: renderState.origamiFoldSharpness,
+      glyphOpacity: renderState.glyphOpacity,
+      glyphMode: renderState.glyphMode,
+      glyphSeed: renderState.glyphSeed,
+      glyphBeat: renderState.glyphBeat,
+      crystalOpacity: renderState.crystalOpacity,
+      crystalMode: renderState.crystalMode,
+      crystalBrittleness: renderState.crystalBrittleness,
+      inkOpacity: renderState.inkOpacity,
+      inkBrush: renderState.inkBrush,
+      inkPressure: renderState.inkPressure,
+      inkLifespan: renderState.inkLifespan,
+      topoOpacity: renderState.topoOpacity,
+      topoQuake: renderState.topoQuake,
+      topoSlide: renderState.topoSlide,
+      topoPlate: renderState.topoPlate,
+      topoTravel: renderState.topoTravel,
+      weatherOpacity: renderState.weatherOpacity,
+      weatherMode: renderState.weatherMode,
+      weatherIntensity: renderState.weatherIntensity,
+      portalOpacity: renderState.portalOpacity,
+      portalShift: renderState.portalShift,
+      portalPositions: renderState.portalPositions,
+      portalRadii: renderState.portalRadii,
+      portalActives: renderState.portalActives,
+      oscilloOpacity: renderState.oscilloOpacity,
+      oscilloMode: renderState.oscilloMode,
+      oscilloFreeze: renderState.oscilloFreeze,
+      oscilloRotate: renderState.oscilloRotate,
+      oscilloData: renderState.oscilloData,
       plasmaAssetBlendMode: renderState.plasmaAssetBlendMode,
       plasmaAssetAudioReact: renderState.plasmaAssetAudioReact,
       spectrumAssetBlendMode: renderState.spectrumAssetBlendMode,
@@ -4465,7 +5639,12 @@ const render = (time: number) => {
       sdfEdge: renderState.sdfEdge,
       sdfGlow: renderState.sdfGlow,
       sdfRotation: renderState.sdfRotation,
-      sdfFill: renderState.sdfFill
+      sdfFill: renderState.sdfFill,
+      gravityPositions: renderState.gravityPositions,
+      gravityStrengths: renderState.gravityStrengths,
+      gravityPolarities: renderState.gravityPolarities,
+      gravityActives: renderState.gravityActives,
+      gravityCollapse: renderState.gravityCollapse
     });
   }
 
@@ -4475,6 +5654,7 @@ const render = (time: number) => {
 const init = async () => {
   initPads();
   initShortcuts();
+  initPanelCollapse();
   initLearnables();
   initSpectrumHint();
   loadPlaylist();
@@ -4520,6 +5700,7 @@ const init = async () => {
   }
   syncTempoInputs(Number(tempoInput.value));
   setMode('performance');
+  updateTransportUI();
   requestAnimationFrame(render);
 };
 

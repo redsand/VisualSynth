@@ -191,6 +191,38 @@ export type PadAction =
   | 'origami-valley'
   | 'origami-collapse'
   | 'origami-explode'
+  | 'gravity-spawn-fixed'
+  | 'gravity-spawn-audio'
+  | 'gravity-destroy'
+  | 'gravity-toggle-polarity'
+  | 'gravity-flip-last'
+  | 'gravity-collapse'
+  | 'glyph-stack'
+  | 'glyph-orbit'
+  | 'glyph-explode'
+  | 'glyph-sentence'
+  | 'crystal-seed'
+  | 'crystal-grow'
+  | 'crystal-fracture'
+  | 'crystal-melt'
+  | 'ink-fine'
+  | 'ink-dry'
+  | 'ink-neon'
+  | 'ink-lifespan'
+  | 'ink-pressure'
+  | 'topo-quake'
+  | 'topo-landslide'
+  | 'topo-plate'
+  | 'weather-storm'
+  | 'weather-fog'
+  | 'weather-calm'
+  | 'weather-hurricane'
+  | 'portal-spawn'
+  | 'portal-collapse'
+  | 'portal-transition'
+  | 'oscillo-capture'
+  | 'oscillo-freeze'
+  | 'oscillo-rotate'
   | 'strobe'
   | 'scene-next'
   | 'scene-prev'
@@ -450,6 +482,62 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
           opacity: 0.85,
           blendMode: 'screen',
           transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-glyph',
+          name: 'Glyph Language',
+          enabled: false,
+          opacity: 0.8,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-crystal',
+          name: 'Crystal Harmonics',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-inkflow',
+          name: 'Ink Flow',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-topo',
+          name: 'Topo Terrain',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-weather',
+          name: 'Audio Weather',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-portal',
+          name: 'Wormhole Portal',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-oscillo',
+          name: 'Sacred Oscilloscope',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
         }
       ]
     },
@@ -476,6 +564,62 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-origami',
           name: 'Origami Fold',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-glyph',
+          name: 'Glyph Language',
+          enabled: false,
+          opacity: 0.8,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-crystal',
+          name: 'Crystal Harmonics',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-inkflow',
+          name: 'Ink Flow',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-topo',
+          name: 'Topo Terrain',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-weather',
+          name: 'Audio Weather',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-portal',
+          name: 'Wormhole Portal',
+          enabled: false,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        },
+        {
+          id: 'layer-oscillo',
+          name: 'Sacred Oscilloscope',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',

@@ -2,6 +2,13 @@ export type GeneratorId =
   | 'layer-plasma'
   | 'layer-spectrum'
   | 'layer-origami'
+  | 'layer-glyph'
+  | 'layer-crystal'
+  | 'layer-inkflow'
+  | 'layer-topo'
+  | 'layer-weather'
+  | 'layer-portal'
+  | 'layer-oscillo'
   | 'gen-particles'
   | 'gen-sdf'
   | 'viz-off'
@@ -25,6 +32,13 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'layer-plasma', name: 'Shader Plasma' },
   { id: 'layer-spectrum', name: 'Spectrum Bars' },
   { id: 'layer-origami', name: 'Origami Fold' },
+  { id: 'layer-glyph', name: 'Glyph Language' },
+  { id: 'layer-crystal', name: 'Crystal Harmonics' },
+  { id: 'layer-inkflow', name: 'Ink Flow' },
+  { id: 'layer-topo', name: 'Topo Terrain' },
+  { id: 'layer-weather', name: 'Audio Weather' },
+  { id: 'layer-portal', name: 'Wormhole Portal' },
+  { id: 'layer-oscillo', name: 'Sacred Oscilloscope' },
   { id: 'gen-particles', name: 'Particle Field' },
   { id: 'gen-sdf', name: 'SDF Shapes' },
   { id: 'viz-off', name: 'Visualizer: Off' },

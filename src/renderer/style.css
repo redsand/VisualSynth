@@ -14,15 +14,12 @@ body {
   height: 100vh;
 }
 
-body[data-mode='performance'] .left-panel,
-body[data-mode='performance'] .right-panel {
-  overflow-y: hidden;
-}
 
 #app {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  min-height: 0;
 }
 
 .top-bar {
@@ -148,6 +145,8 @@ body[data-mode='performance'] .right-panel {
   grid-template-columns: 260px 1fr 280px;
   gap: 12px;
   padding: 12px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .left-panel,
@@ -160,6 +159,7 @@ body[data-mode='performance'] .right-panel {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .mode-pane {
@@ -186,6 +186,7 @@ body[data-mode='performance'] .right-panel {
   border: 1px solid #1d2b3d;
   padding: 10px;
   position: relative;
+  min-height: 0;
 }
 
 #gl-canvas {
@@ -272,6 +273,8 @@ body[data-mode='performance'] .right-panel {
   display: flex;
   justify-content: flex-start;
   gap: 6px;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
 }
 
 .layer-asset-select {
@@ -280,7 +283,9 @@ body[data-mode='performance'] .right-panel {
   border: 1px solid #2c4159;
   border-radius: 6px;
   padding: 4px 8px;
-  min-width: 160px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   font-size: 11px;
 }
 
@@ -485,6 +490,28 @@ body[data-mode='performance'] .right-panel {
   border: 1px solid #22344a;
 }
 
+.panel-block > h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.panel-block > h3::after {
+  content: '▾';
+  font-size: 12px;
+  color: #8fd6ff;
+}
+
+.panel-block.collapsed > h3::after {
+  content: '▸';
+}
+
+.panel-block.collapsed > :not(h3) {
+  display: none;
+}
+
 .output-row {
   display: flex;
   align-items: center;
@@ -522,6 +549,18 @@ body[data-mode='performance'] .right-panel {
   margin-top: 6px;
   font-size: 11px;
   color: #95b6d6;
+}
+
+.diag-webgl {
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(12, 18, 30, 0.7);
+  border: 1px solid #22344a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 11px;
+  color: #b8cbe2;
+  white-space: pre-wrap;
 }
 
 .search-input {
