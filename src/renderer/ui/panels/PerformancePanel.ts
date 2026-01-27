@@ -40,8 +40,6 @@ export const createPerformancePanel = ({
   const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
   const perfTogglePlasma = document.getElementById('perf-toggle-plasma') as HTMLInputElement;
   const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
-  const transportPlay = document.getElementById('transport-play') as HTMLButtonElement;
-  const transportStop = document.getElementById('transport-stop') as HTMLButtonElement;
   const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
   const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
   const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
@@ -300,24 +298,7 @@ export const createPerformancePanel = ({
 
   const updateTransportUI = () => {
     const { isPlaying, timeMs } = store.getState().transport;
-    transportPlay.disabled = isPlaying;
-    transportStop.disabled = !isPlaying && timeMs === 0;
   };
-
-  transportPlay.addEventListener('click', () => {
-    if (store.getState().transport.isPlaying) return;
-    actions.setTransportPlaying(store, true);
-    setStatus('Transport playing.');
-    updateTransportUI();
-  });
-
-  transportStop.addEventListener('click', () => {
-    if (!store.getState().transport.isPlaying && store.getState().transport.timeMs === 0) return;
-    actions.setTransportPlaying(store, false);
-    actions.setTransportTime(store, 0);
-    setStatus('Transport stopped.');
-    updateTransportUI();
-  });
 
   transportTap.addEventListener('click', () => {
     setStatus('Tap tempo (placeholder).');

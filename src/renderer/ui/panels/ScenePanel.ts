@@ -87,37 +87,49 @@ export const createScenePanel = ({ store, loadPreset, applyScene }: ScenePanelDe
   };
 
   // Scene selection
-  sceneSelect.addEventListener('change', () => {
-    applyScene(sceneSelect.value);
-    setStatus(`Scene: ${sceneSelect.options[sceneSelect.selectedIndex].text}`);
-  });
+  if (sceneSelect) {
+    sceneSelect.addEventListener('change', () => {
+      applyScene(sceneSelect.value);
+      setStatus(`Scene: ${sceneSelect.options[sceneSelect.selectedIndex].text}`);
+    });
+  }
 
   // Preset handling
-  applyPresetButton.addEventListener('click', async () => {
-    const presetPath = presetSelect.value;
-    if (!presetPath) return;
-    await loadPreset(presetPath);
-  });
+  if (applyPresetButton) {
+    applyPresetButton.addEventListener('click', async () => {
+      const presetPath = presetSelect.value;
+      if (!presetPath) return;
+      await loadPreset(presetPath);
+    });
+  }
 
-  presetPrevButton.addEventListener('click', () => {
-    if (presetSelect.selectedIndex > 0) {
-      presetSelect.selectedIndex -= 1;
-      applyPresetButton.click();
-    }
-  });
+  if (presetPrevButton) {
+    presetPrevButton.addEventListener('click', () => {
+      if (presetSelect && presetSelect.selectedIndex > 0) {
+        presetSelect.selectedIndex -= 1;
+        if (applyPresetButton) applyPresetButton.click();
+      }
+    });
+  }
 
-  presetNextButton.addEventListener('click', () => {
-    if (presetSelect.selectedIndex < presetSelect.options.length - 1) {
-      presetSelect.selectedIndex += 1;
-      applyPresetButton.click();
-    }
-  });
+  if (presetNextButton) {
+    presetNextButton.addEventListener('click', () => {
+      if (presetSelect && presetSelect.selectedIndex < presetSelect.options.length - 1) {
+        presetSelect.selectedIndex += 1;
+        if (applyPresetButton) applyPresetButton.click();
+      }
+    });
+  }
 
-  presetShuffleButton.addEventListener('click', () => {
-    const randomIndex = Math.floor(Math.random() * presetSelect.options.length);
-    presetSelect.selectedIndex = randomIndex;
-    applyPresetButton.click();
-  });
+  if (presetShuffleButton) {
+    presetShuffleButton.addEventListener('click', () => {
+      if (presetSelect) {
+        const randomIndex = Math.floor(Math.random() * presetSelect.options.length);
+        presetSelect.selectedIndex = randomIndex;
+        if (applyPresetButton) applyPresetButton.click();
+      }
+    });
+  }
 
   return {
     syncFromProject,

@@ -169,6 +169,7 @@ uniform float uSpectrum[64];
 uniform float uContrast;
 uniform float uSaturation;
 uniform float uPaletteShift;
+uniform vec3 uPalette[5];
 uniform float uPlasmaOpacity;
 uniform float uSpectrumOpacity;
 uniform float uOrigamiOpacity;
@@ -404,6 +405,13 @@ vec3 posterize(vec3 color, float amount) {
   return floor(color * levels) / levels;
 }
 
+vec3 palette(float t) {
+  return mix(uPalette[0], uPalette[1], smoothstep(0.0, 0.25, t)) +
+         mix(uPalette[1], uPalette[2], smoothstep(0.25, 0.5, t)) +
+         mix(uPalette[2], uPalette[3], smoothstep(0.5, 0.75, t)) +
+         mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, t));
+}
+
 void main() {
   vec2 uv = vUv;
   vec2 effectUv = kaleidoscope(uv, uKaleidoscope);
@@ -463,7 +471,7 @@ void main() {
   vec3 color = vec3(0.02, 0.04, 0.08);
   if (uPlasmaEnabled > 0.5) {
     float p = plasma(effectUv, uTime);
-    color += vec3(0.1 + p * 0.4, 0.2 + p * 0.5, 0.3 + p * 0.6) * uPlasmaOpacity;
+    color += palette(p) * uPlasmaOpacity;
   }
   if (uDebugTint > 0.5 && uPlasmaEnabled > 0.5) {
     color += vec3(0.06, 0.02, 0.02) * uPlasmaOpacity;
@@ -487,9 +495,9 @@ void main() {
     float trail = uTrailSpectrum[index];
     float bar = step(effectUv.y, amp);
     float trailBar = step(effectUv.y, trail);
-    color += vec3(0.1, 0.6, 1.0) * bar * 0.8 * uSpectrumOpacity;
+    color += palette(amp) * bar * 0.8 * uSpectrumOpacity;
     if (uPersistence > 0.01) {
-      color += vec3(0.1, 0.4, 0.8) * trailBar * 0.5 * uPersistence;
+      color += palette(trail) * trailBar * 0.5 * uPersistence;
     }
   }
   if (uDebugTint > 0.5 && uSpectrumEnabled > 0.5) {
@@ -949,7 +957,8 @@ void main() {
   const spectrumArrayLocation = gl.getUniformLocation(program, 'uSpectrum');
   const contrastLocation = gl.getUniformLocation(program, 'uContrast');
   const saturationLocation = gl.getUniformLocation(program, 'uSaturation');
-  const paletteLocation = gl.getUniformLocation(program, 'uPaletteShift');
+  const paletteShiftLocation = gl.getUniformLocation(program, 'uPaletteShift');
+  const paletteLocation = gl.getUniformLocation(program, 'uPalette');
   const plasmaOpacityLocation = gl.getUniformLocation(program, 'uPlasmaOpacity');
   const spectrumOpacityLocation = gl.getUniformLocation(program, 'uSpectrumOpacity');
   const origamiOpacityLocation = gl.getUniformLocation(program, 'uOrigamiOpacity');
@@ -1314,6 +1323,16 @@ void main() {
     layerBindings[layerId] = entry;
   };
 
+  const setPalette = (colors: [string, string, string, string, string]) => {
+    const parsed = colors.map((hex) => {
+      const r = parseInt(hex.slice(1, 3), 16) / 255;
+      const g = parseInt(hex.slice(3, 5), 16) / 255;
+      const b = parseInt(hex.slice(5, 7), 16) / 255;
+      return [r, g, b];
+    }).flat();
+    gl.uniform3fv(paletteLocation, parsed);
+  };
+
   const render = (state: RenderState) => {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.02, 0.03, 0.06, 1);
@@ -1374,7 +1393,7 @@ void main() {
     }
     if (contrastLocation) gl.uniform1f(contrastLocation, state.contrast);
     if (saturationLocation) gl.uniform1f(saturationLocation, state.saturation);
-    if (paletteLocation) gl.uniform1f(paletteLocation, state.paletteShift);
+    if (paletteShiftLocation) gl.uniform1f(paletteShiftLocation, state.paletteShift);
     if (plasmaOpacityLocation) gl.uniform1f(plasmaOpacityLocation, state.plasmaOpacity);
     if (spectrumOpacityLocation) gl.uniform1f(spectrumOpacityLocation, state.spectrumOpacity);
     if (origamiOpacityLocation) gl.uniform1f(origamiOpacityLocation, state.origamiOpacity);
@@ -1414,6 +1433,7 @@ void main() {
 
   return {
     render,
-    setLayerAsset
+    setLayerAsset,
+    setPalette
   };
 };

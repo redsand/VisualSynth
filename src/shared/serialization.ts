@@ -1,5 +1,5 @@
 import { projectSchema } from './projectSchema';
-import { DEFAULT_PROJECT, VisualSynthProject } from './project';
+import { DEFAULT_PROJECT, VisualSynthProject, COLOR_PALETTES } from './project';
 
 const CURRENT_VERSION = 2;
 
@@ -9,7 +9,9 @@ const upgradeProject = (project: VisualSynthProject): VisualSynthProject => {
   if (upgraded.version < 2) {
     upgraded = {
       ...DEFAULT_PROJECT,
-      ...upgraded,
+    ...project,
+    palettes: project.palettes ?? COLOR_PALETTES,
+    activePaletteId: project.activePaletteId ?? 'default-classic',
       output: { ...DEFAULT_PROJECT.output, ...upgraded.output },
       stylePresets: upgraded.stylePresets?.length
         ? upgraded.stylePresets

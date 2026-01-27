@@ -78,6 +78,45 @@ export interface StylePreset {
   };
 }
 
+export interface ColorPalette {
+  id: string;
+  name: string;
+  colors: [string, string, string, string, string];
+}
+
+export const COLOR_PALETTES: ColorPalette[] = [
+  {
+    id: 'heat',
+    name: 'Heat',
+    colors: ['#000000', '#ff0000', '#ff7f00', '#ffff00', '#ffffff']
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean',
+    colors: ['#000000', '#0000ff', '#007fff', '#00ffff', '#ffffff']
+  },
+  {
+    id: 'forest',
+    name: 'Forest',
+    colors: ['#000000', '#004000', '#008000', '#00c000', '#ffffff']
+  },
+  {
+    id: 'synthwave',
+    name: 'Synthwave',
+    colors: ['#000000', '#ff00ff', '#7f00ff', '#00ffff', '#ffffff']
+  },
+  {
+    id: 'industrial',
+    name: 'Industrial',
+    colors: ['#000000', '#808080', '#c0c0c0', '#ffffff', '#ff0000']
+  },
+  {
+    id: 'grayscale',
+    name: 'Grayscale',
+    colors: ['#000000', '#404040', '#808080', '#c0c0c0', '#ffffff']
+  }
+];
+
 export interface ParticleConfig {
   enabled: boolean;
   density: number;
@@ -243,6 +282,8 @@ export interface VisualSynthProject {
   output: OutputConfig;
   stylePresets: StylePreset[];
   activeStylePresetId: string;
+  palettes: ColorPalette[];
+  activePaletteId: string;
   macros: MacroConfig[];
   effects: EffectConfig;
   particles: ParticleConfig;
@@ -296,6 +337,8 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     }
   ],
   activeStylePresetId: 'style-neutral',
+  palettes: COLOR_PALETTES,
+  activePaletteId: 'heat',
   macros: [
     {
       id: 'macro-1',

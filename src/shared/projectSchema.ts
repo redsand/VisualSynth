@@ -66,6 +66,12 @@ const stylePresetSchema = z.object({
   })
 });
 
+const colorPaletteSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  colors: z.tuple([z.string(), z.string(), z.string(), z.string(), z.string()])
+});
+
 const outputConfigSchema = z.object({
   enabled: z.boolean(),
   fullscreen: z.boolean(),
@@ -281,6 +287,8 @@ export const projectSchema = z.object({
   output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
   stylePresets: z.array(stylePresetSchema).default(stylePresetDefaults),
   activeStylePresetId: z.string().default(stylePresetDefaults[0].id),
+  palettes: z.array(colorPaletteSchema).default([]),
+  activePaletteId: z.string().default('heat'),
   macros: z
     .array(macroSchema)
     .default([

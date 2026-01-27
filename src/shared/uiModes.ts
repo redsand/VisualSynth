@@ -1,15 +1,9 @@
-export type UiMode = 'performance' | 'scene' | 'design' | 'system';
+export type UiMode = 'performance' | 'scene' | 'design' | 'matrix' | 'system';
 
-export type ModeVisibility = {
-  performance: boolean;
-  scene: boolean;
-  design: boolean;
-  system: boolean;
-};
-
-export const getModeVisibility = (mode: UiMode): ModeVisibility => ({
+export const getModeVisibility = (mode: UiMode) => ({
   performance: mode === 'performance',
   scene: mode === 'scene',
   design: mode === 'design',
+  matrix: mode === 'matrix',
   system: mode === 'system'
 });

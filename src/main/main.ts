@@ -5,7 +5,6 @@ import os from 'os';
 import { spawn } from 'child_process';
 import type { NetworkInterfaceInfoIPv4 } from 'os';
 import crypto from 'crypto';
-type ProlinkNetwork = import('prolink-connect').ProlinkNetwork;
 import { projectSchema } from '../shared/projectSchema';
 import {
   DEFAULT_OUTPUT_CONFIG,
@@ -21,10 +20,15 @@ const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let outputWindow: BrowserWindow | null = null;
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
-let prolinkNetwork: ProlinkNetwork | null = null;
+
+// Use 'any' to avoid build errors if the optional dependency is missing
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let prolinkNetwork: any | null = null;
 let prolinkStatusHandler: ((status: { trackBPM: number | null; isMaster: boolean; isOnAir: boolean; deviceId: number }) => void) | null =
   null;
-let prolinkModule: typeof import('prolink-connect') | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let prolinkModule: any | null = null;
+
 let lastMasterBpmAt = 0;
 const ASSET_STORAGE = path.join(app.getPath('userData'), 'assets');
 fs.mkdirSync(ASSET_STORAGE, { recursive: true });
@@ -41,8 +45,11 @@ const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const getProlinkModule = async () => {
   if (prolinkModule) return prolinkModule;
   try {
+    // Dynamic import wrapped in try/catch to handle optional dependency
+    // @ts-ignore
     prolinkModule = await import('prolink-connect');
-  } catch {
+  } catch (e) {
+    console.warn('Could not load prolink-connect, network BPM features will be unavailable.', e);
     prolinkModule = null;
   }
   return prolinkModule;
@@ -561,44 +568,49 @@ ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; addres
     return { started: false, message: 'Prolink Connect not available.' };
   }
 
-  const selected = findInterface(iface);
-  const config = selected ? { iface: selected, vcdjId: 7 } : undefined;
-  prolinkNetwork = await module.bringOnline(config);
+  try {
+    const selected = findInterface(iface);
+    const config = selected ? { iface: selected, vcdjId: 7 } : undefined;
+    prolinkNetwork = await module.bringOnline(config);
 
-  if (!prolinkNetwork.isConfigured) {
-    await prolinkNetwork.autoconfigFromPeers();
-  }
+    if (!prolinkNetwork.isConfigured) {
+      await prolinkNetwork.autoconfigFromPeers();
+    }
 
-  prolinkNetwork.connect();
-  if (prolinkNetwork.statusEmitter) {
-    prolinkStatusHandler = (status) => {
-      if (!status.trackBPM) return;
-      const now = Date.now();
-      const useMaster = status.isMaster;
-      if (useMaster) {
-        lastMasterBpmAt = now;
-      }
-      const allowFallback = now - lastMasterBpmAt > 2000 && status.isOnAir;
-      if (useMaster || allowFallback) {
-        if (mainWindow) {
-          mainWindow.webContents.send('bpm:network', {
-            bpm: status.trackBPM,
-            deviceId: status.deviceId,
-            isMaster: status.isMaster,
-            isOnAir: status.isOnAir
-          });
+    prolinkNetwork.connect();
+    if (prolinkNetwork.statusEmitter) {
+      prolinkStatusHandler = (status: any) => {
+        if (!status.trackBPM) return;
+        const now = Date.now();
+        const useMaster = status.isMaster;
+        if (useMaster) {
+          lastMasterBpmAt = now;
         }
-      }
-    };
-    prolinkNetwork.statusEmitter.on('status', prolinkStatusHandler);
-  }
+        const allowFallback = now - lastMasterBpmAt > 2000 && status.isOnAir;
+        if (useMaster || allowFallback) {
+          if (mainWindow) {
+            mainWindow.webContents.send('bpm:network', {
+              bpm: status.trackBPM,
+              deviceId: status.deviceId,
+              isMaster: status.isMaster,
+              isOnAir: status.isOnAir
+            });
+          }
+        }
+      };
+      prolinkNetwork.statusEmitter.on('status', prolinkStatusHandler);
+    }
 
-  return {
-    started: true,
-    message: selected
-      ? `Pro DJ Link listening on ${selected.address}.`
-      : 'Pro DJ Link autoconfig active.'
-  };
+    return {
+      started: true,
+      message: selected
+        ? `Pro DJ Link listening on ${selected.address}.`
+        : 'Pro DJ Link autoconfig active.'
+    };
+  } catch (error) {
+    console.error('Failed to start Prolink network:', error);
+    return { started: false, message: `Prolink start failed: ${(error as Error).message}` };
+  }
 });
 
 ipcMain.handle('bpm:network-stop', async () => {
@@ -607,7 +619,11 @@ ipcMain.handle('bpm:network-stop', async () => {
   }
   prolinkStatusHandler = null;
   if (prolinkNetwork) {
-    await prolinkNetwork.disconnect();
+    try {
+      await prolinkNetwork.disconnect();
+    } catch (e) {
+      console.warn('Error disconnecting Prolink:', e);
+    }
     prolinkNetwork = null;
   }
   return { stopped: true };

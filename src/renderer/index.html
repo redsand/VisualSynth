@@ -13,22 +13,28 @@
   <body>
     <div id="app">
       <header class="top-bar">
-        <div class="brand">VisualSynth</div>
+        <div class="brand">
+          <img
+            class="brand-logo"
+            src="visualsynth_logo-transparent.png"
+            alt="VisualSynth"
+          />
+        </div>
         <div class="top-controls">
           <div id="mode-switcher" class="mode-switcher">
             <button type="button" class="mode-button active" data-mode="performance">Performance</button>
             <button type="button" class="mode-button" data-mode="scene">Scene</button>
             <button type="button" class="mode-button" data-mode="design">Design</button>
+            <button type="button" class="mode-button" data-mode="matrix">Matrix</button>
             <button type="button" class="mode-button" data-mode="system">System</button>
           </div>
           <div class="transport">
-            <button type="button" id="transport-play">Play</button>
-            <button type="button" id="transport-stop">Stop</button>
             <label class="transport-label">
               BPM
               <input id="transport-bpm" type="number" min="40" max="240" step="1" value="120" />
             </label>
             <button type="button" id="transport-tap">Tap</button>
+            <button type="button" id="transport-pause">Pause</button>
           </div>
           <label class="output-route">
             Output
@@ -56,6 +62,11 @@
             <h2>Performance</h2>
             <div id="scene-strip" class="panel-block">
               <h3>Scene Strip</h3>
+              <div class="scene-strip-controls">
+                <span class="scene-strip-label">View</span>
+                <button type="button" class="scene-strip-toggle active" data-scene-view="cards">Cards</button>
+                <button type="button" class="scene-strip-toggle" data-scene-view="list">List</button>
+              </div>
               <label class="scene-label">
                 Active Scene
                 <select id="scene-select"></select>
@@ -70,6 +81,31 @@
               </label>
               <button id="queue-scene">Queue Scene Switch</button>
               <div id="bpm-display" class="bpm-display">BPM: --</div>
+              <div id="scene-strip-cards" class="scene-strip-cards"></div>
+              <div id="scene-strip-list" class="scene-strip-list hidden"></div>
+              <div class="scene-strip-add">
+                <button id="scene-add-blank" type="button">New Blank Scene</button>
+              </div>
+              <div class="scene-strip-presets">
+                <h4>Preset Explorer</h4>
+                <label class="scene-label">
+                  Preset
+                  <select id="preset-select"></select>
+                </label>
+                <div class="scene-row">
+                  <button id="preset-prev" type="button">Previous</button>
+                  <button id="preset-next" type="button">Next</button>
+                  <button id="btn-apply-preset" type="button">Add Preset as Scene</button>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    Category
+                    <select id="preset-category"></select>
+                  </label>
+                  <button id="preset-shuffle" type="button">Shuffle</button>
+                </div>
+                <div id="preset-browser" class="preset-browser"></div>
+              </div>
             </div>
             <div class="panel-block">
               <h3>64-Pad Performance</h3>
@@ -94,26 +130,6 @@
                 These bars are the Spectrum layer. Toggle off to hide them.
                 <button id="spectrum-hint-dismiss" type="button">Got it</button>
               </div>
-            </div>
-            <div class="panel-block">
-              <h3>Presets</h3>
-              <label class="scene-label">
-                Preset
-                <select id="preset-select"></select>
-              </label>
-              <div class="scene-row">
-                <button id="preset-prev" type="button">Previous</button>
-                <button id="preset-next" type="button">Next</button>
-                <button id="btn-apply-preset">Apply Preset</button>
-              </div>
-              <div class="scene-row">
-                <label class="scene-inline">
-                  Category
-                  <select id="preset-category"></select>
-                </label>
-                <button id="preset-shuffle" type="button">Shuffle</button>
-              </div>
-              <div id="preset-browser" class="preset-browser"></div>
             </div>
             <div class="panel-block">
               <h3>Add Layers</h3>
@@ -270,6 +286,15 @@
             </div>
           </div>
 
+          
+          
+          <div id="mode-matrix-left" class="mode-pane hidden">
+            <h2>Matrix</h2>
+            <div class="panel-block">
+              <div class="output-hint">Matrix grid is shown in the center panel.</div>
+            </div>
+          </div>
+
           <div id="mode-system-left" class="mode-pane hidden">
             <h2>System</h2>
             <div class="panel-block">
@@ -341,6 +366,23 @@
         </section>
 
         <section class="center-panel">
+          <div id="mode-matrix-center" class="mode-pane hidden">
+            <h2>Matrix</h2>
+            <div class="panel-block">
+              <h3>Mod Matrix</h3>
+              <div class="matrix-header">
+                <button id="mod-matrix-add">Add Mod</button>
+              </div>
+              <div id="mod-matrix-list" class="matrix-list"></div>
+            </div>
+            <div class="panel-block">
+              <h3>MIDI Mapping</h3>
+              <div class="matrix-header">
+                <button id="midi-map-add">Add Mapping</button>
+              </div>
+              <div id="midi-map-list" class="matrix-list"></div>
+            </div>
+          </div>
           <canvas id="gl-canvas" width="1280" height="720"></canvas>
           <canvas id="visualizer-canvas" width="1280" height="720"></canvas>
           <div id="fade-overlay" class="fade-overlay hidden"></div>
@@ -497,118 +539,10 @@
             </div>
           </div>
 
+          
+          
           <div id="mode-design-right" class="mode-pane hidden">
             <h2>Design</h2>
-            <div class="panel-block">
-              <h3>Render Graph</h3>
-              <div id="render-graph" class="render-graph">
-                Graph view placeholder - full routing UI lives here.
-              </div>
-            </div>
-            <div class="panel-block">
-              <h3>Shader Editor</h3>
-              <label class="scene-label">
-                Target
-                <select id="shader-target">
-                  <option value="layer-plasma">Shader Plasma</option>
-                  <option value="layer-spectrum">Spectrum Bars</option>
-                </select>
-              </label>
-              <textarea id="shader-editor" class="shader-editor" rows="8" placeholder="Paste GLSL here..."></textarea>
-              <div class="scene-row">
-                <button id="shader-apply" type="button">Apply Draft</button>
-                <button id="shader-save" type="button">Save Draft</button>
-              </div>
-              <div id="shader-status" class="output-hint">Drafts are stored locally (not compiled yet).</div>
-            </div>
-            <div class="panel-block">
-              <h3>Parameter Search</h3>
-              <input id="design-search" class="search-input" type="text" placeholder="Search parameters, nodes, targets..." />
-            </div>
-            <div class="panel-block">
-              <h3>Mod Matrix</h3>
-              <div class="matrix-header">
-                <button id="mod-matrix-add">Add Mod</button>
-              </div>
-              <div id="mod-matrix-list" class="matrix-list"></div>
-            </div>
-            <div class="panel-block">
-              <h3>MIDI Mapping</h3>
-              <div class="matrix-header">
-                <button id="midi-map-add">Add Mapping</button>
-              </div>
-              <div id="midi-map-list" class="matrix-list"></div>
-            </div>
-            <div class="panel-block">
-              <h3>Modulators</h3>
-              <div class="mod-section">
-                <div class="mod-title">LFOs</div>
-                <div id="lfo-list" class="mod-list"></div>
-              </div>
-              <div class="mod-section">
-                <div class="mod-title">Envelopes</div>
-                <div id="env-list" class="mod-list"></div>
-              </div>
-              <div class="mod-section">
-                <div class="mod-title">Sample &amp; Hold</div>
-                <div id="sh-list" class="mod-list"></div>
-              </div>
-            </div>
-            <div class="panel-block">
-              <h3>Pad Mapping</h3>
-              <div class="bank-row" id="pad-map-bank">
-                <button type="button" data-bank="A" class="bank-button active">A</button>
-                <button type="button" data-bank="B" class="bank-button">B</button>
-                <button type="button" data-bank="C" class="bank-button">C</button>
-                <button type="button" data-bank="D" class="bank-button">D</button>
-              </div>
-              <div id="pad-map-grid" class="pad-map-grid"></div>
-              <div class="pad-hint">Click a pad to cycle its action. Bank buttons switch pages.</div>
-            </div>
-          </div>
-
-          <div id="mode-system-right" class="mode-pane hidden">
-            <h2>System</h2>
-            <div class="panel-block">
-              <h3>Latency Dashboard</h3>
-              <div id="latency-summary" class="output-hint">Audio: -- | Output: -- | MIDI: --</div>
-            </div>
-            <div class="panel-block">
-              <h3>Performance Guardrails</h3>
-              <div id="guardrail-status" class="output-hint">Guardrails: OK</div>
-              <div id="guardrail-hint" class="output-hint">Output scale: 100%</div>
-            </div>
-            <div class="panel-block">
-              <h3>Diagnostics</h3>
-              <div id="diag-fps">FPS: --</div>
-              <div id="diag-gpu">GPU: WebGL2</div>
-              <div id="diag-latency">Audio Latency: --</div>
-              <div id="diag-output-latency">Output Latency: --</div>
-              <div id="diag-midi-latency">MIDI Latency: --</div>
-              <div id="diag-watchdog">Watchdog: OK</div>
-              <div id="diag-webgl" class="diag-webgl"></div>
-              <button id="diag-webgl-copy" type="button">Copy WebGL Diagnostics</button>
-            </div>
-            <div class="panel-block">
-              <h3>Output</h3>
-              <div class="output-row">
-                <button id="output-toggle">Open Output</button>
-                <label class="output-toggle">
-                  <input type="checkbox" id="output-fullscreen" />
-                  Fullscreen
-                </label>
-              </div>
-              <label class="output-label">
-                Resolution Scale
-                <select id="output-scale">
-                  <option value="1">100%</option>
-                  <option value="0.75">75%</option>
-                  <option value="0.5">50%</option>
-                  <option value="0.25">25%</option>
-                </select>
-              </label>
-              <div id="output-resolution" class="output-hint">Output: 1280 x 720</div>
-            </div>
             <div class="panel-block">
               <h3>Assets</h3>
               <div class="scene-row">
@@ -672,6 +606,106 @@
               <div id="asset-list" class="marker-list"></div>
             </div>
             <div class="panel-block">
+              <h3>Render Graph</h3>
+              <div id="render-graph" class="render-graph">
+                Graph view placeholder - full routing UI lives here.
+              </div>
+            </div>
+            <div class="panel-block">
+              <h3>Shader Editor</h3>
+              <label class="scene-label">
+                Target
+                <select id="shader-target">
+                  <option value="layer-plasma">Shader Plasma</option>
+                  <option value="layer-spectrum">Spectrum Bars</option>
+                </select>
+              </label>
+              <textarea id="shader-editor" class="shader-editor" rows="8" placeholder="Paste GLSL here..."></textarea>
+              <div class="scene-row">
+                <button id="shader-apply" type="button">Apply Draft</button>
+                <button id="shader-save" type="button">Save Draft</button>
+              </div>
+              <div id="shader-status" class="output-hint">Drafts are stored locally (not compiled yet).</div>
+            </div>
+            <div class="panel-block">
+              <h3>Parameter Search</h3>
+              <input id="design-search" class="search-input" type="text" placeholder="Search parameters, nodes, targets..." />
+            </div>
+            <div class="panel-block">
+              <h3>Pad Mapping</h3>
+              <div class="bank-row" id="pad-map-bank">
+                <button type="button" data-bank="A" class="bank-button active">A</button>
+                <button type="button" data-bank="B" class="bank-button">B</button>
+                <button type="button" data-bank="C" class="bank-button">C</button>
+                <button type="button" data-bank="D" class="bank-button">D</button>
+              </div>
+              <div id="pad-map-grid" class="pad-map-grid"></div>
+              <div class="pad-hint">Click a pad to cycle its action. Bank buttons switch pages.</div>
+            </div>
+          </div>
+
+          <div id="mode-matrix-right" class="mode-pane hidden">
+            <h2>Matrix</h2>
+            <div class="panel-block">
+              <h3>Modulators</h3>
+              <div class="mod-section">
+                <div class="mod-title">LFOs</div>
+                <div id="lfo-list" class="mod-list"></div>
+              </div>
+              <div class="mod-section">
+                <div class="mod-title">Envelopes</div>
+                <div id="env-list" class="mod-list"></div>
+              </div>
+              <div class="mod-section">
+                <div class="mod-title">Sample &amp; Hold</div>
+                <div id="sh-list" class="mod-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode-system-right" class="mode-pane hidden">
+            <h2>System</h2>
+            <div class="panel-block">
+              <h3>Latency Dashboard</h3>
+              <div id="latency-summary" class="output-hint">Audio: -- | Output: -- | MIDI: --</div>
+            </div>
+            <div class="panel-block">
+              <h3>Performance Guardrails</h3>
+              <div id="guardrail-status" class="output-hint">Guardrails: OK</div>
+              <div id="guardrail-hint" class="output-hint">Output scale: 100%</div>
+            </div>
+            <div class="panel-block">
+              <h3>Diagnostics</h3>
+              <div id="diag-fps">FPS: --</div>
+              <div id="diag-gpu">GPU: WebGL2</div>
+              <div id="diag-latency">Audio Latency: --</div>
+              <div id="diag-output-latency">Output Latency: --</div>
+              <div id="diag-midi-latency">MIDI Latency: --</div>
+              <div id="diag-watchdog">Watchdog: OK</div>
+              <div id="diag-webgl" class="diag-webgl"></div>
+              <button id="diag-webgl-copy" type="button">Copy WebGL Diagnostics</button>
+            </div>
+            <div class="panel-block">
+              <h3>Output</h3>
+              <div class="output-row">
+                <button id="output-toggle">Open Output</button>
+                <label class="output-toggle">
+                  <input type="checkbox" id="output-fullscreen" />
+                  Fullscreen
+                </label>
+              </div>
+              <label class="output-label">
+                Resolution Scale
+                <select id="output-scale">
+                  <option value="1">100%</option>
+                  <option value="0.75">75%</option>
+                  <option value="0.5">50%</option>
+                  <option value="0.25">25%</option>
+                </select>
+              </label>
+              <div id="output-resolution" class="output-hint">Output: 1280 x 720</div>
+            </div>
+            <div class="panel-block">
               <h3>Plugins</h3>
               <div class="scene-row">
                 <button id="plugin-import">Import Plugin</button>
@@ -694,7 +728,7 @@
 
       <footer class="status-bar">
         <div id="status">Ready</div>
-        <div class="shortcuts">Space: tempo | F: fullscreen | R: record | P: screenshot | Ctrl+S save | Ctrl+O open</div>
+        <div class="shortcuts">Space: pause | F: fullscreen | R: record | P: screenshot | Ctrl+S save | Ctrl+O open</div>
       </footer>
     </div>
 

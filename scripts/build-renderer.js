@@ -13,6 +13,10 @@ const copyStatic = () => {
   for (const file of ['index.html', 'style.css', 'output.html', 'output.css']) {
     fs.copyFileSync(path.join(srcDir, file), path.join(outDir, file));
   }
+  fs.copyFileSync(
+    path.join(root, 'resources', 'visualsynth_logo-transparent.png'),
+    path.join(outDir, 'visualsynth_logo-transparent.png')
+  );
 };
 
 const build = () => {

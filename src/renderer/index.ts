@@ -5,6 +5,7 @@ import {
   OUTPUT_BASE_WIDTH,
   OutputConfig,
   VisualSynthProject,
+  SceneConfig,
   LayerConfig,
   AssetItem,
   AssetColorSpace
@@ -106,14 +107,22 @@ const sceneLeft = document.getElementById('mode-scene-left') as HTMLDivElement;
 const sceneRight = document.getElementById('mode-scene-right') as HTMLDivElement;
 const designLeft = document.getElementById('mode-design-left') as HTMLDivElement;
 const designRight = document.getElementById('mode-design-right') as HTMLDivElement;
+const matrixLeft = document.getElementById('mode-matrix-left') as HTMLDivElement;
+const matrixRight = document.getElementById('mode-matrix-right') as HTMLDivElement;
+const matrixCenter = document.getElementById('mode-matrix-center') as HTMLDivElement;
 const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
 const systemRight = document.getElementById('mode-system-right') as HTMLDivElement;
 const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement;
 const sceneStripAnchor = document.getElementById('scene-strip-anchor') as HTMLDivElement;
-const transportPlay = document.getElementById('transport-play') as HTMLButtonElement;
-const transportStop = document.getElementById('transport-stop') as HTMLButtonElement;
+const sceneStripCards = document.getElementById('scene-strip-cards') as HTMLDivElement;
+const sceneStripList = document.getElementById('scene-strip-list') as HTMLDivElement;
+const sceneStripViewButtons = Array.from(
+  sceneStrip.querySelectorAll<HTMLButtonElement>('button[data-scene-view]')
+);
+const addBlankSceneButton = document.getElementById('scene-add-blank') as HTMLButtonElement;
 const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
 const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
+const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
 const healthFps = document.getElementById('health-fps') as HTMLSpanElement;
 const healthLatency = document.getElementById('health-latency') as HTMLSpanElement;
@@ -322,6 +331,8 @@ let oscilloRotate = 0;
 let isPlaying = true;
 let transportTimeMs = 0;
 let activeMode: UiMode = 'performance';
+let sceneStripView: 'cards' | 'list' =
+  (localStorage.getItem('vs.sceneStrip.view') as 'cards' | 'list' | null) ?? 'cards';
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
 const outputChannel = new BroadcastChannel('visualsynth-output');
@@ -551,6 +562,9 @@ const setMode = (mode: UiMode) => {
   sceneRight.classList.toggle('hidden', !visibility.scene);
   designLeft.classList.toggle('hidden', !visibility.design);
   designRight.classList.toggle('hidden', !visibility.design);
+  matrixLeft.classList.toggle('hidden', !visibility.matrix);
+  matrixCenter.classList.toggle('hidden', !visibility.matrix);
+  matrixRight.classList.toggle('hidden', !visibility.matrix);
   systemLeft.classList.toggle('hidden', !visibility.system);
   systemRight.classList.toggle('hidden', !visibility.system);
   if (mode === 'scene') {
@@ -620,7 +634,8 @@ const renderPresetBrowser = () => {
     filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
   entries.forEach((preset) => {
     const card = document.createElement('div');
-    card.className = 'preset-card';
+    const selected = preset.path === presetSelect.value;
+    card.className = `preset-card${selected ? ' selected' : ''}`;
     const thumb = document.createElement('div');
     thumb.className = 'preset-thumb';
     const cachedThumb = presetThumbs[preset.path];
@@ -639,9 +654,10 @@ const renderPresetBrowser = () => {
     card.appendChild(thumb);
     card.appendChild(name);
     card.appendChild(tag);
-    card.addEventListener('click', async () => {
+    card.addEventListener('click', () => {
       presetSelect.value = preset.path;
-      await applySelectedPreset('Browser');
+      renderPresetBrowser();
+      setStatus(`Preset selected: ${preset.name}`);
     });
     presetBrowser.appendChild(card);
   });
@@ -660,6 +676,8 @@ const refreshPresetCategories = () => {
     option.textContent = category;
     presetCategorySelect.appendChild(option);
   });
+  const hasDna = categories.includes('DNA');
+  presetCategorySelect.value = hasDna ? 'DNA' : 'All';
 };
 
 const captureCanvasSnapshot = () => {
@@ -1030,6 +1048,52 @@ const midiTargetOptions = [
 
 const normalizeOutputScale = (value: number) => Math.min(1, Math.max(0.25, value));
 
+const cloneLayerConfig = (layer: LayerConfig): LayerConfig => ({
+  ...layer,
+  transform: { ...layer.transform }
+});
+
+const getNextSceneId = () => {
+  const used = new Set(currentProject.scenes.map((scene) => scene.id));
+  let index = currentProject.scenes.length + 1;
+  let id = `scene-${index}`;
+  while (used.has(id)) {
+    index += 1;
+    id = `scene-${index}`;
+  }
+  return id;
+};
+
+const getUniqueSceneName = (base: string) => {
+  const used = new Set(currentProject.scenes.map((scene) => scene.name));
+  if (!used.has(base)) return base;
+  let counter = 2;
+  let name = `${base} ${counter}`;
+  while (used.has(name)) {
+    counter += 1;
+    name = `${base} ${counter}`;
+  }
+  return name;
+};
+
+const createBlankScene = (): SceneConfig => {
+  const template = DEFAULT_PROJECT.scenes[0];
+  return {
+    id: getNextSceneId(),
+    name: getUniqueSceneName('Blank Scene'),
+    layers: template.layers.map((layer) => ({
+      ...cloneLayerConfig(layer),
+      enabled: false
+    }))
+  };
+};
+
+const addSceneToProject = (scene: SceneConfig, activate = true) => {
+  currentProject.scenes = [...currentProject.scenes, scene];
+  refreshSceneSelect();
+  if (activate) applyScene(scene.id);
+};
+
 const updateOutputResolution = () => {
   const width = Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale);
   const height = Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale);
@@ -1045,6 +1109,68 @@ const updateOutputUI = () => {
   updateOutputResolution();
 };
 
+const setSceneStripView = (view: 'cards' | 'list') => {
+  sceneStripView = view;
+  localStorage.setItem('vs.sceneStrip.view', view);
+  sceneStripCards.classList.toggle('hidden', view !== 'cards');
+  sceneStripList.classList.toggle('hidden', view !== 'list');
+  sceneStripViewButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.sceneView === view);
+  });
+};
+
+const renderSceneStrip = () => {
+  sceneStripCards.innerHTML = '';
+  sceneStripList.innerHTML = '';
+  if (currentProject.scenes.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No scenes available.';
+    sceneStripCards.appendChild(empty);
+    sceneStripList.appendChild(empty.cloneNode(true));
+    return;
+  }
+
+  currentProject.scenes.forEach((scene) => {
+    const isActive = scene.id === currentProject.activeSceneId;
+    const layerCount = scene.layers.length;
+
+    const card = document.createElement('div');
+    card.className = `scene-card${isActive ? ' active' : ''}`;
+    const title = document.createElement('div');
+    title.className = 'scene-card-title';
+    title.textContent = scene.name;
+    const meta = document.createElement('div');
+    meta.className = 'scene-card-meta';
+    meta.textContent = `${layerCount} layer${layerCount === 1 ? '' : 's'}`;
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.addEventListener('click', () => {
+      sceneSelect.value = scene.id;
+      applyScene(scene.id);
+      setStatus(`Scene active: ${scene.name}`);
+    });
+    sceneStripCards.appendChild(card);
+
+    const row = document.createElement('div');
+    row.className = `scene-list-row${isActive ? ' active' : ''}`;
+    const name = document.createElement('div');
+    name.className = 'scene-list-name';
+    name.textContent = scene.name;
+    const rowMeta = document.createElement('div');
+    rowMeta.className = 'scene-list-meta';
+    rowMeta.textContent = `${layerCount} layer${layerCount === 1 ? '' : 's'}`;
+    row.appendChild(name);
+    row.appendChild(rowMeta);
+    row.addEventListener('click', () => {
+      sceneSelect.value = scene.id;
+      applyScene(scene.id);
+      setStatus(`Scene active: ${scene.name}`);
+    });
+    sceneStripList.appendChild(row);
+  });
+};
+
 const refreshSceneSelect = () => {
   sceneSelect.innerHTML = '';
   currentProject.scenes.forEach((scene) => {
@@ -1054,6 +1180,7 @@ const refreshSceneSelect = () => {
     sceneSelect.appendChild(option);
   });
   sceneSelect.value = currentProject.activeSceneId;
+  renderSceneStrip();
 };
 
 const moveLayer = (sceneId: string, layerId: string, direction: -1 | 1) => {
@@ -1064,6 +1191,20 @@ const moveLayer = (sceneId: string, layerId: string, direction: -1 | 1) => {
   if (index < 0 || nextIndex < 0 || nextIndex >= scene.layers.length) return;
   scene.layers = reorderLayers(scene, index, nextIndex);
   renderLayerList();
+};
+
+const removeLayer = (sceneId: string, layerId: string) => {
+  const scene = currentProject.scenes.find((item) => item.id === sceneId);
+  if (!scene) return;
+  const nextLayers = scene.layers.filter((layer) => layer.id !== layerId);
+  if (nextLayers.length === scene.layers.length) return;
+  if (nextLayers.length === 0) {
+    setStatus('Scenes must contain at least one layer.');
+    return;
+  }
+  scene.layers = nextLayers;
+  renderLayerList();
+  setStatus(`Layer removed: ${layerId}`);
 };
 
 const renderLayerList = () => {
@@ -1110,8 +1251,15 @@ const renderLayerList = () => {
     downButton.textContent = '↓';
     downButton.disabled = index === scene.layers.length - 1;
     downButton.addEventListener('click', () => moveLayer(scene.id, layer.id, 1));
+    const removeButton = document.createElement('button');
+    removeButton.className = 'layer-remove';
+    removeButton.textContent = '✕';
+    removeButton.addEventListener('click', () => {
+      removeLayer(scene.id, layer.id);
+    });
     controls.appendChild(upButton);
     controls.appendChild(downButton);
+    controls.appendChild(removeButton);
 
     row.appendChild(label);
     row.appendChild(controls);
@@ -2821,8 +2969,34 @@ const applyScene = (sceneId: string) => {
   const scene = currentProject.scenes.find((item) => item.id === sceneId);
   if (!scene) return;
   currentProject = { ...currentProject, activeSceneId: sceneId };
+  sceneSelect.value = sceneId;
   renderLayerList();
   syncPerformanceToggles();
+  renderSceneStrip();
+};
+
+const addSceneFromPreset = async (presetPath: string) => {
+  const result = await window.visualSynth.loadPreset(presetPath);
+  if (result.error) {
+    setStatus(`Preset load failed: ${result.error}`);
+    return;
+  }
+  if (!result.project || result.project.scenes.length === 0) {
+    setStatus('Preset has no scenes to add.');
+    return;
+  }
+  const sourceScene =
+    result.project.scenes.find((scene) => scene.id === result.project?.activeSceneId) ??
+    result.project.scenes[0];
+  const presetName = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
+  const newScene: SceneConfig = {
+    id: getNextSceneId(),
+    name: getUniqueSceneName(presetName),
+    layers: sourceScene.layers.map(cloneLayerConfig)
+  };
+  addSceneToProject(newScene, true);
+  setStatus(`Scene added from preset: ${newScene.name}`);
+  void capturePresetThumbnail(presetPath);
 };
 
 const updateQuantizeHud = (message: string | null) => {
@@ -4400,67 +4574,101 @@ loadButton.addEventListener('click', async () => {
   }
 });
 
-applyPresetButton.addEventListener('click', async () => {
-  await applySelectedPreset();
-});
+if (applyPresetButton) {
+  applyPresetButton.addEventListener('click', async () => {
+    if (!presetSelect.value) return;
+    await addSceneFromPreset(presetSelect.value);
+  });
+}
 
-presetPrevButton.addEventListener('click', async () => {
-  if (presetSelect.options.length === 0) return;
-  const nextIndex =
-    (presetSelect.selectedIndex - 1 + presetSelect.options.length) % presetSelect.options.length;
-  presetSelect.selectedIndex = nextIndex;
-  await applySelectedPreset('Previous');
-});
+if (presetPrevButton) {
+  presetPrevButton.addEventListener('click', () => {
+    if (presetSelect.options.length === 0) return;
+    const nextIndex =
+      (presetSelect.selectedIndex - 1 + presetSelect.options.length) % presetSelect.options.length;
+    presetSelect.selectedIndex = nextIndex;
+    renderPresetBrowser();
+    setPresetSelectionStatus('Previous');
+  });
+}
 
-presetNextButton.addEventListener('click', async () => {
-  if (presetSelect.options.length === 0) return;
-  const nextIndex = (presetSelect.selectedIndex + 1) % presetSelect.options.length;
-  presetSelect.selectedIndex = nextIndex;
-  await applySelectedPreset('Next');
-});
+if (presetNextButton) {
+  presetNextButton.addEventListener('click', () => {
+    if (presetSelect.options.length === 0) return;
+    const nextIndex = (presetSelect.selectedIndex + 1) % presetSelect.options.length;
+    presetSelect.selectedIndex = nextIndex;
+    renderPresetBrowser();
+    setPresetSelectionStatus('Next');
+  });
+}
 
-presetSelect.addEventListener('change', async () => {
-  await applySelectedPreset('Selected');
-});
+if (presetSelect) {
+  presetSelect.addEventListener('change', () => {
+    renderPresetBrowser();
+    setPresetSelectionStatus('Selected');
+  });
+}
 
-presetCategorySelect.addEventListener('change', () => {
-  renderPresetBrowser();
-});
+if (presetCategorySelect) {
+  presetCategorySelect.addEventListener('change', () => {
+    renderPresetBrowser();
+  });
+}
 
-presetShuffleButton.addEventListener('click', async () => {
-  if (presetLibrary.length === 0) return;
-  const filter = presetCategorySelect.value;
-  const entries =
-    filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
-  const pick = entries[Math.floor(Math.random() * entries.length)];
-  if (!pick) return;
-  presetSelect.value = pick.path;
-  await applySelectedPreset('Shuffle');
-});
+if (addBlankSceneButton) {
+  addBlankSceneButton.addEventListener('click', () => {
+    const scene = createBlankScene();
+    addSceneToProject(scene, true);
+    setStatus(`Scene added: ${scene.name}`);
+  });
+}
 
-applyTemplateButton.addEventListener('click', async () => {
-  const templatePath = templateSelect.value;
-  const result = await window.visualSynth.loadTemplate(templatePath);
-  if (result.project) {
-    await applyProject(result.project);
-  }
-});
+if (presetShuffleButton) {
+  presetShuffleButton.addEventListener('click', () => {
+    if (presetLibrary.length === 0) return;
+    const filter = presetCategorySelect.value;
+    const entries =
+      filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
+    const pick = entries[Math.floor(Math.random() * entries.length)];
+    if (!pick) return;
+    presetSelect.value = pick.path;
+    renderPresetBrowser();
+    setPresetSelectionStatus('Shuffle');
+  });
+}
 
-sceneSelect.addEventListener('change', () => {
-  applyScene(sceneSelect.value);
-  setStatus(`Scene active: ${sceneSelect.selectedOptions[0]?.textContent ?? sceneSelect.value}`);
-  syncPerformanceToggles();
-});
+if (applyTemplateButton) {
+  applyTemplateButton.addEventListener('click', async () => {
+    const templatePath = templateSelect.value;
+    const result = await window.visualSynth.loadTemplate(templatePath);
+    if (result.project) {
+      await applyProject(result.project);
+    }
+  });
+}
 
-queueSceneButton.addEventListener('click', () => {
-  if (currentProject.scenes.length === 0) return;
-  const targetSceneId = sceneSelect.value;
-  const bpm = getActiveBpm();
-  const unit = quantizeSelect.value as QuantizationUnit;
-  const scheduledTimeMs = getNextQuantizedTimeMs(performance.now(), bpm, unit);
-  pendingSceneSwitch = { targetSceneId, scheduledTimeMs };
-  setStatus(`Queued scene switch to ${sceneSelect.selectedOptions[0]?.textContent ?? targetSceneId}`);
-});
+if (sceneSelect) {
+  sceneSelect.addEventListener('change', () => {
+    applyScene(sceneSelect.value);
+    setStatus(`Scene active: ${sceneSelect.selectedOptions[0]?.textContent ?? sceneSelect.value}`);
+    syncPerformanceToggles();
+  });
+}
+
+if (queueSceneButton) {
+  queueSceneButton.addEventListener('click', () => {
+    if (currentProject.scenes.length === 0) return;
+    const targetSceneId = sceneSelect?.value;
+    if (!targetSceneId) return;
+    const bpm = getActiveBpm();
+    const unit = quantizeSelect.value as QuantizationUnit;
+    const scheduledTimeMs = getNextQuantizedTimeMs(performance.now(), bpm, unit);
+    pendingSceneSwitch = { targetSceneId, scheduledTimeMs };
+    setStatus(
+      `Queued scene switch to ${sceneSelect?.selectedOptions[0]?.textContent ?? targetSceneId}`
+    );
+  });
+}
 
 bpmSourceSelect.addEventListener('change', () => {
   bpmSource = bpmSourceSelect.value as typeof bpmSource;
@@ -4819,20 +5027,6 @@ modeButtons.forEach((button) => {
   });
 });
 
-transportPlay.addEventListener('click', () => {
-  if (isPlaying) return;
-  isPlaying = true;
-  setStatus('Transport playing.');
-  updateTransportUI();
-});
-
-transportStop.addEventListener('click', () => {
-  if (!isPlaying && transportTimeMs === 0) return;
-  isPlaying = false;
-  transportTimeMs = 0;
-  setStatus('Transport stopped.');
-  updateTransportUI();
-});
 
 transportTap.addEventListener('click', () => {
   setStatus('Tap tempo (placeholder).');
@@ -4851,6 +5045,17 @@ webglCopyButton.addEventListener('click', async () => {
 transportBpmInput.addEventListener('change', () => {
   syncTempoInputs(Number(transportBpmInput.value));
   setStatus(`Tempo set to ${transportBpmInput.value} BPM`);
+});
+
+transportPauseButton.addEventListener('click', () => {
+  if (isPlaying) {
+    isPlaying = false;
+    setStatus('Visuals paused.');
+  } else {
+    isPlaying = true;
+    setStatus('Visuals resumed.');
+  }
+  updateTransportUI();
 });
 
 tempoInput.addEventListener('change', () => {
@@ -4897,20 +5102,10 @@ const initPresets = async () => {
   presetShuffleButton.disabled = !hasPresets;
 };
 
-const applySelectedPreset = async (reason?: string) => {
+const setPresetSelectionStatus = (reason?: string) => {
   if (!presetSelect.value) return;
-  const presetPath = presetSelect.value;
-  const result = await window.visualSynth.loadPreset(presetPath);
-  if (result.error) {
-    setStatus(`Preset load failed: ${result.error}`);
-    return;
-  }
-  if (result.project) {
-    await applyProject(result.project);
-    const name = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
-    setStatus(`${reason ? `${reason}: ` : ''}Preset applied: ${name}`);
-    void capturePresetThumbnail(presetPath);
-  }
+  const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
+  setStatus(`${reason ? `${reason}: ` : ''}Preset selected: ${name}`);
 };
 
 const updateGravityWells = (time: number, dt: number) => {
@@ -5033,8 +5228,7 @@ const initBpmNetworking = async () => {
 };
 
 const updateTransportUI = () => {
-  transportPlay.disabled = isPlaying;
-  transportStop.disabled = !isPlaying && transportTimeMs === 0;
+  transportPauseButton.textContent = isPlaying ? 'Pause' : 'Resume';
 };
 
 const initShortcuts = () => {
@@ -5060,13 +5254,24 @@ const initShortcuts = () => {
       event.preventDefault();
       if (isPlaying) {
         isPlaying = false;
-        setStatus('Transport stopped.');
+        setStatus('Visuals paused.');
       } else {
         isPlaying = true;
-        setStatus('Transport playing.');
+        setStatus('Visuals resumed.');
       }
       updateTransportUI();
     }
+  });
+};
+
+const initSceneStrip = () => {
+  setSceneStripView(sceneStripView);
+  sceneStripViewButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const view = button.dataset.sceneView as 'cards' | 'list' | undefined;
+      if (!view) return;
+      setSceneStripView(view);
+    });
   });
 };
 
@@ -5229,6 +5434,10 @@ const render = (time: number) => {
     healthFps.textContent = `FPS: ${currentFps}`;
     fpsAccumulator = 0;
     frameCount = 0;
+  }
+  if (!isPlaying) {
+    requestAnimationFrame(render);
+    return;
   }
   lastRenderTimeMs = time;
   if (mediaRecorder) {
@@ -5735,6 +5944,7 @@ const render = (time: number) => {
 const init = async () => {
   initPads();
   initShortcuts();
+  initSceneStrip();
   initPanelCollapse();
   initLearnables();
   initSpectrumHint();
