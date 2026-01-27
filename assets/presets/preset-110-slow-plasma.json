@@ -26,7 +26,51 @@
       ]
     }
   ],
-  "macros": [],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Main Layer scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.scale",
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: Main Layer scale"
+    },
+    {
+      "id": "macro-2",
+      "name": "Main Layer color Shift",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.colorShift",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Main Layer color Shift"
+    },
+    {
+      "id": "macro-3",
+      "name": "Main Layer brightness",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.brightness",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Main Layer brightness"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ],
   "modMatrix": [
     {
       "source": "macro-1",

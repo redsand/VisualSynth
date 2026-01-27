@@ -18,7 +18,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Warp Speed"
     },
     {
       "id": "macro-2",
@@ -29,7 +30,8 @@
           "target": "fx-feedback.rotation",
           "amount": 0.1
         }
-      ]
+      ],
+      "description": "Controls: Twist"
     },
     {
       "id": "macro-3",
@@ -40,7 +42,8 @@
           "target": "gen-particles.density",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Star Density"
     },
     {
       "id": "macro-4",
@@ -51,7 +54,8 @@
           "target": "fx-feedback.hueShift",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Color Shift"
     }
   ],
   "scenes": [

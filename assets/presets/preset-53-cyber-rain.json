@@ -53,5 +53,55 @@
   "modMatrix": [],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Particles"
+  "category": "Particles",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Particle Field speed",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-particles.speed",
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: Particle Field speed"
+    },
+    {
+      "id": "macro-2",
+      "name": "Particle Field density",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-particles.density",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Particle Field density"
+    },
+    {
+      "id": "macro-3",
+      "name": "Particle Field size",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-particles.size",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Particle Field size"
+    },
+    {
+      "id": "macro-4",
+      "name": "Particle Field glow",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-particles.glow",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Particle Field glow"
+    }
+  ]
 }

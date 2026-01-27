@@ -42,7 +42,8 @@
           "target": "particles.density",
           "amount": 0.25
         }
-      ]
+      ],
+      "description": "Controls: Spawn Well"
     },
     {
       "id": "macro-2",
@@ -57,7 +58,8 @@
           "target": "effects.persistence",
           "amount": -0.5
         }
-      ]
+      ],
+      "description": "Controls: Destroy Well"
     },
     {
       "id": "macro-3",
@@ -72,7 +74,8 @@
           "target": "sdf.rotation",
           "amount": 1.2
         }
-      ]
+      ],
+      "description": "Controls: Polarity Shift"
     },
     {
       "id": "macro-4",
@@ -91,31 +94,51 @@
           "target": "effects.persistence",
           "amount": 0.25
         }
-      ]
+      ],
+      "description": "Controls: Singularity Collapse"
     },
     {
       "id": "macro-5",
-      "name": "Macro 5",
+      "name": "Shader Plasma scale",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-plasma.scale",
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: Shader Plasma scale"
     },
     {
       "id": "macro-6",
-      "name": "Macro 6",
+      "name": "Shader Plasma color Shift",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-plasma.colorShift",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Shader Plasma color Shift"
     },
     {
       "id": "macro-7",
-      "name": "Macro 7",
+      "name": "Shader Plasma brightness",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-plasma.brightness",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Shader Plasma brightness"
     },
     {
       "id": "macro-8",
       "name": "Macro 8",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 8"
     }
   ],
   "effects": {

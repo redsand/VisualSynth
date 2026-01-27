@@ -40,5 +40,55 @@
   "modMatrix": [],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Geometry"
+  "category": "Geometry",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "SDF Shapes scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-sdf.scale",
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: SDF Shapes scale"
+    },
+    {
+      "id": "macro-2",
+      "name": "SDF Shapes rotation",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-sdf.rotation",
+          "amount": 3.141592653589793
+        }
+      ],
+      "description": "Controls: SDF Shapes rotation"
+    },
+    {
+      "id": "macro-3",
+      "name": "SDF Shapes edge",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-sdf.edge",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: SDF Shapes edge"
+    },
+    {
+      "id": "macro-4",
+      "name": "SDF Shapes glow",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "gen-sdf.glow",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: SDF Shapes glow"
+    }
+  ]
 }

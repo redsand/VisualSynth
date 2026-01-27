@@ -14,8 +14,9 @@ import {
 } from '../shared/project';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
+import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './panels/LayerPanel';
-import { createSdfPanel } from './panels/SdfPanel';
+import { createSdfPanel } from './ui/panels/SdfPanel';
 import { createModulationPanel } from './panels/ModulationPanel';
 import { getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
@@ -671,6 +672,9 @@ const renderPresetBrowser = () => {
       presetSelect.value = preset.path;
       renderPresetBrowser();
       setStatus(`Preset selected: ${preset.name}`);
+    });
+    card.addEventListener('dblclick', () => {
+      applyPresetPath(preset.path);
     });
     presetBrowser.appendChild(card);
   });
@@ -5269,6 +5273,10 @@ outputScaleSelect.addEventListener('change', async () => {
 const initPresets = async () => {
   loadPresetThumbnails();
   const presets = await window.visualSynth.listPresets();
+  
+  // Sort presets alphabetically by name
+  presets.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
   presetSelect.innerHTML = '';
   presetLibrary = presets.map((preset) => ({
     name: preset.name,
@@ -5354,6 +5362,10 @@ const updatePortals = (time: number, dt: number) => {
 
 const initTemplates = async () => {
   const templates = await window.visualSynth.listTemplates();
+  
+  // Sort templates alphabetically by name
+  templates.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
   templateSelect.innerHTML = '';
   templates.forEach((template) => {
     const option = document.createElement('option');

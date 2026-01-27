@@ -14,7 +14,8 @@
           "target": "fx-posterize.levels",
           "amount": 10
         }
-      ]
+      ],
+      "description": "Controls: Heat"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "layer-plasma.speed",
           "amount": 1.2
         }
-      ]
+      ],
+      "description": "Controls: Lava Flow"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.15
         }
-      ]
+      ],
+      "description": "Controls: Eruption"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-plasma.brightness",
           "amount": 1.5
         }
-      ]
+      ],
+      "description": "Controls: Glow"
     }
   ],
   "scenes": [

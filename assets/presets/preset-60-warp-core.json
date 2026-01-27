@@ -13,9 +13,14 @@
           "id": "layer-portal",
           "name": "Wormhole Portal",
           "enabled": true,
-          "opacity": 1.0,
+          "opacity": 1,
           "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         },
         {
           "id": "fx-feedback",
@@ -23,7 +28,12 @@
           "enabled": true,
           "opacity": 0.5,
           "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         },
         {
           "id": "fx-bloom",
@@ -31,12 +41,57 @@
           "enabled": true,
           "opacity": 0.6,
           "blendMode": "add",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
       ]
     }
   ],
   "modMatrix": [],
   "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "activeSceneId": "scene-1",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Wormhole Portal shift",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-portal.shift",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Wormhole Portal shift"
+    },
+    {
+      "id": "macro-2",
+      "name": "Wormhole Portal distortion",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-portal.distortion",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Wormhole Portal distortion"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

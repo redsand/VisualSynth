@@ -53,5 +53,40 @@
   "modMatrix": [],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Audio Reactive"
+  "category": "Audio Reactive",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Blur radius",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "fx-blur.radius",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Blur radius"
+    },
+    {
+      "id": "macro-2",
+      "name": "Macro 2",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 2"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

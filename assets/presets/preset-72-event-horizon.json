@@ -14,7 +14,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.15
         }
-      ]
+      ],
+      "description": "Controls: Gravity Pull"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "layer-portal.scale",
           "amount": 0.8
         }
-      ]
+      ],
+      "description": "Controls: Singularity"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "layer-portal.distortion",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Distortion"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-portal.colorShift",
           "amount": 0.5
         }
-      ]
+      ],
+      "description": "Controls: Redshift"
     }
   ],
   "scenes": [

@@ -14,7 +14,8 @@
           "target": "fx-vignette.intensity",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Pressure"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "layer-plasma.speed",
           "amount": 0.5
         }
-      ]
+      ],
+      "description": "Controls: Flow Speed"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.05
         }
-      ]
+      ],
+      "description": "Controls: Abyss Depth"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-plasma.colorShift",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Ocean Color"
     }
   ],
   "scenes": [

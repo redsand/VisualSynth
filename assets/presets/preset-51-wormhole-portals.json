@@ -34,7 +34,8 @@
           "target": "layer-portal.opacity",
           "amount": 0.7
         }
-      ]
+      ],
+      "description": "Controls: Portal Opacity"
     },
     {
       "id": "macro-2",
@@ -45,7 +46,8 @@
           "target": "effects.persistence",
           "amount": 0.4
         }
-      ]
+      ],
+      "description": "Controls: Continuity"
     },
     {
       "id": "macro-3",
@@ -56,7 +58,8 @@
           "target": "style.paletteShift",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Transition"
     },
     {
       "id": "macro-4",
@@ -67,31 +70,46 @@
           "target": "effects.kaleidoscope",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Warp"
     },
     {
       "id": "macro-5",
-      "name": "Macro 5",
+      "name": "Wormhole Portal shift",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-portal.shift",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Wormhole Portal shift"
     },
     {
       "id": "macro-6",
-      "name": "Macro 6",
+      "name": "Wormhole Portal distortion",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-portal.distortion",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Wormhole Portal distortion"
     },
     {
       "id": "macro-7",
       "name": "Macro 7",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 7"
     },
     {
       "id": "macro-8",
       "name": "Macro 8",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 8"
     }
   ],
   "effects": {

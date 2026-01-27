@@ -52,5 +52,45 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Organic"
+  "category": "Organic",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Crystal Harmonics scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-crystal.scale",
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: Crystal Harmonics scale"
+    },
+    {
+      "id": "macro-2",
+      "name": "Crystal Harmonics brittleness",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-crystal.brittleness",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Crystal Harmonics brittleness"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

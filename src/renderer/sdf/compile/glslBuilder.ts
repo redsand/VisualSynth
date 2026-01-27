@@ -29,16 +29,35 @@ export const buildSdfShader = (
   }
 
   // Find Root (last node)
-  if (nodes.length === 0) return { fragmentSource: '', uniforms: [], totalCost: 0, uses3D: false, errors: [], warnings: [] };
+  if (nodes.length === 0) {
+    return {
+      fragmentSource: '',
+      functionsCode: '',
+      mapBody: 'return 10.0;',
+      uniforms: [],
+      totalCost: 0,
+      uses3D: false,
+      errors: [],
+      warnings: []
+    };
+  }
   const root = nodes[nodes.length - 1];
 
   let body = '';
   try {
     const resultVar = emitNode(ctx, root.instanceId, 'p', body);
-    body += `    return ${resultVar};
-`;
+    body += `    return ${resultVar};`;
   } catch (e: any) {
-    return { fragmentSource: '', uniforms: [], totalCost: 0, uses3D: false, errors: [e.message], warnings: [] };
+    return {
+      fragmentSource: '',
+      functionsCode: '',
+      mapBody: 'return 10.0;',
+      uniforms: [],
+      totalCost: 0,
+      uses3D: false,
+      errors: [e.message],
+      warnings: []
+    };
   }
 
   const uniformsCode = ctx.uniforms.map(u => `uniform ${u.type} ${u.name};`).join('\n');
@@ -56,8 +75,7 @@ ${uniformsCode}
 ${functionsCode}
 
 float map(vec3 p) {
-${Array.from(ctx.calculatedVars.values()).filter(v => v.startsWith('//')).join('\n')}
-${body} // Contains the logic tree
+${body}
 }
 
 void main() {
@@ -74,6 +92,8 @@ void main() {
 
   return {
     fragmentSource,
+    functionsCode,
+    mapBody: body,
     uniforms: ctx.uniforms,
     totalCost: 0,
     uses3D: mode === '3d',

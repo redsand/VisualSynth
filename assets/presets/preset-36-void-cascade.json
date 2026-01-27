@@ -66,5 +66,55 @@
   "modMatrix": [],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Abstract"
+  "category": "Abstract",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Audio Spectrum smoothing",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.smoothing",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Audio Spectrum smoothing"
+    },
+    {
+      "id": "macro-2",
+      "name": "Audio Spectrum sensitivity",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.sensitivity",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Audio Spectrum sensitivity"
+    },
+    {
+      "id": "macro-3",
+      "name": "Audio Spectrum bar Width",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.barWidth",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Audio Spectrum bar Width"
+    },
+    {
+      "id": "macro-4",
+      "name": "Audio Spectrum glow",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.glow",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Audio Spectrum glow"
+    }
+  ]
 }

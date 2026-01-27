@@ -14,7 +14,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.1
         }
-      ]
+      ],
+      "description": "Controls: Descent Speed"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "fx-vignette.radius",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Cave Width"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "layer-topo.lines",
           "amount": 20
         }
-      ]
+      ],
+      "description": "Controls: Rock Detail"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "fx-vignette.intensity",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Darkness"
     }
   ],
   "scenes": [

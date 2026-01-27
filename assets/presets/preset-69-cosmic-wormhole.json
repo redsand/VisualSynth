@@ -14,7 +14,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.3
         }
-      ]
+      ],
+      "description": "Controls: Tunnel Depth"
     },
     {
       "id": "macro-2",
@@ -29,7 +30,8 @@
           "target": "layer-portal.distortion",
           "amount": 0.8
         }
-      ]
+      ],
+      "description": "Controls: Distortion"
     },
     {
       "id": "macro-3",
@@ -40,7 +42,8 @@
           "target": "layer-portal.scale",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Portal Size"
     },
     {
       "id": "macro-4",
@@ -51,7 +54,8 @@
           "target": "layer-portal.colorShift",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Spectrum Shift"
     }
   ],
   "scenes": [

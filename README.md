@@ -23,6 +23,19 @@ Realtime audio + MIDI reactive visual synthesizer for live performance and creat
 ## UX Reimagination (Four-Mode Architecture)
 See the full product experience redesign in `docs/UX_REIMAGINE.md`.
 
+## Documentation
+
+### User Guides
+
+- **[Full User Guide](docs/USER_GUIDE.md)** - Comprehensive documentation covering all features, modes, and workflows
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Keyboard shortcuts, controls, and common commands at a glance
+- **[Visual Verification Guide](docs/VISUAL_VERIFICATION_GUIDE.md)** - Step-by-step guide to verify all features are working correctly with screenshot placeholders
+
+### Developer Documentation
+
+- **[FX System](docs/FX_SYSTEM.md)** - Effect system architecture and implementation
+- **[UX Design](docs/UX_REIMAGINE.md)** - Product experience redesign philosophy
+
 ## Differentiators & Feature Exploration
 
 ### Performance-first Experience

@@ -425,6 +425,32 @@ export class RenderGraph {
     });
   }
 
+  private getModdedSdfScene(scene: any, modSources: any, modMatrix: any[]) {
+    if (!scene) return undefined;
+    
+    // Deep clone the scene to avoid mutating the original project state
+    const cloned = JSON.parse(JSON.stringify(scene));
+    
+    // Apply modulation to each node's parameters
+    if (cloned.nodes) {
+      cloned.nodes.forEach((node: any) => {
+        if (!node.params) return;
+        
+        Object.keys(node.params).forEach(paramId => {
+          const targetId = `${node.instanceId}.${paramId}`;
+          const baseValue = node.params[paramId];
+          
+          // Only modulate numbers for now
+          if (typeof baseValue === 'number') {
+            node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix);
+          }
+        });
+      });
+    }
+    
+    return cloned;
+  }
+
   buildRenderState(time: number, deltaMs: number, canvasSize: { width: number; height: number }): RenderState {
     const state = this.store.getState();
     const runtime = state.runtime;
@@ -543,6 +569,7 @@ export class RenderGraph {
     const weatherLayer = activeScene?.layers.find((layer) => layer.id === 'layer-weather');
     const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
     const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
+    const advancedSdfLayer = activeScene?.layers.find((layer) => layer.id === 'gen-sdf-scene');
 
     const plasmaOpacity = Math.min(
       1,
@@ -689,6 +716,7 @@ export class RenderGraph {
       sdfGlow: moddedSdf.glow,
       sdfRotation: moddedSdf.rotation,
       sdfFill: moddedSdf.fill,
+      sdfScene: this.getModdedSdfScene((advancedSdfLayer as any)?.sdfScene, modSources, state.project.modMatrix),
       gravityPositions: this.gravityPositions,
       gravityStrengths: this.gravityStrengths,
       gravityPolarities: this.gravityPolarities,

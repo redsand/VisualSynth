@@ -52,5 +52,55 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Essentials"
+  "category": "Essentials",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Plasma Speed",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.speed",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Plasma Speed"
+    },
+    {
+      "id": "macro-2",
+      "name": "Plasma Scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.scale",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Plasma Scale"
+    },
+    {
+      "id": "macro-3",
+      "name": "Spectrum Intensity",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.opacity",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Intensity"
+    },
+    {
+      "id": "macro-4",
+      "name": "Spectrum Detail",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.barWidth",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Detail"
+    }
+  ]
 }

@@ -52,5 +52,45 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Audio Reactive"
+  "category": "Audio Reactive",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Audio Weather intensity",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-weather.intensity",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Audio Weather intensity"
+    },
+    {
+      "id": "macro-2",
+      "name": "Audio Weather mode",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-weather.mode",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Audio Weather mode"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

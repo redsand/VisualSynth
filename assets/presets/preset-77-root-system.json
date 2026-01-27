@@ -14,7 +14,8 @@
           "target": "layer-inkflow.speed",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Growth Rate"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "layer-inkflow.complexity",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Complexity"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.1
         }
-      ]
+      ],
+      "description": "Controls: Tunnel Tightness"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-inkflow.hue",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Root Color"
     }
   ],
   "scenes": [

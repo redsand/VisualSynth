@@ -115,19 +115,19 @@ const layerSchema = z.object({
 });
 
 const modConnectionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   source: z.string(),
   target: z.string(),
-  amount: z.number(),
-  curve: z.enum(['linear', 'exp', 'log']),
-  smoothing: z.number(),
-  bipolar: z.boolean(),
-  min: z.number(),
-  max: z.number()
+  amount: z.number().default(1),
+  curve: z.enum(['linear', 'exp', 'log']).default('linear'),
+  smoothing: z.number().default(0),
+  bipolar: z.boolean().default(false),
+  min: z.number().default(0),
+  max: z.number().default(1)
 });
 
 const midiMappingSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   message: z.enum(['note', 'cc', 'aftertouch', 'pitchbend']),
   channel: z.number(),
   control: z.number(),

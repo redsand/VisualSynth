@@ -14,7 +14,8 @@
           "target": "fx-kaleidoscope.segments",
           "amount": 12
         }
-      ]
+      ],
+      "description": "Controls: Reflections"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "fx-bloom.intensity",
           "amount": 1.5
         }
-      ]
+      ],
+      "description": "Controls: Glow"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "fx-kaleidoscope.rotation",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Rotation"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-crystal.hue",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Crystal Color"
     }
   ],
   "scenes": [

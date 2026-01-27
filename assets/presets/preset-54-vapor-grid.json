@@ -65,5 +65,45 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Geometry"
+  "category": "Geometry",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Topo Terrain elevation",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-topo.elevation",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Topo Terrain elevation"
+    },
+    {
+      "id": "macro-2",
+      "name": "Topo Terrain travel",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-topo.travel",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Topo Terrain travel"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

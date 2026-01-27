@@ -53,5 +53,50 @@
   "modMatrix": [],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Audio Reactive"
+  "category": "Audio Reactive",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Feedback Tunnel amount",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "fx-feedback.amount",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Feedback Tunnel amount"
+    },
+    {
+      "id": "macro-2",
+      "name": "Feedback Tunnel zoom",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "fx-feedback.zoom",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Feedback Tunnel zoom"
+    },
+    {
+      "id": "macro-3",
+      "name": "Feedback Tunnel rotation",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "fx-feedback.rotation",
+          "amount": 3.141592653589793
+        }
+      ],
+      "description": "Controls: Feedback Tunnel rotation"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

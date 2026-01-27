@@ -52,5 +52,45 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Abstract"
+  "category": "Abstract",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Glyph Language mode",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-glyph.mode",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Glyph Language mode"
+    },
+    {
+      "id": "macro-2",
+      "name": "Glyph Language complexity",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-glyph.complexity",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Glyph Language complexity"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

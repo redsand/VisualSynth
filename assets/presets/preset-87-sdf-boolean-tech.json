@@ -16,7 +16,12 @@
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
           "sdfScene": {
             "version": 1,
             "mode": "2d",
@@ -25,37 +30,179 @@
               "aaSmoothing": 0.005,
               "strokeEnabled": true,
               "strokeWidth": 0.015,
-              "strokeColor": [0.2, 0.8, 1, 1],
+              "strokeColor": [
+                0.2,
+                0.8,
+                1,
+                1
+              ],
               "fillEnabled": true,
               "fillOpacity": 0.2,
-              "fillColor": [0, 0.1, 0.2, 1],
+              "fillColor": [
+                0,
+                0.1,
+                0.2,
+                1
+              ],
               "glowEnabled": true,
               "glowIntensity": 0.4,
               "glowRadius": 0.05,
-              "glowColor": [0.2, 0.8, 1, 1],
+              "glowColor": [
+                0.2,
+                0.8,
+                1,
+                1
+              ],
               "gradientEnabled": false,
               "gradientMode": "distance",
               "gradientColors": []
             },
-            "render3d": { "maxSteps": 64, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005, "lighting": { "direction": [0, 1, 0], "color": [1, 1, 1], "intensity": 1, "ambient": 0.2, "specularPower": 32, "specularIntensity": 0.5 }, "aoEnabled": false, "aoSteps": 3, "aoIntensity": 0.5, "aoRadius": 0.2, "softShadowsEnabled": false, "shadowSoftness": 8, "shadowSteps": 8, "fogEnabled": false, "fogDensity": 0.05, "fogColor": [0,0,0], "backgroundColor": [0,0,0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0 },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
+            "render3d": {
+              "maxSteps": 64,
+              "maxDistance": 20,
+              "epsilon": 0.001,
+              "normalEpsilon": 0.0005,
+              "lighting": {
+                "direction": [
+                  0,
+                  1,
+                  0
+                ],
+                "color": [
+                  1,
+                  1,
+                  1
+                ],
+                "intensity": 1,
+                "ambient": 0.2,
+                "specularPower": 32,
+                "specularIntensity": 0.5
+              },
+              "aoEnabled": false,
+              "aoSteps": 3,
+              "aoIntensity": 0.5,
+              "aoRadius": 0.2,
+              "softShadowsEnabled": false,
+              "shadowSoftness": 8,
+              "shadowSteps": 8,
+              "fogEnabled": false,
+              "fogDensity": 0.05,
+              "fogColor": [
+                0,
+                0,
+                0
+              ],
+              "backgroundColor": [
+                0,
+                0,
+                0
+              ],
+              "backgroundGradient": false,
+              "adaptiveQuality": true,
+              "qualityBias": 0
+            },
+            "debug": {
+              "showDistance": false,
+              "distanceScale": 5,
+              "showNormals": false,
+              "showSteps": false,
+              "stepsColorScale": 64,
+              "showCostTier": false,
+              "showBounds": false,
+              "wireframe": false
+            },
             "nodes": [
-              { "instanceId": "base", "nodeId": "hexagon", "params": { "radius": 0.5 }, "enabled": true, "order": 0, "label": "Base Hex" },
-              { "instanceId": "cut", "nodeId": "circle", "params": { "radius": 0.35 }, "enabled": true, "order": 1, "label": "Cutter" },
-              { "instanceId": "sub", "nodeId": "subtract", "params": {}, "enabled": true, "order": 2, "label": "Cutout" },
-              { "instanceId": "rot", "nodeId": "rotate2d", "params": { "angle": 0 }, "enabled": true, "order": 3, "label": "Spin" }
+              {
+                "instanceId": "base",
+                "nodeId": "hexagon",
+                "params": {
+                  "radius": 0.5
+                },
+                "enabled": true,
+                "order": 0,
+                "label": "Base Hex"
+              },
+              {
+                "instanceId": "cut",
+                "nodeId": "circle",
+                "params": {
+                  "radius": 0.35
+                },
+                "enabled": true,
+                "order": 1,
+                "label": "Cutter"
+              },
+              {
+                "instanceId": "sub",
+                "nodeId": "subtract",
+                "params": {},
+                "enabled": true,
+                "order": 2,
+                "label": "Cutout"
+              },
+              {
+                "instanceId": "rot",
+                "nodeId": "rotate2d",
+                "params": {
+                  "angle": 0
+                },
+                "enabled": true,
+                "order": 3,
+                "label": "Spin"
+              }
             ],
             "connections": [
-              { "from": "base", "to": "sub", "slot": 0 },
-              { "from": "cut", "to": "sub", "slot": 1 },
-              { "from": "sub", "to": "rot", "slot": 0 }
+              {
+                "from": "base",
+                "to": "sub",
+                "slot": 0
+              },
+              {
+                "from": "cut",
+                "to": "sub",
+                "slot": 1
+              },
+              {
+                "from": "sub",
+                "to": "rot",
+                "slot": 0
+              }
             ]
           }
         }
       ]
     }
   ],
-  "macros": [],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Macro 1",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 1"
+    },
+    {
+      "id": "macro-2",
+      "name": "Macro 2",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 2"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ],
   "modMatrix": [
     {
       "id": "mod-1",

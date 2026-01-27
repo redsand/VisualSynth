@@ -34,7 +34,8 @@
           "target": "layer-inkflow.opacity",
           "amount": 0.7
         }
-      ]
+      ],
+      "description": "Controls: Ink Opacity"
     },
     {
       "id": "macro-2",
@@ -49,7 +50,8 @@
           "target": "effects.feedback",
           "amount": 0.3
         }
-      ]
+      ],
+      "description": "Controls: Ink Trails"
     },
     {
       "id": "macro-3",
@@ -64,7 +66,8 @@
           "target": "effects.chroma",
           "amount": 0.15
         }
-      ]
+      ],
+      "description": "Controls: Flourish"
     },
     {
       "id": "macro-4",
@@ -75,31 +78,46 @@
           "target": "effects.blur",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Soak"
     },
     {
       "id": "macro-5",
-      "name": "Macro 5",
+      "name": "Ink Flow pressure",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-inkflow.pressure",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Ink Flow pressure"
     },
     {
       "id": "macro-6",
-      "name": "Macro 6",
+      "name": "Ink Flow lifespan",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-inkflow.lifespan",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Ink Flow lifespan"
     },
     {
       "id": "macro-7",
       "name": "Macro 7",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 7"
     },
     {
       "id": "macro-8",
       "name": "Macro 8",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 8"
     }
   ],
   "effects": {

@@ -52,5 +52,45 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Organic"
+  "category": "Organic",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Ink Flow pressure",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-inkflow.pressure",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Ink Flow pressure"
+    },
+    {
+      "id": "macro-2",
+      "name": "Ink Flow lifespan",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-inkflow.lifespan",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Ink Flow lifespan"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

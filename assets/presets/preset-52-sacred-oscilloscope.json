@@ -34,7 +34,8 @@
           "target": "layer-oscillo.opacity",
           "amount": 0.7
         }
-      ]
+      ],
+      "description": "Controls: Oscillo Opacity"
     },
     {
       "id": "macro-2",
@@ -45,7 +46,8 @@
           "target": "effects.bloom",
           "amount": 0.25
         }
-      ]
+      ],
+      "description": "Controls: Glow"
     },
     {
       "id": "macro-3",
@@ -56,37 +58,58 @@
           "target": "effects.persistence",
           "amount": 0.35
         }
-      ]
+      ],
+      "description": "Controls: Continuity"
     },
     {
       "id": "macro-4",
-      "name": "Warp",
+      "name": "Sacred Oscilloscope mode",
       "value": 0.3,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-oscillo.mode",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Sacred Oscilloscope mode"
     },
     {
       "id": "macro-5",
-      "name": "Macro 5",
+      "name": "Sacred Oscilloscope freeze",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-oscillo.freeze",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Sacred Oscilloscope freeze"
     },
     {
       "id": "macro-6",
-      "name": "Macro 6",
+      "name": "Sacred Oscilloscope rotate",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-oscillo.rotate",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Sacred Oscilloscope rotate"
     },
     {
       "id": "macro-7",
       "name": "Macro 7",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 7"
     },
     {
       "id": "macro-8",
       "name": "Macro 8",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 8"
     }
   ],
   "effects": {

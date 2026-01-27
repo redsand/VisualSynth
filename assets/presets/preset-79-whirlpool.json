@@ -14,7 +14,8 @@
           "target": "fx-feedback.rotation",
           "amount": 0.5
         }
-      ]
+      ],
+      "description": "Controls: Spin Speed"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "gen-particles.turbulence",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Turbulence"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "fx-blur.radius",
           "amount": 0.8
         }
-      ]
+      ],
+      "description": "Controls: Underwater"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "gen-particles.density",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Debris"
     }
   ],
   "scenes": [

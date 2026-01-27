@@ -66,5 +66,55 @@
   "modMatrix": [],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Particles"
+  "category": "Particles",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Spectrum Bars smoothing",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.smoothing",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Bars smoothing"
+    },
+    {
+      "id": "macro-2",
+      "name": "Spectrum Bars sensitivity",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.sensitivity",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Bars sensitivity"
+    },
+    {
+      "id": "macro-3",
+      "name": "Spectrum Bars bar Width",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.barWidth",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Bars bar Width"
+    },
+    {
+      "id": "macro-4",
+      "name": "Spectrum Bars glow",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.glow",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Bars glow"
+    }
+  ]
 }

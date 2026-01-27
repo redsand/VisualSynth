@@ -13,9 +13,14 @@
           "id": "layer-plasma",
           "name": "Hyper Plasma",
           "enabled": true,
-          "opacity": 1.0,
+          "opacity": 1,
           "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
       ]
     }
@@ -26,16 +31,48 @@
       "name": "Hyper Speed",
       "value": 0.8,
       "targets": [
-        { "target": "layer-plasma.speed", "amount": 3.0 }
-      ]
+        {
+          "target": "layer-plasma.speed",
+          "amount": 3
+        }
+      ],
+      "description": "Controls: Hyper Speed"
     },
     {
       "id": "macro-2",
       "name": "Micro Scale",
       "value": 0.7,
       "targets": [
-        { "target": "layer-plasma.scale", "amount": 4.0 }
-      ]
+        {
+          "target": "layer-plasma.scale",
+          "amount": 4
+        }
+      ],
+      "description": "Controls: Micro Scale"
+    },
+    {
+      "id": "macro-3",
+      "name": "Hyper Plasma color Shift",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.colorShift",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Hyper Plasma color Shift"
+    },
+    {
+      "id": "macro-4",
+      "name": "Hyper Plasma brightness",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.brightness",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Hyper Plasma brightness"
     }
   ],
   "modMatrix": [
@@ -43,9 +80,9 @@
       "id": "mod-1",
       "source": "audio.rms",
       "target": "layer-plasma.speed",
-      "amount": 1.0,
-      "min": 1.0,
-      "max": 4.0,
+      "amount": 1,
+      "min": 1,
+      "max": 4,
       "curve": "exp",
       "smoothing": 0.1,
       "bipolar": false

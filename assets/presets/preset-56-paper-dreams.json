@@ -65,5 +65,45 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Organic"
+  "category": "Organic",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Origami Fold fold State",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-origami.foldState",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Origami Fold fold State"
+    },
+    {
+      "id": "macro-2",
+      "name": "Origami Fold fold Sharpness",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-origami.foldSharpness",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Origami Fold fold Sharpness"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

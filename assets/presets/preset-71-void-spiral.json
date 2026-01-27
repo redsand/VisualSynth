@@ -14,7 +14,8 @@
           "target": "fx-feedback.rotation",
           "amount": 0.3
         }
-      ]
+      ],
+      "description": "Controls: Spiral Spin"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "gen-sdf.scale",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Ring Size"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "gen-sdf.glow",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Edge Glow"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "fx-feedback.decay",
           "amount": 0.1
         }
-      ]
+      ],
+      "description": "Controls: Trail Decay"
     }
   ],
   "scenes": [

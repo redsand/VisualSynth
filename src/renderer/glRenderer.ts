@@ -1,6 +1,7 @@
 import { toFileUrl } from '../shared/fileUrl';
 import type { AssetItem } from '../shared/project';
 import type { AssetTextureSampling } from '../shared/assets';
+import { buildSdfShader } from './sdf/compile/glslBuilder';
 
 export interface RenderState {
   timeMs: number;
@@ -114,7 +115,7 @@ export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
 };
 
 export const createGLRenderer = (canvas: HTMLCanvasElement) => {
-  const gl = canvas.getContext('webgl2');
+  const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
   if (!gl) {
     throw new Error('WebGL2 required');
   }
@@ -127,7 +128,7 @@ void main() {
   gl_Position = vec4(position, 0.0, 1.0);
 }`;
 
-  const fragmentShaderSrc = `#version 300 es
+  const createFragmentShaderSrc = (sdfUniforms = '', sdfFunctions = '', sdfMapBody = 'return 10.0;') => `#version 300 es
 precision highp float;
 
 uniform float uTime;
@@ -224,12 +225,32 @@ uniform float uSdfFill;
 uniform float uPlasmaAssetEnabled;
 uniform sampler2D uPlasmaAsset;
 uniform float uPlasmaAssetBlend;
+uniform float uPlasmaAssetAudioReact;
 uniform float uSpectrumAssetEnabled;
 uniform sampler2D uSpectrumAsset;
 uniform float uSpectrumAssetBlend;
-uniform float uPlasmaAssetAudioReact;
 uniform float uSpectrumAssetAudioReact;
 uniform float uDebugTint;
+
+// --- Advanced SDF Injections ---
+uniform float uAdvancedSdfEnabled;
+${sdfUniforms}
+
+${sdfFunctions}
+
+float sdfSceneMap(vec3 p) {
+  ${sdfMapBody}
+}
+
+vec3 calcSdfNormal(vec3 p) {
+  vec2 e = vec2(0.001, 0.0);
+  return normalize(vec3(
+    sdfSceneMap(p + e.xyy) - sdfSceneMap(p - e.xyy),
+    sdfSceneMap(p + e.yxy) - sdfSceneMap(p - e.yxy),
+    sdfSceneMap(p + e.yyx) - sdfSceneMap(p - e.yyx)
+  ));
+}
+// --- End Injections ---
 
 in vec2 vUv;
 out vec4 outColor;
@@ -270,7 +291,9 @@ float sdArc(vec2 p, vec2 center, float radius, float thickness) {
   return d - thickness;
 }
 
-float hash21(vec2 p);
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
 
 float oscilloSample(float t) {
   float idx = clamp(t, 0.0, 1.0) * 255.0;
@@ -344,10 +367,6 @@ float plasma(vec2 uv, float t) {
   float v = sin(uv.x * 8.0 * uPlasmaScale + t * uPlasmaSpeed) + sin(uv.y * 6.0 * uPlasmaScale - t * 1.1 * uPlasmaSpeed);
   v += sin((uv.x + uv.y) * 4.0 * uPlasmaScale + t * 0.7 * uPlasmaSpeed);
   return v * 0.5 + 0.5;
-}
-
-float hash21(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
 float particleField(vec2 uv, float t, float density, float speed, float size) {
@@ -441,19 +460,13 @@ void main() {
   vec2 uv = vUv;
   vec2 effectUv = kaleidoscope(uv, uKaleidoscope);
   float low = 0.0;
-  for (int i = 0; i < 8; i += 1) {
-    low += uSpectrum[i];
-  }
+  for (int i = 0; i < 8; i += 1) { low += uSpectrum[i]; }
   low /= 8.0;
   float mid = 0.0;
-  for (int i = 8; i < 24; i += 1) {
-    mid += uSpectrum[i];
-  }
+  for (int i = 8; i < 24; i += 1) { mid += uSpectrum[i]; }
   mid /= 16.0;
   float high = 0.0;
-  for (int i = 24; i < 64; i += 1) {
-    high += uSpectrum[i];
-  }
+  for (int i = 24; i < 64; i += 1) { high += uSpectrum[i]; }
   high /= 40.0;
   low = pow(low, 1.2);
   mid = pow(mid, 1.1);
@@ -491,14 +504,9 @@ void main() {
     float radius = length(centered);
     float twist = uFeedback * 2.0;
     float angle = atan(centered.y, centered.x) + twist * radius * 2.0;
-    
-    // Improved depth simulation:
-    // 1. Stronger linear zoom (uFeedback * 0.4 instead of 0.2)
-    // 2. Non-linear stretch (pow) to simulate perspective acceleration
     float zoom = 1.0 - uFeedback * 0.4;
     float stretch = 1.0 + uFeedback * 0.5;
     float newRadius = pow(radius * zoom, stretch);
-    
     effectUv = vec2(cos(angle), sin(angle)) * newRadius * 0.5 + 0.5;
   }
   vec3 color = vec3(0.02, 0.04, 0.08);
@@ -506,10 +514,6 @@ void main() {
     float p = plasma(effectUv, uTime);
     color += palette(p) * uPlasmaOpacity;
   }
-  if (uDebugTint > 0.5 && uPlasmaEnabled > 0.5) {
-    color += vec3(0.06, 0.02, 0.02) * uPlasmaOpacity;
-  }
-
   if (uPlasmaAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
     float audioMod = 1.0 + (uRms * 0.3 + uPeak * 0.5) * uPlasmaAssetAudioReact;
@@ -520,7 +524,6 @@ void main() {
     float alpha = assetSample.a * clamp(uPlasmaOpacity, 0.0, 1.0);
     color = applyBlendMode(color, assetColor, uPlasmaAssetBlend, alpha);
   }
-
   if (uSpectrumEnabled > 0.5) {
     float band = floor(effectUv.x * 64.0);
     int index = int(clamp(band, 0.0, 63.0));
@@ -529,14 +532,8 @@ void main() {
     float bar = step(effectUv.y, amp);
     float trailBar = step(effectUv.y, trail);
     color += palette(amp) * bar * 0.8 * uSpectrumOpacity;
-    if (uPersistence > 0.01) {
-      color += palette(trail) * trailBar * 0.5 * uPersistence;
-    }
+    if (uPersistence > 0.01) { color += palette(trail) * trailBar * 0.5 * uPersistence; }
   }
-  if (uDebugTint > 0.5 && uSpectrumEnabled > 0.5) {
-    color += vec3(0.02, 0.06, 0.08) * uSpectrumOpacity;
-  }
-
   if (uSpectrumAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
     float band = floor(assetUv.x * 64.0);
@@ -550,7 +547,6 @@ void main() {
     float alpha = assetSample.a * clamp(uSpectrumOpacity, 0.0, 1.0);
     color = applyBlendMode(color, assetColor, uSpectrumAssetBlend, alpha);
   }
-
   if (uGlyphEnabled > 0.5) {
     vec2 grid = vec2(18.0, 10.0);
     vec2 cell = floor(effectUv * grid);
@@ -561,494 +557,313 @@ void main() {
     float bandVal = uSpectrum[bandIndex * 8];
     float complexity = clamp(0.3 + bandVal * 0.8 + uGlyphBeat * 0.4, 0.0, 1.0);
     float seed = uGlyphSeed + cellId * 0.37 + band * 2.1 + floor(uGlyphBeat * 4.0) * 7.0;
-
-    if (uGlyphMode < 0.5) {
-      local.y += (mod(cell.x, 3.0) - 1.0) * (0.08 + bandVal * 0.12);
-    } else if (uGlyphMode < 1.5) {
-      float angle = uTime * 0.15 * uGlyphSpeed + cellId * 0.12;
-      local = rotate2d(local, angle);
-    } else if (uGlyphMode < 2.5) {
-      vec2 dir = normalize(local + 0.0001);
-      local += dir * (uGlyphBeat * 0.35 + bandVal * 0.12);
-    } else {
-      float sweep = sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.6) * 0.2;
-      local.x += sweep;
-      local.y += (cell.x / grid.x - 0.5) * 0.12;
-    }
-
-    if (uGlyphMode > 2.5) {
-      float row = mod(cell.y, 4.0);
-      float lane = row - 1.5;
-      local.y += lane * 0.06;
-      local.x += sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.8) * 0.06;
-    }
-
+    if (uGlyphMode < 0.5) { local.y += (mod(cell.x, 3.0) - 1.0) * (0.08 + bandVal * 0.12); }
+    else if (uGlyphMode < 1.5) { local = rotate2d(local, uTime * 0.15 * uGlyphSpeed + cellId * 0.12); }
+    else if (uGlyphMode < 2.5) { local += normalize(local + 0.0001) * (uGlyphBeat * 0.35 + bandVal * 0.12); }
+    else { local.x += sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.6) * 0.2; local.y += (cell.x / grid.x - 0.5) * 0.12; }
+    if (uGlyphMode > 2.5) { local.y += (mod(cell.y, 4.0) - 1.5) * 0.06; local.x += sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.8) * 0.06; }
     float dist = glyphShape(local, seed, band, complexity);
     float stroke = smoothstep(0.04, 0.0, dist);
-    vec3 paletteA = vec3(0.65, 0.8, 0.95);
-    vec3 paletteB = vec3(0.95, 0.75, 0.6);
-    vec3 paletteC = vec3(0.7, 0.9, 0.78);
-    vec3 paletteD = vec3(0.82, 0.72, 0.95);
-    vec3 glyphColor = bandIndex < 2 ? paletteA : bandIndex < 4 ? paletteB : bandIndex < 6 ? paletteC : paletteD;
-    glyphColor += vec3(0.08, 0.03, 0.12) * (band / 7.0);
+    vec3 glyphColor = bandIndex < 2 ? vec3(0.65, 0.8, 0.95) : bandIndex < 4 ? vec3(0.95, 0.75, 0.6) : bandIndex < 6 ? vec3(0.7, 0.9, 0.78) : vec3(0.82, 0.72, 0.95);
     glyphColor *= 0.55 + complexity * 0.75;
     color += glyphColor * stroke * uGlyphOpacity;
   }
-  if (uDebugTint > 0.5 && uGlyphEnabled > 0.5) {
-    color += vec3(0.04, 0.02, 0.07) * uGlyphOpacity;
-  }
-
   if (uCrystalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     float alignment = smoothstep(0.2, 0.7, uRms);
-    float dissonance = clamp(uPeak - uRms, 0.0, 1.0);
     float bassStability = clamp(low * 1.4, 0.0, 1.0);
-    float branch = clamp(mid * 1.6, 0.0, 1.0);
-    float shimmer = clamp(high * 1.8, 0.0, 1.0);
-    float scale = mix(4.0, 10.0, bassStability) * (uCrystalScale > 0.01 ? uCrystalScale : 1.0);
     float timeScale = uCrystalSpeed > 0.01 ? uCrystalSpeed : 1.0;
-    float cell = crystalField(centered, uTime * 0.02 * timeScale + uCrystalMode * 2.0, scale);
+    float cell = crystalField(centered, uTime * 0.02 * timeScale + uCrystalMode * 2.0, mix(4.0, 10.0, bassStability) * (uCrystalScale > 0.01 ? uCrystalScale : 1.0));
     float shard = smoothstep(0.22, 0.02, cell);
-    float fracture = smoothstep(0.1, 0.0, cell - shimmer * 0.05) * dissonance;
-    float growth = mix(0.35, 0.9, alignment) + branch * 0.2;
-    float modeBias = uCrystalMode < 0.5 ? 0.15 : uCrystalMode < 1.5 ? 0.35 : uCrystalMode < 2.5 ? 0.7 : 0.05;
-    float brittle = clamp(uCrystalBrittleness, 0.0, 1.0);
-
-    vec3 base = vec3(0.55, 0.75, 0.95);
-    vec3 core = vec3(0.25, 0.5, 0.9);
-    vec3 caustic = vec3(0.9, 0.95, 1.0);
-    float glow = (1.0 - cell) * (0.6 + bassStability * 0.6);
-    vec3 crystal = mix(base, core, glow);
-    crystal += caustic * fracture * (0.6 + shimmer);
-    crystal *= growth + modeBias;
-    crystal *= 0.4 + (1.0 - brittle) * 0.6;
+    float growth = mix(0.35, 0.9, alignment) + mid * 0.2;
+    vec3 base = vec3(0.55, 0.75, 0.95), core = vec3(0.25, 0.5, 0.9), caustic = vec3(0.9, 0.95, 1.0);
+    vec3 crystal = mix(base, core, (1.0 - cell) * (0.6 + bassStability * 0.6));
+    crystal += caustic * smoothstep(0.1, 0.0, cell - high * 0.05) * clamp(uPeak - uRms, 0.0, 1.0) * (0.6 + high);
+    crystal *= growth + (uCrystalMode < 0.5 ? 0.15 : uCrystalMode < 1.5 ? 0.35 : uCrystalMode < 2.5 ? 0.7 : 0.05);
+    crystal *= 0.4 + (1.0 - clamp(uCrystalBrittleness, 0.0, 1.0)) * 0.6;
     color += crystal * shard * uCrystalOpacity;
   }
-  if (uDebugTint > 0.5 && uCrystalEnabled > 0.5) {
-    color += vec3(0.02, 0.05, 0.08) * uCrystalOpacity;
-  }
-
   if (uInkEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     float flowScale = mix(1.5, 4.0, uRms) * uInkScale;
-    vec2 flow = vec2(
-      sin(centered.y * flowScale + uTime * 0.4 * uInkSpeed + uPeak * 1.2),
-      cos(centered.x * flowScale - uTime * 0.35 * uInkSpeed + uRms)
-    );
+    vec2 flow = vec2(sin(centered.y * flowScale + uTime * 0.4 * uInkSpeed + uPeak * 1.2), cos(centered.x * flowScale - uTime * 0.35 * uInkSpeed + uRms));
     flow += vec2(-centered.y, centered.x) * (0.25 + uPeak * 0.5);
-    float beatKick = uGlyphBeat * 0.6;
-    if (beatKick > 0.1) {
-      flow = vec2(flow.y, -flow.x);
-    }
+    if (uGlyphBeat > 0.1) flow = vec2(flow.y, -flow.x);
     vec2 inkUv = effectUv + flow * 0.08;
-    float strand = abs(sin((inkUv.x + inkUv.y) * 18.0 * uInkScale + uTime * 0.6 * uInkSpeed));
-    float stroke = smoothstep(0.6, 0.0, strand) * (0.4 + uInkPressure * 0.8);
-    float decay = mix(0.3, 0.9, uInkLifespan);
-    vec3 inkColor;
-    if (uInkBrush < 0.5) {
-      inkColor = vec3(0.12, 0.08, 0.06);
-    } else if (uInkBrush < 1.5) {
-      inkColor = vec3(0.2, 0.15, 0.1);
-      stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
-    } else {
-      inkColor = vec3(0.1, 0.85, 0.95);
-      stroke *= 0.8 + high * 0.5;
-    }
-    color += inkColor * stroke * decay * uInkOpacity;
+    float stroke = smoothstep(0.6, 0.0, abs(sin((inkUv.x + inkUv.y) * 18.0 * uInkScale + uTime * 0.6 * uInkSpeed))) * (0.4 + uInkPressure * 0.8);
+    vec3 inkColor = uInkBrush < 0.5 ? vec3(0.12, 0.08, 0.06) : uInkBrush < 1.5 ? vec3(0.2, 0.15, 0.1) : vec3(0.1, 0.85, 0.95);
+    if (uInkBrush > 0.5 && uInkBrush < 1.5) stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
+    color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity;
   }
-  if (uDebugTint > 0.5 && uInkEnabled > 0.5) {
-    color += vec3(0.07, 0.04, 0.02) * uInkOpacity;
-  }
-
   if (uTopoEnabled > 0.5) {
-    vec2 centered = effectUv * 2.0 - 1.0;
-    // Scale adjustment (zoom)
-    centered *= (2.0 - clamp(uTopoScale, 0.1, 1.9)); 
-    
-    float elevation = (low * 0.6 + mid * 0.3 + high * 0.1) * uTopoElevation;
-    float slope = mix(0.2, 1.0, mid);
-    float contourDensity = mix(6.0, 18.0, high);
+    vec2 centered = (effectUv * 2.0 - 1.0) * (2.0 - clamp(uTopoScale, 0.1, 1.9));
     float travel = uTopoTravel + uTopoPlate * 0.4;
     vec2 flow = centered + vec2(travel * 0.4, travel * 0.2);
-    float base = sin(flow.x * 2.4 + travel) + cos(flow.y * 2.2 - travel);
-    base *= 0.35;
-    float ridges = abs(base) * (0.6 + elevation);
-    float quake = uTopoQuake * 0.6;
-    float slide = uTopoSlide * 0.5;
-    float terrain = ridges + elevation * 0.6;
-    terrain += quake * sin(flow.x * 6.0 + uTime * 1.4);
-    terrain -= slide * smoothstep(0.2, 0.9, ridges);
-    float contours = abs(sin(terrain * contourDensity)) * slope;
-    float mask = smoothstep(0.12, 0.02, contours);
-    vec3 topoBase = vec3(0.18, 0.28, 0.35);
-    vec3 topoHigh = vec3(0.4, 0.6, 0.7);
-    vec3 topoColor = mix(topoBase, topoHigh, clamp(terrain, 0.0, 1.0));
-    topoColor += vec3(0.1, 0.15, 0.2) * quake;
-    topoColor -= vec3(0.12, 0.08, 0.1) * slide;
-    color += topoColor * mask * uTopoOpacity;
+    float elevation = (low * 0.6 + mid * 0.3 + high * 0.1) * uTopoElevation;
+    float terrain = (abs(sin(flow.x * 2.4 + travel) + cos(flow.y * 2.2 - travel)) * 0.35) * (0.6 + elevation) + elevation * 0.6;
+    terrain += uTopoQuake * 0.6 * sin(flow.x * 6.0 + uTime * 1.4);
+    terrain -= uTopoSlide * 0.5 * smoothstep(0.2, 0.9, terrain);
+    float mask = smoothstep(0.12, 0.02, abs(sin(terrain * mix(6.0, 18.0, high))) * mix(0.2, 1.0, mid));
+    color += mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity;
   }
-  if (uDebugTint > 0.5 && uTopoEnabled > 0.5) {
-    color += vec3(0.03, 0.07, 0.03) * uTopoOpacity;
-  }
-
   if (uWeatherEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     float pressure = low * 1.2 + uWeatherIntensity * 0.4;
-    float wind = mid * 1.1 + uWeatherIntensity * 0.3;
-    float precip = high * 1.2 + uWeatherIntensity * 0.2;
-    float mode = uWeatherMode;
-    float storm = mode < 0.5 ? 1.0 : 0.0;
-    float fog = mode > 0.5 && mode < 1.5 ? 1.0 : 0.0;
-    float calm = mode > 1.5 && mode < 2.5 ? 1.0 : 0.0;
-    float hurricane = mode > 2.5 ? 1.0 : 0.0;
-
-    vec2 swirl = vec2(-centered.y, centered.x) * (0.2 + hurricane * 0.6);
     vec2 flow = vec2(sin(centered.y * 1.6 + uTime * 0.2 * uWeatherSpeed), cos(centered.x * 1.4 - uTime * 0.18 * uWeatherSpeed));
-    flow += swirl * (0.4 + pressure);
-    vec2 weatherUv = effectUv + flow * (0.08 + wind * 0.15);
-
-    float cloud = sin(weatherUv.x * 3.2 + uTime * 0.1 * uWeatherSpeed) + cos(weatherUv.y * 2.6 - uTime * 0.08 * uWeatherSpeed);
-    cloud = cloud * 0.35 + pressure;
-    float cloudMask = smoothstep(0.1, 0.7, cloud);
-    vec3 cloudColor = mix(vec3(0.6, 0.65, 0.7), vec3(0.85, 0.88, 0.9), cloudMask);
-    cloudColor = mix(cloudColor, vec3(0.45, 0.55, 0.65), storm);
-    cloudColor = mix(cloudColor, vec3(0.7, 0.75, 0.8), calm);
-    cloudColor = mix(cloudColor, vec3(0.55, 0.6, 0.65), fog);
-
-    float rain = abs(sin((weatherUv.x + uTime * 0.4 * uWeatherSpeed) * 30.0)) * precip;
-    float rainMask = smoothstep(0.6, 0.0, rain) * (storm + hurricane);
-    float snow = abs(sin((weatherUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * precip;
-    float snowMask = smoothstep(0.65, 0.0, snow) * fog;
-    vec3 rainColor = vec3(0.4, 0.55, 0.8) * rainMask;
-    vec3 snowColor = vec3(0.8, 0.85, 0.9) * snowMask;
-
-    float lightning = smoothstep(0.9, 1.0, precip) * storm * uGlyphBeat;
-    vec3 lightningColor = vec3(1.2, 1.1, 0.9) * lightning;
-
-    vec3 weather = cloudColor * cloudMask + rainColor + snowColor + lightningColor;
-    weather *= 0.5 + uWeatherIntensity * 0.6;
-    color += weather * uWeatherOpacity;
+    flow += vec2(-centered.y, centered.x) * (0.2 + (uWeatherMode > 2.5 ? 1.0 : 0.0) * 0.6) * (0.4 + pressure);
+    vec2 wUv = effectUv + flow * (0.08 + mid * 1.1 * 0.15);
+    float cloud = smoothstep(0.1, 0.7, (sin(wUv.x * 3.2 + uTime * 0.1 * uWeatherSpeed) + cos(wUv.y * 2.6 - uTime * 0.08 * uWeatherSpeed)) * 0.35 + pressure);
+    vec3 cCol = mix(vec3(0.6, 0.65, 0.7), vec3(0.85, 0.88, 0.9), cloud);
+    if (uWeatherMode < 0.5) cCol = mix(cCol, vec3(0.45, 0.55, 0.65), 1.0);
+    else if (uWeatherMode < 2.5) cCol = mix(cCol, vec3(0.7, 0.75, 0.8), 1.0);
+    float pHigh = high * 1.2 + uWeatherIntensity * 0.2;
+    float rain = smoothstep(0.6, 0.0, abs(sin((wUv.x + uTime * 0.4 * uWeatherSpeed) * 30.0)) * pHigh) * (uWeatherMode < 0.5 || uWeatherMode > 2.5 ? 1.0 : 0.0);
+    float snow = smoothstep(0.65, 0.0, abs(sin((wUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * pHigh) * (uWeatherMode > 0.5 && uWeatherMode < 1.5 ? 1.0 : 0.0);
+    color += (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity;
   }
-  if (uDebugTint > 0.5 && uWeatherEnabled > 0.5) {
-    color += vec3(0.03, 0.04, 0.07) * uWeatherOpacity;
-  }
-
   if (uPortalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
-    vec2 warp = vec2(0.0);
-    float ringGlow = 0.0;
+    vec2 warp = vec2(0.0); float ringGlow = 0.0;
     for (int i = 0; i < 4; i += 1) {
       if (uPortalActive[i] < 0.5) continue;
-      vec2 delta = centered - uPortalPos[i];
-      float dist = length(delta);
-      float radius = uPortalRadius[i];
-      float ring = smoothstep(radius + 0.02, radius, dist) * smoothstep(radius - 0.02, radius - 0.05, dist);
-      ringGlow += ring;
-      float pull = (radius - dist) * 0.08;
-      warp += normalize(delta + 0.0001) * pull;
+      vec2 delta = centered - uPortalPos[i]; float dist = length(delta), rad = uPortalRadius[i];
+      ringGlow += smoothstep(rad + 0.02, rad, dist) * smoothstep(rad - 0.02, rad - 0.05, dist);
+      warp += normalize(delta + 0.0001) * (rad - dist) * 0.08;
     }
     effectUv = clamp(effectUv + warp * 0.5, 0.0, 1.0);
-    vec3 portalColor = vec3(0.2, 0.6, 0.9) + vec3(0.2, 0.1, 0.3) * uPortalShift;
-    color += portalColor * ringGlow * uPortalOpacity;
+    color += (vec3(0.2, 0.6, 0.9) + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity;
   }
-  if (uDebugTint > 0.5 && uPortalEnabled > 0.5) {
-    color += vec3(0.05, 0.02, 0.07) * uPortalOpacity;
-  }
-
   if (uOscilloEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
-    float mode = uOscilloMode;
-    float rot = uOscilloRotate * 0.6 + uTime * 0.12 * (1.0 - uOscilloFreeze);
-    float minDist = 10.0;
-    float arcGlow = 0.0;
+    float rot = uOscilloRotate * 0.6 + uTime * 0.12 * (1.0 - uOscilloFreeze), minDist = 10.0, arcGlow = 0.0;
     for (int i = 0; i < 64; i += 1) {
-      float t = float(i) / 63.0;
-      float oscSample = oscilloSample(t);
-      float harmonic = 1.0 + floor(mode) * 0.35;
-      float angle = t * 6.28318 * harmonic;
-      float radius = 0.28 + oscSample * 0.22 + uRms * 0.12;
-      vec2 p = vec2(cos(angle), sin(angle)) * radius;
-      p = rotate2d(p, rot);
-      float d = length(centered - p);
-      minDist = min(minDist, d);
-      float arc = abs(length(centered) - (radius + 0.06 * sin(t * 12.0 + uTime * 0.3)));
-      arcGlow += smoothstep(0.08, 0.0, arc) * 0.2;
+      float t = float(i) / 63.0, rad = 0.28 + oscilloSample(t) * 0.22 + uRms * 0.12;
+      vec2 p = rotate2d(vec2(cos(t * 6.28318 * (1.0 + floor(uOscilloMode) * 0.35)), sin(t * 6.28318 * (1.0 + floor(uOscilloMode) * 0.35))) * rad, rot);
+      minDist = min(minDist, length(centered - p));
+      arcGlow += smoothstep(0.08, 0.0, abs(length(centered) - (rad + 0.06 * sin(t * 12.0 + uTime * 0.3)))) * 0.2;
     }
-    float line = smoothstep(0.07, 0.0, minDist);
-    float halo = smoothstep(0.18, 0.0, minDist) * 0.35;
-    float purity = smoothstep(0.2, 0.7, uRms);
-    vec3 base = mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]);
-    vec3 glow = mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]);
-    vec3 oscilloColor = base * (0.6 + purity * 0.5) + glow * (0.2 + uPeak * 0.6);
-    oscilloColor += vec3(0.2, 0.15, 0.4) * arcGlow;
-    color += oscilloColor * (line + halo + arcGlow) * uOscilloOpacity;
+    color += (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity;
   }
-  if (uDebugTint > 0.5 && uOscilloEnabled > 0.5) {
-    color += vec3(0.06, 0.04, 0.01) * uOscilloOpacity;
-  }
-
-  if (gravityLens > 0.0 || gravityRing > 0.0) {
-    vec3 lensColor = vec3(0.08, 0.12, 0.2) * gravityLens;
-    vec3 ringColor = vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
-    color += lensColor + ringColor;
-  }
-
+  if (gravityLens > 0.0 || gravityRing > 0.0) color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
   if (uOrigamiEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
-    float baseGrid = mix(2.5, 7.5, low);
-    float midGrid = mix(6.0, 18.0, mid);
-    float highGrid = mix(18.0, 60.0, high);
     float sharp = mix(0.12, 0.02, clamp(uOrigamiFoldSharpness, 0.0, 1.0));
-    float baseLine = abs(sin((centered.x * 0.9 + centered.y * 0.4) * baseGrid + uTime * 0.35 * uOrigamiSpeed));
-    float diagLine = abs(sin((centered.x * -0.4 + centered.y * 0.9) * baseGrid + 1.7));
-    float creaseBase = 1.0 - smoothstep(0.0, sharp, min(baseLine, diagLine));
-    float midLine = abs(sin(centered.x * midGrid)) * abs(sin(centered.y * midGrid));
-    float creaseMid = 1.0 - smoothstep(0.0, sharp * 0.8, midLine);
-    float ripple = sin(centered.x * highGrid + uTime * uOrigamiSpeed) * sin(centered.y * highGrid - uTime * 0.8 * uOrigamiSpeed);
-
-    float foldField = (creaseBase * (0.6 + low) + creaseMid * (0.4 + mid)) * (0.6 + uOrigamiFoldSharpness);
-    foldField += ripple * high * 0.3;
-
-    float foldMode = uOrigamiFoldState;
-    float foldSign = foldMode < 0.5 ? 1.0 : (foldMode < 1.5 ? -1.0 : (foldMode < 2.5 ? 1.0 : -1.0));
-    float radial = smoothstep(0.9, 0.0, length(centered));
-    float collapse = step(1.5, foldMode) * (1.0 - step(2.5, foldMode));
-    float explode = step(2.5, foldMode);
-    float radialFold = (collapse - explode) * radial * (0.4 + low);
-    float displacement = (foldField + radialFold) * foldSign;
-
+    float foldField = ( (1.0 - smoothstep(0.0, sharp, min(abs(sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed)), abs(sin((centered.x * -0.4 + centered.y * 0.9) * mix(2.5, 7.5, low) + 1.7))))) * (0.6 + low) + (1.0 - smoothstep(0.0, sharp * 0.8, abs(sin(centered.x * mix(6.0, 18.0, mid))) * abs(sin(centered.y * mix(6.0, 18.0, mid))))) * (0.4 + mid) ) * (0.6 + uOrigamiFoldSharpness) + sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed) * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed) * high * 0.3;
+    float displacement = (foldField + (step(1.5, uOrigamiFoldState) * (1.0 - step(2.5, uOrigamiFoldState)) - step(2.5, uOrigamiFoldState)) * smoothstep(0.9, 0.0, length(centered)) * (0.4 + low)) * (uOrigamiFoldState < 0.5 ? 1.0 : (uOrigamiFoldState < 1.5 ? -1.0 : (uOrigamiFoldState < 2.5 ? 1.0 : -1.0)));
     vec3 normal = normalize(vec3(-dFdx(displacement), -dFdy(displacement), 1.0));
-    vec3 lightDir = normalize(vec3(-0.4, 0.6, 0.9));
-    float diff = clamp(dot(normal, lightDir), 0.0, 1.0);
-    float edge = smoothstep(0.2, 0.75, foldField);
+    float diff = clamp(dot(normal, normalize(vec3(-0.4, 0.6, 0.9))), 0.0, 1.0);
     float grain = hash21(effectUv * 420.0) * 0.12 + hash21(effectUv * 1200.0) * 0.06;
-    float fiber = sin((effectUv.y + grain) * 900.0) * 0.03;
-    float tear = smoothstep(0.7, 0.98, abs(ripple)) * high * (0.6 + grain);
-    vec3 paper = vec3(0.92, 0.9, 0.86);
-    vec3 shade = paper * (0.65 + diff * 0.45) + edge * vec3(0.12, 0.1, 0.08);
-    shade += vec3(fiber + grain) * 0.15;
-    shade -= tear * vec3(0.18, 0.12, 0.08);
-    shade = clamp(shade, 0.0, 1.0);
-    color = applyBlendMode(color, shade, 3.0, clamp(uOrigamiOpacity, 0.0, 1.0));
+    color = applyBlendMode(color, clamp(vec3(0.92, 0.9, 0.86) * (0.65 + diff * 0.45) + smoothstep(0.2, 0.75, foldField) * vec3(0.12, 0.1, 0.08) + vec3(sin((effectUv.y + grain) * 900.0) * 0.03 + grain) * 0.15 - smoothstep(0.7, 0.98, abs(sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed) * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed))) * high * (0.6 + grain) * vec3(0.18, 0.12, 0.08), 0.0, 1.0), 3.0, clamp(uOrigamiOpacity, 0.0, 1.0));
   }
-  if (uDebugTint > 0.5 && uOrigamiEnabled > 0.5) {
-    color += vec3(0.06, 0.05, 0.02) * uOrigamiOpacity;
-  }
-
-  if (uParticlesEnabled > 0.5) {
-    float particles = particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize);
-    float lift = 0.5 + uRms * 0.8;
-    color += vec3(0.2, 0.7, 1.0) * particles * uParticleGlow * lift;
-  }
-  if (uDebugTint > 0.5 && uParticlesEnabled > 0.5) {
-    color += vec3(0.02, 0.07, 0.02) * uParticleGlow;
-  }
-
+  if (uParticlesEnabled > 0.5) color += vec3(0.2, 0.7, 1.0) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8);
   if (uSdfEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
-    centered = rotate2d(centered, uSdfRotation);
-    float scale = mix(0.2, 0.9, uSdfScale);
-    float sdfValue = 0.0;
-    if (uSdfShape < 0.5) {
-      sdfValue = sdCircle(centered, scale);
-    } else if (uSdfShape < 1.5) {
-      sdfValue = sdBox(centered, vec2(scale));
+    if (uAdvancedSdfEnabled > 0.5) {
+      vec3 ro = vec3(0.0, 0.0, 2.0), rd = normalize(vec3(centered, -1.0));
+      float t = 0.0, d = 0.0; bool hit = false;
+      for (int i = 0; i < 64; i++) {
+        vec3 p = ro + rd * t; d = sdfSceneMap(p); 
+        if (d < 0.001) { hit = true; break; }
+        if (t > 10.0) break;
+        t += d;
+      }
+      if (hit) {
+        vec3 p = ro + rd * t, n = calcSdfNormal(p), l = normalize(vec3(2.0, 3.0, 4.0) - p);
+        color += (vec3(0.2, 0.5, 1.0) * (max(dot(n, l), 0.0) * 0.8 + 0.2) + pow(max(dot(reflect(-l, n), -rd), 0.0), 32.0) * 0.5 + pow(1.0 + dot(rd, n), 5.0) * 0.3 + smoothstep(0.1, 0.0, d) * uSdfGlow) * uSdfFill;
+      }
     } else {
-      sdfValue = sdEquilateralTriangle(centered, scale);
+      centered = rotate2d(centered, uSdfRotation); float scale = mix(0.2, 0.9, uSdfScale), sdfValue = uSdfShape < 0.5 ? sdCircle(centered, scale) : (uSdfShape < 1.5 ? sdBox(centered, vec2(scale)) : sdEquilateralTriangle(centered, scale));
+      color += vec3(1.0, 0.6, 0.25) * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6);
     }
-    float edge = smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue));
-    float fill = smoothstep(0.02, -0.02, sdfValue);
-    float sdfIntensity = max(fill * uSdfFill, edge * uSdfGlow);
-    float pulse = 0.85 + uPeak * 0.6;
-    color += vec3(1.0, 0.6, 0.25) * sdfIntensity * pulse;
   }
-  if (uDebugTint > 0.5 && uSdfEnabled > 0.5) {
-    color += vec3(0.07, 0.02, 0.02) * uSdfGlow;
-  }
-
-  float flash = uStrobe * 1.5;
-  color += vec3(flash);
-  color += vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
-
-  if (uEffectsEnabled > 0.5) {
-    float bloom = uBloom;
-    color += pow(color, vec3(2.0)) * bloom;
-    color = posterize(color, uPosterize);
-  }
-
-  if (uEffectsEnabled > 0.5 && uChroma > 0.01) {
-    vec2 offset = vec2(uChroma * 0.02, 0.0);
-    vec3 shifted = vec3(color.r, color.g, color.b);
-    shifted.r = color.r + offset.x;
-    shifted.b = color.b - offset.x;
-    color = mix(color, shifted, 0.3);
-  }
-
-  if (uEffectsEnabled > 0.5 && uBlur > 0.01) {
-    color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
-  }
-
+  color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
+  if (uEffectsEnabled > 0.5) { color += pow(color, vec3(2.0)) * uBloom; color = posterize(color, uPosterize); }
+  if (uEffectsEnabled > 0.5 && uChroma > 0.01) color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
+  if (uEffectsEnabled > 0.5 && uBlur > 0.01) color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
   color = shiftPalette(color, uPaletteShift);
   color = applySaturation(color, uSaturation);
   color = applyContrast(color, uContrast);
   color = color / (vec3(1.0) + color);
   color = pow(color, vec3(1.0 / 1.35));
-
+  if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);
-}`;
+}
+`;
+
+  let lastSdfSceneJson = '';
+  let advancedSdfProgram: WebGLProgram | null = null;
+  let advancedSdfUniforms: any[] = [];
+  let advancedSdfUniformLocations: Map<string, WebGLUniformLocation | null> = new Map();
+  let currentPalette: [number, number, number][] = [];
 
   const compileShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
-    if (!shader) throw new Error('Shader creation failed');
+    if (!shader) return null;
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      throw new Error(gl.getShaderInfoLog(shader) || 'Shader compile error');
+      console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
     }
     return shader;
   };
 
-  const vertexShader = compileShader(gl.VERTEX_SHADER, vertexShaderSrc);
-  const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentShaderSrc);
+  const createProgram = (vSource: string, fSource: string) => {
+    const vs = compileShader(gl.VERTEX_SHADER, vSource);
+    const fs = compileShader(gl.FRAGMENT_SHADER, fSource);
+    if (!vs || !fs) return null;
+    const prog = gl.createProgram();
+    if (!prog) return null;
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error('Program link error:', gl.getProgramInfoLog(prog));
+      gl.deleteProgram(prog);
+      return null;
+    }
+    return prog;
+  };
 
-  const program = gl.createProgram();
-  if (!program) throw new Error('Program creation failed');
+  const standardProgram = createProgram(vertexShaderSrc, createFragmentShaderSrc())!;
+  let currentProgram = standardProgram;
 
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
-
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    throw new Error(gl.getProgramInfoLog(program) || 'Program link error');
-  }
-
-  gl.useProgram(program);
+  const updateAdvancedSdfProgram = (scene: any) => {
+    const sceneJson = JSON.stringify(scene || {});
+    if (sceneJson === lastSdfSceneJson) return;
+    lastSdfSceneJson = sceneJson;
+    if (!scene || !scene.nodes || scene.nodes.length === 0) {
+      advancedSdfProgram = null; return;
+    }
+    try {
+      const compiled = buildSdfShader(scene.nodes, scene.connections || [], scene.mode || '2d');
+      const uniformsCode = compiled.uniforms.map(u => `uniform ${u.type} ${u.name};`).join('\n');
+      const fSource = createFragmentShaderSrc(uniformsCode, compiled.functionsCode, compiled.mapBody);
+      const newProg = createProgram(vertexShaderSrc, fSource);
+      if (newProg) {
+        advancedSdfProgram = newProg;
+        advancedSdfUniforms = compiled.uniforms;
+        advancedSdfUniformLocations.clear();
+        advancedSdfUniforms.forEach(u => advancedSdfUniformLocations.set(u.name, gl.getUniformLocation(newProg, u.name)));
+      }
+    } catch (err) {
+      console.error('Failed to build advanced SDF shader:', err);
+      advancedSdfProgram = null;
+    }
+  };
 
   const positionBuffer = gl.createBuffer();
   if (!positionBuffer) throw new Error('Buffer creation failed');
-
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  const vertices = new Float32Array([
-    -1, -1,
-    1, -1,
-    -1, 1,
-    -1, 1,
-    1, -1,
-    1, 1
-  ]);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
-  gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-  const positionLocation = gl.getAttribLocation(program, 'position');
-
-  gl.enableVertexAttribArray(positionLocation);
-  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
-  const timeLocation = gl.getUniformLocation(program, 'uTime');
-  const rmsLocation = gl.getUniformLocation(program, 'uRms');
-  const peakLocation = gl.getUniformLocation(program, 'uPeak');
-  const strobeLocation = gl.getUniformLocation(program, 'uStrobe');
-  const plasmaLocation = gl.getUniformLocation(program, 'uPlasmaEnabled');
-  const spectrumLocation = gl.getUniformLocation(program, 'uSpectrumEnabled');
-  const origamiLocation = gl.getUniformLocation(program, 'uOrigamiEnabled');
-  const glyphLocation = gl.getUniformLocation(program, 'uGlyphEnabled');
-  const glyphOpacityLocation = gl.getUniformLocation(program, 'uGlyphOpacity');
-  const glyphModeLocation = gl.getUniformLocation(program, 'uGlyphMode');
-  const glyphSeedLocation = gl.getUniformLocation(program, 'uGlyphSeed');
-  const glyphBeatLocation = gl.getUniformLocation(program, 'uGlyphBeat');
-  const glyphSpeedLocation = gl.getUniformLocation(program, 'uGlyphSpeed');
-  const crystalLocation = gl.getUniformLocation(program, 'uCrystalEnabled');
-  const crystalOpacityLocation = gl.getUniformLocation(program, 'uCrystalOpacity');
-  const crystalModeLocation = gl.getUniformLocation(program, 'uCrystalMode');
-  const crystalBrittleLocation = gl.getUniformLocation(program, 'uCrystalBrittleness');
-  const crystalScaleLocation = gl.getUniformLocation(program, 'uCrystalScale');
-  const crystalSpeedLocation = gl.getUniformLocation(program, 'uCrystalSpeed');
-  const inkLocation = gl.getUniformLocation(program, 'uInkEnabled');
-  const inkOpacityLocation = gl.getUniformLocation(program, 'uInkOpacity');
-  const inkBrushLocation = gl.getUniformLocation(program, 'uInkBrush');
-  const inkPressureLocation = gl.getUniformLocation(program, 'uInkPressure');
-  const inkLifespanLocation = gl.getUniformLocation(program, 'uInkLifespan');
-  const inkSpeedLocation = gl.getUniformLocation(program, 'uInkSpeed');
-  const inkScaleLocation = gl.getUniformLocation(program, 'uInkScale');
-  const topoLocation = gl.getUniformLocation(program, 'uTopoEnabled');
-  const topoOpacityLocation = gl.getUniformLocation(program, 'uTopoOpacity');
-  const topoQuakeLocation = gl.getUniformLocation(program, 'uTopoQuake');
-  const topoSlideLocation = gl.getUniformLocation(program, 'uTopoSlide');
-  const topoPlateLocation = gl.getUniformLocation(program, 'uTopoPlate');
-  const topoTravelLocation = gl.getUniformLocation(program, 'uTopoTravel');
-  const topoScaleLocation = gl.getUniformLocation(program, 'uTopoScale');
-  const topoElevationLocation = gl.getUniformLocation(program, 'uTopoElevation');
-  const weatherLocation = gl.getUniformLocation(program, 'uWeatherEnabled');
-  const weatherOpacityLocation = gl.getUniformLocation(program, 'uWeatherOpacity');
-  const weatherModeLocation = gl.getUniformLocation(program, 'uWeatherMode');
-  const weatherIntensityLocation = gl.getUniformLocation(program, 'uWeatherIntensity');
-  const weatherSpeedLocation = gl.getUniformLocation(program, 'uWeatherSpeed');
-  const portalLocation = gl.getUniformLocation(program, 'uPortalEnabled');
-  const portalOpacityLocation = gl.getUniformLocation(program, 'uPortalOpacity');
-  const portalShiftLocation = gl.getUniformLocation(program, 'uPortalShift');
-  const portalPosLocation = gl.getUniformLocation(program, 'uPortalPos[0]');
-  const portalRadiusLocation = gl.getUniformLocation(program, 'uPortalRadius[0]');
-  const portalActiveLocation = gl.getUniformLocation(program, 'uPortalActive[0]');
-  const oscilloLocation = gl.getUniformLocation(program, 'uOscilloEnabled');
-  const oscilloOpacityLocation = gl.getUniformLocation(program, 'uOscilloOpacity');
-  const oscilloModeLocation = gl.getUniformLocation(program, 'uOscilloMode');
-  const oscilloFreezeLocation = gl.getUniformLocation(program, 'uOscilloFreeze');
-  const oscilloRotateLocation = gl.getUniformLocation(program, 'uOscilloRotate');
-  const oscilloDataLocation = gl.getUniformLocation(program, 'uOscillo[0]');
-  const gravityPosLocation = gl.getUniformLocation(program, 'uGravityPos[0]');
-  const gravityStrengthLocation = gl.getUniformLocation(program, 'uGravityStrength[0]');
-  const gravityPolarityLocation = gl.getUniformLocation(program, 'uGravityPolarity[0]');
-  const gravityActiveLocation = gl.getUniformLocation(program, 'uGravityActive[0]');
-  const gravityCollapseLocation = gl.getUniformLocation(program, 'uGravityCollapse');
-  const spectrumArrayLocation = gl.getUniformLocation(program, 'uSpectrum');
-  const contrastLocation = gl.getUniformLocation(program, 'uContrast');
-  const saturationLocation = gl.getUniformLocation(program, 'uSaturation');
-  const paletteShiftLocation = gl.getUniformLocation(program, 'uPaletteShift');
-  const paletteLocation = gl.getUniformLocation(program, 'uPalette');
-  const plasmaOpacityLocation = gl.getUniformLocation(program, 'uPlasmaOpacity');
-  const plasmaSpeedLocation = gl.getUniformLocation(program, 'uPlasmaSpeed');
-  const plasmaScaleLocation = gl.getUniformLocation(program, 'uPlasmaScale');
-  const spectrumOpacityLocation = gl.getUniformLocation(program, 'uSpectrumOpacity');
-  const origamiOpacityLocation = gl.getUniformLocation(program, 'uOrigamiOpacity');
-  const origamiFoldStateLocation = gl.getUniformLocation(program, 'uOrigamiFoldState');
-  const origamiFoldSharpnessLocation = gl.getUniformLocation(program, 'uOrigamiFoldSharpness');
-  const origamiSpeedLocation = gl.getUniformLocation(program, 'uOrigamiSpeed');
-  const effectsEnabledLocation = gl.getUniformLocation(program, 'uEffectsEnabled');
-  const bloomLocation = gl.getUniformLocation(program, 'uBloom');
-  const blurLocation = gl.getUniformLocation(program, 'uBlur');
-  const chromaLocation = gl.getUniformLocation(program, 'uChroma');
-  const posterizeLocation = gl.getUniformLocation(program, 'uPosterize');
-  const kaleidoscopeLocation = gl.getUniformLocation(program, 'uKaleidoscope');
-  const kaleidoscopeRotationLocation = gl.getUniformLocation(program, 'uKaleidoscopeRotation');
-  const feedbackLocation = gl.getUniformLocation(program, 'uFeedback');
-  const persistenceLocation = gl.getUniformLocation(program, 'uPersistence');
-  const trailSpectrumLocation = gl.getUniformLocation(program, 'uTrailSpectrum');
-  const plasmaAssetEnabledLocation = gl.getUniformLocation(program, 'uPlasmaAssetEnabled');
-  const plasmaAssetSamplerLocation = gl.getUniformLocation(program, 'uPlasmaAsset');
-  const plasmaAssetBlendLocation = gl.getUniformLocation(program, 'uPlasmaAssetBlend');
-  const plasmaAssetAudioReactLocation = gl.getUniformLocation(program, 'uPlasmaAssetAudioReact');
-  const spectrumAssetEnabledLocation = gl.getUniformLocation(program, 'uSpectrumAssetEnabled');
-  const spectrumAssetSamplerLocation = gl.getUniformLocation(program, 'uSpectrumAsset');
-  const spectrumAssetBlendLocation = gl.getUniformLocation(program, 'uSpectrumAssetBlend');
-  const spectrumAssetAudioReactLocation = gl.getUniformLocation(program, 'uSpectrumAssetAudioReact');
-  const debugTintLocation = gl.getUniformLocation(program, 'uDebugTint');
-  const particlesEnabledLocation = gl.getUniformLocation(program, 'uParticlesEnabled');
-  const particleDensityLocation = gl.getUniformLocation(program, 'uParticleDensity');
-  const particleSpeedLocation = gl.getUniformLocation(program, 'uParticleSpeed');
-  const particleSizeLocation = gl.getUniformLocation(program, 'uParticleSize');
-  const particleGlowLocation = gl.getUniformLocation(program, 'uParticleGlow');
-  const sdfEnabledLocation = gl.getUniformLocation(program, 'uSdfEnabled');
-  const sdfShapeLocation = gl.getUniformLocation(program, 'uSdfShape');
-  const sdfScaleLocation = gl.getUniformLocation(program, 'uSdfScale');
-  const sdfEdgeLocation = gl.getUniformLocation(program, 'uSdfEdge');
-  const sdfGlowLocation = gl.getUniformLocation(program, 'uSdfGlow');
-  const sdfRotationLocation = gl.getUniformLocation(program, 'uSdfRotation');
-  const sdfFillLocation = gl.getUniformLocation(program, 'uSdfFill');
+  const updateStandardUniforms = (prog: WebGLProgram, state: RenderState) => {
+    gl.useProgram(prog);
+    const getLocation = (name: string) => gl.getUniformLocation(prog, name);
+    gl.uniform1f(getLocation('uTime'), state.timeMs / 1000);
+    gl.uniform1f(getLocation('uRms'), state.rms);
+    gl.uniform1f(getLocation('uPeak'), state.peak);
+    gl.uniform1f(getLocation('uStrobe'), state.strobe);
+    gl.uniform1f(getLocation('uAspect'), canvas.width / canvas.height);
+    gl.uniform2f(getLocation('uResolution'), canvas.width, canvas.height);
+    gl.uniform1f(getLocation('uPlasmaEnabled'), state.plasmaEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPlasmaOpacity'), state.plasmaOpacity);
+    gl.uniform1f(getLocation('uPlasmaSpeed'), state.plasmaSpeed || 1.0);
+    gl.uniform1f(getLocation('uPlasmaScale'), state.plasmaScale || 1.0);
+    gl.uniform1f(getLocation('uSpectrumEnabled'), state.spectrumEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uSpectrumOpacity'), state.spectrumOpacity);
+    gl.uniform1fv(getLocation('uSpectrum[0]'), state.spectrum);
+    gl.uniform1f(getLocation('uOrigamiEnabled'), state.origamiEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uOrigamiOpacity'), state.origamiOpacity);
+    gl.uniform1f(getLocation('uOrigamiFoldState'), state.origamiFoldState);
+    gl.uniform1f(getLocation('uOrigamiFoldSharpness'), state.origamiFoldSharpness);
+    gl.uniform1f(getLocation('uOrigamiSpeed'), state.origamiSpeed || 1.0);
+    gl.uniform1f(getLocation('uGlyphEnabled'), state.glyphEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGlyphOpacity'), state.glyphOpacity);
+    gl.uniform1f(getLocation('uGlyphMode'), state.glyphMode);
+    gl.uniform1f(getLocation('uGlyphSeed'), state.glyphSeed);
+    gl.uniform1f(getLocation('uGlyphBeat'), state.glyphBeat);
+    gl.uniform1f(getLocation('uGlyphSpeed'), state.glyphSpeed || 1.0);
+    gl.uniform1f(getLocation('uCrystalEnabled'), state.crystalEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCrystalOpacity'), state.crystalOpacity);
+    gl.uniform1f(getLocation('uCrystalMode'), state.crystalMode);
+    gl.uniform1f(getLocation('uCrystalBrittleness'), state.crystalBrittleness);
+    gl.uniform1f(getLocation('uCrystalScale'), state.crystalScale || 1.0);
+    gl.uniform1f(getLocation('uCrystalSpeed'), state.crystalSpeed || 1.0);
+    gl.uniform1f(getLocation('uInkEnabled'), state.inkEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uInkOpacity'), state.inkOpacity);
+    gl.uniform1f(getLocation('uInkBrush'), state.inkBrush);
+    gl.uniform1f(getLocation('uInkPressure'), state.inkPressure);
+    gl.uniform1f(getLocation('uInkLifespan'), state.inkLifespan);
+    gl.uniform1f(getLocation('uInkSpeed'), state.inkSpeed || 1.0);
+    gl.uniform1f(getLocation('uInkScale'), state.inkScale || 1.0);
+    gl.uniform1f(getLocation('uTopoEnabled'), state.topoEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uTopoOpacity'), state.topoOpacity);
+    gl.uniform1f(getLocation('uTopoQuake'), state.topoQuake);
+    gl.uniform1f(getLocation('uTopoSlide'), state.topoSlide);
+    gl.uniform1f(getLocation('uTopoPlate'), state.topoPlate);
+    gl.uniform1f(getLocation('uTopoTravel'), state.topoTravel);
+    gl.uniform1f(getLocation('uTopoScale'), state.topoScale || 1.0);
+    gl.uniform1f(getLocation('uTopoElevation'), state.topoElevation || 1.0);
+    gl.uniform1f(getLocation('uWeatherEnabled'), state.weatherEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uWeatherOpacity'), state.weatherOpacity);
+    gl.uniform1f(getLocation('uWeatherMode'), state.weatherMode);
+    gl.uniform1f(getLocation('uWeatherIntensity'), state.weatherIntensity);
+    gl.uniform1f(getLocation('uWeatherSpeed'), state.weatherSpeed || 1.0);
+    gl.uniform1f(getLocation('uPortalEnabled'), state.portalEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPortalOpacity'), state.portalOpacity);
+    gl.uniform1f(getLocation('uPortalShift'), state.portalShift);
+    gl.uniform2fv(getLocation('uPortalPos[0]'), state.portalPositions);
+    gl.uniform1fv(getLocation('uPortalRadius[0]'), state.portalRadii);
+    gl.uniform1fv(getLocation('uPortalActive[0]'), state.portalActives);
+    gl.uniform1f(getLocation('uOscilloEnabled'), state.oscilloEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uOscilloOpacity'), state.oscilloOpacity);
+    gl.uniform1f(getLocation('uOscilloMode'), state.oscilloMode);
+    gl.uniform1f(getLocation('uOscilloFreeze'), state.oscilloFreeze);
+    gl.uniform1f(getLocation('uOscilloRotate'), state.oscilloRotate);
+    gl.uniform1fv(getLocation('uOscillo[0]'), state.oscilloData);
+    gl.uniform2fv(getLocation('uGravityPos[0]'), state.gravityPositions);
+    gl.uniform1fv(getLocation('uGravityStrength[0]'), state.gravityStrengths);
+    gl.uniform1fv(getLocation('uGravityPolarity[0]'), state.gravityPolarities);
+    gl.uniform1fv(getLocation('uGravityActive[0]'), state.gravityActives);
+    gl.uniform1f(getLocation('uGravityCollapse'), state.gravityCollapse);
+    gl.uniform1f(getLocation('uContrast'), state.contrast);
+    gl.uniform1f(getLocation('uSaturation'), state.saturation);
+    gl.uniform1f(getLocation('uPaletteShift'), state.paletteShift);
+    gl.uniform1f(getLocation('uEffectsEnabled'), state.effectsEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uBloom'), state.bloom);
+    gl.uniform1f(getLocation('uBlur'), state.blur);
+    gl.uniform1f(getLocation('uChroma'), state.chroma);
+    gl.uniform1f(getLocation('uPosterize'), state.posterize);
+    gl.uniform1f(getLocation('uKaleidoscope'), state.kaleidoscope);
+    gl.uniform1f(getLocation('uKaleidoscopeRotation'), state.kaleidoscopeRotation || 0.0);
+    gl.uniform1f(getLocation('uFeedback'), state.feedback);
+    gl.uniform1f(getLocation('uPersistence'), state.persistence);
+    gl.uniform1fv(getLocation('uTrailSpectrum[0]'), state.trailSpectrum);
+    gl.uniform1f(getLocation('uParticlesEnabled'), state.particlesEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uParticleDensity'), state.particleDensity);
+    gl.uniform1f(getLocation('uParticleSpeed'), state.particleSpeed);
+    gl.uniform1f(getLocation('uParticleSize'), state.particleSize);
+    gl.uniform1f(getLocation('uParticleGlow'), state.particleGlow);
+    gl.uniform1f(getLocation('uSdfEnabled'), state.sdfEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uSdfShape'), state.sdfShape);
+    gl.uniform1f(getLocation('uSdfScale'), state.sdfScale);
+    gl.uniform1f(getLocation('uSdfEdge'), state.sdfEdge);
+    gl.uniform1f(getLocation('uSdfGlow'), state.sdfGlow);
+    gl.uniform1f(getLocation('uSdfRotation'), state.sdfRotation);
+    gl.uniform1f(getLocation('uSdfFill'), state.sdfFill);
+    gl.uniform1f(getLocation('uDebugTint'), state.debugTint ?? 0);
+    gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
+    if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
+    const pLoc = gl.getAttribLocation(prog, 'position');
+    gl.enableVertexAttribArray(pLoc);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+  };
 
   type AssetLayerId = 'layer-plasma' | 'layer-spectrum';
-  const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = {
-    'layer-plasma': 1,
-    'layer-spectrum': 2
-  };
+  const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = { 'layer-plasma': 1, 'layer-spectrum': 2 };
 
   interface AssetCacheEntry {
     assetId: string;
@@ -1086,21 +901,13 @@ void main() {
   const loadImageAsset = (asset: AssetItem): Promise<AssetCacheEntry> =>
     new Promise((resolve) => {
       const texture = gl.createTexture();
-      if (!texture) {
-        resolve({ assetId: asset.id, texture: gl.createTexture()! });
-        return;
-      }
+      if (!texture) { resolve({ assetId: asset.id, texture: gl.createTexture()! }); return; }
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       if (!asset.path) {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        resolve({
-          assetId: asset.id,
-          texture,
-          width: asset.width,
-          height: asset.height
-        });
+        resolve({ assetId: asset.id, texture, width: asset.width, height: asset.height });
         return;
       }
       const image = new Image();
@@ -1109,28 +916,13 @@ void main() {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-        applyTextureSampling(
-          asset.options?.textureSampling,
-          Boolean(asset.options?.generateMipmaps),
-          image.width,
-          image.height
-        );
-        resolve({
-          assetId: asset.id,
-          texture,
-          width: image.width,
-          height: image.height
-        });
+        applyTextureSampling(asset.options?.textureSampling, Boolean(asset.options?.generateMipmaps), image.width, image.height);
+        resolve({ assetId: asset.id, texture, width: image.width, height: image.height });
       };
       image.onerror = () => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        resolve({
-          assetId: asset.id,
-          texture,
-          width: asset.width,
-          height: asset.height
-        });
+        resolve({ assetId: asset.id, texture, width: asset.width, height: asset.height });
       };
       image.src = toFileUrl(asset.path);
     });
@@ -1138,97 +930,41 @@ void main() {
   const loadVideoAsset = (asset: AssetItem, videoOverride?: HTMLVideoElement): Promise<AssetCacheEntry> =>
     new Promise((resolve) => {
       const texture = gl.createTexture();
-      if (!texture) {
-        resolve({ assetId: asset.id, texture: gl.createTexture()! });
-        return;
-      }
+      if (!texture) { resolve({ assetId: asset.id, texture: gl.createTexture()! }); return; }
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       const video = videoOverride ?? document.createElement('video');
-      if (!videoOverride) {
-        video.crossOrigin = 'anonymous';
-        video.muted = true;
-        video.loop = asset.options?.loop ?? true;
-        video.playsInline = true;
-        video.preload = 'auto';
-        video.autoplay = true;
+      if (!videoOverride) { 
+        video.crossOrigin = 'anonymous'; video.muted = true; video.loop = asset.options?.loop ?? true;
+        video.playsInline = true; video.preload = 'auto'; video.autoplay = true;
         video.playbackRate = asset.options?.playbackRate ?? 1;
       }
-      const applyPlaybackDirection = () => {
-        const baseRate = asset.options?.playbackRate ?? 1;
-        if (asset.options?.reverse) {
-          const rate = Math.max(0.01, Math.abs(baseRate));
-          video.playbackRate = -rate;
-          if (video.duration) {
-            video.currentTime = video.duration;
-          }
-        } else {
-          video.playbackRate = baseRate;
-        }
-      };
-
       const finalize = () => {
-        applyPlaybackDirection();
+        const baseRate = asset.options?.playbackRate ?? 1;
+        video.playbackRate = asset.options?.reverse ? -Math.max(0.01, Math.abs(baseRate)) : baseRate;
+        if (asset.options?.reverse && video.duration) video.currentTime = video.duration;
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
         applyTextureSampling(asset.options?.textureSampling, false, video.videoWidth, video.videoHeight);
-        resolve({
-          assetId: asset.id,
-          texture,
-          video,
-          width: video.videoWidth || asset.width,
-          height: video.videoHeight || asset.height,
-          options: asset.options
-        });
-      };
-      const ensureReverseLoop = () => {
-        if (!asset.options?.reverse) return;
-        video.addEventListener('ended', () => {
-          video.currentTime = video.duration || 0;
-          video.playbackRate = -Math.abs(asset.options?.playbackRate ?? 1);
-          void video.play().catch(() => undefined);
-        });
-      };
-      const scheduleFinalize = () => {
-        if (video.readyState >= video.HAVE_CURRENT_DATA) {
-          finalize();
-        } else {
-          video.addEventListener('loadeddata', finalize, { once: true });
-        }
+        resolve({ assetId: asset.id, texture, video, width: video.videoWidth || asset.width, height: video.videoHeight || asset.height, options: asset.options });
       };
       if (!videoOverride) {
-        video.addEventListener(
-          'error',
-          () => {
-            resolve({ assetId: asset.id, texture, video });
-          },
-          { once: true }
-        );
-        if (asset.path) {
-          video.src = toFileUrl(asset.path);
-          void video.play().catch(() => undefined);
-        } else {
-          resolve({ assetId: asset.id, texture, video });
-          return;
-        }
+        video.addEventListener('error', () => resolve({ assetId: asset.id, texture, video }), { once: true });
+        if (asset.path) { video.src = toFileUrl(asset.path); void video.play().catch(() => undefined); }
+        else { resolve({ assetId: asset.id, texture, video }); return; }
       }
-      ensureReverseLoop();
-      scheduleFinalize();
+      if (video.readyState >= video.HAVE_CURRENT_DATA) finalize();
+      else video.addEventListener('loadeddata', finalize, { once: true });
     });
-
-  const assetOptionsHash = (options?: AssetItem['options']) => JSON.stringify(options ?? {});
 
   const loadTextAsset = (asset: AssetItem, canvas: HTMLCanvasElement): Promise<AssetCacheEntry> =>
     new Promise((resolve) => {
       const texture = gl.createTexture();
-      if (!texture) {
-        resolve({ assetId: asset.id, texture: gl.createTexture()! });
-        return;
-      }
+      if (!texture) { resolve({ assetId: asset.id, texture: gl.createTexture()! }); return; }
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -1236,265 +972,88 @@ void main() {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-      resolve({
-        assetId: asset.id,
-        texture,
-        width: canvas.width,
-        height: canvas.height,
-        options: asset.options
-      });
+      resolve({ assetId: asset.id, texture, width: canvas.width, height: canvas.height, options: asset.options });
     });
 
-  const ensureAssetEntry = (
-    asset: AssetItem,
-    videoOverride?: HTMLVideoElement,
-    textCanvas?: HTMLCanvasElement
-  ) => {
+  const ensureAssetEntry = (asset: AssetItem, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
     if (assetCache.has(asset.id)) {
       const cached = assetCache.get(asset.id)!;
-      if (assetOptionsHash(cached.options) === assetOptionsHash(asset.options)) {
-        return Promise.resolve(cached);
-      }
+      if (JSON.stringify(cached.options ?? {}) === JSON.stringify(asset.options ?? {})) return Promise.resolve(cached);
       assetCache.delete(asset.id);
     }
-    if (pendingAssetLoads.has(asset.id)) {
-      return pendingAssetLoads.get(asset.id)!;
-    }
+    if (pendingAssetLoads.has(asset.id)) return pendingAssetLoads.get(asset.id)!;
     let loader: Promise<AssetCacheEntry>;
-    if (asset.kind === 'video' || asset.kind === 'live') {
-      loader = loadVideoAsset(asset, videoOverride);
-    } else if (asset.kind === 'text' && textCanvas) {
-      loader = loadTextAsset(asset, textCanvas);
-    } else {
-      loader = loadImageAsset(asset);
-    }
+    if (asset.kind === 'video' || asset.kind === 'live') loader = loadVideoAsset(asset, videoOverride);
+    else if (asset.kind === 'text' && textCanvas) loader = loadTextAsset(asset, textCanvas);
+    else loader = loadImageAsset(asset);
     pendingAssetLoads.set(asset.id, loader);
-    loader.then((entry) => {
-      assetCache.set(asset.id, entry);
-      pendingAssetLoads.delete(asset.id);
-    });
+    loader.then((entry) => { assetCache.set(asset.id, entry); pendingAssetLoads.delete(asset.id); });
     return loader;
-  };
-
-  const ensureFrameBlendCanvases = (entry: AssetCacheEntry, width: number, height: number) => {
-    const make = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      return canvas;
-    };
-    if (!entry.frameBlendCanvas) {
-      entry.frameBlendCanvas = make();
-    }
-    if (!entry.frameBlendBackCanvas) {
-      entry.frameBlendBackCanvas = make();
-    }
-    [entry.frameBlendCanvas, entry.frameBlendBackCanvas].forEach((canvas) => {
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-    });
-  };
-
-  const blendVideoTexture = (entry: AssetCacheEntry, width: number, height: number, blend: number) => {
-    if (!entry.video || blend <= 0) return null;
-    ensureFrameBlendCanvases(entry, width, height);
-    const target = entry.frameBlendCanvas!;
-    const prev = entry.frameBlendBackCanvas!;
-    const ctx = target.getContext('2d');
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, width, height);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1 - blend;
-    ctx.drawImage(entry.video, 0, 0, width, height);
-    ctx.globalAlpha = blend;
-    ctx.drawImage(prev, 0, 0, width, height);
-    [entry.frameBlendCanvas, entry.frameBlendBackCanvas] = [prev, target];
-    return target;
-  };
-
-  const getVideoDimensions = (entry: AssetCacheEntry) => {
-    const width = entry.video?.videoWidth || entry.width || canvas.width;
-    const height = entry.video?.videoHeight || entry.height || canvas.height;
-    return { width, height };
   };
 
   const updateVideoTextures = () => {
     (Object.keys(ASSET_LAYER_UNITS) as AssetLayerId[]).forEach((layerId) => {
       const entry = layerBindings[layerId];
       if (entry?.video && entry.texture && entry.video.readyState >= entry.video.HAVE_CURRENT_DATA) {
-        const unitIndex = ASSET_LAYER_UNITS[layerId];
-        gl.activeTexture(gl.TEXTURE0 + unitIndex);
+        gl.activeTexture(gl.TEXTURE0 + ASSET_LAYER_UNITS[layerId]);
         gl.bindTexture(gl.TEXTURE_2D, entry.texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-        const { width, height } = getVideoDimensions(entry);
-        const blend = entry.options?.frameBlend ?? 0;
-        const blendedSource = blendVideoTexture(entry, width, height, blend);
-        const source = blendedSource ?? entry.video;
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
-        entry.width = width;
-        entry.height = height;
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.video);
       }
     });
   };
 
-  const applyLayerBinding = (
-    layerId: AssetLayerId,
-    enabledLocation: WebGLUniformLocation | null,
-    samplerLocation: WebGLUniformLocation | null
-  ) => {
+  const applyLayerBinding = (prog: WebGLProgram, layerId: AssetLayerId) => {
     const entry = layerBindings[layerId];
     const unitIndex = ASSET_LAYER_UNITS[layerId];
-    const enabled = Boolean(entry);
-    if (enabledLocation) {
-      gl.uniform1f(enabledLocation, enabled ? 1 : 0);
-    }
-    if (samplerLocation) {
-      gl.uniform1i(samplerLocation, unitIndex);
-    }
+    const enabledLoc = gl.getUniformLocation(prog, layerId === 'layer-plasma' ? 'uPlasmaAssetEnabled' : 'uSpectrumAssetEnabled');
+    const samplerLoc = gl.getUniformLocation(prog, layerId === 'layer-plasma' ? 'uPlasmaAsset' : 'uSpectrumAsset');
+    if (enabledLoc) gl.uniform1f(enabledLoc, entry ? 1 : 0);
+    if (samplerLoc) gl.uniform1i(samplerLoc, unitIndex);
     gl.activeTexture(gl.TEXTURE0 + unitIndex);
     gl.bindTexture(gl.TEXTURE_2D, entry?.texture ?? null);
   };
 
-  const setLayerAsset = async (
-    layerId: AssetLayerId,
-    asset: AssetItem | null,
-    videoOverride?: HTMLVideoElement,
-    textCanvas?: HTMLCanvasElement
-  ) => {
-    if (!ASSET_LAYER_UNITS[layerId]) return;
-    if (!asset) {
-      delete layerBindings[layerId];
-      return;
-    }
+  const setLayerAsset = async (layerId: AssetLayerId, asset: AssetItem | null, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
+    if (!asset) { delete layerBindings[layerId]; return; }
     const entry = await ensureAssetEntry(asset, videoOverride, textCanvas);
     layerBindings[layerId] = entry;
   };
 
   const setPalette = (colors: [string, string, string, string, string]) => {
-    const parsed = colors.map((hex) => {
+    currentPalette = colors.map(hex => {
       const r = parseInt(hex.slice(1, 3), 16) / 255;
       const g = parseInt(hex.slice(3, 5), 16) / 255;
       const b = parseInt(hex.slice(5, 7), 16) / 255;
       return [r, g, b];
-    }).flat();
-    gl.uniform3fv(paletteLocation, parsed);
+    });
   };
 
   const render = (state: RenderState) => {
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.02, 0.03, 0.06, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-
-    gl.useProgram(program);
+    updateAdvancedSdfProgram(state.sdfScene);
+    currentProgram = (state.sdfScene && advancedSdfProgram) ? advancedSdfProgram : standardProgram;
+    updateStandardUniforms(currentProgram, state);
     updateVideoTextures();
-    if (timeLocation) gl.uniform1f(timeLocation, state.timeMs * 0.001);
-    if (rmsLocation) gl.uniform1f(rmsLocation, state.rms);
-    if (peakLocation) gl.uniform1f(peakLocation, state.peak);
-    if (strobeLocation) gl.uniform1f(strobeLocation, state.strobe);
-    if (plasmaLocation) gl.uniform1f(plasmaLocation, state.plasmaEnabled ? 1 : 0);
-    if (spectrumLocation) gl.uniform1f(spectrumLocation, state.spectrumEnabled ? 1 : 0);
-    if (origamiLocation) gl.uniform1f(origamiLocation, state.origamiEnabled ? 1 : 0);
-    if (glyphLocation) gl.uniform1f(glyphLocation, state.glyphEnabled ? 1 : 0);
-    if (glyphOpacityLocation) gl.uniform1f(glyphOpacityLocation, state.glyphOpacity);
-    if (glyphModeLocation) gl.uniform1f(glyphModeLocation, state.glyphMode);
-    if (glyphSeedLocation) gl.uniform1f(glyphSeedLocation, state.glyphSeed);
-    if (glyphBeatLocation) gl.uniform1f(glyphBeatLocation, state.glyphBeat);
-    if (glyphSpeedLocation) gl.uniform1f(glyphSpeedLocation, state.glyphSpeed || 1.0);
-    if (crystalLocation) gl.uniform1f(crystalLocation, state.crystalEnabled ? 1 : 0);
-    if (crystalOpacityLocation) gl.uniform1f(crystalOpacityLocation, state.crystalOpacity);
-    if (crystalModeLocation) gl.uniform1f(crystalModeLocation, state.crystalMode);
-    if (crystalBrittleLocation) gl.uniform1f(crystalBrittleLocation, state.crystalBrittleness);
-    if (crystalScaleLocation) gl.uniform1f(crystalScaleLocation, state.crystalScale || 1.0);
-    if (crystalSpeedLocation) gl.uniform1f(crystalSpeedLocation, state.crystalSpeed || 1.0);
-    if (inkLocation) gl.uniform1f(inkLocation, state.inkEnabled ? 1 : 0);
-    if (inkOpacityLocation) gl.uniform1f(inkOpacityLocation, state.inkOpacity);
-    if (inkBrushLocation) gl.uniform1f(inkBrushLocation, state.inkBrush);
-    if (inkPressureLocation) gl.uniform1f(inkPressureLocation, state.inkPressure);
-    if (inkLifespanLocation) gl.uniform1f(inkLifespanLocation, state.inkLifespan);
-    if (inkSpeedLocation) gl.uniform1f(inkSpeedLocation, state.inkSpeed || 1.0);
-    if (inkScaleLocation) gl.uniform1f(inkScaleLocation, state.inkScale || 1.0);
-    if (topoLocation) gl.uniform1f(topoLocation, state.topoEnabled ? 1 : 0);
-    if (topoOpacityLocation) gl.uniform1f(topoOpacityLocation, state.topoOpacity);
-    if (topoQuakeLocation) gl.uniform1f(topoQuakeLocation, state.topoQuake);
-    if (topoSlideLocation) gl.uniform1f(topoSlideLocation, state.topoSlide);
-    if (topoPlateLocation) gl.uniform1f(topoPlateLocation, state.topoPlate);
-    if (topoTravelLocation) gl.uniform1f(topoTravelLocation, state.topoTravel);
-    if (topoScaleLocation) gl.uniform1f(topoScaleLocation, state.topoScale || 1.0);
-    if (topoElevationLocation) gl.uniform1f(topoElevationLocation, state.topoElevation || 1.0);
-    if (weatherLocation) gl.uniform1f(weatherLocation, state.weatherEnabled ? 1 : 0);
-    if (weatherOpacityLocation) gl.uniform1f(weatherOpacityLocation, state.weatherOpacity);
-    if (weatherModeLocation) gl.uniform1f(weatherModeLocation, state.weatherMode);
-    if (weatherIntensityLocation) gl.uniform1f(weatherIntensityLocation, state.weatherIntensity);
-    if (weatherSpeedLocation) gl.uniform1f(weatherSpeedLocation, state.weatherSpeed || 1.0);
-    if (portalLocation) gl.uniform1f(portalLocation, state.portalEnabled ? 1 : 0);
-    if (portalOpacityLocation) gl.uniform1f(portalOpacityLocation, state.portalOpacity);
-    if (portalShiftLocation) gl.uniform1f(portalShiftLocation, state.portalShift);
-    if (portalPosLocation) gl.uniform2fv(portalPosLocation, state.portalPositions);
-    if (portalRadiusLocation) gl.uniform1fv(portalRadiusLocation, state.portalRadii);
-    if (portalActiveLocation) gl.uniform1fv(portalActiveLocation, state.portalActives);
-    if (oscilloLocation) gl.uniform1f(oscilloLocation, state.oscilloEnabled ? 1 : 0);
-    if (oscilloOpacityLocation) gl.uniform1f(oscilloOpacityLocation, state.oscilloOpacity);
-    if (oscilloModeLocation) gl.uniform1f(oscilloModeLocation, state.oscilloMode);
-    if (oscilloFreezeLocation) gl.uniform1f(oscilloFreezeLocation, state.oscilloFreeze);
-    if (oscilloRotateLocation) gl.uniform1f(oscilloRotateLocation, state.oscilloRotate);
-    if (oscilloDataLocation) gl.uniform1fv(oscilloDataLocation, state.oscilloData);
-    if (gravityPosLocation) gl.uniform2fv(gravityPosLocation, state.gravityPositions);
-    if (gravityStrengthLocation) gl.uniform1fv(gravityStrengthLocation, state.gravityStrengths);
-    if (gravityPolarityLocation) gl.uniform1fv(gravityPolarityLocation, state.gravityPolarities);
-    if (gravityActiveLocation) gl.uniform1fv(gravityActiveLocation, state.gravityActives);
-    if (gravityCollapseLocation) gl.uniform1f(gravityCollapseLocation, state.gravityCollapse);
-    if (spectrumArrayLocation) {
-      gl.uniform1fv(spectrumArrayLocation, state.spectrum);
+    applyLayerBinding(currentProgram, 'layer-plasma');
+    applyLayerBinding(currentProgram, 'layer-spectrum');
+    if (currentProgram === advancedSdfProgram && state.sdfScene) {
+      advancedSdfUniforms.forEach(u => {
+        const loc = advancedSdfUniformLocations.get(u.name);
+        if (loc) {
+          const node = state.sdfScene.nodes.find((n: any) => n.instanceId === u.instanceId);
+          const val = node?.params[u.parameterId];
+          if (typeof val === 'number') gl.uniform1f(loc, val);
+          else if (Array.isArray(val)) {
+            if (val.length === 2) gl.uniform2fv(loc, val);
+            else if (val.length === 3) gl.uniform3fv(loc, val);
+          }
+        }
+      });
     }
-    if (contrastLocation) gl.uniform1f(contrastLocation, state.contrast);
-    if (saturationLocation) gl.uniform1f(saturationLocation, state.saturation);
-    if (paletteShiftLocation) gl.uniform1f(paletteShiftLocation, state.paletteShift);
-    if (plasmaOpacityLocation) gl.uniform1f(plasmaOpacityLocation, state.plasmaOpacity);
-    if (plasmaSpeedLocation) gl.uniform1f(plasmaSpeedLocation, state.plasmaSpeed || 1.0);
-    if (plasmaScaleLocation) gl.uniform1f(plasmaScaleLocation, state.plasmaScale || 1.0);
-    if (spectrumOpacityLocation) gl.uniform1f(spectrumOpacityLocation, state.spectrumOpacity);
-    if (origamiOpacityLocation) gl.uniform1f(origamiOpacityLocation, state.origamiOpacity);
-    if (origamiFoldStateLocation) gl.uniform1f(origamiFoldStateLocation, state.origamiFoldState);
-    if (origamiFoldSharpnessLocation) gl.uniform1f(origamiFoldSharpnessLocation, state.origamiFoldSharpness);
-    if (origamiSpeedLocation) gl.uniform1f(origamiSpeedLocation, state.origamiSpeed || 1.0);
-    if (effectsEnabledLocation) gl.uniform1f(effectsEnabledLocation, state.effectsEnabled ? 1 : 0);
-    if (bloomLocation) gl.uniform1f(bloomLocation, state.bloom);
-    if (blurLocation) gl.uniform1f(blurLocation, state.blur);
-    if (chromaLocation) gl.uniform1f(chromaLocation, state.chroma);
-    if (posterizeLocation) gl.uniform1f(posterizeLocation, state.posterize);
-    if (kaleidoscopeLocation) gl.uniform1f(kaleidoscopeLocation, state.kaleidoscope);
-    if (kaleidoscopeRotationLocation) gl.uniform1f(kaleidoscopeRotationLocation, state.kaleidoscopeRotation || 0.0);
-    if (feedbackLocation) gl.uniform1f(feedbackLocation, state.feedback);
-    if (persistenceLocation) gl.uniform1f(persistenceLocation, state.persistence);
-    if (trailSpectrumLocation) gl.uniform1fv(trailSpectrumLocation, state.trailSpectrum);
-    if (particlesEnabledLocation) gl.uniform1f(particlesEnabledLocation, state.particlesEnabled ? 1 : 0);
-    if (particleDensityLocation) gl.uniform1f(particleDensityLocation, state.particleDensity);
-    if (particleSpeedLocation) gl.uniform1f(particleSpeedLocation, state.particleSpeed);
-    if (particleSizeLocation) gl.uniform1f(particleSizeLocation, state.particleSize);
-    if (particleGlowLocation) gl.uniform1f(particleGlowLocation, state.particleGlow);
-    if (sdfEnabledLocation) gl.uniform1f(sdfEnabledLocation, state.sdfEnabled ? 1 : 0);
-    if (sdfShapeLocation) gl.uniform1f(sdfShapeLocation, state.sdfShape);
-    if (sdfScaleLocation) gl.uniform1f(sdfScaleLocation, state.sdfScale);
-    if (sdfEdgeLocation) gl.uniform1f(sdfEdgeLocation, state.sdfEdge);
-    if (sdfGlowLocation) gl.uniform1f(sdfGlowLocation, state.sdfGlow);
-    if (sdfRotationLocation) gl.uniform1f(sdfRotationLocation, state.sdfRotation);
-    if (sdfFillLocation) gl.uniform1f(sdfFillLocation, state.sdfFill);
-    applyLayerBinding('layer-plasma', plasmaAssetEnabledLocation, plasmaAssetSamplerLocation);
-    if (plasmaAssetBlendLocation) gl.uniform1f(plasmaAssetBlendLocation, state.plasmaAssetBlendMode);
-    if (plasmaAssetAudioReactLocation) gl.uniform1f(plasmaAssetAudioReactLocation, state.plasmaAssetAudioReact);
-    applyLayerBinding('layer-spectrum', spectrumAssetEnabledLocation, spectrumAssetSamplerLocation);
-    if (spectrumAssetBlendLocation) gl.uniform1f(spectrumAssetBlendLocation, state.spectrumAssetBlendMode);
-    if (spectrumAssetAudioReactLocation) gl.uniform1f(spectrumAssetAudioReactLocation, state.spectrumAssetAudioReact);
-    if (debugTintLocation) gl.uniform1f(debugTintLocation, state.debugTint ?? 0);
-
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   };
 
-  return {
-    render,
-    setLayerAsset,
-    setPalette
-  };
+  return { render, setLayerAsset, setPalette };
 };

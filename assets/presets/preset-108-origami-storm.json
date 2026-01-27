@@ -26,7 +26,46 @@
       ]
     }
   ],
-  "macros": [],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Main Layer fold State",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-origami.foldState",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Main Layer fold State"
+    },
+    {
+      "id": "macro-2",
+      "name": "Main Layer fold Sharpness",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-origami.foldSharpness",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Main Layer fold Sharpness"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ],
   "modMatrix": [
     {
       "source": "audio.rms",

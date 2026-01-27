@@ -53,5 +53,50 @@
   "modMatrix": [],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Audio Reactive"
+  "category": "Audio Reactive",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Sacred Oscilloscope mode",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-oscillo.mode",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Sacred Oscilloscope mode"
+    },
+    {
+      "id": "macro-2",
+      "name": "Sacred Oscilloscope freeze",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-oscillo.freeze",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Sacred Oscilloscope freeze"
+    },
+    {
+      "id": "macro-3",
+      "name": "Sacred Oscilloscope rotate",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-oscillo.rotate",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Sacred Oscilloscope rotate"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

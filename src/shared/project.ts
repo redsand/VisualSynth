@@ -30,7 +30,7 @@ export interface LayerConfig {
 }
 
 export interface ModConnection {
-  id: string;
+  id?: string;
   source: string;
   target: string;
   amount: number;
@@ -42,7 +42,7 @@ export interface ModConnection {
 }
 
 export interface MidiMapping {
-  id: string;
+  id?: string;
   message: 'note' | 'cc' | 'aftertouch' | 'pitchbend';
   channel: number;
   control: number;

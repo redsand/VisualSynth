@@ -52,5 +52,50 @@
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Essentials"
+  "category": "Essentials",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Shader Plasma scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.scale",
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: Shader Plasma scale"
+    },
+    {
+      "id": "macro-2",
+      "name": "Shader Plasma color Shift",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.colorShift",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Shader Plasma color Shift"
+    },
+    {
+      "id": "macro-3",
+      "name": "Shader Plasma brightness",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.brightness",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Shader Plasma brightness"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
 }

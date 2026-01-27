@@ -26,7 +26,46 @@
       ]
     }
   ],
-  "macros": [],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Main Layer elevation",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-topo.elevation",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Main Layer elevation"
+    },
+    {
+      "id": "macro-2",
+      "name": "Main Layer travel",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-topo.travel",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Main Layer travel"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ],
   "modMatrix": [
     {
       "source": "audio.peak",

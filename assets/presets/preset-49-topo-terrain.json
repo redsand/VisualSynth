@@ -34,7 +34,8 @@
           "target": "layer-topo.opacity",
           "amount": 0.7
         }
-      ]
+      ],
+      "description": "Controls: Topo Opacity"
     },
     {
       "id": "macro-2",
@@ -45,7 +46,8 @@
           "target": "effects.persistence",
           "amount": 0.4
         }
-      ]
+      ],
+      "description": "Controls: Ridge Height"
     },
     {
       "id": "macro-3",
@@ -56,7 +58,8 @@
           "target": "effects.kaleidoscope",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Contour Density"
     },
     {
       "id": "macro-4",
@@ -67,31 +70,46 @@
           "target": "effects.blur",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Erosion"
     },
     {
       "id": "macro-5",
-      "name": "Macro 5",
+      "name": "Topo Terrain elevation",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-topo.elevation",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Topo Terrain elevation"
     },
     {
       "id": "macro-6",
-      "name": "Macro 6",
+      "name": "Topo Terrain travel",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-topo.travel",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Topo Terrain travel"
     },
     {
       "id": "macro-7",
       "name": "Macro 7",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 7"
     },
     {
       "id": "macro-8",
       "name": "Macro 8",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 8"
     }
   ],
   "effects": {

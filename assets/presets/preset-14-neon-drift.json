@@ -38,7 +38,7 @@
           "id": "layer-plasma",
           "name": "Shader Plasma",
           "enabled": true,
-          "opacity": 0.9,
+          "opacity": 0.8,
           "blendMode": "screen",
           "transform": {
             "x": 0,
@@ -51,8 +51,21 @@
           "id": "layer-spectrum",
           "name": "Audio Spectrum",
           "enabled": true,
-          "opacity": 0.9,
+          "opacity": 1,
           "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "fx-chroma",
+          "name": "Chromatic Aberration",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
@@ -74,9 +87,70 @@
       "curve": "linear",
       "smoothing": 0.5,
       "bipolar": false
+    },
+    {
+      "id": "mod-chroma-1",
+      "source": "audio.peak",
+      "target": "fx-chroma.amount",
+      "amount": 0.2,
+      "min": 0.05,
+      "max": 0.3,
+      "curve": "exp",
+      "smoothing": 0.1,
+      "bipolar": false
     }
   ],
   "midiMappings": [],
   "activeSceneId": "scene-1",
-  "category": "Abstract"
+  "category": "Abstract",
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Plasma Scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.scale",
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: Plasma Scale"
+    },
+    {
+      "id": "macro-2",
+      "name": "Plasma Color Shift",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-plasma.colorShift",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Plasma Color Shift"
+    },
+    {
+      "id": "macro-3",
+      "name": "Spectrum Bars",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "layer-spectrum.barWidth",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Bars"
+    },
+    {
+      "id": "macro-4",
+      "name": "Chromatic Amount",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "fx-chroma.amount",
+          "amount": 0.5
+        }
+      ],
+      "description": "Controls: Chromatic Amount"
+    }
+  ]
 }

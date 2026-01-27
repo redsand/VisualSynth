@@ -14,7 +14,8 @@
           "target": "layer-plasma.speed",
           "amount": 2
         }
-      ]
+      ],
+      "description": "Controls: Drift Speed"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "fx-kaleidoscope.segments",
           "amount": 8
         }
-      ]
+      ],
+      "description": "Controls: Kaleidoscope"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "layer-plasma.brightness",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Glow"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-plasma.colorShift",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Hue"
     }
   ],
   "scenes": [

@@ -34,7 +34,8 @@
           "target": "layer-glyph.opacity",
           "amount": 0.6
         }
-      ]
+      ],
+      "description": "Controls: Glyph Opacity"
     },
     {
       "id": "macro-2",
@@ -49,7 +50,8 @@
           "target": "effects.feedback",
           "amount": 0.25
         }
-      ]
+      ],
+      "description": "Controls: Glyph Trails"
     },
     {
       "id": "macro-3",
@@ -64,7 +66,8 @@
           "target": "style.paletteShift",
           "amount": 0.18
         }
-      ]
+      ],
+      "description": "Controls: Syntax Drift"
     },
     {
       "id": "macro-4",
@@ -79,31 +82,46 @@
           "target": "effects.blur",
           "amount": 0.12
         }
-      ]
+      ],
+      "description": "Controls: Shockwaves"
     },
     {
       "id": "macro-5",
-      "name": "Macro 5",
+      "name": "Glyph Language mode",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-glyph.mode",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Glyph Language mode"
     },
     {
       "id": "macro-6",
-      "name": "Macro 6",
+      "name": "Glyph Language complexity",
       "value": 0.5,
-      "targets": []
+      "targets": [
+        {
+          "target": "layer-glyph.complexity",
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Glyph Language complexity"
     },
     {
       "id": "macro-7",
       "name": "Macro 7",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 7"
     },
     {
       "id": "macro-8",
       "name": "Macro 8",
       "value": 0.5,
-      "targets": []
+      "targets": [],
+      "description": "Controls: Macro 8"
     }
   ],
   "effects": {

@@ -11,6 +11,7 @@ export type GeneratorId =
   | 'layer-oscillo'
   | 'gen-particles'
   | 'gen-sdf'
+  | 'gen-sdf-scene'
   | 'viz-off'
   | 'viz-spectrum'
   | 'viz-waveform'

@@ -393,6 +393,10 @@ export interface SdfNodeRegistry {
 export interface SdfCompiledShader {
   /** Complete GLSL fragment shader source */
   fragmentSource: string;
+  /** Extracted GLSL functions for primitives and ops */
+  functionsCode: string;
+  /** Extracted body logic for the map() function */
+  mapBody: string;
   /** Uniform bindings for parameters */
   uniforms: SdfUniformBinding[];
   /** Total estimated GPU cost */

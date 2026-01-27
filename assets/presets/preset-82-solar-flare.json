@@ -14,7 +14,8 @@
           "target": "fx-bloom.intensity",
           "amount": 2
         }
-      ]
+      ],
+      "description": "Controls: Flare Intensity"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.3
         }
-      ]
+      ],
+      "description": "Controls: Ejection Speed"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "gen-particles.density",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Plasma Density"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "fx-bloom.tintR",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Color Temp"
     }
   ],
   "scenes": [

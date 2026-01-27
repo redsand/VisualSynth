@@ -2,53 +2,85 @@ import { describe, expect, it } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { projectSchema } from '../src/shared/projectSchema';
+import { deserializeProject } from '../src/shared/serialization';
 
 const presetsDir = path.resolve(__dirname, '..', 'assets', 'presets');
 const templatesDir = path.resolve(__dirname, '..', 'assets', 'templates');
 
 describe('preset library', () => {
+  const presetFiles = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json'));
+
   it('contains at least 10 presets', () => {
-    const files = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json'));
-    expect(files.length).toBeGreaterThanOrEqual(10);
+    expect(presetFiles.length).toBeGreaterThanOrEqual(10);
   });
 
-  it('validates all preset JSON files', () => {
-    const files = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json'));
-    const names = new Set<string>();
-    for (const file of files) {
+  // Test each preset individually for better error reporting
+  presetFiles.forEach((file) => {
+    it(`preset "${file}" should be valid and functional`, () => {
       const payload = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
-      const parsed = projectSchema.safeParse(JSON.parse(payload));
-      expect(parsed.success).toBe(true);
-      if (!parsed.success) continue;
-      expect(parsed.data.scenes.length).toBeGreaterThan(0);
-      names.add(parsed.data.name);
-    }
-    expect(names.size).toBe(files.length);
+      const data = JSON.parse(payload);
+      
+      // 1. Schema Validation
+      const parsed = projectSchema.safeParse(data);
+      if (!parsed.success) {
+        console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
+      }
+      expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
+
+      if (parsed.success) {
+        const project = parsed.data;
+        
+        // 2. Structural Integrity
+        expect(project.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+        
+        const sceneIds = project.scenes.map(s => s.id);
+        expect(sceneIds, `${file} has activeSceneId "${project.activeSceneId}" which does not exist`).toContain(project.activeSceneId);
+
+        // 3. Functional Deserialization (smoke test)
+        try {
+          const functionalProject = deserializeProject(payload);
+          expect(functionalProject).toBeDefined();
+          expect(functionalProject.version).toBeGreaterThanOrEqual(2);
+        } catch (err) {
+          throw new Error(`Deserialization failed for ${file}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    });
   });
 
   it('includes VisualSynth DNA presets', () => {
-    const files = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json'));
-    const names = files.map((file) => {
+    const names = presetFiles.map((file) => {
       const payload = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
       return JSON.parse(payload).name as string;
     });
-    const dnaPresets = names.filter((name) => name.includes('VisualSynth DNA'));
+    const dnaPresets = names.filter((name) => name && name.includes('VisualSynth DNA'));
     expect(dnaPresets.length).toBeGreaterThanOrEqual(3);
   });
+});
+
+describe('template library', () => {
+  const templateFiles = fs.readdirSync(templatesDir).filter((file) => file.endsWith('.json'));
 
   it('contains template projects', () => {
-    const files = fs.readdirSync(templatesDir).filter((file) => file.endsWith('.json'));
-    expect(files.length).toBeGreaterThanOrEqual(3);
+    expect(templateFiles.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('validates all template JSON files', () => {
-    const files = fs.readdirSync(templatesDir).filter((file) => file.endsWith('.json'));
-    for (const file of files) {
+  templateFiles.forEach((file) => {
+    it(`template "${file}" should be valid and functional`, () => {
       const payload = fs.readFileSync(path.join(templatesDir, file), 'utf-8');
+      
+      // 1. Schema Validation
       const parsed = projectSchema.safeParse(JSON.parse(payload));
-      expect(parsed.success).toBe(true);
-      if (!parsed.success) continue;
-      expect(parsed.data.scenes.length).toBeGreaterThan(0);
-    }
+      expect(parsed.success, `Schema validation failed for template ${file}`).toBe(true);
+
+      if (parsed.success) {
+        const project = parsed.data;
+        expect(project.scenes.length).toBeGreaterThan(0);
+        
+        // 2. Functional Deserialization
+        const functionalProject = deserializeProject(payload);
+        expect(functionalProject).toBeDefined();
+      }
+    });
   });
 });

@@ -14,7 +14,8 @@
           "target": "gen-noise.speed",
           "amount": 2
         }
-      ]
+      ],
+      "description": "Controls: Wind Speed"
     },
     {
       "id": "macro-2",
@@ -29,7 +30,8 @@
           "target": "fx-blur.radius",
           "amount": 0.8
         }
-      ]
+      ],
+      "description": "Controls: Fog Density"
     },
     {
       "id": "macro-3",
@@ -40,7 +42,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.1
         }
-      ]
+      ],
+      "description": "Controls: Tunnel Depth"
     },
     {
       "id": "macro-4",
@@ -51,7 +54,8 @@
           "target": "gen-noise.persistence",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Turbulence"
     }
   ],
   "scenes": [

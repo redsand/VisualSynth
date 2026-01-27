@@ -14,7 +14,8 @@
           "target": "layer-plasma.speed",
           "amount": 1.5
         }
-      ]
+      ],
+      "description": "Controls: Aurora Flow"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "layer-plasma.colorShift",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Color Shift"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "fx-trails.persistence",
           "amount": 0.95
         }
-      ]
+      ],
+      "description": "Controls: Trail Length"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-plasma.brightness",
           "amount": 1
         }
-      ]
+      ],
+      "description": "Controls: Intensity"
     }
   ],
   "scenes": [

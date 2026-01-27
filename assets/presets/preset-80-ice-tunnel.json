@@ -14,7 +14,8 @@
           "target": "fx-glitch.intensity",
           "amount": 0.8
         }
-      ]
+      ],
+      "description": "Controls: Frost"
     },
     {
       "id": "macro-2",
@@ -25,7 +26,8 @@
           "target": "layer-crystal.brightness",
           "amount": 1.5
         }
-      ]
+      ],
+      "description": "Controls: Shard Glint"
     },
     {
       "id": "macro-3",
@@ -36,7 +38,8 @@
           "target": "fx-feedback.zoom",
           "amount": 0.1
         }
-      ]
+      ],
+      "description": "Controls: Tunnel Speed"
     },
     {
       "id": "macro-4",
@@ -47,7 +50,8 @@
           "target": "layer-crystal.hue",
           "amount": 0.2
         }
-      ]
+      ],
+      "description": "Controls: Ice Color"
     }
   ],
   "scenes": [
