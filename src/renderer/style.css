@@ -269,6 +269,14 @@ body {
   gap: 8px;
 }
 
+.layer-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .layer-asset-control {
   display: flex;
   justify-content: flex-start;

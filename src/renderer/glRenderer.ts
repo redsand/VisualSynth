@@ -718,10 +718,10 @@ void main() {
     float arcGlow = 0.0;
     for (int i = 0; i < 64; i += 1) {
       float t = float(i) / 63.0;
-      float sample = oscilloSample(t);
+      float oscSample = oscilloSample(t);
       float harmonic = 1.0 + floor(mode) * 0.35;
       float angle = t * 6.28318 * harmonic;
-      float radius = 0.28 + sample * 0.22 + uRms * 0.12;
+      float radius = 0.28 + oscSample * 0.22 + uRms * 0.12;
       vec2 p = vec2(cos(angle), sin(angle)) * radius;
       p = rotate2d(p, rot);
       float d = length(centered - p);

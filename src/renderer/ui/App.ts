@@ -11,7 +11,6 @@ import {
 } from '../shared/project';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
-import { createDebugOverlay } from './render/debugOverlay';
 import { getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
@@ -5122,19 +5121,9 @@ try {
   };
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Debug Overlay - Press 'D' to toggle
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const debugOverlay = createDebugOverlay((flags) => {
-  console.log('[Debug] Flags changed:', flags);
-  // Flags: { tintLayers: boolean, fxDelta: boolean }
-  // These can be used to enable visual debugging features
-});
-
 let lastTime = performance.now();
 let fpsAccumulator = 0;
 let frameCount = 0;
-let currentFps = 0;
 
 const buildModSources = (bpm: number) => {
   const bpmNormalized = Math.min(Math.max((bpm - 60) / 140, 0), 1);
@@ -5224,9 +5213,9 @@ const render = (time: number) => {
   fpsAccumulator += delta;
   frameCount += 1;
   if (fpsAccumulator > 1000) {
-    currentFps = Math.round((frameCount / fpsAccumulator) * 1000);
-    fpsLabel.textContent = `FPS: ${currentFps}`;
-    healthFps.textContent = `FPS: ${currentFps}`;
+    const fps = Math.round((frameCount / fpsAccumulator) * 1000);
+    fpsLabel.textContent = `FPS: ${fps}`;
+    healthFps.textContent = `FPS: ${fps}`;
     fpsAccumulator = 0;
     frameCount = 0;
   }
@@ -5570,76 +5559,6 @@ const render = (time: number) => {
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
   drawVisualizer();
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Debug Overlay Update - Shows layer/FX execution status
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const debugActiveScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
-  debugOverlay.update(
-    {
-      frameId: Math.floor(time),
-      activeSceneName: debugActiveScene?.name ?? '—',
-      layerCount: debugActiveScene?.layers.length ?? 0,
-      layers: (debugActiveScene?.layers ?? []).map((layer) => ({
-        id: layer.id,
-        name: layer.name,
-        enabled: layer.enabled,
-        opacity: layer.opacity,
-        blendMode: layer.blendMode,
-        fboSize: `${canvas.width}x${canvas.height}`,
-        lastRenderedFrameId: layer.enabled ? Math.floor(time) : 0,
-        nonEmpty: layer.enabled && layer.opacity > 0.01
-      })),
-      fx: [
-        {
-          id: 'bloom',
-          enabled: currentProject.effects.enabled && currentProject.effects.bloom > 0,
-          bypassed: !currentProject.effects.enabled,
-          lastAppliedFrameId: Math.floor(time)
-        },
-        {
-          id: 'blur',
-          enabled: currentProject.effects.enabled && currentProject.effects.blur > 0,
-          bypassed: !currentProject.effects.enabled,
-          lastAppliedFrameId: Math.floor(time)
-        },
-        {
-          id: 'chroma',
-          enabled: currentProject.effects.enabled && currentProject.effects.chroma > 0,
-          bypassed: !currentProject.effects.enabled,
-          lastAppliedFrameId: Math.floor(time)
-        },
-        {
-          id: 'posterize',
-          enabled: currentProject.effects.enabled && currentProject.effects.posterize > 0,
-          bypassed: !currentProject.effects.enabled,
-          lastAppliedFrameId: Math.floor(time)
-        },
-        {
-          id: 'kaleidoscope',
-          enabled: currentProject.effects.enabled && currentProject.effects.kaleidoscope > 0,
-          bypassed: !currentProject.effects.enabled,
-          lastAppliedFrameId: Math.floor(time)
-        },
-        {
-          id: 'feedback',
-          enabled: currentProject.effects.enabled && currentProject.effects.feedback > 0,
-          bypassed: !currentProject.effects.enabled,
-          lastAppliedFrameId: Math.floor(time)
-        },
-        {
-          id: 'persistence',
-          enabled: currentProject.effects.enabled && currentProject.effects.persistence > 0,
-          bypassed: !currentProject.effects.enabled,
-          lastAppliedFrameId: Math.floor(time)
-        }
-      ],
-      masterBusFrameId: Math.floor(time),
-      uniformsUpdatedFrameId: Math.floor(time)
-    },
-    currentFps
-  );
 
   if (outputOpen && time - lastOutputBroadcast > 33) {
     lastOutputBroadcast = time;
