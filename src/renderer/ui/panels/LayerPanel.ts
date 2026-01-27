@@ -1,3 +1,4 @@
+import { removeLayer } from '../../shared/layers';
 import type { AssetItem, LayerConfig } from '../../shared/project';
 import type { Store } from '../../state/store';
 import { actions } from '../../state/actions';
@@ -155,8 +156,12 @@ export const createLayerPanel = ({
       downButton.textContent = '↓';
       downButton.disabled = index === scene.layers.length - 1;
       downButton.addEventListener('click', () => moveLayer(scene.id, layer.id, 1));
+      const removeButton = document.createElement('button');
+      removeButton.textContent = 'x';
+      removeButton.addEventListener('click', () => removeLayer(scene.id, layer.id));
       controls.appendChild(upButton);
       controls.appendChild(downButton);
+      controls.appendChild(removeButton);
 
       row.appendChild(label);
       row.appendChild(controls);
@@ -246,6 +251,14 @@ export const createLayerPanel = ({
     next.splice(nextIndex, 0, moved);
     scene.layers = next;
     renderLayerList();
+  };
+
+  const removeLayer = (sceneId: string, layerId: string) => {
+    const scene = store.getState().project.scenes.find((item) => item.id === sceneId);
+    if (!scene) return;
+    scene.layers = removeLayer(scene, layerId);
+    renderLayerList();
+    onLayerListChanged();
   };
 
   const loadGeneratorLibrary = () => {

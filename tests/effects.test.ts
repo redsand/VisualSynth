@@ -12,7 +12,7 @@ describe('effects defaults', () => {
     expect(DEFAULT_PROJECT.particles).toBeTruthy();
     expect(DEFAULT_PROJECT.particles.enabled).toBe(true);
     expect(DEFAULT_PROJECT.sdf).toBeTruthy();
-    expect(DEFAULT_PROJECT.sdf.shape).toBe('circle');
+    expect(DEFAULT_PROJECT.sdf.shape).toBe('triangle');
   });
 
   it('schema supplies effect defaults', () => {
@@ -24,6 +24,6 @@ describe('effects defaults', () => {
     expect(parsed.data.effects.feedback).toBeDefined();
     expect(parsed.data.effects.persistence).toBeDefined();
     expect(parsed.data.particles.enabled).toBe(true);
-    expect(parsed.data.sdf.shape).toBe('circle');
+    expect(parsed.data.sdf.shape).toBe('triangle');
   });
 });

@@ -12,7 +12,7 @@ describe('pad mappings', () => {
     expect(DEFAULT_PROJECT.padMappings[31]).toBe('toggle-plasma');
     expect(DEFAULT_PROJECT.padMappings[32]).toBe('strobe');
     expect(DEFAULT_PROJECT.padMappings[63]).toBe('strobe');
-    expect(DEFAULT_PROJECT.padMappings[64]).toBe('none');
+    expect(DEFAULT_PROJECT.padMappings[64]).toBe('origami-mountain');
   });
 
   it('schema supplies pad mappings when missing', () => {
