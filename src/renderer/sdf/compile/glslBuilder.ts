@@ -126,46 +126,69 @@ ${def.glsl.body}
   const inputs = ctx.inputs.get(instanceId) || [];
   inputs.sort((a, b) => a.slot - b.slot);
   const funcName = getFuncName(def.glsl.signature);
+  const sig = def.glsl.signature;
+
+  // Helper to build argument list including implicit ones
+  const buildArgs = (explicitArgs: string[]) => {
+      const allArgs: string[] = [];
+      const sigParams = sig.split('(')[1].split(')')[0].split(',').map(p => p.trim());
+      
+      let explicitIdx = 0;
+      for (const p of sigParams) {
+          const type = p.split(' ')[0];
+          const name = p.split(' ')[1];
+          
+          if (name === 'p') {
+              allArgs.push(currentDomainVar);
+          } else if (name === 'time' || name === 'uTime') {
+              allArgs.push('uTime');
+          } else if (name === 'audio' || name === 'uRms' || name === 'uPeak') {
+              allArgs.push('uRms'); // Default to RMS for audio
+          } else if (explicitIdx < explicitArgs.length) {
+              allArgs.push(explicitArgs[explicitIdx++]);
+          }
+      }
+      return allArgs.join(', ');
+  };
 
   // 1. Domain Transforms: These modify the coordinate space for their children
   if (def.category.startsWith('domain')) {
       // Typically: opTranslate(p, offset) returns new p
-      const newP = `${funcName}(${currentDomainVar}, ${paramArgs.join(', ')})`;
+      const callArgs = buildArgs(paramArgs);
+      const newP = `${funcName}(${callArgs})`;
       
       const childConn = inputs[0];
       if (childConn) {
           return emitNode(ctx, childConn.from, newP, codeAccumulator);
       }
-      return '10.0'; // Default distance if no child
+      return '10.0'; 
   }
   
   // 2. Operations: Boolean unions, subtractions, etc.
   if (def.category.startsWith('ops')) {
-      // Operations take distance results from children as inputs
       const childResults = inputs.map(conn => emitNode(ctx, conn.from, currentDomainVar, codeAccumulator));
       
       if (childResults.length === 0) return '10.0';
-      if (childResults.length === 1) return childResults[0];
-
-      // Combine children using the operation function
-      // e.g., opUnion(d1, d2, ...)
-      return `${funcName}(${childResults.join(', ')}${paramArgs.length ? ', ' + paramArgs.join(', ') : ''})`;
+      
+      const allCallArgs = [...childResults, ...paramArgs];
+      const callArgs = buildArgs(allCallArgs);
+      
+      return `${funcName}(${callArgs})`;
   }
   
   // 3. Primitives: 2D or 3D shapes
   if (def.category.startsWith('shapes')) {
       let pArg = currentDomainVar;
-      // Cast p to vec2 if it's a 2D shape being rendered in a 3D context
       if (def.coordSpace === '2d') pArg = `${currentDomainVar}.xy`;
       
-      return `${funcName}(${pArg}, ${paramArgs.join(', ')})`;
+      const callArgs = buildArgs(paramArgs);
+      return `${funcName}(${callArgs})`;
   }
 
   // 4. Fields: Noise or other distance fields
   if (def.category === 'fields') {
-      let pArg = currentDomainVar;
-      if (def.coordSpace === '2d') pArg = `${currentDomainVar}.xy`;
-      return `${funcName}(${pArg}, ${paramArgs.join(', ')})`;
+      const callArgs = buildArgs(paramArgs);
+      return `${funcName}(${callArgs})`;
   }
 
   return '10.0';

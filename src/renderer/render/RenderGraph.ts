@@ -440,9 +440,17 @@ export class RenderGraph {
           const targetId = `${node.instanceId}.${paramId}`;
           const baseValue = node.params[paramId];
           
-          // Only modulate numbers for now
           if (typeof baseValue === 'number') {
             node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix);
+          } else if (Array.isArray(baseValue)) {
+            // Support modulating vector components like 'nodeId.paramId.x'
+            const components = ['x', 'y', 'z', 'w'];
+            const modded = [...baseValue];
+            for (let i = 0; i < Math.min(baseValue.length, 4); i++) {
+                const subTargetId = `${targetId}.${components[i]}`;
+                modded[i] = applyModMatrix(baseValue[i], subTargetId, modSources, modMatrix);
+            }
+            node.params[paramId] = modded;
           }
         });
       });

@@ -92,6 +92,7 @@ export interface RenderState {
   sdfGlow: number;
   sdfRotation: number;
   sdfFill: number;
+  sdfColor?: [number, number, number];
   sdfScene?: any; // Config for Advanced mode
   feedbackZoom: number;
   feedbackRotation: number;
@@ -226,6 +227,7 @@ uniform float uSdfEdge;
 uniform float uSdfGlow;
 uniform float uSdfRotation;
 uniform float uSdfFill;
+uniform vec3 uSdfColor;
 uniform float uPlasmaAssetEnabled;
 uniform sampler2D uPlasmaAsset;
 uniform float uPlasmaAssetBlend;
@@ -422,6 +424,30 @@ vec2 rotate2d(vec2 p, float angle) {
   float c = cos(angle);
   float s = sin(angle);
   return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+}
+
+float sdRing(vec2 p, float r, float th) {
+  return abs(length(p) - r) - th;
+}
+
+float sdHexagon(vec2 p, float r) {
+  const vec3 k = vec3(-0.866025404, 0.5, 0.577350269);
+  p = abs(p);
+  p -= 2.0 * min(dot(k.xy, p), 0.0) * k.xy;
+  p -= vec2(clamp(p.x, -k.z * r, k.z * r), r);
+  return length(p) * sign(p.y);
+}
+
+float sdStar(vec2 p, float r, int n, float m) {
+  float an = 3.141593 / float(n);
+  float en = 3.141593 / m;
+  vec2 acs = vec2(cos(an), sin(an));
+  vec2 ecs = vec2(cos(en), sin(en));
+  float bn = mod(atan(p.x, p.y), 2.0 * an) - an;
+  p = length(p) * vec2(cos(bn), abs(sin(bn)));
+  p -= r * acs;
+  p += ecs * clamp(-dot(p, ecs), 0.0, r * acs.y / ecs.y);
+  return length(p) * sign(p.x);
 }
 
 float sdCircle(vec2 p, float r) {
@@ -719,8 +745,17 @@ void main() {
         color += (vec3(0.2, 0.5, 1.0) * lighting + spec + smoothstep(0.1, 0.0, d) * uSdfGlow) * uSdfFill;
       }
     } else {
-      centered = rotate2d(centered, uSdfRotation); float scale = mix(0.2, 0.9, uSdfScale), sdfValue = uSdfShape < 0.5 ? sdCircle(centered, scale) : (uSdfShape < 1.5 ? sdBox(centered, vec2(scale)) : sdEquilateralTriangle(centered, scale));
-      color += vec3(1.0, 0.6, 0.25) * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6);
+      centered = rotate2d(centered, uSdfRotation); 
+      float scale = mix(0.2, 0.9, uSdfScale);
+      float sdfValue;
+      if (uSdfShape < 0.5) sdfValue = sdCircle(centered, scale);
+      else if (uSdfShape < 1.5) sdfValue = sdBox(centered, vec2(scale));
+      else if (uSdfShape < 2.5) sdfValue = sdEquilateralTriangle(centered, scale);
+      else if (uSdfShape < 3.5) sdfValue = sdHexagon(centered, scale);
+      else if (uSdfShape < 4.5) sdfValue = sdStar(centered, scale, 5, 2.0);
+      else sdfValue = sdRing(centered, scale, uSdfEdge * 0.5);
+      
+      color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6);
     }
   }
   color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
@@ -902,6 +937,7 @@ void main() {
     gl.uniform1f(getLocation('uSdfGlow'), state.sdfGlow);
     gl.uniform1f(getLocation('uSdfRotation'), state.sdfRotation);
     gl.uniform1f(getLocation('uSdfFill'), state.sdfFill);
+    gl.uniform3fv(getLocation('uSdfColor'), state.sdfColor || [1.0, 0.6, 0.25]);
     gl.uniform1f(getLocation('uDebugTint'), state.debugTint ?? 0);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());

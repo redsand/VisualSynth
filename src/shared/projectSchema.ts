@@ -208,12 +208,13 @@ const particlesSchema = z.object({
 
 const sdfSchema = z.object({
   enabled: z.boolean(),
-  shape: z.enum(['circle', 'box', 'triangle']),
+  shape: z.enum(['circle', 'box', 'triangle', 'hexagon', 'star', 'ring']),
   scale: z.number(),
   edge: z.number(),
   glow: z.number(),
   rotation: z.number(),
-  fill: z.number()
+  fill: z.number(),
+  color: z.array(z.number()).length(3).optional()
 });
 
 const visualizerSchema = z.object({

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "SDF Pulse",
+  "name": "SDF Pulse (Complex)",
   "category": "Audio Reactive",
   "createdAt": "2026-01-27T18:35:38.953Z",
   "updatedAt": "2026-01-27T18:35:38.953Z",
@@ -45,11 +45,11 @@
                 1
               ],
               "glowEnabled": true,
-              "glowIntensity": 0.5,
-              "glowRadius": 0.1,
+              "glowIntensity": 0.8,
+              "glowRadius": 0.2,
               "glowColor": [
+                0.8,
                 0.2,
-                0.5,
                 1,
                 1
               ],
@@ -115,15 +115,63 @@
               {
                 "enabled": true,
                 "order": 0,
-                "instanceId": "c",
+                "instanceId": "circle-1",
                 "nodeId": "circle",
                 "params": {
-                  "radius": 0.2
+                  "radius": 0.3
                 },
-                "label": "Beat"
+                "label": "Inner"
+              },
+              {
+                "enabled": true,
+                "order": 1,
+                "instanceId": "box-1",
+                "nodeId": "box",
+                "params": {
+                  "size": [
+                    0.2,
+                    0.2
+                  ]
+                },
+                "label": "Cross"
+              },
+              {
+                "enabled": true,
+                "order": 2,
+                "instanceId": "mirror",
+                "nodeId": "dom-mirror-x-2d",
+                "params": {
+                  "offset": 0.1
+                },
+                "label": "X Mirror"
+              },
+              {
+                "enabled": true,
+                "order": 3,
+                "instanceId": "sym",
+                "nodeId": "dom-symmetry",
+                "params": {
+                  "folds": 4
+                },
+                "label": "Radial"
+              },
+              {
+                "enabled": true,
+                "order": 4,
+                "instanceId": "union",
+                "nodeId": "op-smooth-union",
+                "params": {
+                  "k": 0.1
+                },
+                "label": "Combine"
               }
             ],
-            "connections": []
+            "connections": [
+              { "from": "circle-1", "to": "mirror", "slot": 0 },
+              { "from": "mirror", "to": "sym", "slot": 0 },
+              { "from": "box-1", "to": "union", "slot": 0 },
+              { "from": "sym", "to": "union", "slot": 1 }
+            ]
           }
         }
       ]
@@ -136,38 +184,29 @@
       "value": 0.5,
       "targets": [],
       "description": "Controls: Macro 1"
-    },
-    {
-      "id": "macro-2",
-      "name": "Macro 2",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 2"
-    },
-    {
-      "id": "macro-3",
-      "name": "Macro 3",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 3"
-    },
-    {
-      "id": "macro-4",
-      "name": "Macro 4",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 4"
     }
   ],
   "modMatrix": [
     {
+      "id": "mod-1",
       "source": "audio.peak",
-      "target": "c.radius",
-      "amount": 0.5,
-      "min": 0.2,
-      "max": 0.8,
+      "target": "circle-1.radius",
+      "amount": 0.6,
+      "min": 0.1,
+      "max": 0.5,
       "curve": "exp",
       "smoothing": 0.1,
+      "bipolar": false
+    },
+    {
+      "id": "mod-2",
+      "source": "audio.rms",
+      "target": "union.k",
+      "amount": 0.8,
+      "min": 0.01,
+      "max": 0.3,
+      "curve": "linear",
+      "smoothing": 0.2,
       "bipolar": false
     }
   ],

@@ -178,6 +178,55 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
             item.appendChild(name);
             item.appendChild(controls);
             nodeList.appendChild(item);
+
+            // Connections UI
+            const connectionContainer = document.createElement('div');
+            connectionContainer.className = 'sdf-connections';
+            connectionContainer.style.marginLeft = '15px';
+            connectionContainer.style.fontSize = '0.8em';
+            connectionContainer.style.color = '#aaa';
+
+            const inputSlots = getInputSlotsCount(def?.glsl.signature || '');
+            if (inputSlots > 0) {
+                for (let slot = 0; slot < inputSlots; slot++) {
+                    const connRow = document.createElement('div');
+                    connRow.className = 'layer-row';
+                    connRow.style.minHeight = '20px';
+                    const connLabel = document.createElement('span');
+                    connLabel.textContent = inputSlots === 1 ? 'Input: ' : `Input ${slot + 1}: `;
+                    connLabel.style.width = '100px';
+
+                    const connSelect = document.createElement('select');
+                    connSelect.style.fontSize = '1em';
+                    const noneOpt = document.createElement('option');
+                    noneOpt.value = '';
+                    noneOpt.textContent = '(None)';
+                    connSelect.appendChild(noneOpt);
+
+                    // Only allow connecting to nodes BEFORE this one in the list
+                    config.nodes.forEach((otherNode, otherIndex) => {
+                        if (otherIndex < index) {
+                            const opt = document.createElement('option');
+                            opt.value = otherNode.instanceId;
+                            const otherDef = sdfRegistry.get(otherNode.nodeId);
+                            opt.textContent = `${otherIndex + 1}. ${otherNode.label || otherDef?.name || otherNode.nodeId}`;
+                            connSelect.appendChild(opt);
+                        }
+                    });
+
+                    const existingConn = config.connections.find(c => c.to === node.instanceId && c.slot === slot);
+                    if (existingConn) connSelect.value = existingConn.from;
+
+                    connSelect.onchange = () => {
+                        updateConnection(layer.id, node.instanceId, slot, connSelect.value);
+                    };
+
+                    connRow.appendChild(connLabel);
+                    connRow.appendChild(connSelect);
+                    connectionContainer.appendChild(connRow);
+                }
+                nodeList.appendChild(connectionContainer);
+            }
             
             if (def && def.parameters.length > 0) {
                 const paramContainer = document.createElement('div');
@@ -199,9 +248,23 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
                         updateNodeParam(layer.id, index, param.id, newVal);
                     });
                     
+                    const modHint = document.createElement('div');
+                    modHint.style.fontSize = '0.7em';
+                    modHint.style.color = '#777';
+                    modHint.style.marginLeft = '100px';
+                    modHint.style.width = '100%';
+                    if (param.type === 'float' || param.type === 'angle' || param.type === 'int') {
+                        modHint.textContent = `Target: ${node.instanceId}.${param.id}`;
+                    } else if (param.type === 'vec2') {
+                        modHint.textContent = `Targets: ${node.instanceId}.${param.id}.[x,y]`;
+                    } else if (param.type === 'vec3') {
+                        modHint.textContent = `Targets: ${node.instanceId}.${param.id}.[x,y,z]`;
+                    }
+                    
                     row.appendChild(label);
                     row.appendChild(input);
                     paramContainer.appendChild(row);
+                    if (modHint.textContent) paramContainer.appendChild(modHint);
                 });
                 nodeList.appendChild(paramContainer);
             }
@@ -398,6 +461,40 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
           }
       });
       render();
+  };
+
+  const updateConnection = (layerId: string, toId: string, slot: number, fromId: string) => {
+    actions.mutateProject(store, (project) => {
+        const scene = project.scenes.find(s => s.id === project.activeSceneId);
+        const layer = scene?.layers.find(l => l.id === layerId);
+        if (layer && layer.sdfScene) {
+            // Remove existing connection for this slot
+            layer.sdfScene.connections = layer.sdfScene.connections.filter(c => !(c.to === toId && c.slot === slot));
+            if (fromId) {
+                layer.sdfScene.connections.push({ from: fromId, to: toId, slot });
+            }
+        }
+    });
+  };
+
+  const getInputSlotsCount = (signature: string): number => {
+      if (!signature) return 0;
+      const paramsPart = signature.split('(')[1]?.split(')')[0];
+      if (!paramsPart) return 0;
+      const params = paramsPart.split(',').map(p => p.trim());
+      // Count parameters of type 'float' (for distances) or 'vec2/vec3' if it's a domain node
+      // BUT for domain nodes, we only want 1 input (the geometry to transform)
+      // Actually, simple rule: 
+      // If it starts with 'float d', it's an input.
+      // If it's a domain node, it has 1 implicit input (the geometry).
+      
+      const floatDCount = params.filter(p => p.startsWith('float d')).length;
+      if (floatDCount > 0) return floatDCount;
+      
+      // Domain nodes take 1 Geometry input in our model
+      if (signature.includes('dom')) return 1;
+      
+      return 0;
   };
 
   return { render };

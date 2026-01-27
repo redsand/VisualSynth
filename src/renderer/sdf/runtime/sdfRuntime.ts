@@ -69,7 +69,7 @@ void main() {
     // We expect nodes to contain the current modulated values in 'params'
     for (const node of nodes) {
       for (const [key, val] of Object.entries(node.params)) {
-        const uName = `u_${node.instanceId}_${key}`;
+        const uName = `u_${node.instanceId.replace(/-/g, '_')}_${key}`;
         const loc = this.uniformLocs.get(uName);
         if (loc) {
           if (typeof val === 'number') {

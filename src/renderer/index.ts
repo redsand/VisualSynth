@@ -227,6 +227,7 @@ const sdfRotation = document.getElementById('sdf-rotation') as HTMLInputElement;
 const sdfEdge = document.getElementById('sdf-edge') as HTMLInputElement;
 const sdfGlow = document.getElementById('sdf-glow') as HTMLInputElement;
 const sdfFill = document.getElementById('sdf-fill') as HTMLInputElement;
+const sdfColor = document.getElementById('sdf-color') as HTMLInputElement;
 const modMatrixList = document.getElementById('mod-matrix-list') as HTMLDivElement;
 const modMatrixAdd = document.getElementById('mod-matrix-add') as HTMLButtonElement;
 const midiMapList = document.getElementById('midi-map-list') as HTMLDivElement;
@@ -3894,6 +3895,13 @@ const initSdf = () => {
   sdfEdge.value = String(currentProject.sdf.edge);
   sdfGlow.value = String(currentProject.sdf.glow);
   sdfFill.value = String(currentProject.sdf.fill);
+  
+  if (currentProject.sdf.color) {
+      const r = Math.round(currentProject.sdf.color[0] * 255).toString(16).padStart(2, '0');
+      const g = Math.round(currentProject.sdf.color[1] * 255).toString(16).padStart(2, '0');
+      const b = Math.round(currentProject.sdf.color[2] * 255).toString(16).padStart(2, '0');
+      sdfColor.value = `#${r}${g}${b}`;
+  }
 
   // Initialize Advanced Panel
   if (!sdfPanel) {
@@ -3950,7 +3958,12 @@ const applySdfControls = () => {
     rotation: Number(sdfRotation.value),
     edge: Number(sdfEdge.value),
     glow: Number(sdfGlow.value),
-    fill: Number(sdfFill.value)
+    fill: Number(sdfFill.value),
+    color: [
+        parseInt(sdfColor.value.slice(1, 3), 16) / 255,
+        parseInt(sdfColor.value.slice(3, 5), 16) / 255,
+        parseInt(sdfColor.value.slice(5, 7), 16) / 255
+    ]
   };
   if (sdfAdvancedToggle.checked) {
     sdfPanel?.render();
@@ -5112,12 +5125,11 @@ styleSelect.addEventListener('change', () => {
   }
 );
 
-[sdfEnabled, sdfScale, sdfRotation, sdfEdge, sdfGlow, sdfFill].forEach((control) => {
-  control.addEventListener('input', () => {
-    applySdfControls();
+  [sdfEnabled, sdfScale, sdfRotation, sdfEdge, sdfGlow, sdfFill, sdfColor].forEach((control) => {
+    control.addEventListener('input', () => {
+      applySdfControls();
+    });
   });
-});
-
 sdfShape.addEventListener('change', () => {
   applySdfControls();
 });
@@ -6008,12 +6020,13 @@ const render = (time: number) => {
     particleSize: moddedParticles.size,
     particleGlow: moddedParticles.glow,
     sdfEnabled: sdf.enabled,
-    sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
+    sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : sdf.shape === 'triangle' ? 2 : sdf.shape === 'hexagon' ? 3 : sdf.shape === 'star' ? 4 : 5,
     sdfScale: moddedSdf.scale,
     sdfEdge: moddedSdf.edge,
     sdfGlow: moddedSdf.glow,
     sdfRotation: moddedSdf.rotation,
     sdfFill: moddedSdf.fill,
+    sdfColor: sdf.color,
     sdfScene: sdfAdvancedToggle.checked ? (currentProject.scenes.find(s=>s.id===currentProject.activeSceneId)?.layers.find(l=>l.id==='gen-sdf-scene')?.sdfScene) : undefined,
     gravityPositions,
     gravityStrengths,

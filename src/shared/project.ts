@@ -128,12 +128,13 @@ export interface ParticleConfig {
 
 export interface SdfConfig {
   enabled: boolean;
-  shape: 'circle' | 'box' | 'triangle';
+  shape: 'circle' | 'box' | 'triangle' | 'hexagon' | 'star' | 'ring';
   scale: number;
   edge: number;
   glow: number;
   rotation: number;
   fill: number;
+  color?: [number, number, number];
 }
 
 export interface LfoConfig {
@@ -433,7 +434,8 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     edge: 0.06,
     glow: 0.65,
     rotation: 0.2,
-    fill: 0.4
+    fill: 0.4,
+    color: [1.0, 0.6, 0.25]
   },
   visualizer: {
     enabled: false,
