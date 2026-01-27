@@ -1,0 +1,151 @@
+{
+  "version": 2,
+  "name": "Glitch Grid",
+  "category": "Abstract",
+  "createdAt": "2026-01-27T18:35:38.960Z",
+  "updatedAt": "2026-01-27T18:35:38.960Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "gen-sdf-scene",
+          "name": "gen-sdf-scene",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "sdfScene": {
+            "version": 1,
+            "mode": "2d",
+            "render2d": {
+              "antialiasing": true,
+              "aaSmoothing": 0.01,
+              "strokeEnabled": true,
+              "strokeWidth": 0.02,
+              "strokeColor": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "fillEnabled": true,
+              "fillOpacity": 0.5,
+              "fillColor": [
+                0.2,
+                0.5,
+                1,
+                1
+              ],
+              "glowEnabled": true,
+              "glowIntensity": 0.5,
+              "glowRadius": 0.1,
+              "glowColor": [
+                0.2,
+                0.5,
+                1,
+                1
+              ],
+              "gradientEnabled": false,
+              "gradientMode": "distance",
+              "gradientColors": []
+            },
+            "render3d": {
+              "maxSteps": 64,
+              "maxDistance": 20,
+              "epsilon": 0.001,
+              "normalEpsilon": 0.0005,
+              "lighting": {
+                "direction": [
+                  0.5,
+                  0.8,
+                  0.6
+                ],
+                "color": [
+                  1,
+                  1,
+                  1
+                ],
+                "intensity": 1,
+                "ambient": 0.2,
+                "specularPower": 32,
+                "specularIntensity": 0.5
+              },
+              "aoEnabled": true,
+              "aoSteps": 3,
+              "aoIntensity": 0.5,
+              "aoRadius": 0.2,
+              "softShadowsEnabled": true,
+              "shadowSoftness": 8,
+              "shadowSteps": 16,
+              "fogEnabled": false,
+              "fogDensity": 0.05,
+              "fogColor": [
+                0,
+                0,
+                0
+              ],
+              "backgroundColor": [
+                0,
+                0,
+                0
+              ],
+              "backgroundGradient": false,
+              "adaptiveQuality": true,
+              "qualityBias": 0
+            },
+            "debug": {
+              "showDistance": false,
+              "distanceScale": 5,
+              "showNormals": false,
+              "showSteps": false,
+              "stepsColorScale": 64,
+              "showCostTier": false,
+              "showBounds": false,
+              "wireframe": false
+            },
+            "nodes": [
+              {
+                "enabled": true,
+                "order": 0,
+                "instanceId": "r",
+                "nodeId": "repeat",
+                "params": {
+                  "period": [
+                    0.2,
+                    0.2,
+                    0
+                  ]
+                }
+              }
+            ],
+            "connections": []
+          }
+        },
+        {
+          "id": "fx-glitch",
+          "name": "fx-glitch",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "macros": [],
+  "modMatrix": [],
+  "midiMappings": []
+}

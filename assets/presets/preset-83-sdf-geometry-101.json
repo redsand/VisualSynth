@@ -1,0 +1,105 @@
+{
+  "version": 2,
+  "name": "SDF Geometry 101",
+  "category": "Geometry",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "gen-sdf-scene",
+          "name": "SDF Scene",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "sdfScene": {
+            "version": 1,
+            "mode": "2d",
+            "render2d": {
+              "antialiasing": true,
+              "aaSmoothing": 0.01,
+              "strokeEnabled": true,
+              "strokeWidth": 0.02,
+              "strokeColor": [1, 1, 1, 1],
+              "fillEnabled": true,
+              "fillOpacity": 0.5,
+              "fillColor": [0.2, 0.5, 1, 1],
+              "glowEnabled": true,
+              "glowIntensity": 0.5,
+              "glowRadius": 0.1,
+              "glowColor": [0.2, 0.5, 1, 1],
+              "gradientEnabled": false,
+              "gradientMode": "distance",
+              "gradientColors": []
+            },
+            "render3d": {
+              "maxSteps": 64,
+              "maxDistance": 20,
+              "epsilon": 0.001,
+              "normalEpsilon": 0.0005,
+              "lighting": {
+                "direction": [0.5, 0.8, 0.6],
+                "color": [1, 1, 1],
+                "intensity": 1,
+                "ambient": 0.2,
+                "specularPower": 32,
+                "specularIntensity": 0.5
+              },
+              "aoEnabled": true,
+              "aoSteps": 3,
+              "aoIntensity": 0.5,
+              "aoRadius": 0.2,
+              "softShadowsEnabled": true,
+              "shadowSoftness": 8,
+              "shadowSteps": 16,
+              "fogEnabled": false,
+              "fogDensity": 0.05,
+              "fogColor": [0, 0, 0],
+              "backgroundColor": [0, 0, 0],
+              "backgroundGradient": false,
+              "adaptiveQuality": true,
+              "qualityBias": 0
+            },
+            "debug": {
+              "showDistance": false,
+              "distanceScale": 5,
+              "showNormals": false,
+              "showSteps": false,
+              "stepsColorScale": 64,
+              "showCostTier": false,
+              "showBounds": false,
+              "wireframe": false
+            },
+            "nodes": [
+              { "instanceId": "circle1", "nodeId": "circle", "params": { "radius": 0.3 }, "enabled": true, "order": 0, "label": "Circle" },
+              { "instanceId": "trans1", "nodeId": "translate", "params": { "offset": [-0.6, 0, 0] }, "enabled": true, "order": 1, "label": "Move Left" },
+              { "instanceId": "hex1", "nodeId": "hexagon", "params": { "radius": 0.25 }, "enabled": true, "order": 2, "label": "Hexagon" },
+              { "instanceId": "trans2", "nodeId": "translate", "params": { "offset": [0, 0, 0] }, "enabled": true, "order": 3, "label": "Center" },
+              { "instanceId": "tri1", "nodeId": "triangle", "params": { "radius": 0.3 }, "enabled": true, "order": 4, "label": "Triangle" },
+              { "instanceId": "trans3", "nodeId": "translate", "params": { "offset": [0.6, 0, 0] }, "enabled": true, "order": 5, "label": "Move Right" },
+              { "instanceId": "union1", "nodeId": "union", "params": {}, "enabled": true, "order": 6, "label": "Combine Left" },
+              { "instanceId": "union2", "nodeId": "union", "params": {}, "enabled": true, "order": 7, "label": "Combine All" }
+            ],
+            "connections": [
+              { "from": "circle1", "to": "trans1", "slot": 0 },
+              { "from": "hex1", "to": "trans2", "slot": 0 },
+              { "from": "tri1", "to": "trans3", "slot": 0 },
+              { "from": "trans1", "to": "union1", "slot": 0 },
+              { "from": "trans2", "to": "union1", "slot": 1 },
+              { "from": "union1", "to": "union2", "slot": 0 },
+              { "from": "trans3", "to": "union2", "slot": 1 }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "macros": [],
+  "modMatrix": [],
+  "midiMappings": []
+}

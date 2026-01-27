@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "name": "Origami Storm",
+  "category": "Abstract",
+  "createdAt": "2026-01-27T18:35:38.957Z",
+  "updatedAt": "2026-01-27T18:35:38.957Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "layer-origami",
+          "name": "Main Layer",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "macros": [],
+  "modMatrix": [
+    {
+      "source": "audio.rms",
+      "target": "layer-origami.speed",
+      "amount": 3,
+      "min": 1,
+      "max": 5,
+      "curve": "exp",
+      "smoothing": 0.2
+    }
+  ],
+  "midiMappings": []
+}

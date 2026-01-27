@@ -1,0 +1,192 @@
+{
+  "version": 2,
+  "name": "SDF Bullseye",
+  "category": "Geometry",
+  "createdAt": "2026-01-27T18:35:38.948Z",
+  "updatedAt": "2026-01-27T18:35:38.948Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "gen-sdf-scene",
+          "name": "SDF Scene",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "sdfScene": {
+            "version": 1,
+            "mode": "2d",
+            "render2d": {
+              "antialiasing": true,
+              "aaSmoothing": 0.01,
+              "strokeEnabled": true,
+              "strokeWidth": 0.02,
+              "strokeColor": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "fillEnabled": true,
+              "fillOpacity": 0.5,
+              "fillColor": [
+                0.2,
+                0.5,
+                1,
+                1
+              ],
+              "glowEnabled": true,
+              "glowIntensity": 0.5,
+              "glowRadius": 0.1,
+              "glowColor": [
+                0.2,
+                0.5,
+                1,
+                1
+              ],
+              "gradientEnabled": false,
+              "gradientMode": "distance",
+              "gradientColors": []
+            },
+            "render3d": {
+              "maxSteps": 64,
+              "maxDistance": 20,
+              "epsilon": 0.001,
+              "normalEpsilon": 0.0005,
+              "lighting": {
+                "direction": [
+                  0.5,
+                  0.8,
+                  0.6
+                ],
+                "color": [
+                  1,
+                  1,
+                  1
+                ],
+                "intensity": 1,
+                "ambient": 0.2,
+                "specularPower": 32,
+                "specularIntensity": 0.5
+              },
+              "aoEnabled": true,
+              "aoSteps": 3,
+              "aoIntensity": 0.5,
+              "aoRadius": 0.2,
+              "softShadowsEnabled": true,
+              "shadowSoftness": 8,
+              "shadowSteps": 16,
+              "fogEnabled": false,
+              "fogDensity": 0.05,
+              "fogColor": [
+                0,
+                0,
+                0
+              ],
+              "backgroundColor": [
+                0,
+                0,
+                0
+              ],
+              "backgroundGradient": false,
+              "adaptiveQuality": true,
+              "qualityBias": 0
+            },
+            "debug": {
+              "showDistance": false,
+              "distanceScale": 5,
+              "showNormals": false,
+              "showSteps": false,
+              "stepsColorScale": 64,
+              "showCostTier": false,
+              "showBounds": false,
+              "wireframe": false
+            },
+            "nodes": [
+              {
+                "enabled": true,
+                "order": 0,
+                "instanceId": "c1",
+                "nodeId": "circle",
+                "params": {
+                  "radius": 0.5
+                },
+                "label": "Outer"
+              },
+              {
+                "enabled": true,
+                "order": 1,
+                "instanceId": "c2",
+                "nodeId": "circle",
+                "params": {
+                  "radius": 0.4
+                },
+                "label": "Cut 1"
+              },
+              {
+                "enabled": true,
+                "order": 2,
+                "instanceId": "sub1",
+                "nodeId": "subtract",
+                "params": {},
+                "label": "Ring 1"
+              },
+              {
+                "enabled": true,
+                "order": 3,
+                "instanceId": "c3",
+                "nodeId": "circle",
+                "params": {
+                  "radius": 0.2
+                },
+                "label": "Inner"
+              },
+              {
+                "enabled": true,
+                "order": 4,
+                "instanceId": "u1",
+                "nodeId": "union",
+                "params": {},
+                "label": "Combine"
+              }
+            ],
+            "connections": [
+              {
+                "from": "c1",
+                "to": "sub1",
+                "slot": 0
+              },
+              {
+                "from": "c2",
+                "to": "sub1",
+                "slot": 1
+              },
+              {
+                "from": "sub1",
+                "to": "u1",
+                "slot": 0
+              },
+              {
+                "from": "c3",
+                "to": "u1",
+                "slot": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "macros": [],
+  "modMatrix": [],
+  "midiMappings": []
+}

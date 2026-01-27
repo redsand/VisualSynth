@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "name": "Topo Zoom",
+  "category": "Geometry",
+  "createdAt": "2026-01-27T18:35:38.955Z",
+  "updatedAt": "2026-01-27T18:35:38.955Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "layer-topo",
+          "name": "Main Layer",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "macros": [],
+  "modMatrix": [
+    {
+      "source": "audio.peak",
+      "target": "layer-topo.scale",
+      "amount": 0.5,
+      "min": 1,
+      "max": 2,
+      "curve": "exp",
+      "smoothing": 0.1
+    }
+  ],
+  "midiMappings": []
+}

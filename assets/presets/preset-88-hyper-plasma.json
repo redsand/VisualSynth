@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "name": "Hyper Plasma",
+  "category": "Essentials",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Hyper Plasma",
+          "enabled": true,
+          "opacity": 1.0,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Hyper Speed",
+      "value": 0.8,
+      "targets": [
+        { "target": "layer-plasma.speed", "amount": 3.0 }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Micro Scale",
+      "value": 0.7,
+      "targets": [
+        { "target": "layer-plasma.scale", "amount": 4.0 }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "audio.rms",
+      "target": "layer-plasma.speed",
+      "amount": 1.0,
+      "min": 1.0,
+      "max": 4.0,
+      "curve": "exp",
+      "smoothing": 0.1,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

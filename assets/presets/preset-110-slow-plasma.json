@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "name": "Slow Plasma",
+  "category": "Organic",
+  "createdAt": "2026-01-27T18:35:38.958Z",
+  "updatedAt": "2026-01-27T18:35:38.958Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Main Layer",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "macros": [],
+  "modMatrix": [
+    {
+      "source": "macro-1",
+      "target": "layer-plasma.speed",
+      "amount": 0,
+      "min": 0.1,
+      "max": 0.1,
+      "curve": "linear",
+      "smoothing": 0
+    }
+  ],
+  "midiMappings": []
+}

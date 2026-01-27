@@ -91,6 +91,7 @@ export interface RenderState {
   sdfGlow: number;
   sdfRotation: number;
   sdfFill: number;
+  sdfScene?: any; // Config for Advanced mode
   gravityPositions: Float32Array;
   gravityStrengths: Float32Array;
   gravityPolarities: Float32Array;

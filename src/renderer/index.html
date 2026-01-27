@@ -263,39 +263,47 @@
               <label class="scene-label scene-label-inline">
                 <input type="checkbox" id="sdf-enabled" checked /> Enable SDF
               </label>
-              <label class="scene-label">
-                Shape
-                <select id="sdf-shape">
-                  <option value="circle">Circle</option>
-                  <option value="box">Box</option>
-                  <option value="triangle">Triangle</option>
-                </select>
+              <label class="scene-label scene-label-inline">
+                <input type="checkbox" id="sdf-advanced-enabled" /> Use Advanced Node Scene
               </label>
-              <div class="scene-row">
-                <label class="scene-inline">
-                  Scale
-                  <input id="sdf-scale" type="range" min="0" max="1" step="0.05" value="0.45" />
+              <div id="sdf-simple-controls">
+                <label class="scene-label">
+                  Shape
+                  <select id="sdf-shape">
+                    <option value="circle">Circle</option>
+                    <option value="box">Box</option>
+                    <option value="triangle">Triangle</option>
+                  </select>
                 </label>
-                <label class="scene-inline">
-                  Rotation
-                  <input id="sdf-rotation" type="range" min="-3.14" max="3.14" step="0.05" value="0" />
-                </label>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    Scale
+                    <input id="sdf-scale" type="range" min="0" max="1" step="0.05" value="0.45" />
+                  </label>
+                  <label class="scene-inline">
+                    Rotation
+                    <input id="sdf-rotation" type="range" min="-3.14" max="3.14" step="0.05" value="0" />
+                  </label>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    Edge
+                    <input id="sdf-edge" type="range" min="0" max="0.5" step="0.02" value="0.08" />
+                  </label>
+                  <label class="scene-inline">
+                    Glow
+                    <input id="sdf-glow" type="range" min="0" max="1" step="0.05" value="0.5" />
+                  </label>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    Fill
+                    <input id="sdf-fill" type="range" min="0" max="1" step="0.05" value="0.35" />
+                  </label>
+                </div>
               </div>
-              <div class="scene-row">
-                <label class="scene-inline">
-                  Edge
-                  <input id="sdf-edge" type="range" min="0" max="0.5" step="0.02" value="0.08" />
-                </label>
-                <label class="scene-inline">
-                  Glow
-                  <input id="sdf-glow" type="range" min="0" max="1" step="0.05" value="0.5" />
-                </label>
-              </div>
-              <div class="scene-row">
-                <label class="scene-inline">
-                  Fill
-                  <input id="sdf-fill" type="range" min="0" max="1" step="0.05" value="0.35" />
-                </label>
+              <div id="sdf-editor" class="sdf-editor hidden">
+                <!-- Advanced Editor injected here -->
               </div>
             </div>
           </div>

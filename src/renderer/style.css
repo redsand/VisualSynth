@@ -1351,3 +1351,57 @@ body[data-mode='matrix'] .safe-mode {
 .hidden {
   display: none;
 }
+
+/* SDF Advanced Editor Styles */
+.sdf-editor {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sdf-node-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.sdf-node-item {
+  background: rgba(255, 255, 255, 0.05);
+  margin: 4px 0;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sdf-params {
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.sdf-add-row {
+  display: flex;
+  gap: 4px;
+}
+
+.sdf-add-row select {
+  flex: 1;
+  background: #162235;
+  color: #fff;
+  border: 1px solid #2c4159;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.sdf-add-row button {
+  background: #1ec8ff;
+  color: #0b111b;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-weight: bold;
+}
+

@@ -1,0 +1,78 @@
+{
+  "version": 2,
+  "name": "SDF Infinite Field",
+  "category": "Geometry",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "gen-sdf-scene",
+          "name": "SDF Scene",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "sdfScene": {
+            "version": 1,
+            "mode": "2d",
+            "render2d": {
+              "antialiasing": true,
+              "aaSmoothing": 0.02,
+              "strokeEnabled": true,
+              "strokeWidth": 0.01,
+              "strokeColor": [1, 0.8, 0.2, 1],
+              "fillEnabled": false,
+              "fillOpacity": 0,
+              "fillColor": [0, 0, 0, 0],
+              "glowEnabled": true,
+              "glowIntensity": 0.8,
+              "glowRadius": 0.2,
+              "glowColor": [1, 0.6, 0.1, 1],
+              "gradientEnabled": false,
+              "gradientMode": "distance",
+              "gradientColors": []
+            },
+            "render3d": { "maxSteps": 64, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005, "lighting": { "direction": [0, 1, 0], "color": [1, 1, 1], "intensity": 1, "ambient": 0.1, "specularPower": 32, "specularIntensity": 0.5 }, "aoEnabled": false, "aoSteps": 3, "aoIntensity": 0.5, "aoRadius": 0.2, "softShadowsEnabled": false, "shadowSoftness": 8, "shadowSteps": 8, "fogEnabled": false, "fogDensity": 0.05, "fogColor": [0,0,0], "backgroundColor": [0,0,0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0 },
+            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
+            "nodes": [
+              { "instanceId": "star", "nodeId": "star", "params": { "radius": 0.2, "ratio": 0.5, "points": 5 }, "enabled": true, "order": 0, "label": "Star" },
+              { "instanceId": "rotate", "nodeId": "rotate2d", "params": { "angle": 0 }, "enabled": true, "order": 1, "label": "Spin" },
+              { "instanceId": "repeat", "nodeId": "repeat", "params": { "period": [0.6, 0.6, 0] }, "enabled": true, "order": 2, "label": "Grid Repeat" }
+            ],
+            "connections": [
+              { "from": "star", "to": "rotate", "slot": 0 },
+              { "from": "rotate", "to": "repeat", "slot": 0 }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Spin",
+      "value": 0.5,
+      "targets": []
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "audio.rms",
+      "target": "rotate.angle", 
+      "amount": 2.0,
+      "min": 0,
+      "max": 6.28,
+      "curve": "linear",
+      "smoothing": 0.1,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": []
+}

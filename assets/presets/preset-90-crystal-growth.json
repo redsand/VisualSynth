@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "name": "Crystal Growth",
+  "category": "Organic",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "layer-crystal",
+          "name": "Growth",
+          "enabled": true,
+          "opacity": 1.0,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Growth Speed",
+      "value": 0.6,
+      "targets": [
+        { "target": "layer-crystal.speed", "amount": 1.5 }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Detail",
+      "value": 0.8,
+      "targets": [
+        { "target": "layer-crystal.scale", "amount": 2.0 }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "lfo-2",
+      "target": "layer-crystal.speed",
+      "amount": 0.5,
+      "min": 0.2,
+      "max": 1.0,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

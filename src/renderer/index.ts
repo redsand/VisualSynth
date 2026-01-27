@@ -14,7 +14,9 @@ import {
 } from '../shared/project';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
-import { createDebugOverlay } from './render/debugOverlay';
+import { createLayerPanel } from './panels/LayerPanel';
+import { createSdfPanel } from './panels/SdfPanel';
+import { createModulationPanel } from './panels/ModulationPanel';
 import { getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
@@ -214,6 +216,9 @@ const particlesSpeed = document.getElementById('particles-speed') as HTMLInputEl
 const particlesSize = document.getElementById('particles-size') as HTMLInputElement;
 const particlesGlow = document.getElementById('particles-glow') as HTMLInputElement;
 const sdfEnabled = document.getElementById('sdf-enabled') as HTMLInputElement;
+const sdfAdvancedToggle = document.getElementById('sdf-advanced-enabled') as HTMLInputElement;
+const sdfSimpleControls = document.getElementById('sdf-simple-controls') as HTMLDivElement;
+const sdfEditor = document.getElementById('sdf-editor') as HTMLDivElement;
 const sdfShape = document.getElementById('sdf-shape') as HTMLSelectElement;
 const sdfScale = document.getElementById('sdf-scale') as HTMLInputElement;
 const sdfRotation = document.getElementById('sdf-rotation') as HTMLInputElement;
@@ -346,6 +351,7 @@ const outputChannel = new BroadcastChannel('visualsynth-output');
 let lastOutputBroadcast = 0;
 let lastMidiLatencyMs: number | null = null;
 let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null = null;
+let sdfPanel: { render: () => void } | null = null;
 let autoBpm: number | null = null;
 let networkBpm: number | null = null;
 let bpmRange: BpmRange = { min: 80, max: 150 };
@@ -3882,6 +3888,29 @@ const initSdf = () => {
   sdfEdge.value = String(currentProject.sdf.edge);
   sdfGlow.value = String(currentProject.sdf.glow);
   sdfFill.value = String(currentProject.sdf.fill);
+
+  // Initialize Advanced Panel
+  if (!sdfPanel) {
+    sdfPanel = createSdfPanel({
+      store: {
+        getState: () => ({ project: currentProject }),
+        dispatch: (action: any) => { /* dummy if not needed yet */ }
+      } as any
+    });
+  }
+
+  sdfAdvancedToggle.addEventListener('change', () => {
+    const advanced = sdfAdvancedToggle.checked;
+    sdfSimpleControls.classList.toggle('hidden', advanced);
+    sdfEditor.classList.toggle('hidden', !advanced);
+    if (advanced) sdfPanel?.render();
+  });
+
+  // Set initial state
+  const isAdvanced = false; // Default to simple for now or extract from project if added
+  sdfAdvancedToggle.checked = isAdvanced;
+  sdfSimpleControls.classList.toggle('hidden', isAdvanced);
+  sdfEditor.classList.toggle('hidden', !isAdvanced);
 };
 
 const applyEffectControls = () => {
@@ -3917,6 +3946,9 @@ const applySdfControls = () => {
     glow: Number(sdfGlow.value),
     fill: Number(sdfFill.value)
   };
+  if (sdfAdvancedToggle.checked) {
+    sdfPanel?.render();
+  }
 };
 
 const syncOutputConfig = async (next: Partial<OutputConfig>) => {
@@ -5968,6 +6000,7 @@ const render = (time: number) => {
     sdfGlow: moddedSdf.glow,
     sdfRotation: moddedSdf.rotation,
     sdfFill: moddedSdf.fill,
+    sdfScene: sdfAdvancedToggle.checked ? (currentProject.scenes.find(s=>s.id===currentProject.activeSceneId)?.layers.find(l=>l.id==='gen-sdf-scene')?.sdfScene) : undefined,
     gravityPositions,
     gravityStrengths,
     gravityPolarities,

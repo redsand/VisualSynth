@@ -1,0 +1,48 @@
+{
+  "version": 2,
+  "name": "Rapid Ink",
+  "category": "Organic",
+  "createdAt": "2026-01-27T12:00:00.000Z",
+  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "layers": [
+        {
+          "id": "layer-inkflow",
+          "name": "Fast Ink",
+          "enabled": true,
+          "opacity": 1.0,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Flow Rate",
+      "value": 0.9,
+      "targets": [
+        { "target": "layer-inkflow.speed", "amount": 2.5 }
+      ]
+    }
+  ],
+  "modMatrix": [
+    {
+      "id": "mod-1",
+      "source": "audio.peak",
+      "target": "layer-inkflow.speed",
+      "amount": 2.0,
+      "min": 1.0,
+      "max": 5.0,
+      "curve": "linear",
+      "smoothing": 0.05,
+      "bipolar": false
+    }
+  ],
+  "midiMappings": [],
+  "activeSceneId": "scene-1"
+}

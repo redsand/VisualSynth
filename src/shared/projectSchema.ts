@@ -1,6 +1,102 @@
 import { z } from 'zod';
 import { DEFAULT_OUTPUT_CONFIG } from './project';
 
+const sdfParamValueSchema = z.union([
+  z.number(),
+  z.array(z.number()),
+  z.boolean()
+]);
+
+const sdfNodeInstanceSchema = z.object({
+  instanceId: z.string(),
+  nodeId: z.string(),
+  params: z.record(sdfParamValueSchema),
+  enabled: z.boolean(),
+  order: z.number(),
+  label: z.string().optional()
+});
+
+const sdfConnectionSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  slot: z.number()
+});
+
+const sdfRenderConfig2DSchema = z.object({
+  antialiasing: z.boolean(),
+  aaSmoothing: z.number(),
+  strokeEnabled: z.boolean(),
+  strokeWidth: z.number(),
+  strokeColor: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  fillEnabled: z.boolean(),
+  fillOpacity: z.number(),
+  fillColor: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  glowEnabled: z.boolean(),
+  glowIntensity: z.number(),
+  glowRadius: z.number(),
+  glowColor: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  gradientEnabled: z.boolean(),
+  gradientMode: z.enum(['distance', 'normal', 'angle']),
+  gradientColors: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()]))
+});
+
+const sdfLightingConfigSchema = z.object({
+  direction: z.tuple([z.number(), z.number(), z.number()]),
+  color: z.tuple([z.number(), z.number(), z.number()]),
+  intensity: z.number(),
+  ambient: z.number(),
+  specularPower: z.number(),
+  specularIntensity: z.number()
+});
+
+const sdfRenderConfig3DSchema = z.object({
+  maxSteps: z.number(),
+  maxDistance: z.number(),
+  epsilon: z.number(),
+  normalEpsilon: z.number(),
+  lighting: sdfLightingConfigSchema,
+  aoEnabled: z.boolean(),
+  aoSteps: z.number(),
+  aoIntensity: z.number(),
+  aoRadius: z.number(),
+  softShadowsEnabled: z.boolean(),
+  shadowSoftness: z.number(),
+  shadowSteps: z.number(),
+  fogEnabled: z.boolean(),
+  fogDensity: z.number(),
+  fogColor: z.tuple([z.number(), z.number(), z.number()]),
+  backgroundColor: z.tuple([z.number(), z.number(), z.number()]),
+  backgroundGradient: z.boolean(),
+  adaptiveQuality: z.boolean(),
+  qualityBias: z.number()
+});
+
+const sdfDebugConfigSchema = z.object({
+  showDistance: z.boolean(),
+  distanceScale: z.number(),
+  showNormals: z.boolean(),
+  showSteps: z.boolean(),
+  stepsColorScale: z.number(),
+  showCostTier: z.boolean(),
+  showBounds: z.boolean(),
+  wireframe: z.boolean()
+});
+
+const sdfSceneConfigSchema = z.object({
+  version: z.number(),
+  mode: z.enum(['2d', '3d']),
+  nodes: z.array(sdfNodeInstanceSchema),
+  connections: z.array(sdfConnectionSchema),
+  render2d: sdfRenderConfig2DSchema,
+  render3d: sdfRenderConfig3DSchema,
+  debug: sdfDebugConfigSchema,
+  camera: z.object({
+    position: z.tuple([z.number(), z.number(), z.number()]),
+    target: z.tuple([z.number(), z.number(), z.number()]),
+    fov: z.number()
+  }).optional()
+});
+
 const transformSchema = z.object({
   x: z.number(),
   y: z.number(),
@@ -14,7 +110,8 @@ const layerSchema = z.object({
   enabled: z.boolean(),
   opacity: z.number(),
   blendMode: z.enum(['normal', 'add', 'multiply', 'screen', 'overlay', 'difference']),
-  transform: transformSchema
+  transform: transformSchema,
+  sdfScene: sdfSceneConfigSchema.optional()
 });
 
 const modConnectionSchema = z.object({
