@@ -85,6 +85,7 @@ export interface RenderState {
   gravityPolarities: Float32Array;
   gravityActives: Float32Array;
   gravityCollapse: number;
+  debugTint?: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -202,6 +203,7 @@ uniform sampler2D uSpectrumAsset;
 uniform float uSpectrumAssetBlend;
 uniform float uPlasmaAssetAudioReact;
 uniform float uSpectrumAssetAudioReact;
+uniform float uDebugTint;
 
 in vec2 vUv;
 out vec4 outColor;
@@ -463,6 +465,9 @@ void main() {
     float p = plasma(effectUv, uTime);
     color += vec3(0.1 + p * 0.4, 0.2 + p * 0.5, 0.3 + p * 0.6) * uPlasmaOpacity;
   }
+  if (uDebugTint > 0.5 && uPlasmaEnabled > 0.5) {
+    color += vec3(0.06, 0.02, 0.02) * uPlasmaOpacity;
+  }
 
   if (uPlasmaAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
@@ -486,6 +491,9 @@ void main() {
     if (uPersistence > 0.01) {
       color += vec3(0.1, 0.4, 0.8) * trailBar * 0.5 * uPersistence;
     }
+  }
+  if (uDebugTint > 0.5 && uSpectrumEnabled > 0.5) {
+    color += vec3(0.02, 0.06, 0.08) * uSpectrumOpacity;
   }
 
   if (uSpectrumAssetEnabled > 0.5) {
@@ -545,6 +553,9 @@ void main() {
     glyphColor *= 0.55 + complexity * 0.75;
     color += glyphColor * stroke * uGlyphOpacity;
   }
+  if (uDebugTint > 0.5 && uGlyphEnabled > 0.5) {
+    color += vec3(0.04, 0.02, 0.07) * uGlyphOpacity;
+  }
 
   if (uCrystalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -570,6 +581,9 @@ void main() {
     crystal *= growth + modeBias;
     crystal *= 0.4 + (1.0 - brittle) * 0.6;
     color += crystal * shard * uCrystalOpacity;
+  }
+  if (uDebugTint > 0.5 && uCrystalEnabled > 0.5) {
+    color += vec3(0.02, 0.05, 0.08) * uCrystalOpacity;
   }
 
   if (uInkEnabled > 0.5) {
@@ -600,6 +614,9 @@ void main() {
     }
     color += inkColor * stroke * decay * uInkOpacity;
   }
+  if (uDebugTint > 0.5 && uInkEnabled > 0.5) {
+    color += vec3(0.07, 0.04, 0.02) * uInkOpacity;
+  }
 
   if (uTopoEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -624,6 +641,9 @@ void main() {
     topoColor += vec3(0.1, 0.15, 0.2) * quake;
     topoColor -= vec3(0.12, 0.08, 0.1) * slide;
     color += topoColor * mask * uTopoOpacity;
+  }
+  if (uDebugTint > 0.5 && uTopoEnabled > 0.5) {
+    color += vec3(0.03, 0.07, 0.03) * uTopoOpacity;
   }
 
   if (uWeatherEnabled > 0.5) {
@@ -664,6 +684,9 @@ void main() {
     weather *= 0.5 + uWeatherIntensity * 0.6;
     color += weather * uWeatherOpacity;
   }
+  if (uDebugTint > 0.5 && uWeatherEnabled > 0.5) {
+    color += vec3(0.03, 0.04, 0.07) * uWeatherOpacity;
+  }
 
   if (uPortalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -682,6 +705,9 @@ void main() {
     effectUv = clamp(effectUv + warp * 0.5, 0.0, 1.0);
     vec3 portalColor = vec3(0.2, 0.6, 0.9) + vec3(0.2, 0.1, 0.3) * uPortalShift;
     color += portalColor * ringGlow * uPortalOpacity;
+  }
+  if (uDebugTint > 0.5 && uPortalEnabled > 0.5) {
+    color += vec3(0.05, 0.02, 0.07) * uPortalOpacity;
   }
 
   if (uOscilloEnabled > 0.5) {
@@ -711,6 +737,9 @@ void main() {
     vec3 oscilloColor = base * (0.6 + purity * 0.5) + glow * (0.2 + uPeak * 0.6);
     oscilloColor += vec3(0.2, 0.15, 0.4) * arcGlow;
     color += oscilloColor * (line + halo + arcGlow) * uOscilloOpacity;
+  }
+  if (uDebugTint > 0.5 && uOscilloEnabled > 0.5) {
+    color += vec3(0.06, 0.04, 0.01) * uOscilloOpacity;
   }
 
   if (gravityLens > 0.0 || gravityRing > 0.0) {
@@ -757,11 +786,17 @@ void main() {
     shade = clamp(shade, 0.0, 1.0);
     color = applyBlendMode(color, shade, 3.0, clamp(uOrigamiOpacity, 0.0, 1.0));
   }
+  if (uDebugTint > 0.5 && uOrigamiEnabled > 0.5) {
+    color += vec3(0.06, 0.05, 0.02) * uOrigamiOpacity;
+  }
 
   if (uParticlesEnabled > 0.5) {
     float particles = particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize);
     float lift = 0.5 + uRms * 0.8;
     color += vec3(0.2, 0.7, 1.0) * particles * uParticleGlow * lift;
+  }
+  if (uDebugTint > 0.5 && uParticlesEnabled > 0.5) {
+    color += vec3(0.02, 0.07, 0.02) * uParticleGlow;
   }
 
   if (uSdfEnabled > 0.5) {
@@ -781,6 +816,9 @@ void main() {
     float sdfIntensity = max(fill * uSdfFill, edge * uSdfGlow);
     float pulse = 0.85 + uPeak * 0.6;
     color += vec3(1.0, 0.6, 0.25) * sdfIntensity * pulse;
+  }
+  if (uDebugTint > 0.5 && uSdfEnabled > 0.5) {
+    color += vec3(0.07, 0.02, 0.02) * uSdfGlow;
   }
 
   float flash = uStrobe * 1.5;
@@ -934,6 +972,7 @@ void main() {
   const spectrumAssetSamplerLocation = gl.getUniformLocation(program, 'uSpectrumAsset');
   const spectrumAssetBlendLocation = gl.getUniformLocation(program, 'uSpectrumAssetBlend');
   const spectrumAssetAudioReactLocation = gl.getUniformLocation(program, 'uSpectrumAssetAudioReact');
+  const debugTintLocation = gl.getUniformLocation(program, 'uDebugTint');
   const particlesEnabledLocation = gl.getUniformLocation(program, 'uParticlesEnabled');
   const particleDensityLocation = gl.getUniformLocation(program, 'uParticleDensity');
   const particleSpeedLocation = gl.getUniformLocation(program, 'uParticleSpeed');
@@ -1368,6 +1407,7 @@ void main() {
     applyLayerBinding('layer-spectrum', spectrumAssetEnabledLocation, spectrumAssetSamplerLocation);
     if (spectrumAssetBlendLocation) gl.uniform1f(spectrumAssetBlendLocation, state.spectrumAssetBlendMode);
     if (spectrumAssetAudioReactLocation) gl.uniform1f(spectrumAssetAudioReactLocation, state.spectrumAssetAudioReact);
+    if (debugTintLocation) gl.uniform1f(debugTintLocation, state.debugTint ?? 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   };
