@@ -103,129 +103,72 @@ void main() {
 };
 
 // Recursive emitter
-// Returns the variable name holding the result (float dist or vec3 p)
+// Returns the expression string for the node result
 const emitNode = (ctx: BuildContext, instanceId: string, currentDomainVar: string, codeAccumulator: string): string => {
   const instance = ctx.instances.get(instanceId)!;
   const def = sdfRegistry.get(instance.nodeId)!;
 
-  // If this node is a Domain Transform, it modifies P and passes it to its Input
-  // BUT in our graph model, typically Shape -> Transform (Shape uses Transform)
-  // Let's assume:
-  // - Ops take Shapes as inputs (float d)
-  // - Shapes take Transforms as inputs (vec3 p) ?? No, that's backwards.
-  // Standard Scene Graph: Transform -> Shape.
-  // Transform Input: Geometry (d). Output: Geometry (d, but transformed).
-  // "opTranslate(Shape)" -> In code: Shape(Translate(p))
-  
-  // WAIT: In node graphs (like Blender), you chain Geometry.
-  // Translate Node: Input Geometry -> Output Geometry.
-  // Implementation: sdShape( opTranslate(p) )
-  
-  // Let's try to evaluate dependencies first.
-  const inputs = ctx.inputs.get(instanceId) || [];
-  inputs.sort((a, b) => a.slot - b.slot);
-
-  // Register Function
-  const funcName = getFuncName(def.glsl.signature);
+  // Register Function if not already present
   if (!ctx.functions.has(def.glsl.body)) {
       ctx.functions.add(`${def.glsl.signature} {
 ${def.glsl.body}
 }`);
   }
 
-  // Collect Parameters
-  const args: string[] = [];
-  
-  // Handle Domain Transforms vs Shapes
-  if (def.category === 'domain') {
-      // Domain Transform Node
-      // It transforms 'p' and returns new 'p'.
-      // Usually used as input to a shape.
-      // But here we are traversing from Root.
-      // If Root is Union, it calls children.
-      
-      // Let's assume the graph flows DATA (Geometry).
-      // If I am a Circle, I produce Distance.
-      // If I am Translate, I take Distance? No, that's wrong.
-      // Translate takes a Coordinate Space and produces a Coordinate Space?
-      
-      // SIMPLIFICATION FOR MVP:
-      // All connections transmit Distance (float).
-      // Domain Transforms are "modifiers" attached to Shapes?
-      // Or:
-      // Domain Transform Node has an input "Shape".
-      // It renders "Shape" but with modified P.
-      
-      // Let's go with: Node = Function(Inputs...)
-      // Translate(Shape) -> shape.map(p - offset)
-      
-      const childInput = inputs.find(i => i.slot === 0);
-      if (childInput) {
-          // We need to modify P for the child.
-          // New P = op(currentP, args)
-          
-          // 1. Calculate parameters
-          const paramArgs: string[] = [];
-          for (const param of def.parameters) {
-              const uName = `u_${instanceId}_${param.id}`;
-              addUniform(ctx, uName, instanceId, param.id, param.type);
-              paramArgs.push(uName);
-          }
-          
-          const newPVar = `p_${instanceId}`;
-          // Generate new P
-          // We need a specific function signature for transforms that returns vec3
-          // e.g. "vec3 opTranslate(vec3 p, vec3 offset)"
-          // codeAccumulator is passed by reference-ish (string append doesn't work that way in JS recursion)
-          // We must return code strings.
-      }
-  }
-  
-  // RESTARTING RECURSION STRATEGY
-  // We construct the expression string directly.
-  // map(p) = Union( Circle(p), Box(Rotate(p)) )
-  
+  // Collect and register parameters as uniforms
   const paramArgs: string[] = [];
   for (const param of def.parameters) {
-      const uName = `u_${instanceId}_${param.id}`;
+      const uName = `u_${instanceId.replace(/-/g, '_')}_${param.id}`;
       addUniform(ctx, uName, instanceId, param.id, param.type);
       paramArgs.push(uName);
   }
 
-  // Domain Transforms special case: They modify P for their children.
-  if (def.category === 'domain') {
-      // Expect 1 input (Geometry)
-      // We apply transform to currentDomainVar, then eval child.
-      // opTranslate(p, offset) -> returns NEW P
+  const inputs = ctx.inputs.get(instanceId) || [];
+  inputs.sort((a, b) => a.slot - b.slot);
+  const funcName = getFuncName(def.glsl.signature);
+
+  // 1. Domain Transforms: These modify the coordinate space for their children
+  if (def.category.startsWith('domain')) {
+      // Typically: opTranslate(p, offset) returns new p
       const newP = `${funcName}(${currentDomainVar}, ${paramArgs.join(', ')})`;
       
-      // Eval child with new P
       const childConn = inputs[0];
       if (childConn) {
           return emitNode(ctx, childConn.from, newP, codeAccumulator);
       }
-      return '0.0'; // No child?
+      return '10.0'; // Default distance if no child
   }
   
-  // Operations (Union, etc)
+  // 2. Operations: Boolean unions, subtractions, etc.
   if (def.category.startsWith('ops')) {
-      // Eval all children with SAME P
+      // Operations take distance results from children as inputs
       const childResults = inputs.map(conn => emitNode(ctx, conn.from, currentDomainVar, codeAccumulator));
-      // Call op(d1, d2, ...)
+      
+      if (childResults.length === 0) return '10.0';
+      if (childResults.length === 1) return childResults[0];
+
+      // Combine children using the operation function
+      // e.g., opUnion(d1, d2, ...)
       return `${funcName}(${childResults.join(', ')}${paramArgs.length ? ', ' + paramArgs.join(', ') : ''})`;
   }
   
-  // Primitives
+  // 3. Primitives: 2D or 3D shapes
   if (def.category.startsWith('shapes')) {
-      // Call shape(p, params)
-      // Check for 2D/3D casting if needed
       let pArg = currentDomainVar;
+      // Cast p to vec2 if it's a 2D shape being rendered in a 3D context
       if (def.coordSpace === '2d') pArg = `${currentDomainVar}.xy`;
       
       return `${funcName}(${pArg}, ${paramArgs.join(', ')})`;
   }
 
-  return '0.0'; // Fallback
+  // 4. Fields: Noise or other distance fields
+  if (def.category === 'fields') {
+      let pArg = currentDomainVar;
+      if (def.coordSpace === '2d') pArg = `${currentDomainVar}.xy`;
+      return `${funcName}(${pArg}, ${paramArgs.join(', ')})`;
+  }
+
+  return '10.0';
 };
 
 const addUniform = (ctx: BuildContext, name: string, instId: string, paramId: string, type: SdfParamType) => {

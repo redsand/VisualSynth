@@ -238,6 +238,11 @@ uniform float uDebugTint;
 
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
+uniform vec3 uSdfLightDir;
+uniform vec3 uSdfLightColor;
+uniform float uSdfLightIntensity;
+uniform float uSdfAoEnabled;
+uniform float uSdfShadowsEnabled;
 ${sdfUniforms}
 
 ${sdfFunctions}
@@ -253,6 +258,30 @@ vec3 calcSdfNormal(vec3 p) {
     sdfSceneMap(p + e.yxy) - sdfSceneMap(p - e.yxy),
     sdfSceneMap(p + e.yyx) - sdfSceneMap(p - e.yyx)
   ));
+}
+
+float calcSdfShadow(vec3 ro, vec3 rd, float k) {
+  float res = 1.0;
+  float t = 0.01;
+  for(int i = 0; i < 16; i++) {
+    float h = sdfSceneMap(ro + rd * t);
+    res = min(res, k * h / t);
+    t += clamp(h, 0.01, 0.2);
+    if(res < 0.001 || t > 5.0) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+
+float calcSdfAO(vec3 p, vec3 n) {
+  float occ = 0.0;
+  float sca = 1.0;
+  for(int i = 0; i < 5; i++) {
+    float hr = 0.01 + 0.12 * float(i) / 4.0;
+    float d = sdfSceneMap(p + n * hr);
+    occ += (hr - d) * sca;
+    sca *= 0.95;
+  }
+  return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
 }
 // --- End Injections ---
 
@@ -680,8 +709,14 @@ void main() {
         t += d;
       }
       if (hit) {
-        vec3 p = ro + rd * t, n = calcSdfNormal(p), l = normalize(vec3(2.0, 3.0, 4.0) - p);
-        color += (vec3(0.2, 0.5, 1.0) * (max(dot(n, l), 0.0) * 0.8 + 0.2) + pow(max(dot(reflect(-l, n), -rd), 0.0), 32.0) * 0.5 + pow(1.0 + dot(rd, n), 5.0) * 0.3 + smoothstep(0.1, 0.0, d) * uSdfGlow) * uSdfFill;
+        vec3 p = ro + rd * t, n = calcSdfNormal(p), l = normalize(uSdfLightDir);
+        float diff = max(dot(n, l), 0.0) * uSdfLightIntensity;
+        float amb = 0.2;
+        float shadow = uSdfShadowsEnabled > 0.5 ? calcSdfShadow(p, l, 8.0) : 1.0;
+        float ao = uSdfAoEnabled > 0.5 ? calcSdfAO(p, n) : 1.0;
+        vec3 lighting = uSdfLightColor * (diff * shadow + amb) * ao;
+        float spec = pow(max(dot(reflect(-l, n), -rd), 0.0), 32.0) * 0.5 * shadow;
+        color += (vec3(0.2, 0.5, 1.0) * lighting + spec + smoothstep(0.1, 0.0, d) * uSdfGlow) * uSdfFill;
       }
     } else {
       centered = rotate2d(centered, uSdfRotation); float scale = mix(0.2, 0.9, uSdfScale), sdfValue = uSdfShape < 0.5 ? sdCircle(centered, scale) : (uSdfShape < 1.5 ? sdBox(centered, vec2(scale)) : sdEquilateralTriangle(centered, scale));
@@ -1052,7 +1087,18 @@ void main() {
     updateVideoTextures();
     applyLayerBinding(currentProgram, 'layer-plasma');
     applyLayerBinding(currentProgram, 'layer-spectrum');
+    
     if (currentProgram === advancedSdfProgram && state.sdfScene) {
+      const s = state.sdfScene;
+      if (s.mode === '3d' && s.render3d) {
+          const l = s.render3d.lighting;
+          gl.uniform3fv(gl.getUniformLocation(currentProgram, 'uSdfLightDir'), l.direction);
+          gl.uniform3fv(gl.getUniformLocation(currentProgram, 'uSdfLightColor'), l.color);
+          gl.uniform1f(gl.getUniformLocation(currentProgram, 'uSdfLightIntensity'), l.intensity);
+          gl.uniform1f(gl.getUniformLocation(currentProgram, 'uSdfAoEnabled'), s.render3d.aoEnabled ? 1 : 0);
+          gl.uniform1f(gl.getUniformLocation(currentProgram, 'uSdfShadowsEnabled'), s.render3d.softShadowsEnabled ? 1 : 0);
+      }
+
       advancedSdfUniforms.forEach(u => {
         const loc = advancedSdfUniformLocations.get(u.name);
         if (loc) {

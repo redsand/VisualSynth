@@ -1,6 +1,6 @@
 import type { Store } from '../../state/store';
 import { sdfRegistry } from '../../sdf/registry';
-import { SdfNodeInstance, DEFAULT_SDF_SCENE, SdfSceneConfig, createNodeInstance } from '../../sdf/api';
+import { SdfNodeInstance, DEFAULT_SDF_SCENE, SdfSceneConfig, createNodeInstance, SdfParameter } from '../../sdf/api';
 import { setStatus } from '../../state/events';
 import { actions } from '../../state/actions';
 
@@ -9,18 +9,13 @@ export interface SdfPanelDeps {
 }
 
 export const createSdfPanel = ({ store }: SdfPanelDeps) => {
-  // We'll create the container dynamically if it doesn't exist, or expect it in DOM.
-  // For now, let's assume we append it to the main view or it sits in the 'design' tab.
-  // Given the existing structure, let's look for a 'sdf-editor' or create one in the design section.
-  
   let container = document.getElementById('sdf-editor') as HTMLDivElement;
   if (!container) {
-      // Fallback: Create it and append to generator panel for now
       const parent = document.getElementById('generator-panel');
       if (parent) {
           container = document.createElement('div');
           container.id = 'sdf-editor';
-          container.className = 'panel hidden'; // Start hidden
+          container.className = 'panel hidden';
           parent.appendChild(container);
       }
   }
@@ -32,9 +27,7 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
     const scene = state.project.scenes.find(s => s.id === state.project.activeSceneId);
     if (!scene) return;
 
-    // Look for the specific SDF Scene generator layer
     const layer = scene.layers.find(l => l.id === 'gen-sdf-scene');
-
     if (!layer || !layer.enabled) {
         container.classList.add('hidden');
         return;
@@ -43,13 +36,11 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
     container.classList.remove('hidden');
     container.innerHTML = ''; 
 
-    // Header
     const header = document.createElement('div');
     header.className = 'panel-header';
     header.innerHTML = '<h3>SDF Scene Editor</h3>';
     container.appendChild(header);
 
-    // Mode Toggle (2D/3D)
     const modeRow = document.createElement('div');
     modeRow.className = 'layer-row';
     const config: SdfSceneConfig = layer.sdfScene || JSON.parse(JSON.stringify(DEFAULT_SDF_SCENE));
@@ -72,9 +63,80 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
     };
     modeRow.appendChild(modeLabel);
     modeRow.appendChild(modeSelect);
+    
+    // Settings Toggle
+    const settingsBtn = document.createElement('button');
+    settingsBtn.textContent = '⚙ Settings';
+    settingsBtn.style.marginLeft = '10px';
+    settingsBtn.onclick = () => {
+        const settingsPanel = container.querySelector('.sdf-advanced-settings');
+        if (settingsPanel) settingsPanel.classList.toggle('hidden');
+    };
+    modeRow.appendChild(settingsBtn);
     container.appendChild(modeRow);
 
-    // Node List
+    // Advanced Settings Panel (Hidden by default)
+    const settingsPanel = document.createElement('div');
+    settingsPanel.className = 'sdf-advanced-settings hidden';
+    settingsPanel.style.background = 'rgba(0,0,0,0.2)';
+    settingsPanel.style.padding = '10px';
+    settingsPanel.style.marginBottom = '10px';
+    settingsPanel.style.border = '1px solid rgba(255,255,255,0.1)';
+    
+    if (config.mode === '3d') {
+        const lightingHeader = document.createElement('h4');
+        lightingHeader.textContent = 'Lighting & Env';
+        settingsPanel.appendChild(lightingHeader);
+
+        // Ambient Occlusion
+        const aoRow = createToggleRow('Ambient Occlusion', config.render3d.aoEnabled, (val) => {
+             actions.mutateProject(store, (p) => {
+                const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                if(l && l.sdfScene) l.sdfScene.render3d.aoEnabled = val;
+             });
+        });
+        settingsPanel.appendChild(aoRow);
+
+        // Shadows
+        const shadowRow = createToggleRow('Soft Shadows', config.render3d.softShadowsEnabled, (val) => {
+            actions.mutateProject(store, (p) => {
+               const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+               if(l && l.sdfScene) l.sdfScene.render3d.softShadowsEnabled = val;
+            });
+       });
+       settingsPanel.appendChild(shadowRow);
+
+       // Fog
+       const fogRow = createToggleRow('Fog', config.render3d.fogEnabled, (val) => {
+            actions.mutateProject(store, (p) => {
+                const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                if(l && l.sdfScene) l.sdfScene.render3d.fogEnabled = val;
+            });
+        });
+        settingsPanel.appendChild(fogRow);
+    } else {
+        const render2dHeader = document.createElement('h4');
+        render2dHeader.textContent = '2D Render Settings';
+        settingsPanel.appendChild(render2dHeader);
+
+        const fillRow = createToggleRow('Fill Enabled', config.render2d.fillEnabled, (val) => {
+            actions.mutateProject(store, (p) => {
+                const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                if(l && l.sdfScene) l.sdfScene.render2d.fillEnabled = val;
+            });
+        });
+        settingsPanel.appendChild(fillRow);
+
+        const glowRow = createToggleRow('Glow Enabled', config.render2d.glowEnabled, (val) => {
+            actions.mutateProject(store, (p) => {
+                const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                if(l && l.sdfScene) l.sdfScene.render2d.glowEnabled = val;
+            });
+        });
+        settingsPanel.appendChild(glowRow);
+    }
+    container.appendChild(settingsPanel);
+
     const nodeList = document.createElement('div');
     nodeList.className = 'sdf-node-list';
     
@@ -84,31 +146,27 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
         config.nodes.forEach((node, index) => {
             const item = document.createElement('div');
             item.className = 'layer-row';
-            item.style.paddingLeft = '10px';
+            item.style.borderTop = '1px solid rgba(255,255,255,0.05)';
+            item.style.paddingTop = '5px';
             
             const def = sdfRegistry.get(node.nodeId);
             
-            // Name
             const name = document.createElement('span');
             name.textContent = `${index + 1}. ${node.label || def?.name || node.nodeId}`;
             name.style.flex = '1';
+            name.style.fontWeight = 'bold';
             
-            // Controls
             const controls = document.createElement('div');
-            
-            // Move Up
             const upBtn = document.createElement('button');
             upBtn.textContent = '↑';
             upBtn.disabled = index === 0;
             upBtn.onclick = () => moveNode(layer.id, index, -1);
             
-            // Move Down
             const downBtn = document.createElement('button');
             downBtn.textContent = '↓';
             downBtn.disabled = index === config.nodes.length - 1;
             downBtn.onclick = () => moveNode(layer.id, index, 1);
 
-            // Delete
             const delBtn = document.createElement('button');
             delBtn.textContent = 'x';
             delBtn.onclick = () => removeNode(layer.id, index);
@@ -121,27 +179,28 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
             item.appendChild(controls);
             nodeList.appendChild(item);
             
-            // Params (Simple rendering)
             if (def && def.parameters.length > 0) {
                 const paramContainer = document.createElement('div');
                 paramContainer.className = 'sdf-params';
-                paramContainer.style.marginLeft = '20px';
-                paramContainer.style.fontSize = '0.9em';
-                paramContainer.style.opacity = '0.8';
+                paramContainer.style.marginLeft = '15px';
+                paramContainer.style.paddingBottom = '10px';
                 
                 def.parameters.forEach(param => {
                     const row = document.createElement('div');
-                    row.style.display = 'flex';
-                    row.style.justifyContent = 'space-between';
+                    row.className = 'layer-row';
+                    row.style.minHeight = '24px';
                     const label = document.createElement('label');
                     label.textContent = param.name;
+                    label.style.fontSize = '0.85em';
+                    label.style.width = '100px';
                     
                     const val = node.params[param.id] ?? param.default;
-                    const valDisplay = document.createElement('span');
-                    valDisplay.textContent = String(val); // Editable inputs omitted for brevity in MVP
+                    const input = createParamInput(param, val, (newVal) => {
+                        updateNodeParam(layer.id, index, param.id, newVal);
+                    });
                     
                     row.appendChild(label);
-                    row.appendChild(valDisplay);
+                    row.appendChild(input);
                     paramContainer.appendChild(row);
                 });
                 nodeList.appendChild(paramContainer);
@@ -150,24 +209,35 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
     }
     container.appendChild(nodeList);
 
-    // Add Node UI
     const addRow = document.createElement('div');
     addRow.className = 'layer-row';
     addRow.style.marginTop = '10px';
-    addRow.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+    addRow.style.borderTop = '1px solid rgba(255,255,255,0.2)';
     addRow.style.paddingTop = '10px';
     
     const catSelect = document.createElement('select');
-    const categories = ['shapes2d', 'shapes3d', 'ops', 'domain'];
+    const categories = [
+        { id: 'shapes2d', name: '2D Primitives' },
+        { id: 'shapes2d-advanced', name: '2D Advanced' },
+        { id: 'shapes3d', name: '3D Primitives' },
+        { id: 'shapes3d-advanced', name: '3D Advanced' },
+        { id: 'ops', name: 'Boolean Ops' },
+        { id: 'ops-smooth', name: 'Smooth Ops' },
+        { id: 'domain', name: 'Domain Transforms' },
+        { id: 'domain-warp', name: 'Domain Warps' },
+        { id: 'fields', name: 'Fields' }
+    ];
     categories.forEach(cat => {
         const opt = document.createElement('option');
-        opt.value = cat;
-        opt.textContent = cat;
+        opt.value = cat.id;
+        opt.textContent = cat.name;
         catSelect.appendChild(opt);
     });
     
     const nodeSelect = document.createElement('select');
-    const updateNodes = () => {
+    nodeSelect.style.flex = '1';
+    nodeSelect.style.margin = '0 5px';
+    const updateNodesList = () => {
         nodeSelect.innerHTML = '';
         const nodes = sdfRegistry.getByCategory(catSelect.value as any);
         nodes.forEach(n => {
@@ -177,17 +247,115 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
             nodeSelect.appendChild(opt);
         });
     };
-    catSelect.onchange = updateNodes;
-    updateNodes();
+    catSelect.onchange = updateNodesList;
+    updateNodesList();
 
     const addBtn = document.createElement('button');
-    addBtn.textContent = 'Add';
+    addBtn.textContent = 'Add Node';
     addBtn.onclick = () => addNode(layer.id, nodeSelect.value);
 
     addRow.appendChild(catSelect);
     addRow.appendChild(nodeSelect);
     addRow.appendChild(addBtn);
     container.appendChild(addRow);
+  };
+
+  const createToggleRow = (label: string, value: boolean, onChange: (v: boolean) => void) => {
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = value;
+      cb.onchange = () => onChange(cb.checked);
+      row.appendChild(lbl);
+      row.appendChild(cb);
+      return row;
+  };
+
+  const createParamInput = (param: SdfParameter, value: any, onChange: (v: any) => void) => {
+      if (param.type === 'float' || param.type === 'angle') {
+          const input = document.createElement('input');
+          input.type = 'range';
+          input.min = String(param.min ?? 0);
+          input.max = String(param.max ?? 1);
+          input.step = String(param.step ?? 0.01);
+          input.value = String(value);
+          input.style.flex = '1';
+          input.oninput = () => onChange(Number(input.value));
+          return input;
+      }
+      if (param.type === 'int') {
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.min = String(param.min ?? 0);
+          input.max = String(param.max ?? 100);
+          input.value = String(value);
+          input.style.width = '60px';
+          input.onchange = () => onChange(Math.round(Number(input.value)));
+          return input;
+      }
+      if (param.type === 'bool') {
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = Boolean(value);
+          input.onchange = () => onChange(input.checked);
+          return input;
+      }
+      if (param.type === 'color') {
+          const input = document.createElement('input');
+          input.type = 'color';
+          // Convert [r,g,b,a] to hex
+          if (Array.isArray(value)) {
+              const r = Math.round(value[0] * 255).toString(16).padStart(2, '0');
+              const g = Math.round(value[1] * 255).toString(16).padStart(2, '0');
+              const b = Math.round(value[2] * 255).toString(16).padStart(2, '0');
+              input.value = `#${r}${g}${b}`;
+          }
+          input.onchange = () => {
+              const r = parseInt(input.value.slice(1, 3), 16) / 255;
+              const g = parseInt(input.value.slice(3, 5), 16) / 255;
+              const b = parseInt(input.value.slice(5, 7), 16) / 255;
+              onChange([r, g, b, 1.0]);
+          };
+          return input;
+      }
+      if (param.type === 'vec2' || param.type === 'vec3') {
+          const container = document.createElement('div');
+          container.style.display = 'flex';
+          container.style.flex = '1';
+          const count = param.type === 'vec2' ? 2 : 3;
+          const vals = Array.isArray(value) ? value : new Array(count).fill(0);
+          for (let i = 0; i < count; i++) {
+              const sub = document.createElement('input');
+              sub.type = 'number';
+              sub.step = '0.1';
+              sub.value = String(vals[i] ?? 0);
+              sub.style.width = '50px';
+              sub.style.marginRight = '2px';
+              sub.onchange = () => {
+                  vals[i] = Number(sub.value);
+                  onChange([...vals]);
+              };
+              container.appendChild(sub);
+          }
+          return container;
+      }
+      
+      const fallback = document.createElement('span');
+      fallback.textContent = String(value);
+      return fallback;
+  };
+
+  const updateNodeParam = (layerId: string, nodeIndex: number, paramId: string, value: any) => {
+      actions.mutateProject(store, (project) => {
+          const scene = project.scenes.find(s => s.id === project.activeSceneId);
+          const layer = scene?.layers.find(l => l.id === layerId);
+          if (layer && layer.sdfScene) {
+              layer.sdfScene.nodes[nodeIndex].params[paramId] = value;
+          }
+      });
   };
 
   const addNode = (layerId: string, nodeId: string) => {
@@ -198,7 +366,6 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
               if (!layer.sdfScene) layer.sdfScene = JSON.parse(JSON.stringify(DEFAULT_SDF_SCENE));
               const def = sdfRegistry.get(nodeId);
               if (def) {
-                  // Initialize params with defaults
                   const params: Record<string, any> = {};
                   def.parameters.forEach(p => params[p.id] = p.default);
                   const newNode = createNodeInstance(nodeId, params);
@@ -235,3 +402,4 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
 
   return { render };
 };
+

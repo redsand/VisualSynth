@@ -17,6 +17,7 @@ import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRe
 import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './panels/LayerPanel';
 import { createSdfPanel } from './ui/panels/SdfPanel';
+import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './panels/ModulationPanel';
 import { getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
@@ -3885,6 +3886,7 @@ const initParticles = () => {
 };
 
 const initSdf = () => {
+  registerSdfNodes();
   sdfEnabled.checked = currentProject.sdf.enabled;
   sdfShape.value = currentProject.sdf.shape;
   sdfScale.value = String(currentProject.sdf.scale);
