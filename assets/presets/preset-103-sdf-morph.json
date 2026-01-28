@@ -1,49 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Morph (Advanced)",
-  "category": "Abstract",
-  "createdAt": "2026-01-27T18:35:38.954Z",
-  "updatedAt": "2026-01-27T18:35:38.954Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "2d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.8, "glowRadius": 0.2, "glowColor": [0.4, 0.1, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": { "maxSteps": 64, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005, "lighting": { "direction": [0.5, 0.8, 0.6], "color": [1, 1, 1], "intensity": 1, "ambient": 0.2, "specularPower": 32, "specularIntensity": 0.5 }, "aoEnabled": true, "aoSteps": 3, "aoIntensity": 0.5, "aoRadius": 0.2, "softShadowsEnabled": true, "shadowSoftness": 8, "shadowSteps": 16, "fogEnabled": false, "fogDensity": 0.05, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0 },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "shape-a", "nodeId": "star", "params": { "radius": 0.4, "n": 5, "m": 2.0 }, "label": "Star" },
-              { "enabled": true, "order": 1, "instanceId": "shape-b", "nodeId": "hexagon", "params": { "radius": 0.35 }, "label": "Hexagon" },
-              { "enabled": true, "order": 2, "instanceId": "morph", "nodeId": "op-smooth-union", "params": { "k": 0.1 }, "label": "Morph" },
-              { "enabled": true, "order": 3, "instanceId": "warp", "nodeId": "dom-warp-noise", "params": { "amount": 0.05, "frequency": 4.0, "speed": 1.0 }, "label": "Organic Warp" }
-            ],
-            "connections": [
-              { "from": "shape-a", "to": "morph", "slot": 0 },
-              { "from": "shape-b", "to": "morph", "slot": 1 },
-              { "from": "morph", "to": "warp", "slot": 0 }
-            ]
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Morph (Advanced)",
+    "createdAt": "2026-01-27T18:35:38.954Z",
+    "updatedAt": "2026-01-28T16:48:56.592Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "lfo-1", "target": "morph.k", "amount": 0.5, "min": 0.01, "max": 0.6, "curve": "linear", "smoothing": 0.1, "bipolar": true },
-    { "id": "mod-2", "source": "audio.rms", "target": "warp.amount", "amount": 0.2, "min": 0.0, "max": 0.2, "curve": "exp", "smoothing": 0.05, "bipolar": false },
-    { "id": "mod-3", "source": "lfo-2", "target": "shape-a.radius", "amount": 0.2, "min": 0.2, "max": 0.5, "curve": "linear", "smoothing": 0.1, "bipolar": true }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

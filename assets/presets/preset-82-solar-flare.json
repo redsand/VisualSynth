@@ -1,130 +1,45 @@
 {
-  "version": 2,
-  "name": "Solar Flare",
-  "category": "Hydro & Pyro",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Solar Flare",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.733Z",
+    "category": "Hydro & Pyro",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [],
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
       "name": "Flare Intensity",
       "value": 0.8,
-      "targets": [
-        {
-          "target": "fx-bloom.intensity",
-          "amount": 2
-        }
-      ],
+      "targets": [],
       "description": "Controls: Flare Intensity"
     },
     {
       "id": "macro-2",
       "name": "Ejection Speed",
       "value": 0.9,
-      "targets": [
-        {
-          "target": "fx-feedback.zoom",
-          "amount": 0.3
-        }
-      ],
+      "targets": [],
       "description": "Controls: Ejection Speed"
     },
     {
       "id": "macro-3",
       "name": "Plasma Density",
       "value": 0.6,
-      "targets": [
-        {
-          "target": "gen-particles.density",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Plasma Density"
     },
     {
       "id": "macro-4",
       "name": "Color Temp",
       "value": 0.1,
-      "targets": [
-        {
-          "target": "fx-bloom.tintR",
-          "amount": 0.2
-        }
-      ],
+      "targets": [],
       "description": "Controls: Color Temp"
     }
-  ],
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Sun",
-      "layers": [
-        {
-          "id": "gen-particles",
-          "name": "Plasma",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-bloom",
-          "name": "Intense Light",
-          "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-feedback",
-          "name": "Ejection",
-          "enabled": true,
-          "opacity": 0.8,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.peak",
-      "target": "fx-bloom.intensity",
-      "amount": 0.8,
-      "min": 0.5,
-      "max": 2,
-      "smoothing": 0.05,
-      "curve": "linear",
-      "bipolar": false
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.low",
-      "target": "fx-feedback.zoom",
-      "amount": 0.3,
-      "min": 1,
-      "max": 1.2,
-      "smoothing": 0.1,
-      "curve": "linear",
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  ]
 }

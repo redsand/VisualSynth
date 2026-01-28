@@ -1,133 +1,40 @@
 {
-  "version": 2,
-  "name": "Crystal Cavern",
-  "category": "Atmosphere & Terrain",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
-  "macros": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Crystal Cavern",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.725Z",
+    "category": "Atmosphere & Terrain",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "macro-1",
-      "name": "Reflections",
-      "value": 0.5,
-      "targets": [
-        {
-          "target": "fx-kaleidoscope.segments",
-          "amount": 12
-        }
-      ],
-      "description": "Controls: Reflections"
-    },
-    {
-      "id": "macro-2",
-      "name": "Glow",
-      "value": 0.6,
-      "targets": [
-        {
-          "target": "fx-bloom.intensity",
-          "amount": 1.5
-        }
-      ],
-      "description": "Controls: Glow"
-    },
-    {
-      "id": "macro-3",
-      "name": "Rotation",
-      "value": 0,
-      "targets": [
-        {
-          "target": "fx-kaleidoscope.rotation",
-          "amount": 1
-        }
-      ],
-      "description": "Controls: Rotation"
-    },
-    {
-      "id": "macro-4",
-      "name": "Crystal Color",
-      "value": 0.2,
-      "targets": [
-        {
-          "target": "layer-crystal.hue",
-          "amount": 1
-        }
-      ],
-      "description": "Controls: Crystal Color"
+      "type": "crystal",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "speed": 1
+      }
     }
   ],
-  "scenes": [
+  "modulations": [
     {
-      "id": "scene-1",
-      "name": "Crystals",
-      "layers": [
-        {
-          "id": "layer-crystal",
-          "name": "Gems",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-kaleidoscope",
-          "name": "Reflections",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-bloom",
-          "name": "Glow",
-          "enabled": true,
-          "opacity": 0.6,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.high",
-      "target": "fx-bloom.intensity",
-      "amount": 0.5,
-      "min": 0.2,
-      "max": 1.5,
-      "smoothing": 0.1,
-      "curve": "linear",
-      "bipolar": false
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.mid",
-      "target": "fx-kaleidoscope.rotation",
-      "amount": 0.1,
-      "min": -0.2,
-      "max": 0.2,
-      "bipolar": true,
-      "smoothing": 0.3,
-      "curve": "linear"
-    },
-    {
-      "id": "mod-8097",
       "source": "audio.rms",
-      "target": "layer-crystal.speed",
+      "target": {
+        "type": "crystal",
+        "param": "speed"
+      },
       "amount": 0.3,
       "min": 0.75,
       "max": 1.05,
@@ -136,6 +43,34 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Reflections",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Reflections"
+    },
+    {
+      "id": "macro-2",
+      "name": "Glow",
+      "value": 0.6,
+      "targets": [],
+      "description": "Controls: Glow"
+    },
+    {
+      "id": "macro-3",
+      "name": "Rotation",
+      "value": 0,
+      "targets": [],
+      "description": "Controls: Rotation"
+    },
+    {
+      "id": "macro-4",
+      "name": "Crystal Color",
+      "value": 0.2,
+      "targets": [],
+      "description": "Controls: Crystal Color"
+    }
+  ]
 }

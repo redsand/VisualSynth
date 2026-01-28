@@ -1,29 +1,47 @@
 {
-  "version": 2,
-  "name": "Slow Plasma",
-  "category": "Organic",
-  "createdAt": "2026-01-27T18:35:38.958Z",
-  "updatedAt": "2026-01-27T18:35:38.958Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Slow Plasma",
+    "createdAt": "2026-01-27T18:35:38.958Z",
+    "updatedAt": "2026-01-28T16:48:56.604Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Main Layer",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+      "type": "plasma",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    }
+  ],
+  "modulations": [
+    {
+      "source": "macro-1",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0,
+      "min": 0.1,
+      "max": 0.1,
+      "curve": "linear",
+      "smoothing": 0,
+      "bipolar": false
     }
   ],
   "macros": [
@@ -33,7 +51,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-plasma.scale",
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
           "amount": 1.5
         }
       ],
@@ -43,24 +64,14 @@
       "id": "macro-2",
       "name": "Main Layer color Shift",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Main Layer color Shift"
     },
     {
       "id": "macro-3",
       "name": "Main Layer brightness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.brightness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Main Layer brightness"
     },
     {
@@ -70,17 +81,5 @@
       "targets": [],
       "description": "Controls: Macro 4"
     }
-  ],
-  "modMatrix": [
-    {
-      "source": "macro-1",
-      "target": "layer-plasma.speed",
-      "amount": 0,
-      "min": 0.1,
-      "max": 0.1,
-      "curve": "linear",
-      "smoothing": 0
-    }
-  ],
-  "midiMappings": []
+  ]
 }

@@ -1,9 +1,35 @@
 {
-  "version": 2,
-  "name": "Aurora Borealis",
-  "category": "Atmosphere & Terrain",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Aurora Borealis",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.721Z",
+    "category": "Atmosphere & Terrain",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "plasma",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    }
+  ],
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
@@ -11,7 +37,10 @@
       "value": 0.3,
       "targets": [
         {
-          "target": "layer-plasma.speed",
+          "target": {
+            "type": "plasma",
+            "param": "speed"
+          },
           "amount": 1.5
         }
       ],
@@ -21,110 +50,22 @@
       "id": "macro-2",
       "name": "Color Shift",
       "value": 0,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Color Shift"
     },
     {
       "id": "macro-3",
       "name": "Trail Length",
       "value": 0.8,
-      "targets": [
-        {
-          "target": "fx-trails.persistence",
-          "amount": 0.95
-        }
-      ],
+      "targets": [],
       "description": "Controls: Trail Length"
     },
     {
       "id": "macro-4",
       "name": "Intensity",
       "value": 0.7,
-      "targets": [
-        {
-          "target": "layer-plasma.brightness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Intensity"
     }
-  ],
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Aurora",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Lights",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-trails",
-          "name": "Flow",
-          "enabled": true,
-          "opacity": 0.8,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-feedback",
-          "name": "Sky Tunnel",
-          "enabled": true,
-          "opacity": 0.6,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.mid",
-      "target": "layer-plasma.colorShift",
-      "amount": 0.4,
-      "min": 0,
-      "max": 1,
-      "smoothing": 0.5,
-      "curve": "linear",
-      "bipolar": false
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.peak",
-      "target": "fx-feedback.amount",
-      "amount": 0.3,
-      "min": 0.5,
-      "max": 0.9,
-      "smoothing": 0.1,
-      "curve": "linear",
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  ]
 }

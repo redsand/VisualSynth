@@ -1,20 +1,55 @@
 {
-  "version": 2,
-  "name": "Abyss Tube",
-  "category": "Hydro & Pyro",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Abyss Tube",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.728Z",
+    "category": "Hydro & Pyro",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "plasma",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    }
+  ],
+  "modulations": [
+    {
+      "source": "audio.low",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.2,
+      "min": 0.1,
+      "max": 0.5,
+      "curve": "linear",
+      "smoothing": 0.6,
+      "bipolar": false
+    }
+  ],
   "macros": [
     {
       "id": "macro-1",
       "name": "Pressure",
       "value": 0.7,
-      "targets": [
-        {
-          "target": "fx-vignette.intensity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Pressure"
     },
     {
@@ -23,7 +58,10 @@
       "value": 0.3,
       "targets": [
         {
-          "target": "layer-plasma.speed",
+          "target": {
+            "type": "plasma",
+            "param": "speed"
+          },
           "amount": 0.5
         }
       ],
@@ -33,98 +71,15 @@
       "id": "macro-3",
       "name": "Abyss Depth",
       "value": 0.6,
-      "targets": [
-        {
-          "target": "fx-feedback.zoom",
-          "amount": 0.05
-        }
-      ],
+      "targets": [],
       "description": "Controls: Abyss Depth"
     },
     {
       "id": "macro-4",
       "name": "Ocean Color",
       "value": 0,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Ocean Color"
     }
-  ],
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Abyss",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Ocean",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-vignette",
-          "name": "Darkness",
-          "enabled": true,
-          "opacity": 0.7,
-          "blendMode": "multiply",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-feedback",
-          "name": "Tube",
-          "enabled": true,
-          "opacity": 0.8,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.low",
-      "target": "layer-plasma.speed",
-      "amount": 0.2,
-      "min": 0.1,
-      "max": 0.5,
-      "smoothing": 0.6,
-      "curve": "linear",
-      "bipolar": false
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.rms",
-      "target": "fx-feedback.zoom",
-      "amount": 0.05,
-      "min": 0.98,
-      "max": 1.02,
-      "smoothing": 0.8,
-      "curve": "linear",
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  ]
 }

@@ -1,73 +1,55 @@
 {
-  "version": 2,
-  "name": "Nebula Drift (No Bars)",
-  "createdAt": "2026-01-26T19:15:00.000Z",
-  "updatedAt": "2026-01-26T19:15:00.000Z",
-  "effects": {
-    "enabled": true,
-    "bloom": 0.35,
-    "blur": 0.12,
-    "chroma": 0.1,
-    "posterize": 0.05,
-    "kaleidoscope": 0,
-    "feedback": 0.15,
-    "persistence": 0.35
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Nebula Drift (No Bars)",
+    "createdAt": "2026-01-26T19:15:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.672Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
   },
-  "particles": {
-    "enabled": true,
-    "density": 0.65,
-    "speed": 0.25,
-    "size": 0.6,
-    "glow": 0.85
-  },
-  "sdf": {
-    "enabled": true,
-    "shape": "circle",
-    "scale": 0.6,
-    "edge": 0.07,
-    "glow": 0.7,
-    "rotation": 0,
-    "fill": 0.45
-  },
-  "scenes": [
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Nebula Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 0.65,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1.15,
-            "rotation": 0.06
-          }
+      "type": "plasma",
+      "params": {
+        "opacity": 0.65,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.15,
+          "rotation": 0.06
         },
-        {
-          "id": "layer-spectrum",
-          "name": "Spectrum Bars",
-          "enabled": false,
-          "opacity": 0.5,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.5,
+        "enabled": false,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         }
-      ]
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-8337",
       "source": "audio.rms",
-      "target": "layer-plasma.speed",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
       "amount": 0.37,
       "min": 1.15,
       "max": 1.52,
@@ -76,9 +58,6 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Audio Reactive",
   "macros": [
     {
       "id": "macro-1",
@@ -86,7 +65,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-plasma.scale",
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
           "amount": 1.5
         }
       ],
@@ -96,24 +78,14 @@
       "id": "macro-2",
       "name": "Shader Plasma color Shift",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma color Shift"
     },
     {
       "id": "macro-3",
       "name": "Shader Plasma brightness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.brightness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma brightness"
     },
     {

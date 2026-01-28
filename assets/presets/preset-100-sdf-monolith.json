@@ -1,174 +1,17 @@
 {
-  "version": 2,
-  "name": "SDF Monolith (Advanced)",
-  "category": "Abstract",
-  "createdAt": "2026-01-27T18:35:38.952Z",
-  "updatedAt": "2026-01-27T18:35:38.952Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          },
-          "sdfScene": {
-            "version": 1,
-            "mode": "3d",
-            "render2d": {
-              "antialiasing": true,
-              "aaSmoothing": 0.01,
-              "strokeEnabled": true,
-              "strokeWidth": 0.02,
-              "strokeColor": [1, 1, 1, 1],
-              "fillEnabled": true,
-              "fillOpacity": 0.5,
-              "fillColor": [0.2, 0.5, 1, 1],
-              "glowEnabled": true,
-              "glowIntensity": 0.5,
-              "glowRadius": 0.1,
-              "glowColor": [0.2, 0.5, 1, 1],
-              "gradientEnabled": false,
-              "gradientMode": "distance",
-              "gradientColors": []
-            },
-            "render3d": {
-              "maxSteps": 128,
-              "maxDistance": 20,
-              "epsilon": 0.001,
-              "normalEpsilon": 0.0005,
-              "lighting": {
-                "direction": [0.5, 0.8, 0.6],
-                "color": [0.8, 0.9, 1.0],
-                "intensity": 1.2,
-                "ambient": 0.15,
-                "specularPower": 64,
-                "specularIntensity": 0.8
-              },
-              "aoEnabled": true,
-              "aoSteps": 5,
-              "aoIntensity": 0.7,
-              "aoRadius": 0.3,
-              "softShadowsEnabled": true,
-              "shadowSoftness": 12,
-              "shadowSteps": 24,
-              "fogEnabled": true,
-              "fogDensity": 0.08,
-              "fogColor": [0.02, 0.05, 0.1],
-              "backgroundColor": [0, 0, 0],
-              "backgroundGradient": false,
-              "adaptiveQuality": true,
-              "qualityBias": 0
-            },
-            "debug": {
-              "showDistance": false,
-              "distanceScale": 5,
-              "showNormals": false,
-              "showSteps": false,
-              "stepsColorScale": 64,
-              "showCostTier": false,
-              "showBounds": false,
-              "wireframe": false
-            },
-            "nodes": [
-              {
-                "enabled": true,
-                "order": 0,
-                "instanceId": "base",
-                "nodeId": "box3d",
-                "params": {
-                  "size": [1.5, 0.1, 1.5]
-                },
-                "label": "Base"
-              },
-              {
-                "enabled": true,
-                "order": 1,
-                "instanceId": "slab",
-                "nodeId": "box3d",
-                "params": {
-                  "size": [0.4, 1.8, 0.4]
-                },
-                "label": "Column"
-              },
-              {
-                "enabled": true,
-                "order": 2,
-                "instanceId": "core",
-                "nodeId": "octahedron",
-                "params": {
-                  "size": 0.3
-                },
-                "label": "Core"
-              },
-              {
-                "enabled": true,
-                "order": 3,
-                "instanceId": "move-core",
-                "nodeId": "dom-translate-3d",
-                "params": {
-                  "x": 0,
-                  "y": 1.2,
-                  "z": 0
-                },
-                "label": "Core Float"
-              },
-              {
-                "enabled": true,
-                "order": 4,
-                "instanceId": "union-1",
-                "nodeId": "op-smooth-union",
-                "params": {
-                  "k": 0.2
-                },
-                "label": "Attach Base"
-              },
-              {
-                "enabled": true,
-                "order": 5,
-                "instanceId": "union-final",
-                "nodeId": "op-smooth-union",
-                "params": {
-                  "k": 0.1
-                },
-                "label": "Final Merge"
-              },
-              {
-                "enabled": true,
-                "order": 6,
-                "instanceId": "world-rot",
-                "nodeId": "dom-rotate-3d",
-                "params": {
-                  "rotX": 0.2,
-                  "rotY": 0.5,
-                  "rotZ": 0
-                },
-                "label": "Camera View"
-              }
-            ],
-            "connections": [
-              { "from": "core", "to": "move-core", "slot": 0 },
-              { "from": "base", "to": "union-1", "slot": 0 },
-              { "from": "slab", "to": "union-1", "slot": 1 },
-              { "from": "union-1", "to": "union-final", "slot": 0 },
-              { "from": "move-core", "to": "union-final", "slot": 1 },
-              { "from": "union-final", "to": "world-rot", "slot": 0 }
-            ]
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Monolith (Advanced)",
+    "createdAt": "2026-01-27T18:35:38.952Z",
+    "updatedAt": "2026-01-28T16:48:56.587Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
+  },
+  "layers": [],
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
@@ -177,41 +20,5 @@
       "targets": [],
       "description": "Core height"
     }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "lfo-1",
-      "target": "move-core.y",
-      "amount": 0.3,
-      "min": 0.8,
-      "max": 1.5,
-      "curve": "linear",
-      "smoothing": 0.1,
-      "bipolar": true
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.rms",
-      "target": "core.size",
-      "amount": 0.2,
-      "min": 0.2,
-      "max": 0.5,
-      "curve": "exp",
-      "smoothing": 0.05,
-      "bipolar": false
-    },
-    {
-      "id": "mod-3",
-      "source": "tempo.bpm",
-      "target": "world-rot.rotY",
-      "amount": 1.0,
-      "min": -3.14,
-      "max": 3.14,
-      "curve": "linear",
-      "smoothing": 0.5,
-      "bipolar": false
-    }
-  ],
-  "midiMappings": []
+  ]
 }

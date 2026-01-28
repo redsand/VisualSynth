@@ -1,29 +1,46 @@
 {
-  "version": 2,
-  "name": "Topo Zoom",
-  "category": "Geometry",
-  "createdAt": "2026-01-27T18:35:38.955Z",
-  "updatedAt": "2026-01-27T18:35:38.955Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Topo Zoom",
+    "createdAt": "2026-01-27T18:35:38.955Z",
+    "updatedAt": "2026-01-28T16:48:56.596Z",
+    "category": "Geometry",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "layer-topo",
-          "name": "Main Layer",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+      "type": "topo",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "elevation": 0.5
+      }
+    }
+  ],
+  "modulations": [
+    {
+      "source": "audio.peak",
+      "target": {
+        "type": "topo",
+        "param": "scale"
+      },
+      "amount": 0.5,
+      "min": 1,
+      "max": 2,
+      "curve": "exp",
+      "smoothing": 0.1,
+      "bipolar": false
     }
   ],
   "macros": [
@@ -33,7 +50,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-topo.elevation",
+          "target": {
+            "type": "topo",
+            "param": "elevation"
+          },
           "amount": 1
         }
       ],
@@ -43,12 +63,7 @@
       "id": "macro-2",
       "name": "Main Layer travel",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-topo.travel",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Main Layer travel"
     },
     {
@@ -65,17 +80,5 @@
       "targets": [],
       "description": "Controls: Macro 4"
     }
-  ],
-  "modMatrix": [
-    {
-      "source": "audio.peak",
-      "target": "layer-topo.scale",
-      "amount": 0.5,
-      "min": 1,
-      "max": 2,
-      "curve": "exp",
-      "smoothing": 0.1
-    }
-  ],
-  "midiMappings": []
+  ]
 }

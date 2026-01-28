@@ -1,50 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Infinite Pillars",
-  "category": "Geometry",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "3d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.02, "strokeEnabled": true, "strokeWidth": 0.01, "strokeColor": [1, 0.8, 0.2, 1], "fillEnabled": false, "fillOpacity": 0, "fillColor": [0, 0, 0, 0], "glowEnabled": true, "glowIntensity": 0.8, "glowRadius": 0.2, "glowColor": [1, 0.6, 0.1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": {
-              "maxSteps": 80, "maxDistance": 30, "epsilon": 0.001, "normalEpsilon": 0.0005,
-              "lighting": { "direction": [0.5, 1.0, 0.3], "color": [1, 0.8, 0.5], "intensity": 1.2, "ambient": 0.1, "specularPower": 32, "specularIntensity": 0.5 },
-              "aoEnabled": true, "aoSteps": 4, "aoIntensity": 0.6, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 8, "shadowSteps": 12, "fogEnabled": true, "fogDensity": 0.1, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
-            },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "pillar", "nodeId": "box3d", "params": { "size": [0.15, 1.0, 0.15] }, "label": "Pillar" },
-              { "enabled": true, "order": 1, "instanceId": "grid", "nodeId": "dom-repeat-3d", "params": { "spacingX": 1.5, "spacingY": 0, "spacingZ": 1.5 }, "label": "Grid" },
-              { "enabled": true, "order": 2, "instanceId": "view-rot", "nodeId": "dom-rotate-3d", "params": { "rotX": 0.4, "rotY": 0, "rotZ": 0 }, "label": "View" }
-            ],
-            "connections": [
-              { "from": "pillar", "to": "grid", "slot": 0 },
-              { "from": "grid", "to": "view-rot", "slot": 0 }
-            ]
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Infinite Pillars",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.736Z",
+    "category": "Geometry",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "audio.rms", "target": "pillar.size.y", "amount": 1.5, "min": 0.5, "max": 2.0, "curve": "exp", "smoothing": 0.1, "bipolar": false },
-    { "id": "mod-2", "source": "lfo-1", "target": "view-rot.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

@@ -1,93 +1,76 @@
 {
-  "version": 2,
-  "name": "Pure Spectrum",
-  "createdAt": "2026-01-25T19:05:43.040937",
-  "updatedAt": "2026-01-25T19:05:43.041633",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Pure Spectrum",
+    "createdAt": "2026-01-25T19:05:43.040937",
+    "updatedAt": "2026-01-28T16:48:56.573Z",
+    "category": "Essentials",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": false,
-          "opacity": 0.95,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "plasma",
+      "params": {
+        "opacity": 0.95,
+        "enabled": false,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "layer-spectrum",
-          "name": "Audio Spectrum",
-          "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         }
-      ]
+      }
     }
   ],
-  "modMatrix": [],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Essentials",
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
       "name": "Audio Spectrum smoothing",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.smoothing",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum smoothing"
     },
     {
       "id": "macro-2",
       "name": "Audio Spectrum sensitivity",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.sensitivity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum sensitivity"
     },
     {
       "id": "macro-3",
       "name": "Audio Spectrum bar Width",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.barWidth",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum bar Width"
     },
     {
       "id": "macro-4",
       "name": "Audio Spectrum glow",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.glow",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum glow"
     }
   ]

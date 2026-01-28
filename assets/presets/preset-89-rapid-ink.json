@@ -1,28 +1,46 @@
 {
-  "version": 2,
-  "name": "Rapid Ink",
-  "category": "Organic",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Rapid Ink",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.743Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "layer-inkflow",
-          "name": "Fast Ink",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+      "type": "inkflow",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1
+      }
+    }
+  ],
+  "modulations": [
+    {
+      "source": "audio.peak",
+      "target": {
+        "type": "inkflow",
+        "param": "speed"
+      },
+      "amount": 2,
+      "min": 1,
+      "max": 5,
+      "curve": "linear",
+      "smoothing": 0.05,
+      "bipolar": false
     }
   ],
   "macros": [
@@ -32,7 +50,10 @@
       "value": 0.9,
       "targets": [
         {
-          "target": "layer-inkflow.speed",
+          "target": {
+            "type": "inkflow",
+            "param": "speed"
+          },
           "amount": 2.5
         }
       ],
@@ -42,24 +63,14 @@
       "id": "macro-2",
       "name": "Fast Ink pressure",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-inkflow.pressure",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Fast Ink pressure"
     },
     {
       "id": "macro-3",
       "name": "Fast Ink lifespan",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-inkflow.lifespan",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Fast Ink lifespan"
     },
     {
@@ -69,20 +80,5 @@
       "targets": [],
       "description": "Controls: Macro 4"
     }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.peak",
-      "target": "layer-inkflow.speed",
-      "amount": 2,
-      "min": 1,
-      "max": 5,
-      "curve": "linear",
-      "smoothing": 0.05,
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  ]
 }

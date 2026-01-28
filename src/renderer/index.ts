@@ -24,6 +24,7 @@ import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
+import { lfoValueForShape } from '../shared/lfoUtils';
 import { reorderLayers } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
 import { pluginManifestSchema } from '../shared/pluginSchema';
@@ -158,6 +159,8 @@ const shaderApplyButton = document.getElementById('shader-apply') as HTMLButtonE
 const shaderSaveButton = document.getElementById('shader-save') as HTMLButtonElement;
 const shaderStatus = document.getElementById('shader-status') as HTMLDivElement;
 const layerList = document.getElementById('layer-list') as HTMLDivElement;
+const layerListScene = document.getElementById('layer-list-scene') as HTMLDivElement;
+const layerListDesign = document.getElementById('layer-list-design') as HTMLDivElement;
 let plasmaToggle: HTMLInputElement | null = null;
 let spectrumToggle: HTMLInputElement | null = null;
 let origamiToggle: HTMLInputElement | null = null;
@@ -372,6 +375,7 @@ let generatorRecentsState: GeneratorId[] = [];
 let activeStyleId = '';
 let macroInputs: HTMLInputElement[] = [];
 let learnTarget: { target: string; label: string } | null = null;
+let midiSum: Record<string, number> = {};
 let safeModeReasons: string[] = [];
 let webglInitError: string | null = null;
 let frameDropScore = 0;
@@ -796,9 +800,48 @@ const applyPresetPath = async (path: string, reason?: string) => {
     return;
   }
   if (result.project) {
-    await applyProject(result.project);
+    // Migrate preset if needed
+    const { default: presetMigration } = await import('../shared/presetMigration');
+    const migrationResult = presetMigration.migratePreset(result.project);
+
+    if (!migrationResult.success) {
+      setStatus(`Preset migration failed: ${migrationResult.errors.join(', ')}`);
+      return;
+    }
+
+    // Show warnings if any
+    if (migrationResult.warnings.length > 0) {
+      console.warn('Preset warnings:', migrationResult.warnings);
+    }
+
+    // Validate migrated preset
+    const validationResult = presetMigration.validatePreset(migrationResult.preset);
+    if (!validationResult.valid) {
+      setStatus(`Preset validation failed: ${validationResult.errors.join(', ')}`);
+      return;
+    }
+
+    // Apply the (possibly migrated) preset
+    const migratedProject = migrationResult.preset;
+
+    // If preset is v3, convert to v2 format for current application
+    if (migratedProject.version === 3) {
+      const applyResult = presetMigration.applyPresetV3(migratedProject, currentProject);
+      if (applyResult.warnings.length > 0) {
+        console.warn('Preset application warnings:', applyResult.warnings);
+      }
+      await applyProject(applyResult.project);
+    } else {
+      await applyProject(migratedProject);
+    }
+
     const presetName = playlist.find((item) => item.path === path)?.name ?? path;
-    setStatus(`${reason ? `${reason}: ` : ''}Preset applied: ${presetName}`);
+    const message = `${reason ? `${reason}: ` : ''}Preset applied: ${presetName}`;
+    if (migrationResult.warnings.length > 0) {
+      setStatus(`${message} (${migrationResult.warnings.length} warnings - see console)`);
+    } else {
+      setStatus(message);
+    }
     void capturePresetThumbnail(path);
   }
 };
@@ -982,13 +1025,24 @@ const modSourceOptions = [
 
 const modTargetOptions = [
   { id: 'layer-plasma.opacity', label: 'Plasma Opacity', min: 0, max: 1 },
+  { id: 'layer-plasma.speed', label: 'Plasma Speed', min: 0.1, max: 3 },
+  { id: 'layer-plasma.scale', label: 'Plasma Scale', min: 0.1, max: 3 },
   { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity', min: 0, max: 1 },
   { id: 'layer-origami.opacity', label: 'Origami Opacity', min: 0, max: 1 },
+  { id: 'layer-origami.speed', label: 'Origami Speed', min: 0.1, max: 3 },
   { id: 'layer-glyph.opacity', label: 'Glyph Opacity', min: 0, max: 1 },
+  { id: 'layer-glyph.speed', label: 'Glyph Speed', min: 0.1, max: 3 },
   { id: 'layer-crystal.opacity', label: 'Crystal Opacity', min: 0, max: 1 },
+  { id: 'layer-crystal.scale', label: 'Crystal Scale', min: 0.1, max: 3 },
+  { id: 'layer-crystal.speed', label: 'Crystal Speed', min: 0.1, max: 3 },
   { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity', min: 0, max: 1 },
+  { id: 'layer-inkflow.speed', label: 'Ink Flow Speed', min: 0.1, max: 3 },
+  { id: 'layer-inkflow.scale', label: 'Ink Flow Scale', min: 0.1, max: 3 },
   { id: 'layer-topo.opacity', label: 'Topo Opacity', min: 0, max: 1 },
+  { id: 'layer-topo.scale', label: 'Topo Scale', min: 0.1, max: 3 },
+  { id: 'layer-topo.elevation', label: 'Topo Elevation', min: 0, max: 1 },
   { id: 'layer-weather.opacity', label: 'Weather Opacity', min: 0, max: 1 },
+  { id: 'layer-weather.speed', label: 'Weather Speed', min: 0.1, max: 3 },
   { id: 'layer-portal.opacity', label: 'Portal Opacity', min: 0, max: 1 },
   { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity', min: 0, max: 1 },
   { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
@@ -1027,13 +1081,24 @@ const midiTargetOptions = [
   { id: 'layer-portal.enabled', label: 'Portal Enabled' },
   { id: 'layer-oscillo.enabled', label: 'Oscillo Enabled' },
   { id: 'layer-plasma.opacity', label: 'Plasma Opacity' },
+  { id: 'layer-plasma.speed', label: 'Plasma Speed' },
+  { id: 'layer-plasma.scale', label: 'Plasma Scale' },
   { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity' },
   { id: 'layer-origami.opacity', label: 'Origami Opacity' },
+  { id: 'layer-origami.speed', label: 'Origami Speed' },
   { id: 'layer-glyph.opacity', label: 'Glyph Opacity' },
+  { id: 'layer-glyph.speed', label: 'Glyph Speed' },
   { id: 'layer-crystal.opacity', label: 'Crystal Opacity' },
+  { id: 'layer-crystal.scale', label: 'Crystal Scale' },
+  { id: 'layer-crystal.speed', label: 'Crystal Speed' },
   { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity' },
+  { id: 'layer-inkflow.speed', label: 'Ink Flow Speed' },
+  { id: 'layer-inkflow.scale', label: 'Ink Flow Scale' },
   { id: 'layer-topo.opacity', label: 'Topo Opacity' },
+  { id: 'layer-topo.scale', label: 'Topo Scale' },
+  { id: 'layer-topo.elevation', label: 'Topo Elevation' },
   { id: 'layer-weather.opacity', label: 'Weather Opacity' },
+  { id: 'layer-weather.speed', label: 'Weather Speed' },
   { id: 'layer-portal.opacity', label: 'Portal Opacity' },
   { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity' },
   { id: 'style.contrast', label: 'Style Contrast' },
@@ -1288,163 +1353,220 @@ const removeLayer = (sceneId: string, layerId: string) => {
 };
 
 const renderLayerList = () => {
+  // Clear all layer lists
   layerList.innerHTML = '';
+  layerListScene.innerHTML = '';
+  layerListDesign.innerHTML = '';
+
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
+
+  // Count modulation connections for each layer
+  const getModCountForLayer = (layerId: string): number => {
+    return currentProject.modMatrix.filter(conn => conn.target.startsWith(layerId)).length;
+  };
+
+  // Count MIDI mappings for each layer
+  const getMidiCountForLayer = (layerId: string): number => {
+    return currentProject.midiMappings.filter(map => map.target.startsWith(layerId)).length;
+  };
+
   scene.layers.forEach((layer, index) => {
-    const row = document.createElement('div');
-    row.className = 'layer-row';
+    const createLayerRow = (targetList: HTMLDivElement) => {
+      const row = document.createElement('div');
+      row.className = 'layer-row';
 
-    const label = document.createElement('label');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = layer.enabled;
-    checkbox.dataset.learnTarget = `${layer.id}.enabled`;
-    checkbox.dataset.learnLabel = `${layer.name} Enabled`;
-    checkbox.addEventListener('change', () => {
-      layer.enabled = checkbox.checked;
-      if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
-      if (layer.id === 'layer-spectrum') spectrumToggle = checkbox;
-      if (layer.id === 'layer-origami') origamiToggle = checkbox;
-      if (layer.id === 'layer-glyph') glyphToggle = checkbox;
-      if (layer.id === 'layer-crystal') crystalToggle = checkbox;
-      if (layer.id === 'layer-inkflow') inkToggle = checkbox;
-      if (layer.id === 'layer-topo') topoToggle = checkbox;
-      if (layer.id === 'layer-weather') weatherToggle = checkbox;
-      if (layer.id === 'layer-portal') portalToggle = checkbox;
-      if (layer.id === 'layer-oscillo') oscilloToggle = checkbox;
-      syncPerformanceToggles();
-      setStatus(`${layer.name} ${checkbox.checked ? 'enabled' : 'disabled'}`);
-    });
-    const text = document.createElement('span');
-    text.textContent = layer.name;
-    label.appendChild(checkbox);
-    label.appendChild(text);
-
-    const controls = document.createElement('div');
-    controls.className = 'layer-controls';
-    const opacity = document.createElement('input');
-    opacity.type = 'range';
-    opacity.min = '0';
-    opacity.max = '1';
-    opacity.step = '0.01';
-    opacity.value = String(layer.opacity);
-    opacity.className = 'layer-opacity';
-    opacity.dataset.learnTarget = `${layer.id}.opacity`;
-    opacity.dataset.learnLabel = `${layer.name} Opacity`;
-    opacity.addEventListener('input', () => {
-      layer.opacity = Number(opacity.value);
-    });
-    const opacityRow = document.createElement('div');
-    opacityRow.className = 'layer-opacity-row';
-    const opacityLabel = document.createElement('span');
-    opacityLabel.className = 'layer-opacity-label';
-    opacityLabel.textContent = 'Opacity';
-    opacityRow.appendChild(opacityLabel);
-    opacityRow.appendChild(opacity);
-    const upButton = document.createElement('button');
-    upButton.textContent = '↑';
-    upButton.disabled = index === 0;
-    upButton.addEventListener('click', () => moveLayer(scene.id, layer.id, -1));
-    const downButton = document.createElement('button');
-    downButton.textContent = '↓';
-    downButton.disabled = index === scene.layers.length - 1;
-    downButton.addEventListener('click', () => moveLayer(scene.id, layer.id, 1));
-    const removeButton = document.createElement('button');
-    removeButton.className = 'layer-remove';
-    removeButton.textContent = '✕';
-    removeButton.addEventListener('click', () => {
-      if (!window.confirm(`Remove "${layer.name}" from this scene?`)) return;
-      removeLayer(scene.id, layer.id);
-    });
-    controls.appendChild(upButton);
-    controls.appendChild(downButton);
-    controls.appendChild(removeButton);
-
-    row.appendChild(label);
-    row.appendChild(controls);
-    const assetControl = document.createElement('div');
-    assetControl.className = 'layer-asset-control';
-    assetControl.appendChild(buildLayerAssetSelect(layer));
-    assetControl.appendChild(opacityRow);
-
-    if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum') {
-      const layerId = layer.id as AssetLayerId;
-
-      const blendLabel = document.createElement('label');
-      blendLabel.textContent = 'Blend:';
-      blendLabel.className = 'asset-control-label';
-      const blendSelect = document.createElement('select');
-      blendSelect.className = 'asset-blend-select';
-      const blendModes = ['Normal', 'Add', 'Multiply', 'Screen', 'Overlay', 'Difference'];
-      blendModes.forEach((mode, i) => {
-        const opt = document.createElement('option');
-        opt.value = String(i);
-        opt.textContent = mode;
-        blendSelect.appendChild(opt);
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = layer.enabled;
+      checkbox.dataset.learnTarget = `${layer.id}.enabled`;
+      checkbox.dataset.learnLabel = `${layer.name} Enabled`;
+      checkbox.addEventListener('change', () => {
+        layer.enabled = checkbox.checked;
+        if (layer.id === 'layer-plasma') plasmaToggle = layerList.querySelector(`[data-learn-target="layer-plasma.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-spectrum') spectrumToggle = layerList.querySelector(`[data-learn-target="layer-spectrum.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-origami') origamiToggle = layerList.querySelector(`[data-learn-target="layer-origami.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-glyph') glyphToggle = layerList.querySelector(`[data-learn-target="layer-glyph.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-crystal') crystalToggle = layerList.querySelector(`[data-learn-target="layer-crystal.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-inkflow') inkToggle = layerList.querySelector(`[data-learn-target="layer-inkflow.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-topo') topoToggle = layerList.querySelector(`[data-learn-target="layer-topo.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-weather') weatherToggle = layerList.querySelector(`[data-learn-target="layer-weather.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-portal') portalToggle = layerList.querySelector(`[data-learn-target="layer-portal.enabled"]`) as HTMLInputElement;
+        if (layer.id === 'layer-oscillo') oscilloToggle = layerList.querySelector(`[data-learn-target="layer-oscillo.enabled"]`) as HTMLInputElement;
+        syncPerformanceToggles();
+        setStatus(`${layer.name} ${checkbox.checked ? 'enabled' : 'disabled'}`);
       });
-      blendSelect.value = String(assetLayerBlendModes[layerId]);
-      blendSelect.addEventListener('change', () => {
-        assetLayerBlendModes[layerId] = Number(blendSelect.value);
-      });
-      assetControl.appendChild(blendLabel);
-      assetControl.appendChild(blendSelect);
+      const text = document.createElement('span');
+      text.textContent = layer.name;
+      label.appendChild(checkbox);
+      label.appendChild(text);
 
-      const reactLabel = document.createElement('label');
-      reactLabel.textContent = 'Audio:';
-      reactLabel.className = 'asset-control-label';
-      const reactSlider = document.createElement('input');
-      reactSlider.type = 'range';
-      reactSlider.min = '0';
-      reactSlider.max = '1';
-      reactSlider.step = '0.05';
-      reactSlider.value = String(assetLayerAudioReact[layerId]);
-      reactSlider.className = 'asset-audio-react';
-      reactSlider.addEventListener('input', () => {
-        assetLayerAudioReact[layerId] = Number(reactSlider.value);
-      });
-      assetControl.appendChild(reactLabel);
-      assetControl.appendChild(reactSlider);
-    }
+      // Add modulation indicator badge
+      const modCount = getModCountForLayer(layer.id);
+      const midiCount = getMidiCountForLayer(layer.id);
+      if (modCount > 0 || midiCount > 0) {
+        const badgeContainer = document.createElement('div');
+        badgeContainer.className = 'layer-inputs-badge';
+        if (modCount > 0) {
+          const modBadge = document.createElement('span');
+          modBadge.className = 'layer-mod-badge';
+          modBadge.textContent = `MOD: ${modCount}`;
+          modBadge.title = `${modCount} modulation connection(s) to this layer`;
+          badgeContainer.appendChild(modBadge);
+        }
+        if (midiCount > 0) {
+          const midiBadge = document.createElement('span');
+          midiBadge.className = 'layer-midi-badge';
+          midiBadge.textContent = `MIDI: ${midiCount}`;
+          midiBadge.title = `${midiCount} MIDI mapping(s) to this layer`;
+          badgeContainer.appendChild(midiBadge);
+        }
+        label.appendChild(badgeContainer);
+      }
 
-    row.appendChild(assetControl);
-    layerList.appendChild(row);
-    if (layer.id === 'layer-plasma') plasmaToggle = checkbox;
-    if (layer.id === 'layer-spectrum') spectrumToggle = checkbox;
-    if (layer.id === 'layer-origami') origamiToggle = checkbox;
-    if (layer.id === 'layer-glyph') glyphToggle = checkbox;
-    if (layer.id === 'layer-crystal') crystalToggle = checkbox;
-    if (layer.id === 'layer-inkflow') inkToggle = checkbox;
-    if (layer.id === 'layer-topo') topoToggle = checkbox;
-    if (layer.id === 'layer-weather') weatherToggle = checkbox;
-    if (layer.id === 'layer-portal') portalToggle = checkbox;
-    if (layer.id === 'layer-oscillo') oscilloToggle = checkbox;
+      const controls = document.createElement('div');
+      controls.className = 'layer-controls';
+      const opacity = document.createElement('input');
+      opacity.type = 'range';
+      opacity.min = '0';
+      opacity.max = '1';
+      opacity.step = '0.01';
+      opacity.value = String(layer.opacity);
+      opacity.className = 'layer-opacity';
+      opacity.dataset.learnTarget = `${layer.id}.opacity`;
+      opacity.dataset.learnLabel = `${layer.name} Opacity`;
+      opacity.addEventListener('input', () => {
+        layer.opacity = Number(opacity.value);
+      });
+      const opacityRow = document.createElement('div');
+      opacityRow.className = 'layer-opacity-row';
+      const opacityLabel = document.createElement('span');
+      opacityLabel.className = 'layer-opacity-label';
+      opacityLabel.textContent = 'Opacity';
+      opacityRow.appendChild(opacityLabel);
+      opacityRow.appendChild(opacity);
+      const upButton = document.createElement('button');
+      upButton.textContent = '↑';
+      upButton.disabled = index === 0;
+      upButton.addEventListener('click', () => moveLayer(scene.id, layer.id, -1));
+      const downButton = document.createElement('button');
+      downButton.textContent = '↓';
+      downButton.disabled = index === scene.layers.length - 1;
+      downButton.addEventListener('click', () => moveLayer(scene.id, layer.id, 1));
+      const removeButton = document.createElement('button');
+      removeButton.className = 'layer-remove';
+      removeButton.textContent = '✕';
+      removeButton.addEventListener('click', () => {
+        if (!window.confirm(`Remove "${layer.name}" from this scene?`)) return;
+        removeLayer(scene.id, layer.id);
+      });
+      controls.appendChild(upButton);
+      controls.appendChild(downButton);
+      controls.appendChild(removeButton);
+
+      row.appendChild(label);
+      row.appendChild(controls);
+      const assetControl = document.createElement('div');
+      assetControl.className = 'layer-asset-control';
+      assetControl.appendChild(buildLayerAssetSelect(layer));
+      assetControl.appendChild(opacityRow);
+
+      if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum') {
+        const layerId = layer.id as AssetLayerId;
+
+        const blendLabel = document.createElement('label');
+        blendLabel.textContent = 'Blend:';
+        blendLabel.className = 'asset-control-label';
+        const blendSelect = document.createElement('select');
+        blendSelect.className = 'asset-blend-select';
+        const blendModes = ['Normal', 'Add', 'Multiply', 'Screen', 'Overlay', 'Difference'];
+        blendModes.forEach((mode, i) => {
+          const opt = document.createElement('option');
+          opt.value = String(i);
+          opt.textContent = mode;
+          blendSelect.appendChild(opt);
+        });
+        blendSelect.value = String(assetLayerBlendModes[layerId]);
+        blendSelect.addEventListener('change', () => {
+          assetLayerBlendModes[layerId] = Number(blendSelect.value);
+        });
+        assetControl.appendChild(blendLabel);
+        assetControl.appendChild(blendSelect);
+
+        const reactLabel = document.createElement('label');
+        reactLabel.textContent = 'Audio:';
+        reactLabel.className = 'asset-control-label';
+        const reactSlider = document.createElement('input');
+        reactSlider.type = 'range';
+        reactSlider.min = '0';
+        reactSlider.max = '1';
+        reactSlider.step = '0.05';
+        reactSlider.value = String(assetLayerAudioReact[layerId]);
+        reactSlider.className = 'asset-audio-react';
+        reactSlider.addEventListener('input', () => {
+          assetLayerAudioReact[layerId] = Number(reactSlider.value);
+        });
+        assetControl.appendChild(reactLabel);
+        assetControl.appendChild(reactSlider);
+      }
+
+      row.appendChild(assetControl);
+      targetList.appendChild(row);
+    };
+
+    // Create fresh rows for each layer list
+    createLayerRow(layerList);
+    createLayerRow(layerListScene);
+    createLayerRow(layerListDesign);
+
+    // Update toggle references from the first list
+    if (layer.id === 'layer-plasma') plasmaToggle = layerList.querySelector(`[data-learn-target="layer-plasma.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-spectrum') spectrumToggle = layerList.querySelector(`[data-learn-target="layer-spectrum.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-origami') origamiToggle = layerList.querySelector(`[data-learn-target="layer-origami.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-glyph') glyphToggle = layerList.querySelector(`[data-learn-target="layer-glyph.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-crystal') crystalToggle = layerList.querySelector(`[data-learn-target="layer-crystal.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-inkflow') inkToggle = layerList.querySelector(`[data-learn-target="layer-inkflow.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-topo') topoToggle = layerList.querySelector(`[data-learn-target="layer-topo.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-weather') weatherToggle = layerList.querySelector(`[data-learn-target="layer-weather.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-portal') portalToggle = layerList.querySelector(`[data-learn-target="layer-portal.enabled"]`) as HTMLInputElement;
+    if (layer.id === 'layer-oscillo') oscilloToggle = layerList.querySelector(`[data-learn-target="layer-oscillo.enabled"]`) as HTMLInputElement;
+
     syncLayerAsset(layer);
   });
-  const visualizerRow = document.createElement('div');
-  visualizerRow.className = 'layer-row';
-  const vizLabel = document.createElement('label');
-  const vizToggle = document.createElement('input');
-  vizToggle.type = 'checkbox';
-  vizToggle.checked = currentProject.visualizer.enabled;
-  vizToggle.addEventListener('change', () => {
-    currentProject.visualizer.enabled = vizToggle.checked;
-    visualizerEnabledToggle.checked = vizToggle.checked;
-    visualizerCanvas.classList.toggle(
-      'hidden',
-      visualizerMode === 'off' || !currentProject.visualizer.enabled
-    );
-    setStatus(`Visualizer ${vizToggle.checked ? 'enabled' : 'disabled'}`);
-  });
-  const vizText = document.createElement('span');
-  vizText.textContent = 'Visualizer Overlay';
-  vizLabel.appendChild(vizToggle);
-  vizLabel.appendChild(vizText);
-  const vizControls = document.createElement('div');
-  vizControls.className = 'layer-controls';
-  visualizerRow.appendChild(vizLabel);
-  visualizerRow.appendChild(vizControls);
-  layerList.appendChild(visualizerRow);
+
+  // Add visualizer row to all lists
+  const createVisualizerRow = (targetList: HTMLDivElement) => {
+    const visualizerRow = document.createElement('div');
+    visualizerRow.className = 'layer-row';
+    const vizLabel = document.createElement('label');
+    const vizToggle = document.createElement('input');
+    vizToggle.type = 'checkbox';
+    vizToggle.checked = currentProject.visualizer.enabled;
+    vizToggle.addEventListener('change', () => {
+      currentProject.visualizer.enabled = vizToggle.checked;
+      visualizerEnabledToggle.checked = vizToggle.checked;
+      visualizerCanvas.classList.toggle(
+        'hidden',
+        visualizerMode === 'off' || !currentProject.visualizer.enabled
+      );
+      setStatus(`Visualizer ${vizToggle.checked ? 'enabled' : 'disabled'}`);
+    });
+    const vizText = document.createElement('span');
+    vizText.textContent = 'Visualizer Overlay';
+    vizLabel.appendChild(vizToggle);
+    vizLabel.appendChild(vizText);
+    const vizControls = document.createElement('div');
+    vizControls.className = 'layer-controls';
+    visualizerRow.appendChild(vizLabel);
+    visualizerRow.appendChild(vizControls);
+    targetList.appendChild(visualizerRow);
+  };
+
+  createVisualizerRow(layerList);
+  createVisualizerRow(layerListScene);
+  createVisualizerRow(layerListDesign);
+
   initLearnables();
 };
 
@@ -2756,20 +2878,6 @@ const initModulators = () => {
   }));
 };
 
-const lfoValueForShape = (phase: number, shape: 'sine' | 'triangle' | 'saw' | 'square') => {
-  const wrapped = phase % 1;
-  if (shape === 'sine') {
-    return 0.5 + 0.5 * Math.sin(wrapped * Math.PI * 2);
-  }
-  if (shape === 'triangle') {
-    return wrapped < 0.5 ? wrapped * 2 : 1 - (wrapped - 0.5) * 2;
-  }
-  if (shape === 'square') {
-    return wrapped < 0.5 ? 1 : 0;
-  }
-  return wrapped;
-};
-
 const updateEnvelopes = (dt: number) => {
   currentProject.envelopes.forEach((env, index) => {
     const state = envStates[index];
@@ -3754,6 +3862,35 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
       layer.opacity = scaleMidiValue(value, 0, 1);
       renderLayerList();
     }
+    return;
+  }
+  // Speed/Scale/Elevation targets - stored in midiSum
+  if (target === 'layer-plasma.speed' || target === 'layer-plasma.scale') {
+    midiSum[target] = scaleMidiValue(value, 0, 2);
+    return;
+  }
+  if (target === 'layer-origami.speed') {
+    midiSum[target] = scaleMidiValue(value, 0, 2);
+    return;
+  }
+  if (target === 'layer-glyph.speed') {
+    midiSum[target] = scaleMidiValue(value, 0, 2);
+    return;
+  }
+  if (target === 'layer-crystal.speed' || target === 'layer-crystal.scale') {
+    midiSum[target] = scaleMidiValue(value, 0, 2);
+    return;
+  }
+  if (target === 'layer-inkflow.speed' || target === 'layer-inkflow.scale') {
+    midiSum[target] = scaleMidiValue(value, 0, 2);
+    return;
+  }
+  if (target === 'layer-topo.scale' || target === 'layer-topo.elevation') {
+    midiSum[target] = scaleMidiValue(value, 0, 2);
+    return;
+  }
+  if (target === 'layer-weather.speed') {
+    midiSum[target] = scaleMidiValue(value, 0, 2);
     return;
   }
   if (target === 'style.contrast') {
@@ -5287,12 +5424,9 @@ outputScaleSelect.addEventListener('change', async () => {
 const initPresets = async () => {
   loadPresetThumbnails();
 
-  // Check if the visualSynth API is available
+  // Try to load presets - may not be available in testing environment
   if (!window.visualSynth || !window.visualSynth.listPresets) {
     console.log('Preset API not available - skipping preset initialization');
-    presetSelect.innerHTML = '';
-    presetLibrary = [];
-    renderPresetBrowser();
     return;
   }
 
@@ -5872,8 +6006,8 @@ const render = (time: number) => {
     1,
     Math.max(0, (plasmaLayer?.opacity ?? 1) * (1 + (macroSum['layer-plasma.opacity'] ?? 0)))
   );
-  const plasmaSpeed = Math.max(0.1, 1.0 + (macroSum['layer-plasma.speed'] ?? 0));
-  const plasmaScale = Math.max(0.1, 1.0 + (macroSum['layer-plasma.scale'] ?? 0));
+  const plasmaSpeed = Math.max(0.1, 1.0 + (macroSum['layer-plasma.speed'] ?? 0) + (midiSum['layer-plasma.speed'] ?? 0));
+  const plasmaScale = Math.max(0.1, 1.0 + (macroSum['layer-plasma.scale'] ?? 0) + (midiSum['layer-plasma.scale'] ?? 0));
 
   const spectrumOpacity = Math.min(
     1,
@@ -5883,40 +6017,40 @@ const render = (time: number) => {
     1,
     Math.max(0, (origamiLayer?.opacity ?? 1) * (1 + (macroSum['layer-origami.opacity'] ?? 0)))
   );
-  const origamiSpeed = Math.max(0.1, 1.0 + (macroSum['layer-origami.speed'] ?? 0));
+  const origamiSpeed = Math.max(0.1, 1.0 + (macroSum['layer-origami.speed'] ?? 0) + (midiSum['layer-origami.speed'] ?? 0));
 
   const glyphOpacity = Math.min(
     1,
     Math.max(0, (glyphLayer?.opacity ?? 1) * (1 + (macroSum['layer-glyph.opacity'] ?? 0)))
   );
-  const glyphSpeed = Math.max(0.1, 1.0 + (macroSum['layer-glyph.speed'] ?? 0));
+  const glyphSpeed = Math.max(0.1, 1.0 + (macroSum['layer-glyph.speed'] ?? 0) + (midiSum['layer-glyph.speed'] ?? 0));
 
   const crystalOpacity = Math.min(
     1,
     Math.max(0, (crystalLayer?.opacity ?? 1) * (1 + (macroSum['layer-crystal.opacity'] ?? 0)))
   );
-  const crystalScale = Math.max(0.1, 1.0 + (macroSum['layer-crystal.scale'] ?? 0));
-  const crystalSpeed = Math.max(0.1, 1.0 + (macroSum['layer-crystal.speed'] ?? 0));
+  const crystalScale = Math.max(0.1, 1.0 + (macroSum['layer-crystal.scale'] ?? 0) + (midiSum['layer-crystal.scale'] ?? 0));
+  const crystalSpeed = Math.max(0.1, 1.0 + (macroSum['layer-crystal.speed'] ?? 0) + (midiSum['layer-crystal.speed'] ?? 0));
 
   const inkOpacity = Math.min(
     1,
     Math.max(0, (inkLayer?.opacity ?? 1) * (1 + (macroSum['layer-inkflow.opacity'] ?? 0)))
   );
-  const inkSpeed = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.speed'] ?? 0));
-  const inkScale = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.scale'] ?? 0));
+  const inkSpeed = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.speed'] ?? 0) + (midiSum['layer-inkflow.speed'] ?? 0));
+  const inkScale = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.scale'] ?? 0) + (midiSum['layer-inkflow.scale'] ?? 0));
 
   const topoOpacity = Math.min(
     1,
     Math.max(0, (topoLayer?.opacity ?? 1) * (1 + (macroSum['layer-topo.opacity'] ?? 0)))
   );
-  const topoScale = Math.max(0.1, 1.0 + (macroSum['layer-topo.scale'] ?? 0));
-  const topoElevation = Math.max(0.1, 1.0 + (macroSum['layer-topo.elevation'] ?? 0));
+  const topoScale = Math.max(0.1, 1.0 + (macroSum['layer-topo.scale'] ?? 0) + (midiSum['layer-topo.scale'] ?? 0));
+  const topoElevation = Math.max(0.1, 1.0 + (macroSum['layer-topo.elevation'] ?? 0) + (midiSum['layer-topo.elevation'] ?? 0));
 
   const weatherOpacity = Math.min(
     1,
     Math.max(0, (weatherLayer?.opacity ?? 1) * (1 + (macroSum['layer-weather.opacity'] ?? 0)))
   );
-  const weatherSpeed = Math.max(0.1, 1.0 + (macroSum['layer-weather.speed'] ?? 0));
+  const weatherSpeed = Math.max(0.1, 1.0 + (macroSum['layer-weather.speed'] ?? 0) + (midiSum['layer-weather.speed'] ?? 0));
 
   const portalOpacity = Math.min(
     1,
@@ -6346,3 +6480,5 @@ const init = async () => {
   };
   console.log('[Init] Capture API exposed');
 };
+
+void init();

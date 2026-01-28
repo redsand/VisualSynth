@@ -1,50 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Tunnel Core",
-  "category": "Geometry",
-  "createdAt": "2026-01-27T18:35:38.948Z",
-  "updatedAt": "2026-01-27T18:35:38.948Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "3d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": {
-              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
-              "lighting": { "direction": [0, 0, 1], "color": [1.0, 0.5, 0.2], "intensity": 2.5, "ambient": 0.05, "specularPower": 128, "specularIntensity": 1.5 },
-              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.8, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 12, "shadowSteps": 16, "fogEnabled": true, "fogDensity": 0.1, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
-            },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "ring", "nodeId": "torus", "params": { "majorRadius": 0.6, "minorRadius": 0.05 }, "label": "Ring" },
-              { "enabled": true, "order": 1, "instanceId": "rep", "nodeId": "dom-repeat-3d", "params": { "spacingX": 0, "spacingY": 0, "spacingZ": 1.0 }, "label": "Tunnel" },
-              { "enabled": true, "order": 2, "instanceId": "rot", "nodeId": "dom-rotate-3d", "params": { "rotX": 0, "rotY": 0, "rotZ": 0 }, "label": "Spin" }
-            ],
-            "connections": [
-              { "from": "ring", "to": "rep", "slot": 0 },
-              { "from": "rep", "to": "rot", "slot": 0 }
-            ]
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Tunnel Core",
+    "createdAt": "2026-01-27T18:35:38.948Z",
+    "updatedAt": "2026-01-28T16:48:56.750Z",
+    "category": "Geometry",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "tempo.bpm", "target": "rot.rotZ", "amount": 3.14, "min": -3.14, "max": 3.14, "curve": "linear", "smoothing": 0.5, "bipolar": false },
-    { "id": "mod-2", "source": "audio.rms", "target": "ring.minorRadius", "amount": 0.1, "min": 0.02, "max": 0.12, "curve": "exp", "smoothing": 0.1, "bipolar": false }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

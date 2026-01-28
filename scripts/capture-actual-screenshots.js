@@ -34,7 +34,7 @@ const scenarios = {
   'ui-modes': [
     { id: 'initial-launch-screen', name: 'Initial Launch Screen', mode: 'performance', wait: 5000 },
     { id: 'performance-mode', name: 'Performance Mode', mode: 'performance', preset: 'preset-01-cosmic.json', wait: 3000 },
-    { id: 'scene-mode', name: 'Scene Mode', mode: 'scene', preset: 'preset-11-visualsynth-dna-bloom.json', wait: 3000 },
+    { id: 'scene-mode', name: 'Scene Mode', mode: 'scene', preset: 'preset-11-visualsynth-dna-feedback.json', wait: 3000 },
     { id: 'design-mode', name: 'Design Mode', mode: 'design', preset: 'preset-83-sdf-geometry-101.json', wait: 3000 },
     { id: 'matrix-mode', name: 'Matrix Mode', mode: 'matrix', preset: 'preset-46-glyph-language.json', wait: 3000 },
     { id: 'system-mode', name: 'System Mode', mode: 'system', preset: 'preset-88-hyper-plasma.json', wait: 3000 }

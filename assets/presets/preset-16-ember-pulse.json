@@ -1,108 +1,63 @@
 {
-  "version": 2,
-  "name": "Ember Pulse",
-  "createdAt": "2026-01-26T18:12:47.550062",
-  "updatedAt": "2026-01-26T18:12:47.550062",
-  "effects": {
-    "enabled": true,
-    "bloom": 0.5,
-    "blur": 0.08,
-    "chroma": 0.08,
-    "posterize": 0,
-    "kaleidoscope": 0,
-    "feedback": 0.25,
-    "persistence": 0.45
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Ember Pulse",
+    "createdAt": "2026-01-26T18:12:47.550062",
+    "updatedAt": "2026-01-28T16:48:56.619Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
   },
-  "particles": {
-    "enabled": true,
-    "density": 0.4,
-    "speed": 0.2,
-    "size": 0.5,
-    "glow": 0.8
-  },
-  "sdf": {
-    "enabled": true,
-    "shape": "box",
-    "scale": 0.55,
-    "edge": 0.1,
-    "glow": 0.7,
-    "rotation": -0.2,
-    "fill": 0.5
-  },
-  "scenes": [
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "plasma",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "layer-spectrum",
-          "name": "Audio Spectrum",
-          "enabled": true,
-          "opacity": 0.7,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-bloom",
-          "name": "Bloom Effect",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.7,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         }
-      ]
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-9677",
       "source": "audio.rms",
-      "target": "layer-plasma.speed",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
       "amount": 0.43,
       "min": 1.09,
       "max": 1.52,
       "curve": "linear",
       "smoothing": 0.5,
       "bipolar": false
-    },
-    {
-      "id": "mod-bloom-1",
-      "source": "audio.rms",
-      "target": "fx-bloom.intensity",
-      "amount": 0.6,
-      "min": 0.2,
-      "max": 1,
-      "curve": "exp",
-      "smoothing": 0.1,
-      "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Abstract",
   "macros": [
     {
       "id": "macro-1",
@@ -110,7 +65,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-plasma.scale",
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
           "amount": 1.5
         }
       ],
@@ -120,36 +78,21 @@
       "id": "macro-2",
       "name": "Plasma Color Shift",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Plasma Color Shift"
     },
     {
       "id": "macro-3",
       "name": "Spectrum Sensitivity",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.sensitivity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Spectrum Sensitivity"
     },
     {
       "id": "macro-4",
       "name": "Bloom Intensity",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "fx-bloom.intensity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Bloom Intensity"
     }
   ]

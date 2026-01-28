@@ -1,52 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Industrial Conveyor",
-  "category": "Abstract",
-  "createdAt": "2026-01-27T18:35:38.954Z",
-  "updatedAt": "2026-01-27T18:35:38.954Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "3d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": {
-              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
-              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [0.9, 0.9, 1.0], "intensity": 1.2, "ambient": 0.1, "specularPower": 64, "specularIntensity": 0.8 },
-              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.7, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 8, "shadowSteps": 16, "fogEnabled": true, "fogDensity": 0.05, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
-            },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "item", "nodeId": "box3d", "params": { "size": [0.2, 0.2, 0.2] }, "label": "Package" },
-              { "enabled": true, "order": 1, "instanceId": "move", "nodeId": "dom-translate-3d", "params": { "x": 0, "y": 0, "z": 0 }, "label": "Motor" },
-              { "enabled": true, "order": 2, "instanceId": "grid", "nodeId": "dom-repeat-3d", "params": { "spacingX": 0.8, "spacingY": 0, "spacingZ": 0 }, "label": "Belt" },
-              { "enabled": true, "order": 3, "instanceId": "tilt", "nodeId": "dom-rotate-3d", "params": { "rotX": 0.3, "rotY": 0.4, "rotZ": 0 }, "label": "View Angle" }
-            ],
-            "connections": [
-              { "from": "item", "to": "move", "slot": 0 },
-              { "from": "move", "to": "grid", "slot": 0 },
-              { "from": "grid", "to": "tilt", "slot": 0 }
-            ]
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Industrial Conveyor",
+    "createdAt": "2026-01-27T18:35:38.954Z",
+    "updatedAt": "2026-01-28T16:48:56.593Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "tempo.bpm", "target": "move.x", "amount": 0.8, "min": 0, "max": 0.8, "curve": "linear", "smoothing": 0, "bipolar": false },
-    { "id": "mod-2", "source": "audio.rms", "target": "item.size.y", "amount": 0.2, "min": 0.15, "max": 0.4, "curve": "exp", "smoothing": 0.1, "bipolar": false }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

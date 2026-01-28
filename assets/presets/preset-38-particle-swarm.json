@@ -1,119 +1,76 @@
 {
-  "version": 2,
-  "name": "Particle Swarm",
-  "createdAt": "2026-01-26T19:10:00.000Z",
-  "updatedAt": "2026-01-26T19:10:00.000Z",
-  "effects": {
-    "enabled": true,
-    "bloom": 0.35,
-    "blur": 0.08,
-    "chroma": 0.2,
-    "posterize": 0,
-    "kaleidoscope": 0,
-    "feedback": 0.15,
-    "persistence": 0.45
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Particle Swarm",
+    "createdAt": "2026-01-26T19:10:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.653Z",
+    "category": "Particles",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
   },
-  "particles": {
-    "enabled": true,
-    "density": 0.9,
-    "speed": 0.5,
-    "size": 0.45,
-    "glow": 0.95
-  },
-  "sdf": {
-    "enabled": false,
-    "shape": "circle",
-    "scale": 0.4,
-    "edge": 0.08,
-    "glow": 0.4,
-    "rotation": 0,
-    "fill": 0.25
-  },
-  "scenes": [
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Swarm Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": false,
-          "opacity": 0.5,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "plasma",
+      "params": {
+        "opacity": 0.5,
+        "enabled": false,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "layer-spectrum",
-          "name": "Spectrum Bars",
-          "enabled": true,
-          "opacity": 0.6,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.6,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         }
-      ]
+      }
     }
   ],
-  "modMatrix": [],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Particles",
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
       "name": "Spectrum Bars smoothing",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.smoothing",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Spectrum Bars smoothing"
     },
     {
       "id": "macro-2",
       "name": "Spectrum Bars sensitivity",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.sensitivity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Spectrum Bars sensitivity"
     },
     {
       "id": "macro-3",
       "name": "Spectrum Bars bar Width",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.barWidth",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Spectrum Bars bar Width"
     },
     {
       "id": "macro-4",
       "name": "Spectrum Bars glow",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.glow",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Spectrum Bars glow"
     }
   ]

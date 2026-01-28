@@ -19,7 +19,8 @@
     "screenshots:ui-modes": "node scripts/generate-visual-screenshots.js --category ui-modes",
     "screenshots:generators": "node scripts/generate-visual-screenshots.js --category generators",
     "screenshots:effects": "node scripts/generate-visual-screenshots.js --category effects",
-    "screenshots:test": "npm test -- screenshot.test.ts"
+    "screenshots:test": "npm test -- screenshot.test.ts",
+    "presets:migrate": "ts-node scripts/migrate-presets.ts"
   },
   "build": {
     "appId": "com.visualsynth.app",
@@ -83,6 +84,7 @@
     "electron-builder": "^24.13.3",
     "esbuild": "^0.20.2",
     "puppeteer": "^24.36.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vitest": "^1.5.0",
     "wait-on": "^7.2.0"

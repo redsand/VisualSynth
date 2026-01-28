@@ -1,119 +1,76 @@
 {
-  "version": 2,
-  "name": "Circuit Pulse",
-  "createdAt": "2026-01-26T18:16:36.205401",
-  "updatedAt": "2026-01-26T18:16:36.205401",
-  "effects": {
-    "enabled": true,
-    "bloom": 0.3,
-    "blur": 0.08,
-    "chroma": 0.2,
-    "posterize": 0.2,
-    "kaleidoscope": 0.3,
-    "feedback": 0.22,
-    "persistence": 0.25
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Circuit Pulse",
+    "createdAt": "2026-01-26T18:16:36.205401",
+    "updatedAt": "2026-01-28T16:48:56.641Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
   },
-  "particles": {
-    "enabled": true,
-    "density": 0.55,
-    "speed": 0.3,
-    "size": 0.4,
-    "glow": 0.7
-  },
-  "sdf": {
-    "enabled": true,
-    "shape": "box",
-    "scale": 0.5,
-    "edge": 0.06,
-    "glow": 0.6,
-    "rotation": 0.3,
-    "fill": 0.4
-  },
-  "scenes": [
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": false,
-          "opacity": 0.9,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "plasma",
+      "params": {
+        "opacity": 0.9,
+        "enabled": false,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "layer-spectrum",
-          "name": "Audio Spectrum",
-          "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         }
-      ]
+      }
     }
   ],
-  "modMatrix": [],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Abstract",
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
       "name": "Audio Spectrum smoothing",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.smoothing",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum smoothing"
     },
     {
       "id": "macro-2",
       "name": "Audio Spectrum sensitivity",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.sensitivity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum sensitivity"
     },
     {
       "id": "macro-3",
       "name": "Audio Spectrum bar Width",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.barWidth",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum bar Width"
     },
     {
       "id": "macro-4",
       "name": "Audio Spectrum glow",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-spectrum.glow",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Audio Spectrum glow"
     }
   ]

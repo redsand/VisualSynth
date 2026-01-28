@@ -1,29 +1,63 @@
 {
-  "version": 2,
-  "name": "Sacred Oscilloscope",
-  "createdAt": "2026-01-27T12:00:00Z",
-  "updatedAt": "2026-01-27T12:00:00Z",
-  "stylePresets": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Sacred Oscilloscope",
+    "createdAt": "2026-01-27T12:00:00Z",
+    "updatedAt": "2026-01-28T16:48:56.687Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "style-ritual",
-      "name": "Ritual",
-      "settings": {
-        "contrast": 1.15,
-        "saturation": 0.9,
-        "paletteShift": 0.08
+      "type": "oscillo",
+      "params": {
+        "opacity": 0.85,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        }
       }
     },
     {
-      "id": "style-amber",
-      "name": "Amber",
-      "settings": {
-        "contrast": 1.05,
-        "saturation": 1.1,
-        "paletteShift": -0.04
+      "type": "plasma",
+      "params": {
+        "opacity": 0.15,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.05,
+          "rotation": 0.04
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
       }
     }
   ],
-  "activeStylePresetId": "style-ritual",
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.22,
+      "min": 0.79,
+      "max": 1.01,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "macros": [
     {
       "id": "macro-1",
@@ -31,7 +65,10 @@
       "value": 0.65,
       "targets": [
         {
-          "target": "layer-oscillo.opacity",
+          "target": {
+            "type": "oscillo",
+            "param": "opacity"
+          },
           "amount": 0.7
         }
       ],
@@ -41,60 +78,35 @@
       "id": "macro-2",
       "name": "Glow",
       "value": 0.4,
-      "targets": [
-        {
-          "target": "effects.bloom",
-          "amount": 0.25
-        }
-      ],
+      "targets": [],
       "description": "Controls: Glow"
     },
     {
       "id": "macro-3",
       "name": "Continuity",
       "value": 0.45,
-      "targets": [
-        {
-          "target": "effects.persistence",
-          "amount": 0.35
-        }
-      ],
+      "targets": [],
       "description": "Controls: Continuity"
     },
     {
       "id": "macro-4",
       "name": "Sacred Oscilloscope mode",
       "value": 0.3,
-      "targets": [
-        {
-          "target": "layer-oscillo.mode",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Sacred Oscilloscope mode"
     },
     {
       "id": "macro-5",
       "name": "Sacred Oscilloscope freeze",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-oscillo.freeze",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Sacred Oscilloscope freeze"
     },
     {
       "id": "macro-6",
       "name": "Sacred Oscilloscope rotate",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-oscillo.rotate",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Sacred Oscilloscope rotate"
     },
     {
@@ -111,440 +123,5 @@
       "targets": [],
       "description": "Controls: Macro 8"
     }
-  ],
-  "effects": {
-    "enabled": true,
-    "bloom": 0.16,
-    "blur": 0.06,
-    "chroma": 0.08,
-    "posterize": 0,
-    "kaleidoscope": 0.1,
-    "feedback": 0.18,
-    "persistence": 0.55
-  },
-  "particles": {
-    "enabled": false,
-    "density": 0.2,
-    "speed": 0.2,
-    "size": 0.35,
-    "glow": 0.4
-  },
-  "sdf": {
-    "enabled": false,
-    "shape": "circle",
-    "scale": 0.5,
-    "edge": 0.06,
-    "glow": 0.4,
-    "rotation": 0,
-    "fill": 0.2
-  },
-  "visualizer": {
-    "enabled": false,
-    "mode": "off",
-    "opacity": 0.6,
-    "macroEnabled": false,
-    "macroId": 8
-  },
-  "lfos": [
-    {
-      "id": "lfo-1",
-      "name": "Portal Drift",
-      "shape": "sine",
-      "rate": 0.05,
-      "sync": false,
-      "phase": 0
-    },
-    {
-      "id": "lfo-2",
-      "name": "Warp Pulse",
-      "shape": "triangle",
-      "rate": 0.07,
-      "sync": false,
-      "phase": 0.2
-    }
-  ],
-  "envelopes": [
-    {
-      "id": "env-1",
-      "name": "Gate",
-      "attack": 0.03,
-      "decay": 0.2,
-      "sustain": 0.4,
-      "release": 0.35,
-      "hold": 0.2,
-      "trigger": "audio.peak",
-      "threshold": 0.55
-    },
-    {
-      "id": "env-2",
-      "name": "Shift",
-      "attack": 0.02,
-      "decay": 0.18,
-      "sustain": 0.3,
-      "release": 0.3,
-      "hold": 0.15,
-      "trigger": "audio.peak",
-      "threshold": 0.7
-    }
-  ],
-  "sampleHold": [
-    {
-      "id": "sh-1",
-      "name": "Portal Shuffle",
-      "rate": 0.2,
-      "sync": false,
-      "smooth": 0.3
-    },
-    {
-      "id": "sh-2",
-      "name": "Gate Drift",
-      "rate": 0.12,
-      "sync": false,
-      "smooth": 0.35
-    }
-  ],
-  "padMappings": [
-    "oscillo-capture",
-    "oscillo-freeze",
-    "oscillo-rotate",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none"
-  ],
-  "timelineMarkers": [],
-  "assets": [],
-  "plugins": [],
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Sacred Temple",
-      "layers": [
-        {
-          "id": "layer-oscillo",
-          "name": "Sacred Oscilloscope",
-          "enabled": true,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 0.15,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1.05,
-            "rotation": 0.04
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.rms",
-      "target": "effects.persistence",
-      "amount": 0.35,
-      "curve": "exp",
-      "smoothing": 0.2,
-      "bipolar": false,
-      "min": 0.3,
-      "max": 0.85
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.peak",
-      "target": "effects.kaleidoscope",
-      "amount": 0.2,
-      "curve": "exp",
-      "smoothing": 0.12,
-      "bipolar": false,
-      "min": 0.08,
-      "max": 0.5
-    },
-    {
-      "id": "mod-3",
-      "source": "lfo-1",
-      "target": "style.paletteShift",
-      "amount": 0.2,
-      "curve": "log",
-      "smoothing": 0.6,
-      "bipolar": true,
-      "min": -0.2,
-      "max": 0.2
-    },
-    {
-      "id": "mod-2647",
-      "source": "audio.rms",
-      "target": "layer-plasma.speed",
-      "amount": 0.22,
-      "min": 0.79,
-      "max": 1.01,
-      "curve": "linear",
-      "smoothing": 0.5,
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Audio Reactive"
+  ]
 }

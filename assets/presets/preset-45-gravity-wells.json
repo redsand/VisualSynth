@@ -1,100 +1,105 @@
 {
-  "version": 2,
-  "name": "Gravity Wells",
-  "createdAt": "2026-01-27T00:33:29.000Z",
-  "updatedAt": "2026-01-27T00:33:29.000Z",
-  "stylePresets": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Gravity Wells",
+    "createdAt": "2026-01-27T00:33:29.000Z",
+    "updatedAt": "2026-01-28T16:48:56.676Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "style-deepfield",
-      "name": "Deep Field",
-      "settings": {
-        "contrast": 1.18,
-        "saturation": 0.78,
-        "paletteShift": -0.18
+      "type": "plasma",
+      "params": {
+        "opacity": 0.45,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.2,
+          "rotation": 0.06
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
       }
     },
     {
-      "id": "style-lensing",
-      "name": "Lensing",
-      "settings": {
-        "contrast": 1.32,
-        "saturation": 0.92,
-        "paletteShift": 0.05
+      "type": "origami",
+      "params": {
+        "opacity": 0.6,
+        "enabled": false,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.18,
+        "enabled": false,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        }
       }
     }
   ],
-  "activeStylePresetId": "style-deepfield",
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.48,
+      "min": 0.57,
+      "max": 1.05,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "macros": [
     {
       "id": "macro-1",
       "name": "Spawn Well",
       "value": 0,
-      "targets": [
-        {
-          "target": "effects.feedback",
-          "amount": 0.45
-        },
-        {
-          "target": "effects.kaleidoscope",
-          "amount": 0.35
-        },
-        {
-          "target": "particles.density",
-          "amount": 0.25
-        }
-      ],
+      "targets": [],
       "description": "Controls: Spawn Well"
     },
     {
       "id": "macro-2",
       "name": "Destroy Well",
       "value": 0,
-      "targets": [
-        {
-          "target": "effects.feedback",
-          "amount": -0.55
-        },
-        {
-          "target": "effects.persistence",
-          "amount": -0.5
-        }
-      ],
+      "targets": [],
       "description": "Controls: Destroy Well"
     },
     {
       "id": "macro-3",
       "name": "Polarity Shift",
       "value": 0,
-      "targets": [
-        {
-          "target": "effects.chroma",
-          "amount": 0.18
-        },
-        {
-          "target": "sdf.rotation",
-          "amount": 1.2
-        }
-      ],
+      "targets": [],
       "description": "Controls: Polarity Shift"
     },
     {
       "id": "macro-4",
       "name": "Singularity Collapse",
       "value": 0,
-      "targets": [
-        {
-          "target": "effects.blur",
-          "amount": 0.35
-        },
-        {
-          "target": "effects.feedback",
-          "amount": 0.2
-        },
-        {
-          "target": "effects.persistence",
-          "amount": 0.25
-        }
-      ],
+      "targets": [],
       "description": "Controls: Singularity Collapse"
     },
     {
@@ -103,7 +108,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-plasma.scale",
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
           "amount": 1.5
         }
       ],
@@ -113,24 +121,14 @@
       "id": "macro-6",
       "name": "Shader Plasma color Shift",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma color Shift"
     },
     {
       "id": "macro-7",
       "name": "Shader Plasma brightness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.brightness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma brightness"
     },
     {
@@ -140,497 +138,5 @@
       "targets": [],
       "description": "Controls: Macro 8"
     }
-  ],
-  "effects": {
-    "enabled": true,
-    "bloom": 0.22,
-    "blur": 0.06,
-    "chroma": 0.08,
-    "posterize": 0,
-    "kaleidoscope": 0.25,
-    "feedback": 0.4,
-    "persistence": 0.65
-  },
-  "particles": {
-    "enabled": true,
-    "density": 0.32,
-    "speed": 0.22,
-    "size": 0.38,
-    "glow": 0.7
-  },
-  "sdf": {
-    "enabled": true,
-    "shape": "circle",
-    "scale": 0.58,
-    "edge": 0.05,
-    "glow": 0.78,
-    "rotation": 0.2,
-    "fill": 0.25
-  },
-  "visualizer": {
-    "enabled": false,
-    "mode": "off",
-    "opacity": 0.6,
-    "macroEnabled": false,
-    "macroId": 8
-  },
-  "lfos": [
-    {
-      "id": "lfo-1",
-      "name": "Orbit Drift",
-      "shape": "sine",
-      "rate": 0.04,
-      "sync": false,
-      "phase": 0
-    },
-    {
-      "id": "lfo-2",
-      "name": "Lens Pulse",
-      "shape": "triangle",
-      "rate": 0.055,
-      "sync": false,
-      "phase": 0.15
-    }
-  ],
-  "envelopes": [
-    {
-      "id": "env-1",
-      "name": "Bass Pull",
-      "attack": 0.03,
-      "decay": 0.25,
-      "sustain": 0.45,
-      "release": 0.4,
-      "hold": 0.2,
-      "trigger": "audio.peak",
-      "threshold": 0.55
-    },
-    {
-      "id": "env-2",
-      "name": "Shock Ring",
-      "attack": 0.02,
-      "decay": 0.18,
-      "sustain": 0.3,
-      "release": 0.3,
-      "hold": 0.12,
-      "trigger": "audio.peak",
-      "threshold": 0.7
-    }
-  ],
-  "sampleHold": [
-    {
-      "id": "sh-1",
-      "name": "Well Jitter",
-      "rate": 0.2,
-      "sync": false,
-      "smooth": 0.3
-    },
-    {
-      "id": "sh-2",
-      "name": "Orbit Drift",
-      "rate": 0.12,
-      "sync": false,
-      "smooth": 0.35
-    }
-  ],
-  "padMappings": [
-    "gravity-spawn-fixed",
-    "gravity-spawn-audio",
-    "gravity-destroy",
-    "gravity-toggle-polarity",
-    "gravity-flip-last",
-    "gravity-collapse",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none"
-  ],
-  "timelineMarkers": [],
-  "assets": [],
-  "plugins": [],
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Graviton Field",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 0.45,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1.2,
-            "rotation": 0.06
-          }
-        },
-        {
-          "id": "layer-origami",
-          "name": "Origami Fold",
-          "enabled": false,
-          "opacity": 0.6,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-spectrum",
-          "name": "Spectrum Bars",
-          "enabled": false,
-          "opacity": 0.18,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.rms",
-      "target": "effects.feedback",
-      "amount": 0.35,
-      "curve": "exp",
-      "smoothing": 0.2,
-      "bipolar": false,
-      "min": 0.4,
-      "max": 0.82
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.rms",
-      "target": "effects.persistence",
-      "amount": 0.28,
-      "curve": "log",
-      "smoothing": 0.35,
-      "bipolar": false,
-      "min": 0.55,
-      "max": 0.95
-    },
-    {
-      "id": "mod-3",
-      "source": "audio.peak",
-      "target": "effects.chroma",
-      "amount": 0.2,
-      "curve": "exp",
-      "smoothing": 0.1,
-      "bipolar": false,
-      "min": 0.08,
-      "max": 0.35
-    },
-    {
-      "id": "mod-4",
-      "source": "audio.peak",
-      "target": "sdf.scale",
-      "amount": 0.35,
-      "curve": "exp",
-      "smoothing": 0.12,
-      "bipolar": false,
-      "min": 0.4,
-      "max": 0.8
-    },
-    {
-      "id": "mod-5",
-      "source": "lfo-1",
-      "target": "style.paletteShift",
-      "amount": 0.22,
-      "curve": "log",
-      "smoothing": 0.6,
-      "bipolar": true,
-      "min": -0.28,
-      "max": 0.28
-    },
-    {
-      "id": "mod-6",
-      "source": "lfo-2",
-      "target": "effects.kaleidoscope",
-      "amount": 0.18,
-      "curve": "log",
-      "smoothing": 0.55,
-      "bipolar": false,
-      "min": 0.15,
-      "max": 0.55
-    },
-    {
-      "id": "mod-7",
-      "source": "sh-1",
-      "target": "effects.blur",
-      "amount": 0.18,
-      "curve": "log",
-      "smoothing": 0.75,
-      "bipolar": false,
-      "min": 0.04,
-      "max": 0.18
-    },
-    {
-      "id": "mod-5000",
-      "source": "audio.rms",
-      "target": "layer-plasma.speed",
-      "amount": 0.48,
-      "min": 0.57,
-      "max": 1.05,
-      "curve": "linear",
-      "smoothing": 0.5,
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Audio Reactive"
+  ]
 }

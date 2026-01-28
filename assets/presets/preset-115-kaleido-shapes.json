@@ -1,47 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Kaleido Gem",
-  "category": "Abstract",
-  "createdAt": "2026-01-27T18:35:38.961Z",
-  "updatedAt": "2026-01-27T18:35:38.961Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "2d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.3, "fillColor": [0.2, 0.8, 1, 1], "glowEnabled": true, "glowIntensity": 0.8, "glowRadius": 0.2, "glowColor": [0.1, 0.4, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": { "maxSteps": 64, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005, "lighting": { "direction": [0.5, 0.8, 0.6], "color": [1, 1, 1], "intensity": 1, "ambient": 0.2, "specularPower": 32, "specularIntensity": 0.5 }, "aoEnabled": true, "aoSteps": 3, "aoIntensity": 0.5, "aoRadius": 0.2, "softShadowsEnabled": true, "shadowSoftness": 8, "shadowSteps": 16, "fogEnabled": false, "fogDensity": 0.05, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0 },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "gem", "nodeId": "hexagon", "params": { "radius": 0.3 }, "label": "Crystal" },
-              { "enabled": true, "order": 1, "instanceId": "rot", "nodeId": "dom-rotate-2d", "params": { "angle": 0 }, "label": "Spin" },
-              { "enabled": true, "order": 2, "instanceId": "sym", "nodeId": "dom-symmetry", "params": { "folds": 6 }, "label": "Radial" }
-            ],
-            "connections": [
-              { "from": "gem", "to": "rot", "slot": 0 },
-              { "from": "rot", "to": "sym", "slot": 0 }
-            ]
-          }
-        },
-        { "id": "fx-kaleidoscope", "name": "Fractal View", "enabled": true, "opacity": 1, "blendMode": "screen", "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 } }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Kaleido Gem",
+    "createdAt": "2026-01-27T18:35:38.961Z",
+    "updatedAt": "2026-01-28T16:48:56.612Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "audio.rms", "target": "gem.radius", "amount": 0.4, "min": 0.1, "max": 0.5, "curve": "exp", "smoothing": 0.1, "bipolar": false },
-    { "id": "mod-2", "source": "lfo-1", "target": "rot.angle", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

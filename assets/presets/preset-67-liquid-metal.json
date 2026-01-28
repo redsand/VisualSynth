@@ -1,60 +1,41 @@
 {
-  "version": 2,
-  "name": "Liquid Metal",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Liquid Metal",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.710Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "plasma",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "fx-kaleidoscope",
-          "name": "Kaleidoscope",
-          "enabled": true,
-          "opacity": 0.7,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-bloom",
-          "name": "Bloom",
-          "enabled": true,
-          "opacity": 0.4,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-4650",
       "source": "audio.rms",
-      "target": "layer-plasma.speed",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
       "amount": 0.54,
       "min": 1.19,
       "max": 1.73,
@@ -63,9 +44,6 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Organic",
   "macros": [
     {
       "id": "macro-1",
@@ -73,7 +51,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-plasma.scale",
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
           "amount": 1.5
         }
       ],
@@ -83,24 +64,14 @@
       "id": "macro-2",
       "name": "Shader Plasma color Shift",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma color Shift"
     },
     {
       "id": "macro-3",
       "name": "Shader Plasma brightness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.brightness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma brightness"
     },
     {

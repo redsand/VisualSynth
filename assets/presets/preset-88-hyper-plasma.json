@@ -1,28 +1,47 @@
 {
-  "version": 2,
-  "name": "Hyper Plasma",
-  "category": "Essentials",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Hyper Plasma",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.742Z",
+    "category": "Essentials",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Hyper Plasma",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+      "type": "plasma",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    }
+  ],
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 1,
+      "min": 1,
+      "max": 4,
+      "curve": "exp",
+      "smoothing": 0.1,
+      "bipolar": false
     }
   ],
   "macros": [
@@ -32,7 +51,10 @@
       "value": 0.8,
       "targets": [
         {
-          "target": "layer-plasma.speed",
+          "target": {
+            "type": "plasma",
+            "param": "speed"
+          },
           "amount": 3
         }
       ],
@@ -44,7 +66,10 @@
       "value": 0.7,
       "targets": [
         {
-          "target": "layer-plasma.scale",
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
           "amount": 4
         }
       ],
@@ -54,40 +79,15 @@
       "id": "macro-3",
       "name": "Hyper Plasma color Shift",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Hyper Plasma color Shift"
     },
     {
       "id": "macro-4",
       "name": "Hyper Plasma brightness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.brightness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Hyper Plasma brightness"
     }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.rms",
-      "target": "layer-plasma.speed",
-      "amount": 1,
-      "min": 1,
-      "max": 4,
-      "curve": "exp",
-      "smoothing": 0.1,
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  ]
 }

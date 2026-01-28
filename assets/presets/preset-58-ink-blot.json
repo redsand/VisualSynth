@@ -1,47 +1,40 @@
 {
-  "version": 2,
-  "name": "Ink Blot",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Ink Blot",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.697Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-inkflow",
-          "name": "Ink Flow",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "inkflow",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "fx-posterize",
-          "name": "Posterize",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+        "speed": 1,
+        "scale": 1
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-6096",
       "source": "audio.rms",
-      "target": "layer-inkflow.speed",
+      "target": {
+        "type": "inkflow",
+        "param": "speed"
+      },
       "amount": 0.53,
       "min": 0.65,
       "max": 1.18,
@@ -50,32 +43,19 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Organic",
   "macros": [
     {
       "id": "macro-1",
       "name": "Ink Flow pressure",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-inkflow.pressure",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Ink Flow pressure"
     },
     {
       "id": "macro-2",
       "name": "Ink Flow lifespan",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-inkflow.lifespan",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Ink Flow lifespan"
     },
     {

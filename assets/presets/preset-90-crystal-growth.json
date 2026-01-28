@@ -1,28 +1,46 @@
 {
-  "version": 2,
-  "name": "Crystal Growth",
-  "category": "Organic",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Crystal Growth",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.745Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "layer-crystal",
-          "name": "Growth",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+      "type": "crystal",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "speed": 1
+      }
+    }
+  ],
+  "modulations": [
+    {
+      "source": "lfo-2",
+      "target": {
+        "type": "crystal",
+        "param": "speed"
+      },
+      "amount": 0.5,
+      "min": 0.2,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
     }
   ],
   "macros": [
@@ -32,7 +50,10 @@
       "value": 0.6,
       "targets": [
         {
-          "target": "layer-crystal.speed",
+          "target": {
+            "type": "crystal",
+            "param": "speed"
+          },
           "amount": 1.5
         }
       ],
@@ -44,7 +65,10 @@
       "value": 0.8,
       "targets": [
         {
-          "target": "layer-crystal.scale",
+          "target": {
+            "type": "crystal",
+            "param": "scale"
+          },
           "amount": 2
         }
       ],
@@ -54,12 +78,7 @@
       "id": "macro-3",
       "name": "Growth brittleness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-crystal.brittleness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Growth brittleness"
     },
     {
@@ -69,20 +88,5 @@
       "targets": [],
       "description": "Controls: Macro 4"
     }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "lfo-2",
-      "target": "layer-crystal.speed",
-      "amount": 0.5,
-      "min": 0.2,
-      "max": 1,
-      "curve": "linear",
-      "smoothing": 0.5,
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  ]
 }

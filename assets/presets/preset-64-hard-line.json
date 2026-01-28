@@ -1,93 +1,44 @@
 {
-  "version": 2,
-  "name": "Hard Line",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "gen-sdf",
-          "name": "SDF Shapes",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-posterize",
-          "name": "Posterize",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Hard Line",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.706Z",
+    "category": "Geometry",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "modMatrix": [],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Geometry",
+  },
+  "layers": [],
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
       "name": "SDF Shapes scale",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "gen-sdf.scale",
-          "amount": 1.5
-        }
-      ],
+      "targets": [],
       "description": "Controls: SDF Shapes scale"
     },
     {
       "id": "macro-2",
       "name": "SDF Shapes rotation",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "gen-sdf.rotation",
-          "amount": 3.141592653589793
-        }
-      ],
+      "targets": [],
       "description": "Controls: SDF Shapes rotation"
     },
     {
       "id": "macro-3",
       "name": "SDF Shapes edge",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "gen-sdf.edge",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: SDF Shapes edge"
     },
     {
       "id": "macro-4",
       "name": "SDF Shapes glow",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "gen-sdf.glow",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: SDF Shapes glow"
     }
   ]

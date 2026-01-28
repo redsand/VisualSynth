@@ -1,60 +1,40 @@
 {
-  "version": 2,
-  "name": "Vapor Grid",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Vapor Grid",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.691Z",
+    "category": "Geometry",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-topo",
-          "name": "Topo Terrain",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "topo",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "viz-waveform",
-          "name": "Waveform",
-          "enabled": true,
-          "opacity": 0.8,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-chroma",
-          "name": "Chromatic Aberration",
-          "enabled": true,
-          "opacity": 0.5,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+        "scale": 1,
+        "elevation": 0.5
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-1144",
       "source": "audio.rms",
-      "target": "layer-topo.scale",
+      "target": {
+        "type": "topo",
+        "param": "scale"
+      },
       "amount": 0.24,
       "min": 0.45,
       "max": 0.69,
@@ -63,9 +43,6 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Geometry",
   "macros": [
     {
       "id": "macro-1",
@@ -73,7 +50,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-topo.elevation",
+          "target": {
+            "type": "topo",
+            "param": "elevation"
+          },
           "amount": 1
         }
       ],
@@ -83,12 +63,7 @@
       "id": "macro-2",
       "name": "Topo Terrain travel",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-topo.travel",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Topo Terrain travel"
     },
     {

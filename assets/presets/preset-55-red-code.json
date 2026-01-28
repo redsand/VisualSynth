@@ -1,47 +1,39 @@
 {
-  "version": 2,
-  "name": "Red Code",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Red Code",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.692Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-glyph",
-          "name": "Glyph Language",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "glyph",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "fx-feedback",
-          "name": "Feedback Tunnel",
-          "enabled": true,
-          "opacity": 0.7,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+        "speed": 1
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-9313",
       "source": "audio.rms",
-      "target": "layer-glyph.speed",
+      "target": {
+        "type": "glyph",
+        "param": "speed"
+      },
       "amount": 0.59,
       "min": 1,
       "max": 1.59,
@@ -50,32 +42,19 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Abstract",
   "macros": [
     {
       "id": "macro-1",
       "name": "Glyph Language mode",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-glyph.mode",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Glyph Language mode"
     },
     {
       "id": "macro-2",
       "name": "Glyph Language complexity",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-glyph.complexity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Glyph Language complexity"
     },
     {

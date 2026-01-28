@@ -921,11 +921,11 @@ void main() {
 `;
 
   let currentPalette: [number, number, number][] = [
-    [0.0, 0.0, 0.0],   // #000000
-    [1.0, 0.0, 0.0],   // #ff0000
-    [1.0, 0.5, 0.0],   // #ff7f00
-    [1.0, 1.0, 0.0],   // #ffff00
-    [1.0, 1.0, 1.0]    // #ffffff
+    [0.05, 0.0, 0.15], // Deep Purple
+    [0.0, 0.0, 0.8],   // Blue
+    [0.0, 0.8, 0.8],   // Cyan
+    [0.9, 0.0, 0.6],   // Magenta
+    [1.0, 1.0, 1.0]    // White
   ];
   let advancedSdfProgram: WebGLProgram | null = null;
   let advancedSdfUniforms: any[] = [];

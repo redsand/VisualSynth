@@ -1,63 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Solar System",
-  "category": "Abstract",
-  "createdAt": "2026-01-27T18:35:38.953Z",
-  "updatedAt": "2026-01-27T18:35:38.953Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "3d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": {
-              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
-              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [1, 0.9, 0.7], "intensity": 1.5, "ambient": 0.1, "specularPower": 128, "specularIntensity": 1.0 },
-              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.8, "aoRadius": 0.4, "softShadowsEnabled": true, "shadowSoftness": 16, "shadowSteps": 20, "fogEnabled": true, "fogDensity": 0.04, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
-            },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "sun", "nodeId": "sphere", "params": { "radius": 0.4 }, "label": "Sun" },
-              { "enabled": true, "order": 1, "instanceId": "planet-1", "nodeId": "sphere", "params": { "radius": 0.15 }, "label": "Planet A" },
-              { "enabled": true, "order": 2, "instanceId": "move-1", "nodeId": "dom-translate-3d", "params": { "x": 1.2, "y": 0, "z": 0 }, "label": "Distance A" },
-              { "enabled": true, "order": 3, "instanceId": "rot-1", "nodeId": "dom-rotate-3d", "params": { "rotX": 0, "rotY": 0, "rotZ": 0 }, "label": "Orbit A" },
-              { "enabled": true, "order": 4, "instanceId": "planet-2", "nodeId": "sphere", "params": { "radius": 0.1 }, "label": "Planet B" },
-              { "enabled": true, "order": 5, "instanceId": "move-2", "nodeId": "dom-translate-3d", "params": { "x": 0.8, "y": 0, "z": 0 }, "label": "Distance B" },
-              { "enabled": true, "order": 6, "instanceId": "rot-2", "nodeId": "dom-rotate-3d", "params": { "rotX": 0, "rotY": 0, "rotZ": 0 }, "label": "Orbit B" },
-              { "enabled": true, "order": 7, "instanceId": "union-1", "nodeId": "op-smooth-union", "params": { "k": 0.3 }, "label": "Merge A" },
-              { "enabled": true, "order": 8, "instanceId": "union-final", "nodeId": "op-smooth-union", "params": { "k": 0.2 }, "label": "System Merge" }
-            ],
-            "connections": [
-              { "from": "planet-1", "to": "move-1", "slot": 0 },
-              { "from": "move-1", "to": "rot-1", "slot": 0 },
-              { "from": "planet-2", "to": "move-2", "slot": 0 },
-              { "from": "move-2", "to": "rot-2", "slot": 0 },
-              { "from": "sun", "to": "union-1", "slot": 0 },
-              { "from": "rot-1", "to": "union-1", "slot": 1 },
-              { "from": "union-1", "to": "union-final", "slot": 0 },
-              { "from": "rot-2", "to": "union-final", "slot": 1 }
-            ]
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Solar System",
+    "createdAt": "2026-01-27T18:35:38.953Z",
+    "updatedAt": "2026-01-28T16:48:56.590Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "lfo-1", "target": "rot-1.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false },
-    { "id": "mod-2", "source": "lfo-2", "target": "rot-2.rotY", "amount": -6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false },
-    { "id": "mod-3", "source": "audio.rms", "target": "sun.radius", "amount": 0.2, "min": 0.35, "max": 0.5, "curve": "exp", "smoothing": 0.1, "bipolar": false }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

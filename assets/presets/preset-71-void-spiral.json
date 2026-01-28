@@ -1,117 +1,45 @@
 {
-  "version": 2,
-  "name": "Void Spiral",
-  "category": "Space",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Void Spiral",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.716Z",
+    "category": "Space",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [],
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
       "name": "Spiral Spin",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "fx-feedback.rotation",
-          "amount": 0.3
-        }
-      ],
+      "targets": [],
       "description": "Controls: Spiral Spin"
     },
     {
       "id": "macro-2",
       "name": "Ring Size",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "gen-sdf.scale",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Ring Size"
     },
     {
       "id": "macro-3",
       "name": "Edge Glow",
       "value": 0.6,
-      "targets": [
-        {
-          "target": "gen-sdf.glow",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Edge Glow"
     },
     {
       "id": "macro-4",
       "name": "Trail Decay",
       "value": 0.95,
-      "targets": [
-        {
-          "target": "fx-feedback.decay",
-          "amount": 0.1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Trail Decay"
     }
-  ],
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Spiral",
-      "layers": [
-        {
-          "id": "gen-sdf",
-          "name": "Ring",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-feedback",
-          "name": "Twist",
-          "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.rms",
-      "target": "fx-feedback.rotation",
-      "amount": 0.1,
-      "min": -0.1,
-      "max": 0.1,
-      "bipolar": true,
-      "smoothing": 0.3,
-      "curve": "linear"
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.peak",
-      "target": "gen-sdf.scale",
-      "amount": 0.2,
-      "min": 0.3,
-      "max": 0.8,
-      "smoothing": 0.1,
-      "curve": "linear",
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  ]
 }

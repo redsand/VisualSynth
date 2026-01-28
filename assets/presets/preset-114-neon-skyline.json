@@ -1,51 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Neon Skyline",
-  "category": "Abstract",
-  "createdAt": "2026-01-27T18:35:38.961Z",
-  "updatedAt": "2026-01-27T18:35:38.961Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "3d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": {
-              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
-              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [1.0, 0.2, 0.8], "intensity": 2.0, "ambient": 0.05, "specularPower": 64, "specularIntensity": 1.0 },
-              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.8, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 12, "shadowSteps": 16, "fogEnabled": true, "fogDensity": 0.08, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
-            },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "block", "nodeId": "box3d", "params": { "size": [0.1, 0.6, 0.1] }, "label": "Skyscraper" },
-              { "enabled": true, "order": 1, "instanceId": "grid", "nodeId": "dom-repeat-3d", "params": { "spacingX": 0.4, "spacingY": 0, "spacingZ": 0.4 }, "label": "Urban Grid" },
-              { "enabled": true, "order": 2, "instanceId": "view", "nodeId": "dom-rotate-3d", "params": { "rotX": 0.4, "rotY": 0, "rotZ": 0 }, "label": "Flyover" }
-            ],
-            "connections": [
-              { "from": "block", "to": "grid", "slot": 0 },
-              { "from": "grid", "to": "view", "slot": 0 }
-            ]
-          }
-        },
-        { "id": "fx-bloom", "name": "Neon Glow", "enabled": true, "opacity": 1, "blendMode": "add", "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 } }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Neon Skyline",
+    "createdAt": "2026-01-27T18:35:38.961Z",
+    "updatedAt": "2026-01-28T16:48:56.610Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "audio.rms", "target": "block.size.y", "amount": 0.8, "min": 0.2, "max": 1.0, "curve": "exp", "smoothing": 0.1, "bipolar": false },
-    { "id": "mod-2", "source": "tempo.bpm", "target": "view.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0.5, "bipolar": false }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

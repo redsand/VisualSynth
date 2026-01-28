@@ -1,29 +1,78 @@
 {
-  "version": 2,
-  "name": "Topo Terrain",
-  "createdAt": "2026-01-27T00:58:19.000Z",
-  "updatedAt": "2026-01-27T00:58:19.000Z",
-  "stylePresets": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Topo Terrain",
+    "createdAt": "2026-01-27T00:58:19.000Z",
+    "updatedAt": "2026-01-28T16:48:56.682Z",
+    "category": "Geometry",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "style-earth",
-      "name": "Earth",
-      "settings": {
-        "contrast": 1.2,
-        "saturation": 0.8,
-        "paletteShift": -0.08
+      "type": "topo",
+      "params": {
+        "opacity": 0.75,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "elevation": 0.5
       }
     },
     {
-      "id": "style-ice",
-      "name": "Ice",
-      "settings": {
-        "contrast": 1.1,
-        "saturation": 0.7,
-        "paletteShift": 0.1
+      "type": "plasma",
+      "params": {
+        "opacity": 0.2,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.05,
+          "rotation": 0.04
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
       }
     }
   ],
-  "activeStylePresetId": "style-earth",
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "topo",
+        "param": "scale"
+      },
+      "amount": 0.3,
+      "min": 0.44,
+      "max": 0.74,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    },
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.32,
+      "min": 0.72,
+      "max": 1.04,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "macros": [
     {
       "id": "macro-1",
@@ -31,7 +80,10 @@
       "value": 0.6,
       "targets": [
         {
-          "target": "layer-topo.opacity",
+          "target": {
+            "type": "topo",
+            "param": "opacity"
+          },
           "amount": 0.7
         }
       ],
@@ -41,36 +93,21 @@
       "id": "macro-2",
       "name": "Ridge Height",
       "value": 0.4,
-      "targets": [
-        {
-          "target": "effects.persistence",
-          "amount": 0.4
-        }
-      ],
+      "targets": [],
       "description": "Controls: Ridge Height"
     },
     {
       "id": "macro-3",
       "name": "Contour Density",
       "value": 0.4,
-      "targets": [
-        {
-          "target": "effects.kaleidoscope",
-          "amount": 0.2
-        }
-      ],
+      "targets": [],
       "description": "Controls: Contour Density"
     },
     {
       "id": "macro-4",
       "name": "Erosion",
       "value": 0.3,
-      "targets": [
-        {
-          "target": "effects.blur",
-          "amount": 0.2
-        }
-      ],
+      "targets": [],
       "description": "Controls: Erosion"
     },
     {
@@ -79,7 +116,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-topo.elevation",
+          "target": {
+            "type": "topo",
+            "param": "elevation"
+          },
           "amount": 1
         }
       ],
@@ -89,12 +129,7 @@
       "id": "macro-6",
       "name": "Topo Terrain travel",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-topo.travel",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Topo Terrain travel"
     },
     {
@@ -111,451 +146,5 @@
       "targets": [],
       "description": "Controls: Macro 8"
     }
-  ],
-  "effects": {
-    "enabled": true,
-    "bloom": 0.22,
-    "blur": 0.05,
-    "chroma": 0.06,
-    "posterize": 0,
-    "kaleidoscope": 0.18,
-    "feedback": 0.2,
-    "persistence": 0.5
-  },
-  "particles": {
-    "enabled": false,
-    "density": 0.2,
-    "speed": 0.2,
-    "size": 0.35,
-    "glow": 0.4
-  },
-  "sdf": {
-    "enabled": false,
-    "shape": "triangle",
-    "scale": 0.5,
-    "edge": 0.06,
-    "glow": 0.5,
-    "rotation": 0,
-    "fill": 0.2
-  },
-  "visualizer": {
-    "enabled": false,
-    "mode": "off",
-    "opacity": 0.6,
-    "macroEnabled": false,
-    "macroId": 8
-  },
-  "lfos": [
-    {
-      "id": "lfo-1",
-      "name": "Plate Drift",
-      "shape": "sine",
-      "rate": 0.04,
-      "sync": false,
-      "phase": 0
-    },
-    {
-      "id": "lfo-2",
-      "name": "Contour Pulse",
-      "shape": "triangle",
-      "rate": 0.06,
-      "sync": false,
-      "phase": 0.2
-    }
-  ],
-  "envelopes": [
-    {
-      "id": "env-1",
-      "name": "Ridge Lift",
-      "attack": 0.03,
-      "decay": 0.2,
-      "sustain": 0.4,
-      "release": 0.35,
-      "hold": 0.2,
-      "trigger": "audio.peak",
-      "threshold": 0.55
-    },
-    {
-      "id": "env-2",
-      "name": "Erode",
-      "attack": 0.02,
-      "decay": 0.18,
-      "sustain": 0.3,
-      "release": 0.3,
-      "hold": 0.15,
-      "trigger": "audio.peak",
-      "threshold": 0.7
-    }
-  ],
-  "sampleHold": [
-    {
-      "id": "sh-1",
-      "name": "Terrain Shift",
-      "rate": 0.2,
-      "sync": false,
-      "smooth": 0.3
-    },
-    {
-      "id": "sh-2",
-      "name": "Contour Drift",
-      "rate": 0.12,
-      "sync": false,
-      "smooth": 0.35
-    }
-  ],
-  "padMappings": [
-    "topo-quake",
-    "topo-landslide",
-    "topo-plate",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none",
-    "none"
-  ],
-  "timelineMarkers": [],
-  "assets": [],
-  "plugins": [],
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Topo Field",
-      "layers": [
-        {
-          "id": "layer-topo",
-          "name": "Topo Terrain",
-          "enabled": true,
-          "opacity": 0.75,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 0.2,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1.05,
-            "rotation": 0.04
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
-      "source": "audio.rms",
-      "target": "effects.persistence",
-      "amount": 0.35,
-      "curve": "exp",
-      "smoothing": 0.2,
-      "bipolar": false,
-      "min": 0.3,
-      "max": 0.85
-    },
-    {
-      "id": "mod-2",
-      "source": "audio.peak",
-      "target": "effects.kaleidoscope",
-      "amount": 0.2,
-      "curve": "exp",
-      "smoothing": 0.12,
-      "bipolar": false,
-      "min": 0.08,
-      "max": 0.5
-    },
-    {
-      "id": "mod-3",
-      "source": "lfo-1",
-      "target": "style.paletteShift",
-      "amount": 0.2,
-      "curve": "log",
-      "smoothing": 0.6,
-      "bipolar": true,
-      "min": -0.2,
-      "max": 0.2
-    },
-    {
-      "id": "mod-4725",
-      "source": "audio.rms",
-      "target": "layer-topo.scale",
-      "amount": 0.3,
-      "min": 0.44,
-      "max": 0.74,
-      "curve": "linear",
-      "smoothing": 0.5,
-      "bipolar": false
-    },
-    {
-      "id": "mod-3129",
-      "source": "audio.rms",
-      "target": "layer-plasma.speed",
-      "amount": 0.32,
-      "min": 0.72,
-      "max": 1.04,
-      "curve": "linear",
-      "smoothing": 0.5,
-      "bipolar": false
-    }
-  ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Geometry"
+  ]
 }

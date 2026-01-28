@@ -1,56 +1,45 @@
 {
-  "version": 2,
-  "name": "VisualSynth DNA - Plasma Drift",
-  "category": "DNA",
-  "createdAt": "2026-01-26T09:05:12.177Z",
-  "updatedAt": "2026-01-26T09:05:12.177Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "VisualSynth DNA - Plasma Drift",
+    "createdAt": "2026-01-26T09:05:12.177Z",
+    "updatedAt": "2026-01-28T16:48:56.615Z",
+    "category": "DNA",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "screen",
-          "transform": { "x": 0, "y": 0, "scale": 1.2, "rotation": 0.12 },
-          "assetId": "internal-waveform",
-          "params": {
-            "complexity": 6.0,
-            "audioReact": 0.8
-          }
-        }
-      ]
+      "type": "plasma",
+      "params": {
+        "opacity": 0.95,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.2,
+          "rotation": 0.12
+        },
+        "params": {
+          "complexity": 6,
+          "audioReact": 0.8
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
     }
   ],
-  "macros": [
+  "modulations": [
     {
-      "id": "macro-1",
-      "name": "Complexity",
-      "value": 0.6,
-      "targets": [
-        { "target": "layer-plasma.complexity", "amount": 8.0 }
-      ],
-      "description": "Inner wave detail"
-    },
-    {
-      "id": "macro-2",
-      "name": "Color Flux",
-      "value": 0.5,
-      "targets": [
-        { "target": "layer-plasma.colorShift", "amount": 1 }
-      ],
-      "description": "Spectral drift"
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
       "source": "audio.rms",
-      "target": "layer-plasma.speed",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
       "amount": 0.5,
       "min": 0.5,
       "max": 1.5,
@@ -59,9 +48,11 @@
       "bipolar": false
     },
     {
-      "id": "mod-2",
       "source": "lfo-1",
-      "target": "layer-plasma.scale",
+      "target": {
+        "type": "plasma",
+        "param": "scale"
+      },
       "amount": 0.4,
       "min": 0.8,
       "max": 1.6,
@@ -70,5 +61,28 @@
       "bipolar": true
     }
   ],
-  "midiMappings": []
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Complexity",
+      "value": 0.6,
+      "targets": [
+        {
+          "target": {
+            "type": "plasma",
+            "param": "complexity"
+          },
+          "amount": 8
+        }
+      ],
+      "description": "Inner wave detail"
+    },
+    {
+      "id": "macro-2",
+      "name": "Color Flux",
+      "value": 0.5,
+      "targets": [],
+      "description": "Spectral drift"
+    }
+  ]
 }

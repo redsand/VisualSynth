@@ -1,29 +1,45 @@
 {
-  "version": 2,
-  "name": "Glyph Matrix",
-  "category": "Abstract",
-  "createdAt": "2026-01-27T18:35:38.956Z",
-  "updatedAt": "2026-01-27T18:35:38.956Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Glyph Matrix",
+    "createdAt": "2026-01-27T18:35:38.956Z",
+    "updatedAt": "2026-01-28T16:48:56.598Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "layer-glyph",
-          "name": "Main Layer",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+      "type": "glyph",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1
+      }
+    }
+  ],
+  "modulations": [
+    {
+      "source": "lfo-1",
+      "target": {
+        "type": "glyph",
+        "param": "speed"
+      },
+      "amount": 2,
+      "min": 0.5,
+      "max": 3,
+      "curve": "linear",
+      "smoothing": 0,
+      "bipolar": false
     }
   ],
   "macros": [
@@ -31,24 +47,14 @@
       "id": "macro-1",
       "name": "Main Layer mode",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-glyph.mode",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Main Layer mode"
     },
     {
       "id": "macro-2",
       "name": "Main Layer complexity",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-glyph.complexity",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Main Layer complexity"
     },
     {
@@ -65,17 +71,5 @@
       "targets": [],
       "description": "Controls: Macro 4"
     }
-  ],
-  "modMatrix": [
-    {
-      "source": "lfo-1",
-      "target": "layer-glyph.speed",
-      "amount": 2,
-      "min": 0.5,
-      "max": 3,
-      "curve": "linear",
-      "smoothing": 0
-    }
-  ],
-  "midiMappings": []
+  ]
 }

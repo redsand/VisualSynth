@@ -1,60 +1,39 @@
 {
-  "version": 2,
-  "name": "Paper Dreams",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Paper Dreams",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.694Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-origami",
-          "name": "Origami Fold",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "origami",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "fx-blur",
-          "name": "Blur",
-          "enabled": true,
-          "opacity": 0.3,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-bloom",
-          "name": "Bloom",
-          "enabled": true,
-          "opacity": 0.4,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+        "speed": 1
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-36",
       "source": "audio.rms",
-      "target": "layer-origami.speed",
+      "target": {
+        "type": "origami",
+        "param": "speed"
+      },
       "amount": 0.51,
       "min": 0.42,
       "max": 0.93,
@@ -63,32 +42,19 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Organic",
   "macros": [
     {
       "id": "macro-1",
       "name": "Origami Fold fold State",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-origami.foldState",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Origami Fold fold State"
     },
     {
       "id": "macro-2",
       "name": "Origami Fold fold Sharpness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-origami.foldSharpness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Origami Fold fold Sharpness"
     },
     {

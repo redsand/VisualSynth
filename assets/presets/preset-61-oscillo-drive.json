@@ -1,94 +1,52 @@
 {
-  "version": 2,
-  "name": "Oscillo-Drive",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Oscillo-Drive",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.701Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-oscillo",
-          "name": "Sacred Oscilloscope",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-chroma",
-          "name": "Chromatic Aberration",
-          "enabled": true,
-          "opacity": 0.6,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-trails",
-          "name": "Trails",
-          "enabled": true,
-          "opacity": 0.4,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "oscillo",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         }
-      ]
+      }
     }
   ],
-  "modMatrix": [],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Audio Reactive",
+  "modulations": [],
   "macros": [
     {
       "id": "macro-1",
       "name": "Sacred Oscilloscope mode",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-oscillo.mode",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Sacred Oscilloscope mode"
     },
     {
       "id": "macro-2",
       "name": "Sacred Oscilloscope freeze",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-oscillo.freeze",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Sacred Oscilloscope freeze"
     },
     {
       "id": "macro-3",
       "name": "Sacred Oscilloscope rotate",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-oscillo.rotate",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Sacred Oscilloscope rotate"
     },
     {

@@ -1,54 +1,16 @@
 {
-  "version": 2,
-  "name": "SDF Crater Moon",
-  "category": "Space",
-  "createdAt": "2026-01-27T18:35:38.951Z",
-  "updatedAt": "2026-01-27T18:35:38.951Z",
-  "activeSceneId": "scene-1",
-  "scenes": [
-    {
-      "id": "scene-1",
-      "name": "Main",
-      "layers": [
-        {
-          "id": "gen-sdf-scene",
-          "name": "SDF Scene",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "sdfScene": {
-            "version": 1,
-            "mode": "3d",
-            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
-            "render3d": {
-              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
-              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [0.9, 0.9, 1.0], "intensity": 1.2, "ambient": 0.05, "specularPower": 32, "specularIntensity": 0.5 },
-              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.8, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 8, "shadowSteps": 16, "fogEnabled": true, "fogDensity": 0.02, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
-            },
-            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
-            "nodes": [
-              { "enabled": true, "order": 0, "instanceId": "base", "nodeId": "sphere", "params": { "radius": 0.8 }, "label": "Moon" },
-              { "enabled": true, "order": 1, "instanceId": "crater", "nodeId": "sphere", "params": { "radius": 0.2 }, "label": "Impact" },
-              { "enabled": true, "order": 2, "instanceId": "move", "nodeId": "dom-translate-3d", "params": { "x": 0.7, "y": 0.3, "z": 0 }, "label": "Offset" },
-              { "enabled": true, "order": 3, "instanceId": "sub", "nodeId": "op-subtract", "params": {}, "label": "Carve" },
-              { "enabled": true, "order": 4, "instanceId": "rot", "nodeId": "dom-rotate-3d", "params": { "rotX": 0, "rotY": 0, "rotZ": 0 }, "label": "Spin" }
-            ],
-            "connections": [
-              { "from": "crater", "to": "move", "slot": 0 },
-              { "from": "base", "to": "sub", "slot": 0 },
-              { "from": "move", "to": "sub", "slot": 1 },
-              { "from": "sub", "to": "rot", "slot": 0 }
-            ]
-          }
-        }
-      ]
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "SDF Crater Moon",
+    "createdAt": "2026-01-27T18:35:38.951Z",
+    "updatedAt": "2026-01-28T16:48:56.757Z",
+    "category": "Space",
+    "compatibility": {
+      "minVersion": "0.9.0"
     }
-  ],
-  "macros": [],
-  "modMatrix": [
-    { "id": "mod-1", "source": "lfo-1", "target": "rot.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false },
-    { "id": "mod-2", "source": "audio.rms", "target": "crater.radius", "amount": 0.3, "min": 0.1, "max": 0.4, "curve": "exp", "smoothing": 0.1, "bipolar": false }
-  ],
-  "midiMappings": []
+  },
+  "layers": [],
+  "modulations": [],
+  "macros": []
 }

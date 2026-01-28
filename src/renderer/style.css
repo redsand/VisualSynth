@@ -585,6 +585,29 @@ body[data-mode='matrix'] .safe-mode {
   border-color: #4d2f3a;
 }
 
+.layer-inputs-badge {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 9px;
+}
+
+.layer-mod-badge {
+  background: #2d4a5e;
+  color: #8fd6ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #3b5c72;
+}
+
+.layer-midi-badge {
+  background: #4a2d5e;
+  color: #ff8fd6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #723b8c;
+}
+
 .scene-label {
   display: flex;
   flex-direction: column;

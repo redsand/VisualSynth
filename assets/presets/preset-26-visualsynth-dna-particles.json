@@ -1,73 +1,55 @@
 {
-  "version": 2,
-  "name": "VisualSynth DNA: Particle Halo",
-  "createdAt": "2026-01-26T18:12:47.550062",
-  "updatedAt": "2026-01-26T18:12:47.550062",
-  "effects": {
-    "enabled": true,
-    "bloom": 0.25,
-    "blur": 0.06,
-    "chroma": 0.12,
-    "posterize": 0,
-    "kaleidoscope": 0.2,
-    "feedback": 0.1,
-    "persistence": 0.4
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "VisualSynth DNA: Particle Halo",
+    "createdAt": "2026-01-26T18:12:47.550062",
+    "updatedAt": "2026-01-28T16:48:56.634Z",
+    "category": "DNA",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
   },
-  "particles": {
-    "enabled": true,
-    "density": 0.8,
-    "speed": 0.35,
-    "size": 0.4,
-    "glow": 0.95
-  },
-  "sdf": {
-    "enabled": true,
-    "shape": "circle",
-    "scale": 0.55,
-    "edge": 0.06,
-    "glow": 0.7,
-    "rotation": 0.2,
-    "fill": 0.45
-  },
-  "scenes": [
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-plasma",
-          "name": "Shader Plasma",
-          "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "plasma",
+      "params": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "layer-spectrum",
-          "name": "Audio Spectrum",
-          "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         }
-      ]
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-1360",
       "source": "audio.rms",
-      "target": "layer-plasma.speed",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
       "amount": 0.57,
       "min": 1.15,
       "max": 1.72,
@@ -76,9 +58,6 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "DNA",
   "macros": [
     {
       "id": "macro-1",
@@ -86,7 +65,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-plasma.scale",
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
           "amount": 1.5
         }
       ],
@@ -96,24 +78,14 @@
       "id": "macro-2",
       "name": "Shader Plasma color Shift",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.colorShift",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma color Shift"
     },
     {
       "id": "macro-3",
       "name": "Shader Plasma brightness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-plasma.brightness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Shader Plasma brightness"
     },
     {

@@ -1,60 +1,40 @@
 {
-  "version": 2,
-  "name": "Prismatic Core",
-  "createdAt": "2026-01-27T10:00:00.000Z",
-  "updatedAt": "2026-01-27T10:00:00.000Z",
-  "scenes": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Prismatic Core",
+    "createdAt": "2026-01-27T10:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.709Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "scene-1",
-      "name": "Main Scene",
-      "layers": [
-        {
-          "id": "layer-crystal",
-          "name": "Crystal Harmonics",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
+      "type": "crystal",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
         },
-        {
-          "id": "fx-chroma",
-          "name": "Chromatic Aberration",
-          "enabled": true,
-          "opacity": 0.8,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-bloom",
-          "name": "Bloom",
-          "enabled": true,
-          "opacity": 0.5,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
+        "scale": 1,
+        "speed": 1
+      }
     }
   ],
-  "modMatrix": [
+  "modulations": [
     {
-      "id": "mod-3521",
       "source": "audio.rms",
-      "target": "layer-crystal.speed",
+      "target": {
+        "type": "crystal",
+        "param": "speed"
+      },
       "amount": 0.56,
       "min": 0.74,
       "max": 1.3,
@@ -63,9 +43,6 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1",
-  "category": "Organic",
   "macros": [
     {
       "id": "macro-1",
@@ -73,7 +50,10 @@
       "value": 0.5,
       "targets": [
         {
-          "target": "layer-crystal.scale",
+          "target": {
+            "type": "crystal",
+            "param": "scale"
+          },
           "amount": 1.5
         }
       ],
@@ -83,12 +63,7 @@
       "id": "macro-2",
       "name": "Crystal Harmonics brittleness",
       "value": 0.5,
-      "targets": [
-        {
-          "target": "layer-crystal.brittleness",
-          "amount": 1
-        }
-      ],
+      "targets": [],
       "description": "Controls: Crystal Harmonics brittleness"
     },
     {

@@ -1,133 +1,53 @@
 {
-  "version": 2,
-  "name": "Cave Diver",
-  "category": "Atmosphere & Terrain",
-  "createdAt": "2026-01-27T12:00:00.000Z",
-  "updatedAt": "2026-01-27T12:00:00.000Z",
-  "macros": [
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Cave Diver",
+    "createdAt": "2026-01-27T12:00:00.000Z",
+    "updatedAt": "2026-01-28T16:48:56.723Z",
+    "category": "Atmosphere & Terrain",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
     {
-      "id": "macro-1",
-      "name": "Descent Speed",
-      "value": 0.6,
-      "targets": [
-        {
-          "target": "fx-feedback.zoom",
-          "amount": 0.1
-        }
-      ],
-      "description": "Controls: Descent Speed"
-    },
-    {
-      "id": "macro-2",
-      "name": "Cave Width",
-      "value": 0.5,
-      "targets": [
-        {
-          "target": "fx-vignette.radius",
-          "amount": 1
-        }
-      ],
-      "description": "Controls: Cave Width"
-    },
-    {
-      "id": "macro-3",
-      "name": "Rock Detail",
-      "value": 0.7,
-      "targets": [
-        {
-          "target": "layer-topo.lines",
-          "amount": 20
-        }
-      ],
-      "description": "Controls: Rock Detail"
-    },
-    {
-      "id": "macro-4",
-      "name": "Darkness",
-      "value": 0.8,
-      "targets": [
-        {
-          "target": "fx-vignette.intensity",
-          "amount": 1
-        }
-      ],
-      "description": "Controls: Darkness"
+      "type": "topo",
+      "params": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "elevation": 0.5
+      }
     }
   ],
-  "scenes": [
+  "modulations": [
     {
-      "id": "scene-1",
-      "name": "Cave",
-      "layers": [
-        {
-          "id": "layer-topo",
-          "name": "Walls",
-          "enabled": true,
-          "opacity": 1,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-vignette",
-          "name": "Darkness",
-          "enabled": true,
-          "opacity": 0.8,
-          "blendMode": "multiply",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "fx-feedback",
-          "name": "Depth",
-          "enabled": true,
-          "opacity": 0.85,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
-    }
-  ],
-  "modMatrix": [
-    {
-      "id": "mod-1",
       "source": "audio.low",
-      "target": "layer-topo.elevation",
+      "target": {
+        "type": "topo",
+        "param": "elevation"
+      },
       "amount": 0.5,
       "min": 0,
       "max": 1,
+      "curve": "linear",
       "smoothing": 0.2,
-      "curve": "linear",
       "bipolar": false
     },
     {
-      "id": "mod-2",
       "source": "audio.rms",
-      "target": "fx-feedback.zoom",
-      "amount": 0.05,
-      "min": 0.98,
-      "max": 1.02,
-      "smoothing": 0.5,
-      "curve": "linear",
-      "bipolar": false
-    },
-    {
-      "id": "mod-9905",
-      "source": "audio.rms",
-      "target": "layer-topo.scale",
+      "target": {
+        "type": "topo",
+        "param": "scale"
+      },
       "amount": 0.39,
       "min": 0.55,
       "max": 0.94,
@@ -136,6 +56,34 @@
       "bipolar": false
     }
   ],
-  "midiMappings": [],
-  "activeSceneId": "scene-1"
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Descent Speed",
+      "value": 0.6,
+      "targets": [],
+      "description": "Controls: Descent Speed"
+    },
+    {
+      "id": "macro-2",
+      "name": "Cave Width",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Cave Width"
+    },
+    {
+      "id": "macro-3",
+      "name": "Rock Detail",
+      "value": 0.7,
+      "targets": [],
+      "description": "Controls: Rock Detail"
+    },
+    {
+      "id": "macro-4",
+      "name": "Darkness",
+      "value": 0.8,
+      "targets": [],
+      "description": "Controls: Darkness"
+    }
+  ]
 }
