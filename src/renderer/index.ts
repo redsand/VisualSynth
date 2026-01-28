@@ -6311,15 +6311,8 @@ const init = async () => {
   } else {
     console.log('[Init] Recovery API not available - skipping');
   }
-  if (recovery.found && recovery.payload) {
-    try {
-      const parsed = JSON.parse(recovery.payload) as VisualSynthProject;
-      await applyProject(parsed);
-      setStatus('Recovery session loaded.');
-    } catch {
-      setStatus('Recovery session found but failed to load.');
-    }
-  }
+
+  console.log('[Init] Starting final setup...');
   syncTempoInputs(Number(tempoInput.value));
   setMode('performance');
   updateTransportUI();
