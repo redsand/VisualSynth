@@ -6314,11 +6314,35 @@ const init = async () => {
 
   console.log('[Init] Starting final setup...');
   syncTempoInputs(Number(tempoInput.value));
+  console.log('[Init] syncTempoInputs completed');
+
   setMode('performance');
+  console.log('[Init] setMode completed');
+
   updateTransportUI();
+  console.log('[Init] updateTransportUI completed');
+
   requestAnimationFrame(render);
+  console.log('[Init] requestAnimationFrame completed');
+
   console.log('VisualSynth init completed - render loop started');
   (window as any).__visualSynthInitialized = true;
-};
+  console.log('[Init] Initialized flag set');
 
-void init();
+  // Expose capture API for screenshot automation
+  (window as any).__visualSynthCaptureApi = {
+    applyProject: async (project: VisualSynthProject) => {
+      await applyProject(project);
+    },
+    getCurrentProject: () => {
+      return { ...currentProject };
+    },
+    applyScene: (sceneId: string) => {
+      applyScene(sceneId);
+    },
+    setMode: (mode: UiMode) => {
+      setMode(mode);
+    }
+  };
+  console.log('[Init] Capture API exposed');
+};

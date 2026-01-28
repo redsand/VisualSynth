@@ -33,11 +33,11 @@ const PRESETS_DIR = path.join(__dirname, '../assets/presets');
 const scenarios = {
   'ui-modes': [
     { id: 'initial-launch-screen', name: 'Initial Launch Screen', mode: 'performance', wait: 5000 },
-    { id: 'performance-mode', name: 'Performance Mode', mode: 'performance', wait: 3000 },
-    { id: 'scene-mode', name: 'Scene Mode', mode: 'scene', wait: 3000 },
-    { id: 'design-mode', name: 'Design Mode', mode: 'design', wait: 3000 },
-    { id: 'matrix-mode', name: 'Matrix Mode', mode: 'matrix', wait: 3000 },
-    { id: 'system-mode', name: 'System Mode', mode: 'system', wait: 3000 }
+    { id: 'performance-mode', name: 'Performance Mode', mode: 'performance', preset: 'preset-01-cosmic.json', wait: 3000 },
+    { id: 'scene-mode', name: 'Scene Mode', mode: 'scene', preset: 'preset-11-visualsynth-dna-bloom.json', wait: 3000 },
+    { id: 'design-mode', name: 'Design Mode', mode: 'design', preset: 'preset-83-sdf-geometry-101.json', wait: 3000 },
+    { id: 'matrix-mode', name: 'Matrix Mode', mode: 'matrix', preset: 'preset-46-glyph-language.json', wait: 3000 },
+    { id: 'system-mode', name: 'System Mode', mode: 'system', preset: 'preset-88-hyper-plasma.json', wait: 3000 }
   ],
   'generators': [
     { id: 'generator-plasma', name: 'Shader Plasma', preset: 'preset-01-cosmic.json', wait: 5000 },
@@ -261,6 +261,48 @@ async function runScenario(browser, scenario, options) {
     // Set viewport size for consistent screenshots
     await page.setViewport({ width: 1280, height: 720 });
 
+    // Stub WebMIDI API to avoid permission prompts
+    await page.evaluateOnNewDocument(() => {
+      window.navigator.requestMIDIAccess = async () => {
+        // Return a mock MIDIAccess object
+        return {
+          inputs: new Map(),
+          outputs: new Map(),
+          onstatechange: null,
+          sysexEnabled: false
+        };
+      };
+
+      // Stub getUserMedia to avoid microphone permission prompts
+      if (window.navigator.mediaDevices) {
+        window.navigator.mediaDevices.getUserMedia = async () => {
+          // Create a mock stream with silent audio
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const bufferSize = 2 * audioContext.sampleRate;
+          const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = 0; // Silence
+          }
+          const source = audioContext.createBufferSource();
+          source.buffer = buffer;
+          source.loop = true;
+          source.start();
+
+          const destination = audioContext.createMediaStreamDestination();
+          source.connect(destination);
+          return destination.stream;
+        };
+
+        // Also stub enumerateDevices
+        window.navigator.mediaDevices.enumerateDevices = async () => {
+          return [
+            { deviceId: 'default', kind: 'audioinput', label: 'Mock Microphone' }
+          ];
+        };
+      }
+    });
+
     // Load VisualSynth
     const indexPath = path.join(DIST_DIR, 'renderer/index.html');
 
@@ -275,23 +317,32 @@ async function runScenario(browser, scenario, options) {
 
     // Wait for the app to initialize - wait for init completion message
     console.log('  Waiting for app initialization...');
-    await sleep(10000);
 
-    // Check init status
-    const initStatus = await page.evaluate(() => {
-      return {
-        initialized: window.__visualSynthInitialized || false,
-        captureApi: !!window.__visualSynthCaptureApi
-      };
-    });
-    console.log(`    Init status: ${JSON.stringify(initStatus)}`);
+    // Wait for init to complete with polling
+    let initComplete = false;
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds max
 
-    if (!initStatus.initialized) {
-      console.log('  ⚠ Init did not complete');
+    while (!initComplete && attempts < maxAttempts) {
+      await sleep(1000);
+      attempts++;
+
+      initComplete = await page.evaluate(() => {
+        return window.__visualSynthInitialized || false;
+      });
+
+      if (initComplete) {
+        console.log('  ✓ App initialized after ' + attempts + ' seconds');
+        break;
+      }
+    }
+
+    if (!initComplete) {
+      console.log('  ⚠ Init did not complete within ' + maxAttempts + ' seconds');
     }
 
     // Additional wait to ensure render loop is running
-    await sleep(3000);
+    await sleep(2000);
 
     // Debug: check if JavaScript loaded
     const jsLoaded = await page.evaluate(() => {
@@ -327,6 +378,78 @@ async function runScenario(browser, scenario, options) {
 
     if (!canvasReady) {
       console.log('  ⚠ Canvas may not be fully initialized');
+    }
+
+    // Comprehensive debugging - scenes, layers, mode, render state
+    const debugInfo = await page.evaluate(() => {
+      const result = {};
+
+      // Get scenes info from debug object
+      if (typeof window.__visualSynthDebug !== 'undefined') {
+        const debug = window.__visualSynthDebug;
+        const currentProject = debug.currentProject;
+        result.scenes = project.scenes?.map(s => ({
+          id: s.id,
+          name: s.name,
+          layerCount: s.layers?.length || 0,
+          layers: s.layers?.map(l => ({
+            id: l.id,
+            name: l.name,
+            enabled: l.enabled,
+            opacity: l.opacity
+          }))
+        })) || [];
+        result.activeSceneId = project.activeSceneId;
+        result.activeScene = project.scenes?.find(s => s.id === project.activeSceneId)?.name || 'unknown';
+      }
+
+      // Get current mode
+      result.currentMode = window.currentMode || 'unknown';
+
+      // Get UI state
+      const modeButtons = document.querySelectorAll('.mode-btn');
+      result.modeButtons = Array.from(modeButtons).map(btn => ({
+        text: btn.textContent?.trim(),
+        active: btn.classList.contains('active')
+      }));
+
+      // Get toggle states
+      const plasmaToggle = document.getElementById('perf-toggle-plasma');
+      const spectrumToggle = document.getElementById('perf-toggle-spectrum');
+      result.toggles = {
+        plasma: plasmaToggle ? plasmaToggle.checked : null,
+        spectrum: spectrumToggle ? spectrumToggle.checked : null
+      };
+
+      // Get WebGL state
+      const canvas = document.getElementById('gl-canvas');
+      if (canvas) {
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        if (gl) {
+          const program = gl.getParameter(gl.CURRENT_PROGRAM);
+          result.webgl = {
+            hasProgram: program !== null,
+            viewport: gl.getParameter(gl.VIEWPORT),
+            canvasSize: [canvas.width, canvas.height]
+          };
+        }
+      }
+
+      return result;
+    });
+
+    console.log(`    [DEBUG] Scenes: ${debugInfo.scenes?.map(s => s.name).join(', ') || 'none'}`);
+    console.log(`    [DEBUG] Active scene: ${debugInfo.activeScene || 'none'} (${debugInfo.activeSceneId})`);
+    console.log(`    [DEBUG] Current mode: ${debugInfo.currentMode}`);
+    console.log(`    [DEBUG] Active mode button: ${debugInfo.modeButtons?.find(b => b.active)?.text || 'none'}`);
+    console.log(`    [DEBUG] Toggles - Plasma: ${debugInfo.toggles?.plasma}, Spectrum: ${debugInfo.toggles?.spectrum}`);
+
+    // Show layers in active scene
+    const activeScene = debugInfo.scenes?.find(s => s.id === debugInfo.activeSceneId);
+    if (activeScene && activeScene.layers) {
+      const enabledLayers = activeScene.layers.filter(l => l.enabled);
+      console.log(`    [DEBUG] Layers in active scene: ${activeScene.layers.map(l => l.name).join(', ')}`);
+      console.log(`    [DEBUG] Enabled layers: ${enabledLayers.map(l => l.name).join(', ')}`);
     }
 
     // Set mode if specified
@@ -470,7 +593,14 @@ async function generateCategoryScreenshots(categoryName, options) {
   const browser = await puppeteer.launch({
     headless: options.headless !== false,
     executablePath: process.env.ELECTRON_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--use-fake-ui-for-media-stream',
+      '--use-fake-device-for-media-stream',
+      '--autoplay-policy=no-user-gesture-required',
+      '--no-user-gesture-required'
+    ]
   });
 
   try {
@@ -498,7 +628,14 @@ async function generateAllScreenshots(options) {
   const browser = await puppeteer.launch({
     headless: options.headless !== false,
     executablePath: process.env.ELECTRON_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--use-fake-ui-for-media-stream',
+      '--use-fake-device-for-media-stream',
+      '--autoplay-policy=no-user-gesture-required',
+      '--no-user-gesture-required'
+    ]
   });
 
   let totalScreenshots = 0;
