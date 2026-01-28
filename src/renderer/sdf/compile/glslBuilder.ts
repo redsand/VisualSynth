@@ -7,6 +7,7 @@ interface BuildContext {
   uniforms: SdfUniformBinding[];
   functions: Set<string>;
   calculatedVars: Map<string, string>; // InstanceID -> Variable Name
+  nodeColors: Map<string, [number, number, number]>;
 }
 
 export const buildSdfShader = (
@@ -19,8 +20,14 @@ export const buildSdfShader = (
     inputs: new Map(),
     uniforms: [],
     functions: new Set(),
-    calculatedVars: new Map()
+    calculatedVars: new Map(),
+    nodeColors: new Map()
   };
+
+  // Map colors and indices
+  nodes.forEach((node) => {
+      ctx.nodeColors.set(node.instanceId, node.color || [1, 1, 1]);
+  });
 
   // Map inputs
   for (const conn of connections) {
@@ -33,7 +40,7 @@ export const buildSdfShader = (
     return {
       fragmentSource: '',
       functionsCode: '',
-      mapBody: 'return 10.0;',
+      mapBody: 'return vec2(10.0, 0.0);',
       uniforms: [],
       totalCost: 0,
       uses3D: false,
@@ -51,7 +58,7 @@ export const buildSdfShader = (
     return {
       fragmentSource: '',
       functionsCode: '',
-      mapBody: 'return 10.0;',
+      mapBody: 'return vec2(10.0, 0.0);',
       uniforms: [],
       totalCost: 0,
       uses3D: false,
@@ -60,41 +67,30 @@ export const buildSdfShader = (
     };
   }
 
-  const uniformsCode = ctx.uniforms.map(u => `uniform ${u.type} ${u.name};`).join('\n');
   const functionsCode = Array.from(ctx.functions).join('\n\n');
 
-  const fragmentSource = `#version 300 es
-precision highp float;
-in vec2 vUv;
-out vec4 outColor;
-uniform float uTime;
-uniform vec2 uResolution;
-${uniformsCode}
-
-// SDF Primitives & Ops
-${functionsCode}
-
-float map(vec3 p) {
-${body}
-}
-
-void main() {
-    vec2 uv = (vUv - 0.5) * uResolution / uResolution.y;
-    vec3 p = vec3(uv, 0.0);
-    float d = map(p);
-    
-    vec3 col = vec3(1.0) - sign(d)*vec3(0.1,0.4,0.7);
-    col *= 1.0 - exp(-3.0*abs(d));
-    col *= 0.8 + 0.2*cos(150.0*d);
-    col = mix(col, vec3(1.0), 1.0-smoothstep(0.0,0.015,abs(d)));
-    outColor = vec4(col, 1.0);
+  // Inject color lookup helper
+  const colorBranches = Array.from(ctx.nodeColors.keys()).map((id, idx) => `    if (id < ${idx}.5) return uColor_${id.replace(/-/g, '_')};`).join('\n');
+  const colorLookup = `
+vec3 getSdfColor(float id) {
+${colorBranches}
+    return vec3(1.0);
 }`;
 
   return {
-    fragmentSource,
-    functionsCode,
+    fragmentSource: '', 
+    functionsCode: functionsCode + '\n' + colorLookup,
     mapBody: body,
-    uniforms: ctx.uniforms,
+    uniforms: [
+        ...ctx.uniforms,
+        ...Array.from(ctx.nodeColors.keys()).map(id => ({
+            name: `uColor_${id.replace(/-/g, '_')}`,
+            instanceId: id,
+            parameterId: 'color',
+            type: 'vec3' as const,
+            offset: 0
+        }))
+    ],
     totalCost: 0,
     uses3D: mode === '3d',
     errors: [],
@@ -103,16 +99,24 @@ void main() {
 };
 
 // Recursive emitter
-// Returns the expression string for the node result
+// Returns the expression string for the node result (vec2: dist, id)
 const emitNode = (ctx: BuildContext, instanceId: string, currentDomainVar: string, codeAccumulator: string): string => {
   const instance = ctx.instances.get(instanceId)!;
   const def = sdfRegistry.get(instance.nodeId)!;
+  const nodeIndex = Array.from(ctx.instances.keys()).indexOf(instanceId);
 
   // Register Function if not already present
   if (!ctx.functions.has(def.glsl.body)) {
       ctx.functions.add(`${def.glsl.signature} {
 ${def.glsl.body}
 }`);
+  }
+
+  // Register internal op functions for vec2 if needed
+  if (!ctx.functions.has('vec2 opUnion(vec2 d1, vec2 d2)')) {
+      ctx.functions.add(`vec2 opUnion(vec2 d1, vec2 d2) { return (d1.x < d2.x) ? d1 : d2; }`);
+      ctx.functions.add(`vec2 opSubtract(vec2 d1, vec2 d2) { return (-d2.x > d1.x) ? vec2(-d2.x, d2.y) : d1; }`);
+      ctx.functions.add(`vec2 opIntersect(vec2 d1, vec2 d2) { return (d1.x > d2.x) ? d1 : d2; }`);
   }
 
   // Collect and register parameters as uniforms
@@ -135,7 +139,6 @@ ${def.glsl.body}
       
       let explicitIdx = 0;
       for (const p of sigParams) {
-          const type = p.split(' ')[0];
           const name = p.split(' ')[1];
           
           if (name === 'p') {
@@ -143,7 +146,7 @@ ${def.glsl.body}
           } else if (name === 'time' || name === 'uTime') {
               allArgs.push('uTime');
           } else if (name === 'audio' || name === 'uRms' || name === 'uPeak') {
-              allArgs.push('uRms'); // Default to RMS for audio
+              allArgs.push('uRms');
           } else if (explicitIdx < explicitArgs.length) {
               allArgs.push(explicitArgs[explicitIdx++]);
           }
@@ -151,9 +154,8 @@ ${def.glsl.body}
       return allArgs.join(', ');
   };
 
-  // 1. Domain Transforms: These modify the coordinate space for their children
+  // 1. Domain Transforms
   if (def.category.startsWith('domain')) {
-      // Typically: opTranslate(p, offset) returns new p
       const callArgs = buildArgs(paramArgs);
       const newP = `${funcName}(${callArgs})`;
       
@@ -161,37 +163,37 @@ ${def.glsl.body}
       if (childConn) {
           return emitNode(ctx, childConn.from, newP, codeAccumulator);
       }
-      return '10.0'; 
+      return `vec2(10.0, ${nodeIndex}.0)`; 
   }
   
-  // 2. Operations: Boolean unions, subtractions, etc.
+  // 2. Operations
   if (def.category.startsWith('ops')) {
       const childResults = inputs.map(conn => emitNode(ctx, conn.from, currentDomainVar, codeAccumulator));
       
-      if (childResults.length === 0) return '10.0';
-      
-      const allCallArgs = [...childResults, ...paramArgs];
+      if (childResults.length === 0) return `vec2(10.0, ${nodeIndex}.0)`;
+      if (childResults.length === 1) return childResults[0];
+
+      // Handle standard boolean ops using our vec2 wrappers
+      if (funcName === 'opUnion' || funcName === 'opSubtract' || funcName === 'opIntersect') {
+          return `${funcName}(${childResults[0]}, ${childResults[1]})`;
+      }
+
+      // Fallback for complex ops (onion, round, etc) - they only affect distance, preserve ID
+      const allCallArgs = [childResults[0] + '.x', ...paramArgs];
       const callArgs = buildArgs(allCallArgs);
-      
-      return `${funcName}(${callArgs})`;
+      return `vec2(${funcName}(${callArgs}), ${childResults[0]}.y)`;
   }
   
-  // 3. Primitives: 2D or 3D shapes
-  if (def.category.startsWith('shapes')) {
+  // 3. Primitives
+  if (def.category.startsWith('shapes') || def.category === 'fields') {
       let pArg = currentDomainVar;
-      if (def.coordSpace === '2d') pArg = `${currentDomainVar}.xy`;
+      if (def.coordSpace === '2d' && !currentDomainVar.endsWith('.xy')) pArg = `${currentDomainVar}.xy`;
       
       const callArgs = buildArgs(paramArgs);
-      return `${funcName}(${callArgs})`;
+      return `vec2(${funcName}(${callArgs}), ${nodeIndex}.0)`;
   }
 
-  // 4. Fields: Noise or other distance fields
-  if (def.category === 'fields') {
-      const callArgs = buildArgs(paramArgs);
-      return `${funcName}(${callArgs})`;
-  }
-
-  return '10.0';
+  return `vec2(10.0, ${nodeIndex}.0)`;
 };
 
 const addUniform = (ctx: BuildContext, name: string, instId: string, paramId: string, type: SdfParamType) => {

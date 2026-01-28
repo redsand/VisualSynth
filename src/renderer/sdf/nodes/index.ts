@@ -17,7 +17,9 @@ import { allOperations } from './ops';
 import { allDomainTransforms } from './domain';
 import { allFields } from './fields';
 import type { SdfNodeDefinition } from '../api';
-import { registerSdfNodes as registerInternalNodes } from '../registry';
+import { sdfRegistry, registerSdfNodes as registerInternalNodes } from '../registry';
+
+export { sdfRegistry };
 
 /**
  * All built-in SDF node definitions

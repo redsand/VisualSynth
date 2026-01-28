@@ -65,10 +65,13 @@ const sdfRenderConfig3DSchema = z.object({
   fogEnabled: z.boolean(),
   fogDensity: z.number(),
   fogColor: z.tuple([z.number(), z.number(), z.number()]),
-  backgroundColor: z.tuple([z.number(), z.number(), z.number()]),
+  backgroundColor: z.array(z.number()).length(3),
   backgroundGradient: z.boolean(),
   adaptiveQuality: z.boolean(),
-  qualityBias: z.number()
+  qualityBias: z.number(),
+  cameraPosition: z.array(z.number()).length(3).optional(),
+  cameraTarget: z.array(z.number()).length(3).optional(),
+  cameraFov: z.number().optional()
 });
 
 const sdfDebugConfigSchema = z.object({
@@ -111,6 +114,10 @@ const layerSchema = z.object({
   opacity: z.number(),
   blendMode: z.enum(['normal', 'add', 'multiply', 'screen', 'overlay', 'difference']),
   transform: transformSchema,
+  assetId: z.string().optional(),
+  generatorId: z.string().optional(),
+  params: z.record(z.any()).optional(),
+  effects: z.array(z.any()).optional(),
   sdfScene: sdfSceneConfigSchema.optional()
 });
 
@@ -203,7 +210,9 @@ const particlesSchema = z.object({
   density: z.number(),
   speed: z.number(),
   size: z.number(),
-  glow: z.number()
+  glow: z.number(),
+  turbulence: z.number().optional(),
+  audioLift: z.number().optional()
 });
 
 const sdfSchema = z.object({
@@ -214,7 +223,7 @@ const sdfSchema = z.object({
   glow: z.number(),
   rotation: z.number(),
   fill: z.number(),
-  color: z.array(z.number()).length(3).optional()
+  color: z.tuple([z.number(), z.number(), z.number()]).optional()
 });
 
 const visualizerSchema = z.object({
@@ -338,7 +347,7 @@ const timelineMarkerSchema = z.object({
 const assetItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  kind: z.enum(['texture', 'shader', 'video', 'live', 'text']),
+  kind: z.enum(['texture', 'shader', 'video', 'live', 'text', 'internal']),
   path: z.string().optional(),
   tags: z.array(z.string()),
   addedAt: z.string(),
@@ -349,6 +358,7 @@ const assetItemSchema = z.object({
   colorSpace: z.enum(['srgb', 'linear']).default('srgb'),
   thumbnail: z.string().optional(),
   missing: z.boolean().optional(),
+  internalSource: z.enum(['audio-waveform', 'audio-spectrum', 'modulators', 'midi-history']).optional(),
   options: z
     .object({
       loop: z.boolean().optional(),

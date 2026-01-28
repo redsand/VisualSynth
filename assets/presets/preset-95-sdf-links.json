@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "SDF Links",
+  "name": "SDF Chain Links",
   "category": "Geometry",
   "createdAt": "2026-01-27T18:35:38.949Z",
   "updatedAt": "2026-01-27T18:35:38.949Z",
@@ -16,218 +16,38 @@
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          },
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
           "sdfScene": {
             "version": 1,
-            "mode": "2d",
-            "render2d": {
-              "antialiasing": true,
-              "aaSmoothing": 0.01,
-              "strokeEnabled": true,
-              "strokeWidth": 0.02,
-              "strokeColor": [
-                1,
-                1,
-                1,
-                1
-              ],
-              "fillEnabled": true,
-              "fillOpacity": 0.5,
-              "fillColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "glowEnabled": true,
-              "glowIntensity": 0.5,
-              "glowRadius": 0.1,
-              "glowColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "gradientEnabled": false,
-              "gradientMode": "distance",
-              "gradientColors": []
-            },
+            "mode": "3d",
+            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
             "render3d": {
-              "maxSteps": 64,
-              "maxDistance": 20,
-              "epsilon": 0.001,
-              "normalEpsilon": 0.0005,
-              "lighting": {
-                "direction": [
-                  0.5,
-                  0.8,
-                  0.6
-                ],
-                "color": [
-                  1,
-                  1,
-                  1
-                ],
-                "intensity": 1,
-                "ambient": 0.2,
-                "specularPower": 32,
-                "specularIntensity": 0.5
-              },
-              "aoEnabled": true,
-              "aoSteps": 3,
-              "aoIntensity": 0.5,
-              "aoRadius": 0.2,
-              "softShadowsEnabled": true,
-              "shadowSoftness": 8,
-              "shadowSteps": 16,
-              "fogEnabled": false,
-              "fogDensity": 0.05,
-              "fogColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundGradient": false,
-              "adaptiveQuality": true,
-              "qualityBias": 0
+              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
+              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [0.7, 0.8, 1.0], "intensity": 1.5, "ambient": 0.1, "specularPower": 64, "specularIntensity": 1.0 },
+              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.8, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 12, "shadowSteps": 16, "fogEnabled": true, "fogDensity": 0.06, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
             },
-            "debug": {
-              "showDistance": false,
-              "distanceScale": 5,
-              "showNormals": false,
-              "showSteps": false,
-              "stepsColorScale": 64,
-              "showCostTier": false,
-              "showBounds": false,
-              "wireframe": false
-            },
+            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
             "nodes": [
-              {
-                "enabled": true,
-                "order": 0,
-                "instanceId": "c1",
-                "nodeId": "circle",
-                "params": {
-                  "radius": 0.3
-                },
-                "label": "Link 1"
-              },
-              {
-                "enabled": true,
-                "order": 1,
-                "instanceId": "t1",
-                "nodeId": "translate",
-                "params": {
-                  "offset": [
-                    -0.2,
-                    0,
-                    0
-                  ]
-                },
-                "label": "Shift L"
-              },
-              {
-                "enabled": true,
-                "order": 2,
-                "instanceId": "c2",
-                "nodeId": "circle",
-                "params": {
-                  "radius": 0.3
-                },
-                "label": "Link 2"
-              },
-              {
-                "enabled": true,
-                "order": 3,
-                "instanceId": "t2",
-                "nodeId": "translate",
-                "params": {
-                  "offset": [
-                    0.2,
-                    0,
-                    0
-                  ]
-                },
-                "label": "Shift R"
-              },
-              {
-                "enabled": true,
-                "order": 4,
-                "instanceId": "u1",
-                "nodeId": "smooth-union",
-                "params": {
-                  "k": 0.1
-                },
-                "label": "Link"
-              }
+              { "enabled": true, "order": 0, "instanceId": "link", "nodeId": "link", "params": { "length": 0.3, "radius": 0.2, "tubeRadius": 0.06 }, "label": "Chain Link" },
+              { "enabled": true, "order": 1, "instanceId": "twist", "nodeId": "dom-twist-3d", "params": { "strength": 2.0 }, "label": "Warp" },
+              { "enabled": true, "order": 2, "instanceId": "repeat", "nodeId": "dom-repeat-3d", "params": { "spacingX": 0, "spacingY": 1.2, "spacingZ": 0 }, "label": "Infinite" },
+              { "enabled": true, "order": 3, "instanceId": "view", "nodeId": "dom-rotate-3d", "params": { "rotX": 0.5, "rotY": 0.5, "rotZ": 0 }, "label": "View" }
             ],
             "connections": [
-              {
-                "from": "c1",
-                "to": "t1",
-                "slot": 0
-              },
-              {
-                "from": "c2",
-                "to": "t2",
-                "slot": 0
-              },
-              {
-                "from": "t1",
-                "to": "u1",
-                "slot": 0
-              },
-              {
-                "from": "t2",
-                "to": "u1",
-                "slot": 1
-              }
+              { "from": "link", "to": "twist", "slot": 0 },
+              { "from": "twist", "to": "repeat", "slot": 0 },
+              { "from": "repeat", "to": "view", "slot": 0 }
             ]
           }
         }
       ]
     }
   ],
-  "macros": [
-    {
-      "id": "macro-1",
-      "name": "Macro 1",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 1"
-    },
-    {
-      "id": "macro-2",
-      "name": "Macro 2",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 2"
-    },
-    {
-      "id": "macro-3",
-      "name": "Macro 3",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 3"
-    },
-    {
-      "id": "macro-4",
-      "name": "Macro 4",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 4"
-    }
+  "macros": [],
+  "modMatrix": [
+    { "id": "mod-1", "source": "audio.rms", "target": "link.length", "amount": 0.4, "min": 0.2, "max": 0.6, "curve": "linear", "smoothing": 0.1, "bipolar": false },
+    { "id": "mod-2", "source": "lfo-1", "target": "twist.strength", "amount": 4.0, "min": -2.0, "max": 2.0, "curve": "linear", "smoothing": 0, "bipolar": true },
+    { "id": "mod-3", "source": "tempo.bpm", "target": "view.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0.5, "bipolar": false }
   ],
-  "modMatrix": [],
   "midiMappings": []
 }

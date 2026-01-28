@@ -52,6 +52,7 @@ export const plasmaGenerator: VisualNode = createVisualNode({
   modulationTargets: [
     createModulationTarget('speed', { minRange: 0.1, maxRange: 5.0 }),
     createModulationTarget('scale', { minRange: 0.1, maxRange: 4.0 }),
+    createModulationTarget('complexity', { minRange: 1.0, maxRange: 8.0 }),
     createModulationTarget('colorShift', { minRange: -1.0, maxRange: 1.0, bipolar: true }),
     createModulationTarget('brightness', { minRange: 0.0, maxRange: 2.0 }),
     createModulationTarget('audioReact', { minRange: 0.0, maxRange: 1.0 })

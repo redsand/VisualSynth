@@ -107,15 +107,45 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
        settingsPanel.appendChild(shadowRow);
 
        // Fog
-       const fogRow = createToggleRow('Fog', config.render3d.fogEnabled, (val) => {
-            actions.mutateProject(store, (p) => {
-                const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
-                if(l && l.sdfScene) l.sdfScene.render3d.fogEnabled = val;
-            });
-        });
-        settingsPanel.appendChild(fogRow);
-    } else {
-        const render2dHeader = document.createElement('h4');
+               const fogRow = createToggleRow('Fog', config.render3d.fogEnabled, (val) => {
+                   actions.mutateProject(store, (p) => {
+                       const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                       if(l && l.sdfScene) l.sdfScene.render3d.fogEnabled = val;
+                   });
+               });
+               settingsPanel.appendChild(fogRow);
+       
+               const cameraHeader = document.createElement('h4');
+               cameraHeader.textContent = 'Camera';
+               settingsPanel.appendChild(cameraHeader);
+       
+               // Camera Position
+               const camPosRow = createVectorRow('Position', config.render3d.cameraPosition || [0, 0, 2], (val) => {
+                   actions.mutateProject(store, (p) => {
+                       const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                       if(l && l.sdfScene) l.sdfScene.render3d.cameraPosition = val as [number, number, number];
+                   });
+               });
+               settingsPanel.appendChild(camPosRow);
+       
+               // Camera Target
+               const camTargetRow = createVectorRow('Target', config.render3d.cameraTarget || [0, 0, 0], (val) => {
+                   actions.mutateProject(store, (p) => {
+                       const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                       if(l && l.sdfScene) l.sdfScene.render3d.cameraTarget = val as [number, number, number];
+                   });
+               });
+               settingsPanel.appendChild(camTargetRow);
+       
+               // Camera FOV
+               const fovRow = createSliderRow('FOV', config.render3d.cameraFov || 1.0, 0.1, 3.0, (val) => {
+                   actions.mutateProject(store, (p) => {
+                       const l = p.scenes.find(s=>s.id === p.activeSceneId)?.layers.find(x=>x.id==='gen-sdf-scene');
+                       if(l && l.sdfScene) l.sdfScene.render3d.cameraFov = val;
+                   });
+               });
+               settingsPanel.appendChild(fovRow);
+           } else {        const render2dHeader = document.createElement('h4');
         render2dHeader.textContent = '2D Render Settings';
         settingsPanel.appendChild(render2dHeader);
 
@@ -151,33 +181,59 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
             
             const def = sdfRegistry.get(node.nodeId);
             
-            const name = document.createElement('span');
-            name.textContent = `${index + 1}. ${node.label || def?.name || node.nodeId}`;
-            name.style.flex = '1';
-            name.style.fontWeight = 'bold';
+            const indexSpan = document.createElement('span');
+            indexSpan.textContent = `${index + 1}. `;
+            indexSpan.style.marginRight = '5px';
+            indexSpan.style.opacity = '0.5';
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.value = node.label || def?.name || node.nodeId;
+            nameInput.style.flex = '1';
+            nameInput.style.background = 'transparent';
+            nameInput.style.border = 'none';
+            nameInput.style.borderBottom = '1px solid transparent';
+            nameInput.style.color = 'inherit';
+            nameInput.style.fontWeight = 'bold';
+            nameInput.style.fontSize = '1em';
+            nameInput.onfocus = () => nameInput.style.borderBottom = '1px solid rgba(255,255,255,0.3)';
+            nameInput.onblur = () => nameInput.style.borderBottom = '1px solid transparent';
+            nameInput.onchange = () => {
+                updateNodeLabel(layer.id, index, nameInput.value);
+            };
             
             const controls = document.createElement('div');
-            const upBtn = document.createElement('button');
-            upBtn.textContent = '↑';
-            upBtn.disabled = index === 0;
-            upBtn.onclick = () => moveNode(layer.id, index, -1);
-            
-            const downBtn = document.createElement('button');
-            downBtn.textContent = '↓';
-            downBtn.disabled = index === config.nodes.length - 1;
-            downBtn.onclick = () => moveNode(layer.id, index, 1);
-
-            const delBtn = document.createElement('button');
-            delBtn.textContent = 'x';
-            delBtn.onclick = () => removeNode(layer.id, index);
-
-            controls.appendChild(upBtn);
-            controls.appendChild(downBtn);
-            controls.appendChild(delBtn);
-            
-            item.appendChild(name);
+            // ...
+            item.appendChild(indexSpan);
+            item.appendChild(nameInput);
             item.appendChild(controls);
             nodeList.appendChild(item);
+
+            // Node Color Picker
+            const nodeColorRow = document.createElement('div');
+            nodeColorRow.className = 'layer-row';
+            nodeColorRow.style.marginLeft = '15px';
+            nodeColorRow.style.minHeight = '24px';
+            const colorLabel = document.createElement('label');
+            colorLabel.textContent = 'Node Color';
+            colorLabel.style.fontSize = '0.85em';
+            colorLabel.style.width = '100px';
+            const nodeColorInput = document.createElement('input');
+            nodeColorInput.type = 'color';
+            const nCol = node.color || [1, 1, 1];
+            const nr = Math.round(nCol[0] * 255).toString(16).padStart(2, '0');
+            const ng = Math.round(nCol[1] * 255).toString(16).padStart(2, '0');
+            const nb = Math.round(nCol[2] * 255).toString(16).padStart(2, '0');
+            nodeColorInput.value = `#${nr}${ng}${nb}`;
+            nodeColorInput.onchange = () => {
+                const r = parseInt(nodeColorInput.value.slice(1, 3), 16) / 255;
+                const g = parseInt(nodeColorInput.value.slice(3, 5), 16) / 255;
+                const b = parseInt(nodeColorInput.value.slice(5, 7), 16) / 255;
+                updateNodeColor(layer.id, index, [r, g, b]);
+            };
+            nodeColorRow.appendChild(colorLabel);
+            nodeColorRow.appendChild(nodeColorInput);
+            nodeList.appendChild(nodeColorRow);
 
             // Connections UI
             const connectionContainer = document.createElement('div');
@@ -337,6 +393,53 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
       return row;
   };
 
+  const createSliderRow = (label: string, value: number, min: number, max: number, onChange: (v: number) => void) => {
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      lbl.style.width = '80px';
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = String(min);
+      input.max = String(max);
+      input.step = '0.05';
+      input.value = String(value);
+      input.style.flex = '1';
+      input.oninput = () => onChange(Number(input.value));
+      row.appendChild(lbl);
+      row.appendChild(input);
+      return row;
+  };
+
+  const createVectorRow = (label: string, value: number[], onChange: (v: number[]) => void) => {
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      lbl.style.width = '80px';
+      const container = document.createElement('div');
+      container.style.display = 'flex';
+      container.style.flex = '1';
+      const vals = [...value];
+      for (let i = 0; i < value.length; i++) {
+          const sub = document.createElement('input');
+          sub.type = 'number';
+          sub.step = '0.1';
+          sub.value = String(vals[i]);
+          sub.style.width = '40px';
+          sub.style.marginRight = '2px';
+          sub.onchange = () => {
+              vals[i] = Number(sub.value);
+              onChange(vals);
+          };
+          container.appendChild(sub);
+      }
+      row.appendChild(lbl);
+      row.appendChild(container);
+      return row;
+  };
+
   const createParamInput = (param: SdfParameter, value: any, onChange: (v: any) => void) => {
       if (param.type === 'float' || param.type === 'angle') {
           const input = document.createElement('input');
@@ -419,6 +522,26 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
               layer.sdfScene.nodes[nodeIndex].params[paramId] = value;
           }
       });
+  };
+
+  const updateNodeColor = (layerId: string, nodeIndex: number, color: [number, number, number]) => {
+    actions.mutateProject(store, (project) => {
+        const scene = project.scenes.find(s => s.id === project.activeSceneId);
+        const layer = scene?.layers.find(l => l.id === layerId);
+        if (layer && layer.sdfScene) {
+            layer.sdfScene.nodes[nodeIndex].color = color;
+        }
+    });
+  };
+
+  const updateNodeLabel = (layerId: string, nodeIndex: number, label: string) => {
+    actions.mutateProject(store, (project) => {
+        const scene = project.scenes.find(s => s.id === project.activeSceneId);
+        const layer = scene?.layers.find(l => l.id === layerId);
+        if (layer && layer.sdfScene) {
+            layer.sdfScene.nodes[nodeIndex].label = label;
+        }
+    });
   };
 
   const addNode = (layerId: string, nodeId: string) => {

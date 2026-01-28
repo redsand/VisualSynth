@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "SDF Cube Field",
+  "name": "SDF Matrix Field",
   "category": "Geometry",
   "createdAt": "2026-01-27T18:35:38.950Z",
   "updatedAt": "2026-01-27T18:35:38.950Z",
@@ -16,192 +16,38 @@
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          },
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
           "sdfScene": {
             "version": 1,
             "mode": "3d",
-            "render2d": {
-              "antialiasing": true,
-              "aaSmoothing": 0.01,
-              "strokeEnabled": true,
-              "strokeWidth": 0.02,
-              "strokeColor": [
-                1,
-                1,
-                1,
-                1
-              ],
-              "fillEnabled": true,
-              "fillOpacity": 0.5,
-              "fillColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "glowEnabled": true,
-              "glowIntensity": 0.5,
-              "glowRadius": 0.1,
-              "glowColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "gradientEnabled": false,
-              "gradientMode": "distance",
-              "gradientColors": []
-            },
+            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
             "render3d": {
-              "maxSteps": 64,
-              "maxDistance": 20,
-              "epsilon": 0.001,
-              "normalEpsilon": 0.0005,
-              "lighting": {
-                "direction": [
-                  0.5,
-                  0.8,
-                  0.6
-                ],
-                "color": [
-                  1,
-                  1,
-                  1
-                ],
-                "intensity": 1,
-                "ambient": 0.2,
-                "specularPower": 32,
-                "specularIntensity": 0.5
-              },
-              "aoEnabled": true,
-              "aoSteps": 3,
-              "aoIntensity": 0.5,
-              "aoRadius": 0.2,
-              "softShadowsEnabled": true,
-              "shadowSoftness": 8,
-              "shadowSteps": 16,
-              "fogEnabled": true,
-              "fogDensity": 0.05,
-              "fogColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundGradient": false,
-              "adaptiveQuality": true,
-              "qualityBias": 0
+              "maxSteps": 80, "maxDistance": 25, "epsilon": 0.001, "normalEpsilon": 0.0005,
+              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [0.2, 1.0, 0.4], "intensity": 1.8, "ambient": 0.05, "specularPower": 64, "specularIntensity": 1.0 },
+              "aoEnabled": true, "aoSteps": 4, "aoIntensity": 0.6, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 8, "shadowSteps": 12, "fogEnabled": true, "fogDensity": 0.08, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
             },
-            "debug": {
-              "showDistance": false,
-              "distanceScale": 5,
-              "showNormals": false,
-              "showSteps": false,
-              "stepsColorScale": 64,
-              "showCostTier": false,
-              "showBounds": false,
-              "wireframe": false
-            },
+            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
             "nodes": [
-              {
-                "enabled": true,
-                "order": 0,
-                "instanceId": "box",
-                "nodeId": "box3d",
-                "params": {
-                  "size": [
-                    0.2,
-                    0.2,
-                    0.2
-                  ]
-                },
-                "label": "Cube"
-              },
-              {
-                "enabled": true,
-                "order": 1,
-                "instanceId": "rep",
-                "nodeId": "repeat",
-                "params": {
-                  "period": [
-                    0.8,
-                    0.8,
-                    0.8
-                  ]
-                },
-                "label": "Infinite"
-              },
-              {
-                "enabled": true,
-                "order": 2,
-                "instanceId": "rot",
-                "nodeId": "rotate3d",
-                "params": {
-                  "angles": [
-                    0.5,
-                    0.5,
-                    0
-                  ]
-                },
-                "label": "Tumble"
-              }
+              { "enabled": true, "order": 0, "instanceId": "cube", "nodeId": "box3d", "params": { "size": [0.15, 0.15, 0.15] }, "label": "Unit" },
+              { "enabled": true, "order": 1, "instanceId": "rep", "nodeId": "dom-repeat-3d", "params": { "spacingX": 1.0, "spacingY": 1.0, "spacingZ": 1.0 }, "label": "Volume" },
+              { "enabled": true, "order": 2, "instanceId": "rot", "nodeId": "dom-rotate-3d", "params": { "rotX": 0, "rotY": 0, "rotZ": 0 }, "label": "Tumble" },
+              { "enabled": true, "order": 3, "instanceId": "view", "nodeId": "dom-rotate-3d", "params": { "rotX": 0.4, "rotY": 0.4, "rotZ": 0 }, "label": "Perspective" }
             ],
             "connections": [
-              {
-                "from": "box",
-                "to": "rep",
-                "slot": 0
-              },
-              {
-                "from": "rep",
-                "to": "rot",
-                "slot": 0
-              }
+              { "from": "cube", "to": "rot", "slot": 0 },
+              { "from": "rot", "to": "rep", "slot": 0 },
+              { "from": "rep", "to": "view", "slot": 0 }
             ]
           }
         }
       ]
     }
   ],
-  "macros": [
-    {
-      "id": "macro-1",
-      "name": "Macro 1",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 1"
-    },
-    {
-      "id": "macro-2",
-      "name": "Macro 2",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 2"
-    },
-    {
-      "id": "macro-3",
-      "name": "Macro 3",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 3"
-    },
-    {
-      "id": "macro-4",
-      "name": "Macro 4",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 4"
-    }
+  "macros": [],
+  "modMatrix": [
+    { "id": "mod-1", "source": "lfo-1", "target": "rot.rotX", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false },
+    { "id": "mod-2", "source": "lfo-2", "target": "rot.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false },
+    { "id": "mod-3", "source": "audio.peak", "target": "cube.size.x", "amount": 0.2, "min": 0.1, "max": 0.3, "curve": "exp", "smoothing": 0.05, "bipolar": false }
   ],
-  "modMatrix": [],
   "midiMappings": []
 }

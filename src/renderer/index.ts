@@ -5286,6 +5286,16 @@ outputScaleSelect.addEventListener('change', async () => {
 
 const initPresets = async () => {
   loadPresetThumbnails();
+
+  // Check if the visualSynth API is available
+  if (!window.visualSynth || !window.visualSynth.listPresets) {
+    console.log('Preset API not available - skipping preset initialization');
+    presetSelect.innerHTML = '';
+    presetLibrary = [];
+    renderPresetBrowser();
+    return;
+  }
+
   const presets = await window.visualSynth.listPresets();
   
   // Sort presets alphabetically by name
@@ -5375,6 +5385,12 @@ const updatePortals = (time: number, dt: number) => {
 };
 
 const initTemplates = async () => {
+  // Check if the visualSynth API is available
+  if (!window.visualSynth || !window.visualSynth.listTemplates) {
+    console.log('Template API not available - skipping template initialization');
+    return;
+  }
+
   const templates = await window.visualSynth.listTemplates();
   
   // Sort templates alphabetically by name
@@ -5402,6 +5418,12 @@ const initOutputConfig = async () => {
 };
 
 const initBpmNetworking = async () => {
+  // Check if the visualSynth API is available
+  if (!window.visualSynth || !window.visualSynth.isProlinkAvailable) {
+    console.log('BPM networking API not available - skipping prolink setup');
+    return;
+  }
+
   const prolinkAvailable = await window.visualSynth.isProlinkAvailable();
   const prolinkOption = bpmSourceSelect.querySelector('option[value="network"]');
   if (!prolinkAvailable) {
@@ -6000,6 +6022,8 @@ const render = (time: number) => {
     oscilloFreeze,
     oscilloRotate,
     oscilloData: oscilloCapture,
+    modulatorValues: new Float32Array(16),
+    midiData: new Float32Array(256),
     plasmaAssetBlendMode: plasmaAssetBlendMode,
     plasmaAssetAudioReact: plasmaAssetAudioReact,
     spectrumAssetBlendMode: spectrumAssetBlendMode,
@@ -6251,6 +6275,8 @@ const init = async () => {
   setMode('performance');
   updateTransportUI();
   requestAnimationFrame(render);
+  console.log('VisualSynth init completed - render loop started');
+  (window as any).__visualSynthInitialized = true;
 };
 
 void init();

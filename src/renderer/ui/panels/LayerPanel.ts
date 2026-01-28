@@ -62,6 +62,16 @@ export const createLayerPanel = ({
     if (!forceRefresh && layer.assetId === assetId) return;
     layer.assetId = assetId ?? undefined;
     const target = assetId ? store.getState().project.assets.find((item) => item.id === assetId) ?? null : null;
+    
+    // Internal assets are supported
+    if (target?.kind === 'internal') {
+        setStatus(`${layer.name} now using internal source: ${target.name}`);
+        if (isAssetLayerId(layer.id)) {
+            await setLayerAsset(layer.id, target);
+        }
+        return;
+    }
+
     if (!isAssetLayerId(layer.id)) {
       setStatus(`${layer.name} does not support texture overrides yet`);
       return;

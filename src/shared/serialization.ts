@@ -9,15 +9,15 @@ const upgradeProject = (project: VisualSynthProject): VisualSynthProject => {
   if (upgraded.version < 2) {
     upgraded = {
       ...DEFAULT_PROJECT,
-    ...project,
-    palettes: project.palettes ?? COLOR_PALETTES,
-    activePaletteId: project.activePaletteId ?? 'default-classic',
-      output: { ...DEFAULT_PROJECT.output, ...upgraded.output },
-      stylePresets: upgraded.stylePresets?.length
-        ? upgraded.stylePresets
+      ...project,
+      palettes: project.palettes ?? COLOR_PALETTES,
+      activePaletteId: project.activePaletteId ?? 'default-classic',
+      output: { ...DEFAULT_PROJECT.output, ...project.output },
+      stylePresets: project.stylePresets?.length
+        ? project.stylePresets
         : DEFAULT_PROJECT.stylePresets,
-      activeStylePresetId: upgraded.activeStylePresetId || DEFAULT_PROJECT.activeStylePresetId,
-      macros: upgraded.macros?.length ? upgraded.macros : DEFAULT_PROJECT.macros
+      activeStylePresetId: project.activeStylePresetId || DEFAULT_PROJECT.activeStylePresetId,
+      macros: project.macros?.length ? project.macros : DEFAULT_PROJECT.macros
     };
   }
   upgraded.version = CURRENT_VERSION;
@@ -37,5 +37,5 @@ export const deserializeProject = (payload: string): VisualSynthProject => {
   if (!parsed.success) {
     throw new Error('Invalid project data');
   }
-  return upgradeProject(parsed.data);
+  return upgradeProject(parsed.data as unknown as VisualSynthProject);
 };

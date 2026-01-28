@@ -25,7 +25,9 @@ export interface RenderState {
   plasmaOpacity: number;
   plasmaSpeed: number;
   plasmaScale: number;
-  spectrumOpacity: number;
+  plasmaComplexity: number;
+  plasmaAudioReact: number;
+  spectrumEnabled: boolean;
   origamiOpacity: number;
   origamiFoldState: number;
   origamiFoldSharpness: number;
@@ -66,6 +68,8 @@ export interface RenderState {
   oscilloFreeze: number;
   oscilloRotate: number;
   oscilloData: Float32Array;
+  modulatorValues: Float32Array;
+  midiData: Float32Array;
   plasmaAssetBlendMode: number;
   plasmaAssetAudioReact: number;
   spectrumAssetBlendMode: number;
@@ -85,6 +89,8 @@ export interface RenderState {
   particleSpeed: number;
   particleSize: number;
   particleGlow: number;
+  particleTurbulence: number;
+  particleAudioLift: number;
   sdfEnabled: boolean;
   sdfShape: number;
   sdfScale: number;
@@ -93,6 +99,8 @@ export interface RenderState {
   sdfRotation: number;
   sdfFill: number;
   sdfColor?: [number, number, number];
+  globalColor?: [number, number, number];
+  hasInternalAsset?: boolean;
   sdfScene?: any; // Config for Advanced mode
   feedbackZoom: number;
   feedbackRotation: number;
@@ -131,10 +139,11 @@ void main() {
   gl_Position = vec4(position, 0.0, 1.0);
 }`;
 
-  const createFragmentShaderSrc = (sdfUniforms = '', sdfFunctions = '', sdfMapBody = 'return 10.0;') => `#version 300 es
+  const createFragmentShaderSrc = (sdfUniforms = '', sdfFunctions = '', sdfMapBody = '10.0') => `#version 300 es
 precision highp float;
 
 uniform float uTime;
+uniform float uAspect;
 uniform float uRms;
 uniform float uPeak;
 uniform float uStrobe;
@@ -198,6 +207,8 @@ uniform vec3 uPalette[5];
 uniform float uPlasmaOpacity;
 uniform float uPlasmaSpeed;
 uniform float uPlasmaScale;
+uniform float uPlasmaComplexity;
+uniform float uPlasmaAudioReact;
 uniform float uSpectrumOpacity;
 uniform float uOrigamiOpacity;
 uniform float uOrigamiFoldState;
@@ -220,6 +231,8 @@ uniform float uParticleDensity;
 uniform float uParticleSpeed;
 uniform float uParticleSize;
 uniform float uParticleGlow;
+uniform float uParticleTurbulence;
+uniform float uParticleAudioLift;
 uniform float uSdfEnabled;
 uniform float uSdfShape;
 uniform float uSdfScale;
@@ -236,6 +249,15 @@ uniform float uSpectrumAssetEnabled;
 uniform sampler2D uSpectrumAsset;
 uniform float uSpectrumAssetBlend;
 uniform float uSpectrumAssetAudioReact;
+uniform sampler2D uWaveformTex;
+uniform sampler2D uSpectrumTex;
+uniform sampler2D uModulatorTex;
+uniform sampler2D uMidiTex;
+uniform float uWaveformEnabled;
+uniform float uSpectrumEnabledInternal;
+uniform float uModulatorsEnabled;
+uniform float uMidiEnabled;
+uniform vec3 uGlobalColor;
 uniform float uDebugTint;
 
 // --- Advanced SDF Injections ---
@@ -245,28 +267,41 @@ uniform vec3 uSdfLightColor;
 uniform float uSdfLightIntensity;
 uniform float uSdfAoEnabled;
 uniform float uSdfShadowsEnabled;
+uniform float uInternalSource;
+uniform vec3 uCameraPos;
+uniform vec3 uCameraTarget;
+uniform float uCameraFov;
 ${sdfUniforms}
 
 ${sdfFunctions}
 
 float sdfSceneMap(vec3 p) {
-  ${sdfMapBody}
+  return 10.0; // Placeholder for simple mode, overridden in advanced
+}
+
+vec2 advancedSdfMap(vec3 p) {
+  // Default returns distance and material (0.0 for no material)
+  return vec2(${sdfMapBody}, 0.0);
 }
 
 vec3 calcSdfNormal(vec3 p) {
   vec2 e = vec2(0.001, 0.0);
   return normalize(vec3(
-    sdfSceneMap(p + e.xyy) - sdfSceneMap(p - e.xyy),
-    sdfSceneMap(p + e.yxy) - sdfSceneMap(p - e.yxy),
-    sdfSceneMap(p + e.yyx) - sdfSceneMap(p - e.yyx)
+    advancedSdfMap(p + e.xyy).x - advancedSdfMap(p - e.xyy).x,
+    advancedSdfMap(p + e.yxy).x - advancedSdfMap(p - e.yxy).x,
+    advancedSdfMap(p + e.yyx).x - advancedSdfMap(p - e.yyx).x
   ));
+}
+
+vec3 getSdfColor(float id) {
+  return vec3(1.0);
 }
 
 float calcSdfShadow(vec3 ro, vec3 rd, float k) {
   float res = 1.0;
   float t = 0.01;
   for(int i = 0; i < 16; i++) {
-    float h = sdfSceneMap(ro + rd * t);
+    float h = advancedSdfMap(ro + rd * t).x;
     res = min(res, k * h / t);
     t += clamp(h, 0.01, 0.2);
     if(res < 0.001 || t > 5.0) break;
@@ -279,11 +314,24 @@ float calcSdfAO(vec3 p, vec3 n) {
   float sca = 1.0;
   for(int i = 0; i < 5; i++) {
     float hr = 0.01 + 0.12 * float(i) / 4.0;
-    float d = sdfSceneMap(p + n * hr);
+    float d = advancedSdfMap(p + n * hr).x;
     occ += (hr - d) * sca;
     sca *= 0.95;
   }
   return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
+}
+
+mat3 setCamera(vec3 ro, vec3 ta, float cr) {
+  vec3 cw = normalize(ta - ro);
+  vec3 cp = vec3(sin(cr), cos(cr), 0.0);
+  vec3 cu = normalize(cross(cw, cp));
+  vec3 cv = normalize(cross(cu, cw));
+  return mat3(cu, cv, cw);
+}
+
+vec3 getRayDirection(vec2 uv, vec3 ro, vec3 ta, float fov) {
+  mat3 ca = setCamera(ro, ta, 0.0);
+  return ca * normalize(vec3(uv, fov));
 }
 // --- End Injections ---
 
@@ -328,6 +376,59 @@ float sdArc(vec2 p, vec2 center, float radius, float thickness) {
 
 float hash21(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash21(i + vec2(0.0, 0.0)), hash21(i + vec2(1.0, 0.0)), u.x),
+             mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+  vec2 shift = vec2(100.0);
+  mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+  for (int i = 0; i < 6; ++i) {
+    v += a * noise(p);
+    p = rot * p * 2.0 + shift;
+    a *= 0.5;
+  }
+  return v;
+}
+
+float voronoi(vec2 x) {
+  vec2 n = floor(x);
+  vec2 f = fract(x);
+  float m = 8.0;
+  for (int j = -1; j <= 1; j++) {
+    for (int i = -1; i <= 1; i++) {
+      vec2 g = vec2(float(i), float(j));
+      vec2 o = vec2(hash21(n + g), hash21(n + g + 13.7));
+      vec2 r = g + o - f;
+      float d = dot(r, r);
+      if (d < m) m = d;
+    }
+  }
+  return sqrt(m);
+}
+
+float getWaveform(float t) {
+  return texture(uWaveformTex, vec2(t, 0.5)).r;
+}
+
+float getSpectrum(float t) {
+  return texture(uSpectrumTex, vec2(t, 0.5)).r;
+}
+
+float getModulator(int index) {
+  return texture(uModulatorTex, vec2((float(index) + 0.5) / 8.0, 0.5)).r;
+}
+
+vec2 getMidiNote(int index) {
+  return texture(uMidiTex, vec2((float(index) + 0.5) / 128.0, 0.5)).rg;
 }
 
 float oscilloSample(float t) {
@@ -399,21 +500,39 @@ vec3 applyBlendMode(vec3 base, vec3 blend, float mode, float opacity) {
 }
 
 float plasma(vec2 uv, float t) {
-  float v = sin(uv.x * 8.0 * uPlasmaScale + t * uPlasmaSpeed) + sin(uv.y * 6.0 * uPlasmaScale - t * 1.1 * uPlasmaSpeed);
-  v += sin((uv.x + uv.y) * 4.0 * uPlasmaScale + t * 0.7 * uPlasmaSpeed);
-  return v * 0.5 + 0.5;
+  float v = 0.0;
+  vec2 p = uv * uPlasmaScale;
+  float audio = (uRms * 0.5 + uPeak * 0.5) * uPlasmaAudioReact;
+  
+  for (float i = 1.0; i < 9.0; i++) {
+      if (i > uPlasmaComplexity) break;
+      v += sin(p.x * i + t * uPlasmaSpeed * (1.0 + i * 0.1) + audio * i);
+      v += sin(p.y * i - t * uPlasmaSpeed * (1.1 + i * 0.15) + audio * 0.5);
+      p += vec2(sin(t * 0.1), cos(t * 0.1)) * 0.5;
+  }
+  
+  return v / uPlasmaComplexity * 0.5 + 0.5;
 }
 
 float particleField(vec2 uv, float t, float density, float speed, float size) {
   float grid = mix(18.0, 90.0, density);
+  float audio = (uRms * 0.4 + uPeak * 0.6) * uParticleAudioLift;
   vec2 drift = vec2(t * 0.02 * (0.2 + speed), t * 0.015 * (0.2 + speed));
-  vec2 gv = uv * grid + drift;
+  
+  // Add turbulence
+  vec2 turb = vec2(
+      sin(uv.y * 4.0 + t * 0.5),
+      cos(uv.x * 4.0 + t * 0.5)
+  ) * uParticleTurbulence * 0.5;
+  
+  vec2 gv = uv * grid + drift + turb;
   vec2 cell = floor(gv);
   vec2 f = fract(gv);
   float rnd = hash21(cell);
   vec2 pos = vec2(hash21(cell + 1.3), hash21(cell + 9.1));
   pos = 0.2 + 0.6 * pos;
-  float twinkle = 0.4 + 0.6 * sin(t * (1.5 + rnd * 2.5) + rnd * 6.2831);
+  
+  float twinkle = 0.4 + 0.6 * sin(t * (1.5 + rnd * 2.5) + rnd * 6.2831) + audio;
   float radius = mix(0.05, 0.015, density) * mix(1.4, 0.6, size);
   float d = distance(f, pos);
   float spark = smoothstep(radius, 0.0, d);
@@ -428,6 +547,23 @@ vec2 rotate2d(vec2 p, float angle) {
 
 float sdRing(vec2 p, float r, float th) {
   return abs(length(p) - r) - th;
+}
+
+float opDisplace(float d, vec3 p, float amount, float freq) {
+  float displacement = sin(freq * p.x) * sin(freq * p.y) * sin(freq * p.z) * amount;
+  return d + displacement;
+}
+
+float opOnion(float d, float thickness) {
+  return abs(d) - thickness;
+}
+
+float opRound(float d, float r) {
+  return d - r;
+}
+
+float opAnnular(float d, float thickness) {
+  return abs(d) - thickness * 0.5;
 }
 
 float sdHexagon(vec2 p, float r) {
@@ -726,13 +862,15 @@ void main() {
   if (uSdfEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     if (uAdvancedSdfEnabled > 0.5) {
-      vec3 ro = vec3(0.0, 0.0, 2.0), rd = normalize(vec3(centered, -1.0));
-      float t = 0.0, d = 0.0; bool hit = false;
+      vec2 uv = centered * vec2(uAspect, 1.0);
+      vec3 ro = uCameraPos;
+      vec3 rd = getRayDirection(uv, ro, uCameraTarget, uCameraFov);
+      float t = 0.0; vec2 res = vec2(0.0); bool hit = false;
       for (int i = 0; i < 64; i++) {
-        vec3 p = ro + rd * t; d = sdfSceneMap(p); 
-        if (d < 0.001) { hit = true; break; }
+        vec3 p = ro + rd * t; res = advancedSdfMap(p); 
+        if (res.x < 0.001) { hit = true; break; }
         if (t > 10.0) break;
-        t += d;
+        t += res.x;
       }
       if (hit) {
         vec3 p = ro + rd * t, n = calcSdfNormal(p), l = normalize(uSdfLightDir);
@@ -742,7 +880,16 @@ void main() {
         float ao = uSdfAoEnabled > 0.5 ? calcSdfAO(p, n) : 1.0;
         vec3 lighting = uSdfLightColor * (diff * shadow + amb) * ao;
         float spec = pow(max(dot(reflect(-l, n), -rd), 0.0), 32.0) * 0.5 * shadow;
-        color += (vec3(0.2, 0.5, 1.0) * lighting + spec + smoothstep(0.1, 0.0, d) * uSdfGlow) * uSdfFill;
+        
+        // Dynamic sampling based on internal source
+        vec3 baseCol = getSdfColor(res.y);
+        if (uInternalSource > 0.5) {
+            float sampleVal = getWaveform(fract(res.y * 0.123 + uTime * 0.1));
+            baseCol = mix(baseCol, vec3(sampleVal), 0.5);
+        }
+        
+        baseCol *= uSdfColor;
+        color += (baseCol * lighting + spec + smoothstep(0.1, 0.0, res.x) * uSdfGlow) * uSdfFill;
       }
     } else {
       centered = rotate2d(centered, uSdfRotation); 
@@ -767,16 +914,38 @@ void main() {
   color = applyContrast(color, uContrast);
   color = color / (vec3(1.0) + color);
   color = pow(color, vec3(1.0 / 1.35));
+  color *= uGlobalColor;
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);
 }
 `;
 
-  let lastSdfSceneJson = '';
+  let currentPalette: [number, number, number][] = [
+    [0.0, 0.0, 0.0],   // #000000
+    [1.0, 0.0, 0.0],   // #ff0000
+    [1.0, 0.5, 0.0],   // #ff7f00
+    [1.0, 1.0, 0.0],   // #ffff00
+    [1.0, 1.0, 1.0]    // #ffffff
+  ];
   let advancedSdfProgram: WebGLProgram | null = null;
   let advancedSdfUniforms: any[] = [];
   let advancedSdfUniformLocations: Map<string, WebGLUniformLocation | null> = new Map();
-  let currentPalette: [number, number, number][] = [];
+  
+  const waveformTexture = gl.createTexture();
+  const spectrumTexture = gl.createTexture();
+  const modulatorTexture = gl.createTexture();
+  const midiTexture = gl.createTexture();
+
+  const initInternalTextures = () => {
+    [waveformTexture, spectrumTexture, modulatorTexture, midiTexture].forEach(tex => {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    });
+  };
+  initInternalTextures();
 
   const compileShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
@@ -810,6 +979,7 @@ void main() {
 
   const standardProgram = createProgram(vertexShaderSrc, createFragmentShaderSrc())!;
   let currentProgram = standardProgram;
+  let lastSdfSceneJson = '';
 
   const updateAdvancedSdfProgram = (scene: any) => {
     const sceneJson = JSON.stringify(scene || {});
@@ -853,6 +1023,8 @@ void main() {
     gl.uniform1f(getLocation('uPlasmaOpacity'), state.plasmaOpacity);
     gl.uniform1f(getLocation('uPlasmaSpeed'), state.plasmaSpeed || 1.0);
     gl.uniform1f(getLocation('uPlasmaScale'), state.plasmaScale || 1.0);
+    gl.uniform1f(getLocation('uPlasmaComplexity'), state.plasmaComplexity || 3.0);
+    gl.uniform1f(getLocation('uPlasmaAudioReact'), state.plasmaAudioReact || 0.5);
     gl.uniform1f(getLocation('uSpectrumEnabled'), state.spectrumEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uSpectrumOpacity'), state.spectrumOpacity);
     gl.uniform1fv(getLocation('uSpectrum[0]'), state.spectrum);
@@ -930,6 +1102,8 @@ void main() {
     gl.uniform1f(getLocation('uParticleSpeed'), state.particleSpeed);
     gl.uniform1f(getLocation('uParticleSize'), state.particleSize);
     gl.uniform1f(getLocation('uParticleGlow'), state.particleGlow);
+    gl.uniform1f(getLocation('uParticleTurbulence'), state.particleTurbulence || 0.3);
+    gl.uniform1f(getLocation('uParticleAudioLift'), state.particleAudioLift || 0.5);
     gl.uniform1f(getLocation('uSdfEnabled'), state.sdfEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uSdfShape'), state.sdfShape);
     gl.uniform1f(getLocation('uSdfScale'), state.sdfScale);
@@ -938,6 +1112,8 @@ void main() {
     gl.uniform1f(getLocation('uSdfRotation'), state.sdfRotation);
     gl.uniform1f(getLocation('uSdfFill'), state.sdfFill);
     gl.uniform3fv(getLocation('uSdfColor'), state.sdfColor || [1.0, 0.6, 0.25]);
+    gl.uniform1f(getLocation('uInternalSource'), state.hasInternalAsset ? 1 : 0);
+    gl.uniform3fv(getLocation('uGlobalColor'), state.globalColor || [1.0, 1.0, 1.0]);
     gl.uniform1f(getLocation('uDebugTint'), state.debugTint ?? 0);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
@@ -953,6 +1129,7 @@ void main() {
   interface AssetCacheEntry {
     assetId: string;
     texture: WebGLTexture;
+    internalSourceId?: string;
     video?: HTMLVideoElement;
     width?: number;
     height?: number;
@@ -1060,6 +1237,20 @@ void main() {
       resolve({ assetId: asset.id, texture, width: canvas.width, height: canvas.height, options: asset.options });
     });
 
+  const loadInternalAsset = (asset: AssetItem): Promise<AssetCacheEntry> => {
+    let texture = waveformTexture!;
+    if (asset.internalSource === 'audio-spectrum') texture = spectrumTexture!;
+    if (asset.internalSource === 'modulators') texture = modulatorTexture!;
+    
+    return Promise.resolve({
+        assetId: asset.id,
+        texture,
+        internalSourceId: asset.internalSource,
+        width: 256,
+        height: 1
+    });
+  };
+
   const ensureAssetEntry = (asset: AssetItem, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
     if (assetCache.has(asset.id)) {
       const cached = assetCache.get(asset.id)!;
@@ -1068,7 +1259,8 @@ void main() {
     }
     if (pendingAssetLoads.has(asset.id)) return pendingAssetLoads.get(asset.id)!;
     let loader: Promise<AssetCacheEntry>;
-    if (asset.kind === 'video' || asset.kind === 'live') loader = loadVideoAsset(asset, videoOverride);
+    if (asset.kind === 'internal') loader = loadInternalAsset(asset);
+    else if (asset.kind === 'video' || asset.kind === 'live') loader = loadVideoAsset(asset, videoOverride);
     else if (asset.kind === 'text' && textCanvas) loader = loadTextAsset(asset, textCanvas);
     else loader = loadImageAsset(asset);
     pendingAssetLoads.set(asset.id, loader);
@@ -1088,15 +1280,65 @@ void main() {
     });
   };
 
+  const updateInternalTextures = (state: RenderState) => {
+    // 1. Waveform (256x1)
+    gl.bindTexture(gl.TEXTURE_2D, waveformTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, 256, 1, 0, gl.RED, gl.FLOAT, state.oscilloData);
+
+    // 2. Spectrum (64x1)
+    gl.bindTexture(gl.TEXTURE_2D, spectrumTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, 64, 1, 0, gl.RED, gl.FLOAT, state.spectrum);
+
+    // 3. Modulators
+    gl.bindTexture(gl.TEXTURE_2D, modulatorTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, state.modulatorValues.length, 1, 0, gl.RED, gl.FLOAT, state.modulatorValues);
+
+    // 4. MIDI History
+    gl.bindTexture(gl.TEXTURE_2D, midiTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, 128, 1, 0, gl.RG, gl.FLOAT, state.midiData);
+  };
+
+  const applyInternalTextures = (prog: WebGLProgram) => {
+    const units = { waveform: 10, spectrum: 11, modulators: 12 };
+    
+    gl.activeTexture(gl.TEXTURE0 + units.waveform);
+    gl.bindTexture(gl.TEXTURE_2D, waveformTexture);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uWaveformTex'), units.waveform);
+
+    gl.activeTexture(gl.TEXTURE0 + units.spectrum);
+    gl.bindTexture(gl.TEXTURE_2D, spectrumTexture);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uSpectrumTex'), units.spectrum);
+
+    gl.activeTexture(gl.TEXTURE0 + units.modulators);
+    gl.bindTexture(gl.TEXTURE_2D, modulatorTexture);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uModulatorTex'), units.modulators);
+
+    gl.activeTexture(gl.TEXTURE0 + 13);
+    gl.bindTexture(gl.TEXTURE_2D, midiTexture);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uMidiTex'), 13);
+  };
+
   const applyLayerBinding = (prog: WebGLProgram, layerId: AssetLayerId) => {
     const entry = layerBindings[layerId];
     const unitIndex = ASSET_LAYER_UNITS[layerId];
-    const enabledLoc = gl.getUniformLocation(prog, layerId === 'layer-plasma' ? 'uPlasmaAssetEnabled' : 'uSpectrumAssetEnabled');
-    const samplerLoc = gl.getUniformLocation(prog, layerId === 'layer-plasma' ? 'uPlasmaAsset' : 'uSpectrumAsset');
+    const prefix = layerId === 'layer-plasma' ? 'uPlasma' : 'uSpectrum';
+    const enabledLoc = gl.getUniformLocation(prog, `${prefix}AssetEnabled`);
+    const samplerLoc = gl.getUniformLocation(prog, `${prefix}Asset`);
+    
     if (enabledLoc) gl.uniform1f(enabledLoc, entry ? 1 : 0);
-    if (samplerLoc) gl.uniform1i(samplerLoc, unitIndex);
-    gl.activeTexture(gl.TEXTURE0 + unitIndex);
-    gl.bindTexture(gl.TEXTURE_2D, entry?.texture ?? null);
+    
+    if (entry?.internalSourceId) {
+        let internalUnit = 10; // waveform
+        if (entry.internalSourceId === 'audio-spectrum') internalUnit = 11;
+        if (entry.internalSourceId === 'modulators') internalUnit = 12;
+        if (entry.internalSourceId === 'midi-history') internalUnit = 13;
+        
+        if (samplerLoc) gl.uniform1i(samplerLoc, internalUnit);
+    } else {
+        if (samplerLoc) gl.uniform1i(samplerLoc, unitIndex);
+        gl.activeTexture(gl.TEXTURE0 + unitIndex);
+        gl.bindTexture(gl.TEXTURE_2D, entry?.texture ?? null);
+    }
   };
 
   const setLayerAsset = async (layerId: AssetLayerId, asset: AssetItem | null, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
@@ -1117,9 +1359,11 @@ void main() {
   const render = (state: RenderState) => {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    updateInternalTextures(state);
     updateAdvancedSdfProgram(state.sdfScene);
     currentProgram = (state.sdfScene && advancedSdfProgram) ? advancedSdfProgram : standardProgram;
     updateStandardUniforms(currentProgram, state);
+    applyInternalTextures(currentProgram);
     updateVideoTextures();
     applyLayerBinding(currentProgram, 'layer-plasma');
     applyLayerBinding(currentProgram, 'layer-spectrum');
@@ -1133,6 +1377,14 @@ void main() {
           gl.uniform1f(gl.getUniformLocation(currentProgram, 'uSdfLightIntensity'), l.intensity);
           gl.uniform1f(gl.getUniformLocation(currentProgram, 'uSdfAoEnabled'), s.render3d.aoEnabled ? 1 : 0);
           gl.uniform1f(gl.getUniformLocation(currentProgram, 'uSdfShadowsEnabled'), s.render3d.softShadowsEnabled ? 1 : 0);
+          
+          // Camera defaults if not in config
+          const camPos = s.render3d.cameraPosition || [0, 0, 2];
+          const camTarget = s.render3d.cameraTarget || [0, 0, 0];
+          const camFov = s.render3d.cameraFov || 1.0;
+          gl.uniform3fv(gl.getUniformLocation(currentProgram, 'uCameraPos'), camPos);
+          gl.uniform3fv(gl.getUniformLocation(currentProgram, 'uCameraTarget'), camTarget);
+          gl.uniform1f(gl.getUniformLocation(currentProgram, 'uCameraFov'), camFov);
       }
 
       advancedSdfUniforms.forEach(u => {

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "Space Station",
+  "name": "SDF Space Station",
   "category": "Space",
   "createdAt": "2026-01-27T18:35:38.959Z",
   "updatedAt": "2026-01-27T18:35:38.959Z",
@@ -12,169 +12,49 @@
       "layers": [
         {
           "id": "gen-sdf-scene",
-          "name": "gen-sdf-scene",
+          "name": "SDF Scene",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          },
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
           "sdfScene": {
             "version": 1,
             "mode": "3d",
-            "render2d": {
-              "antialiasing": true,
-              "aaSmoothing": 0.01,
-              "strokeEnabled": true,
-              "strokeWidth": 0.02,
-              "strokeColor": [
-                1,
-                1,
-                1,
-                1
-              ],
-              "fillEnabled": true,
-              "fillOpacity": 0.5,
-              "fillColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "glowEnabled": true,
-              "glowIntensity": 0.5,
-              "glowRadius": 0.1,
-              "glowColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "gradientEnabled": false,
-              "gradientMode": "distance",
-              "gradientColors": []
-            },
+            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
             "render3d": {
-              "maxSteps": 64,
-              "maxDistance": 20,
-              "epsilon": 0.001,
-              "normalEpsilon": 0.0005,
-              "lighting": {
-                "direction": [
-                  0.5,
-                  0.8,
-                  0.6
-                ],
-                "color": [
-                  1,
-                  1,
-                  1
-                ],
-                "intensity": 1,
-                "ambient": 0.2,
-                "specularPower": 32,
-                "specularIntensity": 0.5
-              },
-              "aoEnabled": true,
-              "aoSteps": 3,
-              "aoIntensity": 0.5,
-              "aoRadius": 0.2,
-              "softShadowsEnabled": true,
-              "shadowSoftness": 8,
-              "shadowSteps": 16,
-              "fogEnabled": true,
-              "fogDensity": 0.05,
-              "fogColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundGradient": false,
-              "adaptiveQuality": true,
-              "qualityBias": 0
+              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
+              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [0.8, 0.9, 1.0], "intensity": 1.5, "ambient": 0.05, "specularPower": 64, "specularIntensity": 1.0 },
+              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.8, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 12, "shadowSteps": 16, "fogEnabled": true, "fogDensity": 0.02, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
             },
-            "debug": {
-              "showDistance": false,
-              "distanceScale": 5,
-              "showNormals": false,
-              "showSteps": false,
-              "stepsColorScale": 64,
-              "showCostTier": false,
-              "showBounds": false,
-              "wireframe": false
-            },
+            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
             "nodes": [
-              {
-                "enabled": true,
-                "order": 0,
-                "instanceId": "r",
-                "nodeId": "repeat",
-                "params": {
-                  "period": [
-                    2,
-                    2,
-                    2
-                  ]
-                }
-              }
+              { "enabled": true, "order": 0, "instanceId": "core", "nodeId": "sphere", "params": { "radius": 0.4 }, "label": "Habitation Hub" },
+              { "enabled": true, "order": 1, "instanceId": "ring-shape", "nodeId": "torus", "params": { "majorRadius": 0.8, "minorRadius": 0.05 }, "label": "Gravity Ring" },
+              { "enabled": true, "order": 2, "instanceId": "rot-ring", "nodeId": "dom-rotate-3d", "params": { "rotX": 1.57, "rotY": 0, "rotZ": 0 }, "label": "Ring Tilt" },
+              { "enabled": true, "order": 3, "instanceId": "panel", "nodeId": "box3d", "params": { "size": [0.02, 0.4, 0.8] }, "label": "Solar Array" },
+              { "enabled": true, "order": 4, "instanceId": "move-panel", "nodeId": "dom-translate-3d", "params": { "x": 1.2, "y": 0, "z": 0 }, "label": "Panel Dist" },
+              { "enabled": true, "order": 5, "instanceId": "mirror-panel", "nodeId": "dom-mirror-x-2d", "params": { "offset": 0 }, "label": "Dual Panels" },
+              { "enabled": true, "order": 6, "instanceId": "u1", "nodeId": "op-union", "params": {}, "label": "Station Merge" },
+              { "enabled": true, "order": 7, "instanceId": "world-rot", "nodeId": "dom-rotate-3d", "params": { "rotX": 0.4, "rotY": 0, "rotZ": 0 }, "label": "Orbit View" }
             ],
-            "connections": []
+            "connections": [
+              { "from": "ring-shape", "to": "rot-ring", "slot": 0 },
+              { "from": "panel", "to": "move-panel", "slot": 0 },
+              { "from": "move-panel", "to": "mirror-panel", "slot": 0 },
+              { "from": "core", "to": "u1", "slot": 0 },
+              { "from": "rot-ring", "to": "u1", "slot": 1 },
+              { "from": "u1", "to": "world-rot", "slot": 0 }
+            ]
           }
         },
-        {
-          "id": "gen-particles",
-          "name": "gen-particles",
-          "enabled": true,
-          "opacity": 0.6,
-          "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
+        { "id": "gen-particles", "name": "Stars", "enabled": true, "opacity": 0.4, "blendMode": "add", "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 } }
       ]
     }
   ],
-  "macros": [
-    {
-      "id": "macro-1",
-      "name": "Macro 1",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 1"
-    },
-    {
-      "id": "macro-2",
-      "name": "Macro 2",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 2"
-    },
-    {
-      "id": "macro-3",
-      "name": "Macro 3",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 3"
-    },
-    {
-      "id": "macro-4",
-      "name": "Macro 4",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 4"
-    }
+  "macros": [],
+  "modMatrix": [
+    { "id": "mod-1", "source": "lfo-1", "target": "rot-ring.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0, "bipolar": false },
+    { "id": "mod-2", "source": "tempo.bpm", "target": "world-rot.rotY", "amount": 3.14, "min": -3.14, "max": 3.14, "curve": "linear", "smoothing": 0.5, "bipolar": false }
   ],
-  "modMatrix": [],
   "midiMappings": []
 }

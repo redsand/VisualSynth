@@ -25,7 +25,7 @@ class SdfNodeRegistryImpl implements SdfNodeRegistry {
 
   register(node: SdfNodeDefinition): void {
     if (this.nodes.has(node.id)) {
-      console.warn(`SDF node "${node.id}" already registered, overwriting.`);
+      return;
     }
 
     // Validate node definition

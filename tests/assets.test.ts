@@ -5,8 +5,8 @@ import type { AssetColorSpace } from '../src/shared/project';
 import { projectSchema } from '../src/shared/projectSchema';
 
 describe('asset manager defaults', () => {
-  it('starts with no assets', () => {
-    expect(DEFAULT_PROJECT.assets.length).toBe(0);
+  it('starts with default internal assets', () => {
+    expect(DEFAULT_PROJECT.assets.length).toBe(4);
   });
 
   it('schema supplies asset defaults', () => {

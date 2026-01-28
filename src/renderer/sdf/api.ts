@@ -161,6 +161,10 @@ export interface SdfNodeInstance {
   nodeId: string;
   /** Current parameter values */
   params: Record<string, number | number[] | boolean>;
+  /** Custom label for this node */
+  label?: string;
+  /** Custom color for this specific instance */
+  color?: [number, number, number];
   /** Whether this node is enabled */
   enabled: boolean;
   /** Position in node list (for ordering) */
@@ -244,6 +248,11 @@ export interface SdfRenderConfig3D {
   // Quality
   adaptiveQuality: boolean;
   qualityBias: number;  // -1 to 1, negative = faster, positive = higher quality
+
+  // Camera
+  cameraPosition?: [number, number, number];
+  cameraTarget?: [number, number, number];
+  cameraFov?: number;
 }
 
 // ============================================================================
@@ -338,10 +347,13 @@ export const DEFAULT_RENDER_3D: SdfRenderConfig3D = {
   fogEnabled: false,
   fogDensity: 0.05,
   fogColor: [0.6, 0.7, 0.8],
-  backgroundColor: [0.05, 0.05, 0.1],
-  backgroundGradient: true,
+  backgroundColor: [0, 0, 0],
+  backgroundGradient: false,
   adaptiveQuality: true,
-  qualityBias: 0.0
+  qualityBias: 0,
+  cameraPosition: [0, 0, 2],
+  cameraTarget: [0, 0, 0],
+  cameraFov: 1.0
 };
 
 export const DEFAULT_DEBUG: SdfDebugConfig = {

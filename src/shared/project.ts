@@ -27,6 +27,11 @@ export interface LayerConfig {
     scale: number;
     rotation: number;
   };
+  assetId?: string;
+  generatorId?: string;
+  params?: Record<string, any>;
+  effects?: any[]; // Chain of local effects
+  sdfScene?: any;
 }
 
 export interface ModConnection {
@@ -124,6 +129,8 @@ export interface ParticleConfig {
   speed: number;
   size: number;
   glow: number;
+  turbulence?: number;
+  audioLift?: number;
 }
 
 export interface SdfConfig {
@@ -186,17 +193,18 @@ export type AssetColorSpace = 'srgb' | 'linear';
 export interface AssetItem {
   id: string;
   name: string;
-  kind: AssetKind;
+  kind: 'texture' | 'video' | 'shader' | 'live' | 'text' | 'internal';
   path?: string;
   tags: string[];
   addedAt: string;
+  missing?: boolean;
   hash?: string;
   mime?: string;
   width?: number;
   height?: number;
   colorSpace?: AssetColorSpace;
   thumbnail?: string;
-  missing?: boolean;
+  internalSource?: 'audio-waveform' | 'audio-spectrum' | 'modulators' | 'midi-history';
   options?: {
     loop?: boolean;
     playbackRate?: number;
@@ -517,7 +525,40 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     return mappings;
   })(),
   timelineMarkers: [],
-  assets: [],
+  assets: [
+    {
+      id: 'internal-waveform',
+      name: 'Live Waveform',
+      kind: 'internal',
+      internalSource: 'audio-waveform',
+      tags: ['internal', 'audio'],
+      addedAt: new Date().toISOString()
+    },
+    {
+      id: 'internal-spectrum',
+      name: 'Audio Spectrum',
+      kind: 'internal',
+      internalSource: 'audio-spectrum',
+      tags: ['internal', 'audio'],
+      addedAt: new Date().toISOString()
+    },
+    {
+      id: 'internal-modulators',
+      name: 'Modulator Matrix',
+      kind: 'internal',
+      internalSource: 'modulators',
+      tags: ['internal', 'mod'],
+      addedAt: new Date().toISOString()
+    },
+    {
+      id: 'internal-midi',
+      name: 'MIDI History',
+      kind: 'internal',
+      internalSource: 'midi-history',
+      tags: ['internal', 'midi'],
+      addedAt: new Date().toISOString()
+    }
+  ],
   plugins: [],
   scenes: [
     {

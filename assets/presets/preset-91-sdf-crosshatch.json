@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "SDF Crosshatch",
+  "name": "SDF Neon Crosshatch",
   "category": "Geometry",
   "createdAt": "2026-01-27T18:35:38.940Z",
   "updatedAt": "2026-01-27T18:35:38.941Z",
@@ -16,214 +16,42 @@
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          },
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
           "sdfScene": {
             "version": 1,
-            "mode": "2d",
-            "render2d": {
-              "antialiasing": true,
-              "aaSmoothing": 0.01,
-              "strokeEnabled": true,
-              "strokeWidth": 0.02,
-              "strokeColor": [
-                1,
-                1,
-                1,
-                1
-              ],
-              "fillEnabled": true,
-              "fillOpacity": 0.5,
-              "fillColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "glowEnabled": true,
-              "glowIntensity": 0.5,
-              "glowRadius": 0.1,
-              "glowColor": [
-                0.2,
-                0.5,
-                1,
-                1
-              ],
-              "gradientEnabled": false,
-              "gradientMode": "distance",
-              "gradientColors": []
-            },
+            "mode": "3d",
+            "render2d": { "antialiasing": true, "aaSmoothing": 0.01, "strokeEnabled": true, "strokeWidth": 0.02, "strokeColor": [1, 1, 1, 1], "fillEnabled": true, "fillOpacity": 0.5, "fillColor": [0.2, 0.5, 1, 1], "glowEnabled": true, "glowIntensity": 0.5, "glowRadius": 0.1, "glowColor": [0.2, 0.5, 1, 1], "gradientEnabled": false, "gradientMode": "distance", "gradientColors": [] },
             "render3d": {
-              "maxSteps": 64,
-              "maxDistance": 20,
-              "epsilon": 0.001,
-              "normalEpsilon": 0.0005,
-              "lighting": {
-                "direction": [
-                  0.5,
-                  0.8,
-                  0.6
-                ],
-                "color": [
-                  1,
-                  1,
-                  1
-                ],
-                "intensity": 1,
-                "ambient": 0.2,
-                "specularPower": 32,
-                "specularIntensity": 0.5
-              },
-              "aoEnabled": true,
-              "aoSteps": 3,
-              "aoIntensity": 0.5,
-              "aoRadius": 0.2,
-              "softShadowsEnabled": true,
-              "shadowSoftness": 8,
-              "shadowSteps": 16,
-              "fogEnabled": false,
-              "fogDensity": 0.05,
-              "fogColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundColor": [
-                0,
-                0,
-                0
-              ],
-              "backgroundGradient": false,
-              "adaptiveQuality": true,
-              "qualityBias": 0
+              "maxSteps": 100, "maxDistance": 20, "epsilon": 0.001, "normalEpsilon": 0.0005,
+              "lighting": { "direction": [0.5, 0.8, 0.6], "color": [0.2, 0.8, 1.0], "intensity": 2.0, "ambient": 0.05, "specularPower": 64, "specularIntensity": 1.0 },
+              "aoEnabled": true, "aoSteps": 5, "aoIntensity": 0.8, "aoRadius": 0.3, "softShadowsEnabled": true, "shadowSoftness": 8, "shadowSteps": 12, "fogEnabled": true, "fogDensity": 0.08, "fogColor": [0, 0, 0], "backgroundColor": [0, 0, 0], "backgroundGradient": false, "adaptiveQuality": true, "qualityBias": 0
             },
-            "debug": {
-              "showDistance": false,
-              "distanceScale": 5,
-              "showNormals": false,
-              "showSteps": false,
-              "stepsColorScale": 64,
-              "showCostTier": false,
-              "showBounds": false,
-              "wireframe": false
-            },
+            "debug": { "showDistance": false, "distanceScale": 5, "showNormals": false, "showSteps": false, "stepsColorScale": 64, "showCostTier": false, "showBounds": false, "wireframe": false },
             "nodes": [
-              {
-                "enabled": true,
-                "order": 0,
-                "instanceId": "r1",
-                "nodeId": "rect",
-                "params": {
-                  "size": [
-                    0.8,
-                    0.1
-                  ]
-                },
-                "label": "Bar H"
-              },
-              {
-                "enabled": true,
-                "order": 1,
-                "instanceId": "rot1",
-                "nodeId": "rotate2d",
-                "params": {
-                  "angle": 0.785
-                },
-                "label": "Rot 45"
-              },
-              {
-                "enabled": true,
-                "order": 2,
-                "instanceId": "r2",
-                "nodeId": "rect",
-                "params": {
-                  "size": [
-                    0.8,
-                    0.1
-                  ]
-                },
-                "label": "Bar V"
-              },
-              {
-                "enabled": true,
-                "order": 3,
-                "instanceId": "rot2",
-                "nodeId": "rotate2d",
-                "params": {
-                  "angle": -0.785
-                },
-                "label": "Rot -45"
-              },
-              {
-                "enabled": true,
-                "order": 4,
-                "instanceId": "u1",
-                "nodeId": "union",
-                "params": {},
-                "label": "Combine"
-              }
+              { "enabled": true, "order": 0, "instanceId": "bar", "nodeId": "box3d", "params": { "size": [1.5, 0.02, 0.02] }, "label": "Strut" },
+              { "enabled": true, "order": 1, "instanceId": "grid", "nodeId": "dom-repeat-3d", "params": { "spacingX": 0, "spacingY": 0.4, "spacingZ": 0.4 }, "label": "Array" },
+              { "enabled": true, "order": 2, "instanceId": "rot-1", "nodeId": "dom-rotate-3d", "params": { "rotX": 0, "rotY": 0, "rotZ": 0.785 }, "label": "Tilt X" },
+              { "enabled": true, "order": 3, "instanceId": "rot-2", "nodeId": "dom-rotate-3d", "params": { "rotX": 0, "rotY": 0, "rotZ": -0.785 }, "label": "Tilt Y" },
+              { "enabled": true, "order": 4, "instanceId": "u1", "nodeId": "op-union", "params": {}, "label": "Cross" },
+              { "enabled": true, "order": 5, "instanceId": "world-rot", "nodeId": "dom-rotate-3d", "params": { "rotX": 0.5, "rotY": 0.5, "rotZ": 0 }, "label": "Perspective" }
             ],
             "connections": [
-              {
-                "from": "r1",
-                "to": "rot1",
-                "slot": 0
-              },
-              {
-                "from": "r2",
-                "to": "rot2",
-                "slot": 0
-              },
-              {
-                "from": "rot1",
-                "to": "u1",
-                "slot": 0
-              },
-              {
-                "from": "rot2",
-                "to": "u1",
-                "slot": 1
-              }
+              { "from": "bar", "to": "grid", "slot": 0 },
+              { "from": "grid", "to": "rot-1", "slot": 0 },
+              { "from": "grid", "to": "rot-2", "slot": 0 },
+              { "from": "rot-1", "to": "u1", "slot": 0 },
+              { "from": "rot-2", "to": "u1", "slot": 1 },
+              { "from": "u1", "to": "world-rot", "slot": 0 }
             ]
           }
         }
       ]
     }
   ],
-  "macros": [
-    {
-      "id": "macro-1",
-      "name": "Macro 1",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 1"
-    },
-    {
-      "id": "macro-2",
-      "name": "Macro 2",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 2"
-    },
-    {
-      "id": "macro-3",
-      "name": "Macro 3",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 3"
-    },
-    {
-      "id": "macro-4",
-      "name": "Macro 4",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 4"
-    }
+  "macros": [],
+  "modMatrix": [
+    { "id": "mod-1", "source": "audio.rms", "target": "bar.size.y", "amount": 0.1, "min": 0.01, "max": 0.1, "curve": "linear", "smoothing": 0.1, "bipolar": false },
+    { "id": "mod-2", "source": "tempo.bpm", "target": "world-rot.rotY", "amount": 6.28, "min": 0, "max": 6.28, "curve": "linear", "smoothing": 0.5, "bipolar": false }
   ],
-  "modMatrix": [],
   "midiMappings": []
 }

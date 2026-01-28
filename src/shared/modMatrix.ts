@@ -30,9 +30,7 @@ export const applyModMatrix = (
     }
     
     const smoothing = Math.min(Math.max(mod.smoothing, 0), 1);
-    shaped = shaped * (1 - smoothing) + (sourceValue * smoothing);
-    
-    const modAmount = mod.bipolar ? (mod.amount * 2 - mod.amount) : mod.amount;
+    const modAmount = (mod.bipolar ? (mod.amount * 2 - mod.amount) : mod.amount) * (1 - smoothing);
     value += shaped * modAmount;
   }
   const minValue = minClamp ?? 0;
