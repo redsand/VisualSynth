@@ -5406,6 +5406,12 @@ const initTemplates = async () => {
 };
 
 const initOutputConfig = async () => {
+  // Check if the visualSynth API is available
+  if (!window.visualSynth || !window.visualSynth.getOutputConfig) {
+    console.log('Output config API not available - using defaults');
+    return;
+  }
+
   const savedConfig = await window.visualSynth.getOutputConfig();
   outputOpen = await window.visualSynth.isOutputOpen();
   await syncOutputConfig({ ...DEFAULT_OUTPUT_CONFIG, ...savedConfig });
@@ -6235,13 +6241,29 @@ const init = async () => {
   loadShaderDraft();
   syncVisualizerFromProject();
   setCaptureStatus('Idle');
+  console.log('[Init] Starting initPresets...');
   await initPresets();
+  console.log('[Init] initPresets completed');
+
+  console.log('[Init] Starting initTemplates...');
   await initTemplates();
+  console.log('[Init] initTemplates completed');
+
+  console.log('[Init] Starting initOutputConfig...');
   await initOutputConfig();
+  console.log('[Init] initOutputConfig completed');
+
   refreshSceneSelect();
   applyScene(currentProject.activeSceneId);
+
+  console.log('[Init] Starting initBpmNetworking...');
   await initBpmNetworking();
+  console.log('[Init] initBpmNetworking completed');
+
+  console.log('[Init] Starting loadGeneratorLibrary...');
   loadGeneratorLibrary();
+  console.log('[Init] loadGeneratorLibrary completed');
+
   refreshGeneratorUI();
   initStylePresets();
   initMacros();
@@ -6258,10 +6280,37 @@ const init = async () => {
   renderPlugins();
   renderDiffSections();
   bpmRangeSelect.dispatchEvent(new Event('change'));
-  await initAudioDevices();
-  await setupAudio();
-  await setupMIDI();
-  const recovery = await window.visualSynth.getRecovery();
+
+  console.log('[Init] Starting initAudioDevices...');
+  try {
+    await initAudioDevices();
+    console.log('[Init] initAudioDevices completed');
+
+    await setupAudio();
+    console.log('[Init] setupAudio completed');
+
+    await setupMIDI();
+    console.log('[Init] setupMIDI completed');
+  } catch (e) {
+    console.error('[Init] Audio setup error:', e);
+  }
+
+  // Check if recovery API is available
+  if (window.visualSynth && window.visualSynth.getRecovery) {
+    console.log('[Init] Starting recovery check...');
+    const recovery = await window.visualSynth.getRecovery();
+    if (recovery.found && recovery.payload) {
+      try {
+        const parsed = JSON.parse(recovery.payload) as VisualSynthProject;
+        await applyProject(parsed);
+        setStatus('Recovery session loaded.');
+      } catch {
+        setStatus('Recovery session found but failed to load.');
+      }
+    }
+  } else {
+    console.log('[Init] Recovery API not available - skipping');
+  }
   if (recovery.found && recovery.payload) {
     try {
       const parsed = JSON.parse(recovery.payload) as VisualSynthProject;
