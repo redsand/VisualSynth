@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import { PARAMETER_REGISTRY, getLayerType, getParamDef, parseLegacyTarget, buildLegacyTarget } from './parameterRegistry';
+import { DEFAULT_PROJECT } from './project';
 
 export const APP_VERSION = '0.9.0';
 
@@ -489,15 +490,23 @@ export const applyPresetV3 = (preset: any, currentProject: any): { project: any;
   const warnings: string[] = [];
   const project = { ...currentProject };
 
-  // Clear existing layers from the active scene
-  const scene = project.scenes.find((s: any) => s.id === project.activeSceneId);
+  // Get the active scene, or use the first scene from DEFAULT_PROJECT if none exists
+  const defaultScene = DEFAULT_PROJECT.scenes[0];
+  let scene = project.scenes.find((s: any) => s.id === project.activeSceneId);
+
+  // If no active scene or it doesn't exist, create it from DEFAULT_PROJECT
   if (!scene) {
-    warnings.push('No active scene found');
-    return { project, warnings };
+    scene = { ...defaultScene, id: defaultScene.id };
+    if (!project.scenes || project.scenes.length === 0) {
+      project.scenes = [scene];
+    } else {
+      project.scenes[0] = scene;
+    }
+    project.activeSceneId = scene.id;
   }
 
   // Map v3 layers to v2 format
-  const newLayers = preset.layers.map((layer: any) => {
+  const presetLayers = preset.layers.map((layer: any) => {
     // Build legacy layer ID from type
     const legacyId = buildLegacyTarget(layer.type, '').split('.')[0];
     const layerDef = getLayerType(layer.type);
@@ -512,6 +521,46 @@ export const applyPresetV3 = (preset: any, currentProject: any): { project: any;
       params: { ...layer.params }
     };
   });
+
+  // Start with all layers from DEFAULT_PROJECT as a fallback
+  const defaultLayers = defaultScene.layers.map((l: any) => ({ ...l, enabled: false }));
+  const existingLayers = scene.layers || [];
+
+  // Merge existing layers with default layers (existing takes precedence)
+  const mergedLayers: any[] = [];
+  const layerIds = new Set<string>();
+
+  // Add existing layers first
+  for (const existingLayer of existingLayers) {
+    mergedLayers.push(existingLayer);
+    layerIds.add(existingLayer.id);
+  }
+
+  // Add default layers that aren't in existing
+  for (const defaultLayer of defaultLayers) {
+    if (!layerIds.has(defaultLayer.id)) {
+      mergedLayers.push(defaultLayer);
+      layerIds.add(defaultLayer.id);
+    }
+  }
+
+  // Update existing layers with preset values, preserve layers not in preset
+  const presetLayerIds = new Set(presetLayers.map((l: any) => l.id));
+  const newLayers = mergedLayers.map((existingLayer: any) => {
+    const presetLayer = presetLayers.find((l: any) => l.id === existingLayer.id);
+    if (presetLayer) {
+      return { ...presetLayer };
+    }
+    // Keep existing layers not in preset
+    return existingLayer;
+  });
+
+  // Add new layers from preset that aren't in the project
+  for (const presetLayer of presetLayers) {
+    if (!newLayers.find((l: any) => l.id === presetLayer.id)) {
+      newLayers.push(presetLayer);
+    }
+  }
 
   scene.layers = newLayers;
 
