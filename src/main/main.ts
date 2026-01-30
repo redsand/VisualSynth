@@ -14,6 +14,8 @@ import {
   AssetColorSpace
 } from '../shared/project';
 import { deserializeProject } from '../shared/serialization';
+import { migratePreset, applyPresetV3, presetV3Schema } from '../shared/presetMigration';
+import { DEFAULT_PROJECT } from '../shared/project';
 
 const isDev = !app.isPackaged;
 
@@ -453,7 +455,12 @@ ipcMain.handle('presets:list', async () => {
     ? path.join(process.resourcesPath, 'presets')
     : path.join(app.getAppPath(), 'assets/presets');
 
-  if (!fs.existsSync(presetDir)) return [];
+  console.log('[Presets] Listing from:', presetDir);
+
+  if (!fs.existsSync(presetDir)) {
+    console.error('[Presets] Directory not found:', presetDir);
+    return [];
+  }
   return fs
     .readdirSync(presetDir)
     .filter((file) => file.endsWith('.json'))
@@ -461,24 +468,83 @@ ipcMain.handle('presets:list', async () => {
       const presetPath = path.join(presetDir, file);
       try {
         const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+        // Handle both v2 (data.name) and v3 (data.metadata.name) formats
+        const presetName =
+          data.version === 3 && data.metadata?.name
+            ? data.metadata.name
+            : typeof data.name === 'string' && data.name.length > 0
+              ? data.name
+              : file;
+        const presetCategory =
+          data.version === 3 && data.metadata?.category
+            ? data.metadata.category
+            : typeof data.category === 'string'
+              ? data.category
+              : 'General';
         return {
-          name: typeof data.name === 'string' && data.name.length > 0 ? data.name : file,
-          category: typeof data.category === 'string' ? data.category : 'General',
+          name: presetName,
+          category: presetCategory,
           path: presetPath
         };
-      } catch {
-        return { name: file, category: 'General', path: presetPath };
+      } catch (error) {
+        console.error(`[Presets] Failed to read/parse ${file}:`, error);
+        return { name: `ERR: ${(error as Error).message.substring(0, 30)}`, category: 'General', path: presetPath };
       }
     });
 });
 
 ipcMain.handle('presets:load', async (_event, presetPath: string) => {
-  const data = fs.readFileSync(presetPath, 'utf-8');
-  const parsed = projectSchema.safeParse(JSON.parse(data));
-  if (!parsed.success) {
-    return { error: 'Invalid preset file.' };
+  console.log('[Presets] Loading:', presetPath);
+  try {
+    const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+
+    // Handle v3 presets by migrating them to v2 format
+    if (data.version === 3) {
+      // Validate v3 schema
+      const v3Parsed = presetV3Schema.safeParse(data);
+      if (!v3Parsed.success) {
+        const errorMsg = `Invalid preset: ${JSON.stringify(v3Parsed.error.format())}`;
+        console.error('[Presets] V3 Validation Failed:', errorMsg);
+        return { error: errorMsg };
+      }
+
+      // Migrate to v3
+      const migrationResult = migratePreset(data);
+      if (!migrationResult.success) {
+        const errorMsg = `Preset migration failed: ${migrationResult.errors.join(', ')}`;
+        console.error('[Presets] Migration Failed:', errorMsg);
+        return { error: errorMsg };
+      }
+
+      // Apply to convert v3 to v2 format
+      const applyResult = applyPresetV3(migrationResult.preset, DEFAULT_PROJECT);
+      if (!applyResult.project) {
+        console.error('[Presets] Apply V3 Failed: No project returned');
+        return { error: 'Failed to convert preset to v2 format' };
+      }
+
+      // Validate v2 schema
+      const v2Parsed = projectSchema.safeParse(applyResult.project);
+      if (!v2Parsed.success) {
+        const errorMsg = `Invalid preset v2 format: ${JSON.stringify(v2Parsed.error.format())}`;
+        console.error('[Presets] V2 Validation Failed:', errorMsg);
+        return { error: errorMsg };
+      }
+
+      return { project: v2Parsed.data };
+    }
+
+    // Handle v2 presets
+    const parsed = projectSchema.safeParse(data);
+    if (!parsed.success) {
+      console.error('[Presets] V2 Parse Failed:', parsed.error.format());
+      return { error: 'Invalid preset file.' };
+    }
+    return { project: parsed.data };
+  } catch (error) {
+    console.error('[Presets] Load Exception:', error);
+    return { error: `Failed to load preset: ${(error as Error).message}` };
   }
-  return { project: parsed.data };
 });
 
 ipcMain.handle('templates:list', async () => {
