@@ -93,6 +93,15 @@ export interface RenderState {
   feedback: number;
   persistence: number;
   trailSpectrum: Float32Array;
+  expressiveEnergyBloom: number;
+  expressiveEnergyThreshold: number;
+  expressiveEnergyAccumulation: number;
+  expressiveMotionEcho: number;
+  expressiveMotionEchoDecay: number;
+  expressiveMotionEchoWarp: number;
+  expressiveSpectralSmear: number;
+  expressiveSpectralOffset: number;
+  expressiveSpectralMix: number;
   particlesEnabled: boolean;
   particleDensity: number;
   particleSpeed: number;
@@ -243,6 +252,15 @@ uniform float uFeedbackZoom;
 uniform float uFeedbackRotation;
 uniform float uPersistence;
 uniform float uTrailSpectrum[64];
+uniform float uExpressiveEnergyBloom;
+uniform float uExpressiveEnergyThreshold;
+uniform float uExpressiveEnergyAccumulation;
+uniform float uExpressiveMotionEcho;
+uniform float uExpressiveMotionEchoDecay;
+uniform float uExpressiveMotionEchoWarp;
+uniform float uExpressiveSpectralSmear;
+uniform float uExpressiveSpectralOffset;
+uniform float uExpressiveSpectralMix;
 uniform float uParticlesEnabled;
 uniform float uParticleDensity;
 uniform float uParticleSpeed;
@@ -985,6 +1003,48 @@ void main() {
       color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6);
     }
   }
+  if (uExpressiveEnergyBloom > 0.01) {
+    float luma = dot(color, vec3(0.299, 0.587, 0.114));
+    float energy = smoothstep(
+      uExpressiveEnergyThreshold,
+      1.0,
+      luma + uRms * 0.45 + uPeak * 0.55
+    );
+    float bloomBoost = uExpressiveEnergyAccumulation * uExpressiveEnergyBloom;
+    color += color * energy * (0.6 + low * 0.4) * bloomBoost;
+  }
+  if (uExpressiveMotionEcho > 0.01) {
+    float trail = 0.0;
+    for (int i = 0; i < 8; i += 1) { trail += uTrailSpectrum[i]; }
+    trail /= 8.0;
+    float echoMix = uExpressiveMotionEcho * (0.25 + trail * 0.75);
+    float decay = clamp(uExpressiveMotionEchoDecay, 0.0, 1.0);
+    float pulse = 0.5 + 0.5 * sin(uTime * 0.8 + dot(uv, vec2(6.0, 4.0)));
+    float warp = clamp(uExpressiveMotionEchoWarp, 0.0, 1.0);
+    vec2 warpVec = vec2(
+      sin(uTime * (0.6 + warp) + uv.y * 4.0),
+      cos(uTime * (0.5 + warp * 0.8) + uv.x * 3.0)
+    ) * warp * 0.03;
+    vec3 echoTint = shiftPalette(color, (low - high) * 0.15 + pulse * 0.05);
+    vec3 echoColor = mix(color, echoTint, 0.35 + pulse * 0.25);
+    echoColor += vec3(warpVec.x, warpVec.y, -warpVec.x) * 0.15;
+    echoColor *= 0.85 + pulse * 0.2;
+    color = mix(color, echoColor, echoMix * (1.0 - decay));
+  }
+  if (uExpressiveSpectralSmear > 0.01) {
+    float smear = uExpressiveSpectralSmear;
+    float offset = uExpressiveSpectralOffset * 0.02;
+    float mixAmt = uExpressiveSpectralMix;
+    vec2 dir = normalize(vec2(mid - low, high - mid) + 0.0001);
+    float phase = sin(uTime * 0.4 + dot(uv, dir) * 12.0);
+    float channelShift = phase * offset * (0.4 + smear);
+    vec3 displaced = vec3(
+      color.r + channelShift * (0.5 + high),
+      color.g - channelShift * (0.4 + mid),
+      color.b + channelShift * (0.3 + low)
+    );
+    color = mix(color, clamp(displaced, 0.0, 1.0), smear * mixAmt);
+  }
   color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
   if (uEffectsEnabled > 0.5) { color += pow(color, vec3(2.0)) * uBloom; color = posterize(color, uPosterize); }
   if (uEffectsEnabled > 0.5 && uChroma > 0.01) color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
@@ -1205,6 +1265,15 @@ void main() {
     gl.uniform1f(getLocation('uFeedbackRotation'), state.feedbackRotation || 0.0);
     gl.uniform1f(getLocation('uPersistence'), state.persistence);
     gl.uniform1fv(getLocation('uTrailSpectrum[0]'), state.trailSpectrum);
+    gl.uniform1f(getLocation('uExpressiveEnergyBloom'), state.expressiveEnergyBloom);
+    gl.uniform1f(getLocation('uExpressiveEnergyThreshold'), state.expressiveEnergyThreshold);
+    gl.uniform1f(getLocation('uExpressiveEnergyAccumulation'), state.expressiveEnergyAccumulation);
+    gl.uniform1f(getLocation('uExpressiveMotionEcho'), state.expressiveMotionEcho);
+    gl.uniform1f(getLocation('uExpressiveMotionEchoDecay'), state.expressiveMotionEchoDecay);
+    gl.uniform1f(getLocation('uExpressiveMotionEchoWarp'), state.expressiveMotionEchoWarp);
+    gl.uniform1f(getLocation('uExpressiveSpectralSmear'), state.expressiveSpectralSmear);
+    gl.uniform1f(getLocation('uExpressiveSpectralOffset'), state.expressiveSpectralOffset);
+    gl.uniform1f(getLocation('uExpressiveSpectralMix'), state.expressiveSpectralMix);
     gl.uniform1f(getLocation('uParticlesEnabled'), state.particlesEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uParticleDensity'), state.particleDensity);
     gl.uniform1f(getLocation('uParticleSpeed'), state.particleSpeed);

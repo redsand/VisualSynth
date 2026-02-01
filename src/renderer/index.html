@@ -56,8 +56,15 @@
         </div>
       </header>
 
-      <main class="layout">
-        <section class="left-panel">
+      <div id="scene-timeline" class="scene-timeline">
+        <div class="scene-timeline-header">
+          <span>Scene Timeline</span>
+          <span id="scene-timeline-status" class="scene-timeline-status">Active: --</span>
+        </div>
+        <div id="scene-timeline-track" class="scene-timeline-track"></div>
+      </div>
+<main class="layout">
+<section class="left-panel">
           <div id="mode-performance-left" class="mode-pane">
             <h2>Performance</h2>
             <div id="scene-strip" class="panel-block">
@@ -110,6 +117,8 @@
                 <div id="preset-browser" class="preset-browser"></div>
               </div>
             </div>
+
+
             <div class="panel-block">
               <h3>64-Pad Performance</h3>
               <div class="bank-row" id="pad-bank">
@@ -223,6 +232,191 @@
                   Persistence
                   <input id="effect-persistence" type="range" min="0" max="1" step="0.05" value="0" />
                 </label>
+              </div>
+            </div>
+            <div class="panel-block">
+              <h3>Expressive FX</h3>
+              <div class="expressive-item">
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-energy-enabled" /> Energy Bloom
+                  </label>
+                  <label class="scene-inline">
+                    Macro
+                    <input id="expressive-energy-macro" type="range" min="0" max="1" step="0.05" value="0.35" />
+                  </label>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-energy-intent-enabled" /> Bind Intent
+                  </label>
+                  <label class="scene-inline">
+                    Intent
+                    <select id="expressive-energy-intent">
+                      <option value="calm">Calm</option>
+                      <option value="pulse">Pulse</option>
+                      <option value="build">Build</option>
+                      <option value="chaos">Chaos</option>
+                      <option value="ambient" selected>Ambient</option>
+                    </select>
+                  </label>
+                  <label class="scene-inline">
+                    Amount
+                    <input id="expressive-energy-intent-amount" type="range" min="0" max="1" step="0.05" value="0.35" />
+                  </label>
+                </div>
+                <details class="expert-panel">
+                  <summary>Expert</summary>
+                  <div class="scene-row">
+                    <label class="scene-inline">
+                      Threshold
+                      <input id="expressive-energy-threshold" type="range" min="0" max="1" step="0.05" value="0.55" />
+                    </label>
+                    <label class="scene-inline">
+                      Accumulation
+                      <input id="expressive-energy-accumulation" type="range" min="0" max="1" step="0.05" value="0.65" />
+                    </label>
+                  </div>
+                </details>
+              </div>
+              <div class="expressive-item">
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-radial-enabled" /> Radial Gravity
+                  </label>
+                  <label class="scene-inline">
+                    Macro
+                    <input id="expressive-radial-macro" type="range" min="0" max="1" step="0.05" value="0.3" />
+                  </label>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-radial-intent-enabled" /> Bind Intent
+                  </label>
+                  <label class="scene-inline">
+                    Intent
+                    <select id="expressive-radial-intent">
+                      <option value="calm">Calm</option>
+                      <option value="pulse">Pulse</option>
+                      <option value="build">Build</option>
+                      <option value="chaos">Chaos</option>
+                      <option value="ambient" selected>Ambient</option>
+                    </select>
+                  </label>
+                  <label class="scene-inline">
+                    Amount
+                    <input id="expressive-radial-intent-amount" type="range" min="0" max="1" step="0.05" value="0.35" />
+                  </label>
+                </div>
+                <details class="expert-panel">
+                  <summary>Expert</summary>
+                  <div class="scene-row">
+                    <label class="scene-inline">
+                      Strength
+                      <input id="expressive-radial-strength" type="range" min="0" max="1" step="0.05" value="0.6" />
+                    </label>
+                    <label class="scene-inline">
+                      Radius
+                      <input id="expressive-radial-radius" type="range" min="0" max="1" step="0.05" value="0.65" />
+                    </label>
+                  </div>
+                  <div class="scene-row">
+                    <label class="scene-inline">
+                      Focus X
+                      <input id="expressive-radial-focus-x" type="range" min="0" max="1" step="0.05" value="0.5" />
+                    </label>
+                    <label class="scene-inline">
+                      Focus Y
+                      <input id="expressive-radial-focus-y" type="range" min="0" max="1" step="0.05" value="0.5" />
+                    </label>
+                  </div>
+                </details>
+              </div>
+              <div class="expressive-item">
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-echo-enabled" /> Motion Echo
+                  </label>
+                  <label class="scene-inline">
+                    Macro
+                    <input id="expressive-echo-macro" type="range" min="0" max="1" step="0.05" value="0.3" />
+                  </label>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-echo-intent-enabled" /> Bind Intent
+                  </label>
+                  <label class="scene-inline">
+                    Intent
+                    <select id="expressive-echo-intent">
+                      <option value="calm">Calm</option>
+                      <option value="pulse">Pulse</option>
+                      <option value="build">Build</option>
+                      <option value="chaos">Chaos</option>
+                      <option value="ambient" selected>Ambient</option>
+                    </select>
+                  </label>
+                  <label class="scene-inline">
+                    Amount
+                    <input id="expressive-echo-intent-amount" type="range" min="0" max="1" step="0.05" value="0.35" />
+                  </label>
+                </div>
+                <details class="expert-panel">
+                  <summary>Expert</summary>
+                  <div class="scene-row">
+                    <label class="scene-inline">
+                      Decay
+                      <input id="expressive-echo-decay" type="range" min="0" max="1" step="0.05" value="0.6" />
+                    </label>
+                    <label class="scene-inline">
+                      Warp
+                      <input id="expressive-echo-warp" type="range" min="0" max="1" step="0.05" value="0.35" />
+                    </label>
+                  </div>
+                </details>
+              </div>
+              <div class="expressive-item">
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-smear-enabled" /> Spectral Smear
+                  </label>
+                  <label class="scene-inline">
+                    Macro
+                    <input id="expressive-smear-macro" type="range" min="0" max="1" step="0.05" value="0.3" />
+                  </label>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    <input type="checkbox" id="expressive-smear-intent-enabled" /> Bind Intent
+                  </label>
+                  <label class="scene-inline">
+                    Intent
+                    <select id="expressive-smear-intent">
+                      <option value="calm">Calm</option>
+                      <option value="pulse">Pulse</option>
+                      <option value="build">Build</option>
+                      <option value="chaos">Chaos</option>
+                      <option value="ambient" selected>Ambient</option>
+                    </select>
+                  </label>
+                  <label class="scene-inline">
+                    Amount
+                    <input id="expressive-smear-intent-amount" type="range" min="0" max="1" step="0.05" value="0.35" />
+                  </label>
+                </div>
+                <details class="expert-panel">
+                  <summary>Expert</summary>
+                  <div class="scene-row">
+                    <label class="scene-inline">
+                      Offset
+                      <input id="expressive-smear-offset" type="range" min="0" max="1" step="0.05" value="0.4" />
+                    </label>
+                    <label class="scene-inline">
+                      Mix
+                      <input id="expressive-smear-mix" type="range" min="0" max="1" step="0.05" value="0.6" />
+                    </label>
+                  </div>
+                </details>
               </div>
             </div>
             <div class="panel-block">
@@ -403,8 +597,7 @@
             </div>
           </div>
         </section>
-
-        <section class="center-panel">
+<section class="center-panel">
           <div id="mode-matrix-center" class="mode-pane hidden">
             <h2>Matrix</h2>
             <div class="panel-block">
@@ -428,8 +621,7 @@
           <div id="quantize-hud" class="quantize-hud hidden">Switching in --</div>
           <div id="safe-mode-banner" class="safe-mode hidden">Safe mode: --</div>
         </section>
-
-        <section class="right-panel">
+<section class="right-panel">
           <div id="mode-performance-right" class="mode-pane">
             <h2>Macros</h2>
             <div id="macro-list" class="macro-list"></div>
@@ -763,7 +955,7 @@
             </div>
           </div>
         </section>
-      </main>
+</main>
 
       <footer class="status-bar">
         <div id="status">Ready</div>

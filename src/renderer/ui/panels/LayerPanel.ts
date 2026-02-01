@@ -153,8 +153,15 @@ export const createLayerPanel = ({
       });
       const text = document.createElement('span');
       text.textContent = layer.name;
+      if (!layer.role) {
+        layer.role = 'support';
+      }
+      const roleBadge = document.createElement('span');
+      roleBadge.className = `layer-role-badge ${layer.role}`;
+      roleBadge.textContent = layer.role.toUpperCase();
       label.appendChild(checkbox);
       label.appendChild(text);
+      label.appendChild(roleBadge);
 
       const controls = document.createElement('div');
       controls.className = 'layer-controls';
@@ -260,6 +267,11 @@ export const createLayerPanel = ({
     const [moved] = next.splice(index, 1);
     next.splice(nextIndex, 0, moved);
     scene.layers = next;
+    const coreIndex = scene.layers.findIndex((layer) => layer.role === 'core');
+    if (coreIndex >= 0 && coreIndex !== scene.layers.length - 1) {
+      const [coreLayer] = scene.layers.splice(coreIndex, 1);
+      scene.layers.push(coreLayer);
+    }
     renderLayerList();
   };
 
@@ -267,6 +279,25 @@ export const createLayerPanel = ({
     const scene = store.getState().project.scenes.find((item) => item.id === sceneId);
     if (!scene) return;
     scene.layers = removeLayer(scene, layerId);
+    let coreAssigned = false;
+    scene.layers.forEach((layer) => {
+      if (layer.role === 'core') {
+        if (coreAssigned) {
+          layer.role = 'support';
+        } else {
+          coreAssigned = true;
+        }
+      }
+    });
+    if (!coreAssigned && scene.layers.length > 0) {
+      const fallback = scene.layers.find((item) => item.enabled) ?? scene.layers[0];
+      if (fallback) fallback.role = 'core';
+    }
+    const coreIndex = scene.layers.findIndex((layer) => layer.role === 'core');
+    if (coreIndex >= 0 && coreIndex !== scene.layers.length - 1) {
+      const [coreLayer] = scene.layers.splice(coreIndex, 1);
+      scene.layers.push(coreLayer);
+    }
     renderLayerList();
     onLayerListChanged();
   };

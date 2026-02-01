@@ -1,5 +1,6 @@
 import { applyModMatrix } from '../../shared/modMatrix';
 import { buildLegacyTarget } from '../../shared/parameterRegistry';
+import { DEFAULT_PROJECT } from '../../shared/project';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 
@@ -32,6 +33,43 @@ export interface RenderDebugState {
 }
 
 type FxId = 'bloom' | 'blur' | 'chroma' | 'posterize' | 'kaleidoscope' | 'feedback' | 'persistence';
+type LayerRole = 'core' | 'support' | 'atmosphere';
+
+const ROLE_SETTINGS: Record<LayerRole, { audioScale: number; fxCap: number; bloomBoost: number; opacityBoost: number; lowFreqOnly: boolean }> = {
+  core: { audioScale: 1.0, fxCap: 1.0, bloomBoost: 1.15, opacityBoost: 1.05, lowFreqOnly: false },
+  support: { audioScale: 0.75, fxCap: 0.75, bloomBoost: 1.0, opacityBoost: 1.0, lowFreqOnly: false },
+  atmosphere: { audioScale: 0.45, fxCap: 0.5, bloomBoost: 0.9, opacityBoost: 0.95, lowFreqOnly: true }
+};
+
+const getLayerRole = (layer?: { role?: LayerRole; id?: string }): LayerRole => {
+  if (layer?.role) return layer.role;
+  if (layer?.id === 'layer-plasma') return 'core';
+  if (layer?.id === 'layer-spectrum') return 'support';
+  if (layer?.id === 'layer-origami') return 'support';
+  if (layer?.id === 'layer-glyph') return 'support';
+  if (layer?.id === 'layer-crystal') return 'support';
+  if (layer?.id === 'layer-inkflow') return 'atmosphere';
+  if (layer?.id === 'layer-topo') return 'atmosphere';
+  if (layer?.id === 'layer-weather') return 'atmosphere';
+  if (layer?.id === 'layer-portal') return 'atmosphere';
+  if (layer?.id === 'layer-media') return 'support';
+  if (layer?.id === 'layer-oscillo') return 'support';
+  return 'support';
+};
+
+const applyRoleOpacity = (opacity: number, role: LayerRole, lowFreq: number) => {
+  const settings = ROLE_SETTINGS[role];
+  if (settings.lowFreqOnly) {
+    return opacity * (0.35 + lowFreq * 0.65);
+  }
+  return opacity * settings.opacityBoost;
+};
+
+const getRoleAudioScale = (role: LayerRole, lowFreq: number) => {
+  const settings = ROLE_SETTINGS[role];
+  const lowFreqScale = settings.lowFreqOnly ? 0.3 + lowFreq * 0.7 : 1;
+  return settings.audioScale * lowFreqScale;
+};
 
 export class RenderGraph {
   private trailSpectrum = new Float32Array(64);
@@ -530,11 +568,49 @@ export class RenderGraph {
       rotation: 0,
       fill: 0.35
     };
+    const expressiveFx = state.project.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
+    const energyFx = {
+      ...DEFAULT_PROJECT.expressiveFx.energyBloom,
+      ...expressiveFx.energyBloom,
+      intentBinding: {
+        ...DEFAULT_PROJECT.expressiveFx.energyBloom.intentBinding,
+        ...(expressiveFx.energyBloom?.intentBinding ?? {})
+      },
+      expert: {
+        ...DEFAULT_PROJECT.expressiveFx.energyBloom.expert,
+        ...(expressiveFx.energyBloom?.expert ?? {})
+      }
+    };
+    const motionFx = {
+      ...DEFAULT_PROJECT.expressiveFx.motionEcho,
+      ...expressiveFx.motionEcho,
+      intentBinding: {
+        ...DEFAULT_PROJECT.expressiveFx.motionEcho.intentBinding,
+        ...(expressiveFx.motionEcho?.intentBinding ?? {})
+      },
+      expert: {
+        ...DEFAULT_PROJECT.expressiveFx.motionEcho.expert,
+        ...(expressiveFx.motionEcho?.expert ?? {})
+      }
+    };
+    const smearFx = {
+      ...DEFAULT_PROJECT.expressiveFx.spectralSmear,
+      ...expressiveFx.spectralSmear,
+      intentBinding: {
+        ...DEFAULT_PROJECT.expressiveFx.spectralSmear.intentBinding,
+        ...(expressiveFx.spectralSmear?.intentBinding ?? {})
+      },
+      expert: {
+        ...DEFAULT_PROJECT.expressiveFx.spectralSmear.expert,
+        ...(expressiveFx.spectralSmear?.expert ?? {})
+      }
+    };
 
     const bpm = this.getActiveBpm();
     const modSources = this.buildModSources(bpm);
     const modValue = (target: string, base: number) =>
       applyModMatrix(base, target, modSources, state.project.modMatrix);
+    const lowFreq = ((state.audio.bands[0] ?? 0) + (state.audio.bands[1] ?? 0)) * 0.5;
 
     const moddedStyle = {
       contrast: modValue('style.contrast', styleSettings.contrast),
@@ -546,7 +622,7 @@ export class RenderGraph {
     const fxDelta = (id: FxId, base: number, boost: number) =>
       this.debugFxDelta && fxDeltaNow < this.fxDeltaUntil[id] ? Math.min(1, base + boost) : base;
 
-    const moddedEffects = {
+    let moddedEffects = {
       bloom: fxDelta('bloom', modValue('effects.bloom', effects.bloom), 0.35),
       blur: fxDelta('blur', modValue('effects.blur', effects.blur), 0.35),
       chroma: fxDelta('chroma', modValue('effects.chroma', effects.chroma), 0.2),
@@ -556,14 +632,14 @@ export class RenderGraph {
       persistence: fxDelta('persistence', modValue('effects.persistence', effects.persistence), 0.35)
     };
 
-    const moddedParticles = {
+    let moddedParticles = {
       density: modValue('particles.density', particles.density),
       speed: modValue('particles.speed', particles.speed),
       size: modValue('particles.size', particles.size),
       glow: modValue('particles.glow', particles.glow)
     };
 
-    const moddedSdf = {
+    let moddedSdf = {
       scale: modValue('sdf.scale', sdf.scale),
       edge: modValue('sdf.edge', sdf.edge),
       glow: modValue('sdf.glow', sdf.glow),
@@ -604,6 +680,20 @@ export class RenderGraph {
     );
 
     const activeScene = state.project.scenes.find((scene) => scene.id === state.project.activeSceneId);
+    const activeIntent = activeScene?.intent ?? 'ambient';
+    const resolveExpressiveMacro = (
+      macro: number,
+      binding: { enabled: boolean; intent: typeof activeIntent; amount: number }
+    ) => {
+      let value = macro;
+      if (binding?.enabled && binding.intent === activeIntent) {
+        value = Math.min(1, Math.max(0, value + binding.amount));
+      }
+      return Math.min(1, Math.max(0, value));
+    };
+    const energyMacro = resolveExpressiveMacro(energyFx.macro, energyFx.intentBinding);
+    const echoMacro = resolveExpressiveMacro(motionFx.macro, motionFx.intentBinding);
+    const smearMacro = resolveExpressiveMacro(smearFx.macro, smearFx.intentBinding);
     const plasmaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-plasma');
     const spectrumLayer = activeScene?.layers.find((layer) => layer.id === 'layer-spectrum');
     const origamiLayer = activeScene?.layers.find((layer) => layer.id === 'layer-origami');
@@ -616,6 +706,53 @@ export class RenderGraph {
     const mediaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-media');
     const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
     const advancedSdfLayer = activeScene?.layers.find((layer) => layer.id === 'gen-sdf-scene');
+    const plasmaRole = getLayerRole(plasmaLayer);
+    const spectrumRole = getLayerRole(spectrumLayer);
+    const origamiRole = getLayerRole(origamiLayer);
+    const glyphRole = getLayerRole(glyphLayer);
+    const crystalRole = getLayerRole(crystalLayer);
+    const inkRole = getLayerRole(inkLayer);
+    const topoRole = getLayerRole(topoLayer);
+    const weatherRole = getLayerRole(weatherLayer);
+    const portalRole = getLayerRole(portalLayer);
+    const mediaRole = getLayerRole(mediaLayer);
+    const oscilloRole = getLayerRole(oscilloLayer);
+
+    const dominantRole = (() => {
+      if (!activeScene) return 'support' as LayerRole;
+      const enabledLayers = activeScene.layers.filter((layer) => layer.enabled);
+      if (enabledLayers.some((layer) => getLayerRole(layer) === 'core')) return 'core';
+      if (enabledLayers.some((layer) => getLayerRole(layer) === 'support')) return 'support';
+      return 'atmosphere';
+    })();
+
+    const fxCap = ROLE_SETTINGS[dominantRole].fxCap;
+    moddedEffects = {
+      ...moddedEffects,
+      bloom: Math.min(moddedEffects.bloom, fxCap),
+      blur: Math.min(moddedEffects.blur, fxCap),
+      chroma: Math.min(moddedEffects.chroma, fxCap),
+      posterize: Math.min(moddedEffects.posterize, fxCap),
+      kaleidoscope: Math.min(moddedEffects.kaleidoscope, fxCap),
+      feedback: Math.min(moddedEffects.feedback, fxCap),
+      persistence: Math.min(moddedEffects.persistence, fxCap)
+    };
+
+    const coreEnabled = Boolean(activeScene?.layers.some((layer) => layer.enabled && getLayerRole(layer) === 'core'));
+    if (coreEnabled) {
+      moddedEffects = {
+        ...moddedEffects,
+        bloom: Math.min(1, moddedEffects.bloom * ROLE_SETTINGS.core.bloomBoost)
+      };
+      moddedParticles = {
+        ...moddedParticles,
+        glow: Math.min(1, moddedParticles.glow * ROLE_SETTINGS.core.bloomBoost)
+      };
+      moddedSdf = {
+        ...moddedSdf,
+        glow: Math.min(1, moddedSdf.glow * ROLE_SETTINGS.core.bloomBoost)
+      };
+    }
     
     // Effect layers
     const feedbackLayer = activeScene?.layers.find((layer) => layer.id === 'fx-feedback');
@@ -668,17 +805,61 @@ export class RenderGraph {
     const weatherBaseSpeed = getLayerParamNumber(weatherLayer, 'speed', 1.0);
     const weatherSpeed = Math.max(0.1, weatherBaseSpeed + macroVal('layer-weather.speed'));
 
-    const moddedPlasmaOpacity = modValue('layer-plasma.opacity', layerOpacity(plasmaLayer, 'layer-plasma.opacity', 1));
-    const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', layerOpacity(spectrumLayer, 'layer-spectrum.opacity', 1));
-    const moddedOrigamiOpacity = modValue('layer-origami.opacity', layerOpacity(origamiLayer, 'layer-origami.opacity', 0));
-    const moddedGlyphOpacity = modValue('layer-glyph.opacity', layerOpacity(glyphLayer, 'layer-glyph.opacity', 0));
-    const moddedCrystalOpacity = modValue('layer-crystal.opacity', layerOpacity(crystalLayer, 'layer-crystal.opacity', 0));
-    const moddedInkOpacity = modValue('layer-inkflow.opacity', layerOpacity(inkLayer, 'layer-inkflow.opacity', 0));
-    const moddedTopoOpacity = modValue('layer-topo.opacity', layerOpacity(topoLayer, 'layer-topo.opacity', 0));
-    const moddedWeatherOpacity = modValue('layer-weather.opacity', layerOpacity(weatherLayer, 'layer-weather.opacity', 0));
-    const moddedPortalOpacity = modValue('layer-portal.opacity', layerOpacity(portalLayer, 'layer-portal.opacity', 0));
-    const moddedMediaOpacity = modValue('layer-media.opacity', layerOpacity(mediaLayer, 'layer-media.opacity', 0));
-    const moddedOscilloOpacity = modValue('layer-oscillo.opacity', layerOpacity(oscilloLayer, 'layer-oscillo.opacity', 0));
+    const moddedPlasmaOpacity = applyRoleOpacity(
+      modValue('layer-plasma.opacity', layerOpacity(plasmaLayer, 'layer-plasma.opacity', 1)),
+      plasmaRole,
+      lowFreq
+    );
+    const moddedSpectrumOpacity = applyRoleOpacity(
+      modValue('layer-spectrum.opacity', layerOpacity(spectrumLayer, 'layer-spectrum.opacity', 1)),
+      spectrumRole,
+      lowFreq
+    );
+    const moddedOrigamiOpacity = applyRoleOpacity(
+      modValue('layer-origami.opacity', layerOpacity(origamiLayer, 'layer-origami.opacity', 0)),
+      origamiRole,
+      lowFreq
+    );
+    const moddedGlyphOpacity = applyRoleOpacity(
+      modValue('layer-glyph.opacity', layerOpacity(glyphLayer, 'layer-glyph.opacity', 0)),
+      glyphRole,
+      lowFreq
+    );
+    const moddedCrystalOpacity = applyRoleOpacity(
+      modValue('layer-crystal.opacity', layerOpacity(crystalLayer, 'layer-crystal.opacity', 0)),
+      crystalRole,
+      lowFreq
+    );
+    const moddedInkOpacity = applyRoleOpacity(
+      modValue('layer-inkflow.opacity', layerOpacity(inkLayer, 'layer-inkflow.opacity', 0)),
+      inkRole,
+      lowFreq
+    );
+    const moddedTopoOpacity = applyRoleOpacity(
+      modValue('layer-topo.opacity', layerOpacity(topoLayer, 'layer-topo.opacity', 0)),
+      topoRole,
+      lowFreq
+    );
+    const moddedWeatherOpacity = applyRoleOpacity(
+      modValue('layer-weather.opacity', layerOpacity(weatherLayer, 'layer-weather.opacity', 0)),
+      weatherRole,
+      lowFreq
+    );
+    const moddedPortalOpacity = applyRoleOpacity(
+      modValue('layer-portal.opacity', layerOpacity(portalLayer, 'layer-portal.opacity', 0)),
+      portalRole,
+      lowFreq
+    );
+    const moddedMediaOpacity = applyRoleOpacity(
+      modValue('layer-media.opacity', layerOpacity(mediaLayer, 'layer-media.opacity', 0)),
+      mediaRole,
+      lowFreq
+    );
+    const moddedOscilloOpacity = applyRoleOpacity(
+      modValue('layer-oscillo.opacity', layerOpacity(oscilloLayer, 'layer-oscillo.opacity', 0)),
+      oscilloRole,
+      lowFreq
+    );
     const portalStyle = Math.max(
       0,
       Math.min(2, typeof portalLayer?.params?.style === 'number' ? portalLayer?.params?.style : 0)
@@ -757,6 +938,8 @@ export class RenderGraph {
       plasmaSpeed: moddedPlasmaSpeed,
       plasmaScale: moddedPlasmaScale,
       plasmaComplexity: moddedPlasmaComplexity,
+      plasmaAudioReact:
+        state.renderSettings.assetLayerAudioReact['layer-plasma'] * getRoleAudioScale(plasmaRole, lowFreq),
       spectrumOpacity: moddedSpectrumOpacity,
       origamiOpacity: moddedOrigamiOpacity,
       origamiFoldState: runtime.origamiFoldState,
@@ -806,11 +989,14 @@ export class RenderGraph {
       oscilloRotate: runtime.oscilloRotate,
       oscilloData: this.oscilloCapture,
       plasmaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-plasma'],
-      plasmaAssetAudioReact: state.renderSettings.assetLayerAudioReact['layer-plasma'],
+      plasmaAssetAudioReact:
+        state.renderSettings.assetLayerAudioReact['layer-plasma'] * getRoleAudioScale(plasmaRole, lowFreq),
       spectrumAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-spectrum'],
-      spectrumAssetAudioReact: state.renderSettings.assetLayerAudioReact['layer-spectrum'],
+      spectrumAssetAudioReact:
+        state.renderSettings.assetLayerAudioReact['layer-spectrum'] * getRoleAudioScale(spectrumRole, lowFreq),
       mediaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-media'],
-      mediaAssetAudioReact: state.renderSettings.assetLayerAudioReact['layer-media'],
+      mediaAssetAudioReact:
+        state.renderSettings.assetLayerAudioReact['layer-media'] * getRoleAudioScale(mediaRole, lowFreq),
       effectsEnabled: effects.enabled,
       bloom: moddedBloom,
       blur: moddedBlur,
@@ -823,6 +1009,15 @@ export class RenderGraph {
       feedbackRotation: moddedFeedbackRotation,
       persistence: moddedPersistence,
       trailSpectrum: this.trailSpectrum,
+      expressiveEnergyBloom: energyFx.enabled ? energyMacro : 0,
+      expressiveEnergyThreshold: energyFx.expert.threshold,
+      expressiveEnergyAccumulation: energyFx.expert.accumulation,
+      expressiveMotionEcho: motionFx.enabled ? echoMacro : 0,
+      expressiveMotionEchoDecay: motionFx.expert.decay,
+      expressiveMotionEchoWarp: motionFx.expert.warp,
+      expressiveSpectralSmear: smearFx.enabled ? smearMacro : 0,
+      expressiveSpectralOffset: smearFx.expert.offset,
+      expressiveSpectralMix: smearFx.expert.mix,
       particlesEnabled: particles.enabled,
       particleDensity: moddedParticles.density,
       particleSpeed: moddedParticles.speed,

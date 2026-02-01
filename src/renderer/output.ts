@@ -85,6 +85,15 @@ const state: RenderState = {
   feedback: 0,
   persistence: 0,
   trailSpectrum: new Float32Array(64),
+  expressiveEnergyBloom: 0,
+  expressiveEnergyThreshold: 0.55,
+  expressiveEnergyAccumulation: 0.65,
+  expressiveMotionEcho: 0,
+  expressiveMotionEchoDecay: 0.6,
+  expressiveMotionEchoWarp: 0.35,
+  expressiveSpectralSmear: 0,
+  expressiveSpectralOffset: 0.4,
+  expressiveSpectralMix: 0.6,
   particlesEnabled: true,
   particleDensity: 0.35,
   particleSpeed: 0.3,
@@ -182,6 +191,24 @@ channel.onmessage = (event) => {
   if (typeof data.kaleidoscope === 'number') state.kaleidoscope = data.kaleidoscope;
   if (typeof data.feedback === 'number') state.feedback = data.feedback;
   if (typeof data.persistence === 'number') state.persistence = data.persistence;
+  if (typeof data.expressiveEnergyBloom === 'number')
+    state.expressiveEnergyBloom = data.expressiveEnergyBloom;
+  if (typeof data.expressiveEnergyThreshold === 'number')
+    state.expressiveEnergyThreshold = data.expressiveEnergyThreshold;
+  if (typeof data.expressiveEnergyAccumulation === 'number')
+    state.expressiveEnergyAccumulation = data.expressiveEnergyAccumulation;
+  if (typeof data.expressiveMotionEcho === 'number')
+    state.expressiveMotionEcho = data.expressiveMotionEcho;
+  if (typeof data.expressiveMotionEchoDecay === 'number')
+    state.expressiveMotionEchoDecay = data.expressiveMotionEchoDecay;
+  if (typeof data.expressiveMotionEchoWarp === 'number')
+    state.expressiveMotionEchoWarp = data.expressiveMotionEchoWarp;
+  if (typeof data.expressiveSpectralSmear === 'number')
+    state.expressiveSpectralSmear = data.expressiveSpectralSmear;
+  if (typeof data.expressiveSpectralOffset === 'number')
+    state.expressiveSpectralOffset = data.expressiveSpectralOffset;
+  if (typeof data.expressiveSpectralMix === 'number')
+    state.expressiveSpectralMix = data.expressiveSpectralMix;
   if (typeof data.particlesEnabled === 'boolean') state.particlesEnabled = data.particlesEnabled;
   if (typeof data.particleDensity === 'number') state.particleDensity = data.particleDensity;
   if (typeof data.particleSpeed === 'number') state.particleSpeed = data.particleSpeed;

@@ -24,6 +24,7 @@ export const ensureLayerWithDefaults = (
       layer = {
         id: layerId,
         name: fallbackName,
+        role: 'support',
         enabled: true,
         opacity: 0.8,
         blendMode: 'screen',

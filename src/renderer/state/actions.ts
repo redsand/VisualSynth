@@ -5,6 +5,7 @@ import type { Store } from './store';
 const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   'layer-plasma': {
     name: 'Shader Plasma',
+    role: 'core',
     enabled: true,
     opacity: 0.75,
     blendMode: 'screen',
@@ -12,6 +13,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-spectrum': {
     name: 'Spectrum Bars',
+    role: 'support',
     enabled: true,
     opacity: 0.75,
     blendMode: 'add',
@@ -19,6 +21,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-origami': {
     name: 'Origami Fold',
+    role: 'support',
     enabled: true,
     opacity: 0.85,
     blendMode: 'screen',
@@ -26,6 +29,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-glyph': {
     name: 'Glyph Language',
+    role: 'support',
     enabled: true,
     opacity: 0.8,
     blendMode: 'screen',
@@ -33,6 +37,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-crystal': {
     name: 'Crystal Harmonics',
+    role: 'support',
     enabled: true,
     opacity: 0.85,
     blendMode: 'screen',
@@ -40,6 +45,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-inkflow': {
     name: 'Ink Flow',
+    role: 'atmosphere',
     enabled: true,
     opacity: 0.85,
     blendMode: 'screen',
@@ -47,6 +53,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-topo': {
     name: 'Topo Terrain',
+    role: 'atmosphere',
     enabled: true,
     opacity: 0.85,
     blendMode: 'screen',
@@ -54,6 +61,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-weather': {
     name: 'Audio Weather',
+    role: 'atmosphere',
     enabled: true,
     opacity: 0.85,
     blendMode: 'screen',
@@ -61,6 +69,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-portal': {
     name: 'Wormhole Portal',
+    role: 'atmosphere',
     enabled: true,
     opacity: 0.85,
     blendMode: 'screen',
@@ -68,6 +77,7 @@ const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   },
   'layer-oscillo': {
     name: 'Sacred Oscilloscope',
+    role: 'support',
     enabled: true,
     opacity: 0.85,
     blendMode: 'screen',

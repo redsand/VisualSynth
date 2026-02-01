@@ -110,6 +110,7 @@ const transformSchema = z.object({
 const layerSchema = z.object({
   id: z.string(),
   name: z.string(),
+  role: z.enum(['core', 'support', 'atmosphere']).default('support'),
   enabled: z.boolean(),
   opacity: z.number(),
   blendMode: z.enum(['normal', 'add', 'multiply', 'screen', 'overlay', 'difference']),
@@ -205,6 +206,7 @@ const effectsSchema = z.object({
   persistence: z.number()
 });
 
+
 const particlesSchema = z.object({
   enabled: z.boolean(),
   density: z.number(),
@@ -249,9 +251,96 @@ const sceneLookSchema = z
   })
   .partial();
 
+const sceneIntentSchema = z.enum(['calm', 'pulse', 'build', 'chaos', 'ambient']);
+
+const expressiveIntentBindingSchema = z.object({
+  enabled: z.boolean(),
+  intent: sceneIntentSchema,
+  amount: z.number()
+});
+
+const energyBloomSchema = z.object({
+  enabled: z.boolean(),
+  macro: z.number(),
+  intentBinding: expressiveIntentBindingSchema,
+  expert: z.object({
+    threshold: z.number(),
+    accumulation: z.number()
+  })
+});
+
+const motionEchoSchema = z.object({
+  enabled: z.boolean(),
+  macro: z.number(),
+  intentBinding: expressiveIntentBindingSchema,
+  expert: z.object({
+    decay: z.number(),
+    warp: z.number()
+  })
+});
+
+const radialGravitySchema = z.object({
+  enabled: z.boolean(),
+  macro: z.number(),
+  intentBinding: expressiveIntentBindingSchema,
+  expert: z.object({
+    strength: z.number(),
+    radius: z.number(),
+    focusX: z.number(),
+    focusY: z.number()
+  })
+});
+
+const spectralSmearSchema = z.object({
+  enabled: z.boolean(),
+  macro: z.number(),
+  intentBinding: expressiveIntentBindingSchema,
+  expert: z.object({
+    offset: z.number(),
+    mix: z.number()
+  })
+});
+
+const expressiveFxSchema = z.object({
+  energyBloom: energyBloomSchema,
+  radialGravity: radialGravitySchema,
+  motionEcho: motionEchoSchema,
+  spectralSmear: spectralSmearSchema
+});
+
+const sceneTransitionSchema = z.object({
+  durationMs: z.number(),
+  curve: z.enum(['linear', 'easeInOut'])
+});
+
+const sceneTriggerSchema = z.object({
+  type: z.enum(['manual', 'time', 'audio']),
+  threshold: z.number().optional(),
+  minIntervalMs: z.number().optional()
+});
+
+const sceneLayerRolesSchema = z.object({
+  core: z.array(z.string()),
+  support: z.array(z.string()),
+  atmosphere: z.array(z.string())
+});
+
 const sceneSchema = z.object({
   id: z.string(),
+  scene_id: z.string().optional(),
   name: z.string(),
+  intent: sceneIntentSchema.default('ambient'),
+  duration: z.number().default(0),
+  transition_in: sceneTransitionSchema
+    .default({ durationMs: 600, curve: 'easeInOut' }),
+  transition_out: sceneTransitionSchema
+    .default({ durationMs: 600, curve: 'easeInOut' }),
+  trigger: sceneTriggerSchema.default({ type: 'manual' }),
+  assigned_layers: sceneLayerRolesSchema.default({
+    core: [],
+    support: [],
+    atmosphere: []
+  }),
   layers: z.array(layerSchema),
   look: sceneLookSchema.optional()
 });
@@ -446,6 +535,32 @@ export const projectSchema = z.object({
     kaleidoscope: 0.2,
     feedback: 0.1,
     persistence: 0.25
+  }),
+  expressiveFx: expressiveFxSchema.default({
+    energyBloom: {
+      enabled: false,
+      macro: 0.35,
+      intentBinding: { enabled: false, intent: 'ambient', amount: 0.35 },
+      expert: { threshold: 0.55, accumulation: 0.65 }
+    },
+    radialGravity: {
+      enabled: false,
+      macro: 0.3,
+      intentBinding: { enabled: false, intent: 'ambient', amount: 0.35 },
+      expert: { strength: 0.6, radius: 0.65, focusX: 0.5, focusY: 0.5 }
+    },
+    motionEcho: {
+      enabled: false,
+      macro: 0.3,
+      intentBinding: { enabled: false, intent: 'ambient', amount: 0.35 },
+      expert: { decay: 0.6, warp: 0.35 }
+    },
+    spectralSmear: {
+      enabled: false,
+      macro: 0.3,
+      intentBinding: { enabled: false, intent: 'ambient', amount: 0.35 },
+      expert: { offset: 0.4, mix: 0.6 }
+    }
   }),
   particles: particlesSchema.default({
     enabled: true,

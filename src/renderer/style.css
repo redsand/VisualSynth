@@ -31,6 +31,103 @@ body {
   border-bottom: 1px solid #1c2a3b;
 }
 
+.scene-timeline {
+  padding: 8px 16px 10px;
+  background: #0f1724;
+  border-bottom: 1px solid #1c2a3b;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scene-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8da7c1;
+}
+
+.scene-timeline-status {
+  font-size: 11px;
+  color: #d6ecff;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.scene-timeline-track {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.scene-timeline-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #22344a;
+  background: #111c2d;
+  color: #d6ecff;
+  cursor: pointer;
+  overflow: hidden;
+  flex: 0 0 calc((100% - 84px) / 15);
+  min-width: 80px;
+}
+
+.scene-timeline-item.active {
+  border-color: #1ec8ff;
+  box-shadow: 0 0 10px rgba(30, 200, 255, 0.25);
+}
+
+.scene-timeline-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scene-timeline-meta {
+  font-size: 10px;
+  color: #8da7c1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.scene-timeline-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, #1ec8ff, #62e7ff);
+  transition: width 0.2s ease;
+}
+
+.scene-timeline-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.scene-timeline-remove img {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -136,6 +233,28 @@ body {
   gap: 8px;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.macro-dock-item input[type='range'] {
+  padding: 0;
+}
+
+
+
 .top-controls select,
 .top-controls button {
   background: #162235;
@@ -152,7 +271,7 @@ body {
   gap: 12px;
   padding: 12px;
   min-height: 0;
-  overflow: hidden;
+    overflow: hidden;
 }
 
 .left-panel,
@@ -193,7 +312,7 @@ body {
   padding: 10px;
   position: relative;
   min-height: 0;
-}
+  }
 
 #mode-matrix-center {
   position: absolute;
@@ -205,9 +324,9 @@ body {
 }
 
 #gl-canvas {
+  display: block;
   width: 100%;
-  height: 100%;
-  border-radius: 12px;
+    border-radius: 12px;
 }
 
 #visualizer-canvas {
@@ -220,13 +339,10 @@ body {
 }
 
 body[data-mode='matrix'] .layout {
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr;
 }
 
-body[data-mode='matrix'] .left-panel {
-  display: none;
-}
-
+body[data-mode='matrix'] 
 body[data-mode='matrix'] .center-panel {
   align-items: stretch;
   justify-content: stretch;
@@ -633,6 +749,39 @@ body[data-mode='matrix'] .safe-mode {
   font-size: 9px;
 }
 
+.layer-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid #2c4159;
+  color: #d6ecff;
+  background: rgba(22, 35, 53, 0.7);
+  margin-left: 6px;
+}
+
+.layer-role-badge.core {
+  border-color: #1ec8ff;
+  color: #0b111b;
+  background: #1ec8ff;
+}
+
+.layer-role-badge.support {
+  border-color: #4aa3ff;
+  color: #cfe6ff;
+  background: rgba(74, 163, 255, 0.18);
+}
+
+.layer-role-badge.atmosphere {
+  border-color: #7dffb3;
+  color: #c8ffe0;
+  background: rgba(125, 255, 179, 0.12);
+}
+
 .layer-mod-badge {
   background: #2d4a5e;
   color: #8fd6ff;
@@ -688,6 +837,34 @@ body[data-mode='matrix'] .safe-mode {
   border: 1px solid #2c4159;
   padding: 6px 10px;
   border-radius: 6px;
+}
+
+.expressive-item {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #1f3144;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(15, 26, 40, 0.8), rgba(18, 32, 48, 0.8));
+}
+
+.expressive-item:first-of-type {
+  margin-top: 6px;
+}
+
+.expert-panel {
+  margin-top: 8px;
+}
+
+.expert-panel summary {
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9bc5e8;
+}
+
+.expert-panel[open] summary {
+  color: #d5f0ff;
 }
 
 .scene-inline {
@@ -1285,8 +1462,7 @@ body[data-mode='matrix'] .safe-mode {
 
 .asset-preview-video {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+    object-fit: cover;
   border-radius: 4px;
 }
 

@@ -6,6 +6,7 @@ export interface MergeOptions {
   stylePresets: boolean;
   macros: boolean;
   effects: boolean;
+  expressiveFx: boolean;
   particles: boolean;
   sdf: boolean;
   lfos: boolean;
@@ -41,6 +42,7 @@ export const mergeProjectSections = (
       : base.activeStylePresetId,
     macros: options.macros ? incoming.macros : base.macros,
     effects: options.effects ? incoming.effects : base.effects,
+    expressiveFx: options.expressiveFx ? incoming.expressiveFx : base.expressiveFx,
     particles: options.particles ? incoming.particles : base.particles,
     sdf: options.sdf ? incoming.sdf : base.sdf,
     lfos: options.lfos ? incoming.lfos : base.lfos,

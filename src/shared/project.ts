@@ -18,6 +18,7 @@ export const DEFAULT_OUTPUT_CONFIG: OutputConfig = {
 export interface LayerConfig {
   id: string;
   name: string;
+  role: LayerRole;
   enabled: boolean;
   opacity: number;
   blendMode: LayerBlendMode;
@@ -55,9 +56,154 @@ export interface MidiMapping {
   mode: 'toggle' | 'momentary' | 'trigger';
 }
 
+export type LayerRole = 'core' | 'support' | 'atmosphere';
+
+export type SceneIntent = 'calm' | 'pulse' | 'build' | 'chaos' | 'ambient';
+
+export interface SceneTransition {
+  durationMs: number;
+  curve: 'linear' | 'easeInOut';
+}
+
+export interface SceneTrigger {
+  type: 'manual' | 'time' | 'audio';
+  threshold?: number;
+  minIntervalMs?: number;
+}
+
+export interface SceneLayerRoles {
+  core: string[];
+  support: string[];
+  atmosphere: string[];
+}
+
+export interface ExpressiveFxIntentBinding {
+  enabled: boolean;
+  intent: SceneIntent;
+  amount: number;
+}
+
+export interface EnergyBloomFx {
+  enabled: boolean;
+  macro: number;
+  intentBinding: ExpressiveFxIntentBinding;
+  expert: {
+    threshold: number;
+    accumulation: number;
+  };
+}
+
+export interface MotionEchoFx {
+  enabled: boolean;
+  macro: number;
+  intentBinding: ExpressiveFxIntentBinding;
+  expert: {
+    decay: number;
+    warp: number;
+  };
+}
+
+export interface RadialGravityFx {
+  enabled: boolean;
+  macro: number;
+  intentBinding: ExpressiveFxIntentBinding;
+  expert: {
+    strength: number;
+    radius: number;
+    focusX: number;
+    focusY: number;
+  };
+}
+
+export interface SpectralSmearFx {
+  enabled: boolean;
+  macro: number;
+  intentBinding: ExpressiveFxIntentBinding;
+  expert: {
+    offset: number;
+    mix: number;
+  };
+}
+
+export interface ExpressiveFxConfig {
+  energyBloom: EnergyBloomFx;
+  radialGravity: RadialGravityFx;
+  motionEcho: MotionEchoFx;
+  spectralSmear: SpectralSmearFx;
+}
+
+export const DEFAULT_EXPRESSIVE_INTENT_BINDING: ExpressiveFxIntentBinding = {
+  enabled: false,
+  intent: 'ambient',
+  amount: 0.35
+};
+
+export const DEFAULT_EXPRESSIVE_FX: ExpressiveFxConfig = {
+  energyBloom: {
+    enabled: false,
+    macro: 0.35,
+    intentBinding: { ...DEFAULT_EXPRESSIVE_INTENT_BINDING },
+    expert: {
+      threshold: 0.55,
+      accumulation: 0.65
+    }
+  },
+  radialGravity: {
+    enabled: false,
+    macro: 0.3,
+    intentBinding: { ...DEFAULT_EXPRESSIVE_INTENT_BINDING },
+    expert: {
+      strength: 0.6,
+      radius: 0.65,
+      focusX: 0.5,
+      focusY: 0.5
+    }
+  },
+  motionEcho: {
+    enabled: false,
+    macro: 0.3,
+    intentBinding: { ...DEFAULT_EXPRESSIVE_INTENT_BINDING },
+    expert: {
+      decay: 0.6,
+      warp: 0.35
+    }
+  },
+  spectralSmear: {
+    enabled: false,
+    macro: 0.3,
+    intentBinding: { ...DEFAULT_EXPRESSIVE_INTENT_BINDING },
+    expert: {
+      offset: 0.4,
+      mix: 0.6
+    }
+  }
+};
+
+export const DEFAULT_SCENE_TRANSITION: SceneTransition = {
+  durationMs: 600,
+  curve: 'easeInOut'
+};
+
+export const DEFAULT_SCENE_TRIGGER: SceneTrigger = {
+  type: 'manual'
+};
+
+export const DEFAULT_SCENE_ROLES: SceneLayerRoles = {
+  core: [],
+  support: [],
+  atmosphere: []
+};
+
 export interface SceneConfig {
   id: string;
+  scene_id?: string;
   name: string;
+  intent?: SceneIntent;
+  duration?: number;
+  transition_in?: SceneTransition;
+  transition_out?: SceneTransition;
+  trigger?: SceneTrigger;
+  assigned_layers?: SceneLayerRoles;
   layers: LayerConfig[];
   look?: SceneLook;
 }
@@ -297,6 +443,7 @@ export interface VisualSynthProject {
   activePaletteId: string;
   macros: MacroConfig[];
   effects: EffectConfig;
+  expressiveFx: ExpressiveFxConfig;
   particles: ParticleConfig;
   sdf: SdfConfig;
   visualizer: VisualizerConfig;
@@ -344,7 +491,7 @@ export interface SceneLook {
 }
 
 export const DEFAULT_PROJECT: VisualSynthProject = {
-  version: 2,
+  version: 3,
   name: 'Untitled VisualSynth Project',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -429,6 +576,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     feedback: 0.1,
     persistence: 0.25
   },
+  expressiveFx: DEFAULT_EXPRESSIVE_FX,
   particles: {
     enabled: true,
     density: 0.55,
@@ -564,11 +712,23 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   scenes: [
     {
       id: 'scene-1',
+      scene_id: 'scene-1',
       name: 'Main Scene',
+      intent: 'ambient',
+      duration: 0,
+      transition_in: { ...DEFAULT_SCENE_TRANSITION },
+      transition_out: { ...DEFAULT_SCENE_TRANSITION },
+      trigger: { ...DEFAULT_SCENE_TRIGGER },
+      assigned_layers: {
+        core: ['layer-plasma', 'layer-spectrum'],
+        support: ['layer-origami', 'layer-glyph', 'layer-crystal'],
+        atmosphere: ['layer-inkflow', 'layer-topo', 'layer-weather', 'layer-portal', 'layer-media', 'layer-oscillo']
+      },
       layers: [
         {
           id: 'layer-plasma',
           name: 'Shader Plasma',
+          role: 'core',
           enabled: true,
           opacity: 0.75,
           blendMode: 'screen',
@@ -577,6 +737,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-spectrum',
           name: 'Spectrum Bars',
+          role: 'support',
           enabled: true,
           opacity: 0.75,
           blendMode: 'add',
@@ -585,6 +746,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-origami',
           name: 'Origami Fold',
+          role: 'support',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -593,6 +755,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-glyph',
           name: 'Glyph Language',
+          role: 'support',
           enabled: false,
           opacity: 0.8,
           blendMode: 'screen',
@@ -601,6 +764,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-crystal',
           name: 'Crystal Harmonics',
+          role: 'support',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -609,6 +773,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-inkflow',
           name: 'Ink Flow',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -617,6 +782,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-topo',
           name: 'Topo Terrain',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -625,6 +791,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-weather',
           name: 'Audio Weather',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -633,6 +800,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-portal',
           name: 'Wormhole Portal',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -645,6 +813,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-media',
           name: 'Media Overlay',
+          role: 'support',
           enabled: false,
           opacity: 0.9,
           blendMode: 'screen',
@@ -653,6 +822,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-oscillo',
           name: 'Sacred Oscilloscope',
+          role: 'support',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -662,11 +832,23 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     },
     {
       id: 'scene-2',
+      scene_id: 'scene-2',
       name: 'Pulse Scene',
+      intent: 'pulse',
+      duration: 0,
+      transition_in: { ...DEFAULT_SCENE_TRANSITION },
+      transition_out: { ...DEFAULT_SCENE_TRANSITION },
+      trigger: { ...DEFAULT_SCENE_TRIGGER },
+      assigned_layers: {
+        core: ['layer-spectrum'],
+        support: ['layer-plasma'],
+        atmosphere: ['layer-origami', 'layer-glyph', 'layer-crystal', 'layer-inkflow', 'layer-topo', 'layer-weather']
+      },
       layers: [
         {
           id: 'layer-plasma',
           name: 'Shader Plasma',
+          role: 'core',
           enabled: false,
           opacity: 0.8,
           blendMode: 'screen',
@@ -675,6 +857,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-spectrum',
           name: 'Spectrum Bars',
+          role: 'support',
           enabled: true,
           opacity: 0.95,
           blendMode: 'add',
@@ -683,6 +866,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-origami',
           name: 'Origami Fold',
+          role: 'support',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -691,6 +875,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-glyph',
           name: 'Glyph Language',
+          role: 'support',
           enabled: false,
           opacity: 0.8,
           blendMode: 'screen',
@@ -699,6 +884,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-crystal',
           name: 'Crystal Harmonics',
+          role: 'support',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -707,6 +893,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-inkflow',
           name: 'Ink Flow',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -715,6 +902,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-topo',
           name: 'Topo Terrain',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -723,6 +911,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-weather',
           name: 'Audio Weather',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -731,6 +920,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-portal',
           name: 'Wormhole Portal',
+          role: 'atmosphere',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
@@ -743,6 +933,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-media',
           name: 'Media Overlay',
+          role: 'support',
           enabled: false,
           opacity: 0.9,
           blendMode: 'screen',
@@ -751,6 +942,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
         {
           id: 'layer-oscillo',
           name: 'Sacred Oscilloscope',
+          role: 'support',
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',

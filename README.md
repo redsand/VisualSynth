@@ -30,10 +30,13 @@ See the full product experience redesign in `docs/UX_REIMAGINE.md`.
 - **[Full User Guide](docs/USER_GUIDE.md)** - Comprehensive documentation covering all features, modes, and workflows
 - **[Quick Reference](docs/QUICK_REFERENCE.md)** - Keyboard shortcuts, controls, and common commands at a glance
 - **[Visual Verification Guide](docs/VISUAL_VERIFICATION_GUIDE.md)** - Step-by-step guide to verify all features are working correctly with screenshot placeholders
+- **[Scene System](docs/SCENES.md)** - Scene timing, transitions, and trigger behavior
+- **[Creative Flow UI](docs/CREATIVE_FLOW_UI.md)** - Layout + workflow redesign for macro-first performance
 
 ### Developer Documentation
 
 - **[FX System](docs/FX_SYSTEM.md)** - Effect system architecture and implementation
+- **[Expressive FX](docs/EXPRESSIVE_FX.md)** - Intent-bound macro FX and shader behavior
 - **[UX Design](docs/UX_REIMAGINE.md)** - Product experience redesign philosophy
 
 ## Differentiators & Feature Exploration
@@ -42,6 +45,7 @@ See the full product experience redesign in `docs/UX_REIMAGINE.md`.
 - **Dual output pipeline:** preview window + dedicated fullscreen output with resolution scaling.
 - **Latency dashboard:** surface input/output latency with device hints and health checks.
 - **Scene quantization HUD:** beat-locked scene changes with explicit countdowns.
+- **Scene timeline + crossfades:** top-level scene timing with smooth parameter transitions.
 
 ### Visual Identity
 - **Signature looks:** ship a curated “VisualSynth DNA” pack (plasma, feedback tunnel, spectral bloom).

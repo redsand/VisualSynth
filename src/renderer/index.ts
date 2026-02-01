@@ -1,6 +1,9 @@
 import {
   DEFAULT_OUTPUT_CONFIG,
   DEFAULT_PROJECT,
+  DEFAULT_SCENE_ROLES,
+  DEFAULT_SCENE_TRANSITION,
+  DEFAULT_SCENE_TRIGGER,
   OUTPUT_BASE_HEIGHT,
   OUTPUT_BASE_WIDTH,
   OutputConfig,
@@ -8,10 +11,14 @@ import {
   ColorPalette,
   SceneLook,
   SceneConfig,
+  SceneIntent,
+  MacroConfig,
   LayerConfig,
   AssetItem,
   AssetColorSpace
 } from '../shared/project';
+import { SceneManager, captureSceneSnapshot } from './scene/SceneManager';
+import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 import { createDebugOverlay } from './render/debugOverlay';
@@ -110,6 +117,9 @@ const modeSwitcher = document.getElementById('mode-switcher') as HTMLDivElement;
 const modeButtons = Array.from(
   modeSwitcher.querySelectorAll<HTMLButtonElement>('button[data-mode]')
 );
+const sceneTimeline = document.getElementById('scene-timeline') as HTMLDivElement;
+const sceneTimelineTrack = document.getElementById('scene-timeline-track') as HTMLDivElement;
+const sceneTimelineStatus = document.getElementById('scene-timeline-status') as HTMLSpanElement;
 const performanceLeft = document.getElementById('mode-performance-left') as HTMLDivElement;
 const performanceRight = document.getElementById('mode-performance-right') as HTMLDivElement;
 const sceneLeft = document.getElementById('mode-scene-left') as HTMLDivElement;
@@ -214,6 +224,36 @@ const effectPosterize = document.getElementById('effect-posterize') as HTMLInput
 const effectKaleidoscope = document.getElementById('effect-kaleidoscope') as HTMLInputElement;
 const effectFeedback = document.getElementById('effect-feedback') as HTMLInputElement;
 const effectPersistence = document.getElementById('effect-persistence') as HTMLInputElement;
+const expressiveEnergyEnabled = document.getElementById('expressive-energy-enabled') as HTMLInputElement;
+const expressiveEnergyMacro = document.getElementById('expressive-energy-macro') as HTMLInputElement;
+const expressiveEnergyIntentEnabled = document.getElementById('expressive-energy-intent-enabled') as HTMLInputElement;
+const expressiveEnergyIntent = document.getElementById('expressive-energy-intent') as HTMLSelectElement;
+const expressiveEnergyIntentAmount = document.getElementById('expressive-energy-intent-amount') as HTMLInputElement;
+const expressiveEnergyThreshold = document.getElementById('expressive-energy-threshold') as HTMLInputElement;
+const expressiveEnergyAccumulation = document.getElementById('expressive-energy-accumulation') as HTMLInputElement;
+const expressiveRadialEnabled = document.getElementById('expressive-radial-enabled') as HTMLInputElement;
+const expressiveRadialMacro = document.getElementById('expressive-radial-macro') as HTMLInputElement;
+const expressiveRadialIntentEnabled = document.getElementById('expressive-radial-intent-enabled') as HTMLInputElement;
+const expressiveRadialIntent = document.getElementById('expressive-radial-intent') as HTMLSelectElement;
+const expressiveRadialIntentAmount = document.getElementById('expressive-radial-intent-amount') as HTMLInputElement;
+const expressiveRadialStrength = document.getElementById('expressive-radial-strength') as HTMLInputElement;
+const expressiveRadialRadius = document.getElementById('expressive-radial-radius') as HTMLInputElement;
+const expressiveRadialFocusX = document.getElementById('expressive-radial-focus-x') as HTMLInputElement;
+const expressiveRadialFocusY = document.getElementById('expressive-radial-focus-y') as HTMLInputElement;
+const expressiveEchoEnabled = document.getElementById('expressive-echo-enabled') as HTMLInputElement;
+const expressiveEchoMacro = document.getElementById('expressive-echo-macro') as HTMLInputElement;
+const expressiveEchoIntentEnabled = document.getElementById('expressive-echo-intent-enabled') as HTMLInputElement;
+const expressiveEchoIntent = document.getElementById('expressive-echo-intent') as HTMLSelectElement;
+const expressiveEchoIntentAmount = document.getElementById('expressive-echo-intent-amount') as HTMLInputElement;
+const expressiveEchoDecay = document.getElementById('expressive-echo-decay') as HTMLInputElement;
+const expressiveEchoWarp = document.getElementById('expressive-echo-warp') as HTMLInputElement;
+const expressiveSmearEnabled = document.getElementById('expressive-smear-enabled') as HTMLInputElement;
+const expressiveSmearMacro = document.getElementById('expressive-smear-macro') as HTMLInputElement;
+const expressiveSmearIntentEnabled = document.getElementById('expressive-smear-intent-enabled') as HTMLInputElement;
+const expressiveSmearIntent = document.getElementById('expressive-smear-intent') as HTMLSelectElement;
+const expressiveSmearIntentAmount = document.getElementById('expressive-smear-intent-amount') as HTMLInputElement;
+const expressiveSmearOffset = document.getElementById('expressive-smear-offset') as HTMLInputElement;
+const expressiveSmearMix = document.getElementById('expressive-smear-mix') as HTMLInputElement;
 const paletteSelect = document.getElementById('palette-select') as HTMLSelectElement;
 const palettePreview = document.getElementById('palette-preview') as HTMLDivElement;
 const paletteApplyToggle = document.getElementById('palette-apply-scene') as HTMLInputElement;
@@ -321,6 +361,7 @@ const webglDiag = document.getElementById('diag-webgl') as HTMLDivElement;
 const webglCopyButton = document.getElementById('diag-webgl-copy') as HTMLButtonElement;
 
 let currentProject: VisualSynthProject = DEFAULT_PROJECT;
+const sceneManager = new SceneManager(() => currentProject);
 let audioContext: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
 let mediaStream: MediaStream | null = null;
@@ -1384,6 +1425,8 @@ const cloneValue = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
 const ensureProjectMacros = (project: VisualSynthProject) => {
   if (!project.macros || project.macros.length === 0) {
     project.macros = cloneValue(DEFAULT_PROJECT.macros);
@@ -1396,6 +1439,114 @@ const ensureProjectPalettes = (project: VisualSynthProject) => {
   }
   if (!project.activePaletteId) {
     project.activePaletteId = project.palettes[0]?.id ?? DEFAULT_PROJECT.activePaletteId;
+  }
+};
+
+const ensureProjectExpressiveFx = (project: VisualSynthProject) => {
+  const fallback = DEFAULT_PROJECT.expressiveFx;
+  const current = project.expressiveFx;
+  if (!current) {
+    project.expressiveFx = cloneValue(fallback);
+    return;
+  }
+  project.expressiveFx = {
+    energyBloom: {
+      ...fallback.energyBloom,
+      ...current.energyBloom,
+      intentBinding: { ...fallback.energyBloom.intentBinding, ...(current.energyBloom?.intentBinding ?? {}) },
+      expert: { ...fallback.energyBloom.expert, ...(current.energyBloom?.expert ?? {}) }
+    },
+    motionEcho: {
+      ...fallback.motionEcho,
+      ...current.motionEcho,
+      intentBinding: { ...fallback.motionEcho.intentBinding, ...(current.motionEcho?.intentBinding ?? {}) },
+      expert: { ...fallback.motionEcho.expert, ...(current.motionEcho?.expert ?? {}) }
+    },
+    spectralSmear: {
+      ...fallback.spectralSmear,
+      ...current.spectralSmear,
+      intentBinding: { ...fallback.spectralSmear.intentBinding, ...(current.spectralSmear?.intentBinding ?? {}) },
+      expert: { ...fallback.spectralSmear.expert, ...(current.spectralSmear?.expert ?? {}) }
+    }
+  };
+};
+
+const resolveExpressiveMacro = (
+  intent: SceneIntent | undefined,
+  macro: number,
+  binding: { enabled: boolean; intent: SceneIntent; amount: number }
+) => {
+  let value = macro;
+  if (binding?.enabled && intent && binding.intent === intent) {
+    value = clamp01(value + binding.amount);
+  }
+  return clamp01(value);
+};
+
+const getDefaultRoleForLayerId = (layerId: string) => {
+  if (layerId === 'layer-plasma') return 'core';
+  if (layerId === 'layer-spectrum') return 'support';
+  if (layerId === 'layer-origami') return 'support';
+  if (layerId === 'layer-glyph') return 'support';
+  if (layerId === 'layer-crystal') return 'support';
+  if (layerId === 'layer-inkflow') return 'atmosphere';
+  if (layerId === 'layer-topo') return 'atmosphere';
+  if (layerId === 'layer-weather') return 'atmosphere';
+  if (layerId === 'layer-portal') return 'atmosphere';
+  if (layerId === 'layer-media') return 'support';
+  if (layerId === 'layer-oscillo') return 'support';
+  return 'support';
+};
+
+const normalizeSceneLayerRoles = (scene: SceneConfig) => {
+  let coreAssigned = false;
+  scene.layers.forEach((layer, index) => {
+    const nextRole = layer.role ?? getDefaultRoleForLayerId(layer.id);
+    if (nextRole === 'core') {
+      if (coreAssigned) {
+        layer.role = 'support';
+      } else {
+        layer.role = 'core';
+        coreAssigned = true;
+      }
+      return;
+    }
+    layer.role = nextRole;
+    if (!coreAssigned && index === scene.layers.length - 1) {
+      const firstEnabled = scene.layers.find((item) => item.enabled) ?? scene.layers[0];
+      if (firstEnabled) {
+        firstEnabled.role = 'core';
+        coreAssigned = true;
+      }
+    }
+  });
+  const coreIndex = scene.layers.findIndex((layer) => layer.role === 'core');
+  if (coreIndex >= 0 && coreIndex !== scene.layers.length - 1) {
+    const [coreLayer] = scene.layers.splice(coreIndex, 1);
+    scene.layers.push(coreLayer);
+  }
+};
+
+const ensureSceneDefaults = (scene: SceneConfig) => {
+  scene.scene_id = scene.scene_id ?? scene.id;
+  scene.intent = scene.intent ?? 'ambient';
+  scene.duration = typeof scene.duration === 'number' ? scene.duration : 0;
+  scene.transition_in = { ...DEFAULT_SCENE_TRANSITION, ...(scene.transition_in ?? {}) };
+  scene.transition_out = { ...DEFAULT_SCENE_TRANSITION, ...(scene.transition_out ?? {}) };
+  scene.trigger = { ...DEFAULT_SCENE_TRIGGER, ...(scene.trigger ?? {}) };
+  scene.assigned_layers = {
+    core: scene.assigned_layers?.core ?? [...DEFAULT_SCENE_ROLES.core],
+    support: scene.assigned_layers?.support ?? [...DEFAULT_SCENE_ROLES.support],
+    atmosphere: scene.assigned_layers?.atmosphere ?? [...DEFAULT_SCENE_ROLES.atmosphere]
+  };
+  normalizeSceneLayerRoles(scene);
+  return scene;
+};
+
+const ensureProjectScenes = (project: VisualSynthProject) => {
+  project.scenes = project.scenes.map((scene) => ensureSceneDefaults(scene));
+  if (!project.activeSceneId && project.scenes.length > 0) {
+    project.activeSceneId = project.scenes[0].id;
   }
 };
 
@@ -1483,9 +1634,21 @@ const getUniqueSceneName = (base: string) => {
 const createBlankScene = (): SceneConfig => {
   const template = DEFAULT_PROJECT.scenes[0];
   const baseLayer = template.layers[0];
+  const id = getNextSceneId();
   return {
-    id: getNextSceneId(),
+    id,
+    scene_id: id,
     name: getUniqueSceneName('Blank Scene'),
+    intent: 'ambient',
+    duration: 0,
+    transition_in: { ...DEFAULT_SCENE_TRANSITION },
+    transition_out: { ...DEFAULT_SCENE_TRANSITION },
+    trigger: { ...DEFAULT_SCENE_TRIGGER },
+    assigned_layers: {
+      core: baseLayer ? [baseLayer.id] : [],
+      support: [],
+      atmosphere: []
+    },
     layers: baseLayer
       ? [
           {
@@ -1620,6 +1783,57 @@ const renderSceneStrip = () => {
   });
 };
 
+const renderSceneTimeline = () => {
+  if (!sceneTimelineTrack) return;
+  renderSceneTimelineItems({
+    project: currentProject,
+    track: sceneTimelineTrack,
+    status: sceneTimelineStatus,
+    onSelect: (sceneId, sceneName) => {
+      applyScene(sceneId);
+      setStatus(`Scene switched: ${sceneName}`);
+    },
+    onRemove: (sceneId, sceneName) => {
+      if (!window.confirm(`Remove scene \"${sceneName}\"?`)) return;
+      removeScene(sceneId);
+    }
+  });
+};
+
+const updateSceneTimelineProgress = (blendSnapshot: { mix: number; inTransition: boolean } | null) => {
+  if (!sceneTimelineTrack) return;
+  const activeScene = currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
+  if (!activeScene) return;
+  const progress = sceneManager.getActiveSceneProgress(transportTimeMs);
+  const items = Array.from(sceneTimelineTrack.querySelectorAll<HTMLDivElement>('.scene-timeline-item'));
+  items.forEach((item) => {
+    const isActive = item.dataset.sceneId === activeScene.id;
+    const progressEl = item.querySelector<HTMLDivElement>('.scene-timeline-progress');
+    if (!progressEl) return;
+    if (!isActive) {
+      progressEl.style.width = '0%';
+      return;
+    }
+    if (progress) {
+      progressEl.style.width = `${Math.min(100, progress.progress * 100)}%`;
+    } else {
+      progressEl.style.width = blendSnapshot?.inTransition ? `${Math.min(100, blendSnapshot.mix * 100)}%` : '100%';
+    }
+  });
+
+  if (sceneTimelineStatus) {
+    if (blendSnapshot?.inTransition) {
+      sceneTimelineStatus.textContent = 'Transitioning...';
+      return;
+    }
+    if (progress) {
+      sceneTimelineStatus.textContent = `Active: ${activeScene.name} • ${formatDurationMs(progress.remainingMs)} left`;
+      return;
+    }
+    sceneTimelineStatus.textContent = `Active: ${activeScene.name}`;
+  }
+};
+
 const refreshSceneSelect = () => {
   sceneSelect.innerHTML = '';
   currentProject.scenes.forEach((scene) => {
@@ -1633,6 +1847,7 @@ const refreshSceneSelect = () => {
     selectedSceneId = currentProject.activeSceneId;
   }
   renderSceneStrip();
+  renderSceneTimeline();
 };
 
 const moveLayer = (sceneId: string, layerId: string, direction: -1 | 1) => {
@@ -1642,6 +1857,7 @@ const moveLayer = (sceneId: string, layerId: string, direction: -1 | 1) => {
   const nextIndex = index + direction;
   if (index < 0 || nextIndex < 0 || nextIndex >= scene.layers.length) return;
   scene.layers = reorderLayers(scene, index, nextIndex);
+  normalizeSceneLayerRoles(scene);
   renderLayerList();
 };
 
@@ -1655,6 +1871,7 @@ const removeLayer = (sceneId: string, layerId: string) => {
     return;
   }
   scene.layers = nextLayers;
+  normalizeSceneLayerRoles(scene);
   renderLayerList();
   setStatus(`Layer removed: ${layerId}`);
 };
@@ -1684,8 +1901,8 @@ const renderLayerList = () => {
       const row = document.createElement('div');
       row.className = 'layer-row';
 
-      const label = document.createElement('label');
-      const checkbox = document.createElement('input');
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = layer.enabled;
       checkbox.dataset.learnTarget = `${layer.id}.enabled`;
@@ -1706,10 +1923,17 @@ const renderLayerList = () => {
         syncPerformanceToggles();
         setStatus(`${layer.name} ${checkbox.checked ? 'enabled' : 'disabled'}`);
       });
-      const text = document.createElement('span');
-      text.textContent = layer.name;
-      label.appendChild(checkbox);
-      label.appendChild(text);
+    const text = document.createElement('span');
+    text.textContent = layer.name;
+    if (!layer.role) {
+      layer.role = getLayerRole(layer);
+    }
+    const roleBadge = document.createElement('span');
+    roleBadge.className = `layer-role-badge ${layer.role}`;
+    roleBadge.textContent = layer.role.toUpperCase();
+    label.appendChild(checkbox);
+    label.appendChild(text);
+    label.appendChild(roleBadge);
 
       // Add modulation indicator badge
       const modCount = getModCountForLayer(layer.id);
@@ -3183,6 +3407,7 @@ const diffSectionConfig = [
   { key: 'stylePresets', label: 'Style Presets', get: (p: VisualSynthProject) => p.stylePresets },
   { key: 'macros', label: 'Macros', get: (p: VisualSynthProject) => p.macros },
   { key: 'effects', label: 'Effects', get: (p: VisualSynthProject) => p.effects },
+  { key: 'expressiveFx', label: 'Expressive FX', get: (p: VisualSynthProject) => p.expressiveFx },
   { key: 'particles', label: 'Particles', get: (p: VisualSynthProject) => p.particles },
   { key: 'sdf', label: 'SDF', get: (p: VisualSynthProject) => p.sdf },
   { key: 'lfos', label: 'LFOs', get: (p: VisualSynthProject) => p.lfos },
@@ -3241,6 +3466,7 @@ const getMergeOptions = (): MergeOptions => {
     stylePresets: selections.has('stylePresets'),
     macros: selections.has('macros'),
     effects: selections.has('effects'),
+    expressiveFx: selections.has('expressiveFx'),
     particles: selections.has('particles'),
     sdf: selections.has('sdf'),
     lfos: selections.has('lfos'),
@@ -3693,6 +3919,9 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
 const applyScene = (sceneId: string) => {
   const scene = currentProject.scenes.find((item) => item.id === sceneId);
   if (!scene) return;
+  const previousSceneId = currentProject.activeSceneId;
+  const previousScene = currentProject.scenes.find((item) => item.id === previousSceneId) ?? null;
+  const fromSnapshot = previousSceneId ? captureSceneSnapshot(currentProject, previousSceneId) : null;
   currentProject = { ...currentProject, activeSceneId: sceneId };
   if (scene.look) {
     currentProject = {
@@ -3717,11 +3946,20 @@ const applyScene = (sceneId: string) => {
     syncVisualizerFromProject();
     renderModMatrix();
   }
+  const toSnapshot = captureSceneSnapshot(currentProject, sceneId);
+  if (fromSnapshot && toSnapshot && previousSceneId !== sceneId) {
+    const { durationMs, curve } = SceneManager.resolveTransitionDuration(previousScene, scene);
+    sceneManager.startTransition(fromSnapshot, toSnapshot, transportTimeMs, durationMs, curve);
+  } else {
+    sceneManager.clearTransition();
+  }
+  sceneManager.markSceneActivated(transportTimeMs);
   paletteApplyToggle.checked = Boolean(scene.look?.activePaletteId);
   sceneSelect.value = sceneId;
   renderLayerList();
   syncPerformanceToggles();
   renderSceneStrip();
+  renderSceneTimeline();
   void applyPlasmaShaderFromScene(scene);
 };
 
@@ -3774,9 +4012,21 @@ const addSceneFromPreset = async (presetPath: string) => {
     macros: cloneValue(result.project.macros),
     modMatrix: cloneValue(result.project.modMatrix)
   };
+  const newSceneId = getNextSceneId();
   const newScene: SceneConfig = {
-    id: getNextSceneId(),
+    id: newSceneId,
+    scene_id: newSceneId,
     name: getUniqueSceneName(presetName),
+    intent: sourceScene.intent ?? 'ambient',
+    duration: typeof sourceScene.duration === 'number' ? sourceScene.duration : 0,
+    transition_in: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_in ?? {}) },
+    transition_out: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_out ?? {}) },
+    trigger: { ...DEFAULT_SCENE_TRIGGER, ...(sourceScene.trigger ?? {}) },
+    assigned_layers: {
+      core: sourceScene.assigned_layers?.core ?? [],
+      support: sourceScene.assigned_layers?.support ?? [],
+      atmosphere: sourceScene.assigned_layers?.atmosphere ?? []
+    },
     layers: sourceScene.layers.map((layer) => {
       const cloned = cloneLayerConfig(layer);
       const assetId = (cloned as LayerConfig & { assetId?: string }).assetId;
@@ -3840,6 +4090,13 @@ const updateBpmDisplay = () => {
     value > 0
       ? `BPM: <strong>${value.toFixed(1)}</strong> (${sourceLabel})`
       : `BPM: -- (${sourceLabel})`;
+};
+
+const formatDurationMs = (ms: number) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
 const getActiveBpm = () => {
@@ -3984,6 +4241,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-glyph',
           name: 'Glyph Language',
+          role: getDefaultRoleForLayerId('layer-glyph'),
           enabled: true,
           opacity: 0.8,
           blendMode: 'screen',
@@ -4006,6 +4264,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-crystal',
           name: 'Crystal Harmonics',
+          role: getDefaultRoleForLayerId('layer-crystal'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4028,6 +4287,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-inkflow',
           name: 'Ink Flow',
+          role: getDefaultRoleForLayerId('layer-inkflow'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4050,6 +4310,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-topo',
           name: 'Topo Terrain',
+          role: getDefaultRoleForLayerId('layer-topo'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4072,6 +4333,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-weather',
           name: 'Audio Weather',
+          role: getDefaultRoleForLayerId('layer-weather'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4094,6 +4356,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-portal',
           name: 'Wormhole Portal',
+          role: getDefaultRoleForLayerId('layer-portal'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4116,6 +4379,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-media',
           name: 'Media Overlay',
+          role: getDefaultRoleForLayerId('layer-media'),
           enabled: true,
           opacity: 0.9,
           blendMode: 'screen',
@@ -4137,6 +4401,7 @@ const addGenerator = (id: GeneratorId) => {
         layer = {
           id: 'layer-oscillo',
           name: 'Sacred Oscilloscope',
+          role: getDefaultRoleForLayerId('layer-oscillo'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4685,6 +4950,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-glyph',
           name: 'Glyph Language',
+          role: getDefaultRoleForLayerId('layer-glyph'),
           enabled: true,
           opacity: 0.8,
           blendMode: 'screen',
@@ -4716,6 +4982,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-crystal',
           name: 'Crystal Harmonics',
+          role: getDefaultRoleForLayerId('layer-crystal'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4747,6 +5014,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-inkflow',
           name: 'Ink Flow',
+          role: getDefaultRoleForLayerId('layer-inkflow'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4778,6 +5046,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-topo',
           name: 'Topo Terrain',
+          role: getDefaultRoleForLayerId('layer-topo'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4809,6 +5078,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-weather',
           name: 'Audio Weather',
+          role: getDefaultRoleForLayerId('layer-weather'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4840,6 +5110,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-portal',
           name: 'Wormhole Portal',
+          role: getDefaultRoleForLayerId('layer-portal'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -4871,6 +5142,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-media',
           name: 'Media Overlay',
+          role: getDefaultRoleForLayerId('layer-media'),
           enabled: true,
           opacity: 0.9,
           blendMode: 'screen',
@@ -4907,6 +5179,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
         layer = {
           id: 'layer-oscillo',
           name: 'Sacred Oscilloscope',
+          role: getDefaultRoleForLayerId('layer-oscillo'),
           enabled: true,
           opacity: 0.85,
           blendMode: 'screen',
@@ -5156,6 +5429,40 @@ const initEffects = () => {
   effectKaleidoscope.value = String(currentProject.effects.kaleidoscope);
   effectFeedback.value = String(currentProject.effects.feedback);
   effectPersistence.value = String(currentProject.effects.persistence);
+  const expressive = currentProject.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
+  expressiveEnergyEnabled.checked = expressive.energyBloom.enabled;
+  expressiveEnergyMacro.value = String(expressive.energyBloom.macro);
+  expressiveEnergyIntentEnabled.checked = expressive.energyBloom.intentBinding.enabled;
+  expressiveEnergyIntent.value = expressive.energyBloom.intentBinding.intent;
+  expressiveEnergyIntentAmount.value = String(expressive.energyBloom.intentBinding.amount);
+  expressiveEnergyThreshold.value = String(expressive.energyBloom.expert.threshold);
+  expressiveEnergyAccumulation.value = String(expressive.energyBloom.expert.accumulation);
+
+  expressiveRadialEnabled.checked = expressive.radialGravity.enabled;
+  expressiveRadialMacro.value = String(expressive.radialGravity.macro);
+  expressiveRadialIntentEnabled.checked = expressive.radialGravity.intentBinding.enabled;
+  expressiveRadialIntent.value = expressive.radialGravity.intentBinding.intent;
+  expressiveRadialIntentAmount.value = String(expressive.radialGravity.intentBinding.amount);
+  expressiveRadialStrength.value = String(expressive.radialGravity.expert.strength);
+  expressiveRadialRadius.value = String(expressive.radialGravity.expert.radius);
+  expressiveRadialFocusX.value = String(expressive.radialGravity.expert.focusX);
+  expressiveRadialFocusY.value = String(expressive.radialGravity.expert.focusY);
+
+  expressiveEchoEnabled.checked = expressive.motionEcho.enabled;
+  expressiveEchoMacro.value = String(expressive.motionEcho.macro);
+  expressiveEchoIntentEnabled.checked = expressive.motionEcho.intentBinding.enabled;
+  expressiveEchoIntent.value = expressive.motionEcho.intentBinding.intent;
+  expressiveEchoIntentAmount.value = String(expressive.motionEcho.intentBinding.amount);
+  expressiveEchoDecay.value = String(expressive.motionEcho.expert.decay);
+  expressiveEchoWarp.value = String(expressive.motionEcho.expert.warp);
+
+  expressiveSmearEnabled.checked = expressive.spectralSmear.enabled;
+  expressiveSmearMacro.value = String(expressive.spectralSmear.macro);
+  expressiveSmearIntentEnabled.checked = expressive.spectralSmear.intentBinding.enabled;
+  expressiveSmearIntent.value = expressive.spectralSmear.intentBinding.intent;
+  expressiveSmearIntentAmount.value = String(expressive.spectralSmear.intentBinding.amount);
+  expressiveSmearOffset.value = String(expressive.spectralSmear.expert.offset);
+  expressiveSmearMix.value = String(expressive.spectralSmear.expert.mix);
 };
 
 const initParticles = () => {
@@ -5323,6 +5630,65 @@ const applyEffectControls = () => {
   };
 };
 
+const applyExpressiveFxControls = () => {
+  currentProject.expressiveFx = {
+    energyBloom: {
+      enabled: expressiveEnergyEnabled.checked,
+      macro: Number(expressiveEnergyMacro.value),
+      intentBinding: {
+        enabled: expressiveEnergyIntentEnabled.checked,
+        intent: expressiveEnergyIntent.value as SceneIntent,
+        amount: Number(expressiveEnergyIntentAmount.value)
+      },
+      expert: {
+        threshold: Number(expressiveEnergyThreshold.value),
+        accumulation: Number(expressiveEnergyAccumulation.value)
+      }
+    },
+    radialGravity: {
+      enabled: expressiveRadialEnabled.checked,
+      macro: Number(expressiveRadialMacro.value),
+      intentBinding: {
+        enabled: expressiveRadialIntentEnabled.checked,
+        intent: expressiveRadialIntent.value as SceneIntent,
+        amount: Number(expressiveRadialIntentAmount.value)
+      },
+      expert: {
+        strength: Number(expressiveRadialStrength.value),
+        radius: Number(expressiveRadialRadius.value),
+        focusX: Number(expressiveRadialFocusX.value),
+        focusY: Number(expressiveRadialFocusY.value)
+      }
+    },
+    motionEcho: {
+      enabled: expressiveEchoEnabled.checked,
+      macro: Number(expressiveEchoMacro.value),
+      intentBinding: {
+        enabled: expressiveEchoIntentEnabled.checked,
+        intent: expressiveEchoIntent.value as SceneIntent,
+        amount: Number(expressiveEchoIntentAmount.value)
+      },
+      expert: {
+        decay: Number(expressiveEchoDecay.value),
+        warp: Number(expressiveEchoWarp.value)
+      }
+    },
+    spectralSmear: {
+      enabled: expressiveSmearEnabled.checked,
+      macro: Number(expressiveSmearMacro.value),
+      intentBinding: {
+        enabled: expressiveSmearIntentEnabled.checked,
+        intent: expressiveSmearIntent.value as SceneIntent,
+        amount: Number(expressiveSmearIntentAmount.value)
+      },
+      expert: {
+        offset: Number(expressiveSmearOffset.value),
+        mix: Number(expressiveSmearMix.value)
+      }
+    }
+  };
+};
+
 const applyParticleControls = () => {
   currentProject.particles = {
     enabled: particlesEnabled.checked,
@@ -5464,6 +5830,7 @@ const ensureOrigamiLayer = (enable = false) => {
     layer = {
       id: 'layer-origami',
       name: 'Origami Fold',
+      role: getDefaultRoleForLayerId('layer-origami'),
       enabled: enable,
       opacity: 0.85,
       blendMode: 'screen',
@@ -5857,6 +6224,7 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
     if (slider) {
       slider.value = String(Math.min(1, Math.max(0, velocity)));
       currentProject.macros[index].value = Number(slider.value);
+      updateMacroPreviews();
     }
     return;
   }
@@ -6139,6 +6507,9 @@ const applyProject = async (project: VisualSynthProject) => {
   const normalized = parsed.data;
   ensureProjectMacros(normalized);
   ensureProjectPalettes(normalized);
+  ensureProjectExpressiveFx(normalized);
+  ensureProjectScenes(normalized);
+  normalized.version = Math.max(normalized.version ?? 0, DEFAULT_PROJECT.version);
   currentProject = normalized;
   refreshSceneSelect();
   applyScene(currentProject.activeSceneId);
@@ -6520,6 +6891,44 @@ styleSelect.addEventListener('change', () => {
     });
   }
 );
+
+[
+  expressiveEnergyEnabled,
+  expressiveEnergyMacro,
+  expressiveEnergyIntentEnabled,
+  expressiveEnergyIntentAmount,
+  expressiveEnergyThreshold,
+  expressiveEnergyAccumulation,
+  expressiveRadialEnabled,
+  expressiveRadialMacro,
+  expressiveRadialIntentEnabled,
+  expressiveRadialIntentAmount,
+  expressiveRadialStrength,
+  expressiveRadialRadius,
+  expressiveRadialFocusX,
+  expressiveRadialFocusY,
+  expressiveEchoEnabled,
+  expressiveEchoMacro,
+  expressiveEchoIntentEnabled,
+  expressiveEchoIntentAmount,
+  expressiveEchoDecay,
+  expressiveEchoWarp,
+  expressiveSmearEnabled,
+  expressiveSmearMacro,
+  expressiveSmearIntentEnabled,
+  expressiveSmearIntentAmount,
+  expressiveSmearOffset,
+  expressiveSmearMix
+].forEach((control) => {
+  control.addEventListener('input', () => {
+    applyExpressiveFxControls();
+  });
+});
+[expressiveEnergyIntent, expressiveRadialIntent, expressiveEchoIntent, expressiveSmearIntent].forEach((control) => {
+  control.addEventListener('change', () => {
+    applyExpressiveFxControls();
+  });
+});
 
 [particlesEnabled, particlesDensity, particlesSpeed, particlesSize, particlesGlow].forEach(
   (control) => {
@@ -7084,7 +7493,7 @@ let fpsAccumulator = 0;
 let frameCount = 0;
 let currentFps = 0;
 
-const buildModSources = (bpm: number) => {
+const buildModSources = (bpm: number, macros: MacroConfig[] = currentProject.macros) => {
   const bpmNormalized = Math.min(Math.max((bpm - 60) / 140, 0), 1);
   const lfoValues = currentProject.lfos.map((lfo, index) =>
     lfoValueForShape(lfoPhases[index] ?? lfo.phase ?? 0, lfo.shape)
@@ -7102,28 +7511,28 @@ const buildModSources = (bpm: number) => {
     'env-2': envValues[1] ?? 0,
     'sh-1': shValues[0] ?? 0,
     'sh-2': shValues[1] ?? 0,
-    'macro-1': currentProject.macros[0]?.value ?? 0,
-    'macro-2': currentProject.macros[1]?.value ?? 0,
-    'macro-3': currentProject.macros[2]?.value ?? 0,
-    'macro-4': currentProject.macros[3]?.value ?? 0,
-    'macro-5': currentProject.macros[4]?.value ?? 0,
-    'macro-6': currentProject.macros[5]?.value ?? 0,
-    'macro-7': currentProject.macros[6]?.value ?? 0,
-    'macro-8': currentProject.macros[7]?.value ?? 0
+    'macro-1': macros[0]?.value ?? 0,
+    'macro-2': macros[1]?.value ?? 0,
+    'macro-3': macros[2]?.value ?? 0,
+    'macro-4': macros[3]?.value ?? 0,
+    'macro-5': macros[4]?.value ?? 0,
+    'macro-6': macros[5]?.value ?? 0,
+    'macro-7': macros[6]?.value ?? 0,
+    'macro-8': macros[7]?.value ?? 0
   };
 };
 
-const drawVisualizer = () => {
+const drawVisualizer = (visualizerConfig = currentProject.visualizer) => {
   const ctx = visualizerCanvas.getContext('2d');
   if (!ctx) return;
   const width = visualizerCanvas.width;
   const height = visualizerCanvas.height;
   ctx.clearRect(0, 0, width, height);
-  if (visualizerMode === 'off' || !currentProject.visualizer.enabled) return;
+  if (visualizerConfig.mode === 'off' || !visualizerConfig.enabled) return;
 
-  let visualizerAlpha = currentProject.visualizer.opacity;
-  if (currentProject.visualizer.macroEnabled) {
-    const macroId = Math.min(Math.max(Math.round(currentProject.visualizer.macroId), 1), 8);
+  let visualizerAlpha = visualizerConfig.opacity;
+  if (visualizerConfig.macroEnabled) {
+    const macroId = Math.min(Math.max(Math.round(visualizerConfig.macroId), 1), 8);
     const macroValue = Number(macroInputs[macroId - 1]?.value ?? 1);
     visualizerAlpha *= Math.min(Math.max(macroValue, 0), 1);
   }
@@ -7131,7 +7540,7 @@ const drawVisualizer = () => {
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#8fd6ff';
   ctx.beginPath();
-  if (visualizerMode === 'spectrum') {
+  if (visualizerConfig.mode === 'spectrum') {
     const barCount = audioState.spectrum.length;
     for (let i = 0; i < barCount; i += 1) {
       const value = audioState.spectrum[i];
@@ -7148,7 +7557,7 @@ const drawVisualizer = () => {
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    if (visualizerMode === 'oscilloscope') {
+    if (visualizerConfig.mode === 'oscilloscope') {
       ctx.stroke();
       ctx.strokeStyle = '#ffd166';
       ctx.beginPath();
@@ -7164,6 +7573,29 @@ const drawVisualizer = () => {
   }
   ctx.stroke();
   ctx.globalAlpha = 1;
+};
+
+const ROLE_SETTINGS = {
+  core: { audioScale: 1.0, fxCap: 1.0, bloomBoost: 1.15, opacityBoost: 1.05, lowFreqOnly: false },
+  support: { audioScale: 0.75, fxCap: 0.75, bloomBoost: 1.0, opacityBoost: 1.0, lowFreqOnly: false },
+  atmosphere: { audioScale: 0.45, fxCap: 0.5, bloomBoost: 0.9, opacityBoost: 0.95, lowFreqOnly: true }
+} as const;
+
+const getLayerRole = (layer?: LayerConfig) =>
+  layer?.role ?? getDefaultRoleForLayerId(layer?.id ?? '');
+
+const applyRoleOpacity = (opacity: number, role: keyof typeof ROLE_SETTINGS, lowFreq: number) => {
+  const settings = ROLE_SETTINGS[role];
+  if (settings.lowFreqOnly) {
+    return opacity * (0.35 + lowFreq * 0.65);
+  }
+  return opacity * settings.opacityBoost;
+};
+
+const getRoleAudioScale = (role: keyof typeof ROLE_SETTINGS, lowFreq: number) => {
+  const settings = ROLE_SETTINGS[role];
+  const lowFreqScale = settings.lowFreqOnly ? 0.3 + lowFreq * 0.7 : 1;
+  return settings.audioScale * lowFreqScale;
 };
 
 const render = (time: number) => {
@@ -7273,6 +7705,19 @@ const render = (time: number) => {
     transportTimeMs += delta;
   }
 
+  if (isPlaying && !pendingSceneSwitch) {
+    const autoSceneId = sceneManager.updateAutoSwitch(transportTimeMs, {
+      rms: audioState.rms,
+      peak: audioState.peak
+    });
+    if (autoSceneId) {
+      const targetName =
+        currentProject.scenes.find((scene) => scene.id === autoSceneId)?.name ?? autoSceneId;
+      applyScene(autoSceneId);
+      setStatus(`Auto scene switch: ${targetName}`);
+    }
+  }
+
   const activeBpm = getActiveBpm();
   if (isPlaying) {
     updateLfos(delta * 0.001, activeBpm);
@@ -7281,11 +7726,13 @@ const render = (time: number) => {
   }
 
   resizeCanvasToDisplaySize(canvas);
+  const blendSnapshot = sceneManager.getBlendSnapshot(transportTimeMs);
   const activeStyle =
     currentProject.stylePresets?.find((preset) => preset.id === currentProject.activeStylePresetId) ??
     null;
-  const styleSettings = activeStyle?.settings ?? { contrast: 1, saturation: 1, paletteShift: 0 };
-  const effects = currentProject.effects ?? {
+  const styleSettings =
+    blendSnapshot?.styleSettings ?? activeStyle?.settings ?? { contrast: 1, saturation: 1, paletteShift: 0 };
+  const effects = blendSnapshot?.effects ?? currentProject.effects ?? {
     enabled: true,
     bloom: 0.2,
     blur: 0,
@@ -7295,14 +7742,14 @@ const render = (time: number) => {
     feedback: 0,
     persistence: 0
   };
-  const particles = currentProject.particles ?? {
+  const particles = blendSnapshot?.particles ?? currentProject.particles ?? {
     enabled: true,
     density: 0.35,
     speed: 0.3,
     size: 0.45,
     glow: 0.6
   };
-  const sdf = currentProject.sdf ?? {
+  const sdf = blendSnapshot?.sdf ?? currentProject.sdf ?? {
     enabled: true,
     shape: 'circle' as const,
     scale: 0.45,
@@ -7311,16 +7758,18 @@ const render = (time: number) => {
     rotation: 0,
     fill: 0.35
   };
-  const modSources = buildModSources(activeBpm);
+  const effectiveMacros = blendSnapshot?.macros ?? currentProject.macros;
+  const modSources = buildModSources(activeBpm, effectiveMacros);
   const modValue = (target: string, base: number) =>
     applyModMatrix(base, target, modSources, currentProject.modMatrix);
+  const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
   const moddedStyle = {
     contrast: modValue('style.contrast', styleSettings.contrast),
     saturation: modValue('style.saturation', styleSettings.saturation),
     paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift)
   };
   const effectsActive = effects.enabled;
-  const moddedEffects = effectsActive
+  let moddedEffects = effectsActive
     ? {
         bloom: modValue('effects.bloom', effects.bloom),
         blur: modValue('effects.blur', effects.blur),
@@ -7341,13 +7790,13 @@ const render = (time: number) => {
         feedback: 0,
         persistence: 0
       };
-  const moddedParticles = {
+  let moddedParticles = {
     density: modValue('particles.density', particles.density),
     speed: modValue('particles.speed', particles.speed),
     size: modValue('particles.size', particles.size),
     glow: modValue('particles.glow', particles.glow)
   };
-  const moddedSdf = {
+  let moddedSdf = {
     scale: modValue('sdf.scale', sdf.scale),
     edge: modValue('sdf.edge', sdf.edge),
     glow: modValue('sdf.glow', sdf.glow),
@@ -7362,7 +7811,7 @@ const render = (time: number) => {
   } else {
     trailSpectrum = new Float32Array(audioState.spectrum);
   }
-  const macroSum = currentProject.macros.reduce(
+  const macroSum = effectiveMacros.reduce(
     (acc, macro) => {
       macro.targets.forEach((target) => {
         const rawTarget = target.target as
@@ -7384,18 +7833,68 @@ const render = (time: number) => {
     },
     {} as Record<string, number>
   );
-  const activeScene = currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
-  const plasmaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-plasma');
-  const spectrumLayer = activeScene?.layers.find((layer) => layer.id === 'layer-spectrum');
-  const origamiLayer = activeScene?.layers.find((layer) => layer.id === 'layer-origami');
-  const glyphLayer = activeScene?.layers.find((layer) => layer.id === 'layer-glyph');
-  const crystalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-crystal');
-  const inkLayer = activeScene?.layers.find((layer) => layer.id === 'layer-inkflow');
-  const topoLayer = activeScene?.layers.find((layer) => layer.id === 'layer-topo');
-  const weatherLayer = activeScene?.layers.find((layer) => layer.id === 'layer-weather');
-  const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
-  const mediaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-media');
-  const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
+  const renderScene =
+    blendSnapshot?.scene ??
+    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
+  const plasmaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-plasma');
+  const spectrumLayer = renderScene?.layers.find((layer) => layer.id === 'layer-spectrum');
+  const origamiLayer = renderScene?.layers.find((layer) => layer.id === 'layer-origami');
+  const glyphLayer = renderScene?.layers.find((layer) => layer.id === 'layer-glyph');
+  const crystalLayer = renderScene?.layers.find((layer) => layer.id === 'layer-crystal');
+  const inkLayer = renderScene?.layers.find((layer) => layer.id === 'layer-inkflow');
+  const topoLayer = renderScene?.layers.find((layer) => layer.id === 'layer-topo');
+  const weatherLayer = renderScene?.layers.find((layer) => layer.id === 'layer-weather');
+  const portalLayer = renderScene?.layers.find((layer) => layer.id === 'layer-portal');
+  const mediaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-media');
+  const oscilloLayer = renderScene?.layers.find((layer) => layer.id === 'layer-oscillo');
+  const plasmaRole = getLayerRole(plasmaLayer);
+  const spectrumRole = getLayerRole(spectrumLayer);
+  const origamiRole = getLayerRole(origamiLayer);
+  const glyphRole = getLayerRole(glyphLayer);
+  const crystalRole = getLayerRole(crystalLayer);
+  const inkRole = getLayerRole(inkLayer);
+  const topoRole = getLayerRole(topoLayer);
+  const weatherRole = getLayerRole(weatherLayer);
+  const portalRole = getLayerRole(portalLayer);
+  const mediaRole = getLayerRole(mediaLayer);
+  const oscilloRole = getLayerRole(oscilloLayer);
+
+  const dominantRole = (() => {
+    if (!renderScene) return 'support';
+    const enabledLayers = renderScene.layers.filter((layer) => layer.enabled);
+    if (enabledLayers.some((layer) => getLayerRole(layer) === 'core')) return 'core';
+    if (enabledLayers.some((layer) => getLayerRole(layer) === 'support')) return 'support';
+    return 'atmosphere';
+  })();
+
+  const fxCap = ROLE_SETTINGS[dominantRole].fxCap;
+  moddedEffects = {
+    ...moddedEffects,
+    bloom: Math.min(moddedEffects.bloom, fxCap),
+    blur: Math.min(moddedEffects.blur, fxCap),
+    chroma: Math.min(moddedEffects.chroma, fxCap),
+    posterize: Math.min(moddedEffects.posterize, fxCap),
+    kaleidoscope: Math.min(moddedEffects.kaleidoscope, fxCap),
+    kaleidoscopeRotation: moddedEffects.kaleidoscopeRotation,
+    feedback: Math.min(moddedEffects.feedback, fxCap),
+    persistence: Math.min(moddedEffects.persistence, fxCap)
+  };
+
+  const coreEnabled = Boolean(renderScene?.layers.some((layer) => layer.enabled && getLayerRole(layer) === 'core'));
+  if (coreEnabled) {
+    moddedEffects = {
+      ...moddedEffects,
+      bloom: Math.min(1, moddedEffects.bloom * ROLE_SETTINGS.core.bloomBoost)
+    };
+    moddedParticles = {
+      ...moddedParticles,
+      glow: Math.min(1, moddedParticles.glow * ROLE_SETTINGS.core.bloomBoost)
+    };
+    moddedSdf = {
+      ...moddedSdf,
+      glow: Math.min(1, moddedSdf.glow * ROLE_SETTINGS.core.bloomBoost)
+    };
+  }
   const getLayerParamNumber = (layer: LayerConfig | undefined, key: string, fallback: number) => {
     const value = layer?.params?.[key];
     return typeof value === 'number' ? value : fallback;
@@ -7507,30 +8006,74 @@ const render = (time: number) => {
     1,
     Math.max(0, (oscilloLayer?.opacity ?? 1) * (1 + (macroSum['layer-oscillo.opacity'] ?? 0)))
   );
-  const moddedPlasmaOpacity = modValue('layer-plasma.opacity', plasmaOpacity);
+  const moddedPlasmaOpacity = applyRoleOpacity(
+    modValue('layer-plasma.opacity', plasmaOpacity),
+    plasmaRole,
+    lowFreq
+  );
   const moddedPlasmaSpeed = modValue('layer-plasma.speed', plasmaSpeed);
   const moddedPlasmaScale = modValue('layer-plasma.scale', plasmaScale);
-  const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', spectrumOpacity);
-  const moddedOrigamiOpacity = modValue('layer-origami.opacity', origamiOpacity);
+  const moddedSpectrumOpacity = applyRoleOpacity(
+    modValue('layer-spectrum.opacity', spectrumOpacity),
+    spectrumRole,
+    lowFreq
+  );
+  const moddedOrigamiOpacity = applyRoleOpacity(
+    modValue('layer-origami.opacity', origamiOpacity),
+    origamiRole,
+    lowFreq
+  );
   const moddedOrigamiSpeed = modValue('layer-origami.speed', origamiSpeed);
-  const moddedGlyphOpacity = modValue('layer-glyph.opacity', glyphOpacity);
+  const moddedGlyphOpacity = applyRoleOpacity(
+    modValue('layer-glyph.opacity', glyphOpacity),
+    glyphRole,
+    lowFreq
+  );
   const moddedGlyphSpeed = modValue('layer-glyph.speed', glyphSpeed);
-  const moddedCrystalOpacity = modValue('layer-crystal.opacity', crystalOpacity);
+  const moddedCrystalOpacity = applyRoleOpacity(
+    modValue('layer-crystal.opacity', crystalOpacity),
+    crystalRole,
+    lowFreq
+  );
   const moddedCrystalScale = modValue('layer-crystal.scale', crystalScale);
   const moddedCrystalSpeed = modValue('layer-crystal.speed', crystalSpeed);
-  const moddedInkOpacity = modValue('layer-inkflow.opacity', inkOpacity);
+  const moddedInkOpacity = applyRoleOpacity(
+    modValue('layer-inkflow.opacity', inkOpacity),
+    inkRole,
+    lowFreq
+  );
   const moddedInkSpeed = modValue('layer-inkflow.speed', inkSpeed);
   const moddedInkScale = modValue('layer-inkflow.scale', inkScale);
-  const moddedTopoOpacity = modValue('layer-topo.opacity', topoOpacity);
+  const moddedTopoOpacity = applyRoleOpacity(
+    modValue('layer-topo.opacity', topoOpacity),
+    topoRole,
+    lowFreq
+  );
   const moddedTopoScale = modValue('layer-topo.scale', topoScale);
   const moddedTopoElevation = modValue('layer-topo.elevation', topoElevation);
-  const moddedWeatherOpacity = modValue('layer-weather.opacity', weatherOpacity);
+  const moddedWeatherOpacity = applyRoleOpacity(
+    modValue('layer-weather.opacity', weatherOpacity),
+    weatherRole,
+    lowFreq
+  );
   const moddedWeatherSpeed = modValue('layer-weather.speed', weatherSpeed);
-  const moddedPortalOpacity = modValue('layer-portal.opacity', portalOpacity);
-  const moddedMediaOpacity = modValue('layer-media.opacity', mediaOpacity);
-  const moddedOscilloOpacity = modValue('layer-oscillo.opacity', oscilloOpacity);
-  const plasmaEnabled = plasmaToggle?.checked ?? true;
-  const spectrumEnabled = spectrumToggle?.checked ?? true;
+  const moddedPortalOpacity = applyRoleOpacity(
+    modValue('layer-portal.opacity', portalOpacity),
+    portalRole,
+    lowFreq
+  );
+  const moddedMediaOpacity = applyRoleOpacity(
+    modValue('layer-media.opacity', mediaOpacity),
+    mediaRole,
+    lowFreq
+  );
+  const moddedOscilloOpacity = applyRoleOpacity(
+    modValue('layer-oscillo.opacity', oscilloOpacity),
+    oscilloRole,
+    lowFreq
+  );
+  const plasmaEnabled = plasmaLayer?.enabled ?? true;
+  const spectrumEnabled = spectrumLayer?.enabled ?? true;
   const origamiEnabled = origamiLayer?.enabled ?? false;
   const glyphEnabled = glyphLayer?.enabled ?? false;
   const crystalEnabled = crystalLayer?.enabled ?? false;
@@ -7544,11 +8087,36 @@ const render = (time: number) => {
     oscilloCapture.set(audioState.waveform);
   }
   const plasmaAssetBlendMode = getAssetBlendModeValue('layer-plasma');
-  const plasmaAssetAudioReact = getAssetAudioReactValue('layer-plasma');
+  const plasmaAssetAudioReact =
+    getAssetAudioReactValue('layer-plasma') * getRoleAudioScale(plasmaRole, lowFreq);
   const spectrumAssetBlendMode = getAssetBlendModeValue('layer-spectrum');
-  const spectrumAssetAudioReact = getAssetAudioReactValue('layer-spectrum');
+  const spectrumAssetAudioReact =
+    getAssetAudioReactValue('layer-spectrum') * getRoleAudioScale(spectrumRole, lowFreq);
   const mediaAssetBlendMode = getAssetBlendModeValue('layer-media');
-  const mediaAssetAudioReact = getAssetAudioReactValue('layer-media');
+  const mediaAssetAudioReact =
+    getAssetAudioReactValue('layer-media') * getRoleAudioScale(mediaRole, lowFreq);
+  const expressive = currentProject.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
+  const activeIntent = renderScene?.intent ?? 'ambient';
+  const energyMacro = resolveExpressiveMacro(
+    activeIntent,
+    expressive.energyBloom.macro,
+    expressive.energyBloom.intentBinding
+  );
+  const radialMacro = resolveExpressiveMacro(
+    activeIntent,
+    expressive.radialGravity.macro,
+    expressive.radialGravity.intentBinding
+  );
+  const echoMacro = resolveExpressiveMacro(
+    activeIntent,
+    expressive.motionEcho.macro,
+    expressive.motionEcho.intentBinding
+  );
+  const smearMacro = resolveExpressiveMacro(
+    activeIntent,
+    expressive.spectralSmear.macro,
+    expressive.spectralSmear.intentBinding
+  );
   const renderState: RenderState = {
     timeMs: transportTimeMs,
     rms: audioState.rms,
@@ -7572,6 +8140,7 @@ const render = (time: number) => {
     plasmaOpacity: moddedPlasmaOpacity,
     plasmaSpeed: moddedPlasmaSpeed,
     plasmaScale: moddedPlasmaScale,
+    plasmaAudioReact: plasmaAssetAudioReact,
     spectrumOpacity: moddedSpectrumOpacity,
     origamiOpacity: moddedOrigamiOpacity,
     origamiFoldState,
@@ -7638,6 +8207,20 @@ const render = (time: number) => {
     feedback: moddedEffects.feedback,
     persistence: moddedEffects.persistence,
     trailSpectrum: trailSpectrum,
+    expressiveEnergyBloom: expressive.energyBloom.enabled ? energyMacro : 0,
+    expressiveEnergyThreshold: expressive.energyBloom.expert.threshold,
+    expressiveEnergyAccumulation: expressive.energyBloom.expert.accumulation,
+    expressiveRadialGravity: expressive.radialGravity.enabled ? radialMacro : 0,
+    expressiveRadialStrength: expressive.radialGravity.expert.strength,
+    expressiveRadialRadius: expressive.radialGravity.expert.radius,
+    expressiveRadialFocusX: expressive.radialGravity.expert.focusX,
+    expressiveRadialFocusY: expressive.radialGravity.expert.focusY,
+    expressiveMotionEcho: expressive.motionEcho.enabled ? echoMacro : 0,
+    expressiveMotionEchoDecay: expressive.motionEcho.expert.decay,
+    expressiveMotionEchoWarp: expressive.motionEcho.expert.warp,
+    expressiveSpectralSmear: expressive.spectralSmear.enabled ? smearMacro : 0,
+    expressiveSpectralOffset: expressive.spectralSmear.expert.offset,
+    expressiveSpectralMix: expressive.spectralSmear.expert.mix,
     particlesEnabled: particles.enabled,
     particleDensity: moddedParticles.density,
     particleSpeed: moddedParticles.speed,
@@ -7651,7 +8234,7 @@ const render = (time: number) => {
     sdfRotation: moddedSdf.rotation,
     sdfFill: moddedSdf.fill,
     sdfColor: sdf.color,
-    sdfScene: sdfAdvancedToggle.checked ? (currentProject.scenes.find(s=>s.id===currentProject.activeSceneId)?.layers.find(l=>l.id==='gen-sdf-scene')?.sdfScene) : undefined,
+    sdfScene: sdfAdvancedToggle.checked ? renderScene?.layers.find((layer) => layer.id === 'gen-sdf-scene')?.sdfScene : undefined,
     gravityPositions,
     gravityStrengths,
     gravityPolarities,
@@ -7660,7 +8243,8 @@ const render = (time: number) => {
   };
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
-  drawVisualizer();
+  updateSceneTimelineProgress(blendSnapshot);
+  drawVisualizer(blendSnapshot?.visualizer ?? currentProject.visualizer);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -7809,6 +8393,15 @@ const render = (time: number) => {
       feedback: renderState.feedback,
       persistence: renderState.persistence,
       trailSpectrum: renderState.trailSpectrum,
+      expressiveEnergyBloom: renderState.expressiveEnergyBloom,
+      expressiveEnergyThreshold: renderState.expressiveEnergyThreshold,
+      expressiveEnergyAccumulation: renderState.expressiveEnergyAccumulation,
+      expressiveMotionEcho: renderState.expressiveMotionEcho,
+      expressiveMotionEchoDecay: renderState.expressiveMotionEchoDecay,
+      expressiveMotionEchoWarp: renderState.expressiveMotionEchoWarp,
+      expressiveSpectralSmear: renderState.expressiveSpectralSmear,
+      expressiveSpectralOffset: renderState.expressiveSpectralOffset,
+      expressiveSpectralMix: renderState.expressiveSpectralMix,
       particlesEnabled: renderState.particlesEnabled,
       particleDensity: renderState.particleDensity,
       particleSpeed: renderState.particleSpeed,
