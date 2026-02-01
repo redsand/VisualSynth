@@ -41,6 +41,7 @@ import { toFileUrl } from '../shared/fileUrl';
 import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult } from '../shared/assets';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
+import { VISUAL_MODES, VisualMode } from '../shared/modes';
 
 declare global {
   interface Window {
@@ -143,6 +144,7 @@ const transportTap = document.getElementById('transport-tap') as HTMLButtonEleme
 const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
+const visualModeSelect = document.getElementById('visual-mode-select') as HTMLSelectElement;
 const healthFps = document.getElementById('health-fps') as HTMLSpanElement;
 const healthLatency = document.getElementById('health-latency') as HTMLSpanElement;
 const healthWatchdog = document.getElementById('health-watchdog') as HTMLSpanElement;
@@ -152,6 +154,9 @@ const summaryAuto = document.getElementById('summary-auto') as HTMLButtonElement
 const latencySummary = document.getElementById('latency-summary') as HTMLDivElement;
 const guardrailStatus = document.getElementById('guardrail-status') as HTMLDivElement;
 const guardrailHint = document.getElementById('guardrail-hint') as HTMLDivElement;
+const mixRoleCore = document.getElementById('mix-role-core') as HTMLInputElement;
+const mixRoleSupport = document.getElementById('mix-role-support') as HTMLInputElement;
+const mixRoleAtmosphere = document.getElementById('mix-role-atmosphere') as HTMLInputElement;
 const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
 const perfTogglePlasma = document.getElementById('perf-toggle-plasma') as HTMLInputElement;
 const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement;
@@ -658,6 +663,64 @@ const recordPlaylistOverride = (layerId: string, override: Partial<LayerConfig>)
   playlistOverrides[layerId] = merged;
 };
 
+const applyVisualMode = (modeId: string) => {
+  const mode = VISUAL_MODES.find(m => m.id === modeId);
+  if (!mode) return;
+
+  currentProject.activeModeId = modeId;
+  setStatus(`Visual Mode applied: ${mode.name}`);
+
+  // 1. Apply Palette
+  applyPaletteSelection(mode.palette.id);
+  paletteSelect.value = mode.palette.id;
+
+  // 2. Apply Audio Mappings (Mod Matrix)
+  // We'll append these or replace them? User said "grouped into high-level expressions"
+  // Let's replace the mod matrix for a clean "expression"
+  currentProject.modMatrix = mode.audioMappings.map((mapping, index) => {
+    const defaults = getTargetDefaults(mapping.target);
+    return {
+      id: `mod-mode-${index}`,
+      source: mapping.source,
+      target: mapping.target,
+      amount: mapping.amount,
+      curve: 'linear',
+      smoothing: 0.1,
+      bipolar: false,
+      min: defaults.min,
+      max: defaults.max
+    };
+  });
+  renderModMatrix();
+
+  // 3. Apply Glow/Depth (Effects)
+  currentProject.effects.bloom = mode.glowDepth.glow;
+  // We'll use 'blur' as a proxy for depth for now if not available
+  currentProject.effects.blur = mode.glowDepth.depth * 0.2; 
+  initEffects();
+
+  // 4. Intensity Envelopes
+  if (currentProject.envelopes[0]) {
+    currentProject.envelopes[0].attack = mode.intensityEnvelopes.attack;
+    currentProject.envelopes[0].release = mode.intensityEnvelopes.release;
+    renderEnvelopeList();
+  }
+
+  // 5. Motion Template (Set macro targets for motion)
+  // We'll map motionTemplate to macro-2 (Motion)
+  const motionMacro = currentProject.macros.find(m => m.id === 'macro-2');
+  if (motionMacro) {
+    if (mode.motionTemplate === 'vortex') {
+      motionMacro.value = 0.8;
+    } else if (mode.motionTemplate === 'radial') {
+      motionMacro.value = 0.3;
+    } else {
+      motionMacro.value = 0.5;
+    }
+    updateMacroPreviews();
+  }
+};
+
 const applyPlaylistOverrides = (project: VisualSynthProject) => {
   if (!playlistActive || Object.keys(playlistOverrides).length === 0) return project;
   const activeScene =
@@ -775,9 +838,19 @@ const renderPresetBrowser = () => {
     const tag = document.createElement('div');
     tag.className = 'preset-tag';
     tag.textContent = preset.category;
+    
+    const auditionBtn = document.createElement('button');
+    auditionBtn.className = 'preset-audition-btn';
+    auditionBtn.textContent = 'Audition';
+    auditionBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void auditionPreset(preset.path);
+    });
+
     card.appendChild(thumb);
     card.appendChild(name);
     card.appendChild(tag);
+    card.appendChild(auditionBtn);
     card.addEventListener('click', () => {
       presetSelect.value = preset.path;
       renderPresetBrowser();
@@ -1001,6 +1074,25 @@ const applyPresetPath = async (path: string, reason?: string) => {
         const resolvedProject = applyPlaylistOverrides(applyResult.project);
         await applyProject(resolvedProject);
       }
+    } else if (migratedProject.version === 5) {
+      const applyResult = presetMigration.applyPresetV5(migratedProject, currentProject);
+      if (applyResult.warnings.length > 0) {
+        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+      }
+      logPresetDebug(
+        traceId,
+        'Resolved performance project (V5)',
+        serializePresetPayload({
+          activeModeId: applyResult.project?.activeModeId,
+          roleWeights: applyResult.project?.roleWeights,
+          tempoSync: applyResult.project?.tempoSync,
+          scenes: applyResult.project?.scenes?.length ?? 0
+        })
+      );
+      if (applyResult.project) {
+        const resolvedProject = applyPlaylistOverrides(applyResult.project);
+        await applyProject(resolvedProject);
+      }
     } else {
       logPresetDebug(
         traceId,
@@ -1034,6 +1126,23 @@ const applyPresetPath = async (path: string, reason?: string) => {
       setStatus(message);
     }
     void capturePresetThumbnail(path);
+  }
+};
+
+const auditionPreset = async (path: string) => {
+  setStatus('Auditioning performance...');
+  await applyPresetPath(path, 'Audition');
+  
+  // Audition automatically sets tempo and mode
+  if (currentProject.tempoSync) {
+    syncTempoInputs(currentProject.tempoSync.bpm);
+    bpmSource = currentProject.tempoSync.source;
+    bpmSourceSelect.value = bpmSource;
+  }
+  
+  if (currentProject.activeModeId) {
+    visualModeSelect.value = currentProject.activeModeId;
+    applyVisualMode(currentProject.activeModeId);
   }
 };
 
@@ -6622,6 +6731,54 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
   }
 };
 
+const serializePerformance = () => {
+  const now = new Date().toISOString();
+  
+  // Find current visual mode metadata
+  const currentMode = VISUAL_MODES.find(m => m.id === currentProject.activeModeId) || VISUAL_MODES[0];
+
+  const performance: any = {
+    version: 5,
+    metadata: {
+      version: 5,
+      name: currentProject.name,
+      createdAt: currentProject.createdAt || now,
+      updatedAt: now,
+      activeModeId: currentProject.activeModeId || 'mode-cosmic',
+      intendedMusicStyle: currentProject.intendedMusicStyle || 'Any',
+      visualIntentTags: currentProject.visualIntentTags || [],
+      colorChemistry: currentProject.colorChemistry || ['analog', 'balanced'],
+      defaultTransition: currentMode.transition
+    },
+    scenes: currentProject.scenes,
+    activeSceneId: currentProject.activeSceneId,
+    roleWeights: currentProject.roleWeights || { core: 1, support: 1, atmosphere: 1 },
+    tempoSync: {
+      bpm: getActiveBpm(),
+      source: bpmSource
+    },
+    modulations: currentProject.modMatrix.map(mod => {
+      const parsed = parseLegacyTarget(mod.target);
+      return {
+        source: mod.source,
+        target: parsed ? { type: parsed.layerType, param: parsed.param } : mod.target,
+        amount: mod.amount,
+        min: mod.min,
+        max: mod.max,
+        curve: mod.curve,
+        smoothing: mod.smoothing,
+        bipolar: mod.bipolar
+      };
+    }),
+    macros: currentProject.macros.map(macro => ({
+      ...macro,
+      value: macro.value // Presets save default values, but we capture current for performance state
+    }))
+  };
+
+  return JSON.stringify(performance, null, 2);
+};
+
 const serializeProject = () => {
   const now = new Date().toISOString();
   currentProject = {
@@ -6674,6 +6831,14 @@ const applyProject = async (project: VisualSynthProject) => {
   initParticles();
   initSdf();
   syncVisualizerFromProject();
+  if (visualModeSelect) {
+    visualModeSelect.value = normalized.activeModeId || 'mode-cosmic';
+  }
+  if (normalized.roleWeights) {
+    mixRoleCore.value = String(normalized.roleWeights.core);
+    mixRoleSupport.value = String(normalized.roleWeights.support);
+    mixRoleAtmosphere.value = String(normalized.roleWeights.atmosphere);
+  }
   initModulators();
   renderModulators();
   renderModMatrix();
@@ -7110,6 +7275,10 @@ document.addEventListener('click', (event) => {
   });
 sdfShape.addEventListener('change', () => {
   applySdfControls();
+});
+
+visualModeSelect.addEventListener('change', () => {
+  applyVisualMode(visualModeSelect.value);
 });
 
 audioSelect.addEventListener('change', async () => {
@@ -8362,6 +8531,7 @@ const render = (time: number) => {
     spectrumAssetAudioReact: spectrumAssetAudioReact,
     mediaAssetBlendMode: mediaAssetBlendMode,
     mediaAssetAudioReact: mediaAssetAudioReact,
+    roleWeights: currentProject.roleWeights || { core: 1, support: 1, atmosphere: 1 },
     effectsEnabled: effects.enabled,
     bloom: moddedEffects.bloom,
     blur: moddedEffects.blur,
@@ -8686,6 +8856,10 @@ const init = async () => {
 
   setMode('performance');
   console.log('[Init] setMode completed');
+
+  if (currentProject.activeModeId) {
+    applyVisualMode(currentProject.activeModeId);
+  }
 
   updateTransportUI();
   console.log('[Init] updateTransportUI completed');

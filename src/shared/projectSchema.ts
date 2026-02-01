@@ -683,7 +683,18 @@ export const projectSchema = z.object({
   scenes: z.array(sceneSchema).min(1),
   modMatrix: z.array(modConnectionSchema),
   midiMappings: z.array(midiMappingSchema),
-  activeSceneId: z.string()
+  activeSceneId: z.string(),
+  activeModeId: z.string().default('mode-cosmic'),
+  colorChemistry: z.array(z.string()).default(['analog', 'balanced']),
+  roleWeights: z.object({
+    core: z.number().default(1),
+    support: z.number().default(1),
+    atmosphere: z.number().default(1)
+  }).default({ core: 1, support: 1, atmosphere: 1 }),
+  tempoSync: z.object({
+    bpm: z.number().default(120),
+    source: z.enum(['manual', 'auto', 'network']).default('manual')
+  }).default({ bpm: 120, source: 'manual' })
 });
 
 export type ProjectSchema = z.infer<typeof projectSchema>;

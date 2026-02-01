@@ -803,6 +803,23 @@ body[data-mode='matrix'] .safe-mode {
   letter-spacing: 0.08em;
 }
 
+.preset-audition-btn {
+  margin-top: 4px;
+  background: #1c2a3b;
+  color: #8fd6ff;
+  border: 1px solid #2c4159;
+  border-radius: 4px;
+  padding: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preset-audition-btn:hover {
+  background: #1ec8ff;
+  color: #0b111b;
+}
+
 .palette-preview {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

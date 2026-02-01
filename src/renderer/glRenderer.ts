@@ -134,6 +134,11 @@ export interface RenderState {
   gravityCollapse: number;
   debugTint?: number;
   origamiSpeed: number;
+  roleWeights: {
+    core: number;
+    support: number;
+    atmosphere: number;
+  };
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -314,6 +319,7 @@ uniform float uModulatorsEnabled;
 uniform float uMidiEnabled;
 uniform vec3 uGlobalColor;
 uniform float uDebugTint;
+uniform vec3 uRoleWeights; // x: core, y: support, z: atmosphere
 
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
@@ -794,7 +800,7 @@ void main() {
   vec3 color = vec3(0.02, 0.04, 0.08);
   if (uPlasmaEnabled > 0.5) {
     vec3 plasmaColor = samplePlasma(effectUv, uTime);
-    color += plasmaColor * uPlasmaOpacity;
+    color += plasmaColor * uPlasmaOpacity * uRoleWeights.x;
   }
   if (uPlasmaAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
@@ -803,7 +809,7 @@ void main() {
     centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
     vec4 assetSample = texture(uPlasmaAsset, centeredAssetUv);
     vec3 assetColor = assetSample.rgb * (0.85 + audioMod * 0.15);
-    float alpha = assetSample.a * clamp(uPlasmaOpacity, 0.0, 1.0);
+    float alpha = assetSample.a * clamp(uPlasmaOpacity, 0.0, 1.0) * uRoleWeights.x;
     color = applyBlendMode(color, assetColor, uPlasmaAssetBlend, alpha);
   }
   if (uSpectrumEnabled > 0.5) {
@@ -813,8 +819,8 @@ void main() {
     float trail = uTrailSpectrum[index];
     float bar = step(effectUv.y, amp);
     float trailBar = step(effectUv.y, trail);
-    color += palette(amp) * bar * 0.8 * uSpectrumOpacity;
-    if (uPersistence > 0.01) { color += palette(trail) * trailBar * 0.5 * uPersistence; }
+    color += palette(amp) * bar * 0.8 * uSpectrumOpacity * uRoleWeights.y;
+    if (uPersistence > 0.01) { color += palette(trail) * trailBar * 0.5 * uPersistence * uRoleWeights.y; }
   }
   if (uSpectrumAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
@@ -826,7 +832,7 @@ void main() {
     centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
     vec4 assetSample = texture(uSpectrumAsset, centeredAssetUv);
     vec3 assetColor = assetSample.rgb * (0.8 + audioMod * 0.2);
-    float alpha = assetSample.a * clamp(uSpectrumOpacity, 0.0, 1.0);
+    float alpha = assetSample.a * clamp(uSpectrumOpacity, 0.0, 1.0) * uRoleWeights.y;
     color = applyBlendMode(color, assetColor, uSpectrumAssetBlend, alpha);
   }
   if (uMediaEnabled > 0.5 && uMediaAssetEnabled > 0.5) {
@@ -836,7 +842,7 @@ void main() {
     centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
     vec4 assetSample = texture(uMediaAsset, centeredAssetUv);
     vec3 assetColor = assetSample.rgb * (0.85 + audioMod * 0.15);
-    float alpha = assetSample.a * clamp(uMediaOpacity, 0.0, 1.0);
+    float alpha = assetSample.a * clamp(uMediaOpacity, 0.0, 1.0) * uRoleWeights.y;
     color = applyBlendMode(color, assetColor, uMediaAssetBlend, alpha);
   }
   if (uMediaEnabled > 0.5) {
@@ -859,7 +865,7 @@ void main() {
         shape = line;
       }
       vec3 burstColor = palette(fract(float(i) * 0.17 + uPaletteShift * 0.2));
-      color += burstColor * shape * activeAmt * uMediaOpacity;
+      color += burstColor * shape * activeAmt * uMediaOpacity * uRoleWeights.y;
     }
   }
   if (uGlyphEnabled > 0.5) {
@@ -881,7 +887,7 @@ void main() {
     float stroke = smoothstep(0.04, 0.0, dist);
     vec3 glyphColor = bandIndex < 2 ? vec3(0.65, 0.8, 0.95) : bandIndex < 4 ? vec3(0.95, 0.75, 0.6) : bandIndex < 6 ? vec3(0.7, 0.9, 0.78) : vec3(0.82, 0.72, 0.95);
     glyphColor *= 0.55 + complexity * 0.75;
-    color += glyphColor * stroke * uGlyphOpacity;
+    color += glyphColor * stroke * uGlyphOpacity * uRoleWeights.y;
   }
   if (uCrystalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -896,7 +902,7 @@ void main() {
     crystal += caustic * smoothstep(0.1, 0.0, cell - high * 0.05) * clamp(uPeak - uRms, 0.0, 1.0) * (0.6 + high);
     crystal *= growth + (uCrystalMode < 0.5 ? 0.15 : uCrystalMode < 1.5 ? 0.35 : uCrystalMode < 2.5 ? 0.7 : 0.05);
     crystal *= 0.4 + (1.0 - clamp(uCrystalBrittleness, 0.0, 1.0)) * 0.6;
-    color += crystal * shard * uCrystalOpacity;
+    color += crystal * shard * uCrystalOpacity * uRoleWeights.y;
   }
   if (uInkEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -908,7 +914,7 @@ void main() {
     float stroke = smoothstep(0.6, 0.0, abs(sin((inkUv.x + inkUv.y) * 18.0 * uInkScale + uTime * 0.6 * uInkSpeed))) * (0.4 + uInkPressure * 0.8);
     vec3 inkColor = uInkBrush < 0.5 ? vec3(0.12, 0.08, 0.06) : uInkBrush < 1.5 ? vec3(0.2, 0.15, 0.1) : vec3(0.1, 0.85, 0.95);
     if (uInkBrush > 0.5 && uInkBrush < 1.5) stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
-    color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity;
+    color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity * uRoleWeights.z;
   }
   if (uTopoEnabled > 0.5) {
     vec2 centered = (effectUv * 2.0 - 1.0) * (2.0 - clamp(uTopoScale, 0.1, 1.9));
@@ -919,7 +925,7 @@ void main() {
     terrain += uTopoQuake * 0.6 * sin(flow.x * 6.0 + uTime * 1.4);
     terrain -= uTopoSlide * 0.5 * smoothstep(0.2, 0.9, terrain);
     float mask = smoothstep(0.12, 0.02, abs(sin(terrain * mix(6.0, 18.0, high))) * mix(0.2, 1.0, mid));
-    color += mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity;
+    color += mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity * uRoleWeights.z;
   }
   if (uWeatherEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -934,7 +940,7 @@ void main() {
     float pHigh = high * 1.2 + uWeatherIntensity * 0.2;
     float rain = smoothstep(0.6, 0.0, abs(sin((wUv.x + uTime * 0.4 * uWeatherSpeed) * 30.0)) * pHigh) * (uWeatherMode < 0.5 || uWeatherMode > 2.5 ? 1.0 : 0.0);
     float snow = smoothstep(0.65, 0.0, abs(sin((wUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * pHigh) * (uWeatherMode > 0.5 && uWeatherMode < 1.5 ? 1.0 : 0.0);
-    color += (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity;
+    color += (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity * uRoleWeights.z;
   }
   if (uPortalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -952,7 +958,7 @@ void main() {
     vec3 baseCol = vec3(0.2, 0.6, 0.9);
     if (style > 0.5 && style < 1.5) baseCol = vec3(0.7, 0.35, 0.95);
     if (style >= 1.5) baseCol = vec3(0.2, 0.9, 0.55);
-    color += (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity;
+    color += (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity * uRoleWeights.z;
   }
   if (uOscilloEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -963,9 +969,9 @@ void main() {
       minDist = min(minDist, length(centered - p));
       arcGlow += smoothstep(0.08, 0.0, abs(length(centered) - (rad + 0.06 * sin(t * 12.0 + uTime * 0.3)))) * 0.2;
     }
-    color += (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity;
+    color += (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity * uRoleWeights.y;
   }
-  if (gravityLens > 0.0 || gravityRing > 0.0) color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
+  if (gravityLens > 0.0 || gravityRing > 0.0) color += (vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high)) * uRoleWeights.z;
   if (uOrigamiEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     float sharp = mix(0.12, 0.02, clamp(uOrigamiFoldSharpness, 0.0, 1.0));
@@ -974,9 +980,9 @@ void main() {
     vec3 normal = normalize(vec3(-dFdx(displacement), -dFdy(displacement), 1.0));
     float diff = clamp(dot(normal, normalize(vec3(-0.4, 0.6, 0.9))), 0.0, 1.0);
     float grain = hash21(effectUv * 420.0) * 0.12 + hash21(effectUv * 1200.0) * 0.06;
-    color = applyBlendMode(color, clamp(vec3(0.92, 0.9, 0.86) * (0.65 + diff * 0.45) + smoothstep(0.2, 0.75, foldField) * vec3(0.12, 0.1, 0.08) + vec3(sin((effectUv.y + grain) * 900.0) * 0.03 + grain) * 0.15 - smoothstep(0.7, 0.98, abs(sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed) * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed))) * high * (0.6 + grain) * vec3(0.18, 0.12, 0.08), 0.0, 1.0), 3.0, clamp(uOrigamiOpacity, 0.0, 1.0));
+    color = applyBlendMode(color, clamp(vec3(0.92, 0.9, 0.86) * (0.65 + diff * 0.45) + smoothstep(0.2, 0.75, foldField) * vec3(0.12, 0.1, 0.08) + vec3(sin((effectUv.y + grain) * 900.0) * 0.03 + grain) * 0.15 - smoothstep(0.7, 0.98, abs(sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed) * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed))) * high * (0.6 + grain) * vec3(0.18, 0.12, 0.08), 0.0, 1.0), 3.0, clamp(uOrigamiOpacity, 0.0, 1.0) * uRoleWeights.y);
   }
-  if (uParticlesEnabled > 0.5) color += vec3(0.2, 0.7, 1.0) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8);
+  if (uParticlesEnabled > 0.5) color += vec3(0.2, 0.7, 1.0) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8) * uRoleWeights.z;
   if (uSdfEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     if (uAdvancedSdfEnabled > 0.5) {
@@ -1007,7 +1013,7 @@ void main() {
         }
         
         baseCol *= uSdfColor;
-        color += (baseCol * lighting + spec + smoothstep(0.1, 0.0, res.x) * uSdfGlow) * uSdfFill;
+        color += (baseCol * lighting + spec + smoothstep(0.1, 0.0, res.x) * uSdfGlow) * uSdfFill * uRoleWeights.y;
       }
     } else {
       centered = rotate2d(centered, uSdfRotation); 
@@ -1020,7 +1026,7 @@ void main() {
       else if (uSdfShape < 4.5) sdfValue = sdStar(centered, scale, 5, 2.0);
       else sdfValue = sdRing(centered, scale, uSdfEdge * 0.5);
       
-      color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6);
+      color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6) * uRoleWeights.y;
     }
   }
   if (uExpressiveEnergyBloom > 0.01) {
@@ -1317,6 +1323,7 @@ void main() {
     gl.uniform1f(getLocation('uInternalSource'), state.hasInternalAsset ? 1 : 0);
     gl.uniform3fv(getLocation('uGlobalColor'), state.globalColor || [1.0, 1.0, 1.0]);
     gl.uniform1f(getLocation('uDebugTint'), state.debugTint ?? 0);
+    gl.uniform3f(getLocation('uRoleWeights'), state.roleWeights.core, state.roleWeights.support, state.roleWeights.atmosphere);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
     const pLoc = gl.getAttribLocation(prog, 'position');

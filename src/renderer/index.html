@@ -43,6 +43,15 @@
               <option value="output">Output</option>
             </select>
           </label>
+          <label class="visual-mode-route">
+            Visual Mode
+            <select id="visual-mode-select">
+              <option value="mode-cosmic">Cosmic</option>
+              <option value="mode-ignite">Ignite</option>
+              <option value="mode-minimal">Minimal</option>
+              <option value="mode-acid">Acid</option>
+            </select>
+          </label>
           <div class="health-strip">
             <span id="health-fps">FPS: --</span>
             <span id="health-latency">Latency: --</span>
@@ -98,6 +107,24 @@
               <div class="scene-strip-add">
                 <button id="scene-add-blank" type="button">New Blank Scene</button>
               </div>
+            </div>
+            <div class="panel-block">
+              <h3>Performance Mixer</h3>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Core
+                  <input id="mix-role-core" type="range" min="0" max="2" step="0.05" value="1" />
+                </label>
+                <label class="scene-inline">
+                  Support
+                  <input id="mix-role-support" type="range" min="0" max="2" step="0.05" value="1" />
+                </label>
+                <label class="scene-inline">
+                  Atmosphere
+                  <input id="mix-role-atmosphere" type="range" min="0" max="2" step="0.05" value="1" />
+                </label>
+              </div>
+              <div class="output-hint">Global intensity multipliers per visual role.</div>
             </div>
             <div class="panel-block" id="preset-explorer">
               <h3>Preset Explorer</h3>

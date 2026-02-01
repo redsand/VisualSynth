@@ -461,6 +461,17 @@ export interface VisualSynthProject {
   modMatrix: ModConnection[];
   midiMappings: MidiMapping[];
   activeSceneId: string;
+  activeModeId: string;
+  colorChemistry?: string[];
+  roleWeights?: {
+    core: number;
+    support: number;
+    atmosphere: number;
+  };
+  tempoSync?: {
+    bpm: number;
+    source: 'manual' | 'auto' | 'network';
+  };
 }
 
 export interface EffectConfig {
@@ -1011,5 +1022,9 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   ],
   modMatrix: [],
   midiMappings: [],
-  activeSceneId: 'scene-1'
+  activeSceneId: 'scene-1',
+  activeModeId: 'mode-cosmic',
+  colorChemistry: ['analog', 'balanced'],
+  roleWeights: { core: 1, support: 1, atmosphere: 1 },
+  tempoSync: { bpm: 120, source: 'manual' }
 };

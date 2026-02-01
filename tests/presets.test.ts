@@ -18,7 +18,7 @@ describe('preset library', () => {
 
   // Test each preset individually for better error reporting
   presetFiles.forEach((file) => {
-    it(`preset "${file}" should be valid and functional`, () => {
+    it(`preset "${file}" should be valid and functional`, async () => {
       const payload = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
       const data = JSON.parse(payload);
       const presetVersion = data.version || 2;
@@ -41,6 +41,18 @@ describe('preset library', () => {
         // Validate v4 preset against presetV4Schema
         const { presetV4Schema } = await import('../src/shared/presetMigration');
         const parsed = presetV4Schema.safeParse(data);
+        if (!parsed.success) {
+          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
+        }
+        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
+        if (parsed.success) {
+          validatedData = parsed.data;
+          isValid = true;
+        }
+      } else if (presetVersion === 5) {
+        // Validate v5 preset against presetV5Schema
+        const { presetV5Schema } = await import('../src/shared/presetMigration');
+        const parsed = presetV5Schema.safeParse(data);
         if (!parsed.success) {
           console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
         }
@@ -72,6 +84,34 @@ describe('preset library', () => {
 
           const sceneIds = convertedProject.scenes.map(s => s.id);
           expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
+        } else if (presetVersion === 4) {
+          // For v4 presets, convert to project format and validate
+          const { applyPresetV4 } = await import('../src/shared/presetMigration');
+          const { project: convertedProject, warnings } = applyPresetV4(validatedData, DEFAULT_PROJECT);
+
+          // Structural Integrity
+          expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+
+          const sceneIds = convertedProject.scenes.map((s: any) => s.id);
+          expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
+          
+          // Verify V4 metadata mapping
+          expect(convertedProject.intendedMusicStyle).toBe(validatedData.metadata.intendedMusicStyle);
+        } else if (presetVersion === 5) {
+          // For v5 presets, convert to project format and validate
+          const { applyPresetV5 } = await import('../src/shared/presetMigration');
+          const { project: convertedProject, warnings } = applyPresetV5(validatedData, DEFAULT_PROJECT);
+
+          // Structural Integrity
+          expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+
+          const sceneIds = convertedProject.scenes.map((s: any) => s.id);
+          expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
+          
+          // Verify Performance parameters
+          expect(convertedProject.activeModeId).toBe(validatedData.metadata.activeModeId);
+          expect(convertedProject.roleWeights).toBeDefined();
+          expect(convertedProject.tempoSync).toBeDefined();
         } else {
           const project = validatedData;
 

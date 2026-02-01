@@ -38,6 +38,15 @@ export interface PresetMetadataV4 extends PresetMetadata {
   defaultTransition: SceneTransition;
 }
 
+export interface PresetMetadataV5 extends PresetMetadata {
+  version: 5;
+  activeModeId: string;
+  intendedMusicStyle: string;
+  visualIntentTags: string[];
+  colorChemistry: string[];
+  defaultTransition: SceneTransition;
+}
+
 /**
  * Version 1 preset schema (legacy format with hardcoded layer IDs)
  */
@@ -155,10 +164,41 @@ export const presetV4Schema = z.object({
   project: projectSchema.optional()
 });
 
+export const presetV5Schema = z.object({
+  version: z.literal(5),
+  metadata: z.object({
+    version: z.literal(5),
+    name: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    category: z.string().optional(),
+    compatibility: z.object({
+      minVersion: z.string(),
+      maxVersion: z.string().optional()
+    }).optional(),
+    activeModeId: z.string(),
+    intendedMusicStyle: z.string(),
+    visualIntentTags: z.array(z.string()),
+    colorChemistry: z.array(z.string()),
+    defaultTransition: z.object({
+      durationMs: z.number(),
+      curve: z.enum(['linear', 'easeInOut'])
+    })
+  }),
+  scenes: projectSchema.shape.scenes,
+  activeSceneId: z.string().optional(),
+  roleWeights: projectSchema.shape.roleWeights,
+  tempoSync: projectSchema.shape.tempoSync,
+  modulations: z.array(presetV3ModulationSchema).optional(),
+  macros: z.array(z.any()).optional(),
+  project: projectSchema.optional()
+});
+
 export type PresetV1 = z.infer<typeof presetV1Schema>;
 export type PresetV2 = z.infer<typeof presetV2Schema>;
 export type PresetV3 = z.infer<typeof presetV3Schema>;
 export type PresetV4 = z.infer<typeof presetV4Schema>;
+export type PresetV5 = z.infer<typeof presetV5Schema>;
 
 /**
  * Migration result
@@ -234,7 +274,7 @@ export const migratePreset = (preset: any): MigrationResult => {
     }
 
     // Already at latest version
-    if (preset.version === 4) {
+    if (preset.version === 5) {
       return { success: true, preset, warnings, errors };
     }
 
@@ -259,6 +299,14 @@ export const migratePreset = (preset: any): MigrationResult => {
     // Migrate from v3 to v4
     if (migratedPreset.version === 3) {
       const result = migrateV3ToV4(migratedPreset);
+      migratedPreset = result.preset;
+      warnings.push(...result.warnings);
+      errors.push(...result.errors);
+    }
+
+    // Migrate from v4 to v5
+    if (migratedPreset.version === 4) {
+      const result = migrateV4ToV5(migratedPreset);
       migratedPreset = result.preset;
       warnings.push(...result.warnings);
       errors.push(...result.errors);
@@ -459,6 +507,34 @@ const migrateV3ToV4 = (preset: PresetV3): { preset: any; warnings: string[]; err
 };
 
 /**
+ * Migrate preset from version 4 to version 5 (Performance focus)
+ */
+const migrateV4ToV5 = (preset: PresetV4): { preset: any; warnings: string[]; errors: string[] } => {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  const presetV5: any = {
+    version: 5,
+    metadata: {
+      ...preset.metadata,
+      version: 5,
+      activeModeId: 'mode-cosmic', // Default mode for migration
+      colorChemistry: ['analog', 'balanced'],
+      updatedAt: new Date().toISOString()
+    },
+    scenes: preset.scenes,
+    activeSceneId: preset.activeSceneId,
+    roleWeights: { core: 1, support: 1, atmosphere: 1 },
+    tempoSync: { bpm: 120, source: 'manual' },
+    modulations: preset.modulations ?? [],
+    macros: preset.macros ?? [],
+    project: preset.project
+  };
+
+  return { preset: presetV5, warnings, errors };
+};
+
+/**
  * Validate a preset against the current parameter registry
  */
 export const validatePreset = (preset: any): { valid: boolean; warnings: string[]; errors: string[] } => {
@@ -474,6 +550,14 @@ export const validatePreset = (preset: any): { valid: boolean; warnings: string[
     const parsed = presetV4Schema.safeParse(preset);
     if (!parsed.success) {
       errors.push(`Preset v4 schema invalid: ${JSON.stringify(parsed.error.format())}`);
+      return { valid: false, warnings, errors };
+    }
+  }
+
+  if (preset.version === 5) {
+    const parsed = presetV5Schema.safeParse(preset);
+    if (!parsed.success) {
+      errors.push(`Preset v5 schema invalid: ${JSON.stringify(parsed.error.format())}`);
       return { valid: false, warnings, errors };
     }
   }
@@ -760,6 +844,65 @@ export const applyPresetV4 = (preset: any, currentProject: any): { project: any;
         })
         .filter((t: any) => t !== null);
       return { ...macro, targets: migratedTargets };
+    });
+  }
+
+  return { project, warnings };
+};
+
+/**
+ * Apply a v5 preset (Performance) to a project.
+ * Autoloads for immediate pleasing visuals.
+ */
+export const applyPresetV5 = (preset: any, currentProject: any): { project: any; warnings: string[] } => {
+  const warnings: string[] = [];
+  
+  // Start with a fresh project based on preset project if available, otherwise current or default
+  const project: VisualSynthProject = JSON.parse(JSON.stringify(preset.project ?? currentProject ?? DEFAULT_PROJECT));
+  
+  // Core performance mapping
+  project.activeModeId = preset.metadata?.activeModeId || 'mode-cosmic';
+  project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
+  project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
+  project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
+  
+  // Narrative scenes
+  if (Array.isArray(preset.scenes) && preset.scenes.length > 0) {
+    const defaultTransition = preset.metadata?.defaultTransition ?? DEFAULT_SCENE_TRANSITION;
+    project.scenes = preset.scenes.map((scene: SceneConfig) => ({
+      ...scene,
+      transition_in: scene.transition_in ?? { ...defaultTransition },
+      transition_out: scene.transition_out ?? { ...defaultTransition }
+    }));
+    project.activeSceneId = preset.activeSceneId ?? project.scenes[0].id;
+  }
+
+  // Modulations and Macros (Performance defaults)
+  if (preset.modulations) {
+    project.modMatrix = preset.modulations.map((mod: any) => ({
+      id: `mod-v5-${Date.now()}-${Math.random()}`,
+      source: mod.source,
+      target: typeof mod.target === 'string' ? mod.target : buildLegacyTarget(mod.target.type || mod.target.layerType, mod.target.param),
+      amount: mod.amount,
+      min: mod.min,
+      max: mod.max,
+      curve: mod.curve,
+      smoothing: mod.smoothing,
+      bipolar: mod.bipolar
+    }));
+  }
+
+  if (preset.macros) {
+    project.macros = preset.macros.map((macro: any) => {
+      // Version 5 presets expect default macro values
+      return {
+        ...macro,
+        value: macro.value ?? 0.5,
+        targets: macro.targets?.map((t: any) => ({
+          ...t,
+          target: typeof t.target === 'string' ? t.target : buildLegacyTarget(t.target.type || t.target.layerType, t.target.param)
+        })) || []
+      };
     });
   }
 
