@@ -771,6 +771,24 @@
       </footer>
     </div>
 
+    <div id="webcam-picker" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h3>Select Webcam</h3>
+        <label class="scene-label">
+          Camera
+          <select id="webcam-picker-select"></select>
+        </label>
+        <label class="scene-inline modal-checkbox">
+          Remember this camera
+          <input id="webcam-picker-remember" type="checkbox" checked />
+        </label>
+        <div class="scene-row modal-actions">
+          <button id="webcam-picker-cancel" type="button">Cancel</button>
+          <button id="webcam-picker-confirm" type="button">Use Camera</button>
+        </div>
+      </div>
+    </div>
+
     <script src="index.js"></script>
   </body>
 </html>

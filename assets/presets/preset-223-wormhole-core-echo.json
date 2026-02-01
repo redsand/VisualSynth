@@ -1,21 +1,28 @@
 {
   "version": 3,
-  "name": "Wormhole Core Echo",
-  "author": "VisualSynth",
-  "description": "Portal core with alternate style and softer shift.",
-  "tags": ["portal", "wormhole", "echo", "audio"],
+  "metadata": {
+    "version": 3,
+    "name": "Wormhole Core Echo",
+    "createdAt": "2026-02-01T12:00:00.000Z",
+    "updatedAt": "2026-02-01T12:00:00.000Z",
+    "category": "Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
   "layers": [
     {
-      "id": "layer-wormhole-core-echo",
       "type": "portal",
-      "name": "Wormhole Core Echo",
-      "enabled": true,
-      "opacity": 0.85,
-      "blendMode": "screen",
       "params": {
+        "opacity": 0.85,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
         "shift": 0.35,
         "style": 2.0
       }
     }
-  ]
+  ],
+  "modulations": [],
+  "macros": []
 }

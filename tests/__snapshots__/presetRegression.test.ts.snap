@@ -86,6 +86,16 @@ exports[`preset regression coverage > produces a stable resolved layer snapshot 
     "enabled": false,
     "id": "layer-portal",
     "opacity": 0.85,
+    "params": {
+      "autoSpawn": 1,
+      "style": 0,
+    },
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-media",
+    "opacity": 0.9,
     "params": undefined,
   },
   {

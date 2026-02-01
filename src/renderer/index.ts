@@ -273,6 +273,11 @@ const assetFontInput = document.getElementById('asset-font-input') as HTMLInputE
 const assetTextAddButton = document.getElementById('asset-text-add') as HTMLButtonElement | null;
 const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement;
 const assetList = document.getElementById('asset-list') as HTMLDivElement;
+const webcamPicker = document.getElementById('webcam-picker') as HTMLDivElement | null;
+const webcamPickerSelect = document.getElementById('webcam-picker-select') as HTMLSelectElement | null;
+const webcamPickerRemember = document.getElementById('webcam-picker-remember') as HTMLInputElement | null;
+const webcamPickerConfirm = document.getElementById('webcam-picker-confirm') as HTMLButtonElement | null;
+const webcamPickerCancel = document.getElementById('webcam-picker-cancel') as HTMLButtonElement | null;
 
 const livePreviewElements = new Map<string, HTMLVideoElement>();
 const liveStreams = new Map<string, MediaStream>();
@@ -358,6 +363,7 @@ let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
 const outputChannel = new BroadcastChannel('visualsynth-output');
 let lastOutputBroadcast = 0;
+const WEBCAM_STORAGE_KEY = 'visualsynth.webcamDeviceId';
 let lastMidiLatencyMs: number | null = null;
 let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null = null;
 let sdfPanel: { render: () => void } | null = null;
@@ -2945,12 +2951,108 @@ const createTextAsset = () => {
   setStatus(`Text layer created: ${asset.name}`);
 };
 
+const getSavedWebcamId = () => {
+  try {
+    return localStorage.getItem(WEBCAM_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const setSavedWebcamId = (deviceId: string | null, remember: boolean) => {
+  try {
+    if (remember && deviceId) {
+      localStorage.setItem(WEBCAM_STORAGE_KEY, deviceId);
+    } else {
+      localStorage.removeItem(WEBCAM_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage failures (private mode, etc.)
+  }
+};
+
+const pickWebcamDevice = async (cameras: MediaDeviceInfo[]) => {
+  if (!webcamPicker || !webcamPickerSelect || !webcamPickerConfirm || !webcamPickerCancel || !webcamPickerRemember) {
+    const choices = cameras
+      .map((device, index) => `${index + 1}) ${device.label || `Camera ${index + 1}`}`)
+      .join('\n');
+    const response = window.prompt(`Select webcam:\n${choices}`);
+    if (!response) return null;
+    const index = Number(response.trim()) - 1;
+    return cameras[index] ?? null;
+  }
+
+  return new Promise<MediaDeviceInfo | null>((resolve) => {
+    const savedId = getSavedWebcamId();
+    webcamPickerSelect.innerHTML = '';
+    cameras.forEach((device, index) => {
+      const option = document.createElement('option');
+      option.value = device.deviceId;
+      option.textContent = device.label || `Camera ${index + 1}`;
+      webcamPickerSelect.appendChild(option);
+    });
+
+    if (savedId && cameras.some((device) => device.deviceId === savedId)) {
+      webcamPickerSelect.value = savedId;
+    } else if (webcamPickerSelect.options.length > 0) {
+      webcamPickerSelect.selectedIndex = 0;
+    }
+    webcamPickerRemember.checked = true;
+
+    const cleanup = () => {
+      webcamPicker.classList.add('hidden');
+      webcamPickerConfirm.removeEventListener('click', onConfirm);
+      webcamPickerCancel.removeEventListener('click', onCancel);
+      webcamPicker.removeEventListener('click', onBackdrop);
+    };
+
+    const onConfirm = () => {
+      const selectedId = webcamPickerSelect.value;
+      const selected = cameras.find((device) => device.deviceId === selectedId) ?? null;
+      setSavedWebcamId(selectedId, webcamPickerRemember.checked);
+      cleanup();
+      resolve(selected);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onBackdrop = (event: MouseEvent) => {
+      if (event.target === webcamPicker) {
+        onCancel();
+      }
+    };
+
+    webcamPickerConfirm.addEventListener('click', onConfirm);
+    webcamPickerCancel.addEventListener('click', onCancel);
+    webcamPicker.addEventListener('click', onBackdrop);
+    webcamPicker.classList.remove('hidden');
+  });
+};
+
 const startLiveCapture = async (source: 'webcam' | 'screen') => {
   try {
-    const constraints =
-      source === 'webcam'
-        ? { video: { width: 1280, height: 720 }, audio: false }
-        : { video: { displaySurface: 'monitor' }, audio: false };
+    let videoConstraints: MediaTrackConstraints | boolean = true;
+    if (source === 'webcam') {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter((device) => device.kind === 'videoinput');
+      if (cameras.length > 1) {
+        const selected = await pickWebcamDevice(cameras);
+        if (!selected) {
+          setStatus('Webcam selection canceled.');
+          return;
+        }
+        videoConstraints = { deviceId: { exact: selected.deviceId }, width: 1280, height: 720 };
+      } else {
+        videoConstraints = { width: 1280, height: 720 };
+      }
+    } else {
+      videoConstraints = { displaySurface: 'monitor' };
+    }
+
+    const constraints = { video: videoConstraints, audio: false };
 
     const stream =
       source === 'webcam'
