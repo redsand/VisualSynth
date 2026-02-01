@@ -67,12 +67,14 @@
 <section class="left-panel">
           <div id="mode-performance-left" class="mode-pane">
             <h2>Performance</h2>
-            <div id="scene-strip" class="panel-block">
-              <h3>Scene Strip</h3>
-              <div class="scene-strip-controls">
-                <span class="scene-strip-label">View</span>
-                <button type="button" class="scene-strip-toggle active" data-scene-view="cards">Cards</button>
-                <button type="button" class="scene-strip-toggle" data-scene-view="list">List</button>
+            <div id="scene-strip" class="panel-block scene-strip">
+              <div class="scene-strip-header">
+                <h3>Scene Strip</h3>
+                <div class="scene-strip-controls">
+                  <span class="scene-strip-label">View</span>
+                  <button type="button" class="scene-strip-toggle active" data-scene-view="cards">Cards</button>
+                  <button type="button" class="scene-strip-toggle" data-scene-view="list">List</button>
+                </div>
               </div>
               <label class="scene-label">
                 Active Scene
@@ -96,29 +98,27 @@
               <div class="scene-strip-add">
                 <button id="scene-add-blank" type="button">New Blank Scene</button>
               </div>
-              <div class="scene-strip-presets" id="preset-explorer">
-                <h4>Preset Explorer</h4>
-                <label class="scene-label">
-                  Preset
-                  <select id="preset-select"></select>
-                </label>
-                <div class="scene-row">
-                  <label class="scene-inline">
-                    Category
-                    <select id="preset-category"></select>
-                  </label>
-                  <button id="preset-shuffle" type="button">Shuffle</button>
-                </div>
-                <div class="scene-row">
-                  <button id="preset-prev" type="button">Previous</button>
-                  <button id="preset-next" type="button">Next</button>
-                  <button id="btn-apply-preset" type="button">Add Preset as Scene</button>
-                </div>
-                <div id="preset-browser" class="preset-browser"></div>
-              </div>
             </div>
-
-
+            <div class="panel-block" id="preset-explorer">
+              <h3>Preset Explorer</h3>
+              <label class="scene-label">
+                Preset
+                <select id="preset-select"></select>
+              </label>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Category
+                  <select id="preset-category"></select>
+                </label>
+                <button id="preset-shuffle" type="button">Shuffle</button>
+              </div>
+              <div class="scene-row">
+                <button id="preset-prev" type="button">Previous</button>
+                <button id="preset-next" type="button">Next</button>
+                <button id="btn-apply-preset" type="button">Add Preset as Scene</button>
+              </div>
+              <div id="preset-browser" class="preset-browser"></div>
+            </div>
             <div class="panel-block">
               <h3>64-Pad Performance</h3>
               <div class="bank-row" id="pad-bank">
@@ -622,6 +622,67 @@
           <div id="safe-mode-banner" class="safe-mode hidden">Safe mode: --</div>
         </section>
 <section class="right-panel">
+          <div class="macro-hero">
+            <div class="macro-hero-header">
+              <h2>Scene Macros</h2>
+              <div class="macro-hero-subtitle">Energy · Motion · Color · Density</div>
+            </div>
+            <div class="macro-hero-grid">
+              <label class="macro-hero-item">
+                <span>Energy</span>
+                <input id="macro-energy" type="range" min="0" max="1" step="0.01" value="0.5" />
+                <strong id="macro-energy-value">0.50</strong>
+              </label>
+              <label class="macro-hero-item">
+                <span>Motion</span>
+                <input id="macro-motion" type="range" min="0" max="1" step="0.01" value="0.5" />
+                <strong id="macro-motion-value">0.50</strong>
+              </label>
+              <label class="macro-hero-item">
+                <span>Color</span>
+                <input id="macro-color" type="range" min="0" max="1" step="0.01" value="0.5" />
+                <strong id="macro-color-value">0.50</strong>
+              </label>
+              <label class="macro-hero-item">
+                <span>Density</span>
+                <input id="macro-density" type="range" min="0" max="1" step="0.01" value="0.5" />
+                <strong id="macro-density-value">0.50</strong>
+              </label>
+            </div>
+          </div>
+          <div id="matrix-controls" class="matrix-controls hidden">
+            <h2>Matrix Modulators</h2>
+            <div class="panel-block">
+              <div class="matrix-tabs">
+                <button type="button" class="matrix-tab active" data-matrix-tab="lfos">LFOs</button>
+                <button type="button" class="matrix-tab" data-matrix-tab="envelopes">Envelopes</button>
+                <button type="button" class="matrix-tab" data-matrix-tab="sh">Sample &amp; Hold</button>
+              </div>
+              <div class="matrix-tab-panels">
+                <div class="matrix-tab-panel active" data-matrix-panel="lfos">
+                  <div class="mod-section">
+                    <div class="mod-title">LFOs</div>
+                    <div id="lfo-list" class="mod-list"></div>
+                  </div>
+                </div>
+                <div class="matrix-tab-panel" data-matrix-panel="envelopes">
+                  <div class="mod-section">
+                    <div class="mod-title">Envelopes</div>
+                    <div id="env-list" class="mod-list"></div>
+                  </div>
+                </div>
+                <div class="matrix-tab-panel" data-matrix-panel="sh">
+                  <div class="mod-section">
+                    <div class="mod-title">Sample &amp; Hold</div>
+                    <div id="sh-list" class="mod-list"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <details id="advanced-panel" class="advanced-panel" open>
+            <summary>Advanced</summary>
+            <div class="advanced-content">
           <div id="mode-performance-right" class="mode-pane">
             <h2>Macros</h2>
             <div id="macro-list" class="macro-list"></div>
@@ -875,25 +936,6 @@
             </div>
           </div>
 
-          <div id="mode-matrix-right" class="mode-pane hidden">
-            <h2>Matrix</h2>
-            <div class="panel-block">
-              <h3>Modulators</h3>
-              <div class="mod-section">
-                <div class="mod-title">LFOs</div>
-                <div id="lfo-list" class="mod-list"></div>
-              </div>
-              <div class="mod-section">
-                <div class="mod-title">Envelopes</div>
-                <div id="env-list" class="mod-list"></div>
-              </div>
-              <div class="mod-section">
-                <div class="mod-title">Sample &amp; Hold</div>
-                <div id="sh-list" class="mod-list"></div>
-              </div>
-            </div>
-          </div>
-
           <div id="mode-system-right" class="mode-pane hidden">
             <h2>System</h2>
             <div class="panel-block">
@@ -954,6 +996,8 @@
               <div id="diff-sections" class="diff-sections"></div>
             </div>
           </div>
+            </div>
+          </details>
         </section>
 </main>
 

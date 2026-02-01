@@ -4,8 +4,8 @@ import { projectSchema } from '../src/shared/projectSchema';
 
 describe('modulator defaults', () => {
   it('includes default LFOs, envelopes, and sample & hold', () => {
-    expect(DEFAULT_PROJECT.lfos.length).toBe(2);
-    expect(DEFAULT_PROJECT.envelopes.length).toBe(2);
+    expect(DEFAULT_PROJECT.lfos.length).toBe(4);
+    expect(DEFAULT_PROJECT.envelopes.length).toBe(4);
     expect(DEFAULT_PROJECT.sampleHold.length).toBe(2);
   });
 
@@ -14,8 +14,8 @@ describe('modulator defaults', () => {
     const parsed = projectSchema.safeParse(rest);
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    expect(parsed.data.lfos.length).toBe(2);
-    expect(parsed.data.envelopes.length).toBe(2);
+    expect(parsed.data.lfos.length).toBe(4);
+    expect(parsed.data.envelopes.length).toBe(4);
     expect(parsed.data.sampleHold.length).toBe(2);
   });
 });

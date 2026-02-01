@@ -581,6 +581,18 @@ export class RenderGraph {
         ...(expressiveFx.energyBloom?.expert ?? {})
       }
     };
+    const radialFx = {
+      ...DEFAULT_PROJECT.expressiveFx.radialGravity,
+      ...expressiveFx.radialGravity,
+      intentBinding: {
+        ...DEFAULT_PROJECT.expressiveFx.radialGravity.intentBinding,
+        ...(expressiveFx.radialGravity?.intentBinding ?? {})
+      },
+      expert: {
+        ...DEFAULT_PROJECT.expressiveFx.radialGravity.expert,
+        ...(expressiveFx.radialGravity?.expert ?? {})
+      }
+    };
     const motionFx = {
       ...DEFAULT_PROJECT.expressiveFx.motionEcho,
       ...expressiveFx.motionEcho,
@@ -692,6 +704,7 @@ export class RenderGraph {
       return Math.min(1, Math.max(0, value));
     };
     const energyMacro = resolveExpressiveMacro(energyFx.macro, energyFx.intentBinding);
+    const radialMacro = resolveExpressiveMacro(radialFx.macro, radialFx.intentBinding);
     const echoMacro = resolveExpressiveMacro(motionFx.macro, motionFx.intentBinding);
     const smearMacro = resolveExpressiveMacro(smearFx.macro, smearFx.intentBinding);
     const plasmaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-plasma');
@@ -1012,6 +1025,11 @@ export class RenderGraph {
       expressiveEnergyBloom: energyFx.enabled ? energyMacro : 0,
       expressiveEnergyThreshold: energyFx.expert.threshold,
       expressiveEnergyAccumulation: energyFx.expert.accumulation,
+      expressiveRadialGravity: radialFx.enabled ? radialMacro : 0,
+      expressiveRadialStrength: radialFx.expert.strength,
+      expressiveRadialRadius: radialFx.expert.radius,
+      expressiveRadialFocusX: radialFx.expert.focusX,
+      expressiveRadialFocusY: radialFx.expert.focusY,
       expressiveMotionEcho: motionFx.enabled ? echoMacro : 0,
       expressiveMotionEchoDecay: motionFx.expert.decay,
       expressiveMotionEchoWarp: motionFx.expert.warp,

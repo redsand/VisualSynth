@@ -88,6 +88,11 @@ const state: RenderState = {
   expressiveEnergyBloom: 0,
   expressiveEnergyThreshold: 0.55,
   expressiveEnergyAccumulation: 0.65,
+  expressiveRadialGravity: 0,
+  expressiveRadialStrength: 0.6,
+  expressiveRadialRadius: 0.65,
+  expressiveRadialFocusX: 0.5,
+  expressiveRadialFocusY: 0.5,
   expressiveMotionEcho: 0,
   expressiveMotionEchoDecay: 0.6,
   expressiveMotionEchoWarp: 0.35,
@@ -197,6 +202,16 @@ channel.onmessage = (event) => {
     state.expressiveEnergyThreshold = data.expressiveEnergyThreshold;
   if (typeof data.expressiveEnergyAccumulation === 'number')
     state.expressiveEnergyAccumulation = data.expressiveEnergyAccumulation;
+  if (typeof data.expressiveRadialGravity === 'number')
+    state.expressiveRadialGravity = data.expressiveRadialGravity;
+  if (typeof data.expressiveRadialStrength === 'number')
+    state.expressiveRadialStrength = data.expressiveRadialStrength;
+  if (typeof data.expressiveRadialRadius === 'number')
+    state.expressiveRadialRadius = data.expressiveRadialRadius;
+  if (typeof data.expressiveRadialFocusX === 'number')
+    state.expressiveRadialFocusX = data.expressiveRadialFocusX;
+  if (typeof data.expressiveRadialFocusY === 'number')
+    state.expressiveRadialFocusY = data.expressiveRadialFocusY;
   if (typeof data.expressiveMotionEcho === 'number')
     state.expressiveMotionEcho = data.expressiveMotionEcho;
   if (typeof data.expressiveMotionEchoDecay === 'number')

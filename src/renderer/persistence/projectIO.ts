@@ -37,6 +37,30 @@ export const createProjectIO = ({
     }
   };
 
+  const ensureProjectModulators = (project: VisualSynthProject) => {
+    const defaultLfos = JSON.parse(JSON.stringify(DEFAULT_PROJECT.lfos));
+    const defaultEnvelopes = JSON.parse(JSON.stringify(DEFAULT_PROJECT.envelopes));
+    const defaultSampleHold = JSON.parse(JSON.stringify(DEFAULT_PROJECT.sampleHold));
+    project.lfos = project.lfos?.length ? project.lfos : defaultLfos;
+    project.envelopes = project.envelopes?.length ? project.envelopes : defaultEnvelopes;
+    project.sampleHold = project.sampleHold?.length ? project.sampleHold : defaultSampleHold;
+    if (project.lfos.length < defaultLfos.length) {
+      project.lfos = [...project.lfos, ...defaultLfos.slice(project.lfos.length)];
+    }
+    if (project.envelopes.length < defaultEnvelopes.length) {
+      project.envelopes = [
+        ...project.envelopes,
+        ...defaultEnvelopes.slice(project.envelopes.length)
+      ];
+    }
+    if (project.sampleHold.length < defaultSampleHold.length) {
+      project.sampleHold = [
+        ...project.sampleHold,
+        ...defaultSampleHold.slice(project.sampleHold.length)
+      ];
+    }
+  };
+
   const ensureProjectExpressiveFx = (project: VisualSynthProject) => {
     const fallback = DEFAULT_PROJECT.expressiveFx;
     const current = project.expressiveFx;
@@ -50,6 +74,12 @@ export const createProjectIO = ({
         ...current.energyBloom,
         intentBinding: { ...fallback.energyBloom.intentBinding, ...(current.energyBloom?.intentBinding ?? {}) },
         expert: { ...fallback.energyBloom.expert, ...(current.energyBloom?.expert ?? {}) }
+      },
+      radialGravity: {
+        ...fallback.radialGravity,
+        ...current.radialGravity,
+        intentBinding: { ...fallback.radialGravity.intentBinding, ...(current.radialGravity?.intentBinding ?? {}) },
+        expert: { ...fallback.radialGravity.expert, ...(current.radialGravity?.expert ?? {}) }
       },
       motionEcho: {
         ...fallback.motionEcho,
@@ -131,6 +161,7 @@ export const createProjectIO = ({
     const normalized = parsed.data;
     ensureProjectMacros(normalized);
     ensureProjectExpressiveFx(normalized);
+    ensureProjectModulators(normalized);
     ensureProjectScenes(normalized);
     normalized.version = Math.max(normalized.version ?? 0, DEFAULT_PROJECT.version);
     actions.setProject(store, normalized);

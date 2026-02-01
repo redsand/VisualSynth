@@ -37,6 +37,18 @@ describe('preset library', () => {
           validatedData = parsed.data;
           isValid = true;
         }
+      } else if (presetVersion === 4) {
+        // Validate v4 preset against presetV4Schema
+        const { presetV4Schema } = await import('../src/shared/presetMigration');
+        const parsed = presetV4Schema.safeParse(data);
+        if (!parsed.success) {
+          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
+        }
+        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
+        if (parsed.success) {
+          validatedData = parsed.data;
+          isValid = true;
+        }
       } else {
         // Validate v2 preset against projectSchema
         const parsed = projectSchema.safeParse(data);

@@ -341,7 +341,7 @@ const sceneSchema = z.object({
     support: [],
     atmosphere: []
   }),
-  layers: z.array(layerSchema),
+  layers: z.array(layerSchema).min(1),
   look: sceneLookSchema.optional()
 });
 
@@ -497,6 +497,8 @@ export const projectSchema = z.object({
   version: z.number(),
   name: z.string(),
   category: z.string().optional(),
+  intendedMusicStyle: z.string().optional(),
+  visualIntentTags: z.array(z.string()).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
@@ -509,18 +511,45 @@ export const projectSchema = z.object({
     .default([
       {
         id: 'macro-1',
-        name: 'Macro 1',
+        name: 'Energy',
         value: 0.5,
-        targets: [{ target: 'layer-plasma.opacity', amount: 1 }]
+        targets: [
+          { target: 'effects.bloom', amount: 0.6 },
+          { target: 'particles.glow', amount: 0.35 },
+          { target: 'effects.feedback', amount: 0.2 }
+        ]
       },
       {
         id: 'macro-2',
-        name: 'Macro 2',
+        name: 'Motion',
         value: 0.5,
-        targets: [{ target: 'layer-spectrum.opacity', amount: 1 }]
+        targets: [
+          { target: 'particles.speed', amount: 0.4 },
+          { target: 'layer-plasma.speed', amount: 0.35 },
+          { target: 'layer-origami.speed', amount: 0.25 },
+          { target: 'layer-glyph.speed', amount: 0.2 }
+        ]
       },
-      { id: 'macro-3', name: 'Macro 3', value: 0.5, targets: [] },
-      { id: 'macro-4', name: 'Macro 4', value: 0.5, targets: [] },
+      {
+        id: 'macro-3',
+        name: 'Color',
+        value: 0.5,
+        targets: [
+          { target: 'style.saturation', amount: 0.35 },
+          { target: 'style.paletteShift', amount: 0.25 },
+          { target: 'effects.chroma', amount: 0.2 }
+        ]
+      },
+      {
+        id: 'macro-4',
+        name: 'Density',
+        value: 0.5,
+        targets: [
+          { target: 'particles.density', amount: 0.5 },
+          { target: 'layer-spectrum.opacity', amount: 0.35 },
+          { target: 'layer-plasma.opacity', amount: 0.2 }
+        ]
+      },
       { id: 'macro-5', name: 'Macro 5', value: 0.5, targets: [] },
       { id: 'macro-6', name: 'Macro 6', value: 0.5, targets: [] },
       { id: 'macro-7', name: 'Macro 7', value: 0.5, targets: [] },
@@ -589,7 +618,9 @@ export const projectSchema = z.object({
     .array(lfoSchema)
     .default([
       { id: 'lfo-1', name: 'LFO 1', shape: 'sine', rate: 0.5, sync: true, phase: 0 },
-      { id: 'lfo-2', name: 'LFO 2', shape: 'triangle', rate: 1, sync: true, phase: 0.25 }
+      { id: 'lfo-2', name: 'LFO 2', shape: 'triangle', rate: 1, sync: true, phase: 0.25 },
+      { id: 'lfo-3', name: 'LFO 3', shape: 'saw', rate: 0.75, sync: true, phase: 0.5 },
+      { id: 'lfo-4', name: 'LFO 4', shape: 'square', rate: 0.35, sync: false, phase: 0.1 }
     ]),
   envelopes: z
     .array(envelopeSchema)
@@ -615,6 +646,28 @@ export const projectSchema = z.object({
         hold: 0.5,
         trigger: 'strobe',
         threshold: 0.4
+      },
+      {
+        id: 'env-3',
+        name: 'Env 3',
+        attack: 0.08,
+        decay: 0.25,
+        sustain: 0.5,
+        release: 0.35,
+        hold: 0.3,
+        trigger: 'audio.peak',
+        threshold: 0.5
+      },
+      {
+        id: 'env-4',
+        name: 'Env 4',
+        attack: 0.15,
+        decay: 0.35,
+        sustain: 0.45,
+        release: 0.5,
+        hold: 0.45,
+        trigger: 'strobe',
+        threshold: 0.35
       }
     ]),
   sampleHold: z
@@ -627,7 +680,7 @@ export const projectSchema = z.object({
   timelineMarkers: z.array(timelineMarkerSchema).default([]),
   assets: z.array(assetItemSchema).default([]),
   plugins: z.array(pluginEntrySchema).default([]),
-  scenes: z.array(sceneSchema),
+  scenes: z.array(sceneSchema).min(1),
   modMatrix: z.array(modConnectionSchema),
   midiMappings: z.array(midiMappingSchema),
   activeSceneId: z.string()

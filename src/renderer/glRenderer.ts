@@ -96,6 +96,11 @@ export interface RenderState {
   expressiveEnergyBloom: number;
   expressiveEnergyThreshold: number;
   expressiveEnergyAccumulation: number;
+  expressiveRadialGravity: number;
+  expressiveRadialStrength: number;
+  expressiveRadialRadius: number;
+  expressiveRadialFocusX: number;
+  expressiveRadialFocusY: number;
   expressiveMotionEcho: number;
   expressiveMotionEchoDecay: number;
   expressiveMotionEchoWarp: number;
@@ -255,6 +260,11 @@ uniform float uTrailSpectrum[64];
 uniform float uExpressiveEnergyBloom;
 uniform float uExpressiveEnergyThreshold;
 uniform float uExpressiveEnergyAccumulation;
+uniform float uExpressiveRadialGravity;
+uniform float uExpressiveRadialStrength;
+uniform float uExpressiveRadialRadius;
+uniform float uExpressiveRadialFocusX;
+uniform float uExpressiveRadialFocusY;
 uniform float uExpressiveMotionEcho;
 uniform float uExpressiveMotionEchoDecay;
 uniform float uExpressiveMotionEchoWarp;
@@ -771,6 +781,16 @@ void main() {
     
     effectUv = vec2(cos(angle), sin(angle)) * newRadius * 0.5 + 0.5;
   }
+  if (uExpressiveRadialGravity > 0.01) {
+    vec2 focus = vec2(uExpressiveRadialFocusX, uExpressiveRadialFocusY);
+    vec2 toFocus = focus - effectUv;
+    float dist = length(toFocus);
+    float radius = mix(0.1, 1.2, clamp(uExpressiveRadialRadius, 0.0, 1.0));
+    float strength = uExpressiveRadialGravity * clamp(uExpressiveRadialStrength, 0.0, 1.0);
+    float falloff = smoothstep(radius, 0.0, dist);
+    vec2 pull = normalize(toFocus + 0.0001) * strength * falloff * 0.12;
+    effectUv = clamp(effectUv + pull, 0.0, 1.0);
+  }
   vec3 color = vec3(0.02, 0.04, 0.08);
   if (uPlasmaEnabled > 0.5) {
     vec3 plasmaColor = samplePlasma(effectUv, uTime);
@@ -1268,6 +1288,11 @@ void main() {
     gl.uniform1f(getLocation('uExpressiveEnergyBloom'), state.expressiveEnergyBloom);
     gl.uniform1f(getLocation('uExpressiveEnergyThreshold'), state.expressiveEnergyThreshold);
     gl.uniform1f(getLocation('uExpressiveEnergyAccumulation'), state.expressiveEnergyAccumulation);
+    gl.uniform1f(getLocation('uExpressiveRadialGravity'), state.expressiveRadialGravity);
+    gl.uniform1f(getLocation('uExpressiveRadialStrength'), state.expressiveRadialStrength);
+    gl.uniform1f(getLocation('uExpressiveRadialRadius'), state.expressiveRadialRadius);
+    gl.uniform1f(getLocation('uExpressiveRadialFocusX'), state.expressiveRadialFocusX);
+    gl.uniform1f(getLocation('uExpressiveRadialFocusY'), state.expressiveRadialFocusY);
     gl.uniform1f(getLocation('uExpressiveMotionEcho'), state.expressiveMotionEcho);
     gl.uniform1f(getLocation('uExpressiveMotionEchoDecay'), state.expressiveMotionEchoDecay);
     gl.uniform1f(getLocation('uExpressiveMotionEchoWarp'), state.expressiveMotionEchoWarp);

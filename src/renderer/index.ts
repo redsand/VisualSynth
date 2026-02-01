@@ -111,6 +111,7 @@ const presetCategorySelect = document.getElementById('preset-category') as HTMLS
 const presetShuffleButton = document.getElementById('preset-shuffle') as HTMLButtonElement;
 const presetBrowser = document.getElementById('preset-browser') as HTMLDivElement;
 const presetExplorer = document.getElementById('preset-explorer') as HTMLDivElement;
+const advancedPanel = document.getElementById('advanced-panel') as HTMLDetailsElement;
 const templateSelect = document.getElementById('template-select') as HTMLSelectElement;
 const applyTemplateButton = document.getElementById('btn-apply-template') as HTMLButtonElement;
 const modeSwitcher = document.getElementById('mode-switcher') as HTMLDivElement;
@@ -216,6 +217,16 @@ const styleContrast = document.getElementById('style-contrast') as HTMLInputElem
 const styleSaturation = document.getElementById('style-saturation') as HTMLInputElement;
 const styleShift = document.getElementById('style-shift') as HTMLInputElement;
 const macroList = document.getElementById('macro-list') as HTMLDivElement;
+const macroEnergy = document.getElementById('macro-energy') as HTMLInputElement;
+const macroMotion = document.getElementById('macro-motion') as HTMLInputElement;
+const macroColor = document.getElementById('macro-color') as HTMLInputElement;
+const macroDensity = document.getElementById('macro-density') as HTMLInputElement;
+const macroEnergyValue = document.getElementById('macro-energy-value') as HTMLSpanElement;
+const macroMotionValue = document.getElementById('macro-motion-value') as HTMLSpanElement;
+const macroColorValue = document.getElementById('macro-color-value') as HTMLSpanElement;
+const macroDensityValue = document.getElementById('macro-density-value') as HTMLSpanElement;
+const macroHero = document.querySelector('.macro-hero') as HTMLDivElement;
+const matrixControls = document.getElementById('matrix-controls') as HTMLDivElement;
 const effectsEnabled = document.getElementById('effects-enabled') as HTMLInputElement;
 const effectBloom = document.getElementById('effect-bloom') as HTMLInputElement;
 const effectBlur = document.getElementById('effect-blur') as HTMLInputElement;
@@ -680,15 +691,16 @@ const setMode = (mode: UiMode) => {
   designRight.classList.toggle('hidden', !visibility.design);
   matrixLeft.classList.toggle('hidden', !visibility.matrix);
   matrixCenter.classList.toggle('hidden', !visibility.matrix);
-  matrixRight.classList.toggle('hidden', !visibility.matrix);
+  matrixRight?.classList.toggle('hidden', true);
   systemLeft.classList.toggle('hidden', !visibility.system);
   systemRight.classList.toggle('hidden', !visibility.system);
   presetExplorer?.classList.toggle('hidden', mode !== 'performance');
-  if (mode === 'scene') {
-    sceneStripAnchor.appendChild(sceneStrip);
-  } else {
-    performanceLeft.insertBefore(sceneStrip, performanceLeft.children[1] ?? null);
+  if (advancedPanel) {
+    advancedPanel.open = mode !== 'performance' && mode !== 'matrix';
+    advancedPanel.classList.toggle('hidden', mode === 'matrix');
   }
+  macroHero?.classList.toggle('hidden', mode === 'matrix');
+  matrixControls?.classList.toggle('hidden', mode !== 'matrix');
 };
 
 const syncTempoInputs = (value: number) => {
@@ -777,7 +789,7 @@ const renderPresetBrowser = () => {
       setStatus(`Preset selected: ${preset.name}`);
     });
     card.addEventListener('dblclick', () => {
-      applyPresetPath(preset.path);
+      void addSceneFromPreset(preset.path);
     });
     presetBrowser.appendChild(card);
   });
@@ -944,6 +956,35 @@ const applyPresetPath = async (path: string, reason?: string) => {
       logPresetDebug(
         traceId,
         'Resolved preset project',
+        serializePresetPayload({
+          activeSceneId: applyResult.project?.activeSceneId,
+          scenes: applyResult.project?.scenes?.map((scene: any) => ({
+            id: scene.id,
+            name: scene.name,
+            layers: scene.layers?.map((layer: any) => ({
+              id: layer.id,
+              enabled: layer.enabled,
+              opacity: layer.opacity,
+              blendMode: layer.blendMode,
+              params: layer.params
+            }))
+          })),
+          modMatrix: applyResult.project?.modMatrix?.length ?? 0,
+          macros: applyResult.project?.macros?.length ?? 0
+        })
+      );
+      if (applyResult.project) {
+        const resolvedProject = applyPlaylistOverrides(applyResult.project);
+        await applyProject(resolvedProject);
+      }
+    } else if (migratedProject.version === 4) {
+      const applyResult = presetMigration.applyPresetV4(migratedProject, currentProject);
+      if (applyResult.warnings.length > 0) {
+        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+      }
+      logPresetDebug(
+        traceId,
+        'Resolved preset project (V4)',
         serializePresetPayload({
           activeSceneId: applyResult.project?.activeSceneId,
           scenes: applyResult.project?.scenes?.map((scene: any) => ({
@@ -1293,6 +1334,10 @@ const modSourceOptions = [
   { id: 'tempo.bpm', label: 'Tempo BPM' },
   { id: 'lfo-1', label: 'LFO 1' },
   { id: 'lfo-2', label: 'LFO 2' },
+  { id: 'lfo-3', label: 'LFO 3' },
+  { id: 'lfo-4', label: 'LFO 4' },
+  { id: 'lfo-3', label: 'LFO 3' },
+  { id: 'lfo-4', label: 'LFO 4' },
   { id: 'env-1', label: 'Env 1' },
   { id: 'env-2', label: 'Env 2' },
   { id: 'sh-1', label: 'S&H 1' },
@@ -1430,7 +1475,20 @@ const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const ensureProjectMacros = (project: VisualSynthProject) => {
   if (!project.macros || project.macros.length === 0) {
     project.macros = cloneValue(DEFAULT_PROJECT.macros);
+    return;
   }
+  const defaultsById = new Map(DEFAULT_PROJECT.macros.map((macro) => [macro.id, macro]));
+  project.macros = project.macros.map((macro) => {
+    const fallback = defaultsById.get(macro.id);
+    if (!fallback) return macro;
+    const targets = Array.isArray(macro.targets) ? macro.targets : [];
+    const shouldFillTargets = targets.length === 0 && ['macro-1', 'macro-2', 'macro-3', 'macro-4'].includes(macro.id);
+    return {
+      ...macro,
+      name: macro.name || fallback.name,
+      targets: shouldFillTargets ? cloneValue(fallback.targets) : targets
+    };
+  });
 };
 
 const ensureProjectPalettes = (project: VisualSynthProject) => {
@@ -1456,6 +1514,12 @@ const ensureProjectExpressiveFx = (project: VisualSynthProject) => {
       intentBinding: { ...fallback.energyBloom.intentBinding, ...(current.energyBloom?.intentBinding ?? {}) },
       expert: { ...fallback.energyBloom.expert, ...(current.energyBloom?.expert ?? {}) }
     },
+    radialGravity: {
+      ...fallback.radialGravity,
+      ...current.radialGravity,
+      intentBinding: { ...fallback.radialGravity.intentBinding, ...(current.radialGravity?.intentBinding ?? {}) },
+      expert: { ...fallback.radialGravity.expert, ...(current.radialGravity?.expert ?? {}) }
+    },
     motionEcho: {
       ...fallback.motionEcho,
       ...current.motionEcho,
@@ -1469,6 +1533,30 @@ const ensureProjectExpressiveFx = (project: VisualSynthProject) => {
       expert: { ...fallback.spectralSmear.expert, ...(current.spectralSmear?.expert ?? {}) }
     }
   };
+};
+
+const ensureProjectModulators = (project: VisualSynthProject) => {
+  const defaultLfos = cloneValue(DEFAULT_PROJECT.lfos);
+  const defaultEnvelopes = cloneValue(DEFAULT_PROJECT.envelopes);
+  const defaultSampleHold = cloneValue(DEFAULT_PROJECT.sampleHold);
+  project.lfos = project.lfos?.length ? project.lfos : defaultLfos;
+  project.envelopes = project.envelopes?.length ? project.envelopes : defaultEnvelopes;
+  project.sampleHold = project.sampleHold?.length ? project.sampleHold : defaultSampleHold;
+  if (project.lfos.length < defaultLfos.length) {
+    project.lfos = [...project.lfos, ...defaultLfos.slice(project.lfos.length)];
+  }
+  if (project.envelopes.length < defaultEnvelopes.length) {
+    project.envelopes = [
+      ...project.envelopes,
+      ...defaultEnvelopes.slice(project.envelopes.length)
+    ];
+  }
+  if (project.sampleHold.length < defaultSampleHold.length) {
+    project.sampleHold = [
+      ...project.sampleHold,
+      ...defaultSampleHold.slice(project.sampleHold.length)
+    ];
+  }
 };
 
 const resolveExpressiveMacro = (
@@ -3888,6 +3976,24 @@ const renderModulators = () => {
   renderSampleHoldList();
 };
 
+const initMatrixTabs = () => {
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.matrix-tab'));
+  if (tabs.length === 0) return;
+  const panels = Array.from(document.querySelectorAll<HTMLElement>('.matrix-tab-panel'));
+  const setActive = (key: string) => {
+    tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.matrixTab === key));
+    panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.matrixPanel === key));
+  };
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const key = tab.dataset.matrixTab;
+      if (key) setActive(key);
+    });
+  });
+  const initial = tabs.find((tab) => tab.classList.contains('active'))?.dataset.matrixTab;
+  if (initial) setActive(initial);
+};
+
 const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
   if (runtimeShaderOverride) {
     const applied = applyPlasmaShaderSource(runtimeShaderOverride, 'Draft');
@@ -3970,13 +4076,13 @@ const addSceneFromPreset = async (presetPath: string) => {
   if (result.error) {
     setStatus(`Preset load failed: ${result.error}`);
     await ensureSafeVisuals(traceId, result.error);
-    return;
+    return null;
   }
   if (!result.project || result.project.scenes.length === 0) {
     const reasonText = 'Preset has no scenes to add.';
     setStatus(reasonText);
     await ensureSafeVisuals(traceId, reasonText);
-    return;
+    return null;
   }
   const sourceScene =
     result.project.scenes.find((scene) => scene.id === result.project?.activeSceneId) ??
@@ -4038,7 +4144,10 @@ const addSceneFromPreset = async (presetPath: string) => {
     look
   };
   addSceneToProject(newScene, false);
-  setStatus(`Scene added from preset: ${newScene.name}`);
+  selectedSceneId = newScene.id;
+  renderSceneStrip();
+  renderSceneTimeline();
+  setStatus(`Scene added from preset: ${newScene.name} (preview ready)`);
   logPresetDebug(
     traceId,
     'Preset scene added',
@@ -4056,6 +4165,7 @@ const addSceneFromPreset = async (presetPath: string) => {
     })
   );
   void capturePresetThumbnail(presetPath);
+  return newScene.id;
 };
 
 const updateQuantizeHud = (message: string | null) => {
@@ -5395,6 +5505,8 @@ const initMacros = () => {
     slider.addEventListener('input', () => {
       macro.value = Number(slider.value);
       updateMacroPreviews();
+      syncMacroHeroFromProject();
+      syncMacrosToActiveScene();
     });
 
     const learn = document.createElement('button');
@@ -5418,6 +5530,7 @@ const initMacros = () => {
   });
   initLearnables();
   updateMacroPreviews();
+  syncMacroHeroFromProject();
 };
 
 const initEffects = () => {
@@ -5481,6 +5594,16 @@ const formatMacroPreviewValue = (value: number | undefined, fallback = '—') =>
   return value.toFixed(3).replace(/\.?0+$/, '');
 };
 
+const flashInteraction = (target: HTMLElement | null) => {
+  if (!target) return;
+  const host =
+    target.closest<HTMLElement>(
+      '.macro-hero-item, .panel-block, .scene-row, .scene-label, .scene-inline, .mode-button, button'
+    ) ?? target;
+  host.classList.add('interaction-flash');
+  window.setTimeout(() => host.classList.remove('interaction-flash'), 180);
+};
+
 const resolveMacroTargetBase = (target: string) => {
   const parsed = parseLegacyTarget(target);
   if (!parsed) return null;
@@ -5532,6 +5655,36 @@ const updateMacroPreviews = () => {
     });
     preview.textContent = snippets.join(' • ');
   });
+};
+
+const macroHeroInputs = [macroEnergy, macroMotion, macroColor, macroDensity];
+const macroHeroValues = [macroEnergyValue, macroMotionValue, macroColorValue, macroDensityValue];
+
+const syncMacrosToActiveScene = () => {
+  const scene = getActiveScene();
+  if (!scene) return;
+  if (!scene.look) scene.look = {};
+  scene.look.macros = cloneValue(currentProject.macros);
+};
+
+const syncMacroHeroFromProject = () => {
+  macroHeroInputs.forEach((input, index) => {
+    const value = currentProject.macros[index]?.value ?? 0;
+    input.value = String(value);
+    const valueLabel = macroHeroValues[index];
+    if (valueLabel) valueLabel.textContent = formatMacroPreviewValue(value, '0.00');
+  });
+};
+
+const updateMacroFromHero = (index: number, value: number) => {
+  if (!currentProject.macros[index]) return;
+  currentProject.macros[index].value = value;
+  const slider = macroInputs[index];
+  if (slider) slider.value = String(value);
+  const valueLabel = macroHeroValues[index];
+  if (valueLabel) valueLabel.textContent = formatMacroPreviewValue(value, '0.00');
+  updateMacroPreviews();
+  syncMacrosToActiveScene();
 };
 
 const hasAdvancedSdfLayer = () => {
@@ -6225,6 +6378,8 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
       slider.value = String(Math.min(1, Math.max(0, velocity)));
       currentProject.macros[index].value = Number(slider.value);
       updateMacroPreviews();
+      syncMacroHeroFromProject();
+      syncMacrosToActiveScene();
     }
     return;
   }
@@ -6508,6 +6663,7 @@ const applyProject = async (project: VisualSynthProject) => {
   ensureProjectMacros(normalized);
   ensureProjectPalettes(normalized);
   ensureProjectExpressiveFx(normalized);
+  ensureProjectModulators(normalized);
   ensureProjectScenes(normalized);
   normalized.version = Math.max(normalized.version ?? 0, DEFAULT_PROJECT.version);
   currentProject = normalized;
@@ -6882,6 +7038,20 @@ styleSelect.addEventListener('change', () => {
   control.addEventListener('input', () => {
     applyStyleControls();
   });
+});
+
+[macroEnergy, macroMotion, macroColor, macroDensity].forEach((control, index) => {
+  control.addEventListener('input', () => {
+    updateMacroFromHero(index, Number(control.value));
+  });
+});
+
+document.addEventListener('input', (event) => {
+  flashInteraction(event.target as HTMLElement);
+});
+
+document.addEventListener('click', (event) => {
+  flashInteraction(event.target as HTMLElement);
 });
 
 [effectsEnabled, effectBloom, effectBlur, effectChroma, effectPosterize, effectKaleidoscope, effectFeedback, effectPersistence].forEach(
@@ -8396,6 +8566,11 @@ const render = (time: number) => {
       expressiveEnergyBloom: renderState.expressiveEnergyBloom,
       expressiveEnergyThreshold: renderState.expressiveEnergyThreshold,
       expressiveEnergyAccumulation: renderState.expressiveEnergyAccumulation,
+      expressiveRadialGravity: renderState.expressiveRadialGravity,
+      expressiveRadialStrength: renderState.expressiveRadialStrength,
+      expressiveRadialRadius: renderState.expressiveRadialRadius,
+      expressiveRadialFocusX: renderState.expressiveRadialFocusX,
+      expressiveRadialFocusY: renderState.expressiveRadialFocusY,
       expressiveMotionEcho: renderState.expressiveMotionEcho,
       expressiveMotionEchoDecay: renderState.expressiveMotionEchoDecay,
       expressiveMotionEchoWarp: renderState.expressiveMotionEchoWarp,
@@ -8430,6 +8605,7 @@ const init = async () => {
   initShortcuts();
   initSceneStrip();
   initPanelCollapse();
+  initMatrixTabs();
   initLearnables();
   initSpectrumHint();
   loadPlaylist();

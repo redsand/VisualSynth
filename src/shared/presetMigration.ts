@@ -7,7 +7,8 @@
 
 import { z } from 'zod';
 import { PARAMETER_REGISTRY, getLayerType, getParamDef, parseLegacyTarget, buildLegacyTarget } from './parameterRegistry';
-import { DEFAULT_PROJECT } from './project';
+import { DEFAULT_PROJECT, DEFAULT_SCENE_TRANSITION, SceneConfig, SceneTransition, VisualSynthProject } from './project';
+import { projectSchema } from './projectSchema';
 
 export const APP_VERSION = '0.9.0';
 
@@ -18,6 +19,8 @@ export interface PresetCompatibility {
   maxVersion?: string;
 }
 
+export type PresetType = 'scene' | 'performance';
+
 export interface PresetMetadata {
   version: number;
   name: string;
@@ -25,6 +28,14 @@ export interface PresetMetadata {
   updatedAt: string;
   category?: string;
   compatibility?: PresetCompatibility;
+}
+
+export interface PresetMetadataV4 extends PresetMetadata {
+  version: 4;
+  presetType: PresetType;
+  intendedMusicStyle: string;
+  visualIntentTags: string[];
+  defaultTransition: SceneTransition;
 }
 
 /**
@@ -117,9 +128,37 @@ export const presetV3Schema = z.object({
   macros: z.array(z.any())
 });
 
+export const presetV4Schema = z.object({
+  version: z.literal(4),
+  metadata: z.object({
+    version: z.literal(4),
+    name: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    category: z.string().optional(),
+    compatibility: z.object({
+      minVersion: z.string(),
+      maxVersion: z.string().optional()
+    }).optional(),
+    presetType: z.enum(['scene', 'performance']),
+    intendedMusicStyle: z.string(),
+    visualIntentTags: z.array(z.string()),
+    defaultTransition: z.object({
+      durationMs: z.number(),
+      curve: z.enum(['linear', 'easeInOut'])
+    })
+  }),
+  scenes: projectSchema.shape.scenes,
+  activeSceneId: z.string().optional(),
+  modulations: z.array(presetV3ModulationSchema).optional(),
+  macros: z.array(z.any()).optional(),
+  project: projectSchema.optional()
+});
+
 export type PresetV1 = z.infer<typeof presetV1Schema>;
 export type PresetV2 = z.infer<typeof presetV2Schema>;
 export type PresetV3 = z.infer<typeof presetV3Schema>;
+export type PresetV4 = z.infer<typeof presetV4Schema>;
 
 /**
  * Migration result
@@ -195,7 +234,7 @@ export const migratePreset = (preset: any): MigrationResult => {
     }
 
     // Already at latest version
-    if (preset.version === 3) {
+    if (preset.version === 4) {
       return { success: true, preset, warnings, errors };
     }
 
@@ -212,6 +251,14 @@ export const migratePreset = (preset: any): MigrationResult => {
     // Migrate from v2 to v3
     if (migratedPreset.version === 2) {
       const result = migrateV2ToV3(migratedPreset);
+      migratedPreset = result.preset;
+      warnings.push(...result.warnings);
+      errors.push(...result.errors);
+    }
+
+    // Migrate from v3 to v4
+    if (migratedPreset.version === 3) {
+      const result = migrateV3ToV4(migratedPreset);
       migratedPreset = result.preset;
       warnings.push(...result.warnings);
       errors.push(...result.errors);
@@ -370,6 +417,48 @@ const migrateV2ToV3 = (preset: PresetV2): { preset: any; warnings: string[]; err
 };
 
 /**
+ * Migrate preset from version 3 to version 4 (scene/performance presets)
+ */
+const migrateV3ToV4 = (preset: PresetV3): { preset: any; warnings: string[]; errors: string[] } => {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  const applied = applyPresetV3(preset, DEFAULT_PROJECT);
+  if (!applied.project) {
+    errors.push('Failed to apply v3 preset during migration.');
+    return { preset, warnings, errors };
+  }
+
+  const scenes = applied.project.scenes.map((scene: SceneConfig) => ({
+    ...scene,
+    transition_in: scene.transition_in ?? { ...DEFAULT_SCENE_TRANSITION },
+    transition_out: scene.transition_out ?? { ...DEFAULT_SCENE_TRANSITION }
+  }));
+
+  const presetV4: any = {
+    version: 4,
+    metadata: {
+      version: 4,
+      name: preset.metadata?.name ?? 'Untitled Preset',
+      createdAt: preset.metadata?.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      category: preset.metadata?.category ?? 'Uncategorized',
+      compatibility: preset.metadata?.compatibility ?? { minVersion: APP_VERSION },
+      presetType: 'scene',
+      intendedMusicStyle: preset.metadata?.category ?? 'Any',
+      visualIntentTags: [],
+      defaultTransition: { ...DEFAULT_SCENE_TRANSITION }
+    },
+    scenes,
+    activeSceneId: applied.project.activeSceneId ?? scenes[0]?.id,
+    modulations: preset.modulations ?? [],
+    macros: preset.macros ?? []
+  };
+
+  return { preset: presetV4, warnings, errors };
+};
+
+/**
  * Validate a preset against the current parameter registry
  */
 export const validatePreset = (preset: any): { valid: boolean; warnings: string[]; errors: string[] } => {
@@ -379,6 +468,14 @@ export const validatePreset = (preset: any): { valid: boolean; warnings: string[
   // Check preset version
   if (preset.version < 3) {
     return { valid: true, warnings: ['Preset is in legacy format, migration recommended'], errors: [] };
+  }
+
+  if (preset.version === 4) {
+    const parsed = presetV4Schema.safeParse(preset);
+    if (!parsed.success) {
+      errors.push(`Preset v4 schema invalid: ${JSON.stringify(parsed.error.format())}`);
+      return { valid: false, warnings, errors };
+    }
   }
 
   // Validate layers
@@ -591,6 +688,80 @@ export const applyPresetV3 = (preset: any, currentProject: any): { project: any;
 
     return { ...macro, targets: migratedTargets };
   });
+
+  return { project, warnings };
+};
+
+/**
+ * Apply a v4 preset (scene/performance) to a project.
+ */
+export const applyPresetV4 = (preset: any, currentProject: any): { project: any; warnings: string[] } => {
+  const warnings: string[] = [];
+  const presetType = preset?.metadata?.presetType ?? 'scene';
+
+  if (presetType === 'performance' && preset.project) {
+    const parsed = projectSchema.safeParse(preset.project);
+    if (!parsed.success) {
+      warnings.push('Performance preset project failed schema validation; using DEFAULT_PROJECT fallback.');
+      return { project: JSON.parse(JSON.stringify(DEFAULT_PROJECT)), warnings };
+    }
+    return { project: parsed.data, warnings };
+  }
+
+  // Scene preset: build a fresh project with the preset scenes.
+  const project: VisualSynthProject = JSON.parse(JSON.stringify(currentProject ?? DEFAULT_PROJECT));
+  const scenes = Array.isArray(preset.scenes) ? preset.scenes : [];
+  const defaultTransition = preset?.metadata?.defaultTransition ?? DEFAULT_SCENE_TRANSITION;
+
+  project.scenes = scenes.map((scene: SceneConfig) => ({
+    ...scene,
+    transition_in: scene.transition_in ?? { ...defaultTransition },
+    transition_out: scene.transition_out ?? { ...defaultTransition }
+  }));
+
+  if (project.scenes.length === 0) {
+    warnings.push('Scene preset contained no scenes; falling back to DEFAULT_PROJECT.');
+    return { project: JSON.parse(JSON.stringify(DEFAULT_PROJECT)), warnings };
+  }
+
+  project.activeSceneId = preset.activeSceneId ?? project.scenes[0].id;
+
+  // Map metadata
+  if (preset.metadata) {
+    project.intendedMusicStyle = preset.metadata.intendedMusicStyle;
+    project.visualIntentTags = preset.metadata.visualIntentTags;
+  }
+
+  // Map v3-style modulations into legacy modMatrix.
+  if (preset.modulations) {
+    project.modMatrix = preset.modulations.map((mod: any) => ({
+      id: `mod-${Date.now()}-${Math.random()}`,
+      source: mod.source,
+      target: buildLegacyTarget(mod.target.type ?? mod.target.layerType, mod.target.param),
+      amount: mod.amount,
+      min: mod.min,
+      max: mod.max,
+      curve: mod.curve,
+      smoothing: mod.smoothing,
+      bipolar: mod.bipolar
+    }));
+  }
+
+  if (preset.macros) {
+    project.macros = preset.macros.map((macro: any) => {
+      if (!macro.targets) return macro;
+      const migratedTargets = macro.targets
+        .map((t: any) => {
+          const target = t.target;
+          if (typeof target === 'string') {
+            return { ...t, target };
+          }
+          return { ...t, target: buildLegacyTarget(target.type || target.layerType, target.param) };
+        })
+        .filter((t: any) => t !== null);
+      return { ...macro, targets: migratedTargets };
+    });
+  }
 
   return { project, warnings };
 };

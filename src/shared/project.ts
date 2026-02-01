@@ -434,6 +434,9 @@ export type PadAction =
 export interface VisualSynthProject {
   version: number;
   name: string;
+  category?: string;
+  intendedMusicStyle?: string;
+  visualIntentTags?: string[];
   createdAt: string;
   updatedAt: string;
   output: OutputConfig;
@@ -519,27 +522,44 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   macros: [
     {
       id: 'macro-1',
-      name: 'Macro 1',
+      name: 'Energy',
       value: 0.5,
-      targets: [{ target: 'layer-plasma.opacity', amount: 1 }]
+      targets: [
+        { target: 'effects.bloom', amount: 0.6 },
+        { target: 'particles.glow', amount: 0.35 },
+        { target: 'effects.feedback', amount: 0.2 }
+      ]
     },
     {
       id: 'macro-2',
-      name: 'Macro 2',
+      name: 'Motion',
       value: 0.5,
-      targets: [{ target: 'layer-spectrum.opacity', amount: 1 }]
+      targets: [
+        { target: 'particles.speed', amount: 0.4 },
+        { target: 'layer-plasma.speed', amount: 0.35 },
+        { target: 'layer-origami.speed', amount: 0.25 },
+        { target: 'layer-glyph.speed', amount: 0.2 }
+      ]
     },
     {
       id: 'macro-3',
-      name: 'Macro 3',
+      name: 'Color',
       value: 0.5,
-      targets: []
+      targets: [
+        { target: 'style.saturation', amount: 0.35 },
+        { target: 'style.paletteShift', amount: 0.25 },
+        { target: 'effects.chroma', amount: 0.2 }
+      ]
     },
     {
       id: 'macro-4',
-      name: 'Macro 4',
+      name: 'Density',
       value: 0.5,
-      targets: []
+      targets: [
+        { target: 'particles.density', amount: 0.5 },
+        { target: 'layer-spectrum.opacity', amount: 0.35 },
+        { target: 'layer-plasma.opacity', amount: 0.2 }
+      ]
     },
     {
       id: 'macro-5',
@@ -617,6 +637,22 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
       rate: 1,
       sync: true,
       phase: 0.25
+    },
+    {
+      id: 'lfo-3',
+      name: 'LFO 3',
+      shape: 'saw',
+      rate: 0.75,
+      sync: true,
+      phase: 0.5
+    },
+    {
+      id: 'lfo-4',
+      name: 'LFO 4',
+      shape: 'square',
+      rate: 0.35,
+      sync: false,
+      phase: 0.1
     }
   ],
   envelopes: [
@@ -641,6 +677,28 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
       hold: 0.5,
       trigger: 'strobe',
       threshold: 0.4
+    },
+    {
+      id: 'env-3',
+      name: 'Env 3',
+      attack: 0.08,
+      decay: 0.25,
+      sustain: 0.5,
+      release: 0.35,
+      hold: 0.3,
+      trigger: 'audio.peak',
+      threshold: 0.5
+    },
+    {
+      id: 'env-4',
+      name: 'Env 4',
+      attack: 0.15,
+      decay: 0.35,
+      sustain: 0.45,
+      release: 0.5,
+      hold: 0.45,
+      trigger: 'strobe',
+      threshold: 0.35
     }
   ],
   sampleHold: [

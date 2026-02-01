@@ -18,6 +18,14 @@ Expressive FX sit above the standard FX stack and operate on perceived meaning r
   - Accumulation: How aggressively bloom builds as energy rises.
 - Behavior: Accumulates glow based on luminance and RMS/peak energy to make high-intent moments feel radiant.
 
+### Radial Gravity
+- Macro: Overall gravity strength.
+- Expert:
+  - Strength: Pull intensity toward the focus point.
+  - Radius: Radius of influence (falloff range).
+  - Focus X / Focus Y: Focal point (0-1 screen space).
+- Behavior: Pulls visuals toward a focal point to suggest mass, intention, or convergence.
+
 ### Motion Echo
 - Macro: Overall echo strength.
 - Expert:
@@ -45,6 +53,12 @@ expressiveFx: {
     macro: number,
     intentBinding: { enabled: boolean, intent: SceneIntent, amount: number },
     expert: { threshold: number, accumulation: number }
+  },
+  radialGravity: {
+    enabled: boolean,
+    macro: number,
+    intentBinding: { enabled: boolean, intent: SceneIntent, amount: number },
+    expert: { strength: number, radius: number, focusX: number, focusY: number }
   },
   motionEcho: {
     enabled: boolean,
