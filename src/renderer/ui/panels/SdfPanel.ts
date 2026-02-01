@@ -10,6 +10,7 @@ export interface SdfPanelDeps {
 
 export const createSdfPanel = ({ store }: SdfPanelDeps) => {
   let container = document.getElementById('sdf-editor') as HTMLDivElement;
+  let showAdvancedSettings = false;
   if (!container) {
       const parent = document.getElementById('generator-panel');
       if (parent) {
@@ -64,20 +65,22 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
     modeRow.appendChild(modeLabel);
     modeRow.appendChild(modeSelect);
     
+    let settingsPanel: HTMLDivElement | null = null;
     // Settings Toggle
     const settingsBtn = document.createElement('button');
     settingsBtn.textContent = '⚙ Settings';
     settingsBtn.style.marginLeft = '10px';
     settingsBtn.onclick = () => {
-        const settingsPanel = container.querySelector('.sdf-advanced-settings');
-        if (settingsPanel) settingsPanel.classList.toggle('hidden');
+        showAdvancedSettings = !showAdvancedSettings;
+        if (settingsPanel) settingsPanel.classList.toggle('hidden', !showAdvancedSettings);
     };
     modeRow.appendChild(settingsBtn);
     container.appendChild(modeRow);
 
     // Advanced Settings Panel (Hidden by default)
-    const settingsPanel = document.createElement('div');
-    settingsPanel.className = 'sdf-advanced-settings hidden';
+    settingsPanel = document.createElement('div');
+    settingsPanel.className = 'sdf-advanced-settings';
+    settingsPanel.classList.toggle('hidden', !showAdvancedSettings);
     settingsPanel.style.background = 'rgba(0,0,0,0.2)';
     settingsPanel.style.padding = '10px';
     settingsPanel.style.marginBottom = '10px';
@@ -622,4 +625,3 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
 
   return { render };
 };
-

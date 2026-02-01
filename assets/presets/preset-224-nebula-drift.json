@@ -1,0 +1,24 @@
+{
+  "version": 3,
+  "name": "Nebula Drift",
+  "author": "VisualSynth",
+  "description": "Ink-based nebula drift with slower motion.",
+  "tags": ["ink", "nebula", "drift", "audio"],
+  "layers": [
+    {
+      "id": "layer-nebula-drift",
+      "type": "ink",
+      "name": "Nebula Drift",
+      "enabled": true,
+      "opacity": 0.78,
+      "blendMode": "screen",
+      "params": {
+        "brush": 1.0,
+        "pressure": 0.45,
+        "lifespan": 0.6,
+        "speed": 0.35,
+        "scale": 0.7
+      }
+    }
+  ]
+}

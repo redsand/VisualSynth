@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "VHS Scanline Warp",
+    "createdAt": "2026-02-01T12:00:00.000Z",
+    "updatedAt": "2026-02-01T12:00:00.000Z",
+    "category": "Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "plasma",
+      "params": {
+        "opacity": 0.78,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "speed": 0.45,
+        "scale": 0.6,
+        "complexity": 5.0,
+        "audioReact": 0.4
+      }
+    }
+  ],
+  "modulations": [],
+  "macros": []
+}

@@ -1,0 +1,99 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`preset regression coverage > produces a stable resolved layer snapshot for Cosmic Plasma 1`] = `
+[
+  {
+    "blendMode": "screen",
+    "enabled": true,
+    "id": "layer-plasma",
+    "opacity": 0.95,
+    "params": {
+      "blendMode": "screen",
+      "complexity": 0.5,
+      "enabled": true,
+      "opacity": 0.95,
+      "scale": 1,
+      "speed": 1,
+      "transform": {
+        "rotation": 0,
+        "scale": 1,
+        "x": 0,
+        "y": 0,
+      },
+    },
+  },
+  {
+    "blendMode": "add",
+    "enabled": true,
+    "id": "layer-spectrum",
+    "opacity": 0.9,
+    "params": {
+      "blendMode": "add",
+      "enabled": true,
+      "opacity": 0.9,
+      "transform": {
+        "rotation": 0,
+        "scale": 1,
+        "x": 0,
+        "y": 0,
+      },
+    },
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-origami",
+    "opacity": 0.85,
+    "params": undefined,
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-glyph",
+    "opacity": 0.8,
+    "params": undefined,
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-crystal",
+    "opacity": 0.85,
+    "params": undefined,
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-inkflow",
+    "opacity": 0.85,
+    "params": undefined,
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-topo",
+    "opacity": 0.85,
+    "params": undefined,
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-weather",
+    "opacity": 0.85,
+    "params": undefined,
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-portal",
+    "opacity": 0.85,
+    "params": undefined,
+  },
+  {
+    "blendMode": "screen",
+    "enabled": false,
+    "id": "layer-oscillo",
+    "opacity": 0.85,
+    "params": undefined,
+  },
+]
+`;

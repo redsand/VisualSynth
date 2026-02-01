@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Particle Swarm Bloom",
+    "createdAt": "2026-02-01T12:00:00.000Z",
+    "updatedAt": "2026-02-01T12:00:00.000Z",
+    "category": "Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "particles",
+      "params": {
+        "opacity": 0.85,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "density": 0.68,
+        "speed": 0.35,
+        "size": 0.58,
+        "glow": 0.95,
+        "turbulence": 0.35,
+        "audioLift": 0.8
+      }
+    }
+  ],
+  "modulations": [],
+  "macros": []
+}

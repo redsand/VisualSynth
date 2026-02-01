@@ -115,8 +115,8 @@ export interface AppState {
   quantizeHudMessage: string | null;
   pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null;
   renderSettings: {
-    assetLayerBlendModes: Record<'layer-plasma' | 'layer-spectrum', number>;
-    assetLayerAudioReact: Record<'layer-plasma' | 'layer-spectrum', number>;
+    assetLayerBlendModes: Record<'layer-plasma' | 'layer-spectrum' | 'layer-media', number>;
+    assetLayerAudioReact: Record<'layer-plasma' | 'layer-spectrum' | 'layer-media', number>;
   };
 }
 
@@ -198,11 +198,13 @@ export const createInitialState = (): AppState => ({
   renderSettings: {
     assetLayerBlendModes: {
       'layer-plasma': 3,
-      'layer-spectrum': 1
+      'layer-spectrum': 1,
+      'layer-media': 3
     },
     assetLayerAudioReact: {
       'layer-plasma': 0.6,
-      'layer-spectrum': 0.8
+      'layer-spectrum': 0.8,
+      'layer-media': 0.5
     }
   }
 });

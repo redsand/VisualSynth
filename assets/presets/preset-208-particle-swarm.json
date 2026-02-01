@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Particle Swarm",
+    "createdAt": "2026-02-01T12:00:00.000Z",
+    "updatedAt": "2026-02-01T12:00:00.000Z",
+    "category": "Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "particles",
+      "params": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "density": 0.82,
+        "speed": 0.55,
+        "size": 0.35,
+        "glow": 0.85,
+        "turbulence": 0.45,
+        "audioLift": 0.75
+      }
+    }
+  ],
+  "modulations": [],
+  "macros": []
+}

@@ -24,8 +24,9 @@ import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
+import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
 import { lfoValueForShape } from '../shared/lfoUtils';
-import { reorderLayers } from '../shared/layers';
+import { reorderLayers, cloneLayerConfig, ensureLayerWithDefaults } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
 import { pluginManifestSchema } from '../shared/pluginSchema';
 import { mergeProjectSections, MergeOptions } from '../shared/projectMerge';
@@ -102,6 +103,7 @@ const presetNextButton = document.getElementById('preset-next') as HTMLButtonEle
 const presetCategorySelect = document.getElementById('preset-category') as HTMLSelectElement;
 const presetShuffleButton = document.getElementById('preset-shuffle') as HTMLButtonElement;
 const presetBrowser = document.getElementById('preset-browser') as HTMLDivElement;
+const presetExplorer = document.getElementById('preset-explorer') as HTMLDivElement;
 const templateSelect = document.getElementById('template-select') as HTMLSelectElement;
 const applyTemplateButton = document.getElementById('btn-apply-template') as HTMLButtonElement;
 const modeSwitcher = document.getElementById('mode-switcher') as HTMLDivElement;
@@ -160,7 +162,7 @@ const shaderSaveButton = document.getElementById('shader-save') as HTMLButtonEle
 const shaderStatus = document.getElementById('shader-status') as HTMLDivElement;
 const layerList = document.getElementById('layer-list') as HTMLDivElement;
 const layerListScene = document.getElementById('layer-list-scene') as HTMLDivElement;
-const layerListDesign = document.getElementById('layer-list-design') as HTMLDivElement;
+const layerListDesign = document.getElementById('layer-list-design') as HTMLDivElement | null;
 let plasmaToggle: HTMLInputElement | null = null;
 let spectrumToggle: HTMLInputElement | null = null;
 let origamiToggle: HTMLInputElement | null = null;
@@ -342,6 +344,7 @@ let weatherMode = 0;
 let weatherIntensity = 0.6;
 let portalShift = 0;
 let portalSeed = Math.random() * 1000;
+let lastPortalAutoSpawn = 0;
 let oscilloMode = 0;
 let oscilloFreeze = 0;
 let oscilloRotate = 0;
@@ -374,6 +377,7 @@ let generatorFavoritesState: GeneratorId[] = [];
 let generatorRecentsState: GeneratorId[] = [];
 let activeStyleId = '';
 let macroInputs: HTMLInputElement[] = [];
+let macroPreviewRows: HTMLDivElement[] = [];
 let learnTarget: { target: string; label: string } | null = null;
 let midiSum: Record<string, number> = {};
 let safeModeReasons: string[] = [];
@@ -403,10 +407,15 @@ let visualizerMode: 'off' | 'spectrum' | 'waveform' | 'oscilloscope' = 'off';
 let playlist: { name: string; path: string }[] = [];
 let playlistIndex = 0;
 let playlistTimer: number | null = null;
+let playlistActive = false;
+let playlistOverrides: Record<string, Partial<LayerConfig>> = {};
 let presetLibrary: { name: string; path: string; category: string }[] = [];
 const presetThumbStorageKey = 'vs.preset.thumbs';
 let presetThumbs: Record<string, string> = {};
 const shaderDraftKey = 'vs.shader.draft';
+const shaderTargetDraftValue = 'layer-plasma';
+const shaderTargetAssetPrefix = 'asset:';
+let runtimeShaderOverride: string | null = null;
 
 const audioState = {
   rms: 0,
@@ -451,6 +460,19 @@ const portals = Array.from({ length: 4 }, () => ({
 const portalPositions = new Float32Array(8);
 const portalRadii = new Float32Array(4);
 const portalActives = new Float32Array(4);
+
+const mediaBursts = Array.from({ length: 8 }, () => ({
+  x: 0,
+  y: 0,
+  radius: 0,
+  life: 0,
+  type: 0,
+  active: false
+}));
+const mediaBurstPositions = new Float32Array(16);
+const mediaBurstRadii = new Float32Array(8);
+const mediaBurstTypes = new Float32Array(8);
+const mediaBurstActives = new Float32Array(8);
 
 const oscilloCapture = new Float32Array(256);
 
@@ -569,6 +591,33 @@ const setStatus = (message: string) => {
   statusLabel.textContent = message;
 };
 
+const recordPlaylistOverride = (layerId: string, override: Partial<LayerConfig>) => {
+  if (!playlistActive) return;
+  const existing = playlistOverrides[layerId] ?? {};
+  const merged: Partial<LayerConfig> = { ...existing, ...override };
+  if (override.params) {
+    merged.params = { ...(existing.params ?? {}), ...override.params };
+  }
+  playlistOverrides[layerId] = merged;
+};
+
+const applyPlaylistOverrides = (project: VisualSynthProject) => {
+  if (!playlistActive || Object.keys(playlistOverrides).length === 0) return project;
+  const activeScene =
+    project.scenes.find((scene) => scene.id === project.activeSceneId) ?? project.scenes[0];
+  if (!activeScene) return project;
+  activeScene.layers = activeScene.layers.map((layer) => {
+    const override = playlistOverrides[layer.id];
+    if (!override) return layer;
+    const next = { ...layer, ...override };
+    if (override.params) {
+      next.params = { ...(layer.params ?? {}), ...override.params };
+    }
+    return next;
+  });
+  return project;
+};
+
 const setMode = (mode: UiMode) => {
   activeMode = mode;
   const visibility = getModeVisibility(mode);
@@ -587,6 +636,7 @@ const setMode = (mode: UiMode) => {
   matrixRight.classList.toggle('hidden', !visibility.matrix);
   systemLeft.classList.toggle('hidden', !visibility.system);
   systemRight.classList.toggle('hidden', !visibility.system);
+  presetExplorer?.classList.toggle('hidden', mode !== 'performance');
   if (mode === 'scene') {
     sceneStripAnchor.appendChild(sceneStrip);
   } else {
@@ -794,31 +844,45 @@ const stopPlaylist = () => {
 };
 
 const applyPresetPath = async (path: string, reason?: string) => {
+  const traceId = createPresetTraceId();
+  logPresetDebug(traceId, 'Loading preset', { path, reason });
   const result = await window.visualSynth.loadPreset(path);
   if (result.error) {
     setStatus(`Preset load failed: ${result.error}`);
+    await ensureSafeVisuals(traceId, result.error);
     return;
   }
   if (result.project) {
     // Migrate preset if needed
-    const { default: presetMigration } = await import('../shared/presetMigration');
+    const presetMigration = await import('../shared/presetMigration');
     const migrationResult = presetMigration.migratePreset(result.project);
 
     if (!migrationResult.success) {
-      setStatus(`Preset migration failed: ${migrationResult.errors.join(', ')}`);
+      const reasonText = migrationResult.errors.join(', ');
+      setStatus(`Preset migration failed: ${reasonText}`);
+      await ensureSafeVisuals(traceId, reasonText);
       return;
     }
 
     // Show warnings if any
     if (migrationResult.warnings.length > 0) {
-      console.warn('Preset warnings:', migrationResult.warnings);
+      logPresetDebug(traceId, 'Preset migration warnings', migrationResult.warnings);
     }
 
     // Validate migrated preset
     const validationResult = presetMigration.validatePreset(migrationResult.preset);
     if (!validationResult.valid) {
-      setStatus(`Preset validation failed: ${validationResult.errors.join(', ')}`);
+      const reasonText = validationResult.errors.join(', ');
+      setStatus(`Preset validation failed: ${reasonText}`);
+      logPresetError(traceId, 'Preset validation failed', {
+        errors: validationResult.errors,
+        warnings: validationResult.warnings
+      });
+      await ensureSafeVisuals(traceId, reasonText);
       return;
+    }
+    if (validationResult.warnings.length > 0) {
+      logPresetDebug(traceId, 'Preset validation warnings', validationResult.warnings);
     }
 
     // Apply the (possibly migrated) preset
@@ -828,11 +892,55 @@ const applyPresetPath = async (path: string, reason?: string) => {
     if (migratedProject.version === 3) {
       const applyResult = presetMigration.applyPresetV3(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
-        console.warn('Preset application warnings:', applyResult.warnings);
+        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
       }
-      await applyProject(applyResult.project);
+      logPresetDebug(
+        traceId,
+        'Resolved preset project',
+        serializePresetPayload({
+          activeSceneId: applyResult.project?.activeSceneId,
+          scenes: applyResult.project?.scenes?.map((scene: any) => ({
+            id: scene.id,
+            name: scene.name,
+            layers: scene.layers?.map((layer: any) => ({
+              id: layer.id,
+              enabled: layer.enabled,
+              opacity: layer.opacity,
+              blendMode: layer.blendMode,
+              params: layer.params
+            }))
+          })),
+          modMatrix: applyResult.project?.modMatrix?.length ?? 0,
+          macros: applyResult.project?.macros?.length ?? 0
+        })
+      );
+      if (applyResult.project) {
+        const resolvedProject = applyPlaylistOverrides(applyResult.project);
+        await applyProject(resolvedProject);
+      }
     } else {
-      await applyProject(migratedProject);
+      logPresetDebug(
+        traceId,
+        'Resolved preset project',
+        serializePresetPayload({
+          activeSceneId: migratedProject.activeSceneId,
+          scenes: migratedProject.scenes?.map((scene: any) => ({
+            id: scene.id,
+            name: scene.name,
+            layers: scene.layers?.map((layer: any) => ({
+              id: layer.id,
+              enabled: layer.enabled,
+              opacity: layer.opacity,
+              blendMode: layer.blendMode,
+              params: layer.params
+            }))
+          })),
+          modMatrix: migratedProject.modMatrix?.length ?? 0,
+          macros: migratedProject.macros?.length ?? 0
+        })
+      );
+      const resolvedProject = applyPlaylistOverrides(migratedProject);
+      await applyProject(resolvedProject);
     }
 
     const presetName = playlist.find((item) => item.path === path)?.name ?? path;
@@ -906,12 +1014,78 @@ const syncVisualizerFromProject = () => {
   visualizerCanvas.classList.toggle('hidden', visualizerMode === 'off' || !currentProject.visualizer.enabled);
 };
 
+const getShaderAssetIdFromTarget = (value: string) =>
+  value.startsWith(shaderTargetAssetPrefix) ? value.slice(shaderTargetAssetPrefix.length) : null;
+
+const getShaderAssetById = (assetId: string | null) =>
+  assetId ? currentProject.assets.find((asset) => asset.id === assetId && asset.kind === 'shader') ?? null : null;
+
+const refreshShaderTargetOptions = () => {
+  const previousValue = shaderTargetSelect.value;
+  shaderTargetSelect.innerHTML = '';
+  const draftOption = document.createElement('option');
+  draftOption.value = shaderTargetDraftValue;
+  draftOption.textContent = 'Plasma Draft';
+  shaderTargetSelect.appendChild(draftOption);
+
+  const shaderAssets = currentProject.assets
+    .filter((asset) => asset.kind === 'shader')
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  shaderAssets.forEach((asset) => {
+    const option = document.createElement('option');
+    option.value = `${shaderTargetAssetPrefix}${asset.id}`;
+    option.textContent = `Shader: ${asset.name}`;
+    shaderTargetSelect.appendChild(option);
+  });
+
+  const hasPrevious = Array.from(shaderTargetSelect.options).some(
+    (option) => option.value === previousValue
+  );
+  shaderTargetSelect.value = hasPrevious ? previousValue : shaderTargetDraftValue;
+};
+
+const loadShaderSourceForAsset = async (asset: AssetItem) => {
+  if (asset.options?.shaderSource) return asset.options.shaderSource;
+  if (!asset.path) return null;
+  try {
+    const response = await fetch(toFileUrl(asset.path));
+    if (!response.ok) return null;
+    const source = await response.text();
+    asset.options = { ...(asset.options ?? {}), shaderSource: source };
+    return source;
+  } catch {
+    return null;
+  }
+};
+
+const applyPlasmaShaderSource = (source: string | null, label: string) => {
+  if (typeof (renderer as { setPlasmaShaderSource?: (s: string | null) => { ok: boolean } })
+    .setPlasmaShaderSource !== 'function') {
+    setStatus(`Shader system unavailable (${label}).`);
+    shaderStatus.textContent = 'Shader system unavailable in this build.';
+    return false;
+  }
+  const result = renderer.setPlasmaShaderSource(source);
+  if (!result.ok) {
+    setStatus(`Shader compile failed (${label}).`);
+    shaderStatus.textContent = `Shader compile failed for ${label}.`;
+    return false;
+  }
+  shaderStatus.textContent = `Shader applied (${label}).`;
+  return true;
+};
+
 const loadShaderDraft = () => {
   try {
+    refreshShaderTargetOptions();
     const stored = localStorage.getItem(shaderDraftKey);
     if (stored) {
       const parsed = JSON.parse(stored) as { target: string; code: string };
-      shaderTargetSelect.value = parsed.target;
+      const hasTarget = Array.from(shaderTargetSelect.options).some(
+        (option) => option.value === parsed.target
+      );
+      shaderTargetSelect.value = hasTarget ? parsed.target : shaderTargetDraftValue;
       shaderEditor.value = parsed.code;
       shaderStatus.textContent = 'Draft loaded.';
     }
@@ -927,6 +1101,69 @@ const saveShaderDraft = () => {
   };
   localStorage.setItem(shaderDraftKey, JSON.stringify(payload));
   shaderStatus.textContent = 'Draft saved locally.';
+};
+
+const syncShaderEditorForTarget = async () => {
+  const assetId = getShaderAssetIdFromTarget(shaderTargetSelect.value);
+  if (!assetId) {
+    const stored = localStorage.getItem(shaderDraftKey);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as { code?: string };
+        if (parsed?.code) {
+          shaderEditor.value = parsed.code;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return;
+  }
+  const asset = getShaderAssetById(assetId);
+  if (!asset) {
+    shaderStatus.textContent = 'Shader asset not found.';
+    return;
+  }
+  const source = await loadShaderSourceForAsset(asset);
+  if (!source) {
+    shaderStatus.textContent = 'Shader source missing.';
+    return;
+  }
+  shaderEditor.value = source;
+  shaderStatus.textContent = `Loaded shader: ${asset.name}`;
+};
+
+const getUniqueShaderName = (base: string) => {
+  const existing = new Set(currentProject.assets.map((asset) => asset.name));
+  if (!existing.has(base)) return base;
+  let index = 2;
+  let candidate = `${base} ${index}`;
+  while (existing.has(candidate)) {
+    index += 1;
+    candidate = `${base} ${index}`;
+  }
+  return candidate;
+};
+
+const validateCustomPlasmaSource = (code: string) => {
+  const signature = /vec3\s+customPlasma\s*\(\s*vec2\s+\w+\s*,\s*float\s+\w+\s*\)/;
+  if (!signature.test(code)) {
+    return 'Expected signature: vec3 customPlasma(vec2 uv, float t).';
+  }
+  return null;
+};
+
+const assignShaderToPlasmaLayer = (shaderId: string | null) => {
+  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  if (!scene) return;
+  const layer = scene.layers.find((item) => item.id === 'layer-plasma');
+  if (!layer) return;
+  if (!layer.params) layer.params = {};
+  if (shaderId) {
+    layer.params.shaderId = shaderId;
+  } else {
+    delete layer.params.shaderId;
+  }
 };
 
 const syncPerformanceToggles = () => {
@@ -1044,6 +1281,7 @@ const modTargetOptions = [
   { id: 'layer-weather.opacity', label: 'Weather Opacity', min: 0, max: 1 },
   { id: 'layer-weather.speed', label: 'Weather Speed', min: 0.1, max: 3 },
   { id: 'layer-portal.opacity', label: 'Portal Opacity', min: 0, max: 1 },
+  { id: 'layer-media.opacity', label: 'Media Opacity', min: 0, max: 1 },
   { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity', min: 0, max: 1 },
   { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
   { id: 'style.saturation', label: 'Style Saturation', min: 0.6, max: 1.8 },
@@ -1079,6 +1317,7 @@ const midiTargetOptions = [
   { id: 'layer-topo.enabled', label: 'Topo Enabled' },
   { id: 'layer-weather.enabled', label: 'Weather Enabled' },
   { id: 'layer-portal.enabled', label: 'Portal Enabled' },
+  { id: 'layer-media.enabled', label: 'Media Enabled' },
   { id: 'layer-oscillo.enabled', label: 'Oscillo Enabled' },
   { id: 'layer-plasma.opacity', label: 'Plasma Opacity' },
   { id: 'layer-plasma.speed', label: 'Plasma Speed' },
@@ -1100,6 +1339,8 @@ const midiTargetOptions = [
   { id: 'layer-weather.opacity', label: 'Weather Opacity' },
   { id: 'layer-weather.speed', label: 'Weather Speed' },
   { id: 'layer-portal.opacity', label: 'Portal Opacity' },
+  { id: 'layer-media.opacity', label: 'Media Opacity' },
+  { id: 'layer-media.burst', label: 'Media Burst' },
   { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity' },
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
@@ -1137,10 +1378,70 @@ const cloneValue = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
-const cloneLayerConfig = (layer: LayerConfig): LayerConfig => ({
-  ...layer,
-  transform: { ...layer.transform }
-});
+const ensureProjectMacros = (project: VisualSynthProject) => {
+  if (!project.macros || project.macros.length === 0) {
+    project.macros = cloneValue(DEFAULT_PROJECT.macros);
+  }
+};
+
+const ensureProjectPalettes = (project: VisualSynthProject) => {
+  if (!project.palettes || project.palettes.length === 0) {
+    project.palettes = cloneValue(DEFAULT_PROJECT.palettes);
+  }
+  if (!project.activePaletteId) {
+    project.activePaletteId = project.palettes[0]?.id ?? DEFAULT_PROJECT.activePaletteId;
+  }
+};
+
+const presetDebugEnabled = () => {
+  try {
+    return Boolean((window as any).__VS_PRESET_DEBUG) || localStorage.getItem('vs.presetDebug') === '1';
+  } catch {
+    return Boolean((window as any).__VS_PRESET_DEBUG);
+  }
+};
+
+const createPresetTraceId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `preset-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const serializePresetPayload = (payload: unknown, maxLength = 5000) => {
+  try {
+    const json = JSON.stringify(payload, null, 2);
+    if (json.length <= maxLength) return json;
+    return `${json.slice(0, maxLength)}\n...<truncated>`;
+  } catch {
+    return String(payload);
+  }
+};
+
+const logPresetDebug = (traceId: string, message: string, payload?: unknown) => {
+  if (!presetDebugEnabled()) return;
+  if (payload !== undefined) {
+    console.debug(`[Preset][${traceId}] ${message}`, payload);
+  } else {
+    console.debug(`[Preset][${traceId}] ${message}`);
+  }
+};
+
+const logPresetError = (traceId: string, message: string, payload?: unknown) => {
+  if (payload !== undefined) {
+    console.error(`[Preset][${traceId}] ${message}`, payload);
+  } else {
+    console.error(`[Preset][${traceId}] ${message}`);
+  }
+};
+
+const ensureSafeVisuals = async (traceId: string, reason: string) => {
+  logPresetError(traceId, 'Fallback to safe visuals', { reason });
+  if (projectSchema.safeParse(currentProject).success) {
+    setStatus(`Preset failed: ${reason}. Kept current visuals.`);
+    return;
+  }
+  await applyProject(DEFAULT_PROJECT);
+  setStatus(`Preset failed: ${reason}. Applied safe default visuals.`);
+};
 
 const getNextAssetId = () => {
   let candidate = `asset-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1356,14 +1657,15 @@ const renderLayerList = () => {
   // Clear all layer lists
   layerList.innerHTML = '';
   layerListScene.innerHTML = '';
-  layerListDesign.innerHTML = '';
+  if (layerListDesign) layerListDesign.innerHTML = '';
 
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
 
   // Count modulation connections for each layer
   const getModCountForLayer = (layerId: string): number => {
-    return currentProject.modMatrix.filter(conn => conn.target.startsWith(layerId)).length;
+    const prefix = `${layerId}.`;
+    return currentProject.modMatrix.filter((conn) => conn.target.startsWith(prefix)).length;
   };
 
   // Count MIDI mappings for each layer
@@ -1384,6 +1686,7 @@ const renderLayerList = () => {
       checkbox.dataset.learnLabel = `${layer.name} Enabled`;
       checkbox.addEventListener('change', () => {
         layer.enabled = checkbox.checked;
+        recordPlaylistOverride(layer.id, { enabled: checkbox.checked });
         if (layer.id === 'layer-plasma') plasmaToggle = layerList.querySelector(`[data-learn-target="layer-plasma.enabled"]`) as HTMLInputElement;
         if (layer.id === 'layer-spectrum') spectrumToggle = layerList.querySelector(`[data-learn-target="layer-spectrum.enabled"]`) as HTMLInputElement;
         if (layer.id === 'layer-origami') origamiToggle = layerList.querySelector(`[data-learn-target="layer-origami.enabled"]`) as HTMLInputElement;
@@ -1438,6 +1741,7 @@ const renderLayerList = () => {
       opacity.dataset.learnLabel = `${layer.name} Opacity`;
       opacity.addEventListener('input', () => {
         layer.opacity = Number(opacity.value);
+        recordPlaylistOverride(layer.id, { opacity: Number(opacity.value) });
       });
       const opacityRow = document.createElement('div');
       opacityRow.className = 'layer-opacity-row';
@@ -1472,7 +1776,7 @@ const renderLayerList = () => {
       assetControl.appendChild(buildLayerAssetSelect(layer));
       assetControl.appendChild(opacityRow);
 
-      if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum') {
+      if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum' || layer.id === 'layer-media') {
         const layerId = layer.id as AssetLayerId;
 
         const blendLabel = document.createElement('label');
@@ -1511,6 +1815,50 @@ const renderLayerList = () => {
         assetControl.appendChild(reactSlider);
       }
 
+      if (layer.id === 'layer-portal') {
+        const params = layer.params ?? {};
+        const autoValue = typeof params.autoSpawn === 'number' ? params.autoSpawn : 1;
+        const styleValue = typeof params.style === 'number' ? params.style : 0;
+
+        const autoLabel = document.createElement('label');
+        autoLabel.textContent = 'Auto Spawn';
+        autoLabel.className = 'asset-control-label';
+        const autoToggle = document.createElement('input');
+        autoToggle.type = 'checkbox';
+        autoToggle.checked = autoValue > 0.5;
+        autoToggle.addEventListener('change', () => {
+          layer.params = { ...(layer.params ?? {}), autoSpawn: autoToggle.checked ? 1 : 0 };
+          recordPlaylistOverride(layer.id, { params: { autoSpawn: autoToggle.checked ? 1 : 0 } });
+        });
+
+        const styleLabel = document.createElement('label');
+        styleLabel.textContent = 'Style';
+        styleLabel.className = 'asset-control-label';
+        const styleSelect = document.createElement('select');
+        const styles = [
+          { id: 0, label: 'Ring' },
+          { id: 1, label: 'Glow' },
+          { id: 2, label: 'Nebula' }
+        ];
+        styles.forEach((style) => {
+          const option = document.createElement('option');
+          option.value = String(style.id);
+          option.textContent = style.label;
+          styleSelect.appendChild(option);
+        });
+        styleSelect.value = String(Math.round(styleValue));
+        styleSelect.addEventListener('change', () => {
+          const value = Number(styleSelect.value);
+          layer.params = { ...(layer.params ?? {}), style: value };
+          recordPlaylistOverride(layer.id, { params: { style: value } });
+        });
+
+        assetControl.appendChild(autoLabel);
+        assetControl.appendChild(autoToggle);
+        assetControl.appendChild(styleLabel);
+        assetControl.appendChild(styleSelect);
+      }
+
       row.appendChild(assetControl);
       targetList.appendChild(row);
     };
@@ -1518,7 +1866,7 @@ const renderLayerList = () => {
     // Create fresh rows for each layer list
     createLayerRow(layerList);
     createLayerRow(layerListScene);
-    createLayerRow(layerListDesign);
+    if (layerListDesign) createLayerRow(layerListDesign);
 
     // Update toggle references from the first list
     if (layer.id === 'layer-plasma') plasmaToggle = layerList.querySelector(`[data-learn-target="layer-plasma.enabled"]`) as HTMLInputElement;
@@ -1565,8 +1913,9 @@ const renderLayerList = () => {
 
   createVisualizerRow(layerList);
   createVisualizerRow(layerListScene);
-  createVisualizerRow(layerListDesign);
+  if (layerListDesign) createVisualizerRow(layerListDesign);
 
+  updateSdfAdvancedVisibility();
   initLearnables();
 };
 
@@ -1577,6 +1926,7 @@ const renderModMatrix = () => {
     empty.className = 'matrix-empty';
     empty.textContent = 'No mod connections yet.';
     modMatrixList.appendChild(empty);
+    renderLayerList();
     return;
   }
 
@@ -1594,6 +1944,7 @@ const renderModMatrix = () => {
     sourceSelect.value = connection.source;
     sourceSelect.addEventListener('change', () => {
       connection.source = sourceSelect.value;
+      renderLayerList();
     });
 
     const targetSelect = document.createElement('select');
@@ -1648,6 +1999,7 @@ const renderModMatrix = () => {
     removeButton.addEventListener('click', () => {
       currentProject.modMatrix = currentProject.modMatrix.filter((item) => item.id !== connection.id);
       renderModMatrix();
+      renderLayerList();
       setStatus('Mod connection removed.');
     });
 
@@ -1658,6 +2010,7 @@ const renderModMatrix = () => {
       connection.max = defaults.max;
       minInput.value = String(defaults.min);
       maxInput.value = String(defaults.max);
+      renderLayerList();
     };
 
     targetSelect.addEventListener('change', updateTargetDefaults);
@@ -1691,6 +2044,7 @@ const renderModMatrix = () => {
     row.appendChild(removeButton);
     modMatrixList.appendChild(row);
   });
+  renderLayerList();
 };
 
 const addModConnection = () => {
@@ -1711,6 +2065,7 @@ const addModConnection = () => {
     }
   ];
   renderModMatrix();
+  renderLayerList();
   setStatus('Mod connection added.');
 };
 
@@ -1775,6 +2130,7 @@ const renderMidiMappings = () => {
     removeButton.addEventListener('click', () => {
       currentProject.midiMappings = currentProject.midiMappings.filter((item) => item.id !== mapping.id);
       renderMidiMappings();
+      renderLayerList();
       setStatus('MIDI mapping removed.');
     });
 
@@ -1793,6 +2149,7 @@ const renderMidiMappings = () => {
     });
     targetSelect.addEventListener('change', () => {
       mapping.target = targetSelect.value;
+      renderLayerList();
     });
 
     row.appendChild(messageSelect);
@@ -1818,6 +2175,7 @@ const addMidiMapping = () => {
     }
   ];
   renderMidiMappings();
+  renderLayerList();
   setStatus('MIDI mapping added.');
 };
 
@@ -2119,6 +2477,16 @@ const checkMissingAssets = async () => {
   if (changed) {
     renderAssets();
   }
+  if (presetDebugEnabled()) {
+    const missingAssets = currentProject.assets
+      .filter((asset) => asset.missing)
+      .map((asset) => ({ id: asset.id, name: asset.name, path: asset.path }));
+    if (missingAssets.length > 0) {
+      console.warn('[Preset][Assets] Missing assets', missingAssets);
+    } else {
+      console.debug('[Preset][Assets] All referenced assets resolved');
+    }
+  }
 };
 
 const relinkAsset = async (asset: AssetItem) => {
@@ -2142,6 +2510,7 @@ const renderAssets = () => {
     empty.className = 'matrix-empty';
     empty.textContent = 'No assets yet.';
     assetList.appendChild(empty);
+    refreshShaderTargetOptions();
     return;
   }
   currentProject.assets.forEach((asset) => {
@@ -2222,18 +2591,21 @@ const renderAssets = () => {
     wrapper.appendChild(createMetadataPanel(asset));
     assetList.appendChild(wrapper);
   });
+  refreshShaderTargetOptions();
 };
 
-const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum'] as const;
+const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum', 'layer-media'] as const;
 type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
 
 const assetLayerBlendModes: Record<AssetLayerId, number> = {
   'layer-plasma': 3,
-  'layer-spectrum': 1
+  'layer-spectrum': 1,
+  'layer-media': 3
 };
 const assetLayerAudioReact: Record<AssetLayerId, number> = {
   'layer-plasma': 0.6,
-  'layer-spectrum': 0.8
+  'layer-spectrum': 0.8,
+  'layer-media': 0.5
 };
 const getAssetBlendModeValue = (layerId: AssetLayerId): number =>
   assetLayerBlendModes[layerId] ?? 0;
@@ -2393,6 +2765,17 @@ const importAsset = async () => {
     height: result.height,
     colorSpace: (assetColorSpaceSelect?.value as AssetColorSpace) ?? result.colorSpace
   };
+  let shaderSource: string | undefined;
+  if (kind === 'shader') {
+    try {
+      const response = await fetch(toFileUrl(result.filePath));
+      if (response.ok) {
+        shaderSource = await response.text();
+      }
+    } catch {
+      shaderSource = undefined;
+    }
+  }
   currentProject.assets = [
     ...currentProject.assets,
     createAssetItem({
@@ -2401,7 +2784,10 @@ const importAsset = async () => {
       path: result.filePath,
       tags,
       metadata,
-      options: buildTextureOptions()
+      options: {
+        ...(buildTextureOptions() ?? {}),
+        ...(shaderSource ? { shaderSource } : {})
+      }
     })
   ];
   assetTagsInput.value = '';
@@ -3174,6 +3560,34 @@ const renderModulators = () => {
   renderSampleHoldList();
 };
 
+const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
+  if (runtimeShaderOverride) {
+    const applied = applyPlasmaShaderSource(runtimeShaderOverride, 'Draft');
+    if (!applied) {
+      runtimeShaderOverride = null;
+    } else {
+      return;
+    }
+  }
+
+  const plasmaLayer = scene.layers.find((layer) => layer.id === 'layer-plasma');
+  const shaderId = plasmaLayer?.params?.shaderId as string | undefined;
+  const asset = getShaderAssetById(shaderId ?? null);
+  if (!asset) {
+    applyPlasmaShaderSource(null, 'Default');
+    shaderTargetSelect.value = shaderTargetDraftValue;
+    return;
+  }
+  const source = await loadShaderSourceForAsset(asset);
+  if (!source) {
+    applyPlasmaShaderSource(null, 'Default');
+    shaderTargetSelect.value = shaderTargetDraftValue;
+    return;
+  }
+  applyPlasmaShaderSource(source, asset.name);
+  shaderTargetSelect.value = `${shaderTargetAssetPrefix}${asset.id}`;
+};
+
 const applyScene = (sceneId: string) => {
   const scene = currentProject.scenes.find((item) => item.id === sceneId);
   if (!scene) return;
@@ -3193,6 +3607,7 @@ const applyScene = (sceneId: string) => {
       modMatrix: scene.look.modMatrix ?? currentProject.modMatrix
     };
     initStylePresets();
+    initPalettes();
     initMacros();
     initEffects();
     initParticles();
@@ -3200,20 +3615,27 @@ const applyScene = (sceneId: string) => {
     syncVisualizerFromProject();
     renderModMatrix();
   }
+  paletteApplyToggle.checked = Boolean(scene.look?.activePaletteId);
   sceneSelect.value = sceneId;
   renderLayerList();
   syncPerformanceToggles();
   renderSceneStrip();
+  void applyPlasmaShaderFromScene(scene);
 };
 
 const addSceneFromPreset = async (presetPath: string) => {
+  const traceId = createPresetTraceId();
+  logPresetDebug(traceId, 'Loading preset for scene', { presetPath });
   const result = await window.visualSynth.loadPreset(presetPath);
   if (result.error) {
     setStatus(`Preset load failed: ${result.error}`);
+    await ensureSafeVisuals(traceId, result.error);
     return;
   }
   if (!result.project || result.project.scenes.length === 0) {
-    setStatus('Preset has no scenes to add.');
+    const reasonText = 'Preset has no scenes to add.';
+    setStatus(reasonText);
+    await ensureSafeVisuals(traceId, reasonText);
     return;
   }
   const sourceScene =
@@ -3265,6 +3687,22 @@ const addSceneFromPreset = async (presetPath: string) => {
   };
   addSceneToProject(newScene, false);
   setStatus(`Scene added from preset: ${newScene.name}`);
+  logPresetDebug(
+    traceId,
+    'Preset scene added',
+    serializePresetPayload({
+      sceneId: newScene.id,
+      sceneName: newScene.name,
+      layers: newScene.layers.map((layer) => ({
+        id: layer.id,
+        enabled: layer.enabled,
+        opacity: layer.opacity,
+        blendMode: layer.blendMode,
+        params: layer.params
+      })),
+      look: newScene.look
+    })
+  );
   void capturePresetThumbnail(presetPath);
 };
 
@@ -3329,6 +3767,37 @@ const saveGeneratorLibrary = () => {
   localStorage.setItem('vs.generator.recents', JSON.stringify(generatorRecentsState));
 };
 
+const applyGeneratorVariant = (
+  layerId: string,
+  options: {
+    name: string;
+    params?: Record<string, number>;
+    opacity?: number;
+    blendMode?: LayerConfig['blendMode'];
+  }
+) => {
+  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  if (!scene) return;
+  const layer = ensureLayerWithDefaults(scene, layerId, options.name);
+  layer.enabled = true;
+  if (options.opacity !== undefined) {
+    layer.opacity = options.opacity;
+  }
+  if (options.blendMode) {
+    layer.blendMode = options.blendMode;
+  }
+  if (options.params) {
+    layer.params = { ...(layer.params ?? {}), ...options.params };
+  }
+  recordPlaylistOverride(layerId, {
+    enabled: true,
+    opacity: options.opacity,
+    blendMode: options.blendMode,
+    params: options.params
+  });
+  renderLayerList();
+};
+
 const renderGeneratorList = (container: HTMLElement, items: GeneratorId[]) => {
   container.innerHTML = '';
   items.forEach((id) => {
@@ -3359,7 +3828,10 @@ const renderGeneratorList = (container: HTMLElement, items: GeneratorId[]) => {
 
 const refreshGeneratorUI = () => {
   generatorSelect.innerHTML = '';
-  GENERATORS.forEach((gen) => {
+  const sorted = [...GENERATORS].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+  sorted.forEach((gen) => {
     const option = document.createElement('option');
     option.value = gen.id;
     option.textContent = gen.name;
@@ -3370,12 +3842,27 @@ const refreshGeneratorUI = () => {
 };
 
 const addGenerator = (id: GeneratorId) => {
+  recordPlaylistOverride(id, { enabled: true });
   if (id === 'layer-plasma') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-plasma', 'Shader Plasma');
+      layer.enabled = true;
+    }
     if (plasmaToggle) plasmaToggle.checked = true;
+    if (perfTogglePlasma) perfTogglePlasma.checked = true;
+    renderLayerList();
     setStatus('Plasma layer enabled.');
   }
   if (id === 'layer-spectrum') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-spectrum', 'Spectrum Bars');
+      layer.enabled = true;
+    }
     if (spectrumToggle) spectrumToggle.checked = true;
+    if (perfToggleSpectrum) perfToggleSpectrum.checked = true;
+    renderLayerList();
     setStatus('Spectrum layer enabled.');
   }
   if (id === 'layer-origami') {
@@ -3519,6 +4006,27 @@ const addGenerator = (id: GeneratorId) => {
     if (portalToggle) portalToggle.checked = true;
     setStatus('Wormhole portal layer enabled.');
   }
+  if (id === 'layer-media') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-media');
+      if (!layer) {
+        layer = {
+          id: 'layer-media',
+          name: 'Media Overlay',
+          enabled: true,
+          opacity: 0.9,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
+    setStatus('Media overlay layer enabled.');
+  }
   if (id === 'layer-oscillo') {
     const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
     if (scene) {
@@ -3540,6 +4048,426 @@ const addGenerator = (id: GeneratorId) => {
     }
     if (oscilloToggle) oscilloToggle.checked = true;
     setStatus('Sacred oscilloscope layer enabled.');
+  }
+  if (id === 'variant-plasma-vortex') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 1.6, scale: 1.4, complexity: 0.75 },
+      opacity: 0.9,
+      blendMode: 'screen'
+    });
+    setStatus('Plasma: Vortex added.');
+  }
+  if (id === 'variant-plasma-liquid') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.7, scale: 2.2, complexity: 0.4 },
+      opacity: 0.85,
+      blendMode: 'screen'
+    });
+    setStatus('Plasma: Liquid Metal added.');
+  }
+  if (id === 'variant-spectrum-neon') {
+    applyGeneratorVariant('layer-spectrum', {
+      name: 'Spectrum Bars',
+      params: {},
+      opacity: 0.95,
+      blendMode: 'add'
+    });
+    setStatus('Spectrum: Neon Bars added.');
+  }
+  if (id === 'variant-origami-canyon') {
+    applyGeneratorVariant('layer-origami', {
+      name: 'Origami Fold',
+      params: { speed: 0.8 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    setStatus('Origami: Canyon Fold added.');
+  }
+  if (id === 'variant-glyph-orbit') {
+    applyGeneratorVariant('layer-glyph', {
+      name: 'Glyph Language',
+      params: { speed: 1.4 },
+      opacity: 0.7,
+      blendMode: 'screen'
+    });
+    setStatus('Glyph: Orbit Field added.');
+  }
+  if (id === 'variant-crystal-fracture') {
+    applyGeneratorVariant('layer-crystal', {
+      name: 'Crystal Harmonics',
+      params: { speed: 1.3, scale: 1.6 },
+      opacity: 0.75,
+      blendMode: 'screen'
+    });
+    setStatus('Crystal: Fracture Bloom added.');
+  }
+  if (id === 'variant-ink-neon') {
+    applyGeneratorVariant('layer-inkflow', {
+      name: 'Ink Flow',
+      params: { speed: 1.1, scale: 1.8 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    setStatus('Ink: Neon Flow added.');
+  }
+  if (id === 'variant-topo-rift') {
+    applyGeneratorVariant('layer-topo', {
+      name: 'Topo Terrain',
+      params: { scale: 1.6, elevation: 0.75 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    setStatus('Topo: Rift Lines added.');
+  }
+  if (id === 'variant-weather-stormcells') {
+    applyGeneratorVariant('layer-weather', {
+      name: 'Audio Weather',
+      params: { speed: 1.5 },
+      opacity: 0.7,
+      blendMode: 'screen'
+    });
+    setStatus('Weather: Storm Cells added.');
+  }
+  if (id === 'variant-portal-echo') {
+    applyGeneratorVariant('layer-portal', {
+      name: 'Wormhole Portal',
+      params: { style: 1 },
+      opacity: 0.65,
+      blendMode: 'screen'
+    });
+    setStatus('Portal: Echo Rings added.');
+  }
+  if (id === 'gen-audio-geometry') {
+    applyGeneratorVariant('layer-glyph', {
+      name: 'Glyph Language',
+      params: { speed: 1.2 },
+      opacity: 0.7,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-spectrum', {
+      name: 'Spectrum Bars',
+      params: {},
+      opacity: 0.85,
+      blendMode: 'add'
+    });
+    setStatus('Generator: Audio Geometry added.');
+  }
+  if (id === 'variant-audio-geometry-prism') {
+    applyGeneratorVariant('layer-glyph', {
+      name: 'Glyph Language',
+      params: { speed: 1.4 },
+      opacity: 0.6,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-crystal', {
+      name: 'Crystal Harmonics',
+      params: { speed: 1.2, scale: 1.4 },
+      opacity: 0.55,
+      blendMode: 'screen'
+    });
+    setStatus('Generator: Audio Geometry (Prism) added.');
+  }
+  if (id === 'gen-organic-fluid') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.85, scale: 1.6, complexity: 0.65 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-inkflow', {
+      name: 'Ink Flow',
+      params: { speed: 1.1, scale: 1.3 },
+      opacity: 0.65,
+      blendMode: 'screen'
+    });
+    setStatus('Generator: Organic Fluid added.');
+  }
+  if (id === 'variant-organic-fluid-ink') {
+    applyGeneratorVariant('layer-inkflow', {
+      name: 'Ink Flow',
+      params: { speed: 1.4, scale: 1.8 },
+      opacity: 0.85,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.6, scale: 1.3, complexity: 0.5 },
+      opacity: 0.45,
+      blendMode: 'screen'
+    });
+    setStatus('Generator: Organic Fluid (Ink) added.');
+  }
+  if (id === 'gen-neon-wireframe') {
+    applyGeneratorVariant('layer-topo', {
+      name: 'Topo Terrain',
+      params: { scale: 1.6, elevation: 0.75 },
+      opacity: 0.75,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-glyph', {
+      name: 'Glyph Language',
+      params: { speed: 1.1 },
+      opacity: 0.4,
+      blendMode: 'screen'
+    });
+    setStatus('Generator: Neon Wireframe added.');
+  }
+  if (id === 'variant-neon-wireframe-grid') {
+    applyGeneratorVariant('layer-topo', {
+      name: 'Topo Terrain',
+      params: { scale: 2.0, elevation: 0.9 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-spectrum', {
+      name: 'Spectrum Bars',
+      params: {},
+      opacity: 0.25,
+      blendMode: 'add'
+    });
+    setStatus('Generator: Neon Wireframe (Grid) added.');
+  }
+  if (id === 'gen-glitch-datamosh') {
+    effectsEnabled.checked = true;
+    effectFeedback.value = '0.55';
+    effectChroma.value = '0.25';
+    effectPosterize.value = '0.3';
+    effectBlur.value = '0.12';
+    applyEffectControls();
+    setStatus('Generator: Glitch Datamosh added.');
+  }
+  if (id === 'variant-glitch-datamosh-hard') {
+    effectsEnabled.checked = true;
+    effectFeedback.value = '0.7';
+    effectChroma.value = '0.35';
+    effectPosterize.value = '0.45';
+    effectBlur.value = '0.2';
+    applyEffectControls();
+    setStatus('Generator: Glitch Datamosh (Hard) added.');
+  }
+  if (id === 'gen-particle-swarm') {
+    particlesEnabled.checked = true;
+    particlesDensity.value = '0.6';
+    particlesSpeed.value = '0.8';
+    particlesSize.value = '0.45';
+    particlesGlow.value = '0.7';
+    applyParticleControls();
+    setStatus('Generator: Particle Swarm added.');
+  }
+  if (id === 'variant-particle-swarm-bloom') {
+    particlesEnabled.checked = true;
+    particlesDensity.value = '0.75';
+    particlesSpeed.value = '0.95';
+    particlesSize.value = '0.5';
+    particlesGlow.value = '0.85';
+    applyParticleControls();
+    effectsEnabled.checked = true;
+    effectBloom.value = '0.35';
+    applyEffectControls();
+    setStatus('Generator: Particle Swarm (Bloom) added.');
+  }
+  if (id === 'gen-typography-reveal') {
+    applyGeneratorVariant('layer-media', {
+      name: 'Media Overlay',
+      params: {},
+      opacity: 0.9,
+      blendMode: 'screen'
+    });
+    setStatus('Generator: Typography Reveal (add a text/media asset).');
+  }
+  if (id === 'variant-typography-reveal-glow') {
+    applyGeneratorVariant('layer-media', {
+      name: 'Media Overlay',
+      params: {},
+      opacity: 0.95,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectBloom.value = '0.35';
+    applyEffectControls();
+    setStatus('Generator: Typography Reveal (Glow) added.');
+  }
+  if (id === 'gen-kaleido-shard') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 1.1, scale: 1.4, complexity: 0.6 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectKaleidoscope.value = '0.7';
+    effectBloom.value = '0.25';
+    applyEffectControls();
+    setStatus('Generator: Kaleido Shards added.');
+  }
+  if (id === 'variant-kaleido-shard-iris') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.9, scale: 1.8, complexity: 0.7 },
+      opacity: 0.85,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectKaleidoscope.value = '0.9';
+    effectBloom.value = '0.3';
+    applyEffectControls();
+    setStatus('Generator: Kaleido Shards (Iris) added.');
+  }
+  if (id === 'gen-radar-hud') {
+    applyGeneratorVariant('layer-oscillo', {
+      name: 'Sacred Oscilloscope',
+      params: {},
+      opacity: 0.9,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-spectrum', {
+      name: 'Spectrum Bars',
+      params: {},
+      opacity: 0.35,
+      blendMode: 'add'
+    });
+    setStatus('Generator: Radar HUD added.');
+  }
+  if (id === 'variant-radar-hud-deep') {
+    applyGeneratorVariant('layer-oscillo', {
+      name: 'Sacred Oscilloscope',
+      params: {},
+      opacity: 0.95,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-topo', {
+      name: 'Topo Terrain',
+      params: { scale: 1.3, elevation: 0.6 },
+      opacity: 0.35,
+      blendMode: 'screen'
+    });
+    setStatus('Generator: Radar HUD (Deep) added.');
+  }
+  if (id === 'gen-fractal-bloom') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.6, scale: 1.8, complexity: 0.8 },
+      opacity: 0.85,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectBloom.value = '0.4';
+    applyEffectControls();
+    setStatus('Generator: Fractal Bloom added.');
+  }
+  if (id === 'variant-fractal-bloom-ember') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.75, scale: 2.0, complexity: 0.9 },
+      opacity: 0.9,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectBloom.value = '0.5';
+    effectPosterize.value = '0.15';
+    applyEffectControls();
+    setStatus('Generator: Fractal Bloom (Ember) added.');
+  }
+  if (id === 'gen-vhs-scanline') {
+    effectsEnabled.checked = true;
+    effectChroma.value = '0.22';
+    effectBlur.value = '0.18';
+    effectPosterize.value = '0.15';
+    effectFeedback.value = '0.05';
+    applyEffectControls();
+    setStatus('Generator: VHS Scanline added.');
+  }
+  if (id === 'variant-vhs-scanline-warp') {
+    effectsEnabled.checked = true;
+    effectChroma.value = '0.3';
+    effectBlur.value = '0.25';
+    effectPosterize.value = '0.25';
+    effectFeedback.value = '0.12';
+    applyEffectControls();
+    setStatus('Generator: VHS Scanline (Warp) added.');
+  }
+  if (id === 'gen-tunnel-warp') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 1.0, scale: 1.3, complexity: 0.7 },
+      opacity: 0.7,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectFeedback.value = '0.6';
+    effectKaleidoscope.value = '0.3';
+    applyEffectControls();
+    setStatus('Generator: Tunnel Warp added.');
+  }
+  if (id === 'variant-tunnel-warp-spiral') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 1.2, scale: 1.5, complexity: 0.8 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectFeedback.value = '0.7';
+    effectKaleidoscope.value = '0.45';
+    applyEffectControls();
+    setStatus('Generator: Tunnel Warp (Spiral) added.');
+  }
+  if (id === 'gen-wormhole-core') {
+    applyGeneratorVariant('layer-portal', {
+      name: 'Wormhole Portal',
+      params: { style: 2, autoSpawn: 1 },
+      opacity: 0.8,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectFeedback.value = '0.45';
+    applyEffectControls();
+    setStatus('Generator: Wormhole Core added.');
+  }
+  if (id === 'variant-wormhole-core-echo') {
+    applyGeneratorVariant('layer-portal', {
+      name: 'Wormhole Portal',
+      params: { style: 1, autoSpawn: 1 },
+      opacity: 0.85,
+      blendMode: 'screen'
+    });
+    effectsEnabled.checked = true;
+    effectFeedback.value = '0.55';
+    effectBloom.value = '0.2';
+    applyEffectControls();
+    setStatus('Generator: Wormhole Core (Echo) added.');
+  }
+  if (id === 'gen-nebula-drift') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.7, scale: 1.9, complexity: 0.55 },
+      opacity: 0.65,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-spectrum', {
+      name: 'Spectrum Bars',
+      params: {},
+      opacity: 0.35,
+      blendMode: 'add'
+    });
+    setStatus('Generator: Nebula Drift added.');
+  }
+  if (id === 'variant-nebula-drift-cold') {
+    applyGeneratorVariant('layer-plasma', {
+      name: 'Shader Plasma',
+      params: { speed: 0.6, scale: 2.1, complexity: 0.5 },
+      opacity: 0.7,
+      blendMode: 'screen'
+    });
+    applyGeneratorVariant('layer-spectrum', {
+      name: 'Spectrum Bars',
+      params: {},
+      opacity: 0.25,
+      blendMode: 'add'
+    });
+    setStatus('Generator: Nebula Drift (Cold) added.');
   }
   if (id === 'viz-off') {
     currentProject.visualizer.enabled = false;
@@ -3833,6 +4761,42 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     }
     return;
   }
+  if (target === 'layer-media.enabled') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'layer-media');
+      if (!layer) {
+        layer = {
+          id: 'layer-media',
+          name: 'Media Overlay',
+          enabled: true,
+          opacity: 0.9,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      }
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-media.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const layer = scene?.layers.find((item) => item.id === 'layer-media');
+    if (layer) {
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-media.burst') {
+    if (value > 0.5) {
+      spawnMediaBurst();
+    }
+    return;
+  }
   if (target === 'layer-oscillo.enabled') {
     const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
     if (scene) {
@@ -3914,6 +4878,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     if (slider) {
       slider.value = String(scaleMidiValue(value, 0, 1));
       currentProject.macros[index].value = Number(slider.value);
+      updateMacroPreviews();
     }
   }
 };
@@ -3956,6 +4921,73 @@ const initStylePresets = () => {
   }
 };
 
+const renderPalettePreview = (colors: [string, string, string, string, string]) => {
+  palettePreview.innerHTML = '';
+  colors.forEach((color) => {
+    const swatch = document.createElement('div');
+    swatch.className = 'palette-swatch';
+    swatch.style.background = color;
+    palettePreview.appendChild(swatch);
+  });
+};
+
+const applyPaletteSelection = (paletteId: string) => {
+  const palette =
+    currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
+  if (!palette) return;
+  currentProject.activePaletteId = palette.id;
+  renderPalettePreview(palette.colors);
+  renderer?.setPalette?.(palette.colors);
+
+  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  if (paletteApplyToggle.checked && scene) {
+    scene.look = {
+      ...scene.look,
+      palettes: cloneValue(currentProject.palettes),
+      activePaletteId: palette.id
+    };
+  }
+};
+
+const initPalettes = () => {
+  ensureProjectPalettes(currentProject);
+  const scene =
+    currentProject.scenes.find((item) => item.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  paletteApplyToggle.checked = Boolean(scene?.look?.activePaletteId);
+  paletteSelect.innerHTML = '';
+  const palettes = [...currentProject.palettes].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+  palettes.forEach((palette) => {
+    const option = document.createElement('option');
+    option.value = palette.id;
+    option.textContent = palette.name;
+    paletteSelect.appendChild(option);
+  });
+  paletteSelect.value = currentProject.activePaletteId ?? palettes[0]?.id ?? '';
+  if (paletteSelect.value) {
+    applyPaletteSelection(paletteSelect.value);
+  }
+  paletteSelect.onchange = () => {
+    applyPaletteSelection(paletteSelect.value);
+  };
+  paletteApplyToggle.onchange = () => {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (!scene) return;
+    if (paletteApplyToggle.checked) {
+      scene.look = {
+        ...scene.look,
+        palettes: cloneValue(currentProject.palettes),
+        activePaletteId: currentProject.activePaletteId
+      };
+    } else if (scene.look) {
+      delete scene.look.palettes;
+      delete scene.look.activePaletteId;
+    }
+  };
+};
+
 const applyStyleControls = () => {
   if (!activeStyleId) return;
   const preset = currentProject.stylePresets.find((item) => item.id === activeStyleId);
@@ -3968,6 +5000,7 @@ const applyStyleControls = () => {
 const initMacros = () => {
   macroList.innerHTML = '';
   macroInputs = [];
+  macroPreviewRows = [];
   currentProject.macros.forEach((macro, index) => {
     const row = document.createElement('div');
     row.className = 'macro-row';
@@ -3986,6 +5019,7 @@ const initMacros = () => {
     slider.dataset.learnLabel = macro.name || `Macro ${index + 1}`;
     slider.addEventListener('input', () => {
       macro.value = Number(slider.value);
+      updateMacroPreviews();
     });
 
     const learn = document.createElement('button');
@@ -3995,13 +5029,20 @@ const initMacros = () => {
       setStatus(`MIDI learn placeholder for ${macro.name}`);
     });
 
+    const preview = document.createElement('div');
+    preview.className = 'macro-preview';
+    preview.textContent = '';
+
     row.appendChild(label);
     row.appendChild(slider);
     row.appendChild(learn);
+    row.appendChild(preview);
     macroList.appendChild(row);
     macroInputs.push(slider);
+    macroPreviewRows.push(preview);
   });
   initLearnables();
+  updateMacroPreviews();
 };
 
 const initEffects = () => {
@@ -4023,8 +5064,108 @@ const initParticles = () => {
   particlesGlow.value = String(currentProject.particles.glow);
 };
 
+const getActiveScene = () =>
+  currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
+
+const formatMacroPreviewValue = (value: number | undefined, fallback = '—') => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
+  return value.toFixed(3).replace(/\.?0+$/, '');
+};
+
+const resolveMacroTargetBase = (target: string) => {
+  const parsed = parseLegacyTarget(target);
+  if (!parsed) return null;
+  const { layerType, param } = parsed;
+  const layerId = buildLegacyTarget(layerType, '').split('.')[0];
+  const scene = getActiveScene();
+  const layer = scene?.layers.find((item) => item.id === layerId);
+  if (param === 'opacity') {
+    return layer?.opacity;
+  }
+  if (param === 'enabled') {
+    return layer?.enabled ? 1 : 0;
+  }
+  if (param.startsWith('effects.')) {
+    const fxKey = param.split('.')[1];
+    return (currentProject.effects as any)?.[fxKey];
+  }
+  const layerParam = layer?.params?.[param];
+  return typeof layerParam === 'number' ? layerParam : undefined;
+};
+
+const updateMacroPreviews = () => {
+  if (macroPreviewRows.length === 0) return;
+  currentProject.macros.forEach((macro, index) => {
+    const preview = macroPreviewRows[index];
+    if (!preview) return;
+    if (!macro.targets || macro.targets.length === 0) {
+      preview.textContent = '';
+      return;
+    }
+    const snippets: string[] = [];
+    macro.targets.slice(0, 3).forEach((target) => {
+      const rawTarget = target.target as
+        | string
+        | { type?: string; layerType?: string; param: string };
+      let key: string | null = null;
+      if (typeof rawTarget === 'string') {
+        key = rawTarget;
+      } else if (rawTarget && rawTarget.param) {
+        const layerType = rawTarget.type ?? rawTarget.layerType;
+        if (layerType) {
+          key = buildLegacyTarget(layerType, rawTarget.param);
+        }
+      }
+      if (!key) return;
+      const base = resolveMacroTargetBase(key);
+      const effective = typeof base === 'number' ? base + macro.value * target.amount : undefined;
+      snippets.push(`${key} → ${formatMacroPreviewValue(effective)}`);
+    });
+    preview.textContent = snippets.join(' • ');
+  });
+};
+
+const hasAdvancedSdfLayer = () => {
+  const scene = getActiveScene();
+  return Boolean(scene?.layers.find((layer) => layer.id === 'gen-sdf-scene'));
+};
+
+const ensureAdvancedSdfLayer = () => {
+  const scene = getActiveScene();
+  if (!scene) return;
+  let layer = scene.layers.find((item) => item.id === 'gen-sdf-scene');
+  if (!layer) {
+    layer = {
+      id: 'gen-sdf-scene',
+      name: 'SDF Scene (Advanced)',
+      enabled: true,
+      opacity: 1,
+      blendMode: 'normal',
+      transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+      sdfScene: {
+        nodes: [],
+        connections: [],
+        mode: '2d'
+      }
+    };
+    scene.layers.push(layer);
+    renderLayerList();
+  }
+};
+
+const updateSdfAdvancedVisibility = () => {
+  const available = hasAdvancedSdfLayer();
+  sdfAdvancedToggle.classList.toggle('hidden', !available);
+  if (!available) {
+    sdfAdvancedToggle.checked = false;
+    sdfSimpleControls.classList.remove('hidden');
+    sdfEditor.classList.add('hidden');
+  }
+};
+
 const initSdf = () => {
   registerSdfNodes();
+  updateSdfAdvancedVisibility();
   sdfEnabled.checked = currentProject.sdf.enabled;
   sdfShape.value = currentProject.sdf.shape;
   sdfScale.value = String(currentProject.sdf.scale);
@@ -4051,6 +5192,9 @@ const initSdf = () => {
   }
 
   sdfAdvancedToggle.addEventListener('change', () => {
+    if (sdfAdvancedToggle.checked) {
+      ensureAdvancedSdfLayer();
+    }
     const advanced = sdfAdvancedToggle.checked;
     sdfSimpleControls.classList.toggle('hidden', advanced);
     sdfEditor.classList.toggle('hidden', !advanced);
@@ -4322,6 +5466,23 @@ const collapsePortal = () => {
 const triggerPortalTransition = () => {
   portalShift = 0.2 + (audioState.bands[4] ?? 0) * 0.4;
   portalSeed = (portalSeed + 17.3) % 1000;
+};
+
+const spawnMediaBurst = (forcedType?: number) => {
+  const slotIndex = mediaBursts.findIndex((burst) => !burst.active);
+  const index = slotIndex === -1 ? 0 : slotIndex;
+  const type = typeof forcedType === 'number' ? forcedType : Math.floor(Math.random() * 3);
+  const x = 0.1 + Math.random() * 0.8;
+  const y = 0.1 + Math.random() * 0.8;
+  mediaBursts[index] = {
+    ...mediaBursts[index],
+    x,
+    y,
+    radius: 0.04,
+    life: 1,
+    type,
+    active: true
+  };
 };
 
 const handlePadTrigger = (logicalIndex: number, velocity: number) => {
@@ -4873,13 +6034,17 @@ const applyProject = async (project: VisualSynthProject) => {
     setStatus('Invalid project loaded.');
     return;
   }
-  currentProject = parsed.data;
+  const normalized = parsed.data;
+  ensureProjectMacros(normalized);
+  ensureProjectPalettes(normalized);
+  currentProject = normalized;
   refreshSceneSelect();
   applyScene(currentProject.activeSceneId);
   outputConfig = { ...DEFAULT_OUTPUT_CONFIG, ...currentProject.output };
   await syncOutputConfig(outputConfig);
   await setOutputEnabled(outputConfig.enabled);
   initStylePresets();
+  initPalettes();
   initMacros();
   initEffects();
   initParticles();
@@ -5280,6 +6445,7 @@ perfToggleSpectrum.addEventListener('change', () => {
   const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
   if (spectrumLayer) {
     spectrumLayer.enabled = perfToggleSpectrum.checked;
+    recordPlaylistOverride('layer-spectrum', { enabled: perfToggleSpectrum.checked });
     renderLayerList();
     setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
   }
@@ -5290,6 +6456,7 @@ perfTogglePlasma.addEventListener('change', () => {
   const plasmaLayer = scene?.layers.find((layer) => layer.id === 'layer-plasma');
   if (plasmaLayer) {
     plasmaLayer.enabled = perfTogglePlasma.checked;
+    recordPlaylistOverride('layer-plasma', { enabled: perfTogglePlasma.checked });
     renderLayerList();
     setStatus(`Plasma Layer ${perfTogglePlasma.checked ? 'enabled' : 'disabled'}`);
   }
@@ -5330,6 +6497,8 @@ playlistRemoveButton.addEventListener('click', () => {
 playlistPlayButton.addEventListener('click', async () => {
   if (playlist.length === 0) return;
   stopPlaylist();
+  playlistActive = true;
+  playlistOverrides = {};
   playlistIndex = 0;
   await advancePlaylist();
   const slotMs = Math.max(2000, Number(playlistSlotSeconds.value) * 1000 || 16000);
@@ -5340,16 +6509,70 @@ playlistPlayButton.addEventListener('click', async () => {
 
 playlistStopButton.addEventListener('click', () => {
   stopPlaylist();
+  playlistActive = false;
+  playlistOverrides = {};
   setStatus('Playlist stopped.');
 });
 
 shaderSaveButton.addEventListener('click', () => {
+  const code = shaderEditor.value;
+  const validationError = validateCustomPlasmaSource(code);
+  if (validationError) {
+    setStatus(`Shader invalid: ${validationError}`);
+    shaderStatus.textContent = validationError;
+    return;
+  }
+  const targetAssetId = getShaderAssetIdFromTarget(shaderTargetSelect.value);
+  let asset = getShaderAssetById(targetAssetId);
+  if (!asset) {
+    const name = getUniqueShaderName('Custom Plasma Shader');
+    asset = createAssetItem({
+      name,
+      kind: 'shader',
+      tags: ['custom', 'plasma'],
+      options: { shaderSource: code }
+    });
+    currentProject.assets = [...currentProject.assets, asset];
+  } else {
+    asset.options = { ...(asset.options ?? {}), shaderSource: code };
+  }
+  runtimeShaderOverride = null;
+  renderAssets();
+  renderLayerList();
+  assignShaderToPlasmaLayer(asset.id);
+  const applied = applyPlasmaShaderSource(code, asset.name);
+  if (applied) {
+    shaderTargetSelect.value = `${shaderTargetAssetPrefix}${asset.id}`;
+    setStatus(`Shader saved: ${asset.name}`);
+  }
   saveShaderDraft();
+});
+
+shaderTargetSelect.addEventListener('change', () => {
+  void syncShaderEditorForTarget();
 });
 
 shaderApplyButton.addEventListener('click', () => {
   saveShaderDraft();
-  setStatus(`Shader draft saved for ${shaderTargetSelect.value}.`);
+  const code = shaderEditor.value;
+  const validationError = validateCustomPlasmaSource(code);
+  if (validationError) {
+    setStatus(`Shader invalid: ${validationError}`);
+    shaderStatus.textContent = validationError;
+    return;
+  }
+  if (!code.trim()) {
+    runtimeShaderOverride = null;
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) void applyPlasmaShaderFromScene(scene);
+    setStatus('Shader draft cleared.');
+    return;
+  }
+  const applied = applyPlasmaShaderSource(code, 'Draft');
+  if (applied) {
+    runtimeShaderOverride = code;
+    setStatus('Shader draft applied (session only).');
+  }
 });
 
 toggleMidiButton.addEventListener('click', async () => {
@@ -5497,6 +6720,23 @@ const updateGravityWells = (time: number, dt: number) => {
 };
 
 const updatePortals = (time: number, dt: number) => {
+  const activeScene =
+    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
+  const portalEnabled = portalLayer?.enabled ?? false;
+  const autoSpawn = (typeof portalLayer?.params?.autoSpawn === 'number'
+    ? portalLayer?.params?.autoSpawn
+    : 1) > 0.5;
+  if (portalEnabled && autoSpawn) {
+    const activeCount = portals.filter((portal) => portal.active).length;
+    const energy = (audioState.bands[2] ?? 0) + (audioState.bands[3] ?? 0);
+    const interval = Math.max(600, 1600 - energy * 800);
+    if (activeCount === 0 || time - lastPortalAutoSpawn > interval) {
+      spawnPortal();
+      lastPortalAutoSpawn = time;
+    }
+  }
   const bands = audioState.bands;
   const base = bands[1] ?? 0;
   const harmonic = Math.abs((bands[2] ?? 0) - base * 0.66) + Math.abs((bands[3] ?? 0) - base * 0.5);
@@ -5515,6 +6755,31 @@ const updatePortals = (time: number, dt: number) => {
     portalPositions[index * 2 + 1] = portal.y;
     portalRadii[index] = portal.radius * (0.8 + harmonic * 0.8);
     portalActives[index] = 1;
+  });
+};
+
+const updateMediaBursts = (time: number, dt: number) => {
+  const energy = Math.min(1, (audioState.rms ?? 0) + (audioState.peak ?? 0));
+  const speed = 0.12 + energy * 0.3;
+  mediaBursts.forEach((burst, index) => {
+    if (!burst.active) {
+      mediaBurstPositions[index * 2] = 0;
+      mediaBurstPositions[index * 2 + 1] = 0;
+      mediaBurstRadii[index] = 0;
+      mediaBurstTypes[index] = burst.type;
+      mediaBurstActives[index] = 0;
+      return;
+    }
+    burst.radius += dt * speed;
+    burst.life = Math.max(0, burst.life - dt * 0.5);
+    if (burst.life <= 0) {
+      burst.active = false;
+    }
+    mediaBurstPositions[index * 2] = burst.x;
+    mediaBurstPositions[index * 2 + 1] = burst.y;
+    mediaBurstRadii[index] = burst.radius;
+    mediaBurstTypes[index] = burst.type;
+    mediaBurstActives[index] = burst.life;
   });
 };
 
@@ -5891,6 +7156,7 @@ const render = (time: number) => {
   updateAudioAnalysis();
   updateGravityWells(time, delta * 0.001);
   updatePortals(time, delta * 0.001);
+  updateMediaBursts(time, delta * 0.001);
   if (glyphBeatPulse > 0) {
     glyphBeatPulse = Math.max(0, glyphBeatPulse - delta * 0.006);
   }
@@ -5951,16 +7217,28 @@ const render = (time: number) => {
     saturation: modValue('style.saturation', styleSettings.saturation),
     paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift)
   };
-  const moddedEffects = {
-    bloom: modValue('effects.bloom', effects.bloom),
-    blur: modValue('effects.blur', effects.blur),
-    chroma: modValue('effects.chroma', effects.chroma),
-    posterize: modValue('effects.posterize', effects.posterize),
-    kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope),
-    kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', 0), // Default to 0 if not present in project
-    feedback: modValue('effects.feedback', effects.feedback),
-    persistence: modValue('effects.persistence', effects.persistence)
-  };
+  const effectsActive = effects.enabled;
+  const moddedEffects = effectsActive
+    ? {
+        bloom: modValue('effects.bloom', effects.bloom),
+        blur: modValue('effects.blur', effects.blur),
+        chroma: modValue('effects.chroma', effects.chroma),
+        posterize: modValue('effects.posterize', effects.posterize),
+        kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope),
+        kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', 0), // Default to 0 if not present in project
+        feedback: modValue('effects.feedback', effects.feedback),
+        persistence: modValue('effects.persistence', effects.persistence)
+      }
+    : {
+        bloom: 0,
+        blur: 0,
+        chroma: 0,
+        posterize: 0,
+        kaleidoscope: 0,
+        kaleidoscopeRotation: 0,
+        feedback: 0,
+        persistence: 0
+      };
   const moddedParticles = {
     density: modValue('particles.density', particles.density),
     speed: modValue('particles.speed', particles.speed),
@@ -5985,7 +7263,20 @@ const render = (time: number) => {
   const macroSum = currentProject.macros.reduce(
     (acc, macro) => {
       macro.targets.forEach((target) => {
-        acc[target.target] = (acc[target.target] ?? 0) + macro.value * target.amount;
+        const rawTarget = target.target as
+          | string
+          | { type?: string; layerType?: string; param: string };
+        let key: string | null = null;
+        if (typeof rawTarget === 'string') {
+          key = rawTarget;
+        } else if (rawTarget && rawTarget.param) {
+          const layerType = rawTarget.type ?? rawTarget.layerType;
+          if (layerType) {
+            key = buildLegacyTarget(layerType, rawTarget.param);
+          }
+        }
+        if (!key) return;
+        acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
       });
       return acc;
     },
@@ -6001,13 +7292,26 @@ const render = (time: number) => {
   const topoLayer = activeScene?.layers.find((layer) => layer.id === 'layer-topo');
   const weatherLayer = activeScene?.layers.find((layer) => layer.id === 'layer-weather');
   const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
+  const mediaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-media');
   const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
+  const getLayerParamNumber = (layer: LayerConfig | undefined, key: string, fallback: number) => {
+    const value = layer?.params?.[key];
+    return typeof value === 'number' ? value : fallback;
+  };
   const plasmaOpacity = Math.min(
     1,
     Math.max(0, (plasmaLayer?.opacity ?? 1) * (1 + (macroSum['layer-plasma.opacity'] ?? 0)))
   );
-  const plasmaSpeed = Math.max(0.1, 1.0 + (macroSum['layer-plasma.speed'] ?? 0) + (midiSum['layer-plasma.speed'] ?? 0));
-  const plasmaScale = Math.max(0.1, 1.0 + (macroSum['layer-plasma.scale'] ?? 0) + (midiSum['layer-plasma.scale'] ?? 0));
+  const plasmaBaseSpeed = getLayerParamNumber(plasmaLayer, 'speed', 1.0);
+  const plasmaBaseScale = getLayerParamNumber(plasmaLayer, 'scale', 1.0);
+  const plasmaSpeed = Math.max(
+    0.1,
+    plasmaBaseSpeed + (macroSum['layer-plasma.speed'] ?? 0) + (midiSum['layer-plasma.speed'] ?? 0)
+  );
+  const plasmaScale = Math.max(
+    0.1,
+    plasmaBaseScale + (macroSum['layer-plasma.scale'] ?? 0) + (midiSum['layer-plasma.scale'] ?? 0)
+  );
 
   const spectrumOpacity = Math.min(
     1,
@@ -6017,45 +7321,86 @@ const render = (time: number) => {
     1,
     Math.max(0, (origamiLayer?.opacity ?? 1) * (1 + (macroSum['layer-origami.opacity'] ?? 0)))
   );
-  const origamiSpeed = Math.max(0.1, 1.0 + (macroSum['layer-origami.speed'] ?? 0) + (midiSum['layer-origami.speed'] ?? 0));
+  const origamiBaseSpeed = getLayerParamNumber(origamiLayer, 'speed', 1.0);
+  const origamiSpeed = Math.max(
+    0.1,
+    origamiBaseSpeed + (macroSum['layer-origami.speed'] ?? 0) + (midiSum['layer-origami.speed'] ?? 0)
+  );
 
   const glyphOpacity = Math.min(
     1,
     Math.max(0, (glyphLayer?.opacity ?? 1) * (1 + (macroSum['layer-glyph.opacity'] ?? 0)))
   );
-  const glyphSpeed = Math.max(0.1, 1.0 + (macroSum['layer-glyph.speed'] ?? 0) + (midiSum['layer-glyph.speed'] ?? 0));
+  const glyphBaseSpeed = getLayerParamNumber(glyphLayer, 'speed', 1.0);
+  const glyphSpeed = Math.max(
+    0.1,
+    glyphBaseSpeed + (macroSum['layer-glyph.speed'] ?? 0) + (midiSum['layer-glyph.speed'] ?? 0)
+  );
 
   const crystalOpacity = Math.min(
     1,
     Math.max(0, (crystalLayer?.opacity ?? 1) * (1 + (macroSum['layer-crystal.opacity'] ?? 0)))
   );
-  const crystalScale = Math.max(0.1, 1.0 + (macroSum['layer-crystal.scale'] ?? 0) + (midiSum['layer-crystal.scale'] ?? 0));
-  const crystalSpeed = Math.max(0.1, 1.0 + (macroSum['layer-crystal.speed'] ?? 0) + (midiSum['layer-crystal.speed'] ?? 0));
+  const crystalBaseScale = getLayerParamNumber(crystalLayer, 'scale', 1.0);
+  const crystalBaseSpeed = getLayerParamNumber(crystalLayer, 'speed', 1.0);
+  const crystalScale = Math.max(
+    0.1,
+    crystalBaseScale + (macroSum['layer-crystal.scale'] ?? 0) + (midiSum['layer-crystal.scale'] ?? 0)
+  );
+  const crystalSpeed = Math.max(
+    0.1,
+    crystalBaseSpeed + (macroSum['layer-crystal.speed'] ?? 0) + (midiSum['layer-crystal.speed'] ?? 0)
+  );
 
   const inkOpacity = Math.min(
     1,
     Math.max(0, (inkLayer?.opacity ?? 1) * (1 + (macroSum['layer-inkflow.opacity'] ?? 0)))
   );
-  const inkSpeed = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.speed'] ?? 0) + (midiSum['layer-inkflow.speed'] ?? 0));
-  const inkScale = Math.max(0.1, 1.0 + (macroSum['layer-inkflow.scale'] ?? 0) + (midiSum['layer-inkflow.scale'] ?? 0));
+  const inkBaseSpeed = getLayerParamNumber(inkLayer, 'speed', 1.0);
+  const inkBaseScale = getLayerParamNumber(inkLayer, 'scale', 1.0);
+  const inkSpeed = Math.max(
+    0.1,
+    inkBaseSpeed + (macroSum['layer-inkflow.speed'] ?? 0) + (midiSum['layer-inkflow.speed'] ?? 0)
+  );
+  const inkScale = Math.max(
+    0.1,
+    inkBaseScale + (macroSum['layer-inkflow.scale'] ?? 0) + (midiSum['layer-inkflow.scale'] ?? 0)
+  );
 
   const topoOpacity = Math.min(
     1,
     Math.max(0, (topoLayer?.opacity ?? 1) * (1 + (macroSum['layer-topo.opacity'] ?? 0)))
   );
-  const topoScale = Math.max(0.1, 1.0 + (macroSum['layer-topo.scale'] ?? 0) + (midiSum['layer-topo.scale'] ?? 0));
-  const topoElevation = Math.max(0.1, 1.0 + (macroSum['layer-topo.elevation'] ?? 0) + (midiSum['layer-topo.elevation'] ?? 0));
+  const topoBaseScale = getLayerParamNumber(topoLayer, 'scale', 1.0);
+  const topoBaseElevation = getLayerParamNumber(topoLayer, 'elevation', 0.5);
+  const topoScale = Math.max(
+    0.1,
+    topoBaseScale + (macroSum['layer-topo.scale'] ?? 0) + (midiSum['layer-topo.scale'] ?? 0)
+  );
+  const topoElevation = Math.max(
+    0.1,
+    topoBaseElevation + (macroSum['layer-topo.elevation'] ?? 0) + (midiSum['layer-topo.elevation'] ?? 0)
+  );
 
   const weatherOpacity = Math.min(
     1,
     Math.max(0, (weatherLayer?.opacity ?? 1) * (1 + (macroSum['layer-weather.opacity'] ?? 0)))
   );
-  const weatherSpeed = Math.max(0.1, 1.0 + (macroSum['layer-weather.speed'] ?? 0) + (midiSum['layer-weather.speed'] ?? 0));
+  const weatherBaseSpeed = getLayerParamNumber(weatherLayer, 'speed', 1.0);
+  const weatherSpeed = Math.max(
+    0.1,
+    weatherBaseSpeed + (macroSum['layer-weather.speed'] ?? 0) + (midiSum['layer-weather.speed'] ?? 0)
+  );
 
   const portalOpacity = Math.min(
     1,
     Math.max(0, (portalLayer?.opacity ?? 1) * (1 + (macroSum['layer-portal.opacity'] ?? 0)))
   );
+  const mediaOpacity = Math.min(
+    1,
+    Math.max(0, (mediaLayer?.opacity ?? 1) * (1 + (macroSum['layer-media.opacity'] ?? 0)))
+  );
+  const portalStyle = Math.max(0, Math.min(2, getLayerParamNumber(portalLayer, 'style', 0)));
   const oscilloOpacity = Math.min(
     1,
     Math.max(0, (oscilloLayer?.opacity ?? 1) * (1 + (macroSum['layer-oscillo.opacity'] ?? 0)))
@@ -6080,6 +7425,7 @@ const render = (time: number) => {
   const moddedWeatherOpacity = modValue('layer-weather.opacity', weatherOpacity);
   const moddedWeatherSpeed = modValue('layer-weather.speed', weatherSpeed);
   const moddedPortalOpacity = modValue('layer-portal.opacity', portalOpacity);
+  const moddedMediaOpacity = modValue('layer-media.opacity', mediaOpacity);
   const moddedOscilloOpacity = modValue('layer-oscillo.opacity', oscilloOpacity);
   const plasmaEnabled = plasmaToggle?.checked ?? true;
   const spectrumEnabled = spectrumToggle?.checked ?? true;
@@ -6090,6 +7436,7 @@ const render = (time: number) => {
   const topoEnabled = topoLayer?.enabled ?? false;
   const weatherEnabled = weatherLayer?.enabled ?? false;
   const portalEnabled = portalLayer?.enabled ?? false;
+  const mediaEnabled = mediaLayer?.enabled ?? false;
   const oscilloEnabled = oscilloLayer?.enabled ?? false;
   if (oscilloFreeze < 0.5) {
     oscilloCapture.set(audioState.waveform);
@@ -6098,6 +7445,8 @@ const render = (time: number) => {
   const plasmaAssetAudioReact = getAssetAudioReactValue('layer-plasma');
   const spectrumAssetBlendMode = getAssetBlendModeValue('layer-spectrum');
   const spectrumAssetAudioReact = getAssetAudioReactValue('layer-spectrum');
+  const mediaAssetBlendMode = getAssetBlendModeValue('layer-media');
+  const mediaAssetAudioReact = getAssetAudioReactValue('layer-media');
   const renderState: RenderState = {
     timeMs: transportTimeMs,
     rms: audioState.rms,
@@ -6112,6 +7461,7 @@ const render = (time: number) => {
     topoEnabled,
     weatherEnabled,
     portalEnabled,
+    mediaEnabled,
     oscilloEnabled,
     spectrum: audioState.spectrum,
     contrast: moddedStyle.contrast,
@@ -6122,17 +7472,17 @@ const render = (time: number) => {
     plasmaScale: moddedPlasmaScale,
     spectrumOpacity: moddedSpectrumOpacity,
     origamiOpacity: moddedOrigamiOpacity,
-    origamiFoldState: 0,
-    origamiFoldSharpness: 0,
+    origamiFoldState,
+    origamiFoldSharpness,
     origamiSpeed: moddedOrigamiSpeed,
     glyphOpacity: moddedGlyphOpacity,
-    glyphMode: 0,
-    glyphSeed: 0,
-    glyphBeat: 0,
+    glyphMode,
+    glyphSeed,
+    glyphBeat: glyphBeatPulse,
     glyphSpeed: moddedGlyphSpeed,
     crystalOpacity: moddedCrystalOpacity,
-    crystalMode: 0,
-    crystalBrittleness: 0,
+    crystalMode,
+    crystalBrittleness,
     crystalScale: moddedCrystalScale,
     crystalSpeed: moddedCrystalSpeed,
     inkOpacity: moddedInkOpacity,
@@ -6142,21 +7492,27 @@ const render = (time: number) => {
     inkSpeed: moddedInkSpeed,
     inkScale: moddedInkScale,
     topoOpacity: moddedTopoOpacity,
-    topoQuake: 0,
-    topoSlide: 0,
-    topoPlate: 0,
-    topoTravel: 0,
+    topoQuake,
+    topoSlide,
+    topoPlate,
+    topoTravel,
     topoScale: moddedTopoScale,
     topoElevation: moddedTopoElevation,
     weatherOpacity: moddedWeatherOpacity,
-    weatherMode: 0,
-    weatherIntensity: 0,
+    weatherMode,
+    weatherIntensity,
     weatherSpeed: moddedWeatherSpeed,
     portalOpacity: moddedPortalOpacity,
     portalShift,
+    portalStyle,
     portalPositions,
     portalRadii,
     portalActives,
+    mediaOpacity: moddedMediaOpacity,
+    mediaBurstPositions,
+    mediaBurstRadii,
+    mediaBurstTypes,
+    mediaBurstActives,
     oscilloOpacity: moddedOscilloOpacity,
     oscilloMode,
     oscilloFreeze,
@@ -6168,6 +7524,8 @@ const render = (time: number) => {
     plasmaAssetAudioReact: plasmaAssetAudioReact,
     spectrumAssetBlendMode: spectrumAssetBlendMode,
     spectrumAssetAudioReact: spectrumAssetAudioReact,
+    mediaAssetBlendMode: mediaAssetBlendMode,
+    mediaAssetAudioReact: mediaAssetAudioReact,
     effectsEnabled: effects.enabled,
     bloom: moddedEffects.bloom,
     blur: moddedEffects.blur,
@@ -6288,6 +7646,7 @@ const render = (time: number) => {
       topoEnabled: renderState.topoEnabled,
       weatherEnabled: renderState.weatherEnabled,
       portalEnabled: renderState.portalEnabled,
+      mediaEnabled: renderState.mediaEnabled,
       oscilloEnabled: renderState.oscilloEnabled,
       spectrum: renderState.spectrum.slice(),
       contrast: renderState.contrast,
@@ -6319,9 +7678,15 @@ const render = (time: number) => {
       weatherIntensity: renderState.weatherIntensity,
       portalOpacity: renderState.portalOpacity,
       portalShift: renderState.portalShift,
+      portalStyle: renderState.portalStyle,
       portalPositions: renderState.portalPositions,
       portalRadii: renderState.portalRadii,
       portalActives: renderState.portalActives,
+      mediaOpacity: renderState.mediaOpacity,
+      mediaBurstPositions: renderState.mediaBurstPositions,
+      mediaBurstRadii: renderState.mediaBurstRadii,
+      mediaBurstTypes: renderState.mediaBurstTypes,
+      mediaBurstActives: renderState.mediaBurstActives,
       oscilloOpacity: renderState.oscilloOpacity,
       oscilloMode: renderState.oscilloMode,
       oscilloFreeze: renderState.oscilloFreeze,
@@ -6331,6 +7696,8 @@ const render = (time: number) => {
       plasmaAssetAudioReact: renderState.plasmaAssetAudioReact,
       spectrumAssetBlendMode: renderState.spectrumAssetBlendMode,
       spectrumAssetAudioReact: renderState.spectrumAssetAudioReact,
+      mediaAssetBlendMode: renderState.mediaAssetBlendMode,
+      mediaAssetAudioReact: renderState.mediaAssetAudioReact,
       effectsEnabled: renderState.effectsEnabled,
       bloom: renderState.bloom,
       blur: renderState.blur,
@@ -6400,6 +7767,7 @@ const init = async () => {
 
   refreshGeneratorUI();
   initStylePresets();
+  initPalettes();
   initMacros();
   initEffects();
   initParticles();

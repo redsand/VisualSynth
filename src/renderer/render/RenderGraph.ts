@@ -1,4 +1,5 @@
 import { applyModMatrix } from '../../shared/modMatrix';
+import { buildLegacyTarget } from '../../shared/parameterRegistry';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 
@@ -68,6 +69,11 @@ export class RenderGraph {
   private portalPositions = new Float32Array(8);
   private portalRadii = new Float32Array(4);
   private portalActives = new Float32Array(4);
+  private lastPortalAutoSpawn = 0;
+  private mediaBurstPositions = new Float32Array(16);
+  private mediaBurstRadii = new Float32Array(8);
+  private mediaBurstTypes = new Float32Array(8);
+  private mediaBurstActives = new Float32Array(8);
   private oscilloCapture = new Float32Array(256);
   private debugState: RenderDebugState = {
     frameId: 0,
@@ -404,7 +410,25 @@ export class RenderGraph {
   }
 
   private updatePortals(time: number, dt: number) {
-    const bands = this.store.getState().audio.bands;
+    const state = this.store.getState();
+    const project = state.project;
+    const activeScene =
+      project.scenes.find((scene) => scene.id === project.activeSceneId) ?? project.scenes[0];
+    const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
+    const portalEnabled = portalLayer?.enabled ?? false;
+    const autoSpawn = (typeof portalLayer?.params?.autoSpawn === 'number'
+      ? portalLayer?.params?.autoSpawn
+      : 1) > 0.5;
+    if (portalEnabled && autoSpawn) {
+      const activeCount = this.portals.filter((portal) => portal.active).length;
+      const energy = (state.audio.bands[2] ?? 0) + (state.audio.bands[3] ?? 0);
+      const interval = Math.max(600, 1600 - energy * 800);
+      if (activeCount === 0 || time - this.lastPortalAutoSpawn > interval) {
+        this.spawnPortal();
+        this.lastPortalAutoSpawn = time;
+      }
+    }
+    const bands = state.audio.bands;
     const base = bands[1] ?? 0;
     const harmonic = Math.abs((bands[2] ?? 0) - base * 0.66) + Math.abs((bands[3] ?? 0) - base * 0.5);
     const energy = Math.min(1, (bands[2] ?? 0) + (bands[3] ?? 0) + (bands[4] ?? 0));
@@ -559,7 +583,20 @@ export class RenderGraph {
     const macroSum = state.project.macros.reduce(
       (acc, macro) => {
         macro.targets.forEach((target) => {
-          acc[target.target] = (acc[target.target] ?? 0) + macro.value * target.amount;
+          const rawTarget = target.target as
+            | string
+            | { type?: string; layerType?: string; param: string };
+          let key: string | null = null;
+          if (typeof rawTarget === 'string') {
+            key = rawTarget;
+          } else if (rawTarget && rawTarget.param) {
+            const layerType = rawTarget.type ?? rawTarget.layerType;
+            if (layerType) {
+              key = buildLegacyTarget(layerType, rawTarget.param);
+            }
+          }
+          if (!key) return;
+          acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
         });
         return acc;
       },
@@ -576,6 +613,7 @@ export class RenderGraph {
     const topoLayer = activeScene?.layers.find((layer) => layer.id === 'layer-topo');
     const weatherLayer = activeScene?.layers.find((layer) => layer.id === 'layer-weather');
     const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
+    const mediaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-media');
     const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
     const advancedSdfLayer = activeScene?.layers.find((layer) => layer.id === 'gen-sdf-scene');
     
@@ -589,11 +627,46 @@ export class RenderGraph {
     const trailsLayer = activeScene?.layers.find((layer) => layer.id === 'fx-trails' || layer.id === 'fx-persistence');
 
     const macroVal = (target: string) => macroSum[target] ?? 0;
+    const getLayerParamNumber = (layer: any, key: string, fallback: number) => {
+      const value = layer?.params?.[key];
+      return typeof value === 'number' ? value : fallback;
+    };
 
     const layerOpacity = (layer: any, macroTarget: string, defaultVal: number) => {
       const base = layer ? layer.opacity : defaultVal;
       return Math.min(1, Math.max(0, base * (1 + macroVal(macroTarget))));
     };
+
+    const plasmaBaseSpeed = getLayerParamNumber(plasmaLayer, 'speed', 1.0);
+    const plasmaBaseScale = getLayerParamNumber(plasmaLayer, 'scale', 1.0);
+    const plasmaBaseComplexity = getLayerParamNumber(plasmaLayer, 'complexity', 0.5);
+    const plasmaSpeed = Math.max(0.1, plasmaBaseSpeed + macroVal('layer-plasma.speed'));
+    const plasmaScale = Math.max(0.1, plasmaBaseScale + macroVal('layer-plasma.scale'));
+    const plasmaComplexity = Math.max(0.1, plasmaBaseComplexity + macroVal('layer-plasma.complexity'));
+
+    const origamiBaseSpeed = getLayerParamNumber(origamiLayer, 'speed', 1.0);
+    const origamiSpeed = Math.max(0.1, origamiBaseSpeed + macroVal('layer-origami.speed'));
+
+    const glyphBaseSpeed = getLayerParamNumber(glyphLayer, 'speed', 1.0);
+    const glyphSpeed = Math.max(0.1, glyphBaseSpeed + macroVal('layer-glyph.speed'));
+
+    const crystalBaseScale = getLayerParamNumber(crystalLayer, 'scale', 1.0);
+    const crystalBaseSpeed = getLayerParamNumber(crystalLayer, 'speed', 1.0);
+    const crystalScale = Math.max(0.1, crystalBaseScale + macroVal('layer-crystal.scale'));
+    const crystalSpeed = Math.max(0.1, crystalBaseSpeed + macroVal('layer-crystal.speed'));
+
+    const inkBaseSpeed = getLayerParamNumber(inkLayer, 'speed', 1.0);
+    const inkBaseScale = getLayerParamNumber(inkLayer, 'scale', 1.0);
+    const inkSpeed = Math.max(0.1, inkBaseSpeed + macroVal('layer-inkflow.speed'));
+    const inkScale = Math.max(0.1, inkBaseScale + macroVal('layer-inkflow.scale'));
+
+    const topoBaseScale = getLayerParamNumber(topoLayer, 'scale', 1.0);
+    const topoBaseElevation = getLayerParamNumber(topoLayer, 'elevation', 0.5);
+    const topoScale = Math.max(0.1, topoBaseScale + macroVal('layer-topo.scale'));
+    const topoElevation = Math.max(0.1, topoBaseElevation + macroVal('layer-topo.elevation'));
+
+    const weatherBaseSpeed = getLayerParamNumber(weatherLayer, 'speed', 1.0);
+    const weatherSpeed = Math.max(0.1, weatherBaseSpeed + macroVal('layer-weather.speed'));
 
     const moddedPlasmaOpacity = modValue('layer-plasma.opacity', layerOpacity(plasmaLayer, 'layer-plasma.opacity', 1));
     const moddedSpectrumOpacity = modValue('layer-spectrum.opacity', layerOpacity(spectrumLayer, 'layer-spectrum.opacity', 1));
@@ -604,7 +677,25 @@ export class RenderGraph {
     const moddedTopoOpacity = modValue('layer-topo.opacity', layerOpacity(topoLayer, 'layer-topo.opacity', 0));
     const moddedWeatherOpacity = modValue('layer-weather.opacity', layerOpacity(weatherLayer, 'layer-weather.opacity', 0));
     const moddedPortalOpacity = modValue('layer-portal.opacity', layerOpacity(portalLayer, 'layer-portal.opacity', 0));
+    const moddedMediaOpacity = modValue('layer-media.opacity', layerOpacity(mediaLayer, 'layer-media.opacity', 0));
     const moddedOscilloOpacity = modValue('layer-oscillo.opacity', layerOpacity(oscilloLayer, 'layer-oscillo.opacity', 0));
+    const portalStyle = Math.max(
+      0,
+      Math.min(2, typeof portalLayer?.params?.style === 'number' ? portalLayer?.params?.style : 0)
+    );
+
+    const moddedPlasmaSpeed = modValue('layer-plasma.speed', plasmaSpeed);
+    const moddedPlasmaScale = modValue('layer-plasma.scale', plasmaScale);
+    const moddedPlasmaComplexity = modValue('layer-plasma.complexity', plasmaComplexity);
+    const moddedOrigamiSpeed = modValue('layer-origami.speed', origamiSpeed);
+    const moddedGlyphSpeed = modValue('layer-glyph.speed', glyphSpeed);
+    const moddedCrystalScale = modValue('layer-crystal.scale', crystalScale);
+    const moddedCrystalSpeed = modValue('layer-crystal.speed', crystalSpeed);
+    const moddedInkSpeed = modValue('layer-inkflow.speed', inkSpeed);
+    const moddedInkScale = modValue('layer-inkflow.scale', inkScale);
+    const moddedTopoScale = modValue('layer-topo.scale', topoScale);
+    const moddedTopoElevation = modValue('layer-topo.elevation', topoElevation);
+    const moddedWeatherSpeed = modValue('layer-weather.speed', weatherSpeed);
 
     // Effect Mappings - More consistent handling
     const getFxVal = (layer: any, macroTarget: string, globalVal: number) => {
@@ -634,6 +725,7 @@ export class RenderGraph {
     const topoEnabled = topoLayer?.enabled ?? false;
     const weatherEnabled = weatherLayer?.enabled ?? false;
     const portalEnabled = portalLayer?.enabled ?? false;
+    const mediaEnabled = mediaLayer?.enabled ?? false;
     const oscilloEnabled = oscilloLayer?.enabled ?? false;
     const advancedSdfEnabled = advancedSdfLayer?.enabled ?? false;
 
@@ -655,40 +747,59 @@ export class RenderGraph {
       topoEnabled,
       weatherEnabled,
       portalEnabled,
+      mediaEnabled,
       oscilloEnabled,
       spectrum: state.audio.spectrum,
       contrast: moddedStyle.contrast,
       saturation: moddedStyle.saturation,
       paletteShift: moddedStyle.paletteShift,
       plasmaOpacity: moddedPlasmaOpacity,
+      plasmaSpeed: moddedPlasmaSpeed,
+      plasmaScale: moddedPlasmaScale,
+      plasmaComplexity: moddedPlasmaComplexity,
       spectrumOpacity: moddedSpectrumOpacity,
       origamiOpacity: moddedOrigamiOpacity,
       origamiFoldState: runtime.origamiFoldState,
       origamiFoldSharpness: runtime.origamiFoldSharpness,
+      origamiSpeed: moddedOrigamiSpeed,
       glyphOpacity: moddedGlyphOpacity,
       glyphMode: runtime.glyphMode,
       glyphSeed: runtime.glyphSeed,
       glyphBeat: runtime.glyphBeatPulse,
+      glyphSpeed: moddedGlyphSpeed,
       crystalOpacity: moddedCrystalOpacity,
       crystalMode: runtime.crystalMode,
       crystalBrittleness: runtime.crystalBrittleness,
+      crystalScale: moddedCrystalScale,
+      crystalSpeed: moddedCrystalSpeed,
       inkOpacity: moddedInkOpacity,
       inkBrush: runtime.inkBrush,
       inkPressure: runtime.inkPressure,
       inkLifespan: runtime.inkLifespan,
+      inkSpeed: moddedInkSpeed,
+      inkScale: moddedInkScale,
       topoOpacity: moddedTopoOpacity,
       topoQuake: runtime.topoQuake,
       topoSlide: runtime.topoSlide,
       topoPlate: runtime.topoPlate,
       topoTravel: runtime.topoTravel,
+      topoScale: moddedTopoScale,
+      topoElevation: moddedTopoElevation,
       weatherOpacity: moddedWeatherOpacity,
       weatherMode: runtime.weatherMode,
       weatherIntensity: runtime.weatherIntensity,
+      weatherSpeed: moddedWeatherSpeed,
       portalOpacity: moddedPortalOpacity,
       portalShift: runtime.portalShift,
+      portalStyle,
       portalPositions: this.portalPositions,
       portalRadii: this.portalRadii,
       portalActives: this.portalActives,
+      mediaOpacity: moddedMediaOpacity,
+      mediaBurstPositions: this.mediaBurstPositions,
+      mediaBurstRadii: this.mediaBurstRadii,
+      mediaBurstTypes: this.mediaBurstTypes,
+      mediaBurstActives: this.mediaBurstActives,
       oscilloOpacity: moddedOscilloOpacity,
       oscilloMode: runtime.oscilloMode,
       oscilloFreeze: runtime.oscilloFreeze,
@@ -698,6 +809,8 @@ export class RenderGraph {
       plasmaAssetAudioReact: state.renderSettings.assetLayerAudioReact['layer-plasma'],
       spectrumAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-spectrum'],
       spectrumAssetAudioReact: state.renderSettings.assetLayerAudioReact['layer-spectrum'],
+      mediaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-media'],
+      mediaAssetAudioReact: state.renderSettings.assetLayerAudioReact['layer-media'],
       effectsEnabled: effects.enabled,
       bloom: moddedBloom,
       blur: moddedBlur,

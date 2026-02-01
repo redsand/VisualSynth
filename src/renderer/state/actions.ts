@@ -3,6 +3,20 @@ import type { BpmRange } from '../../shared/bpm';
 import type { Store } from './store';
 
 const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
+  'layer-plasma': {
+    name: 'Shader Plasma',
+    enabled: true,
+    opacity: 0.75,
+    blendMode: 'screen',
+    transform: { x: 0, y: 0, scale: 1.05, rotation: 0.05 }
+  },
+  'layer-spectrum': {
+    name: 'Spectrum Bars',
+    enabled: true,
+    opacity: 0.75,
+    blendMode: 'add',
+    transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+  },
   'layer-origami': {
     name: 'Origami Fold',
     enabled: true,

@@ -1,0 +1,40 @@
+{
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Organic Fluid",
+    "createdAt": "2026-02-01T12:10:00.000Z",
+    "updatedAt": "2026-02-01T12:10:00.000Z",
+    "category": "Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "plasma",
+      "params": {
+        "opacity": 0.8,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "speed": 0.85,
+        "scale": 1.6,
+        "complexity": 0.65
+      }
+    },
+    {
+      "type": "inkflow",
+      "params": {
+        "opacity": 0.65,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "speed": 1.1,
+        "scale": 1.3
+      }
+    }
+  ],
+  "modulations": [],
+  "macros": []
+}

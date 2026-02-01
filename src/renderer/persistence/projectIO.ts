@@ -1,5 +1,5 @@
 import { projectSchema } from '../../shared/projectSchema';
-import type { OutputConfig, VisualSynthProject } from '../../shared/project';
+import { DEFAULT_PROJECT, type OutputConfig, type VisualSynthProject } from '../../shared/project';
 import { actions } from '../state/actions';
 import type { Store } from '../state/store';
 import { setStatus } from '../state/events';
@@ -24,6 +24,12 @@ export const createProjectIO = ({
   setOutputEnabled,
   onProjectApplied
 }: ProjectIODeps): ProjectIO => {
+  const ensureProjectMacros = (project: VisualSynthProject) => {
+    if (!project.macros || project.macros.length === 0) {
+      project.macros = JSON.parse(JSON.stringify(DEFAULT_PROJECT.macros));
+    }
+  };
+
   const serializeProject = () => {
     const now = new Date().toISOString();
     const state = store.getState();
@@ -41,13 +47,15 @@ export const createProjectIO = ({
       setStatus('Invalid project loaded.');
       return;
     }
-    actions.setProject(store, parsed.data);
-    const outputConfig = { ...store.getState().outputConfig, ...parsed.data.output };
+    const normalized = parsed.data;
+    ensureProjectMacros(normalized);
+    actions.setProject(store, normalized);
+    const outputConfig = { ...store.getState().outputConfig, ...normalized.output };
     actions.setOutputConfig(store, outputConfig);
     await syncOutputConfig(outputConfig);
     await setOutputEnabled(outputConfig.enabled);
     onProjectApplied();
-    setStatus(`Loaded project: ${parsed.data.name}`);
+    setStatus(`Loaded project: ${normalized.name}`);
   };
 
   const loadProject = async () => {

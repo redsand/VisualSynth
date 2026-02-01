@@ -731,6 +731,12 @@ body[data-mode='matrix'] .safe-mode {
   gap: 8px;
 }
 
+.macro-preview {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: rgba(214, 236, 255, 0.65);
+}
+
 .macro-label {
   font-size: 12px;
   color: #d6ecff;
@@ -1427,4 +1433,3 @@ body[data-mode='matrix'] .safe-mode {
   padding: 4px 12px;
   font-weight: bold;
 }
-

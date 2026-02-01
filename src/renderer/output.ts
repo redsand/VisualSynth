@@ -24,6 +24,7 @@ const state: RenderState = {
   topoEnabled: false,
   weatherEnabled: false,
   portalEnabled: false,
+  mediaEnabled: false,
   oscilloEnabled: false,
   spectrum: new Float32Array(64),
   contrast: 1,
@@ -55,9 +56,15 @@ const state: RenderState = {
   weatherIntensity: 0.6,
   portalOpacity: 0.85,
   portalShift: 0,
+  portalStyle: 0,
   portalPositions: new Float32Array(8),
   portalRadii: new Float32Array(4),
   portalActives: new Float32Array(4),
+  mediaOpacity: 0.9,
+  mediaBurstPositions: new Float32Array(16),
+  mediaBurstRadii: new Float32Array(8),
+  mediaBurstTypes: new Float32Array(8),
+  mediaBurstActives: new Float32Array(8),
   oscilloOpacity: 0.85,
   oscilloMode: 0,
   oscilloFreeze: 0,
@@ -67,6 +74,8 @@ const state: RenderState = {
   plasmaAssetAudioReact: 0.6,
   spectrumAssetBlendMode: 1,
   spectrumAssetAudioReact: 0.8,
+  mediaAssetBlendMode: 3,
+  mediaAssetAudioReact: 0.5,
   effectsEnabled: true,
   bloom: 0.2,
   blur: 0,
@@ -111,6 +120,7 @@ channel.onmessage = (event) => {
   if (typeof data.topoEnabled === 'boolean') state.topoEnabled = data.topoEnabled;
   if (typeof data.weatherEnabled === 'boolean') state.weatherEnabled = data.weatherEnabled;
   if (typeof data.portalEnabled === 'boolean') state.portalEnabled = data.portalEnabled;
+  if (typeof data.mediaEnabled === 'boolean') state.mediaEnabled = data.mediaEnabled;
   if (typeof data.oscilloEnabled === 'boolean') state.oscilloEnabled = data.oscilloEnabled;
   if (typeof data.contrast === 'number') state.contrast = data.contrast;
   if (typeof data.saturation === 'number') state.saturation = data.saturation;
@@ -144,9 +154,15 @@ channel.onmessage = (event) => {
     state.weatherIntensity = data.weatherIntensity;
   if (typeof data.portalOpacity === 'number') state.portalOpacity = data.portalOpacity;
   if (typeof data.portalShift === 'number') state.portalShift = data.portalShift;
+  if (typeof data.portalStyle === 'number') state.portalStyle = data.portalStyle;
   if (data.portalPositions) state.portalPositions = new Float32Array(data.portalPositions);
   if (data.portalRadii) state.portalRadii = new Float32Array(data.portalRadii);
   if (data.portalActives) state.portalActives = new Float32Array(data.portalActives);
+  if (typeof data.mediaOpacity === 'number') state.mediaOpacity = data.mediaOpacity;
+  if (data.mediaBurstPositions) state.mediaBurstPositions = new Float32Array(data.mediaBurstPositions);
+  if (data.mediaBurstRadii) state.mediaBurstRadii = new Float32Array(data.mediaBurstRadii);
+  if (data.mediaBurstTypes) state.mediaBurstTypes = new Float32Array(data.mediaBurstTypes);
+  if (data.mediaBurstActives) state.mediaBurstActives = new Float32Array(data.mediaBurstActives);
   if (typeof data.oscilloOpacity === 'number') state.oscilloOpacity = data.oscilloOpacity;
   if (typeof data.oscilloMode === 'number') state.oscilloMode = data.oscilloMode;
   if (typeof data.oscilloFreeze === 'number') state.oscilloFreeze = data.oscilloFreeze;
@@ -156,6 +172,8 @@ channel.onmessage = (event) => {
   if (typeof data.plasmaAssetAudioReact === 'number') state.plasmaAssetAudioReact = data.plasmaAssetAudioReact;
   if (typeof data.spectrumAssetBlendMode === 'number') state.spectrumAssetBlendMode = data.spectrumAssetBlendMode;
   if (typeof data.spectrumAssetAudioReact === 'number') state.spectrumAssetAudioReact = data.spectrumAssetAudioReact;
+  if (typeof data.mediaAssetBlendMode === 'number') state.mediaAssetBlendMode = data.mediaAssetBlendMode;
+  if (typeof data.mediaAssetAudioReact === 'number') state.mediaAssetAudioReact = data.mediaAssetAudioReact;
   if (typeof data.effectsEnabled === 'boolean') state.effectsEnabled = data.effectsEnabled;
   if (typeof data.bloom === 'number') state.bloom = data.bloom;
   if (typeof data.blur === 'number') state.blur = data.blur;

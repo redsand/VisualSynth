@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Fractal Bloom",
+    "createdAt": "2026-02-01T12:00:00.000Z",
+    "updatedAt": "2026-02-01T12:00:00.000Z",
+    "category": "Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "crystal",
+      "params": {
+        "opacity": 0.8,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "mode": 1.0,
+        "brittleness": 0.3,
+        "scale": 0.7,
+        "speed": 0.65
+      }
+    }
+  ],
+  "modulations": [],
+  "macros": []
+}

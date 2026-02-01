@@ -273,7 +273,8 @@ const migrateV2ToV3 = (preset: PresetV2): { preset: any; warnings: string[]; err
       opacity: layer.opacity,
       enabled: layer.enabled,
       blendMode: layer.blendMode,
-      transform: layer.transform
+      transform: layer.transform,
+      ...(layer.params ?? {})
     };
 
     // Check if layer has params in the registry
@@ -425,7 +426,16 @@ export const validatePreset = (preset: any): { valid: boolean; warnings: string[
         continue;
       }
 
-      const { type: layerType, param } = mod.target;
+      const parsedTarget =
+        typeof mod.target === 'string'
+          ? parseLegacyTarget(mod.target)
+          : mod.target;
+      if (!parsedTarget) {
+        errors.push(`Modulation has invalid target: ${JSON.stringify(mod.target)}`);
+        continue;
+      }
+      const layerType = parsedTarget.type ?? parsedTarget.layerType;
+      const param = parsedTarget.param;
       if (!layerTypeExists(layerType)) {
         errors.push(`Modulation target has unknown layer type: ${layerType}`);
         continue;
@@ -488,7 +498,8 @@ const paramExists = (layerType: string, paramId: string): boolean => {
  */
 export const applyPresetV3 = (preset: any, currentProject: any): { project: any; warnings: string[] } => {
   const warnings: string[] = [];
-  const project = { ...currentProject };
+  // Deep clone to avoid mutating the caller (DEFAULT_PROJECT or current project state).
+  const project = JSON.parse(JSON.stringify(currentProject));
 
   // Get the active scene, or use the first scene from DEFAULT_PROJECT if none exists
   const defaultScene = DEFAULT_PROJECT.scenes[0];
@@ -522,37 +533,16 @@ export const applyPresetV3 = (preset: any, currentProject: any): { project: any;
     };
   });
 
-  // Start with all layers from DEFAULT_PROJECT as a fallback
+  // Start with all layers from DEFAULT_PROJECT disabled as a stable baseline.
   const defaultLayers = defaultScene.layers.map((l: any) => ({ ...l, enabled: false }));
-  const existingLayers = scene.layers || [];
 
-  // Merge existing layers with default layers (existing takes precedence)
-  const mergedLayers: any[] = [];
-  const layerIds = new Set<string>();
-
-  // Add existing layers first
-  for (const existingLayer of existingLayers) {
-    mergedLayers.push(existingLayer);
-    layerIds.add(existingLayer.id);
-  }
-
-  // Add default layers that aren't in existing
-  for (const defaultLayer of defaultLayers) {
-    if (!layerIds.has(defaultLayer.id)) {
-      mergedLayers.push(defaultLayer);
-      layerIds.add(defaultLayer.id);
-    }
-  }
-
-  // Update existing layers with preset values, preserve layers not in preset
-  const presetLayerIds = new Set(presetLayers.map((l: any) => l.id));
-  const newLayers = mergedLayers.map((existingLayer: any) => {
-    const presetLayer = presetLayers.find((l: any) => l.id === existingLayer.id);
+  // Apply preset layers over the disabled baseline.
+  const newLayers = defaultLayers.map((baseLayer: any) => {
+    const presetLayer = presetLayers.find((l: any) => l.id === baseLayer.id);
     if (presetLayer) {
       return { ...presetLayer };
     }
-    // Keep existing layers not in preset
-    return existingLayer;
+    return baseLayer;
   });
 
   // Add new layers from preset that aren't in the project

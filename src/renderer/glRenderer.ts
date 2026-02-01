@@ -17,6 +17,7 @@ export interface RenderState {
   topoEnabled: boolean;
   weatherEnabled: boolean;
   portalEnabled: boolean;
+  mediaEnabled: boolean;
   oscilloEnabled: boolean;
   spectrum: Float32Array;
   contrast: number;
@@ -60,9 +61,15 @@ export interface RenderState {
   weatherSpeed: number;
   portalOpacity: number;
   portalShift: number;
+  portalStyle: number;
   portalPositions: Float32Array;
   portalRadii: Float32Array;
   portalActives: Float32Array;
+  mediaOpacity: number;
+  mediaBurstPositions: Float32Array;
+  mediaBurstRadii: Float32Array;
+  mediaBurstTypes: Float32Array;
+  mediaBurstActives: Float32Array;
   oscilloOpacity: number;
   oscilloMode: number;
   oscilloFreeze: number;
@@ -74,6 +81,8 @@ export interface RenderState {
   plasmaAssetAudioReact: number;
   spectrumAssetBlendMode: number;
   spectrumAssetAudioReact: number;
+  mediaAssetBlendMode: number;
+  mediaAssetAudioReact: number;
   effectsEnabled: boolean;
   bloom: number;
   blur: number;
@@ -131,6 +140,8 @@ export const createGLRenderer = (canvas: HTMLCanvasElement) => {
     throw new Error('WebGL2 required');
   }
 
+  let customPlasmaSource: string | null = null;
+
   const vertexShaderSrc = `#version 300 es
 in vec2 position;
 out vec2 vUv;
@@ -139,7 +150,12 @@ void main() {
   gl_Position = vec4(position, 0.0, 1.0);
 }`;
 
-  const createFragmentShaderSrc = (sdfUniforms = '', sdfFunctions = '', sdfMapBody = '10.0') => `#version 300 es
+  const createFragmentShaderSrc = (
+    sdfUniforms = '',
+    sdfFunctions = '',
+    sdfMapBody = '10.0',
+    plasmaSource: string | null = null
+  ) => `#version 300 es
 precision highp float;
 
 uniform float uTime;
@@ -185,6 +201,7 @@ uniform float uWeatherSpeed;
 uniform float uPortalEnabled;
 uniform float uPortalOpacity;
 uniform float uPortalShift;
+uniform float uPortalStyle;
 uniform vec2 uPortalPos[4];
 uniform float uPortalRadius[4];
 uniform float uPortalActive[4];
@@ -249,6 +266,16 @@ uniform float uSpectrumAssetEnabled;
 uniform sampler2D uSpectrumAsset;
 uniform float uSpectrumAssetBlend;
 uniform float uSpectrumAssetAudioReact;
+uniform float uMediaEnabled;
+uniform float uMediaOpacity;
+uniform float uMediaAssetEnabled;
+uniform sampler2D uMediaAsset;
+uniform float uMediaAssetBlend;
+uniform float uMediaAssetAudioReact;
+uniform vec2 uMediaBurstPos[8];
+uniform float uMediaBurstRadius[8];
+uniform float uMediaBurstType[8];
+uniform float uMediaBurstActive[8];
 uniform sampler2D uWaveformTex;
 uniform sampler2D uSpectrumTex;
 uniform sampler2D uModulatorTex;
@@ -499,7 +526,9 @@ vec3 applyBlendMode(vec3 base, vec3 blend, float mode, float opacity) {
   return mix(base, result, opacity);
 }
 
-float plasma(vec2 uv, float t) {
+vec3 palette(float t);
+
+float plasmaDefault(vec2 uv, float t) {
   float v = 0.0;
   vec2 p = uv * uPlasmaScale;
   float audio = (uRms * 0.5 + uPeak * 0.5) * uPlasmaAudioReact;
@@ -512,6 +541,15 @@ float plasma(vec2 uv, float t) {
   }
   
   return v / uPlasmaComplexity * 0.5 + 0.5;
+}
+
+vec3 samplePlasma(vec2 uv, float t) {
+#ifdef HAS_CUSTOM_PLASMA
+  return customPlasma(uv, t);
+#else
+  float p = plasmaDefault(uv, t);
+  return palette(p);
+#endif
 }
 
 float particleField(vec2 uv, float t, float density, float speed, float size) {
@@ -651,6 +689,9 @@ vec3 palette(float t) {
          mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, t));
 }
 
+${plasmaSource ? '#define HAS_CUSTOM_PLASMA' : ''}
+${plasmaSource ?? ''}
+
 void main() {
   vec2 uv = vUv;
   vec2 effectUv = kaleidoscope(uv, uKaleidoscope);
@@ -714,8 +755,8 @@ void main() {
   }
   vec3 color = vec3(0.02, 0.04, 0.08);
   if (uPlasmaEnabled > 0.5) {
-    float p = plasma(effectUv, uTime);
-    color += palette(p) * uPlasmaOpacity;
+    vec3 plasmaColor = samplePlasma(effectUv, uTime);
+    color += plasmaColor * uPlasmaOpacity;
   }
   if (uPlasmaAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
@@ -749,6 +790,39 @@ void main() {
     vec3 assetColor = assetSample.rgb * (0.8 + audioMod * 0.2);
     float alpha = assetSample.a * clamp(uSpectrumOpacity, 0.0, 1.0);
     color = applyBlendMode(color, assetColor, uSpectrumAssetBlend, alpha);
+  }
+  if (uMediaEnabled > 0.5 && uMediaAssetEnabled > 0.5) {
+    vec2 assetUv = effectUv;
+    float audioMod = 1.0 + (uRms * 0.3 + uPeak * 0.5) * uMediaAssetAudioReact;
+    vec2 centeredAssetUv = (assetUv - 0.5) / audioMod + 0.5;
+    centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
+    vec4 assetSample = texture(uMediaAsset, centeredAssetUv);
+    vec3 assetColor = assetSample.rgb * (0.85 + audioMod * 0.15);
+    float alpha = assetSample.a * clamp(uMediaOpacity, 0.0, 1.0);
+    color = applyBlendMode(color, assetColor, uMediaAssetBlend, alpha);
+  }
+  if (uMediaEnabled > 0.5) {
+    for (int i = 0; i < 8; i += 1) {
+      float activeAmt = uMediaBurstActive[i];
+      if (activeAmt <= 0.01) continue;
+      vec2 delta = effectUv - uMediaBurstPos[i];
+      float r = uMediaBurstRadius[i];
+      float w = 0.01 + activeAmt * 0.015;
+      float type = uMediaBurstType[i];
+      float shape = 0.0;
+      if (type < 0.5) {
+        float dist = length(delta);
+        shape = smoothstep(r + w, r, dist) * smoothstep(r, r - w * 2.2, dist);
+      } else if (type < 1.5) {
+        float t = sdEquilateralTriangle(delta, r);
+        shape = smoothstep(w, 0.0, abs(t));
+      } else {
+        float line = smoothstep(w, 0.0, abs(delta.y)) * smoothstep(r, r - w * 6.0, abs(delta.x));
+        shape = line;
+      }
+      vec3 burstColor = palette(fract(float(i) * 0.17 + uPaletteShift * 0.2));
+      color += burstColor * shape * activeAmt * uMediaOpacity;
+    }
   }
   if (uGlyphEnabled > 0.5) {
     vec2 grid = vec2(18.0, 10.0);
@@ -827,14 +901,20 @@ void main() {
   if (uPortalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     vec2 warp = vec2(0.0); float ringGlow = 0.0;
+    float style = clamp(uPortalStyle, 0.0, 2.0);
+    float ringWidth = mix(0.02, 0.05, step(0.5, style));
+    ringWidth = mix(ringWidth, 0.08, step(1.5, style));
     for (int i = 0; i < 4; i += 1) {
       if (uPortalActive[i] < 0.5) continue;
       vec2 delta = centered - uPortalPos[i]; float dist = length(delta), rad = uPortalRadius[i];
-      ringGlow += smoothstep(rad + 0.02, rad, dist) * smoothstep(rad - 0.02, rad - 0.05, dist);
-      warp += normalize(delta + 0.0001) * (rad - dist) * 0.08;
+      ringGlow += smoothstep(rad + ringWidth, rad, dist) * smoothstep(rad - ringWidth, rad - ringWidth * 2.5, dist);
+      warp += normalize(delta + 0.0001) * (rad - dist) * mix(0.06, 0.12, step(1.5, style));
     }
-    effectUv = clamp(effectUv + warp * 0.5, 0.0, 1.0);
-    color += (vec3(0.2, 0.6, 0.9) + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity;
+    effectUv = clamp(effectUv + warp * mix(0.45, 0.6, step(0.5, style)), 0.0, 1.0);
+    vec3 baseCol = vec3(0.2, 0.6, 0.9);
+    if (style > 0.5 && style < 1.5) baseCol = vec3(0.7, 0.35, 0.95);
+    if (style >= 1.5) baseCol = vec3(0.2, 0.9, 0.55);
+    color += (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity;
   }
   if (uOscilloEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -953,7 +1033,18 @@ void main() {
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+      const log = gl.getShaderInfoLog(shader);
+      console.error('Shader compile error:', log);
+      const hasCustom = source.includes('customPlasma');
+      if (hasCustom || source.length < 4000) {
+        const numbered = source
+          .split('\n')
+          .map((line, i) => `${String(i + 1).padStart(4, '0')}: ${line}`)
+          .join('\n');
+        console.error('Shader source (numbered):\n', numbered);
+      } else {
+        console.error('Shader source omitted (too large).');
+      }
       gl.deleteShader(shader);
       return null;
     }
@@ -977,7 +1068,10 @@ void main() {
     return prog;
   };
 
-  const standardProgram = createProgram(vertexShaderSrc, createFragmentShaderSrc())!;
+  let standardProgram = createProgram(vertexShaderSrc, createFragmentShaderSrc());
+  if (!standardProgram) {
+    throw new Error('Failed to compile standard shader program.');
+  }
   let currentProgram = standardProgram;
   let lastSdfSceneJson = '';
 
@@ -991,7 +1085,12 @@ void main() {
     try {
       const compiled = buildSdfShader(scene.nodes, scene.connections || [], scene.mode || '2d');
       const uniformsCode = compiled.uniforms.map(u => `uniform ${u.type} ${u.name};`).join('\n');
-      const fSource = createFragmentShaderSrc(uniformsCode, compiled.functionsCode, compiled.mapBody);
+      const fSource = createFragmentShaderSrc(
+        uniformsCode,
+        compiled.functionsCode,
+        compiled.mapBody,
+        customPlasmaSource
+      );
       const newProg = createProgram(vertexShaderSrc, fSource);
       if (newProg) {
         advancedSdfProgram = newProg;
@@ -1068,9 +1167,18 @@ void main() {
     gl.uniform1f(getLocation('uPortalEnabled'), state.portalEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uPortalOpacity'), state.portalOpacity);
     gl.uniform1f(getLocation('uPortalShift'), state.portalShift);
+    gl.uniform1f(getLocation('uPortalStyle'), state.portalStyle);
     gl.uniform2fv(getLocation('uPortalPos[0]'), state.portalPositions);
     gl.uniform1fv(getLocation('uPortalRadius[0]'), state.portalRadii);
     gl.uniform1fv(getLocation('uPortalActive[0]'), state.portalActives);
+    gl.uniform1f(getLocation('uMediaEnabled'), state.mediaEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMediaOpacity'), state.mediaOpacity);
+    gl.uniform1f(getLocation('uMediaAssetBlend'), state.mediaAssetBlendMode);
+    gl.uniform1f(getLocation('uMediaAssetAudioReact'), state.mediaAssetAudioReact);
+    gl.uniform2fv(getLocation('uMediaBurstPos[0]'), state.mediaBurstPositions);
+    gl.uniform1fv(getLocation('uMediaBurstRadius[0]'), state.mediaBurstRadii);
+    gl.uniform1fv(getLocation('uMediaBurstType[0]'), state.mediaBurstTypes);
+    gl.uniform1fv(getLocation('uMediaBurstActive[0]'), state.mediaBurstActives);
     gl.uniform1f(getLocation('uOscilloEnabled'), state.oscilloEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uOscilloOpacity'), state.oscilloOpacity);
     gl.uniform1f(getLocation('uOscilloMode'), state.oscilloMode);
@@ -1123,8 +1231,12 @@ void main() {
     gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
   };
 
-  type AssetLayerId = 'layer-plasma' | 'layer-spectrum';
-  const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = { 'layer-plasma': 1, 'layer-spectrum': 2 };
+  type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
+  const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = {
+    'layer-plasma': 1,
+    'layer-spectrum': 2,
+    'layer-media': 3
+  };
 
   interface AssetCacheEntry {
     assetId: string;
@@ -1321,7 +1433,8 @@ void main() {
   const applyLayerBinding = (prog: WebGLProgram, layerId: AssetLayerId) => {
     const entry = layerBindings[layerId];
     const unitIndex = ASSET_LAYER_UNITS[layerId];
-    const prefix = layerId === 'layer-plasma' ? 'uPlasma' : 'uSpectrum';
+    const prefix =
+      layerId === 'layer-plasma' ? 'uPlasma' : layerId === 'layer-spectrum' ? 'uSpectrum' : 'uMedia';
     const enabledLoc = gl.getUniformLocation(prog, `${prefix}AssetEnabled`);
     const samplerLoc = gl.getUniformLocation(prog, `${prefix}Asset`);
     
@@ -1356,17 +1469,37 @@ void main() {
     });
   };
 
+  const setPlasmaShaderSource = (source: string | null) => {
+    const trimmed = source?.trim();
+    const nextSource = trimmed ? trimmed : null;
+    const nextProgram = createProgram(
+      vertexShaderSrc,
+      createFragmentShaderSrc('', '', '10.0', nextSource)
+    );
+    if (!nextProgram) {
+      return { ok: false };
+    }
+    standardProgram = nextProgram;
+    customPlasmaSource = nextSource;
+    return { ok: true };
+  };
+
   const render = (state: RenderState) => {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
     updateInternalTextures(state);
     updateAdvancedSdfProgram(state.sdfScene);
     currentProgram = (state.sdfScene && advancedSdfProgram) ? advancedSdfProgram : standardProgram;
+    if (!currentProgram) {
+      console.error('Render program unavailable; skipping frame.');
+      return;
+    }
     updateStandardUniforms(currentProgram, state);
     applyInternalTextures(currentProgram);
     updateVideoTextures();
     applyLayerBinding(currentProgram, 'layer-plasma');
     applyLayerBinding(currentProgram, 'layer-spectrum');
+    applyLayerBinding(currentProgram, 'layer-media');
     
     if (currentProgram === advancedSdfProgram && state.sdfScene) {
       const s = state.sdfScene;
@@ -1403,5 +1536,5 @@ void main() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   };
 
-  return { render, setLayerAsset, setPalette };
+  return { render, setLayerAsset, setPalette, setPlasmaShaderSource };
 };

@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "metadata": {
+    "version": 3,
+    "name": "Neon Wireframe Grid",
+    "createdAt": "2026-02-01T12:25:00.000Z",
+    "updatedAt": "2026-02-01T12:25:00.000Z",
+    "category": "Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    }
+  },
+  "layers": [
+    {
+      "type": "topo",
+      "params": {
+        "opacity": 0.8,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "scale": 2.0,
+        "elevation": 0.9
+      }
+    },
+    {
+      "type": "spectrum",
+      "params": {
+        "opacity": 0.25,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    }
+  ],
+  "modulations": [],
+  "macros": []
+}

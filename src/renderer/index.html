@@ -89,7 +89,7 @@
               <div class="scene-strip-add">
                 <button id="scene-add-blank" type="button">New Blank Scene</button>
               </div>
-              <div class="scene-strip-presets">
+              <div class="scene-strip-presets" id="preset-explorer">
                 <h4>Preset Explorer</h4>
                 <label class="scene-label">
                   Preset
@@ -324,10 +324,6 @@
               <div id="sdf-editor" class="sdf-editor hidden">
                 <!-- Advanced Editor injected here -->
               </div>
-            </div>
-            <div class="panel-block">
-              <h3>Layer Controls</h3>
-              <div class="layer-list" id="layer-list-design"></div>
             </div>
           </div>
 
@@ -663,12 +659,12 @@
                   <option value="layer-spectrum">Spectrum Bars</option>
                 </select>
               </label>
-              <textarea id="shader-editor" class="shader-editor" rows="8" placeholder="Paste GLSL here..."></textarea>
+              <textarea id="shader-editor" class="shader-editor" rows="8" placeholder="Paste GLSL here (define vec3 customPlasma(vec2 uv, float t))..."></textarea>
               <div class="scene-row">
                 <button id="shader-apply" type="button">Apply Draft</button>
                 <button id="shader-save" type="button">Save Draft</button>
               </div>
-              <div id="shader-status" class="output-hint">Drafts are stored locally (not compiled yet).</div>
+              <div id="shader-status" class="output-hint">Drafts compile in-session. Save stores a shader asset in the project.</div>
             </div>
             <div class="panel-block">
               <h3>Parameter Search</h3>

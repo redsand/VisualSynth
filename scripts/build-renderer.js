@@ -28,6 +28,7 @@ const build = () => {
     entryNames: '[name]',
     platform: 'browser',
     target: ['chrome120'],
+    external: ['@novnc/novnc', '@novnc/novnc/*'],
     define: {
       'process.env.NODE_ENV': watch ? '"development"' : '"production"'
     }
@@ -45,6 +46,7 @@ const run = async () => {
       entryNames: '[name]',
       platform: 'browser',
       target: ['chrome120'],
+      external: ['@novnc/novnc', '@novnc/novnc/*'],
       define: {
         'process.env.NODE_ENV': '"development"'
       }

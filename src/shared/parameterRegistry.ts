@@ -378,6 +378,26 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
     ]
   },
   {
+    id: 'media',
+    name: 'Media',
+    description: 'Image/video overlay layer',
+    sinceVersion: '0.9.0',
+    params: [
+      {
+        id: 'opacity',
+        name: 'Opacity',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 1,
+        description: 'Layer visibility',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '0.9.0'
+      }
+    ]
+  },
+  {
     id: 'oscillo',
     name: 'Oscilloscope',
     description: 'Waveform visualization',
@@ -414,6 +434,7 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'layer-topo': 'topo',
     'layer-weather': 'weather',
     'layer-portal': 'portal',
+    'layer-media': 'media',
     'layer-oscillo': 'oscillo'
   };
 

@@ -372,7 +372,8 @@ const assetItemSchema = z.object({
       text: z.string().optional(),
       font: z.string().optional(),
       fontSize: z.number().optional(),
-      fontColor: z.string().optional()
+      fontColor: z.string().optional(),
+      shaderSource: z.string().optional()
     })
     .optional()
 });

@@ -218,6 +218,7 @@ export interface AssetItem {
     font?: string;
     fontSize?: number;
     fontColor?: string;
+    shaderSource?: string;
   };
 }
 
@@ -635,6 +636,18 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
           enabled: false,
           opacity: 0.85,
           blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+          params: {
+            autoSpawn: 1,
+            style: 0
+          }
+        },
+        {
+          id: 'layer-media',
+          name: 'Media Overlay',
+          enabled: false,
+          opacity: 0.9,
+          blendMode: 'screen',
           transform: { x: 0, y: 0, scale: 1, rotation: 0 }
         },
         {
@@ -720,6 +733,18 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
           name: 'Wormhole Portal',
           enabled: false,
           opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+          params: {
+            autoSpawn: 1,
+            style: 0
+          }
+        },
+        {
+          id: 'layer-media',
+          name: 'Media Overlay',
+          enabled: false,
+          opacity: 0.9,
           blendMode: 'screen',
           transform: { x: 0, y: 0, scale: 1, rotation: 0 }
         },

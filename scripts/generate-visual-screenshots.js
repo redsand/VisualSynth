@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 // Output directory
 const OUTPUT_DIR = path.join(__dirname, '../docs/screenshots');
@@ -112,11 +113,16 @@ const categories = {
  * This creates a valid PNG file with a solid color
  * Using a 64x64 pixel image to stay within limits
  */
-function createColoredPNG(color) {
+function hashBytes(value) {
+  return crypto.createHash('sha256').update(value).digest();
+}
+
+function createColoredPNG(color, seed = '') {
   // Parse hex color to RGB
   const r = parseInt(color.slice(1, 3), 16);
   const g = parseInt(color.slice(3, 5), 16);
   const b = parseInt(color.slice(5, 7), 16);
+  const hash = hashBytes(seed || color);
 
   // Create 64x64 pixel image with the color
   const width = 64;
@@ -131,8 +137,28 @@ function createColoredPNG(color) {
       const pg = Math.floor(g * (1 - gradient) + (g * 0.7) * gradient);
       const pb = Math.floor(b * (1 - gradient) + (b * 0.7) * gradient);
 
-      pixels.push(pr, pg, b, 255); // RGB + Alpha
+      // Add a deterministic pattern based on the seed hash for uniqueness.
+      const hashIndex = (x + y * width) % hash.length;
+      const mod = hash[hashIndex] / 255;
+      const stripe = ((x + y + hash[0]) % 11) / 11;
+      const mix = 0.2 + 0.6 * mod + 0.2 * stripe;
+      const mixClamp = Math.max(0, Math.min(1, mix));
+
+      const rr = Math.floor(pr * (1 - mixClamp) + (hash[(hashIndex + 1) % hash.length]) * mixClamp);
+      const gg = Math.floor(pg * (1 - mixClamp) + (hash[(hashIndex + 5) % hash.length]) * mixClamp);
+      const bb = Math.floor(pb * (1 - mixClamp) + (hash[(hashIndex + 9) % hash.length]) * mixClamp);
+
+      pixels.push(rr, gg, bb, 255); // RGB + Alpha
     }
+  }
+
+  // Encode the hash into the first row to guarantee uniqueness.
+  for (let i = 0; i < 16; i++) {
+    const base = i * 4;
+    pixels[base] = hash[(i * 3) % hash.length];
+    pixels[base + 1] = hash[(i * 3 + 1) % hash.length];
+    pixels[base + 2] = hash[(i * 3 + 2) % hash.length];
+    pixels[base + 3] = 255;
   }
 
   return createPNGFromPixels(width, height, pixels);
@@ -254,7 +280,7 @@ function calculateCRC(data) {
 /**
  * Generate all screenshots for a category
  */
-function generateCategoryScreenshots(categoryName) {
+function generateCategoryScreenshots(categoryName, outputDir = OUTPUT_DIR) {
   const category = categories[categoryName];
 
   if (!category) {
@@ -268,11 +294,11 @@ function generateCategoryScreenshots(categoryName) {
   console.log('');
 
   // Create output directory
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  fs.mkdirSync(outputDir, { recursive: true });
 
   category.screenshots.forEach((screenshot, index) => {
-    const pngData = createColoredPNG(screenshot.color);
-    const filePath = path.join(OUTPUT_DIR, `${screenshot.id}.png`);
+    const pngData = createColoredPNG(screenshot.color, screenshot.id);
+    const filePath = path.join(outputDir, `${screenshot.id}.png`);
 
     fs.writeFileSync(filePath, pngData);
     console.log(`  [${index + 1}/${category.screenshots.length}] ✓ ${screenshot.name} -> ${screenshot.id}.png`);
@@ -282,22 +308,22 @@ function generateCategoryScreenshots(categoryName) {
 /**
  * Generate all screenshots
  */
-function generateAllScreenshots() {
+function generateAllScreenshots(outputDir = OUTPUT_DIR) {
   console.log('VisualSynth Visual Screenshot Generator');
   console.log('');
   console.log(`Output directory: ${OUTPUT_DIR}`);
   console.log('');
 
   // Create output directory
-  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  fs.mkdirSync(outputDir, { recursive: true });
 
   let totalScreenshots = 0;
 
   Object.entries(categories).forEach(([catId, category]) => {
     console.log(`Generating ${category.name}...`);
     category.screenshots.forEach((screenshot) => {
-      const pngData = createColoredPNG(screenshot.color);
-      const filePath = path.join(OUTPUT_DIR, `${screenshot.id}.png`);
+      const pngData = createColoredPNG(screenshot.color, screenshot.id);
+      const filePath = path.join(outputDir, `${screenshot.id}.png`);
 
       fs.writeFileSync(filePath, pngData);
       totalScreenshots++;
@@ -427,10 +453,10 @@ function main() {
   if (options.all) {
     generateAllScreenshots();
   } else if (options.category) {
-    generateCategoryScreenshots(options.category);
+    generateCategoryScreenshots(options.category, options.output);
   } else {
     // Default: generate all
-    generateAllScreenshots();
+    generateAllScreenshots(options.output);
   }
 }
 
