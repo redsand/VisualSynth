@@ -1,48 +1,444 @@
 {
-  "version": 3,
+  "version": 4,
   "metadata": {
-    "version": 3,
+    "version": 4,
     "name": "Cosmic Plasma",
     "createdAt": "2026-01-25T19:05:43.040937",
-    "updatedAt": "2026-01-28T16:48:56.570Z",
+    "updatedAt": "2026-02-01T21:18:49.103Z",
     "category": "Essentials",
     "compatibility": {
       "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Ambient",
+    "visualIntentTags": [
+      "space",
+      "nebula",
+      "atmospheric",
+      "slow"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
     }
   },
-  "layers": [
+  "scenes": [
     {
-      "type": "plasma",
-      "params": {
-        "opacity": 0.95,
-        "enabled": true,
-        "blendMode": "screen",
-        "transform": {
-          "x": 0,
-          "y": 0,
-          "scale": 1,
-          "rotation": 0
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "layer-plasma",
+          "layer-spectrum"
+        ],
+        "support": [
+          "layer-origami",
+          "layer-glyph",
+          "layer-crystal"
+        ],
+        "atmosphere": [
+          "layer-inkflow",
+          "layer-topo",
+          "layer-weather",
+          "layer-portal",
+          "layer-media",
+          "layer-oscillo"
+        ]
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Plasma",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.95,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 1,
+            "scale": 1,
+            "complexity": 0.5
+          }
         },
-        "speed": 1,
-        "scale": 1,
-        "complexity": 0.5
-      }
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.9,
+            "enabled": true,
+            "blendMode": "add",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            }
+          }
+        },
+        {
+          "id": "layer-origami",
+          "name": "Origami Fold",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-glyph",
+          "name": "Glyph Language",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.8,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-crystal",
+          "name": "Crystal Harmonics",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-inkflow",
+          "name": "Ink Flow",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-topo",
+          "name": "Topo Terrain",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-weather",
+          "name": "Audio Weather",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-portal",
+          "name": "Wormhole Portal",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "autoSpawn": 1,
+            "style": 0
+          }
+        },
+        {
+          "id": "layer-media",
+          "name": "Media Overlay",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-oscillo",
+          "name": "Sacred Oscilloscope",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
     },
     {
-      "type": "spectrum",
-      "params": {
-        "opacity": 0.9,
-        "enabled": true,
-        "blendMode": "add",
-        "transform": {
-          "x": 0,
-          "y": 0,
-          "scale": 1,
-          "rotation": 0
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Pulse Scene",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "layer-spectrum"
+        ],
+        "support": [
+          "layer-plasma"
+        ],
+        "atmosphere": [
+          "layer-origami",
+          "layer-glyph",
+          "layer-crystal",
+          "layer-inkflow",
+          "layer-topo",
+          "layer-weather"
+        ]
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "role": "core",
+          "enabled": false,
+          "opacity": 0.8,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.05,
+            "rotation": 0.04
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-origami",
+          "name": "Origami Fold",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-glyph",
+          "name": "Glyph Language",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.8,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-crystal",
+          "name": "Crystal Harmonics",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-inkflow",
+          "name": "Ink Flow",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-topo",
+          "name": "Topo Terrain",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-weather",
+          "name": "Audio Weather",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-portal",
+          "name": "Wormhole Portal",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "autoSpawn": 1,
+            "style": 0
+          }
+        },
+        {
+          "id": "layer-media",
+          "name": "Media Overlay",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-oscillo",
+          "name": "Sacred Oscilloscope",
+          "role": "support",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
-      }
+      ]
     }
   ],
+  "activeSceneId": "scene-1",
   "modulations": [
     {
       "source": "audio.rms",
