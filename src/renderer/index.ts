@@ -111,7 +111,6 @@ const presetCategorySelect = document.getElementById('preset-category') as HTMLS
 const presetShuffleButton = document.getElementById('preset-shuffle') as HTMLButtonElement;
 const presetBrowser = document.getElementById('preset-browser') as HTMLDivElement;
 const presetExplorer = document.getElementById('preset-explorer') as HTMLDivElement;
-const advancedPanel = document.getElementById('advanced-panel') as HTMLDetailsElement;
 const templateSelect = document.getElementById('template-select') as HTMLSelectElement;
 const applyTemplateButton = document.getElementById('btn-apply-template') as HTMLButtonElement;
 const modeSwitcher = document.getElementById('mode-switcher') as HTMLDivElement;
@@ -695,10 +694,6 @@ const setMode = (mode: UiMode) => {
   systemLeft.classList.toggle('hidden', !visibility.system);
   systemRight.classList.toggle('hidden', !visibility.system);
   presetExplorer?.classList.toggle('hidden', mode !== 'performance');
-  if (advancedPanel) {
-    advancedPanel.open = mode !== 'performance' && mode !== 'matrix';
-    advancedPanel.classList.toggle('hidden', mode === 'matrix');
-  }
   macroHero?.classList.toggle('hidden', mode === 'matrix');
   matrixControls?.classList.toggle('hidden', mode !== 'matrix');
 };
