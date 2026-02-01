@@ -103,6 +103,7 @@ const audioSelect = document.getElementById('audio-device') as HTMLSelectElement
 const midiSelect = document.getElementById('midi-device') as HTMLSelectElement;
 const toggleMidiButton = document.getElementById('toggle-midi') as HTMLButtonElement;
 const saveButton = document.getElementById('btn-save') as HTMLButtonElement;
+const savePerfButton = document.getElementById('btn-save-perf') as HTMLButtonElement;
 const loadButton = document.getElementById('btn-load') as HTMLButtonElement;
 const presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
 const applyPresetButton = document.getElementById('btn-apply-preset') as HTMLButtonElement;
@@ -478,6 +479,8 @@ const shaderDraftKey = 'vs.shader.draft';
 const shaderTargetDraftValue = 'layer-plasma';
 const shaderTargetAssetPrefix = 'asset:';
 let runtimeShaderOverride: string | null = null;
+let currentTransitionAmount = 0;
+let currentTransitionType = 0; // 0: none, 1: fade, 2: warp, 3: glitch
 
 const audioState = {
   rms: 0,
@@ -666,6 +669,10 @@ const recordPlaylistOverride = (layerId: string, override: Partial<LayerConfig>)
 const applyVisualMode = (modeId: string) => {
   const mode = VISUAL_MODES.find(m => m.id === modeId);
   if (!mode) return;
+
+  // Trigger Transition Effect
+  currentTransitionType = mode.transition.type === 'warp' ? 2 : mode.transition.type === 'glitch' ? 3 : 1;
+  currentTransitionAmount = 1.0;
 
   currentProject.activeModeId = modeId;
   setStatus(`Visual Mode applied: ${mode.name}`);
@@ -4182,25 +4189,38 @@ const addSceneFromPreset = async (presetPath: string) => {
     await ensureSafeVisuals(traceId, result.error);
     return null;
   }
-  if (!result.project || result.project.scenes.length === 0) {
+
+  // Migrate preset to latest version (V5)
+  const presetMigration = await import('../shared/presetMigration');
+  const migrationResult = presetMigration.migratePreset(result.project);
+  if (!migrationResult.success) {
+    const reasonText = migrationResult.errors.join(', ');
+    setStatus(`Preset migration failed: ${reasonText}`);
+    await ensureSafeVisuals(traceId, reasonText);
+    return null;
+  }
+
+  const migratedProject = migrationResult.preset;
+
+  if (!migratedProject.scenes || migratedProject.scenes.length === 0) {
     const reasonText = 'Preset has no scenes to add.';
     setStatus(reasonText);
     await ensureSafeVisuals(traceId, reasonText);
     return null;
   }
   const sourceScene =
-    result.project.scenes.find((scene) => scene.id === result.project?.activeSceneId) ??
-    result.project.scenes[0];
+    migratedProject.scenes.find((scene: any) => scene.id === migratedProject.activeSceneId) ??
+    migratedProject.scenes[0];
   const presetName = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
   const assetIdMap = new Map<string, string>();
   const referencedAssetIds = new Set<string>();
-  sourceScene.layers.forEach((layer) => {
+  sourceScene.layers.forEach((layer: any) => {
     const assetId = (layer as LayerConfig & { assetId?: string }).assetId;
     if (assetId) referencedAssetIds.add(assetId);
   });
-  if (result.project.assets.length > 0 && referencedAssetIds.size > 0) {
+  if (migratedProject.assets && migratedProject.assets.length > 0 && referencedAssetIds.size > 0) {
     const nextAssets = [...currentProject.assets];
-    result.project.assets.forEach((asset) => {
+    migratedProject.assets.forEach((asset: any) => {
       if (!referencedAssetIds.has(asset.id)) return;
       const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
       const newId = hasCollision ? getNextAssetId() : asset.id;
@@ -4211,16 +4231,16 @@ const addSceneFromPreset = async (presetPath: string) => {
     renderAssets();
   }
   const look: SceneLook = {
-    effects: cloneValue(result.project.effects),
-    particles: cloneValue(result.project.particles),
-    sdf: cloneValue(result.project.sdf),
-    visualizer: cloneValue(result.project.visualizer),
-    stylePresets: cloneValue(result.project.stylePresets),
-    activeStylePresetId: cloneValue(result.project.activeStylePresetId),
-    palettes: cloneValue(result.project.palettes),
-    activePaletteId: cloneValue(result.project.activePaletteId),
-    macros: cloneValue(result.project.macros),
-    modMatrix: cloneValue(result.project.modMatrix)
+    effects: cloneValue(migratedProject.effects || {}),
+    particles: cloneValue(migratedProject.particles || {}),
+    sdf: cloneValue(migratedProject.sdf || {}),
+    visualizer: cloneValue(migratedProject.visualizer || {}),
+    stylePresets: cloneValue(migratedProject.stylePresets || []),
+    activeStylePresetId: cloneValue(migratedProject.activeStylePresetId || ''),
+    palettes: cloneValue(migratedProject.palettes || []),
+    activePaletteId: cloneValue(migratedProject.activePaletteId || ''),
+    macros: cloneValue(migratedProject.macros || []),
+    modMatrix: cloneValue(migratedProject.modMatrix || [])
   };
   const newSceneId = getNextSceneId();
   const newScene: SceneConfig = {
@@ -6858,6 +6878,11 @@ saveButton.addEventListener('click', async () => {
   await window.visualSynth.saveProject(payload);
 });
 
+savePerfButton.addEventListener('click', async () => {
+  const payload = serializePerformance();
+  await window.visualSynth.saveProject(payload);
+});
+
 loadButton.addEventListener('click', async () => {
   const result = await window.visualSynth.openProject();
   if (!result.canceled && result.project) {
@@ -7279,6 +7304,19 @@ sdfShape.addEventListener('change', () => {
 
 visualModeSelect.addEventListener('change', () => {
   applyVisualMode(visualModeSelect.value);
+});
+
+[mixRoleCore, mixRoleSupport, mixRoleAtmosphere].forEach((slider) => {
+  slider.addEventListener('input', () => {
+    if (!currentProject.roleWeights) {
+      currentProject.roleWeights = { core: 1, support: 1, atmosphere: 1 };
+    }
+    currentProject.roleWeights = {
+      core: Number(mixRoleCore.value),
+      support: Number(mixRoleSupport.value),
+      atmosphere: Number(mixRoleAtmosphere.value)
+    };
+  });
 });
 
 audioSelect.addEventListener('change', async () => {
@@ -8057,6 +8095,13 @@ const render = (time: number) => {
     updateLfos(delta * 0.001, activeBpm);
     updateEnvelopes(delta * 0.001);
     updateSampleHold(delta * 0.001, activeBpm);
+    
+    // Transition Decay
+    if (currentTransitionAmount > 0) {
+      currentTransitionAmount = Math.max(0, currentTransitionAmount - delta * 0.002);
+    } else {
+      currentTransitionType = 0;
+    }
   }
 
   resizeCanvasToDisplaySize(canvas);
@@ -8532,6 +8577,8 @@ const render = (time: number) => {
     mediaAssetBlendMode: mediaAssetBlendMode,
     mediaAssetAudioReact: mediaAssetAudioReact,
     roleWeights: currentProject.roleWeights || { core: 1, support: 1, atmosphere: 1 },
+    transitionAmount: currentTransitionAmount,
+    transitionType: currentTransitionType,
     effectsEnabled: effects.enabled,
     bloom: moddedEffects.bloom,
     blur: moddedEffects.blur,

@@ -139,6 +139,8 @@ export interface RenderState {
     support: number;
     atmosphere: number;
   };
+  transitionAmount: number;
+  transitionType: number; // 0: none, 1: fade, 2: warp, 3: glitch
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -320,6 +322,8 @@ uniform float uMidiEnabled;
 uniform vec3 uGlobalColor;
 uniform float uDebugTint;
 uniform vec3 uRoleWeights; // x: core, y: support, z: atmosphere
+uniform float uTransitionAmount;
+uniform float uTransitionType;
 
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
@@ -728,6 +732,24 @@ ${plasmaSource ?? ''}
 
 void main() {
   vec2 uv = vUv;
+  
+  // Apply Transition Distortion
+  if (uTransitionAmount > 0.01) {
+    if (uTransitionType > 1.5 && uTransitionType < 2.5) { // Warp
+      vec2 centered = uv * 2.0 - 1.0;
+      float dist = length(centered);
+      float angle = atan(centered.y, centered.x);
+      angle += uTransitionAmount * 3.1415 * (1.0 - dist);
+      float zoom = 1.0 + uTransitionAmount * 2.0;
+      uv = vec2(cos(angle), sin(angle)) * dist * zoom * 0.5 + 0.5;
+    } else if (uTransitionType > 2.5) { // Glitch
+      float noiseVal = hash21(vec2(floor(uv.y * 20.0), uTime * 10.0));
+      if (noiseVal < uTransitionAmount) {
+        uv.x += (hash21(vec2(uTime)) - 0.5) * uTransitionAmount * 0.2;
+      }
+    }
+  }
+
   vec2 effectUv = kaleidoscope(uv, uKaleidoscope);
   float low = 0.0;
   for (int i = 0; i < 8; i += 1) { low += uSpectrum[i]; }
@@ -1324,6 +1346,8 @@ void main() {
     gl.uniform3fv(getLocation('uGlobalColor'), state.globalColor || [1.0, 1.0, 1.0]);
     gl.uniform1f(getLocation('uDebugTint'), state.debugTint ?? 0);
     gl.uniform3f(getLocation('uRoleWeights'), state.roleWeights.core, state.roleWeights.support, state.roleWeights.atmosphere);
+    gl.uniform1f(getLocation('uTransitionAmount'), state.transitionAmount);
+    gl.uniform1f(getLocation('uTransitionType'), state.transitionType);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
     const pLoc = gl.getAttribLocation(prog, 'position');

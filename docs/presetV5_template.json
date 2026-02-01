@@ -1,0 +1,53 @@
+{
+  "version": 5,
+  "metadata": {
+    "version": 5,
+    "name": "Performance Name",
+    "createdAt": "2026-02-01T21:30:00.000Z",
+    "updatedAt": "2026-02-01T21:30:00.000Z",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Ambient",
+    "visualIntentTags": ["space", "nebula"],
+    "colorChemistry": ["analog", "balanced"],
+    "defaultTransition": {
+      "durationMs": 1000,
+      "curve": "easeInOut"
+    }
+  },
+  "roleWeights": {
+    "core": 1.0,
+    "support": 0.8,
+    "atmosphere": 0.5
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Intro",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Plasma",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1.0,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "modulations": [],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Energy",
+      "value": 0.5,
+      "targets": []
+    }
+  ]
+}
