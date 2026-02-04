@@ -45,23 +45,11 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [
-          "layer-plasma",
-          "layer-spectrum"
-        ],
+        "core": [],
         "support": [
-          "layer-origami",
-          "layer-glyph",
-          "layer-crystal"
+          "layer-plasma"
         ],
-        "atmosphere": [
-          "layer-inkflow",
-          "layer-topo",
-          "layer-weather",
-          "layer-portal",
-          "layer-media",
-          "layer-oscillo"
-        ]
+        "atmosphere": []
       },
       "layers": [
         {
@@ -94,150 +82,6 @@
             "scale": 1,
             "complexity": 0.5
           }
-        },
-        {
-          "id": "layer-spectrum",
-          "name": "Spectrum Bars",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.75,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-origami",
-          "name": "Origami Fold",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-glyph",
-          "name": "Glyph Language",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.8,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-crystal",
-          "name": "Crystal Harmonics",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-inkflow",
-          "name": "Ink Flow",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-topo",
-          "name": "Topo Terrain",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-weather",
-          "name": "Audio Weather",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-portal",
-          "name": "Wormhole Portal",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          },
-          "params": {
-            "autoSpawn": 1,
-            "style": 0
-          }
-        },
-        {
-          "id": "layer-media",
-          "name": "Media Overlay",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.9,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-oscillo",
-          "name": "Sacred Oscilloscope",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
         }
       ]
     },
@@ -260,19 +104,12 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-spectrum"
-        ],
-        "support": [
           "layer-plasma"
         ],
-        "atmosphere": [
-          "layer-origami",
-          "layer-glyph",
-          "layer-crystal",
-          "layer-inkflow",
-          "layer-topo",
-          "layer-weather"
-        ]
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": []
       },
       "layers": [
         {
@@ -296,136 +133,6 @@
           "enabled": true,
           "opacity": 0.95,
           "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-origami",
-          "name": "Origami Fold",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-glyph",
-          "name": "Glyph Language",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.8,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-crystal",
-          "name": "Crystal Harmonics",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-inkflow",
-          "name": "Ink Flow",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-topo",
-          "name": "Topo Terrain",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-weather",
-          "name": "Audio Weather",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-portal",
-          "name": "Wormhole Portal",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          },
-          "params": {
-            "autoSpawn": 1,
-            "style": 0
-          }
-        },
-        {
-          "id": "layer-media",
-          "name": "Media Overlay",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.9,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
-          "id": "layer-oscillo",
-          "name": "Sacred Oscilloscope",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
           "transform": {
             "x": 0,
             "y": 0,

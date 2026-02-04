@@ -26,7 +26,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: 0 20px;
   background: #0f1724;
   border-bottom: 1px solid #1c2a3b;
 }
@@ -131,6 +131,7 @@ body {
 .brand {
   display: flex;
   align-items: center;
+  align-self: stretch;
 }
 
 .brand-logo {
@@ -285,11 +286,11 @@ body {
 .layout {
   flex: 1;
   display: grid;
-  grid-template-columns: 260px 1fr 280px;
+  grid-template-columns: minmax(320px, 360px) minmax(360px, 1fr) 280px;
   gap: 12px;
   padding: 12px;
   min-height: 0;
-    overflow: hidden;
+  overflow: hidden;
 }
 
 .left-panel,
@@ -340,13 +341,123 @@ body {
   min-height: 0;
   }
 
-#mode-matrix-center {
-  position: absolute;
-  inset: 10px;
-  padding: 8px;
+#mode-mapping-center {
+  position: static;
+  width: 100%;
+  padding: 0;
   gap: 12px;
   overflow: auto;
-  z-index: 10;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+#mode-mapping-center > h2 {
+  margin-top: 0;
+}
+
+.visual-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  align-self: stretch;
+}
+
+.mapping-preview-host {
+  margin-top: auto;
+  border: 1px solid #22344a;
+  border-radius: 12px;
+  background: #0b111b;
+  padding: 8px;
+  min-height: 160px;
+}
+
+body[data-mode='mapping'] .layout {
+  grid-template-columns: minmax(256px, 288px) minmax(420px, 1fr) 220px;
+}
+
+body[data-mode='mapping'] .center-panel {
+  border: 1px solid #1d2b3d;
+  background: #0b111b;
+  padding: 10px;
+  overflow-y: hidden;
+}
+
+body[data-mode='mapping'] #mode-mapping-center {
+  max-height: calc(100% - 12px);
+  overflow-y: auto;
+  padding-top: 8px;
+}
+
+body[data-mode='mapping'] .macro-hero {
+  display: none;
+}
+
+body[data-mode='design'] .macro-hero {
+  display: none;
+}
+
+body:not([data-mode='mapping']) .center-panel {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+body[data-mode='mapping'] .mapping-preview-host {
+  height: 160px;
+}
+
+body[data-mode='mapping'] .mapping-preview-host #gl-canvas,
+body[data-mode='mapping'] .mapping-preview-host #visualizer-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+body[data-mode='mapping'] .mapping-row {
+  grid-template-columns: 60px 42px 48px 50px minmax(110px, 1fr) 20px;
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+body[data-mode='mapping'] .mapping-row select,
+body[data-mode='mapping'] .mapping-row input,
+body[data-mode='mapping'] .mapping-row button {
+  padding: 3px 4px;
+  font-size: 10px;
+}
+
+body[data-mode='mapping'] .mapping-row input[type='number'] {
+  width: 44px;
+}
+
+body[data-mode='mapping'] .mapping-row select {
+  min-width: 0;
+}
+
+body[data-mode='mapping'] .matrix-row {
+  grid-template-columns:
+    minmax(90px, 1.2fr)
+    minmax(110px, 1.4fr)
+    minmax(54px, 0.6fr)
+    minmax(60px, 0.7fr)
+    minmax(90px, 1fr)
+    minmax(44px, 0.5fr)
+    minmax(44px, 0.5fr)
+    minmax(44px, 0.5fr)
+    22px;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+body[data-mode='mapping'] .matrix-row select,
+body[data-mode='mapping'] .matrix-row input,
+body[data-mode='mapping'] .matrix-row button {
+  padding: 3px 4px;
+  font-size: 10px;
+}
+
+body[data-mode='mapping'] .matrix-row input[type='number'] {
+  width: 44px;
 }
 
 #gl-canvas {
@@ -1462,6 +1573,17 @@ body[data-mode='matrix'] .safe-mode {
   font-size: 11px;
 }
 
+.matrix-row-header {
+  background: transparent;
+  border: none;
+  margin-top: 0;
+  padding: 0 8px 4px;
+  color: #8da7c1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+
 .matrix-header {
   display: flex;
   justify-content: flex-end;
@@ -1515,6 +1637,17 @@ body[data-mode='matrix'] .safe-mode {
   background: #162335;
   margin-top: 6px;
   font-size: 11px;
+}
+
+.mapping-row-header {
+  background: transparent;
+  border: none;
+  margin-top: 0;
+  padding: 0 8px 4px;
+  color: #8da7c1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
 }
 
 .mapping-row select,
@@ -1647,9 +1780,9 @@ body[data-mode='matrix'] .safe-mode {
 
 .mixer-row-layer {
   display: grid;
-  grid-template-columns: 32px 140px 1fr 80px 120px;
+  grid-template-columns: 28px minmax(160px, 1fr) 10px auto;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   padding: 8px;
   background: #162335;
   border: 1px solid #25384d;
@@ -1685,19 +1818,28 @@ body[data-mode='matrix'] .safe-mode {
   text-overflow: ellipsis;
 }
 
+.mixer-layer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .mixer-meter-container {
-  height: 8px;
+  width: 10px;
+  height: 36px;
   background: #0b111b;
-  border-radius: 4px;
+  border-radius: 5px;
   overflow: hidden;
   position: relative;
+  display: flex;
+  align-items: flex-end;
 }
 
 .mixer-meter-fill {
-  height: 100%;
-  width: 0%;
+  width: 100%;
+  height: 0%;
   background: #1ec8ff;
-  transition: width 0.05s ease, background 0.2s ease;
+  transition: height 0.05s ease, background 0.2s ease;
 }
 
 .mixer-row-controls {
@@ -1729,12 +1871,15 @@ body[data-mode='matrix'] .safe-mode {
 }
 
 .mixer-fader {
-  width: 100%;
+  width: 70%;
+  min-width: 90px;
+  margin: 0 auto;
 }
 
 .mini-meter {
-  height: 4px !important;
-  margin-bottom: 2px;
+  width: 6px !important;
+  height: 24px !important;
+  margin-bottom: 0;
 }
 
 .mixer-envelope-panel {
@@ -1751,6 +1896,18 @@ body[data-mode='matrix'] .safe-mode {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #8da7c1;
+}
+
+.mixer-env-dials {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mixer-env-dials .dial-input {
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .mode-dashboard {
@@ -1808,6 +1965,34 @@ body[data-mode='matrix'] .safe-mode {
 .mapping-source-chip.dragging {
   opacity: 0.4;
   cursor: grabbing;
+}
+
+.mapping-target-search {
+  width: 100%;
+  margin-top: 6px;
+  background: #122033;
+  color: #e4f4ff;
+  border: 1px solid #2c4159;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.mapping-target-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mapping-target-chip {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #162335;
+  border: 1px solid #2c4159;
+  color: #e4f4ff;
+  font-size: 11px;
+  user-select: none;
 }
 
 /* Drop Target Highlighting */
@@ -2099,13 +2284,27 @@ body[data-mode='matrix'] .safe-mode {
 
 .mod-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  grid-template-columns: 90px repeat(4, minmax(70px, 1fr));
   gap: 6px;
   align-items: center;
   background: #162335;
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 11px;
+}
+
+.mod-row-header {
+  background: transparent;
+  border: none;
+  padding: 0 8px;
+  color: #8da7c1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+
+.mod-row-header > div {
+  padding: 0 2px;
 }
 
 .mod-row select,
@@ -2121,6 +2320,76 @@ body[data-mode='matrix'] .safe-mode {
 
 .mod-row input[type='range'] {
   padding: 0;
+}
+
+.dial-control {
+  --dial: 0%;
+  --dial-rotation: 0deg;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  position: relative;
+  width: 60px;
+}
+
+.dial-label {
+  font-size: 10px;
+  color: #8da7c1;
+}
+
+.dial-input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dial-visual {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid #2c4159;
+  background: conic-gradient(#1ec8ff var(--dial), #122033 0);
+  position: relative;
+}
+
+.dial-visual::before {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 14px;
+  background: #1ec8ff;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(var(--dial-rotation));
+  transform-origin: 50% 21px;
+}
+
+.dial-input::-webkit-slider-thumb {
+  appearance: none;
+  width: 0;
+  height: 0;
+}
+
+.dial-input::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: none;
+}
+
+.dial-value {
+  font-size: 10px;
+  color: #8da7c1;
+}
+
+.dial-toggle {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: #8da7c1;
+  font-size: 10px;
 }
 
 .mod-trigger {
@@ -2139,6 +2408,14 @@ body[data-mode='matrix'] .safe-mode {
   border-top: 1px solid #1c2a3b;
   font-size: 12px;
   color: #9fb6cf;
+}
+
+.status-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  flex: 1;
 }
 
 .hidden {

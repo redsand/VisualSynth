@@ -127,6 +127,7 @@ export interface SpectralSmearFx {
 }
 
 export interface ExpressiveFxConfig {
+  enabled: boolean;
   energyBloom: EnergyBloomFx;
   radialGravity: RadialGravityFx;
   motionEcho: MotionEchoFx;
@@ -140,6 +141,7 @@ export const DEFAULT_EXPRESSIVE_INTENT_BINDING: ExpressiveFxIntentBinding = {
 };
 
 export const DEFAULT_EXPRESSIVE_FX: ExpressiveFxConfig = {
+  enabled: true,
   energyBloom: {
     enabled: false,
     macro: 0.35,

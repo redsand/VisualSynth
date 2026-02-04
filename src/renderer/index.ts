@@ -135,6 +135,7 @@ const mappingLeft = document.getElementById('mode-mapping-left') as HTMLDivEleme
 const mappingCenter = document.getElementById('mode-mapping-center') as HTMLDivElement;
 const mixerLeft = document.getElementById('mode-mixer-left') as HTMLDivElement;
 const mixerRight = document.getElementById('mode-mixer-right') as HTMLDivElement;
+const mappingRight = document.getElementById('mode-mapping-right') as HTMLDivElement;
 const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
 const systemRight = document.getElementById('mode-system-right') as HTMLDivElement;
 const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement;
@@ -211,6 +212,14 @@ const mappingHud = document.getElementById('mapping-hud') as HTMLDivElement;
 const mappingHudTitle = document.getElementById('mapping-hud-title') as HTMLDivElement;
 const mappingHudTarget = document.getElementById('mapping-hud-target') as HTMLDivElement;
 const mappingHudCancel = document.getElementById('mapping-hud-cancel') as HTMLButtonElement;
+const mappingTargetSearch = document.getElementById('mapping-target-search') as HTMLInputElement;
+const mappingTargetList = document.getElementById('mapping-target-list') as HTMLDivElement;
+const visualPreview = document.getElementById('visual-preview') as HTMLDivElement;
+const mappingPreviewHost = document.getElementById('mapping-preview-host') as HTMLDivElement;
+const centerPanel = document.querySelector('.center-panel') as HTMLDivElement;
+const visualPreviewParent = visualPreview?.parentElement ?? null;
+const visualPreviewNextSibling = visualPreview?.nextSibling ?? null;
+const midiLearnToggleButton = document.getElementById('midi-learn-toggle') as HTMLButtonElement;
 const bpmSourceSelect = document.getElementById('bpm-source') as HTMLSelectElement;
 
 const updateMappingHud = () => {
@@ -221,6 +230,11 @@ const updateMappingHud = () => {
   } else {
     mappingHud.classList.add('hidden');
   }
+};
+const updateMidiLearnToggle = () => {
+  if (!midiLearnToggleButton) return;
+  midiLearnToggleButton.textContent = `MIDI Learn: ${midiLearnEnabled ? 'On' : 'Off'}`;
+  midiLearnToggleButton.classList.toggle('active', midiLearnEnabled);
 };
 const bpmRangeSelect = document.getElementById('bpm-range') as HTMLSelectElement;
 const bpmMinInput = document.getElementById('bpm-min') as HTMLInputElement;
@@ -264,6 +278,7 @@ const effectPosterize = document.getElementById('effect-posterize') as HTMLInput
 const effectKaleidoscope = document.getElementById('effect-kaleidoscope') as HTMLInputElement;
 const effectFeedback = document.getElementById('effect-feedback') as HTMLInputElement;
 const effectPersistence = document.getElementById('effect-persistence') as HTMLInputElement;
+const expressiveFxEnabled = document.getElementById('expressive-fx-enabled') as HTMLInputElement;
 const expressiveEnergyEnabled = document.getElementById('expressive-energy-enabled') as HTMLInputElement;
 const expressiveEnergyMacro = document.getElementById('expressive-energy-macro') as HTMLInputElement;
 const expressiveEnergyIntentEnabled = document.getElementById('expressive-energy-intent-enabled') as HTMLInputElement;
@@ -473,6 +488,7 @@ let activeStyleId = '';
 let macroInputs: HTMLInputElement[] = [];
 let macroPreviewRows: HTMLDivElement[] = [];
 let learnTarget: { target: string; label: string } | null = null;
+let midiLearnEnabled = false;
 let midiSum: Record<string, number> = {};
 let safeModeReasons: string[] = [];
 let webglInitError: string | null = null;
@@ -875,6 +891,7 @@ const setMode = (mode: UiMode) => {
   sceneRight.classList.toggle('hidden', !visibility.scene);
   mixerLeft.classList.toggle('hidden', !visibility.mixer);
   mixerRight.classList.toggle('hidden', !visibility.mixer);
+  mappingRight.classList.toggle('hidden', !visibility.mapping);
   
   // Progressive Disclosure: Hide internal complexity unless in Design/System
   const advancedControls = document.querySelectorAll('.advanced-only');
@@ -884,11 +901,31 @@ const setMode = (mode: UiMode) => {
 
   mappingLeft.classList.toggle('hidden', !visibility.mapping);
   mappingCenter.classList.toggle('hidden', !visibility.mapping);
+  if (visibility.mapping) {
+    renderMappingTargets(mappingTargetSearch?.value ?? '');
+    if (mappingCenter) mappingCenter.scrollTop = 0;
+    if (centerPanel) centerPanel.scrollTop = 0;
+  }
   designLeft.classList.toggle('hidden', !visibility.design);
   designRight.classList.toggle('hidden', !visibility.design);
   systemLeft.classList.toggle('hidden', !visibility.system);
   systemRight.classList.toggle('hidden', !visibility.system);
   presetExplorer?.classList.toggle('hidden', mode !== 'performance');
+  macroHero?.classList.toggle('hidden', mode === 'design' || mode === 'mapping' || mode === 'system');
+  matrixControls?.classList.toggle('hidden', mode !== 'mapping');
+  if (visualPreview && mappingPreviewHost && centerPanel && visualPreviewParent) {
+    if (mode === 'mapping') {
+      if (visualPreview.parentElement !== mappingPreviewHost) {
+        mappingPreviewHost.appendChild(visualPreview);
+      }
+    } else if (visualPreview.parentElement !== visualPreviewParent) {
+      if (visualPreviewNextSibling) {
+        visualPreviewParent.insertBefore(visualPreview, visualPreviewNextSibling);
+      } else {
+        visualPreviewParent.appendChild(visualPreview);
+      }
+    }
+  }
   if (mode === 'mixer') {
     const anchor = document.getElementById('mixer-role-weights-anchor');
     if (anchor) {
@@ -1715,14 +1752,15 @@ const updateWebglDiagnostics = () => {
 };
 
 const modSourceOptions = [
+  { id: 'engine.low', label: 'Engine Low' },
+  { id: 'engine.mid', label: 'Engine Mid' },
+  { id: 'engine.high', label: 'Engine High' },
   { id: 'audio.rms', label: 'Audio RMS' },
   { id: 'audio.peak', label: 'Audio Peak' },
   { id: 'audio.strobe', label: 'Strobe' },
   { id: 'tempo.bpm', label: 'Tempo BPM' },
   { id: 'lfo-1', label: 'LFO 1' },
   { id: 'lfo-2', label: 'LFO 2' },
-  { id: 'lfo-3', label: 'LFO 3' },
-  { id: 'lfo-4', label: 'LFO 4' },
   { id: 'lfo-3', label: 'LFO 3' },
   { id: 'lfo-4', label: 'LFO 4' },
   { id: 'env-1', label: 'Env 1' },
@@ -1902,6 +1940,7 @@ const ensureProjectExpressiveFx = (project: VisualSynthProject) => {
     return;
   }
   project.expressiveFx = {
+    enabled: current.enabled ?? fallback.enabled,
     energyBloom: {
       ...fallback.energyBloom,
       ...current.energyBloom,
@@ -2902,44 +2941,60 @@ const renderMappingSources = () => {
   const anchor = document.getElementById('mapping-sources-anchor');
   if (!anchor) return;
   anchor.innerHTML = '<h3>Sources</h3>';
-  
-  const sources = [
-    { id: 'engine.low', label: 'Engine Low' },
-    { id: 'engine.mid', label: 'Engine Mid' },
-    { id: 'engine.high', label: 'Engine High' },
-    { id: 'audio.rms', label: 'Audio RMS' },
-    { id: 'audio.strobe', label: 'Strobe' },
-    { id: 'lfo-1', label: 'LFO 1' },
-    { id: 'lfo-2', label: 'LFO 2' },
-    { id: 'env-1', label: 'Env 1' },
-    { id: 'macro-1', label: 'Energy' },
-    { id: 'macro-2', label: 'Motion' }
-  ];
 
   const list = document.createElement('div');
   list.className = 'mapping-source-list';
-  
-  sources.forEach(source => {
+
+  modSourceOptions.forEach((source) => {
     const item = document.createElement('div');
     item.className = 'mapping-source-chip';
     item.textContent = source.label;
     item.draggable = true;
     item.dataset.sourceId = source.id;
-    
+
     item.addEventListener('dragstart', (e) => {
       e.dataTransfer?.setData('application/vs-source', source.id);
       item.classList.add('dragging');
     });
-    
+
     item.addEventListener('dragend', () => {
       item.classList.remove('dragging');
-      document.querySelectorAll('.drop-target-active').forEach(el => el.classList.remove('drop-target-active'));
+      document.querySelectorAll('.drop-target-active').forEach((el) =>
+        el.classList.remove('drop-target-active')
+      );
     });
-    
+
     list.appendChild(item);
   });
-  
+
   anchor.appendChild(list);
+};
+
+const renderMappingTargets = (filterText = '') => {
+  if (!mappingTargetList) return;
+  const filter = filterText.trim().toLowerCase();
+  mappingTargetList.innerHTML = '';
+  const targets = modTargetOptions
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+    .filter((target) => (filter ? target.label.toLowerCase().includes(filter) : true));
+
+  if (targets.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No targets match.';
+    mappingTargetList.appendChild(empty);
+    return;
+  }
+
+  targets.forEach((target) => {
+    const item = document.createElement('div');
+    item.className = 'mapping-target-chip';
+    item.textContent = target.label;
+    item.dataset.learnTarget = target.id;
+    item.dataset.learnLabel = target.label;
+    mappingTargetList.appendChild(item);
+  });
 };
 
 const initDragAndDropMapping = () => {
@@ -4275,44 +4330,68 @@ const renderLfoList = () => {
       shapeSelect.appendChild(option);
     });
     shapeSelect.value = lfo.shape;
+    const shapeWrap = document.createElement('label');
+    shapeWrap.className = 'dial-toggle';
+    const shapeText = document.createElement('span');
+    shapeText.textContent = 'Shape';
+    shapeWrap.appendChild(shapeText);
+    shapeWrap.appendChild(shapeSelect);
 
-    const rateInput = document.createElement('input');
-    rateInput.type = 'number';
-    rateInput.step = '0.05';
-    rateInput.min = '0.05';
-    rateInput.max = '8';
-    rateInput.value = String(lfo.rate);
+    const rateDial = createDial({
+      value: lfo.rate,
+      min: 0.05,
+      max: 8,
+      step: 0.05,
+      onChange: (value) => {
+        lfo.rate = value;
+      },
+      title: 'Rate',
+      label: 'Rate'
+    });
 
     const syncToggle = document.createElement('input');
     syncToggle.type = 'checkbox';
     syncToggle.checked = lfo.sync;
+    const syncWrap = document.createElement('label');
+    syncWrap.className = 'dial-toggle';
+    const syncText = document.createElement('span');
+    syncText.textContent = 'Sync';
+    syncWrap.appendChild(syncText);
+    syncWrap.appendChild(syncToggle);
 
-    const phaseInput = document.createElement('input');
-    phaseInput.type = 'number';
-    phaseInput.step = '0.05';
-    phaseInput.min = '0';
-    phaseInput.max = '1';
-    phaseInput.value = String(lfo.phase);
+    const phaseDial = createDial({
+      value: lfo.phase,
+      min: 0,
+      max: 1,
+      step: 0.05,
+      onChange: (value) => {
+        lfo.phase = value;
+        lfoPhases[index] = value;
+      },
+      title: 'Phase',
+      format: (value) => value.toFixed(2),
+      label: 'Phase'
+    });
 
     shapeSelect.addEventListener('change', () => {
       lfo.shape = shapeSelect.value as typeof lfo.shape;
     });
-    rateInput.addEventListener('change', () => {
-      lfo.rate = Number(rateInput.value);
+    rateDial.input.addEventListener('change', () => {
+      lfo.rate = Number(rateDial.input.value);
     });
     syncToggle.addEventListener('change', () => {
       lfo.sync = syncToggle.checked;
     });
-    phaseInput.addEventListener('change', () => {
-      lfo.phase = Number(phaseInput.value);
+    phaseDial.input.addEventListener('change', () => {
+      lfo.phase = Number(phaseDial.input.value);
       lfoPhases[index] = lfo.phase;
     });
 
     row.appendChild(label);
-    row.appendChild(shapeSelect);
-    row.appendChild(rateInput);
-    row.appendChild(syncToggle);
-    row.appendChild(phaseInput);
+    row.appendChild(shapeWrap);
+    row.appendChild(rateDial.wrapper);
+    row.appendChild(syncWrap);
+    row.appendChild(phaseDial.wrapper);
     lfoList.appendChild(row);
   });
 };
@@ -4325,40 +4404,70 @@ const renderEnvelopeList = () => {
     const label = document.createElement('div');
     label.textContent = env.name;
 
-    const attackInput = document.createElement('input');
-    attackInput.type = 'number';
-    attackInput.step = '0.01';
-    attackInput.min = '0';
-    attackInput.max = '2';
-    attackInput.value = String(env.attack);
+    const attackDial = createDial({
+      value: env.attack,
+      min: 0,
+      max: 2,
+      step: 0.01,
+      onChange: (value) => {
+        env.attack = value;
+      },
+      title: 'Attack',
+      format: (value) => value.toFixed(2),
+      label: 'Attack'
+    });
 
-    const decayInput = document.createElement('input');
-    decayInput.type = 'number';
-    decayInput.step = '0.01';
-    decayInput.min = '0';
-    decayInput.max = '2';
-    decayInput.value = String(env.decay);
+    const decayDial = createDial({
+      value: env.decay,
+      min: 0,
+      max: 2,
+      step: 0.01,
+      onChange: (value) => {
+        env.decay = value;
+      },
+      title: 'Decay',
+      format: (value) => value.toFixed(2),
+      label: 'Decay'
+    });
 
-    const sustainInput = document.createElement('input');
-    sustainInput.type = 'number';
-    sustainInput.step = '0.05';
-    sustainInput.min = '0';
-    sustainInput.max = '1';
-    sustainInput.value = String(env.sustain);
+    const sustainDial = createDial({
+      value: env.sustain,
+      min: 0,
+      max: 1,
+      step: 0.05,
+      onChange: (value) => {
+        env.sustain = value;
+      },
+      title: 'Sustain',
+      format: (value) => value.toFixed(2),
+      label: 'Sustain'
+    });
 
-    const releaseInput = document.createElement('input');
-    releaseInput.type = 'number';
-    releaseInput.step = '0.01';
-    releaseInput.min = '0';
-    releaseInput.max = '3';
-    releaseInput.value = String(env.release);
+    const releaseDial = createDial({
+      value: env.release,
+      min: 0,
+      max: 3,
+      step: 0.01,
+      onChange: (value) => {
+        env.release = value;
+      },
+      title: 'Release',
+      format: (value) => value.toFixed(2),
+      label: 'Release'
+    });
 
-    const holdInput = document.createElement('input');
-    holdInput.type = 'number';
-    holdInput.step = '0.05';
-    holdInput.min = '0';
-    holdInput.max = '4';
-    holdInput.value = String(env.hold);
+    const holdDial = createDial({
+      value: env.hold,
+      min: 0,
+      max: 4,
+      step: 0.05,
+      onChange: (value) => {
+        env.hold = value;
+      },
+      title: 'Hold',
+      format: (value) => value.toFixed(2),
+      label: 'Hold'
+    });
 
     const triggerSelect = document.createElement('select');
     ['audio.peak', 'strobe', 'manual'].forEach((trigger) => {
@@ -4369,12 +4478,18 @@ const renderEnvelopeList = () => {
     });
     triggerSelect.value = env.trigger;
 
-    const thresholdInput = document.createElement('input');
-    thresholdInput.type = 'number';
-    thresholdInput.step = '0.05';
-    thresholdInput.min = '0';
-    thresholdInput.max = '1';
-    thresholdInput.value = String(env.threshold);
+    const thresholdDial = createDial({
+      value: env.threshold,
+      min: 0,
+      max: 1,
+      step: 0.05,
+      onChange: (value) => {
+        env.threshold = value;
+      },
+      title: 'Threshold',
+      format: (value) => value.toFixed(2),
+      label: 'Thresh'
+    });
 
     const triggerButton = document.createElement('button');
     triggerButton.className = 'mod-trigger';
@@ -4386,36 +4501,36 @@ const renderEnvelopeList = () => {
       envStates[index].triggerArmed = false;
     });
 
-    attackInput.addEventListener('change', () => {
-      env.attack = Number(attackInput.value);
+    attackDial.input.addEventListener('change', () => {
+      env.attack = Number(attackDial.input.value);
     });
-    decayInput.addEventListener('change', () => {
-      env.decay = Number(decayInput.value);
+    decayDial.input.addEventListener('change', () => {
+      env.decay = Number(decayDial.input.value);
     });
-    sustainInput.addEventListener('change', () => {
-      env.sustain = Number(sustainInput.value);
+    sustainDial.input.addEventListener('change', () => {
+      env.sustain = Number(sustainDial.input.value);
     });
-    releaseInput.addEventListener('change', () => {
-      env.release = Number(releaseInput.value);
+    releaseDial.input.addEventListener('change', () => {
+      env.release = Number(releaseDial.input.value);
     });
-    holdInput.addEventListener('change', () => {
-      env.hold = Number(holdInput.value);
+    holdDial.input.addEventListener('change', () => {
+      env.hold = Number(holdDial.input.value);
     });
     triggerSelect.addEventListener('change', () => {
       env.trigger = triggerSelect.value as typeof env.trigger;
     });
-    thresholdInput.addEventListener('change', () => {
-      env.threshold = Number(thresholdInput.value);
+    thresholdDial.input.addEventListener('change', () => {
+      env.threshold = Number(thresholdDial.input.value);
     });
 
     row.appendChild(label);
-    row.appendChild(attackInput);
-    row.appendChild(decayInput);
-    row.appendChild(sustainInput);
-    row.appendChild(releaseInput);
-    row.appendChild(holdInput);
+    row.appendChild(attackDial.wrapper);
+    row.appendChild(decayDial.wrapper);
+    row.appendChild(sustainDial.wrapper);
+    row.appendChild(releaseDial.wrapper);
+    row.appendChild(holdDial.wrapper);
     row.appendChild(triggerSelect);
-    row.appendChild(thresholdInput);
+    row.appendChild(thresholdDial.wrapper);
     row.appendChild(triggerButton);
     envList.appendChild(row);
   });
@@ -4429,38 +4544,55 @@ const renderSampleHoldList = () => {
     const label = document.createElement('div');
     label.textContent = sh.name;
 
-    const rateInput = document.createElement('input');
-    rateInput.type = 'number';
-    rateInput.step = '0.05';
-    rateInput.min = '0.05';
-    rateInput.max = '8';
-    rateInput.value = String(sh.rate);
+    const rateDial = createDial({
+      value: sh.rate,
+      min: 0.05,
+      max: 8,
+      step: 0.05,
+      onChange: (value) => {
+        sh.rate = value;
+      },
+      title: 'Rate',
+      label: 'Rate'
+    });
 
     const syncToggle = document.createElement('input');
     syncToggle.type = 'checkbox';
     syncToggle.checked = sh.sync;
+    const syncWrap = document.createElement('label');
+    syncWrap.className = 'dial-toggle';
+    const syncText = document.createElement('span');
+    syncText.textContent = 'Sync';
+    syncWrap.appendChild(syncText);
+    syncWrap.appendChild(syncToggle);
 
-    const smoothInput = document.createElement('input');
-    smoothInput.type = 'range';
-    smoothInput.min = '0';
-    smoothInput.max = '1';
-    smoothInput.step = '0.05';
-    smoothInput.value = String(sh.smooth);
+    const smoothDial = createDial({
+      value: sh.smooth,
+      min: 0,
+      max: 1,
+      step: 0.05,
+      onChange: (value) => {
+        sh.smooth = value;
+      },
+      title: 'Smooth',
+      format: (value) => value.toFixed(2),
+      label: 'Smooth'
+    });
 
-    rateInput.addEventListener('change', () => {
-      sh.rate = Number(rateInput.value);
+    rateDial.input.addEventListener('change', () => {
+      sh.rate = Number(rateDial.input.value);
     });
     syncToggle.addEventListener('change', () => {
       sh.sync = syncToggle.checked;
     });
-    smoothInput.addEventListener('input', () => {
-      sh.smooth = Number(smoothInput.value);
+    smoothDial.input.addEventListener('change', () => {
+      sh.smooth = Number(smoothDial.input.value);
     });
 
     row.appendChild(label);
-    row.appendChild(rateInput);
-    row.appendChild(syncToggle);
-    row.appendChild(smoothInput);
+    row.appendChild(rateDial.wrapper);
+    row.appendChild(syncWrap);
+    row.appendChild(smoothDial.wrapper);
     shList.appendChild(row);
   });
 };
@@ -5942,7 +6074,9 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
 };
 
 const armMidiLearn = (target: string, label: string) => {
+  midiLearnEnabled = true;
   learnTarget = { target, label };
+  updateMidiLearnToggle();
   updateMappingHud();
   setStatus(`MIDI Learn: move a control for ${label}`);
 };
@@ -5951,12 +6085,73 @@ const initLearnables = () => {
   const learnables = document.querySelectorAll<HTMLElement>('[data-learn-target]');
   learnables.forEach((element) => {
     element.addEventListener('click', () => {
+      if (!midiLearnEnabled) return;
       const target = element.dataset.learnTarget;
       const label = element.dataset.learnLabel ?? target ?? 'Parameter';
       if (!target) return;
       armMidiLearn(target, label);
     });
   });
+};
+
+const createDial = (options: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+  format?: (value: number) => string;
+  title?: string;
+  label?: string;
+}) => {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'dial-control';
+  if (options.title) wrapper.title = options.title;
+
+  const label = document.createElement('div');
+  label.className = 'dial-label';
+  label.textContent = options.label ?? '';
+
+  const visual = document.createElement('div');
+  visual.className = 'dial-visual';
+
+  const input = document.createElement('input');
+  input.type = 'range';
+  input.min = String(options.min);
+  input.max = String(options.max);
+  input.step = String(options.step);
+  input.value = String(options.value);
+  input.className = 'dial-input';
+
+  const valueLabel = document.createElement('div');
+  valueLabel.className = 'dial-value';
+
+  const updateDial = () => {
+    const value = Number(input.value);
+    const percent =
+      options.max === options.min
+        ? 0
+        : ((value - options.min) / (options.max - options.min)) * 100;
+    wrapper.style.setProperty('--dial', `${percent}%`);
+    wrapper.style.setProperty('--dial-rotation', `${percent * 3.6}deg`);
+    valueLabel.textContent = options.format ? options.format(value) : value.toFixed(2);
+  };
+
+  input.addEventListener('input', () => {
+    const value = Number(input.value);
+    options.onChange(value);
+    updateDial();
+  });
+
+  updateDial();
+
+  if (label.textContent) {
+    wrapper.appendChild(label);
+  }
+  wrapper.appendChild(visual);
+  wrapper.appendChild(input);
+  wrapper.appendChild(valueLabel);
+  return { wrapper, input, valueLabel };
 };
 const initStylePresets = () => {
   styleSelect.innerHTML = '';
@@ -5977,6 +6172,24 @@ const initStylePresets = () => {
     styleContrast.value = String(active.settings.contrast);
     styleSaturation.value = String(active.settings.saturation);
     styleShift.value = String(active.settings.paletteShift);
+  }
+};
+
+const initEngineSelect = () => {
+  if (!engineSelect) return;
+  engineSelect.innerHTML = '';
+  Object.values(ENGINE_REGISTRY).forEach((engine) => {
+    const option = document.createElement('option');
+    option.value = engine.id;
+    option.textContent = engine.name;
+    engineSelect.appendChild(option);
+  });
+  const activeId = currentProject.activeEngineId as EngineId | undefined;
+  if (activeId && ENGINE_REGISTRY[activeId]) {
+    engineSelect.value = activeId;
+    if (engineDescription) {
+      engineDescription.textContent = ENGINE_REGISTRY[activeId].description;
+    }
   }
 };
 
@@ -6146,6 +6359,7 @@ const initEffects = () => {
   effectFeedback.value = String(currentProject.effects.feedback);
   effectPersistence.value = String(currentProject.effects.persistence);
   const expressive = currentProject.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
+  expressiveFxEnabled.checked = expressive.enabled ?? true;
   expressiveEnergyEnabled.checked = expressive.energyBloom.enabled;
   expressiveEnergyMacro.value = String(expressive.energyBloom.macro);
   expressiveEnergyIntentEnabled.checked = expressive.energyBloom.intentBinding.enabled;
@@ -6388,6 +6602,7 @@ const applyEffectControls = () => {
 
 const applyExpressiveFxControls = () => {
   currentProject.expressiveFx = {
+    enabled: expressiveFxEnabled.checked,
     energyBloom: {
       enabled: expressiveEnergyEnabled.checked,
       macro: Number(expressiveEnergyMacro.value),
@@ -7237,6 +7452,8 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
         renderMidiMappings();
         setStatus(`Mapped ${learnTarget.label} to ${mapping.message.toUpperCase()} ${mapping.control}`);      
         learnTarget = null;
+        midiLearnEnabled = false;
+        updateMidiLearnToggle();
         updateMappingHud();
         return;
       }
@@ -7358,6 +7575,7 @@ const applyProject = async (project: VisualSynthProject) => {
   ensureProjectScenes(normalized);
   normalized.version = Math.max(normalized.version ?? 0, DEFAULT_PROJECT.version);
   currentProject = normalized;
+  initEngineSelect();
   refreshSceneSelect();
   applyScene(currentProject.activeSceneId);
   outputConfig = { ...DEFAULT_OUTPUT_CONFIG, ...currentProject.output };
@@ -7375,6 +7593,10 @@ const applyProject = async (project: VisualSynthProject) => {
   }
   if (engineSelect) {
     engineSelect.value = normalized.activeEngineId || 'engine-radial-core';
+    const engine = ENGINE_REGISTRY[engineSelect.value as EngineId];
+    if (engine && engineDescription) {
+      engineDescription.textContent = engine.description;
+    }
   }
   if (normalized.roleWeights) {
     mixRoleCore.value = String(normalized.roleWeights.core);
@@ -7541,8 +7763,24 @@ bpmRangeSelect.addEventListener('change', () => {
 });
 
 bpmMinInput.addEventListener('change', updateBpmRangeUI);
+if (midiLearnToggleButton) {
+  midiLearnToggleButton.addEventListener('click', () => {
+    midiLearnEnabled = !midiLearnEnabled;
+    if (!midiLearnEnabled) {
+      learnTarget = null;
+      updateMappingHud();
+      setStatus('MIDI Learn off.');
+    } else {
+      setStatus('MIDI Learn on. Click a control to map.');
+    }
+    updateMidiLearnToggle();
+  });
+  updateMidiLearnToggle();
+}
 mappingHudCancel.addEventListener('click', () => {
   learnTarget = null;
+  midiLearnEnabled = false;
+  updateMidiLearnToggle();
   updateMappingHud();
   setStatus('Mapping canceled.');
 });
@@ -7804,6 +8042,7 @@ document.addEventListener('click', (event) => {
 );
 
 [
+  expressiveFxEnabled,
   expressiveEnergyEnabled,
   expressiveEnergyMacro,
   expressiveEnergyIntentEnabled,
@@ -8264,7 +8503,11 @@ const initOutputConfig = async () => {
 
   const savedConfig = await window.visualSynth.getOutputConfig();
   outputOpen = await window.visualSynth.isOutputOpen();
-  await syncOutputConfig({ ...DEFAULT_OUTPUT_CONFIG, ...savedConfig });
+  await syncOutputConfig({
+    ...DEFAULT_OUTPUT_CONFIG,
+    ...savedConfig,
+    enabled: outputOpen || savedConfig.enabled
+  });
   window.visualSynth.onOutputClosed(() => {
     outputOpen = false;
     outputConfig = { ...outputConfig, enabled: false };
@@ -9071,27 +9314,36 @@ const render = (time: number) => {
   const mediaAssetAudioReact =
     getAssetAudioReactValue('layer-media') * getRoleAudioScale(mediaRole, lowFreq);
   const expressive = currentProject.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
+  const expressiveEnabled = expressive.enabled ?? true;
   const activeIntent = renderScene?.intent ?? 'ambient';
-  const energyMacro = resolveExpressiveMacro(
-    activeIntent,
-    expressive.energyBloom.macro,
-    expressive.energyBloom.intentBinding
-  );
-  const radialMacro = resolveExpressiveMacro(
-    activeIntent,
-    expressive.radialGravity.macro,
-    expressive.radialGravity.intentBinding
-  );
-  const echoMacro = resolveExpressiveMacro(
-    activeIntent,
-    expressive.motionEcho.macro,
-    expressive.motionEcho.intentBinding
-  );
-  const smearMacro = resolveExpressiveMacro(
-    activeIntent,
-    expressive.spectralSmear.macro,
-    expressive.spectralSmear.intentBinding
-  );
+  const energyMacro = expressiveEnabled
+    ? resolveExpressiveMacro(
+        activeIntent,
+        expressive.energyBloom.macro,
+        expressive.energyBloom.intentBinding
+      )
+    : 0;
+  const radialMacro = expressiveEnabled
+    ? resolveExpressiveMacro(
+        activeIntent,
+        expressive.radialGravity.macro,
+        expressive.radialGravity.intentBinding
+      )
+    : 0;
+  const echoMacro = expressiveEnabled
+    ? resolveExpressiveMacro(
+        activeIntent,
+        expressive.motionEcho.macro,
+        expressive.motionEcho.intentBinding
+      )
+    : 0;
+  const smearMacro = expressiveEnabled
+    ? resolveExpressiveMacro(
+        activeIntent,
+        expressive.spectralSmear.macro,
+        expressive.spectralSmear.intentBinding
+      )
+    : 0;
   const renderState: RenderState = {
     timeMs: transportTimeMs,
     rms: audioState.rms,
@@ -9203,20 +9455,20 @@ const render = (time: number) => {
     feedback: moddedEffects.feedback,
     persistence: moddedEffects.persistence,
     trailSpectrum: trailSpectrum,
-    expressiveEnergyBloom: expressive.energyBloom.enabled ? energyMacro : 0,
-    expressiveEnergyThreshold: expressive.energyBloom.expert.threshold,
-    expressiveEnergyAccumulation: expressive.energyBloom.expert.accumulation,
-    expressiveRadialGravity: expressive.radialGravity.enabled ? radialMacro : 0,
-    expressiveRadialStrength: expressive.radialGravity.expert.strength,
-    expressiveRadialRadius: expressive.radialGravity.expert.radius,
-    expressiveRadialFocusX: expressive.radialGravity.expert.focusX,
-    expressiveRadialFocusY: expressive.radialGravity.expert.focusY,
-    expressiveMotionEcho: expressive.motionEcho.enabled ? echoMacro : 0,
-    expressiveMotionEchoDecay: expressive.motionEcho.expert.decay,
-    expressiveMotionEchoWarp: expressive.motionEcho.expert.warp,
-    expressiveSpectralSmear: expressive.spectralSmear.enabled ? smearMacro : 0,
-    expressiveSpectralOffset: expressive.spectralSmear.expert.offset,
-    expressiveSpectralMix: expressive.spectralSmear.expert.mix,
+    expressiveEnergyBloom: expressiveEnabled && expressive.energyBloom.enabled ? energyMacro : 0,
+    expressiveEnergyThreshold: expressiveEnabled ? expressive.energyBloom.expert.threshold : 0,
+    expressiveEnergyAccumulation: expressiveEnabled ? expressive.energyBloom.expert.accumulation : 0,
+    expressiveRadialGravity: expressiveEnabled && expressive.radialGravity.enabled ? radialMacro : 0,
+    expressiveRadialStrength: expressiveEnabled ? expressive.radialGravity.expert.strength : 0,
+    expressiveRadialRadius: expressiveEnabled ? expressive.radialGravity.expert.radius : 0,
+    expressiveRadialFocusX: expressiveEnabled ? expressive.radialGravity.expert.focusX : 0,
+    expressiveRadialFocusY: expressiveEnabled ? expressive.radialGravity.expert.focusY : 0,
+    expressiveMotionEcho: expressiveEnabled && expressive.motionEcho.enabled ? echoMacro : 0,
+    expressiveMotionEchoDecay: expressiveEnabled ? expressive.motionEcho.expert.decay : 0,
+    expressiveMotionEchoWarp: expressiveEnabled ? expressive.motionEcho.expert.warp : 0,
+    expressiveSpectralSmear: expressiveEnabled && expressive.spectralSmear.enabled ? smearMacro : 0,
+    expressiveSpectralOffset: expressiveEnabled ? expressive.spectralSmear.expert.offset : 0,
+    expressiveSpectralMix: expressiveEnabled ? expressive.spectralSmear.expert.mix : 0,
     particlesEnabled: particles.enabled,
     particleDensity: moddedParticles.density,
     particleSpeed: moddedParticles.speed,
@@ -9314,6 +9566,9 @@ const render = (time: number) => {
 
   if (outputOpen && time - lastOutputBroadcast > 33) {
     lastOutputBroadcast = time;
+    const activePalette =
+      currentProject.palettes.find((palette) => palette.id === currentProject.activePaletteId) ??
+      currentProject.palettes[0];
     outputChannel.postMessage({
       timeMs: renderState.timeMs,
       rms: renderState.rms,
@@ -9334,6 +9589,20 @@ const render = (time: number) => {
       contrast: renderState.contrast,
       saturation: renderState.saturation,
       paletteShift: renderState.paletteShift,
+      chemistryMode: renderState.chemistryMode,
+      paletteColors: activePalette?.colors ?? DEFAULT_PROJECT.palettes[0].colors,
+      transitionAmount: renderState.transitionAmount,
+      transitionType: renderState.transitionType,
+      motionTemplate: renderState.motionTemplate,
+      engineMass: renderState.engineMass,
+      engineFriction: renderState.engineFriction,
+      engineElasticity: renderState.engineElasticity,
+      engineGrain: renderState.engineGrain,
+      engineVignette: renderState.engineVignette,
+      engineCA: renderState.engineCA,
+      engineSignature: renderState.engineSignature,
+      maxBloom: renderState.maxBloom,
+      forceFeedback: renderState.forceFeedback,
       plasmaOpacity: renderState.plasmaOpacity,
       spectrumOpacity: renderState.spectrumOpacity,
       origamiOpacity: renderState.origamiOpacity,
@@ -9374,6 +9643,8 @@ const render = (time: number) => {
       oscilloFreeze: renderState.oscilloFreeze,
       oscilloRotate: renderState.oscilloRotate,
       oscilloData: renderState.oscilloData,
+      modulatorValues: renderState.modulatorValues,
+      midiData: renderState.midiData,
       plasmaAssetBlendMode: renderState.plasmaAssetBlendMode,
       plasmaAssetAudioReact: renderState.plasmaAssetAudioReact,
       spectrumAssetBlendMode: renderState.spectrumAssetBlendMode,
@@ -9415,11 +9686,13 @@ const render = (time: number) => {
       sdfGlow: renderState.sdfGlow,
       sdfRotation: renderState.sdfRotation,
       sdfFill: renderState.sdfFill,
+      sdfColor: renderState.sdfColor,
       gravityPositions: renderState.gravityPositions,
       gravityStrengths: renderState.gravityStrengths,
       gravityPolarities: renderState.gravityPolarities,
       gravityActives: renderState.gravityActives,
-      gravityCollapse: renderState.gravityCollapse
+      gravityCollapse: renderState.gravityCollapse,
+      roleWeights: renderState.roleWeights
     });
   }
 
@@ -9432,6 +9705,12 @@ const init = async () => {
   initSceneStrip();
   initPanelCollapse();
   initDragAndDropMapping();
+  renderMappingTargets();
+  if (mappingTargetSearch) {
+    mappingTargetSearch.addEventListener('input', () => {
+      renderMappingTargets(mappingTargetSearch.value);
+    });
+  }
   initMatrixTabs();
   initLearnables();
   initSpectrumHint();
@@ -9447,6 +9726,7 @@ const init = async () => {
   console.log('[Init] Starting initTemplates...');
   await initTemplates();
   console.log('[Init] initTemplates completed');
+  initEngineSelect();
 
   console.log('[Init] Starting initOutputConfig...');
   await initOutputConfig();

@@ -10,7 +10,7 @@
  *   node scripts/capture-actual-screenshots.js [options]
  *
  * Options:
- *   --all              Capture all documentation screenshots
+ *   --all              Capture all screenshots (docs + presets)
  *   --category <name>  Capture screenshots for a category
  *   --preset <name>    Capture specific preset
  *   --output <dir>     Output directory (default: docs/screenshots)
@@ -24,6 +24,7 @@ const fs = require('fs');
 
 // Output directory
 const OUTPUT_DIR = path.join(__dirname, '../docs/screenshots');
+const PRESET_SCREENSHOT_DIR = path.join(OUTPUT_DIR, 'presets');
 
 // VisualSynth paths
 const DIST_DIR = path.join(__dirname, '../dist');
@@ -124,6 +125,17 @@ async function captureCanvas(page, filePath) {
     console.log('  ⚠ Could not capture canvas, capturing full page instead');
     await page.screenshot({ path: filePath, fullPage: false });
   }
+}
+
+/**
+ * Get all preset filenames
+ */
+function getPresetFiles() {
+  if (!fs.existsSync(PRESETS_DIR)) return [];
+  return fs
+    .readdirSync(PRESETS_DIR)
+    .filter((file) => file.endsWith('.json'))
+    .sort();
 }
 
 /**
@@ -624,6 +636,7 @@ async function generateAllScreenshots(options) {
 
   // Create output directory
   fs.mkdirSync(options.output, { recursive: true });
+  fs.mkdirSync(PRESET_SCREENSHOT_DIR, { recursive: true });
 
   const browser = await puppeteer.launch({
     headless: options.headless !== false,
@@ -647,6 +660,28 @@ async function generateAllScreenshots(options) {
       for (let i = 0; i < categoryScenarios.length; i++) {
         console.log(`[${i + 1}/${categoryScenarios.length}]`);
         await runScenario(browser, categoryScenarios[i], options);
+        totalScreenshots++;
+      }
+    }
+
+    const presetFiles = getPresetFiles();
+    if (presetFiles.length > 0) {
+      console.log(`\n--- presets (${presetFiles.length}) ---`);
+      for (let i = 0; i < presetFiles.length; i++) {
+        const presetFile = presetFiles[i];
+        const presetId = path.basename(presetFile, '.json');
+        console.log(`[${i + 1}/${presetFiles.length}]`);
+        await runScenario(
+          browser,
+          {
+            id: presetId,
+            name: `Preset ${presetId}`,
+            mode: 'performance',
+            preset: presetFile,
+            wait: 5000
+          },
+          { ...options, output: PRESET_SCREENSHOT_DIR }
+        );
         totalScreenshots++;
       }
     }
@@ -686,17 +721,25 @@ function cleanScreenshots() {
 
   const files = fs.readdirSync(OUTPUT_DIR);
   const pngFiles = files.filter((f) => f.endsWith('.png'));
+  const presetFiles = fs.existsSync(PRESET_SCREENSHOT_DIR)
+    ? fs.readdirSync(PRESET_SCREENSHOT_DIR).filter((f) => f.endsWith('.png'))
+    : [];
 
-  if (pngFiles.length === 0) {
+  if (pngFiles.length === 0 && presetFiles.length === 0) {
     console.log('No screenshots to clean');
     return;
   }
 
-  console.log(`Cleaning ${pngFiles.length} screenshot(s)...`);
+  console.log(`Cleaning ${pngFiles.length + presetFiles.length} screenshot(s)...`);
   pngFiles.forEach((file) => {
     const filePath = path.join(OUTPUT_DIR, file);
     fs.unlinkSync(filePath);
     console.log(`  ✓ Deleted ${file}`);
+  });
+  presetFiles.forEach((file) => {
+    const filePath = path.join(PRESET_SCREENSHOT_DIR, file);
+    fs.unlinkSync(filePath);
+    console.log(`  ✓ Deleted presets/${file}`);
   });
 }
 
@@ -752,7 +795,7 @@ function parseArgs() {
         console.log('Usage: node scripts/capture-actual-screenshots.js [options]');
         console.log('');
         console.log('Options:');
-        console.log('  --all              Generate all documentation screenshots');
+        console.log('  --all              Generate all screenshots (docs + presets)');
         console.log('  --category <name>  Generate screenshots for a category');
         console.log('  --preset <name>    Capture specific preset');
         console.log('  --output <dir>     Output directory (default: docs/screenshots)');

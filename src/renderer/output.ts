@@ -1,6 +1,8 @@
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
+const debugOverlay = document.getElementById('output-debug') as HTMLDivElement | null;
+let debugVisible = false;
 let renderer: ReturnType<typeof createGLRenderer>;
 
 try {
@@ -30,6 +32,19 @@ const state: RenderState = {
   contrast: 1,
   saturation: 1,
   paletteShift: 0,
+  chemistryMode: 0,
+  transitionAmount: 0,
+  transitionType: 1,
+  motionTemplate: 0,
+  engineMass: 0.5,
+  engineFriction: 0.95,
+  engineElasticity: 1,
+  engineGrain: 0.2,
+  engineVignette: 1,
+  engineCA: 0.3,
+  engineSignature: 0,
+  maxBloom: 1,
+  forceFeedback: false,
   plasmaOpacity: 1,
   spectrumOpacity: 1,
   origamiOpacity: 0.9,
@@ -70,6 +85,8 @@ const state: RenderState = {
   oscilloFreeze: 0,
   oscilloRotate: 0,
   oscilloData: new Float32Array(256),
+  modulatorValues: new Float32Array(16),
+  midiData: new Float32Array(256),
   plasmaAssetBlendMode: 3,
   plasmaAssetAudioReact: 0.6,
   spectrumAssetBlendMode: 1,
@@ -111,15 +128,25 @@ const state: RenderState = {
   sdfGlow: 0.5,
   sdfRotation: 0,
   sdfFill: 0.35,
+  sdfColor: [1.0, 0.6, 0.25],
   gravityPositions: new Float32Array(16),
   gravityStrengths: new Float32Array(8),
   gravityPolarities: new Float32Array(8),
   gravityActives: new Float32Array(8),
-  gravityCollapse: 0
+  gravityCollapse: 0,
+  roleWeights: {
+    core: 1,
+    support: 1,
+    atmosphere: 1
+  }
 };
 
 const channel = new BroadcastChannel('visualsynth-output');
+let lastMessageAt = 0;
+let messageCount = 0;
 channel.onmessage = (event) => {
+  lastMessageAt = performance.now();
+  messageCount += 1;
   const data = event.data as Partial<RenderState> & { spectrum?: Float32Array };
   if (typeof data.timeMs === 'number') state.timeMs = data.timeMs;
   if (typeof data.rms === 'number') state.rms = data.rms;
@@ -139,6 +166,19 @@ channel.onmessage = (event) => {
   if (typeof data.contrast === 'number') state.contrast = data.contrast;
   if (typeof data.saturation === 'number') state.saturation = data.saturation;
   if (typeof data.paletteShift === 'number') state.paletteShift = data.paletteShift;
+  if (typeof data.chemistryMode === 'number') state.chemistryMode = data.chemistryMode;
+  if (typeof data.transitionAmount === 'number') state.transitionAmount = data.transitionAmount;
+  if (typeof data.transitionType === 'number') state.transitionType = data.transitionType;
+  if (typeof data.motionTemplate === 'number') state.motionTemplate = data.motionTemplate;
+  if (typeof data.engineMass === 'number') state.engineMass = data.engineMass;
+  if (typeof data.engineFriction === 'number') state.engineFriction = data.engineFriction;
+  if (typeof data.engineElasticity === 'number') state.engineElasticity = data.engineElasticity;
+  if (typeof data.engineGrain === 'number') state.engineGrain = data.engineGrain;
+  if (typeof data.engineVignette === 'number') state.engineVignette = data.engineVignette;
+  if (typeof data.engineCA === 'number') state.engineCA = data.engineCA;
+  if (typeof data.engineSignature === 'number') state.engineSignature = data.engineSignature;
+  if (typeof data.maxBloom === 'number') state.maxBloom = data.maxBloom;
+  if (typeof data.forceFeedback === 'boolean') state.forceFeedback = data.forceFeedback;
   if (typeof data.plasmaOpacity === 'number') state.plasmaOpacity = data.plasmaOpacity;
   if (typeof data.spectrumOpacity === 'number') state.spectrumOpacity = data.spectrumOpacity;
   if (typeof data.origamiOpacity === 'number') state.origamiOpacity = data.origamiOpacity;
@@ -182,6 +222,8 @@ channel.onmessage = (event) => {
   if (typeof data.oscilloFreeze === 'number') state.oscilloFreeze = data.oscilloFreeze;
   if (typeof data.oscilloRotate === 'number') state.oscilloRotate = data.oscilloRotate;
   if (data.oscilloData) state.oscilloData = new Float32Array(data.oscilloData);
+  if (data.modulatorValues) state.modulatorValues = new Float32Array(data.modulatorValues);
+  if (data.midiData) state.midiData = new Float32Array(data.midiData);
   if (typeof data.plasmaAssetBlendMode === 'number') state.plasmaAssetBlendMode = data.plasmaAssetBlendMode;
   if (typeof data.plasmaAssetAudioReact === 'number') state.plasmaAssetAudioReact = data.plasmaAssetAudioReact;
   if (typeof data.spectrumAssetBlendMode === 'number') state.spectrumAssetBlendMode = data.spectrumAssetBlendMode;
@@ -236,6 +278,7 @@ channel.onmessage = (event) => {
   if (typeof data.sdfGlow === 'number') state.sdfGlow = data.sdfGlow;
   if (typeof data.sdfRotation === 'number') state.sdfRotation = data.sdfRotation;
   if (typeof data.sdfFill === 'number') state.sdfFill = data.sdfFill;
+  if (data.sdfColor) state.sdfColor = data.sdfColor as [number, number, number];
   if (data.gravityPositions) state.gravityPositions = new Float32Array(data.gravityPositions);
   if (data.gravityStrengths) state.gravityStrengths = new Float32Array(data.gravityStrengths);
   if (data.gravityPolarities) state.gravityPolarities = new Float32Array(data.gravityPolarities);
@@ -245,15 +288,55 @@ channel.onmessage = (event) => {
   if (data.spectrum) {
     state.spectrum = new Float32Array(data.spectrum);
   }
+  if (data.roleWeights) {
+    state.roleWeights = {
+      core: data.roleWeights.core ?? state.roleWeights.core,
+      support: data.roleWeights.support ?? state.roleWeights.support,
+      atmosphere: data.roleWeights.atmosphere ?? state.roleWeights.atmosphere
+    };
+  }
+  if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
+    const colors = (data as any).paletteColors as string[];
+    if (colors.length >= 5) {
+      renderer.setPalette(colors.slice(0, 5) as [string, string, string, string, string]);
+    }
+  }
 };
 
+let lastDebugUpdate = 0;
+let frameCount = 0;
 const render = (time: number) => {
   resizeCanvasToDisplaySize(canvas);
   renderer.render({
     ...state,
     timeMs: Number.isFinite(state.timeMs) ? state.timeMs : time
   });
+  frameCount += 1;
+  if (debugOverlay) {
+    const now = performance.now();
+    if (now - lastDebugUpdate > 500) {
+      lastDebugUpdate = now;
+      const ageMs = lastMessageAt ? Math.round(now - lastMessageAt) : -1;
+      const rect = canvas.getBoundingClientRect();
+      if (debugVisible) {
+        debugOverlay.textContent =
+          `Output Debug\n` +
+          `Size: ${Math.round(rect.width)}x${Math.round(rect.height)}\n` +
+          `Frames: ${frameCount}\n` +
+          `Messages: ${messageCount}\n` +
+          `Last msg: ${ageMs >= 0 ? ageMs + 'ms' : 'never'}`;
+      }
+    }
+  }
   requestAnimationFrame(render);
 };
 
 requestAnimationFrame(render);
+
+window.addEventListener('keydown', (event) => {
+  if (event.key.toLowerCase() !== 'd') return;
+  debugVisible = !debugVisible;
+  if (debugOverlay) {
+    debugOverlay.classList.toggle('hidden', !debugVisible);
+  }
+});

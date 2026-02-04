@@ -43,7 +43,6 @@ export const createMixerPanel = ({
     scene.layers.forEach((layer, index) => {
       const row = document.createElement('div');
       row.className = 'mixer-row-layer';
-      row.draggable = true;
       row.dataset.id = layer.id;
 
       // Icon & Role
@@ -51,8 +50,11 @@ export const createMixerPanel = ({
       icon.className = `mixer-role-icon ${layer.role}`;
       icon.textContent = getRoleIcon(layer.role || 'support');
       icon.title = `Role: ${layer.role}`;
+      icon.draggable = true;
 
-      // Name
+      // Name + Opacity (stacked)
+      const nameStack = document.createElement('div');
+      nameStack.className = 'mixer-layer-stack';
       const name = document.createElement('div');
       name.className = 'mixer-layer-name';
       name.textContent = layer.name;
@@ -111,13 +113,15 @@ export const createMixerPanel = ({
       fader.oninput = () => {
         layer.opacity = Number(fader.value);
       };
+      nameStack.appendChild(name);
+      nameStack.appendChild(fader);
 
       // Drag & Drop
-      row.ondragstart = (e) => {
+      icon.ondragstart = (e) => {
         e.dataTransfer?.setData('text/plain', String(index));
         row.classList.add('dragging');
       };
-      row.ondragend = () => row.classList.remove('dragging');
+      icon.ondragend = () => row.classList.remove('dragging');
       row.ondragover = (e) => e.preventDefault();
       row.ondrop = (e) => {
         const fromIndex = Number(e.dataTransfer?.getData('text/plain'));
@@ -128,14 +132,65 @@ export const createMixerPanel = ({
       };
 
       row.appendChild(icon);
-      row.appendChild(name);
+      row.appendChild(nameStack);
       row.appendChild(meterContainer);
       row.appendChild(controls);
-      row.appendChild(fader);
       table.appendChild(row);
     });
 
     container.appendChild(table);
+
+    const createDial = (
+      labelText: string,
+      value: number,
+      min: number,
+      max: number,
+      step: number,
+      onChange: (nextValue: number) => void
+    ) => {
+      const dial = document.createElement('div');
+      dial.className = 'dial-control';
+
+      const label = document.createElement('div');
+      label.className = 'dial-label';
+      label.textContent = labelText;
+
+      const visual = document.createElement('div');
+      visual.className = 'dial-visual';
+
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.className = 'dial-input';
+      input.min = String(min);
+      input.max = String(max);
+      input.step = String(step);
+      input.value = String(value);
+
+      const valueLabel = document.createElement('div');
+      valueLabel.className = 'dial-value';
+
+      const syncDial = (nextValue: number) => {
+        const clamped = Math.max(min, Math.min(max, nextValue));
+        const ratio = (clamped - min) / (max - min);
+        visual.style.setProperty('--dial', `${Math.round(ratio * 100)}%`);
+        visual.style.setProperty('--dial-rotation', `${-135 + ratio * 270}deg`);
+        valueLabel.textContent = clamped.toFixed(2);
+      };
+
+      input.addEventListener('input', () => {
+        const nextValue = Number(input.value);
+        syncDial(nextValue);
+        onChange(nextValue);
+      });
+
+      syncDial(value);
+
+      dial.appendChild(label);
+      dial.appendChild(visual);
+      dial.appendChild(input);
+      dial.appendChild(valueLabel);
+      return dial;
+    };
 
     // Envelope Section
     const envSection = document.createElement('div');
@@ -146,24 +201,19 @@ export const createMixerPanel = ({
     if (project.envelopes && project.envelopes[0]) {
         const env = project.envelopes[0];
         const row = document.createElement('div');
-        row.className = 'scene-row';
-        
-        const attackLabel = document.createElement('label');
-        attackLabel.className = 'scene-inline';
-        attackLabel.innerHTML = `<span>Attack</span><input type="number" step="0.05" value="${env.attack}">`;
-        attackLabel.querySelector('input')?.addEventListener('change', (e) => {
-            env.attack = Number((e.target as HTMLInputElement).value);
-        });
+        row.className = 'mixer-env-dials';
 
-        const releaseLabel = document.createElement('label');
-        releaseLabel.className = 'scene-inline';
-        releaseLabel.innerHTML = `<span>Release</span><input type="number" step="0.05" value="${env.release}">`;
-        releaseLabel.querySelector('input')?.addEventListener('change', (e) => {
-            env.release = Number((e.target as HTMLInputElement).value);
-        });
+        row.appendChild(
+          createDial('Attack', env.attack, 0, 1, 0.01, (value) => {
+            env.attack = value;
+          })
+        );
+        row.appendChild(
+          createDial('Release', env.release, 0, 1, 0.01, (value) => {
+            env.release = value;
+          })
+        );
 
-        row.appendChild(attackLabel);
-        row.appendChild(releaseLabel);
         envSection.appendChild(row);
     }
     
@@ -186,7 +236,7 @@ export const createMixerPanel = ({
         if (layer.role === 'atmosphere') level = rms * 0.6;
         
         const height = Math.min(100, level * 150);
-        meter.style.width = `${height}%`;
+        meter.style.height = `${height}%`;
         // Color based on level
         if (height > 85) meter.style.background = '#ff4b4b';
         else if (height > 60) meter.style.background = '#ffd166';

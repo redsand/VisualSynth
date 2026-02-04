@@ -1079,7 +1079,23 @@ void main() {
     vec3 normal = normalize(vec3(-dFdx(displacement), -dFdy(displacement), 1.0));
     float diff = clamp(dot(normal, normalize(vec3(-0.4, 0.6, 0.9))), 0.0, 1.0);
     float grain = hash21(effectUv * 420.0) * 0.12 + hash21(effectUv * 1200.0) * 0.06;
-    color = applyBlendMode(color, clamp(vec3(0.92, 0.9, 0.86) * (0.65 + diff * 0.45) + smoothstep(0.2, 0.75, foldField) * vec3(0.12, 0.1, 0.08) + vec3(sin((effectUv.y + grain) * 900.0) * 0.03 + grain) * 0.15 - smoothstep(0.7, 0.98, abs(sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed) * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed))) * high * (0.6 + grain) * vec3(0.18, 0.12, 0.08), 0.0, 1.0), 3.0, clamp(uOrigamiOpacity, 0.0, 1.0) * uRoleWeights.y);
+    vec3 origamiCol = clamp(
+      vec3(0.78, 0.74, 0.7) * (0.55 + diff * 0.35)
+        + smoothstep(0.2, 0.75, foldField) * vec3(0.12, 0.1, 0.08)
+        + vec3(sin((effectUv.y + grain) * 900.0) * 0.03 + grain) * 0.12
+        - smoothstep(0.7, 0.98, abs(sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed)
+            * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed)))
+          * high * (0.5 + grain) * vec3(0.18, 0.12, 0.08),
+      0.0,
+      1.0
+    );
+    origamiCol = mix(origamiCol, origamiCol * 0.72, 0.35);
+    color = applyBlendMode(
+      color,
+      origamiCol,
+      4.0,
+      clamp(uOrigamiOpacity, 0.0, 1.0) * 0.8 * uRoleWeights.y
+    );
   }
   if (uParticlesEnabled > 0.5) color += vec3(0.2, 0.7, 1.0) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8) * uRoleWeights.z;
   if (uSdfEnabled > 0.5) {

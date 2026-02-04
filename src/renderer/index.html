@@ -13,20 +13,13 @@
   <body>
     <div id="app">
       <header class="top-bar">
-        <div class="brand">
-          <img
-            class="brand-logo"
-            src="visualsynth_logo-transparent.png"
-            alt="VisualSynth"
-          />
-        </div>
         <div class="top-controls">
           <div id="mode-switcher" class="mode-switcher">
             <button type="button" class="mode-button active" data-mode="performance">Performance</button>
             <button type="button" class="mode-button" data-mode="mixer">Mixer</button>
             <button type="button" class="mode-button" data-mode="mapping">Mapping</button>
             <div class="mode-separator"></div>
-            <button type="button" class="mode-button secondary-mode" data-mode="scene">Design</button>
+            <button type="button" class="mode-button secondary-mode" data-mode="design">Design</button>
             <button type="button" class="mode-button secondary-mode" data-mode="system">System</button>
           </div>
           <div class="transport">
@@ -62,16 +55,16 @@
               <option value="engine-vapor-grid">Vapor Grid Shift</option>
             </select>
           </label>
-          <div class="health-strip">
-            <span id="health-fps">FPS: --</span>
-            <span id="health-latency">Latency: --</span>
-            <span id="health-watchdog">Watchdog: OK</span>
-          </div>
           <div class="summary-chips">
-            <button type="button" id="summary-mods" class="summary-chip hidden" data-mode="design">Mods: 0</button>
-            <button type="button" id="summary-fx" class="summary-chip hidden" data-mode="design">FX: Off</button>
             <button type="button" id="summary-auto" class="summary-chip hidden" data-mode="scene">Auto: 0</button>
           </div>
+        </div>
+        <div class="brand">
+          <img
+            class="brand-logo"
+            src="visualsynth_logo-transparent.png"
+            alt="VisualSynth"
+          />
         </div>
       </header>
 
@@ -243,6 +236,10 @@
           <div id="mode-design-left" class="mode-pane hidden">
             <h2>Design</h2>
             <div class="panel-block">
+              <h3>Layer Details</h3>
+              <div class="layer-list" id="layer-list-design"></div>
+            </div>
+            <div class="panel-block">
               <h3>Layer Effects</h3>
               <label class="scene-label scene-label-inline">
                 <input type="checkbox" id="effects-enabled" checked /> Enable Effects
@@ -284,6 +281,9 @@
             </div>
             <div class="panel-block">
               <h3>Expressive FX</h3>
+              <label class="scene-label scene-label-inline">
+                <input type="checkbox" id="expressive-fx-enabled" checked /> Enable Expressive FX
+              </label>
               <div class="expressive-item">
                 <div class="scene-row">
                   <label class="scene-inline">
@@ -683,36 +683,98 @@
           </div>
         </section>
         <section class="center-panel">
-                    <div id="mode-mapping-center" class="mode-pane hidden">
-                      <h2>Mapping</h2>
-                      <div class="panel-block">
-                        <h3>Mod Matrix</h3>
-                        <div class="matrix-header">
-                          <button id="mod-matrix-add">Add Mod</button>
-                        </div>
-                        <div id="mod-matrix-list" class="matrix-list"></div>
-                      </div>
-                      <div class="panel-block">
-                        <h3>MIDI Mapping</h3>
-                        <div class="matrix-header">
-                          <button id="midi-map-add">Add Mapping</button>
-                        </div>
-                        <div id="midi-map-list" class="matrix-list"></div>
-                      </div>
+          <div id="mode-mapping-center" class="mode-pane hidden">
+            <h2>Mapping</h2>
+            <div class="panel-block">
+              <h3>Targets</h3>
+              <input
+                id="mapping-target-search"
+                class="mapping-target-search"
+                type="text"
+                placeholder="Search targets..."
+              />
+              <div id="mapping-target-list" class="mapping-target-list"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Mod Matrix</h3>
+              <div class="matrix-header">
+                <button id="mod-matrix-add">Add Mod</button>
+              </div>
+              <div class="matrix-row matrix-row-header">
+                <div>Source</div>
+                <div>Target</div>
+                <div>Amt</div>
+                <div>Curve</div>
+                <div>Smooth</div>
+                <div>Bipolar</div>
+                <div>Min</div>
+                <div>Max</div>
+                <div></div>
+              </div>
+              <div id="mod-matrix-list" class="matrix-list"></div>
+            </div>
+            <div class="panel-block">
+              <h3>MIDI Mapping</h3>
+              <div class="matrix-header">
+                <button id="midi-map-add">Add Mapping</button>
+                <button id="midi-learn-toggle">MIDI Learn: Off</button>
+              </div>
+              <div class="mapping-row mapping-row-header">
+                <div>Message</div>
+                <div>Ch</div>
+                <div>CC/Note</div>
+                <div>Mode</div>
+                <div>Target</div>
+                <div></div>
+              </div>
+              <div id="midi-map-list" class="matrix-list"></div>
+            </div>
+            <div id="matrix-controls" class="matrix-controls">
+              <h2>Matrix Modulators</h2>
+              <div class="panel-block">
+                <div class="matrix-tabs">
+                  <button type="button" class="matrix-tab active" data-matrix-tab="lfos">LFOs</button>
+                  <button type="button" class="matrix-tab" data-matrix-tab="envelopes">Envelopes</button>
+                  <button type="button" class="matrix-tab" data-matrix-tab="sh">Sample &amp; Hold</button>
+                </div>
+                <div class="matrix-tab-panels">
+                  <div class="matrix-tab-panel active" data-matrix-panel="lfos">
+                    <div class="mod-section">
+                      <div class="mod-title">LFOs</div>
+                      <div id="lfo-list" class="mod-list"></div>
                     </div>
-                    <div id="mapping-hud" class="mapping-hud hidden">
-                      <div class="mapping-hud-icon">⚡</div>
-                      <div class="mapping-hud-content">
-                        <div id="mapping-hud-title" class="mapping-hud-title">Mapping Mode</div>
-                        <div id="mapping-hud-target" class="mapping-hud-target">Select a target...</div>
-                      </div>
-                      <button id="mapping-hud-cancel" class="mapping-hud-cancel">✕</button>
+                  </div>
+                  <div class="matrix-tab-panel" data-matrix-panel="envelopes">
+                    <div class="mod-section">
+                      <div class="mod-title">Envelopes</div>
+                      <div id="env-list" class="mod-list"></div>
                     </div>
-                    <canvas id="gl-canvas" width="1280" height="720"></canvas>
-          <canvas id="visualizer-canvas" width="1280" height="720"></canvas>
-          <div id="fade-overlay" class="fade-overlay hidden"></div>
-          <div id="quantize-hud" class="quantize-hud hidden">Switching in --</div>
-          <div id="safe-mode-banner" class="safe-mode hidden">Safe mode: --</div>
+                  </div>
+                  <div class="matrix-tab-panel" data-matrix-panel="sh">
+                    <div class="mod-section">
+                      <div class="mod-title">Sample &amp; Hold</div>
+                      <div id="sh-list" class="mod-list"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="visual-preview" class="visual-preview">
+            <div id="mapping-hud" class="mapping-hud hidden">
+              <div class="mapping-hud-icon">⚡</div>
+              <div class="mapping-hud-content">
+                <div id="mapping-hud-title" class="mapping-hud-title">Mapping Mode</div>
+                <div id="mapping-hud-target" class="mapping-hud-target">Select a target...</div>
+              </div>
+              <button id="mapping-hud-cancel" class="mapping-hud-cancel">✕</button>
+            </div>
+            <canvas id="gl-canvas" width="1280" height="720"></canvas>
+            <canvas id="visualizer-canvas" width="1280" height="720"></canvas>
+            <div id="fade-overlay" class="fade-overlay hidden"></div>
+            <div id="quantize-hud" class="quantize-hud hidden">Switching in --</div>
+            <div id="safe-mode-banner" class="safe-mode hidden">Safe mode: --</div>
+          </div>
         </section>
 <section class="right-panel">
           <div class="macro-hero">
@@ -743,37 +805,6 @@
               </label>
             </div>
           </div>
-          <div id="matrix-controls" class="matrix-controls hidden">
-            <h2>Matrix Modulators</h2>
-            <div class="panel-block">
-              <div class="matrix-tabs">
-                <button type="button" class="matrix-tab active" data-matrix-tab="lfos">LFOs</button>
-                <button type="button" class="matrix-tab" data-matrix-tab="envelopes">Envelopes</button>
-                <button type="button" class="matrix-tab" data-matrix-tab="sh">Sample &amp; Hold</button>
-              </div>
-              <div class="matrix-tab-panels">
-                <div class="matrix-tab-panel active" data-matrix-panel="lfos">
-                  <div class="mod-section">
-                    <div class="mod-title">LFOs</div>
-                    <div id="lfo-list" class="mod-list"></div>
-                  </div>
-                </div>
-                <div class="matrix-tab-panel" data-matrix-panel="envelopes">
-                  <div class="mod-section">
-                    <div class="mod-title">Envelopes</div>
-                    <div id="env-list" class="mod-list"></div>
-                  </div>
-                </div>
-                <div class="matrix-tab-panel" data-matrix-panel="sh">
-                  <div class="mod-section">
-                    <div class="mod-title">Sample &amp; Hold</div>
-                    <div id="sh-list" class="mod-list"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
           <div id="mode-performance-right" class="mode-pane">
             <h2>Macros</h2>
             <div id="macro-list" class="macro-list"></div>
@@ -939,6 +970,10 @@
               <!-- Shared with Performance tab for consistency -->
               <div id="mixer-role-weights-anchor"></div>
             </div>
+          </div>
+          <div id="mode-mapping-right" class="mode-pane hidden">
+            <h2>Preview</h2>
+            <div id="mapping-preview-host" class="mapping-preview-host"></div>
           </div>
 
           
@@ -1111,6 +1146,13 @@
 
       <footer class="status-bar">
         <div id="status">Ready</div>
+        <div class="status-center">
+          <span id="health-fps">FPS: --</span>
+          <span id="health-latency">Latency: --</span>
+          <span id="health-watchdog">Watchdog: OK</span>
+          <button type="button" id="summary-mods" class="summary-chip hidden" data-mode="design">Mods: 0</button>
+          <button type="button" id="summary-fx" class="summary-chip hidden" data-mode="design">FX: Off</button>
+        </div>
         <div class="shortcuts">Space: pause | F: fullscreen | R: record | P: screenshot | Ctrl+S save | Ctrl+O open</div>
       </footer>
     </div>
