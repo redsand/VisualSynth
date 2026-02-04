@@ -49,6 +49,10 @@ export type GeneratorId =
   | 'gen-particles'
   | 'gen-sdf'
   | 'gen-sdf-scene'
+  | 'gen-laser-beam'
+  | 'gen-strobe'
+  | 'gen-shape-burst'
+  | 'gen-grid-tunnel'
   | 'viz-off'
   | 'viz-spectrum'
   | 'viz-waveform'
@@ -117,6 +121,10 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-particles', name: 'Particle Field' },
   { id: 'gen-sdf', name: 'SDF Shapes (Simple)' },
   { id: 'gen-sdf-scene', name: 'SDF Scene (Advanced)' },
+  { id: 'gen-laser-beam', name: 'Generator: Laser Beam' },
+  { id: 'gen-strobe', name: 'Generator: Strobe Flash' },
+  { id: 'gen-shape-burst', name: 'Generator: Shape Burst' },
+  { id: 'gen-grid-tunnel', name: 'Generator: Grid Tunnel' },
   { id: 'viz-off', name: 'Visualizer: Off' },
   { id: 'viz-spectrum', name: 'Visualizer: Spectrum' },
   { id: 'viz-waveform', name: 'Visualizer: Waveform' },

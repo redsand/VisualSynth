@@ -152,6 +152,48 @@ export interface RenderState {
   engineVignette: number;
   engineCA: number;
   engineSignature: number;
+  // EDM Generators
+  laserEnabled: boolean;
+  laserOpacity: number;
+  laserBeamCount: number;
+  laserBeamWidth: number;
+  laserBeamLength: number;
+  laserRotation: number;
+  laserRotationSpeed: number;
+  laserSpread: number;
+  laserMode: number;
+  laserColorShift: number;
+  laserAudioReact: number;
+  laserGlow: number;
+  strobeEnabled: boolean;
+  strobeOpacity: number;
+  strobeRate: number;
+  strobeDutyCycle: number;
+  strobeMode: number;
+  strobeAudioTrigger: boolean;
+  strobeThreshold: number;
+  strobeFadeOut: number;
+  strobePattern: number;
+  shapeBurstEnabled: boolean;
+  shapeBurstOpacity: number;
+  shapeBurstShape: number;
+  shapeBurstExpandSpeed: number;
+  shapeBurstStartSize: number;
+  shapeBurstMaxSize: number;
+  shapeBurstThickness: number;
+  shapeBurstFadeMode: number;
+  shapeBurstSpawnTimes: Float32Array;
+  shapeBurstActives: Float32Array;
+  gridTunnelEnabled: boolean;
+  gridTunnelOpacity: number;
+  gridTunnelSpeed: number;
+  gridTunnelGridSize: number;
+  gridTunnelLineWidth: number;
+  gridTunnelPerspective: number;
+  gridTunnelHorizonY: number;
+  gridTunnelGlow: number;
+  gridTunnelAudioReact: number;
+  gridTunnelMode: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -346,6 +388,49 @@ uniform float uEngineGrain;
 uniform float uEngineVignette;
 uniform float uEngineCA;
 uniform float uEngineSignature;
+
+// --- EDM Generators ---
+uniform float uLaserEnabled;
+uniform float uLaserOpacity;
+uniform float uLaserBeamCount;
+uniform float uLaserBeamWidth;
+uniform float uLaserBeamLength;
+uniform float uLaserRotation;
+uniform float uLaserRotationSpeed;
+uniform float uLaserSpread;
+uniform float uLaserMode;
+uniform float uLaserColorShift;
+uniform float uLaserAudioReact;
+uniform float uLaserGlow;
+uniform float uStrobeEnabled;
+uniform float uStrobeOpacity;
+uniform float uStrobeRate;
+uniform float uStrobeDutyCycle;
+uniform float uStrobeMode;
+uniform float uStrobeAudioTrigger;
+uniform float uStrobeThreshold;
+uniform float uStrobeFadeOut;
+uniform float uStrobePattern;
+uniform float uShapeBurstEnabled;
+uniform float uShapeBurstOpacity;
+uniform float uShapeBurstShape;
+uniform float uShapeBurstExpandSpeed;
+uniform float uShapeBurstStartSize;
+uniform float uShapeBurstMaxSize;
+uniform float uShapeBurstThickness;
+uniform float uShapeBurstFadeMode;
+uniform float uBurstSpawnTimes[8];
+uniform float uBurstActives[8];
+uniform float uGridTunnelEnabled;
+uniform float uGridTunnelOpacity;
+uniform float uGridTunnelSpeed;
+uniform float uGridTunnelGridSize;
+uniform float uGridTunnelLineWidth;
+uniform float uGridTunnelPerspective;
+uniform float uGridTunnelHorizonY;
+uniform float uGridTunnelGlow;
+uniform float uGridTunnelAudioReact;
+uniform float uGridTunnelMode;
 
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
@@ -760,6 +845,258 @@ vec3 palette(float t) {
          mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, t));
 }
 
+// --- EDM Generator Functions ---
+vec3 hueRotate(vec3 col, float hue) {
+  float s = sin(hue);
+  float c = cos(hue);
+  mat3 rot = mat3(
+    0.299 + 0.701*c + 0.168*s, 0.587 - 0.587*c + 0.330*s, 0.114 - 0.114*c - 0.497*s,
+    0.299 - 0.299*c - 0.328*s, 0.587 + 0.413*c + 0.035*s, 0.114 - 0.114*c + 0.292*s,
+    0.299 - 0.300*c + 1.250*s, 0.587 - 0.588*c - 1.050*s, 0.114 + 0.886*c - 0.203*s
+  );
+  return clamp(rot * col, 0.0, 1.0);
+}
+
+vec3 laserBeam(vec2 uv, float t, float audio) {
+  vec2 centered = uv - 0.5;
+  centered.x *= uAspect;
+  vec3 color = vec3(0.0);
+  float beamCount = uLaserBeamCount;
+
+  for (float i = 0.0; i < 16.0; i++) {
+    if (i >= beamCount) break;
+
+    float angle;
+    vec2 beamOrigin = vec2(0.0);
+
+    // Mode 0: Radial - beams emanate from center
+    if (uLaserMode < 0.5) {
+      angle = uLaserRotation + t * uLaserRotationSpeed + i * uLaserSpread / beamCount;
+    }
+    // Mode 1: Parallel - beams move horizontally
+    else if (uLaserMode < 1.5) {
+      angle = uLaserRotation;
+      float yOffset = (i / beamCount - 0.5) * 0.8;
+      beamOrigin = vec2(-0.5, yOffset);
+    }
+    // Mode 2: Crossing - beams cross in X pattern
+    else if (uLaserMode < 2.5) {
+      float side = mod(i, 2.0) < 0.5 ? 1.0 : -1.0;
+      angle = uLaserRotation + t * uLaserRotationSpeed * side + (i * 0.2 - 0.5) * side;
+      beamOrigin = vec2(-0.5 * side, -0.5);
+    }
+    // Mode 3: Scanning - single beam sweeps back and forth
+    else {
+      float sweep = sin(t * uLaserRotationSpeed + i * 0.5) * uLaserSpread * 0.5;
+      angle = uLaserRotation + sweep;
+    }
+
+    vec2 dir = vec2(cos(angle), sin(angle));
+    vec2 delta = centered - beamOrigin;
+
+    // Distance to beam line
+    float proj = dot(delta, dir);
+    float perp = abs(dot(delta, vec2(-dir.y, dir.x)));
+
+    // Beam visibility
+    float inBeam = step(0.0, proj) * step(proj, uLaserBeamLength);
+
+    // Soft edge with audio-reactive width
+    float width = uLaserBeamWidth * (1.0 + audio * uLaserAudioReact * 0.5);
+    float beam = smoothstep(width, 0.0, perp) * inBeam;
+    float glow = exp(-perp / (width * 4.0)) * uLaserGlow * inBeam * 0.5;
+
+    // Color with optional shift
+    vec3 beamColor = palette(0.3 + i * 0.1);
+    if (uLaserColorShift > 0.0) {
+      float hueShift = (i / beamCount + audio * uLaserAudioReact) * uLaserColorShift;
+      beamColor = hueRotate(beamColor, hueShift * 6.28);
+    }
+
+    color += beamColor * (beam + glow);
+  }
+  return color * uLaserOpacity;
+}
+
+vec3 strobeFlash(vec2 uv, float t, float audio, float peak) {
+  float beatPhase = fract(t * uStrobeRate * 0.5);
+  float flash = step(beatPhase, uStrobeDutyCycle);
+
+  // Audio trigger override
+  if (uStrobeAudioTrigger > 0.5 && peak > uStrobeThreshold) {
+    flash = 1.0;
+  }
+
+  // Fade decay
+  float fadeT = beatPhase / max(uStrobeDutyCycle, 0.01);
+  flash *= exp(-fadeT * (1.0 / max(uStrobeFadeOut, 0.01)));
+
+  vec3 color = vec3(1.0); // white default
+
+  // Mode 0: White
+  if (uStrobeMode < 0.5) {
+    color = vec3(1.0);
+  }
+  // Mode 1: Color (use palette)
+  else if (uStrobeMode < 1.5) {
+    color = palette(0.5);
+  }
+  // Mode 2: Rainbow
+  else if (uStrobeMode < 2.5) {
+    color = palette(fract(t * 0.2));
+  }
+  // Mode 3: Invert (handled in main)
+  else {
+    color = vec3(1.0);
+  }
+
+  // Pattern variation
+  // Pattern 0: Solid (no modification)
+  // Pattern 1: Scanlines
+  if (uStrobePattern > 0.5 && uStrobePattern < 1.5) {
+    flash *= step(0.5, fract(uv.y * 100.0));
+  }
+  // Pattern 2: Radial
+  else if (uStrobePattern > 1.5) {
+    flash *= 1.0 - smoothstep(0.0, 0.7, length(uv - 0.5) * 2.0);
+  }
+
+  return color * flash * uStrobeOpacity;
+}
+
+vec3 shapeBurst(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  centered.x *= uAspect;
+  vec3 color = vec3(0.0);
+
+  for (int i = 0; i < 8; i++) {
+    if (uBurstActives[i] < 0.5) continue;
+
+    float age = t - uBurstSpawnTimes[i];
+    if (age < 0.0) continue;
+
+    float size = uShapeBurstStartSize + age * uShapeBurstExpandSpeed;
+    if (size > uShapeBurstMaxSize) continue;
+
+    float fadeT = size / uShapeBurstMaxSize;
+    float opacity = 1.0;
+
+    // Fade mode: 0=size, 1=opacity, 2=both
+    if (uShapeBurstFadeMode > 0.5) {
+      opacity = 1.0 - fadeT;
+    }
+
+    float dist = length(centered);
+    float shape = 0.0;
+
+    // Shape 0: Ring
+    if (uShapeBurstShape < 0.5) {
+      shape = smoothstep(uShapeBurstThickness, 0.0, abs(dist - size * 0.5));
+    }
+    // Shape 1: Circle (filled)
+    else if (uShapeBurstShape < 1.5) {
+      shape = smoothstep(size * 0.5 + uShapeBurstThickness, size * 0.5, dist);
+    }
+    // Shape 2: Hexagon
+    else if (uShapeBurstShape < 2.5) {
+      float hex = sdHexagon(centered, size * 0.5);
+      shape = smoothstep(uShapeBurstThickness, 0.0, abs(hex));
+    }
+    // Shape 3: Star
+    else if (uShapeBurstShape < 3.5) {
+      float star = sdStar(centered, size * 0.5, 5, 2.5);
+      shape = smoothstep(uShapeBurstThickness, 0.0, abs(star));
+    }
+    // Shape 4: Triangle
+    else {
+      float tri = sdEquilateralTriangle(centered, size * 0.5);
+      shape = smoothstep(uShapeBurstThickness, 0.0, abs(tri));
+    }
+
+    vec3 burstColor = palette(fract(float(i) * 0.15 + age * 0.5));
+    color += burstColor * shape * opacity;
+  }
+
+  return color * uShapeBurstOpacity;
+}
+
+vec3 gridTunnel(vec2 uv, float t, float audio) {
+  float speed = uGridTunnelSpeed * (1.0 + audio * uGridTunnelAudioReact);
+  vec3 color = vec3(0.0);
+
+  // Mode 0: Floor
+  if (uGridTunnelMode < 0.5) {
+    float y = uv.y - uGridTunnelHorizonY;
+    if (abs(y) < 0.01) return color;
+
+    float z = uGridTunnelPerspective / (abs(y) + 0.01);
+    float x = (uv.x - 0.5) * z;
+
+    float gridX = fract(x * uGridTunnelGridSize * 0.1);
+    float gridZ = fract(z * uGridTunnelGridSize * 0.1 - t * speed);
+
+    float lineX = smoothstep(uGridTunnelLineWidth, 0.0, min(gridX, 1.0 - gridX));
+    float lineZ = smoothstep(uGridTunnelLineWidth, 0.0, min(gridZ, 1.0 - gridZ));
+    float grid = max(lineX, lineZ);
+
+    float fade = exp(-abs(y) * 3.0);
+    float horizon = smoothstep(0.0, 0.1, abs(y));
+
+    vec3 gridColor = palette(0.6);
+    color = gridColor * grid * fade * horizon * (1.0 + uGridTunnelGlow);
+  }
+  // Mode 1: Tunnel
+  else if (uGridTunnelMode < 1.5) {
+    vec2 centered = uv - 0.5;
+    centered.x *= uAspect;
+
+    float r = length(centered);
+    float angle = atan(centered.y, centered.x);
+
+    float z = uGridTunnelPerspective / (r + 0.01);
+    z = fract(z * 0.2 - t * speed * 0.5);
+
+    float angleGrid = fract(angle / 6.28318 * uGridTunnelGridSize);
+
+    float lineR = smoothstep(uGridTunnelLineWidth * 2.0, 0.0, min(z, 1.0 - z));
+    float lineA = smoothstep(uGridTunnelLineWidth, 0.0, min(angleGrid, 1.0 - angleGrid));
+    float grid = max(lineR, lineA);
+
+    float fade = 1.0 - smoothstep(0.0, 0.5, r);
+
+    vec3 gridColor = palette(0.7);
+    color = gridColor * grid * fade * (1.0 + uGridTunnelGlow);
+  }
+  // Mode 2: Box
+  else {
+    vec2 centered = (uv - 0.5) * 2.0;
+    centered.x *= uAspect;
+
+    // Create a box perspective effect
+    float z = fract(t * speed * 0.5);
+    float scale = 1.0 + z * 2.0;
+    vec2 scaled = centered * scale;
+
+    // Box edges
+    float boxDist = max(abs(scaled.x), abs(scaled.y));
+    float boxLine = smoothstep(uGridTunnelLineWidth * scale, 0.0, abs(boxDist - 1.0));
+
+    // Grid on surfaces
+    float gridX = fract(scaled.x * uGridTunnelGridSize * 0.2);
+    float gridY = fract(scaled.y * uGridTunnelGridSize * 0.2);
+    float gridLine = smoothstep(uGridTunnelLineWidth, 0.0, min(gridX, 1.0 - gridX));
+    gridLine = max(gridLine, smoothstep(uGridTunnelLineWidth, 0.0, min(gridY, 1.0 - gridY)));
+
+    float fade = 1.0 - z;
+
+    vec3 gridColor = palette(0.5 + z * 0.3);
+    color = gridColor * (boxLine + gridLine * 0.5) * fade * (1.0 + uGridTunnelGlow);
+  }
+
+  return color * uGridTunnelOpacity;
+}
+// --- End EDM Generator Functions ---
+
 ${plasmaSource ? '#define HAS_CUSTOM_PLASMA' : ''}
 ${plasmaSource ?? ''}
 
@@ -1144,6 +1481,38 @@ void main() {
       color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6) * uRoleWeights.y;
     }
   }
+
+  // --- EDM Generators ---
+  // Laser Beam Generator
+  if (uLaserEnabled > 0.5) {
+    float audio = uRms * 0.5 + uPeak * 0.5;
+    color += laserBeam(effectUv, uTime, audio) * uRoleWeights.y;
+  }
+
+  // Grid Tunnel Generator
+  if (uGridTunnelEnabled > 0.5) {
+    float audio = low; // Bass drives grid
+    color += gridTunnel(effectUv, uTime, audio) * uRoleWeights.z;
+  }
+
+  // Shape Burst Generator
+  if (uShapeBurstEnabled > 0.5) {
+    color += shapeBurst(effectUv, uTime) * uRoleWeights.y;
+  }
+
+  // Strobe Flash Effect (added last for maximum impact)
+  if (uStrobeEnabled > 0.5) {
+    float audio = uRms * 0.3 + uPeak * 0.7;
+    vec3 strobeCol = strobeFlash(effectUv, uTime, audio, uPeak);
+    // Mode 3: Invert - invert colors instead of adding
+    if (uStrobeMode > 2.5 && strobeCol.r > 0.1) {
+      color = vec3(1.0) - color;
+    } else {
+      color += strobeCol;
+    }
+  }
+  // --- End EDM Generators ---
+
   color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
 
   // Opinionated Engine Glow (HDR-style accumulation)
@@ -1462,6 +1831,48 @@ void main() {
     gl.uniform1f(getLocation('uEngineVignette'), state.engineVignette);
     gl.uniform1f(getLocation('uEngineCA'), state.engineCA);
     gl.uniform1f(getLocation('uEngineSignature'), state.engineSignature);
+    // EDM Generators
+    gl.uniform1f(getLocation('uLaserEnabled'), state.laserEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uLaserOpacity'), state.laserOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uLaserBeamCount'), state.laserBeamCount ?? 4);
+    gl.uniform1f(getLocation('uLaserBeamWidth'), state.laserBeamWidth ?? 0.02);
+    gl.uniform1f(getLocation('uLaserBeamLength'), state.laserBeamLength ?? 1.0);
+    gl.uniform1f(getLocation('uLaserRotation'), state.laserRotation ?? 0);
+    gl.uniform1f(getLocation('uLaserRotationSpeed'), state.laserRotationSpeed ?? 0.5);
+    gl.uniform1f(getLocation('uLaserSpread'), state.laserSpread ?? 1.57);
+    gl.uniform1f(getLocation('uLaserMode'), state.laserMode ?? 0);
+    gl.uniform1f(getLocation('uLaserColorShift'), state.laserColorShift ?? 0);
+    gl.uniform1f(getLocation('uLaserAudioReact'), state.laserAudioReact ?? 0.7);
+    gl.uniform1f(getLocation('uLaserGlow'), state.laserGlow ?? 0.5);
+    gl.uniform1f(getLocation('uStrobeEnabled'), state.strobeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uStrobeOpacity'), state.strobeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uStrobeRate'), state.strobeRate ?? 4);
+    gl.uniform1f(getLocation('uStrobeDutyCycle'), state.strobeDutyCycle ?? 0.1);
+    gl.uniform1f(getLocation('uStrobeMode'), state.strobeMode ?? 0);
+    gl.uniform1f(getLocation('uStrobeAudioTrigger'), state.strobeAudioTrigger ? 1 : 0);
+    gl.uniform1f(getLocation('uStrobeThreshold'), state.strobeThreshold ?? 0.6);
+    gl.uniform1f(getLocation('uStrobeFadeOut'), state.strobeFadeOut ?? 0.1);
+    gl.uniform1f(getLocation('uStrobePattern'), state.strobePattern ?? 0);
+    gl.uniform1f(getLocation('uShapeBurstEnabled'), state.shapeBurstEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uShapeBurstOpacity'), state.shapeBurstOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uShapeBurstShape'), state.shapeBurstShape ?? 0);
+    gl.uniform1f(getLocation('uShapeBurstExpandSpeed'), state.shapeBurstExpandSpeed ?? 2);
+    gl.uniform1f(getLocation('uShapeBurstStartSize'), state.shapeBurstStartSize ?? 0.05);
+    gl.uniform1f(getLocation('uShapeBurstMaxSize'), state.shapeBurstMaxSize ?? 1.5);
+    gl.uniform1f(getLocation('uShapeBurstThickness'), state.shapeBurstThickness ?? 0.03);
+    gl.uniform1f(getLocation('uShapeBurstFadeMode'), state.shapeBurstFadeMode ?? 2);
+    gl.uniform1fv(getLocation('uBurstSpawnTimes[0]'), state.shapeBurstSpawnTimes ?? new Float32Array(8));
+    gl.uniform1fv(getLocation('uBurstActives[0]'), state.shapeBurstActives ?? new Float32Array(8));
+    gl.uniform1f(getLocation('uGridTunnelEnabled'), state.gridTunnelEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGridTunnelOpacity'), state.gridTunnelOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uGridTunnelSpeed'), state.gridTunnelSpeed ?? 1);
+    gl.uniform1f(getLocation('uGridTunnelGridSize'), state.gridTunnelGridSize ?? 20);
+    gl.uniform1f(getLocation('uGridTunnelLineWidth'), state.gridTunnelLineWidth ?? 0.02);
+    gl.uniform1f(getLocation('uGridTunnelPerspective'), state.gridTunnelPerspective ?? 1);
+    gl.uniform1f(getLocation('uGridTunnelHorizonY'), state.gridTunnelHorizonY ?? 0.5);
+    gl.uniform1f(getLocation('uGridTunnelGlow'), state.gridTunnelGlow ?? 0.5);
+    gl.uniform1f(getLocation('uGridTunnelAudioReact'), state.gridTunnelAudioReact ?? 0.3);
+    gl.uniform1f(getLocation('uGridTunnelMode'), state.gridTunnelMode ?? 0);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
     const pLoc = gl.getAttribLocation(prog, 'position');

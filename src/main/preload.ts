@@ -53,5 +53,30 @@ contextBridge.exposeInMainWorld('visualSynth', {
   importPlugin: () => ipcRenderer.invoke('plugins:import'),
   openAssetFolder: (filePath: string) => ipcRenderer.invoke('assets:open-folder', filePath),
   captureAutomatedScreenshot: (data: Uint8Array, filePath: string) =>
-    ipcRenderer.invoke('screenshot:capture-automated', data, filePath)
+    ipcRenderer.invoke('screenshot:capture-automated', data, filePath),
+  // Spout Output Integration (Windows only)
+  spoutIsAvailable: () => ipcRenderer.invoke('spout:is-available') as Promise<boolean>,
+  spoutEnable: (senderName: string) => ipcRenderer.invoke('spout:enable', senderName) as Promise<boolean>,
+  spoutDisable: () => ipcRenderer.invoke('spout:disable') as Promise<void>,
+  spoutSendTexture: (width: number, height: number) =>
+    ipcRenderer.invoke('spout:send-texture', width, height) as Promise<void>,
+  spoutGetStatus: () => ipcRenderer.invoke('spout:get-status') as Promise<{
+    enabled: boolean;
+    senderName: string;
+    connectedReceivers: number;
+  }>,
+  spoutSetSenderName: (name: string) => ipcRenderer.invoke('spout:set-sender-name', name) as Promise<void>,
+  // NDI Output Integration (Cross-platform)
+  ndiIsAvailable: () => ipcRenderer.invoke('ndi:is-available') as Promise<boolean>,
+  ndiEnable: (config: { senderName: string; groups: string }) =>
+    ipcRenderer.invoke('ndi:enable', config) as Promise<boolean>,
+  ndiDisable: () => ipcRenderer.invoke('ndi:disable') as Promise<void>,
+  ndiSendFrame: (frame: { data: ArrayBuffer; width: number; height: number; fourCC: string }) =>
+    ipcRenderer.invoke('ndi:send-frame', frame) as Promise<void>,
+  ndiGetStatus: () => ipcRenderer.invoke('ndi:get-status') as Promise<{
+    enabled: boolean;
+    senderName: string;
+    connectedReceivers: string[];
+  }>,
+  ndiSetSenderName: (name: string) => ipcRenderer.invoke('ndi:set-sender-name', name) as Promise<void>
 });

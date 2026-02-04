@@ -416,6 +416,512 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
         sinceVersion: '0.8.0'
       }
     ]
+  },
+  {
+    id: 'laser-beam',
+    name: 'Laser Beam',
+    description: 'EDM-style laser beams with audio reactivity',
+    sinceVersion: '1.0.0',
+    params: [
+      {
+        id: 'opacity',
+        name: 'Opacity',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 1,
+        description: 'Layer visibility',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'beamCount',
+        name: 'Beam Count',
+        type: 'number',
+        min: 1,
+        max: 16,
+        default: 4,
+        description: 'Number of laser beams',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'beamWidth',
+        name: 'Beam Width',
+        type: 'number',
+        min: 0.005,
+        max: 0.1,
+        default: 0.02,
+        description: 'Laser thickness',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'beamLength',
+        name: 'Beam Length',
+        type: 'number',
+        min: 0.3,
+        max: 2.0,
+        default: 1.0,
+        description: 'Beam reach',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'rotation',
+        name: 'Rotation',
+        type: 'number',
+        min: 0,
+        max: 6.28,
+        default: 0,
+        description: 'Base rotation angle',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'rotationSpeed',
+        name: 'Rotation Speed',
+        type: 'number',
+        min: 0,
+        max: 3,
+        default: 0.5,
+        description: 'Auto-rotation speed',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'spread',
+        name: 'Spread',
+        type: 'number',
+        min: 0,
+        max: 6.28,
+        default: 1.57,
+        description: 'Angular spread of beams',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'mode',
+        name: 'Mode',
+        type: 'enum',
+        default: 0,
+        options: [
+          { value: 0, label: 'Radial' },
+          { value: 1, label: 'Parallel' },
+          { value: 2, label: 'Crossing' },
+          { value: 3, label: 'Scanning' }
+        ],
+        description: 'Beam arrangement mode',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'colorShift',
+        name: 'Color Shift',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 0,
+        description: 'Rainbow shift on audio',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'audioReact',
+        name: 'Audio React',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 0.7,
+        description: 'Audio sensitivity',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'glow',
+        name: 'Glow',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 0.5,
+        description: 'Bloom/glow intensity',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      }
+    ]
+  },
+  {
+    id: 'strobe',
+    name: 'Strobe Flash',
+    description: 'Full-screen strobe/flash effects synced to beat',
+    sinceVersion: '1.0.0',
+    params: [
+      {
+        id: 'opacity',
+        name: 'Opacity',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 1,
+        description: 'Maximum flash intensity',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'rate',
+        name: 'Rate',
+        type: 'number',
+        min: 0.5,
+        max: 20,
+        default: 4,
+        description: 'Flashes per beat',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'dutyCycle',
+        name: 'Duty Cycle',
+        type: 'number',
+        min: 0.05,
+        max: 0.5,
+        default: 0.1,
+        description: 'Flash duration ratio',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'mode',
+        name: 'Mode',
+        type: 'enum',
+        default: 0,
+        options: [
+          { value: 0, label: 'White' },
+          { value: 1, label: 'Color' },
+          { value: 2, label: 'Rainbow' },
+          { value: 3, label: 'Invert' }
+        ],
+        description: 'Flash type',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'audioTrigger',
+        name: 'Audio Trigger',
+        type: 'boolean',
+        default: true,
+        description: 'Trigger on audio peaks',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'threshold',
+        name: 'Threshold',
+        type: 'number',
+        min: 0.3,
+        max: 0.9,
+        default: 0.6,
+        description: 'Peak detection threshold',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'fadeOut',
+        name: 'Fade Out',
+        type: 'number',
+        min: 0,
+        max: 0.5,
+        default: 0.1,
+        description: 'Flash decay time',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'pattern',
+        name: 'Pattern',
+        type: 'enum',
+        default: 0,
+        options: [
+          { value: 0, label: 'Solid' },
+          { value: 1, label: 'Scanline' },
+          { value: 2, label: 'Radial' }
+        ],
+        description: 'Flash pattern',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      }
+    ]
+  },
+  {
+    id: 'shape-burst',
+    name: 'Shape Burst',
+    description: 'Shapes that spawn on beat and expand outward',
+    sinceVersion: '1.0.0',
+    params: [
+      {
+        id: 'opacity',
+        name: 'Opacity',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 1,
+        description: 'Layer visibility',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'shape',
+        name: 'Shape',
+        type: 'enum',
+        default: 0,
+        options: [
+          { value: 0, label: 'Ring' },
+          { value: 1, label: 'Circle' },
+          { value: 2, label: 'Hexagon' },
+          { value: 3, label: 'Star' },
+          { value: 4, label: 'Triangle' }
+        ],
+        description: 'Shape type',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'burstCount',
+        name: 'Burst Count',
+        type: 'number',
+        min: 1,
+        max: 8,
+        default: 3,
+        description: 'Concurrent expanding shapes',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'expandSpeed',
+        name: 'Expand Speed',
+        type: 'number',
+        min: 0.5,
+        max: 5,
+        default: 2,
+        description: 'Expansion velocity',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'startSize',
+        name: 'Start Size',
+        type: 'number',
+        min: 0.01,
+        max: 0.3,
+        default: 0.05,
+        description: 'Initial size',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'maxSize',
+        name: 'Max Size',
+        type: 'number',
+        min: 0.5,
+        max: 3.0,
+        default: 1.5,
+        description: 'Maximum expansion',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'thickness',
+        name: 'Thickness',
+        type: 'number',
+        min: 0.01,
+        max: 0.2,
+        default: 0.03,
+        description: 'Ring/outline thickness',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'fadeMode',
+        name: 'Fade Mode',
+        type: 'enum',
+        default: 2,
+        options: [
+          { value: 0, label: 'Size' },
+          { value: 1, label: 'Opacity' },
+          { value: 2, label: 'Both' }
+        ],
+        description: 'How shapes fade',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'audioTrigger',
+        name: 'Audio Trigger',
+        type: 'boolean',
+        default: true,
+        description: 'Spawn on audio peaks',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'spawnRate',
+        name: 'Spawn Rate',
+        type: 'number',
+        min: 0.5,
+        max: 4,
+        default: 1,
+        description: 'Spawns per beat',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      }
+    ]
+  },
+  {
+    id: 'grid-tunnel',
+    name: 'Grid Tunnel',
+    description: 'Retro Tron-style infinite grid traveling through space',
+    sinceVersion: '1.0.0',
+    params: [
+      {
+        id: 'opacity',
+        name: 'Opacity',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 1,
+        description: 'Layer visibility',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'speed',
+        name: 'Speed',
+        type: 'number',
+        min: 0.5,
+        max: 5,
+        default: 1,
+        description: 'Travel speed',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'gridSize',
+        name: 'Grid Size',
+        type: 'number',
+        min: 5,
+        max: 50,
+        default: 20,
+        description: 'Grid cell count',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'lineWidth',
+        name: 'Line Width',
+        type: 'number',
+        min: 0.01,
+        max: 0.1,
+        default: 0.02,
+        description: 'Grid line thickness',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'perspective',
+        name: 'Perspective',
+        type: 'number',
+        min: 0.5,
+        max: 2,
+        default: 1,
+        description: 'Perspective strength',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'horizonY',
+        name: 'Horizon Y',
+        type: 'number',
+        min: 0.3,
+        max: 0.7,
+        default: 0.5,
+        description: 'Horizon line position',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'glow',
+        name: 'Glow',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 0.5,
+        description: 'Line glow intensity',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'audioReact',
+        name: 'Audio React',
+        type: 'number',
+        min: 0,
+        max: 1,
+        default: 0.3,
+        description: 'Bass drives speed',
+        modulatable: true,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      },
+      {
+        id: 'mode',
+        name: 'Mode',
+        type: 'enum',
+        default: 0,
+        options: [
+          { value: 0, label: 'Floor' },
+          { value: 1, label: 'Tunnel' },
+          { value: 2, label: 'Box' }
+        ],
+        description: 'Grid arrangement',
+        modulatable: false,
+        midiMappable: true,
+        sinceVersion: '1.0.0'
+      }
+    ]
   }
 ];
 
@@ -435,7 +941,11 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'layer-weather': 'weather',
     'layer-portal': 'portal',
     'layer-media': 'media',
-    'layer-oscillo': 'oscillo'
+    'layer-oscillo': 'oscillo',
+    'gen-laser-beam': 'laser-beam',
+    'gen-strobe': 'strobe',
+    'gen-shape-burst': 'shape-burst',
+    'gen-grid-tunnel': 'grid-tunnel'
   };
 
   const type = idMapping[layerId] || layerId;

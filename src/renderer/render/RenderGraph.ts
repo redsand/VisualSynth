@@ -54,6 +54,11 @@ const getLayerRole = (layer?: { role?: LayerRole; id?: string }): LayerRole => {
   if (layer?.id === 'layer-portal') return 'atmosphere';
   if (layer?.id === 'layer-media') return 'support';
   if (layer?.id === 'layer-oscillo') return 'support';
+  // EDM Generators
+  if (layer?.id === 'gen-laser-beam') return 'support'; // High visibility, audio reactive
+  if (layer?.id === 'gen-strobe') return 'core'; // Full screen flash, high impact
+  if (layer?.id === 'gen-shape-burst') return 'support'; // Beat-synced shapes
+  if (layer?.id === 'gen-grid-tunnel') return 'atmosphere'; // Background grid effect
   return 'support';
 };
 
@@ -113,6 +118,15 @@ export class RenderGraph {
   private mediaBurstTypes = new Float32Array(8);
   private mediaBurstActives = new Float32Array(8);
   private oscilloCapture = new Float32Array(256);
+  // Shape Burst state management
+  private shapeBurstSlots = Array.from({ length: 8 }, () => ({
+    active: false,
+    spawnTime: 0
+  }));
+  private shapeBurstSpawnTimes = new Float32Array(8);
+  private shapeBurstActives = new Float32Array(8);
+  private lastShapeBurstSpawn = 0;
+  private shapeBurstSlotIndex = 0;
   private debugState: RenderDebugState = {
     frameId: 0,
     activeSceneName: '',
@@ -447,6 +461,69 @@ export class RenderGraph {
     });
   }
 
+  private updateShapeBursts(time: number, dt: number) {
+    const state = this.store.getState();
+    const project = state.project;
+    const activeScene =
+      project.scenes.find((scene) => scene.id === project.activeSceneId) ?? project.scenes[0];
+    const shapeBurstLayer = activeScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
+    const shapeBurstEnabled = shapeBurstLayer?.enabled ?? false;
+
+    if (!shapeBurstEnabled) {
+      // Reset all bursts when disabled
+      for (let i = 0; i < 8; i++) {
+        this.shapeBurstSlots[i].active = false;
+        this.shapeBurstActives[i] = 0;
+      }
+      return;
+    }
+
+    const audioTrigger = (shapeBurstLayer?.params as any)?.audioTrigger ?? true;
+    const expandSpeed = (typeof shapeBurstLayer?.params?.expandSpeed === 'number')
+      ? shapeBurstLayer.params.expandSpeed : 2;
+    const maxSize = (typeof shapeBurstLayer?.params?.maxSize === 'number')
+      ? shapeBurstLayer.params.maxSize : 1.5;
+    const spawnRate = (typeof shapeBurstLayer?.params?.spawnRate === 'number')
+      ? shapeBurstLayer.params.spawnRate : 1;
+
+    // Spawn new burst on audio peak
+    const peak = state.audio.peak;
+    const threshold = 0.5;
+    const timeSinceLastSpawn = time - this.lastShapeBurstSpawn;
+    const minInterval = 200 / spawnRate; // Milliseconds between spawns
+
+    if (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) {
+      // Find an inactive slot or the oldest one
+      let slotIndex = this.shapeBurstSlotIndex;
+      this.shapeBurstSlots[slotIndex] = {
+        active: true,
+        spawnTime: time / 1000 // Convert to seconds for shader
+      };
+      this.shapeBurstSlotIndex = (this.shapeBurstSlotIndex + 1) % 8;
+      this.lastShapeBurstSpawn = time;
+    }
+
+    // Update burst arrays for shader
+    const currentTimeSeconds = time / 1000;
+    const maxAge = maxSize / expandSpeed; // Time to reach max size
+
+    for (let i = 0; i < 8; i++) {
+      const slot = this.shapeBurstSlots[i];
+      if (slot.active) {
+        const age = currentTimeSeconds - slot.spawnTime;
+        if (age > maxAge) {
+          slot.active = false;
+          this.shapeBurstActives[i] = 0;
+        } else {
+          this.shapeBurstSpawnTimes[i] = slot.spawnTime;
+          this.shapeBurstActives[i] = 1;
+        }
+      } else {
+        this.shapeBurstActives[i] = 0;
+      }
+    }
+  }
+
   private updatePortals(time: number, dt: number) {
     const state = this.store.getState();
     const project = state.project;
@@ -528,6 +605,7 @@ export class RenderGraph {
 
     this.updateGravityWells(time, deltaSeconds);
     this.updatePortals(time, deltaSeconds);
+    this.updateShapeBursts(time, deltaSeconds);
 
     if (runtime.glyphBeatPulse > 0) {
       runtime.glyphBeatPulse = Math.max(0, runtime.glyphBeatPulse - deltaMs * 0.006);
@@ -719,6 +797,11 @@ export class RenderGraph {
     const mediaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-media');
     const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
     const advancedSdfLayer = activeScene?.layers.find((layer) => layer.id === 'gen-sdf-scene');
+    // EDM Generator Layers
+    const laserLayer = activeScene?.layers.find((layer) => layer.id === 'gen-laser-beam');
+    const strobeLayer = activeScene?.layers.find((layer) => layer.id === 'gen-strobe');
+    const shapeBurstLayer = activeScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
+    const gridTunnelLayer = activeScene?.layers.find((layer) => layer.id === 'gen-grid-tunnel');
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
     const origamiRole = getLayerRole(origamiLayer);
@@ -1054,7 +1137,49 @@ export class RenderGraph {
       gravityPolarities: this.gravityPolarities,
       gravityActives: this.gravityActives,
       gravityCollapse: runtime.gravityCollapse,
-      debugTint: this.debugTint ? 1 : 0
+      debugTint: this.debugTint ? 1 : 0,
+      // EDM Generators
+      laserEnabled: laserLayer?.enabled ?? false,
+      laserOpacity: getLayerParamNumber(laserLayer, 'opacity', 1.0),
+      laserBeamCount: getLayerParamNumber(laserLayer, 'beamCount', 4),
+      laserBeamWidth: getLayerParamNumber(laserLayer, 'beamWidth', 0.02),
+      laserBeamLength: getLayerParamNumber(laserLayer, 'beamLength', 1.0),
+      laserRotation: getLayerParamNumber(laserLayer, 'rotation', 0),
+      laserRotationSpeed: getLayerParamNumber(laserLayer, 'rotationSpeed', 0.5),
+      laserSpread: getLayerParamNumber(laserLayer, 'spread', 1.57),
+      laserMode: getLayerParamNumber(laserLayer, 'mode', 0),
+      laserColorShift: getLayerParamNumber(laserLayer, 'colorShift', 0),
+      laserAudioReact: getLayerParamNumber(laserLayer, 'audioReact', 0.7),
+      laserGlow: getLayerParamNumber(laserLayer, 'glow', 0.5),
+      strobeEnabled: strobeLayer?.enabled ?? false,
+      strobeOpacity: getLayerParamNumber(strobeLayer, 'opacity', 1.0),
+      strobeRate: getLayerParamNumber(strobeLayer, 'rate', 4),
+      strobeDutyCycle: getLayerParamNumber(strobeLayer, 'dutyCycle', 0.1),
+      strobeMode: getLayerParamNumber(strobeLayer, 'mode', 0),
+      strobeAudioTrigger: (laserLayer?.params as any)?.audioTrigger ?? true,
+      strobeThreshold: getLayerParamNumber(strobeLayer, 'threshold', 0.6),
+      strobeFadeOut: getLayerParamNumber(strobeLayer, 'fadeOut', 0.1),
+      strobePattern: getLayerParamNumber(strobeLayer, 'pattern', 0),
+      shapeBurstEnabled: shapeBurstLayer?.enabled ?? false,
+      shapeBurstOpacity: getLayerParamNumber(shapeBurstLayer, 'opacity', 1.0),
+      shapeBurstShape: getLayerParamNumber(shapeBurstLayer, 'shape', 0),
+      shapeBurstExpandSpeed: getLayerParamNumber(shapeBurstLayer, 'expandSpeed', 2),
+      shapeBurstStartSize: getLayerParamNumber(shapeBurstLayer, 'startSize', 0.05),
+      shapeBurstMaxSize: getLayerParamNumber(shapeBurstLayer, 'maxSize', 1.5),
+      shapeBurstThickness: getLayerParamNumber(shapeBurstLayer, 'thickness', 0.03),
+      shapeBurstFadeMode: getLayerParamNumber(shapeBurstLayer, 'fadeMode', 2),
+      shapeBurstSpawnTimes: this.shapeBurstSpawnTimes,
+      shapeBurstActives: this.shapeBurstActives,
+      gridTunnelEnabled: gridTunnelLayer?.enabled ?? false,
+      gridTunnelOpacity: getLayerParamNumber(gridTunnelLayer, 'opacity', 1.0),
+      gridTunnelSpeed: getLayerParamNumber(gridTunnelLayer, 'speed', 1),
+      gridTunnelGridSize: getLayerParamNumber(gridTunnelLayer, 'gridSize', 20),
+      gridTunnelLineWidth: getLayerParamNumber(gridTunnelLayer, 'lineWidth', 0.02),
+      gridTunnelPerspective: getLayerParamNumber(gridTunnelLayer, 'perspective', 1),
+      gridTunnelHorizonY: getLayerParamNumber(gridTunnelLayer, 'horizonY', 0.5),
+      gridTunnelGlow: getLayerParamNumber(gridTunnelLayer, 'glow', 0.5),
+      gridTunnelAudioReact: getLayerParamNumber(gridTunnelLayer, 'audioReact', 0.3),
+      gridTunnelMode: getLayerParamNumber(gridTunnelLayer, 'mode', 0)
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);

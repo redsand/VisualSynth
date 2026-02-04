@@ -15,6 +15,7 @@ import {
 } from '../shared/project';
 import { deserializeProject } from '../shared/serialization';
 import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
+import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
 
 const isDev = !app.isPackaged;
 
@@ -194,6 +195,11 @@ const createOutputWindow = () => {
 app.whenReady().then(() => {
   createWindow();
 
+  // Register output integration handlers (Spout/NDI)
+  if (mainWindow) {
+    registerOutputIntegrationHandlers(mainWindow);
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -205,6 +211,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', async () => {
+  // Cleanup output integrations before quitting
+  await cleanupOutputIntegrations();
 });
 
 ipcMain.handle('project:save', async (_event, payload: string) => {
