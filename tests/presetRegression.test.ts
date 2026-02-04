@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { DEFAULT_PROJECT } from '../src/shared/project';
-import { applyPresetV3, migratePreset } from '../src/shared/presetMigration';
+import { applyPresetV3, applyPresetV4, applyPresetV5, applyPresetV6, migratePreset } from '../src/shared/presetMigration';
 import { buildLegacyTarget } from '../src/shared/parameterRegistry';
 
 const presetsDir = path.resolve(__dirname, '..', 'assets', 'presets');
@@ -32,7 +32,7 @@ describe('preset regression coverage', () => {
     });
   });
 
-  it('preserves layer params when migrating v2 presets to v3', () => {
+  it('preserves layer params when migrating v2 presets to latest', () => {
     const v2Preset = {
       version: 2,
       name: 'Param Preserve',
@@ -61,7 +61,15 @@ describe('preset regression coverage', () => {
 
     const migrated = migratePreset(v2Preset);
     expect(migrated.success).toBe(true);
-    const plasma = migrated.preset.layers.find((layer: any) => layer.type === 'plasma');
+    const migratedPreset = migrated.preset;
+    const applied =
+      migratedPreset.version === 6
+        ? applyPresetV6(migratedPreset, DEFAULT_PROJECT)
+        : migratedPreset.version === 5
+          ? applyPresetV5(migratedPreset, DEFAULT_PROJECT)
+          : applyPresetV4(migratedPreset, DEFAULT_PROJECT);
+    const scene = applied.project.scenes.find((s: any) => s.id === applied.project.activeSceneId);
+    const plasma = scene.layers.find((layer: any) => layer.id === 'layer-plasma');
     expect(plasma?.params?.speed).toBe(2.25);
     expect(plasma?.params?.scale).toBe(1.4);
   });

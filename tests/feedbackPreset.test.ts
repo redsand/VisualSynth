@@ -4,7 +4,7 @@ import { RenderGraph } from '../src/renderer/render/RenderGraph';
 import { createStore, createInitialState } from '../src/renderer/state/store';
 import * as fs from 'fs';
 import * as path from 'path';
-import { migratePreset, applyPresetV3 } from '../src/shared/presetMigration';
+import { migratePreset, applyPresetV4, applyPresetV5, applyPresetV6 } from '../src/shared/presetMigration';
 import { DEFAULT_PROJECT } from '../src/shared/project';
 
 describe('RenderGraph Feedback Preset', () => {
@@ -27,7 +27,13 @@ describe('RenderGraph Feedback Preset', () => {
       if (!migrationResult.success) {
         throw new Error(`Preset migration failed: ${migrationResult.errors.join(', ')}`);
       }
-      const applyResult = applyPresetV3(migrationResult.preset, DEFAULT_PROJECT);
+      const migratedPreset = migrationResult.preset;
+      const applyResult =
+        migratedPreset.version === 6
+          ? applyPresetV6(migratedPreset, DEFAULT_PROJECT)
+          : migratedPreset.version === 5
+            ? applyPresetV5(migratedPreset, DEFAULT_PROJECT)
+            : applyPresetV4(migratedPreset, DEFAULT_PROJECT);
       project = applyResult.project;
     }
 

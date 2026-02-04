@@ -131,9 +131,8 @@ const sceneLeft = document.getElementById('mode-scene-left') as HTMLDivElement;
 const sceneRight = document.getElementById('mode-scene-right') as HTMLDivElement;
 const designLeft = document.getElementById('mode-design-left') as HTMLDivElement;
 const designRight = document.getElementById('mode-design-right') as HTMLDivElement;
-const matrixLeft = document.getElementById('mode-matrix-left') as HTMLDivElement;
-const matrixRight = document.getElementById('mode-matrix-right') as HTMLDivElement;
-const matrixCenter = document.getElementById('mode-matrix-center') as HTMLDivElement;
+const mappingLeft = document.getElementById('mode-mapping-left') as HTMLDivElement;
+const mappingCenter = document.getElementById('mode-mapping-center') as HTMLDivElement;
 const mixerLeft = document.getElementById('mode-mixer-left') as HTMLDivElement;
 const mixerRight = document.getElementById('mode-mixer-right') as HTMLDivElement;
 const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
@@ -883,8 +882,6 @@ const setMode = (mode: UiMode) => {
       (el as HTMLElement).classList.toggle('hidden', mode !== 'scene' && mode !== 'design');
   });
 
-  const mappingLeft = document.getElementById('mode-mapping-left') as HTMLDivElement;
-  const mappingCenter = document.getElementById('mode-mapping-center') as HTMLDivElement;
   mappingLeft.classList.toggle('hidden', !visibility.mapping);
   mappingCenter.classList.toggle('hidden', !visibility.mapping);
   designLeft.classList.toggle('hidden', !visibility.design);
@@ -932,7 +929,7 @@ const setMode = (mode: UiMode) => {
   if (mode === 'mapping') {
     renderMappingSources();
   }
-  if (mode === 'scene') {
+};
 
 const syncTempoInputs = (value: number) => {
   const normalized = Number.isFinite(value) ? value : 120;
@@ -1208,6 +1205,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
   logPresetDebug(traceId, 'Loading preset', { path, reason });
   const result = await window.visualSynth.loadPreset(path);
   if (result.error) {
+    logPresetError(traceId, 'Preset load failed', { path, error: result.error });
     setStatus(`Preset load failed: ${result.error}`);
     await ensureSafeVisuals(traceId, result.error);
     return;
@@ -1219,6 +1217,11 @@ const applyPresetPath = async (path: string, reason?: string) => {
 
     if (!migrationResult.success) {
       const reasonText = migrationResult.errors.join(', ');
+      logPresetError(traceId, 'Preset migration failed', {
+        path,
+        errors: migrationResult.errors,
+        warnings: migrationResult.warnings
+      });
       setStatus(`Preset migration failed: ${reasonText}`);
       await ensureSafeVisuals(traceId, reasonText);
       return;
@@ -1235,6 +1238,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const reasonText = validationResult.errors.join(', ');
       setStatus(`Preset validation failed: ${reasonText}`);
       logPresetError(traceId, 'Preset validation failed', {
+        path,
         errors: validationResult.errors,
         warnings: validationResult.warnings
       });
@@ -1248,15 +1252,44 @@ const applyPresetPath = async (path: string, reason?: string) => {
     // Apply the (possibly migrated) preset
     const migratedProject = migrationResult.preset;
 
-    // If preset is v3, convert to v2 format for current application
-    if (migratedProject.version === 4) {
-      const applyResult = presetMigration.applyPresetV4(migratedProject, currentProject);
+    // Apply preset by version.
+    if (migratedProject.version === 6) {
+      const applyResult = presetMigration.applyPresetV6(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
       }
       logPresetDebug(
         traceId,
-        'Resolved preset project',
+        'Resolved preset project (V6)',
+        serializePresetPayload({
+          activeSceneId: applyResult.project?.activeSceneId,
+          scenes: applyResult.project?.scenes?.map((scene: any) => ({
+            id: scene.id,
+            name: scene.name,
+            layers: scene.layers?.map((layer: any) => ({
+              id: layer.id,
+              enabled: layer.enabled,
+              opacity: layer.opacity,
+              blendMode: layer.blendMode,
+              params: layer.params
+            }))
+          })),
+          modMatrix: applyResult.project?.modMatrix?.length ?? 0,
+          macros: applyResult.project?.macros?.length ?? 0
+        })
+      );
+      if (applyResult.project) {
+        const resolvedProject = applyPlaylistOverrides(applyResult.project);
+        await applyProject(resolvedProject);
+      }
+    } else if (migratedProject.version === 5) {
+      const applyResult = presetMigration.applyPresetV5(migratedProject, currentProject);
+      if (applyResult.warnings.length > 0) {
+        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+      }
+      logPresetDebug(
+        traceId,
+        'Resolved preset project (V5)',
         serializePresetPayload({
           activeSceneId: applyResult.project?.activeSceneId,
           scenes: applyResult.project?.scenes?.map((scene: any) => ({
@@ -1301,45 +1334,6 @@ const applyPresetPath = async (path: string, reason?: string) => {
           })),
           modMatrix: applyResult.project?.modMatrix?.length ?? 0,
           macros: applyResult.project?.macros?.length ?? 0
-        })
-      );
-      if (applyResult.project) {
-        const resolvedProject = applyPlaylistOverrides(applyResult.project);
-        await applyProject(resolvedProject);
-      }
-    } else if (migratedProject.version === 5) {
-      const applyResult = presetMigration.applyPresetV5(migratedProject, currentProject);
-      if (applyResult.warnings.length > 0) {
-        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
-      }
-      logPresetDebug(
-        traceId,
-        'Resolved performance project (V5)',
-        serializePresetPayload({
-          activeModeId: applyResult.project?.activeModeId,
-          roleWeights: applyResult.project?.roleWeights,
-          tempoSync: applyResult.project?.tempoSync,
-          scenes: applyResult.project?.scenes?.length ?? 0
-        })
-      );
-      if (applyResult.project) {
-        const resolvedProject = applyPlaylistOverrides(applyResult.project);
-        await applyProject(resolvedProject);
-      }
-    } else if (migratedProject.version === 6) {
-      const applyResult = presetMigration.applyPresetV6(migratedProject, currentProject);
-      if (applyResult.warnings.length > 0) {
-        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
-      }
-      logPresetDebug(
-        traceId,
-        'Resolved engine performance (V6)',
-        serializePresetPayload({
-          activeEngineId: applyResult.project?.activeEngineId,
-          activeModeId: applyResult.project?.activeModeId,
-          roleWeights: applyResult.project?.roleWeights,
-          tempoSync: applyResult.project?.tempoSync,
-          scenes: applyResult.project?.scenes?.length ?? 0
         })
       );
       if (applyResult.project) {
@@ -4526,6 +4520,9 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
 const applyScene = (sceneId: string) => {
   const scene = currentProject.scenes.find((item) => item.id === sceneId);
   if (!scene) return;
+  const previousSceneId = currentProject.activeSceneId;
+  const previousScene = currentProject.scenes.find((item) => item.id === previousSceneId) ?? null;
+  const fromSnapshot = previousSceneId ? captureSceneSnapshot(currentProject, previousSceneId) : null;
 
   // Trigger Visual Transition based on Scene settings
   if (scene.transition_in) {
@@ -4584,6 +4581,7 @@ const addSceneFromPreset = async (presetPath: string) => {
   logPresetDebug(traceId, 'Loading preset for scene', { presetPath });
   const result = await window.visualSynth.loadPreset(presetPath);
   if (result.error) {
+    logPresetError(traceId, 'Preset load failed', { presetPath, error: result.error });
     setStatus(`Preset load failed: ${result.error}`);
     await ensureSafeVisuals(traceId, result.error);
     return null;
@@ -4600,15 +4598,42 @@ const addSceneFromPreset = async (presetPath: string) => {
   const migrationResult = presetMigration.migratePreset(result.preset);
   if (!migrationResult.success) {
     const reasonText = migrationResult.errors.join(', ') || 'Preset migration failed.';
+    logPresetError(traceId, 'Preset migration failed', {
+      presetPath,
+      errors: migrationResult.errors,
+      warnings: migrationResult.warnings
+    });
     setStatus(`Preset migration failed: ${reasonText}`);
     await ensureSafeVisuals(traceId, reasonText);
     return null;
   }
 
+  const validationResult = presetMigration.validatePreset(migrationResult.preset);
+  if (!validationResult.valid) {
+    const reasonText = validationResult.errors.join(', ') || 'Preset validation failed.';
+    logPresetError(traceId, 'Preset validation failed', {
+      presetPath,
+      errors: validationResult.errors,
+      warnings: validationResult.warnings
+    });
+    setStatus(`Preset validation failed: ${reasonText}`);
+    await ensureSafeVisuals(traceId, reasonText);
+    return null;
+  }
+  if (validationResult.warnings.length > 0) {
+    logPresetDebug(traceId, 'Preset validation warnings', validationResult.warnings);
+  }
+
   const migratedPreset = migrationResult.preset;
   let sourceProject: VisualSynthProject | null = null;
 
-  if (migratedPreset.version === 4) {
+  if (migratedPreset.version === 6) {
+    const applyResult = presetMigration.applyPresetV6(migratedPreset, currentProject);
+    sourceProject = applyResult.project ?? null;
+  } else if (migratedPreset.version === 5) {
+    const applyResult = presetMigration.applyPresetV5(migratedPreset, currentProject);
+    sourceProject = applyResult.project ?? null;
+  } else if (migratedPreset.version === 4) {
     const applyResult = presetMigration.applyPresetV4(migratedPreset, currentProject);
     sourceProject = applyResult.project ?? null;
   } else if (migratedPreset.version === 3) {
@@ -9157,6 +9182,14 @@ const render = (time: number) => {
     engineGrain: (currentProject as any).engineFinish?.grain ?? 0.2,
     engineVignette: (currentProject as any).engineFinish?.vignette ?? 1.0,
     engineCA: (currentProject as any).engineFinish?.ca ?? 0.3,
+    engineSignature: (() => {
+        const id = currentProject.activeEngineId;
+        if (id === 'engine-radial-core') return 1;
+        if (id === 'engine-particle-flow') return 2;
+        if (id === 'engine-kaleido-pulse') return 3;
+        if (id === 'engine-vapor-grid') return 4;
+        return 0;
+    })(),
     maxBloom: ENGINE_REGISTRY[currentProject.activeEngineId as EngineId]?.constraints?.maxBloom ?? 1.0,
     forceFeedback: ENGINE_REGISTRY[currentProject.activeEngineId as EngineId]?.constraints?.forceFeedback ?? false,
     chemistryMode: getChemistryModeIndex(currentProject.colorChemistry),

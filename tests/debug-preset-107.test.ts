@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'path';
 import fs from 'fs';
-import { presetV3Schema, migratePreset, applyPresetV3 } from '../src/shared/presetMigration';
+import { presetV3Schema, migratePreset, applyPresetV4, applyPresetV5, applyPresetV6 } from '../src/shared/presetMigration';
 import { projectSchema } from '../src/shared/projectSchema';
 import { DEFAULT_PROJECT } from '../src/shared/project';
 
@@ -27,7 +27,13 @@ describe('Debug Preset 107', () => {
     expect(migrationResult.errors).toHaveLength(0);
 
     // 4. Apply V3
-    const applyResult = applyPresetV3(migrationResult.preset, DEFAULT_PROJECT);
+    const migratedPreset = migrationResult.preset;
+    const applyResult =
+      migratedPreset.version === 6
+        ? applyPresetV6(migratedPreset, DEFAULT_PROJECT)
+        : migratedPreset.version === 5
+          ? applyPresetV5(migratedPreset, DEFAULT_PROJECT)
+          : applyPresetV4(migratedPreset, DEFAULT_PROJECT);
     expect(applyResult.project).toBeDefined();
 
     // 5. Validate V2 Schema (Project Schema)

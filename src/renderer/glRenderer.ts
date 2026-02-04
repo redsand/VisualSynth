@@ -151,6 +151,7 @@ export interface RenderState {
   engineGrain: number;
   engineVignette: number;
   engineCA: number;
+  engineSignature: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -344,6 +345,7 @@ uniform float uForceFeedback;
 uniform float uEngineGrain;
 uniform float uEngineVignette;
 uniform float uEngineCA;
+uniform float uEngineSignature;
 
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
@@ -763,6 +765,15 @@ ${plasmaSource ?? ''}
 
 void main() {
   vec2 uv = vUv;
+  float low = 0.0;
+  for (int i = 0; i < 8; i += 1) { low += uSpectrum[i]; }
+  low /= 8.0;
+  float mid = 0.0;
+  for (int i = 8; i < 24; i += 1) { mid += uSpectrum[i]; }
+  mid /= 16.0;
+  float high = 0.0;
+  for (int i = 24; i < 64; i += 1) { high += uSpectrum[i]; }
+  high /= 40.0;
   
   // Apply Motion Template Distortion
   if (uMotionTemplate > 0.5 && uMotionTemplate < 1.5) { // Radial
@@ -814,15 +825,6 @@ void main() {
   }
 
   vec2 effectUv = kaleidoscope(uv, uKaleidoscope);
-  float low = 0.0;
-  for (int i = 0; i < 8; i += 1) { low += uSpectrum[i]; }
-  low /= 8.0;
-  float mid = 0.0;
-  for (int i = 8; i < 24; i += 1) { mid += uSpectrum[i]; }
-  mid /= 16.0;
-  float high = 0.0;
-  for (int i = 24; i < 64; i += 1) { high += uSpectrum[i]; }
-  high /= 40.0;
   
   // Engine Grammar: Inertial Energy Accumulation
   // We use Time to simulate a decaying energy state that "charges" on audio peaks
@@ -1171,6 +1173,23 @@ void main() {
       color *= smoothstep(0.8, 0.2, vig * uEngineVignette);
   }
 
+  // --- Engine Signature (Unique Identity) ---
+  if (uEngineSignature > 0.5) {
+      if (uEngineSignature < 1.5) { // Radial Core: Energy Halo
+          float halo = 1.0 - smoothstep(0.3, 0.5, length(uv - 0.5));
+          color += color * halo * 0.15 * low;
+      } else if (uEngineSignature < 2.5) { // Particle Flow: Organic Grit
+          float grit = fbm(uv * 20.0 + uTime * 0.05);
+          color = mix(color, color * (0.8 + grit * 0.4), 0.2);
+      } else if (uEngineSignature < 3.5) { // Kaleido Pulse: Digital Interference
+          float line = step(0.98, fract(uv.y * 100.0 + uTime * 2.0));
+          color += vec3(line) * 0.05 * high;
+      } else if (uEngineSignature > 3.5) { // Vapor Grid: Retro Scanlines
+          float scan = sin(uv.y * 400.0) * 0.04;
+          color -= scan;
+      }
+  }
+
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);
 }
@@ -1426,6 +1445,7 @@ void main() {
     gl.uniform1f(getLocation('uEngineGrain'), state.engineGrain);
     gl.uniform1f(getLocation('uEngineVignette'), state.engineVignette);
     gl.uniform1f(getLocation('uEngineCA'), state.engineCA);
+    gl.uniform1f(getLocation('uEngineSignature'), state.engineSignature);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
     const pLoc = gl.getAttribLocation(prog, 'position');

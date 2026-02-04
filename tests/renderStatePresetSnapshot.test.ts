@@ -4,7 +4,7 @@ import path from 'path';
 import { RenderGraph } from '../src/renderer/render/RenderGraph';
 import { createStore, createInitialState } from '../src/renderer/state/store';
 import { DEFAULT_PROJECT } from '../src/shared/project';
-import { applyPresetV3, migratePreset } from '../src/shared/presetMigration';
+import { applyPresetV3, applyPresetV4, applyPresetV5, applyPresetV6, migratePreset } from '../src/shared/presetMigration';
 
 const presetsDir = path.resolve(__dirname, '..', 'assets', 'presets');
 
@@ -15,14 +15,23 @@ const loadPreset = (fileName: string) => {
 
 const applyPresetToProject = (fileName: string) => {
   const preset = loadPreset(fileName);
-  const migrated = preset.version === 3 ? { success: true, preset } : migratePreset(preset);
+  const migrated = migratePreset(preset);
   if (!migrated.success) {
     throw new Error(`Preset migration failed: ${(migrated.errors || []).join(', ')}`);
   }
-  if (migrated.preset.version !== 3) {
-    throw new Error(`Preset ${fileName} did not migrate to v3.`);
+  if (migrated.preset.version === 6) {
+    return applyPresetV6(migrated.preset, DEFAULT_PROJECT).project;
   }
-  return applyPresetV3(migrated.preset, DEFAULT_PROJECT).project;
+  if (migrated.preset.version === 5) {
+    return applyPresetV5(migrated.preset, DEFAULT_PROJECT).project;
+  }
+  if (migrated.preset.version === 4) {
+    return applyPresetV4(migrated.preset, DEFAULT_PROJECT).project;
+  }
+  if (migrated.preset.version === 3) {
+    return applyPresetV3(migrated.preset, DEFAULT_PROJECT).project;
+  }
+  throw new Error(`Preset ${fileName} did not migrate to a supported version.`);
 };
 
 const renderSnapshot = (renderState: any) => ({

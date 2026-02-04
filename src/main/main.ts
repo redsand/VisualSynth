@@ -14,7 +14,7 @@ import {
   AssetColorSpace
 } from '../shared/project';
 import { deserializeProject } from '../shared/serialization';
-import { presetV3Schema, presetV4Schema } from '../shared/presetMigration';
+import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
 
 const isDev = !app.isPackaged;
 
@@ -468,14 +468,15 @@ ipcMain.handle('presets:list', async () => {
         try {
           const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
           // Handle both v2 (data.name) and v3 (data.metadata.name) formats
+          const usesMetadata = data.version === 3 || data.version === 4 || data.version === 5 || data.version === 6;
           const presetName =
-            (data.version === 4 || data.version === 3) && data.metadata?.name
+            usesMetadata && data.metadata?.name
               ? data.metadata.name
               : typeof data.name === 'string' && data.name.length > 0
                 ? data.name
                 : file;
           const presetCategory =
-            (data.version === 4 || data.version === 3) && data.metadata?.category
+            usesMetadata && data.metadata?.category
               ? data.metadata.category
               : typeof data.category === 'string'
                 ? data.category
@@ -496,6 +497,26 @@ ipcMain.handle('presets:load', async (_event, presetPath: string) => {
   console.log('[Presets] Loading:', presetPath);
   try {
     const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+
+    if (data.version === 6) {
+      const v6Parsed = presetV6Schema.safeParse(data);
+      if (!v6Parsed.success) {
+        const errorMsg = `Invalid preset v6: ${JSON.stringify(v6Parsed.error.format())}`;
+        console.error('[Presets] V6 Validation Failed:', errorMsg);
+        return { error: errorMsg };
+      }
+      return { preset: v6Parsed.data };
+    }
+
+    if (data.version === 5) {
+      const v5Parsed = presetV5Schema.safeParse(data);
+      if (!v5Parsed.success) {
+        const errorMsg = `Invalid preset v5: ${JSON.stringify(v5Parsed.error.format())}`;
+        console.error('[Presets] V5 Validation Failed:', errorMsg);
+        return { error: errorMsg };
+      }
+      return { preset: v5Parsed.data };
+    }
 
     if (data.version === 4) {
       const v4Parsed = presetV4Schema.safeParse(data);

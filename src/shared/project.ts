@@ -308,7 +308,7 @@ export interface EnvelopeConfig {
   sustain: number;
   release: number;
   hold: number;
-  trigger: 'audio.peak' | 'strobe' | 'manual';
+  trigger: 'audio.peak' | 'engine.low' | 'strobe' | 'manual';
   threshold: number;
 }
 
@@ -512,8 +512,6 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   output: { ...DEFAULT_OUTPUT_CONFIG },
-  activeEngineId: 'engine-radial-core',
-  activeModeId: 'mode-cosmic',
   stylePresets: [
     {
       id: 'style-signature',
