@@ -23,6 +23,8 @@ import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './panels/LayerPanel';
+import { createMixerPanel } from './ui/panels/MixerPanel';
+import { createModeDashboard } from './ui/panels/ModeDashboard';
 import { createSdfPanel } from './ui/panels/SdfPanel';
 import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './panels/ModulationPanel';
@@ -42,6 +44,7 @@ import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult } from '../shared/assets';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
+import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
 
 declare global {
   interface Window {
@@ -56,7 +59,7 @@ declare global {
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
       listPresets: () => Promise<{ name: string; category: string; path: string }[]>;
-      loadPreset: (presetPath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
+      loadPreset: (presetPath: string) => Promise<{ preset?: any; error?: string }>;
       listTemplates: () => Promise<{ name: string; path: string }[]>;
       loadTemplate: (templatePath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
       listNodeMidi: () => Promise<{ index: number; name: string }[]>;
@@ -131,6 +134,8 @@ const designRight = document.getElementById('mode-design-right') as HTMLDivEleme
 const matrixLeft = document.getElementById('mode-matrix-left') as HTMLDivElement;
 const matrixRight = document.getElementById('mode-matrix-right') as HTMLDivElement;
 const matrixCenter = document.getElementById('mode-matrix-center') as HTMLDivElement;
+const mixerLeft = document.getElementById('mode-mixer-left') as HTMLDivElement;
+const mixerRight = document.getElementById('mode-mixer-right') as HTMLDivElement;
 const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
 const systemRight = document.getElementById('mode-system-right') as HTMLDivElement;
 const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement;
@@ -146,6 +151,8 @@ const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputE
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
 const visualModeSelect = document.getElementById('visual-mode-select') as HTMLSelectElement;
+const engineSelect = document.getElementById('engine-select') as HTMLSelectElement;
+const engineDescription = document.getElementById('engine-description') as HTMLDivElement;
 const healthFps = document.getElementById('health-fps') as HTMLSpanElement;
 const healthLatency = document.getElementById('health-latency') as HTMLSpanElement;
 const healthWatchdog = document.getElementById('health-watchdog') as HTMLSpanElement;
@@ -201,13 +208,30 @@ const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonEle
 const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement;
 const quantizeHud = document.getElementById('quantize-hud') as HTMLDivElement;
 const safeModeBanner = document.getElementById('safe-mode-banner') as HTMLDivElement;
+const mappingHud = document.getElementById('mapping-hud') as HTMLDivElement;
+const mappingHudTitle = document.getElementById('mapping-hud-title') as HTMLDivElement;
+const mappingHudTarget = document.getElementById('mapping-hud-target') as HTMLDivElement;
+const mappingHudCancel = document.getElementById('mapping-hud-cancel') as HTMLButtonElement;
 const bpmSourceSelect = document.getElementById('bpm-source') as HTMLSelectElement;
+
+const updateMappingHud = () => {
+  if (learnTarget) {
+    mappingHud.classList.remove('hidden');
+    mappingHudTitle.textContent = 'MIDI Learn Active';
+    mappingHudTarget.textContent = `Waiting for MIDI input for: ${learnTarget.label}`;
+  } else {
+    mappingHud.classList.add('hidden');
+  }
+};
 const bpmRangeSelect = document.getElementById('bpm-range') as HTMLSelectElement;
 const bpmMinInput = document.getElementById('bpm-min') as HTMLInputElement;
 const bpmMaxInput = document.getElementById('bpm-max') as HTMLInputElement;
 const bpmInterfaceSelect = document.getElementById('bpm-interface') as HTMLSelectElement;
 const bpmNetworkToggle = document.getElementById('bpm-network-toggle') as HTMLButtonElement;
 const bpmDisplay = document.getElementById('bpm-display') as HTMLDivElement;
+const beatSensitivityInput = document.getElementById('beat-sensitivity') as HTMLInputElement;
+const beatFilterSelect = document.getElementById('beat-filter') as HTMLSelectElement;
+const beatHoldOffInput = document.getElementById('beat-holdoff') as HTMLInputElement;
 const generatorSelect = document.getElementById('generator-select') as HTMLSelectElement;
 const generatorAddButton = document.getElementById('generator-add') as HTMLButtonElement;
 const generatorFavorites = document.getElementById('generator-favorites') as HTMLDivElement;
@@ -218,6 +242,7 @@ const visualizerOpacityInput = document.getElementById('visualizer-opacity') as 
 const visualizerMacroToggle = document.getElementById('visualizer-macro-enabled') as HTMLInputElement;
 const visualizerMacroSelect = document.getElementById('visualizer-macro-select') as HTMLSelectElement;
 const styleSelect = document.getElementById('style-select') as HTMLSelectElement;
+const sceneTransitionTypeSelect = document.getElementById('scene-transition-type') as HTMLSelectElement;
 const styleContrast = document.getElementById('style-contrast') as HTMLInputElement;
 const styleSaturation = document.getElementById('style-saturation') as HTMLInputElement;
 const styleShift = document.getElementById('style-shift') as HTMLInputElement;
@@ -271,6 +296,7 @@ const expressiveSmearIntentAmount = document.getElementById('expressive-smear-in
 const expressiveSmearOffset = document.getElementById('expressive-smear-offset') as HTMLInputElement;
 const expressiveSmearMix = document.getElementById('expressive-smear-mix') as HTMLInputElement;
 const paletteSelect = document.getElementById('palette-select') as HTMLSelectElement;
+const chemistrySelect = document.getElementById('chemistry-select') as HTMLSelectElement;
 const palettePreview = document.getElementById('palette-preview') as HTMLDivElement;
 const paletteApplyToggle = document.getElementById('palette-apply-scene') as HTMLInputElement;
 const particlesEnabled = document.getElementById('particles-enabled') as HTMLInputElement;
@@ -424,12 +450,18 @@ const WEBCAM_STORAGE_KEY = 'visualsynth.webcamDeviceId';
 let lastMidiLatencyMs: number | null = null;
 let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null = null;
 let sdfPanel: { render: () => void } | null = null;
+let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, bands: number[]) => void } | null = null;
+let modeDashboard: { render: () => void } | null = null;
 let autoBpm: number | null = null;
 let networkBpm: number | null = null;
 let bpmRange: BpmRange = { min: 80, max: 150 };
 let bpmSource: 'manual' | 'auto' | 'network' = 'manual';
 let bpmNetworkActive = false;
 let lastTempoEstimateTime = 0;
+let beatSensitivity = 1.5;
+let beatFilterRange: 'full' | 'bass' | 'mids' = 'bass';
+let beatHoldOffMs = 200;
+let lastBeatTime = 0;
 let fluxPrev = 0;
 let fluxPrevPrev = 0;
 let fluxPrevTime = 0;
@@ -467,11 +499,26 @@ let diffIncomingProject: VisualSynthProject | null = null;
 let renderer: ReturnType<typeof createGLRenderer>;
 let lastSummaryUpdate = 0;
 let visualizerMode: 'off' | 'spectrum' | 'waveform' | 'oscilloscope' = 'off';
-let playlist: { name: string; path: string }[] = [];
+let playlist: { name: string; path: string; duration: number; crossfade: number }[] = [];
 let playlistIndex = 0;
 let playlistTimer: number | null = null;
 let playlistActive = false;
 let playlistOverrides: Record<string, Partial<LayerConfig>> = {};
+
+const triggerPlaylistSlot = async (index: number) => {
+  if (index < 0 || index >= playlist.length) return;
+  playlistIndex = index;
+  const item = playlist[index];
+  
+  if (item.crossfade > 0) {
+    await crossfadeToPreset(item.path, item.name, item.crossfade);
+  } else {
+    await applyPresetPath(item.path, 'Playlist');
+  }
+  
+  // Update UI to highlight active slot
+  renderPlaylist();
+};
 let presetLibrary: { name: string; path: string; category: string }[] = [];
 const presetThumbStorageKey = 'vs.preset.thumbs';
 let presetThumbs: Record<string, string> = {};
@@ -481,13 +528,18 @@ const shaderTargetAssetPrefix = 'asset:';
 let runtimeShaderOverride: string | null = null;
 let currentTransitionAmount = 0;
 let currentTransitionType = 0; // 0: none, 1: fade, 2: warp, 3: glitch
+let currentTransitionDecay = 0.002;
+let currentMotionTemplate = 0; // linear default
 
 const audioState = {
   rms: 0,
   peak: 0,
-  bands: new Array(8).fill(0),
+  bands: new Float32Array(8),
   spectrum: new Float32Array(64),
-  waveform: new Float32Array(256)
+  waveform: new Float32Array(128),
+  energyLow: 0,
+  energyMid: 0,
+  energyHigh: 0
 };
 
 const gravityWells = Array.from({ length: 8 }, () => ({
@@ -666,13 +718,79 @@ const recordPlaylistOverride = (layerId: string, override: Partial<LayerConfig>)
   playlistOverrides[layerId] = merged;
 };
 
+const applyVisualEngine = (engineId: EngineId) => {
+  const engine = ENGINE_REGISTRY[engineId];
+  if (!engine) return;
+
+  currentProject.activeEngineId = engineId;
+  setStatus(`Visual Engine applied: ${engine.name}`);
+  if (engineDescription) {
+      engineDescription.textContent = engine.description;
+  }
+
+  // Set Engine Motion Template
+  const templates = ['linear', 'radial', 'vortex', 'fractal', 'grid', 'organic', 'data', 'strobe', 'vapor'];
+  currentMotionTemplate = templates.indexOf(engine.constraints.preferredMotion) || 0;
+
+  // Apply Engine Grammar
+  (currentProject as any).engineGrammar = engine.grammar;
+  (currentProject as any).engineFinish = engine.finish;
+
+  // 1. Reset Scenes to Engine Defaults
+  const firstScene = currentProject.scenes[0];
+  if (firstScene) {
+    firstScene.layers = engine.baseLayers.map(l => cloneLayerConfig(l));
+    currentProject.scenes = [firstScene];
+    currentProject.activeSceneId = firstScene.id;
+  }
+
+  // 2. Set Curated Palette
+  applyPaletteSelection(engine.curatedPalette.id);
+  if (paletteSelect) paletteSelect.value = engine.curatedPalette.id;
+
+  // 3. Re-map Macros (Engine strictly defines 5-7 macros)
+  currentProject.macros = engine.macros.map((m, i) => ({
+    id: `macro-${i + 1}`,
+    name: m.name,
+    value: m.defaultValue,
+    targets: [
+      { target: m.target, amount: 1.0 }
+    ]
+  }));
+
+  // Update Hero Macro Labels in UI
+  const heroLabels = document.querySelectorAll('.macro-hero-label');
+  engine.macros.forEach((m, i) => {
+      if (heroLabels[i]) heroLabels[i].textContent = m.name;
+  });
+  
+  // Fill remaining to 8 with empty
+  for (let i = engine.macros.length; i < 8; i++) {
+    currentProject.macros.push({
+      id: `macro-${i + 1}`,
+      name: `Macro ${i + 1}`,
+      value: 0.5,
+      targets: []
+    });
+  }
+
+  // 4. Reset Mod Matrix for Engine scope
+  currentProject.modMatrix = [];
+
+  initMacros();
+  renderLayerList();
+  renderModMatrix();
+};
+
 const applyVisualMode = (modeId: string) => {
   const mode = VISUAL_MODES.find(m => m.id === modeId);
   if (!mode) return;
 
   // Trigger Transition Effect
-  currentTransitionType = mode.transition.type === 'warp' ? 2 : mode.transition.type === 'glitch' ? 3 : 1;
+  const tMap: Record<string, number> = { fade: 1, crossfade: 1, warp: 2, glitch: 3, dissolve: 4 };
+  currentTransitionType = tMap[mode.transition.type || 'fade'] || 1;
   currentTransitionAmount = 1.0;
+  currentTransitionDecay = 1.0 / (mode.transition.durationMs || 600);
 
   currentProject.activeModeId = modeId;
   setStatus(`Visual Mode applied: ${mode.name}`);
@@ -756,17 +874,65 @@ const setMode = (mode: UiMode) => {
   performanceRight.classList.toggle('hidden', !visibility.performance);
   sceneLeft.classList.toggle('hidden', !visibility.scene);
   sceneRight.classList.toggle('hidden', !visibility.scene);
+  mixerLeft.classList.toggle('hidden', !visibility.mixer);
+  mixerRight.classList.toggle('hidden', !visibility.mixer);
+  
+  // Progressive Disclosure: Hide internal complexity unless in Design/System
+  const advancedControls = document.querySelectorAll('.advanced-only');
+  advancedControls.forEach(el => {
+      (el as HTMLElement).classList.toggle('hidden', mode !== 'scene' && mode !== 'design');
+  });
+
+  const mappingLeft = document.getElementById('mode-mapping-left') as HTMLDivElement;
+  const mappingCenter = document.getElementById('mode-mapping-center') as HTMLDivElement;
+  mappingLeft.classList.toggle('hidden', !visibility.mapping);
+  mappingCenter.classList.toggle('hidden', !visibility.mapping);
   designLeft.classList.toggle('hidden', !visibility.design);
   designRight.classList.toggle('hidden', !visibility.design);
-  matrixLeft.classList.toggle('hidden', !visibility.matrix);
-  matrixCenter.classList.toggle('hidden', !visibility.matrix);
-  matrixRight?.classList.toggle('hidden', true);
   systemLeft.classList.toggle('hidden', !visibility.system);
   systemRight.classList.toggle('hidden', !visibility.system);
   presetExplorer?.classList.toggle('hidden', mode !== 'performance');
-  macroHero?.classList.toggle('hidden', mode === 'matrix');
-  matrixControls?.classList.toggle('hidden', mode !== 'matrix');
-};
+  if (mode === 'mixer') {
+    const anchor = document.getElementById('mixer-role-weights-anchor');
+    if (anchor) {
+      anchor.innerHTML = `
+        <div class="scene-row">
+          <label class="scene-inline">
+            Core
+            <input id="mix-role-core-2" type="range" min="0" max="2" step="0.05" value="${currentProject.roleWeights?.core || 1}" />
+          </label>
+          <label class="scene-inline">
+            Support
+            <input id="mix-role-support-2" type="range" min="0" max="2" step="0.05" value="${currentProject.roleWeights?.support || 1}" />
+          </label>
+          <label class="scene-inline">
+            Atmosphere
+            <input id="mix-role-atmosphere-2" type="range" min="0" max="2" step="0.05" value="${currentProject.roleWeights?.atmosphere || 1}" />
+          </label>
+        </div>
+      `;
+      const updateWeights = () => {
+        currentProject.roleWeights = {
+          core: Number((document.getElementById('mix-role-core-2') as HTMLInputElement).value),
+          support: Number((document.getElementById('mix-role-support-2') as HTMLInputElement).value),
+          atmosphere: Number((document.getElementById('mix-role-atmosphere-2') as HTMLInputElement).value)
+        };
+        // Sync back to Performance tab sliders
+        mixRoleCore.value = String(currentProject.roleWeights.core);
+        mixRoleSupport.value = String(currentProject.roleWeights.support);
+        mixRoleAtmosphere.value = String(currentProject.roleWeights.atmosphere);
+      };
+      document.getElementById('mix-role-core-2')?.addEventListener('input', updateWeights);
+      document.getElementById('mix-role-support-2')?.addEventListener('input', updateWeights);
+      document.getElementById('mix-role-atmosphere-2')?.addEventListener('input', updateWeights);
+    }
+    mixerPanel?.render();
+    modeDashboard?.render();
+  }
+  if (mode === 'mapping') {
+    renderMappingSources();
+  }
+  if (mode === 'scene') {
 
 const syncTempoInputs = (value: number) => {
   const normalized = Number.isFinite(value) ? value : 120;
@@ -852,6 +1018,14 @@ const renderPresetBrowser = () => {
     auditionBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       void auditionPreset(preset.path);
+    });
+
+    // Hover Preview Metadata
+    card.addEventListener('mouseenter', () => {
+        setStatus(`Preview: ${preset.name} [${preset.category}] - Designed for ${preset.name.includes('DNA') ? 'Identity' : 'Performance'}`);
+    });
+    card.addEventListener('mouseleave', () => {
+        setStatus('Ready');
     });
 
     card.appendChild(thumb);
@@ -950,29 +1124,81 @@ const renderPlaylist = () => {
   }
   playlist.forEach((item, index) => {
     const row = document.createElement('div');
-    row.className = 'marker-row';
+    const isActive = playlistIndex === index && playlistActive;
+    row.className = `marker-row playlist-slot${isActive ? ' active' : ''}`;
+    
     const indexLabel = document.createElement('div');
+    indexLabel.className = 'slot-index';
     indexLabel.textContent = String(index + 1);
+    
     const name = document.createElement('div');
+    name.className = 'slot-name';
     name.textContent = item.name;
+
+    const durLabel = document.createElement('label');
+    durLabel.className = 'slot-inline';
+    durLabel.innerHTML = `<span class="slot-mini-label">Dur</span>`;
+    const durationInput = document.createElement('input');
+    durationInput.type = 'number';
+    durationInput.className = 'slot-input';
+    durationInput.value = String(item.duration);
+    durationInput.min = '1';
+    durationInput.addEventListener('change', () => {
+      item.duration = Math.max(1, Number(durationInput.value) || 16);
+      savePlaylist();
+    });
+    durLabel.appendChild(durationInput);
+
+    const fadeLabel = document.createElement('label');
+    fadeLabel.className = 'slot-inline';
+    fadeLabel.innerHTML = `<span class="slot-mini-label">Fade</span>`;
+    const fadeInput = document.createElement('input');
+    fadeInput.type = 'number';
+    fadeInput.className = 'slot-input';
+    fadeInput.value = String(item.crossfade);
+    fadeInput.min = '0';
+    fadeInput.step = '0.5';
+    fadeInput.addEventListener('change', () => {
+      item.crossfade = Math.max(0, Number(fadeInput.value) || 2);
+      savePlaylist();
+    });
+    fadeLabel.appendChild(fadeInput);
+
+    const controls = document.createElement('div');
+    controls.className = 'slot-controls';
+
+    const playNow = document.createElement('button');
+    playNow.className = 'slot-trigger';
+    playNow.textContent = '▶';
+    playNow.title = 'Trigger slot';
+    playNow.addEventListener('click', () => {
+      void triggerPlaylistSlot(index);
+    });
+
     const remove = document.createElement('button');
     remove.textContent = '✕';
+    remove.className = 'slot-remove';
     remove.addEventListener('click', () => {
       playlist = playlist.filter((_entry, i) => i !== index);
       if (playlistIndex >= playlist.length) playlistIndex = 0;
       savePlaylist();
       renderPlaylist();
     });
+
     row.appendChild(indexLabel);
     row.appendChild(name);
-    row.appendChild(remove);
+    row.appendChild(durLabel);
+    row.appendChild(fadeLabel);
+    controls.appendChild(playNow);
+    controls.appendChild(remove);
+    row.appendChild(controls);
     playlistList.appendChild(row);
   });
 };
 
 const stopPlaylist = () => {
   if (playlistTimer !== null) {
-    window.clearInterval(playlistTimer);
+    window.clearTimeout(playlistTimer);
     playlistTimer = null;
   }
 };
@@ -986,10 +1212,10 @@ const applyPresetPath = async (path: string, reason?: string) => {
     await ensureSafeVisuals(traceId, result.error);
     return;
   }
-  if (result.project) {
+  if (result.preset) {
     // Migrate preset if needed
     const presetMigration = await import('../shared/presetMigration');
-    const migrationResult = presetMigration.migratePreset(result.project);
+    const migrationResult = presetMigration.migratePreset(result.preset);
 
     if (!migrationResult.success) {
       const reasonText = migrationResult.errors.join(', ');
@@ -1023,8 +1249,8 @@ const applyPresetPath = async (path: string, reason?: string) => {
     const migratedProject = migrationResult.preset;
 
     // If preset is v3, convert to v2 format for current application
-    if (migratedProject.version === 3) {
-      const applyResult = presetMigration.applyPresetV3(migratedProject, currentProject);
+    if (migratedProject.version === 4) {
+      const applyResult = presetMigration.applyPresetV4(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
       }
@@ -1100,6 +1326,55 @@ const applyPresetPath = async (path: string, reason?: string) => {
         const resolvedProject = applyPlaylistOverrides(applyResult.project);
         await applyProject(resolvedProject);
       }
+    } else if (migratedProject.version === 6) {
+      const applyResult = presetMigration.applyPresetV6(migratedProject, currentProject);
+      if (applyResult.warnings.length > 0) {
+        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+      }
+      logPresetDebug(
+        traceId,
+        'Resolved engine performance (V6)',
+        serializePresetPayload({
+          activeEngineId: applyResult.project?.activeEngineId,
+          activeModeId: applyResult.project?.activeModeId,
+          roleWeights: applyResult.project?.roleWeights,
+          tempoSync: applyResult.project?.tempoSync,
+          scenes: applyResult.project?.scenes?.length ?? 0
+        })
+      );
+      if (applyResult.project) {
+        const resolvedProject = applyPlaylistOverrides(applyResult.project);
+        await applyProject(resolvedProject);
+      }
+    } else if (migratedProject.version === 3) {
+      const applyResult = presetMigration.applyPresetV3(migratedProject, currentProject);
+      if (applyResult.warnings.length > 0) {
+        logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+      }
+      logPresetDebug(
+        traceId,
+        'Resolved preset project',
+        serializePresetPayload({
+          activeSceneId: applyResult.project?.activeSceneId,
+          scenes: applyResult.project?.scenes?.map((scene: any) => ({
+            id: scene.id,
+            name: scene.name,
+            layers: scene.layers?.map((layer: any) => ({
+              id: layer.id,
+              enabled: layer.enabled,
+              opacity: layer.opacity,
+              blendMode: layer.blendMode,
+              params: layer.params
+            }))
+          })),
+          modMatrix: applyResult.project?.modMatrix?.length ?? 0,
+          macros: applyResult.project?.macros?.length ?? 0
+        })
+      );
+      if (applyResult.project) {
+        const resolvedProject = applyPlaylistOverrides(applyResult.project);
+        await applyProject(resolvedProject);
+      }
     } else {
       logPresetDebug(
         traceId,
@@ -1155,14 +1430,21 @@ const auditionPreset = async (path: string) => {
 
 const advancePlaylist = async () => {
   if (playlist.length === 0) return;
-  const item = playlist[playlistIndex];
+  
+  // Advance index
   playlistIndex = (playlistIndex + 1) % playlist.length;
-  const fadeSeconds = Math.max(0, Number(playlistFadeSeconds.value) || 0);
-  if (fadeSeconds > 0) {
-    setStatus(`Transitioning to ${item.name}...`);
-    await crossfadeToPreset(item.path, item.name, fadeSeconds);
-  } else {
-    await applyPresetPath(item.path, 'Playlist');
+  const item = playlist[playlistIndex];
+  
+  setStatus(`Sequencing: ${item.name}...`);
+  await triggerPlaylistSlot(playlistIndex);
+  
+  // Schedule next if still active
+  if (playlistActive) {
+    if (playlistTimer) window.clearTimeout(playlistTimer);
+    const durationMs = (item.duration || 16) * 1000;
+    playlistTimer = window.setTimeout(() => {
+      void advancePlaylist();
+    }, durationMs);
   }
 };
 
@@ -1563,7 +1845,6 @@ const midiTargetOptions = [
   { id: 'sdf.edge', label: 'SDF Edge' },
   { id: 'sdf.glow', label: 'SDF Glow' },
   { id: 'sdf.rotation', label: 'SDF Rotation' },
-  { id: 'sdf.fill', label: 'SDF Fill' },
   { id: 'macro-1', label: 'Macro 1' },
   { id: 'macro-2', label: 'Macro 2' },
   { id: 'macro-3', label: 'Macro 3' },
@@ -1571,7 +1852,15 @@ const midiTargetOptions = [
   { id: 'macro-5', label: 'Macro 5' },
   { id: 'macro-6', label: 'Macro 6' },
   { id: 'macro-7', label: 'Macro 7' },
-  { id: 'macro-8', label: 'Macro 8' }
+  { id: 'macro-8', label: 'Macro 8' },
+  { id: 'playlist-slot-1', label: 'Playlist Slot 1' },
+  { id: 'playlist-slot-2', label: 'Playlist Slot 2' },
+  { id: 'playlist-slot-3', label: 'Playlist Slot 3' },
+  { id: 'playlist-slot-4', label: 'Playlist Slot 4' },
+  { id: 'playlist-slot-5', label: 'Playlist Slot 5' },
+  { id: 'playlist-slot-6', label: 'Playlist Slot 6' },
+  { id: 'playlist-slot-7', label: 'Playlist Slot 7' },
+  { id: 'playlist-slot-8', label: 'Playlist Slot 8' }
 ];
 
 const normalizeOutputScale = (value: number) => Math.min(1, Math.max(0.25, value));
@@ -2613,6 +2902,105 @@ const formatTimestamp = (timeMs: number) => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+const renderMappingSources = () => {
+  const anchor = document.getElementById('mapping-sources-anchor');
+  if (!anchor) return;
+  anchor.innerHTML = '<h3>Sources</h3>';
+  
+  const sources = [
+    { id: 'engine.low', label: 'Engine Low' },
+    { id: 'engine.mid', label: 'Engine Mid' },
+    { id: 'engine.high', label: 'Engine High' },
+    { id: 'audio.rms', label: 'Audio RMS' },
+    { id: 'audio.strobe', label: 'Strobe' },
+    { id: 'lfo-1', label: 'LFO 1' },
+    { id: 'lfo-2', label: 'LFO 2' },
+    { id: 'env-1', label: 'Env 1' },
+    { id: 'macro-1', label: 'Energy' },
+    { id: 'macro-2', label: 'Motion' }
+  ];
+
+  const list = document.createElement('div');
+  list.className = 'mapping-source-list';
+  
+  sources.forEach(source => {
+    const item = document.createElement('div');
+    item.className = 'mapping-source-chip';
+    item.textContent = source.label;
+    item.draggable = true;
+    item.dataset.sourceId = source.id;
+    
+    item.addEventListener('dragstart', (e) => {
+      e.dataTransfer?.setData('application/vs-source', source.id);
+      item.classList.add('dragging');
+    });
+    
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      document.querySelectorAll('.drop-target-active').forEach(el => el.classList.remove('drop-target-active'));
+    });
+    
+    list.appendChild(item);
+  });
+  
+  anchor.appendChild(list);
+};
+
+const initDragAndDropMapping = () => {
+  // Global drop handler for parameters
+  window.addEventListener('dragover', (e) => {
+    const target = e.target as HTMLElement;
+    const dropTarget = target.closest('[data-learn-target]');
+    if (dropTarget) {
+      e.preventDefault();
+      dropTarget.classList.add('drop-target-active');
+      
+      mappingHud.classList.remove('hidden');
+      mappingHudTitle.textContent = 'Drag to Map';
+      mappingHudTarget.textContent = `Release to map to: ${(dropTarget as HTMLElement).dataset.learnLabel || 'parameter'}`;
+    }
+  });
+
+  window.addEventListener('dragleave', (e) => {
+    const target = e.target as HTMLElement;
+    const dropTarget = target.closest('[data-learn-target]');
+    if (dropTarget) {
+      dropTarget.classList.remove('drop-target-active');
+      mappingHud.classList.add('hidden');
+    }
+  });
+
+  window.addEventListener('drop', (e) => {
+    const target = e.target as HTMLElement;
+    const dropTarget = target.closest('[data-learn-target]') as HTMLElement;
+    if (dropTarget) {
+      e.preventDefault();
+      dropTarget.classList.remove('drop-target-active');
+      mappingHud.classList.add('hidden');
+      const sourceId = e.dataTransfer?.getData('application/vs-source');
+      const targetId = dropTarget.dataset.learnTarget;
+      
+      if (sourceId && targetId) {
+        // Create new modulation connection
+        const defaults = getTargetDefaults(targetId);
+        currentProject.modMatrix.push({
+          id: `mod-drag-${Date.now()}`,
+          source: sourceId,
+          target: targetId,
+          amount: 0.5,
+          curve: 'linear',
+          smoothing: 0.1,
+          bipolar: false,
+          min: defaults.min,
+          max: defaults.max
+        });
+        renderModMatrix();
+        setStatus(`Mapped ${sourceId} to ${dropTarget.dataset.learnLabel || targetId}`);
+      }
+    }
+  });
 };
 
 const renderMarkers = () => {
@@ -3799,9 +4187,11 @@ const updateEnvelopes = (dt: number) => {
     const triggerValue =
       env.trigger === 'audio.peak'
         ? audioState.peak
-        : env.trigger === 'strobe'
-          ? strobeIntensity
-          : 0;
+        : env.trigger === 'engine.low'
+          ? audioState.energyLow
+          : env.trigger === 'strobe'
+            ? strobeIntensity
+            : 0;
     if (env.trigger !== 'manual') {
       if (triggerValue >= env.threshold && state.triggerArmed) {
         state.stage = 'attack';
@@ -4136,9 +4526,15 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
 const applyScene = (sceneId: string) => {
   const scene = currentProject.scenes.find((item) => item.id === sceneId);
   if (!scene) return;
-  const previousSceneId = currentProject.activeSceneId;
-  const previousScene = currentProject.scenes.find((item) => item.id === previousSceneId) ?? null;
-  const fromSnapshot = previousSceneId ? captureSceneSnapshot(currentProject, previousSceneId) : null;
+
+  // Trigger Visual Transition based on Scene settings
+  if (scene.transition_in) {
+    const tMap: Record<string, number> = { fade: 1, crossfade: 1, warp: 2, glitch: 3, dissolve: 4 };
+    currentTransitionType = tMap[scene.transition_in.type || 'fade'] || 1;
+    currentTransitionAmount = 1.0;
+    currentTransitionDecay = 1.0 / (scene.transition_in.durationMs || 600);
+  }
+
   currentProject = { ...currentProject, activeSceneId: sceneId };
   if (scene.look) {
     currentProject = {
@@ -4173,6 +4569,9 @@ const applyScene = (sceneId: string) => {
   sceneManager.markSceneActivated(transportTimeMs);
   paletteApplyToggle.checked = Boolean(scene.look?.activePaletteId);
   sceneSelect.value = sceneId;
+  if (sceneTransitionTypeSelect) {
+    sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
+  }
   renderLayerList();
   syncPerformanceToggles();
   renderSceneStrip();
@@ -4190,27 +4589,44 @@ const addSceneFromPreset = async (presetPath: string) => {
     return null;
   }
 
-  // Migrate preset to latest version (V5)
+  if (!result.preset) {
+    const reasonText = 'Preset load returned no data.';
+    setStatus(reasonText);
+    await ensureSafeVisuals(traceId, reasonText);
+    return null;
+  }
+
   const presetMigration = await import('../shared/presetMigration');
-  const migrationResult = presetMigration.migratePreset(result.project);
+  const migrationResult = presetMigration.migratePreset(result.preset);
   if (!migrationResult.success) {
-    const reasonText = migrationResult.errors.join(', ');
+    const reasonText = migrationResult.errors.join(', ') || 'Preset migration failed.';
     setStatus(`Preset migration failed: ${reasonText}`);
     await ensureSafeVisuals(traceId, reasonText);
     return null;
   }
 
-  const migratedProject = migrationResult.preset;
+  const migratedPreset = migrationResult.preset;
+  let sourceProject: VisualSynthProject | null = null;
 
-  if (!migratedProject.scenes || migratedProject.scenes.length === 0) {
+  if (migratedPreset.version === 4) {
+    const applyResult = presetMigration.applyPresetV4(migratedPreset, currentProject);
+    sourceProject = applyResult.project ?? null;
+  } else if (migratedPreset.version === 3) {
+    const applyResult = presetMigration.applyPresetV3(migratedPreset, currentProject);
+    sourceProject = applyResult.project ?? null;
+  } else {
+    sourceProject = migratedPreset as VisualSynthProject;
+  }
+
+  if (!sourceProject || sourceProject.scenes.length === 0) {
     const reasonText = 'Preset has no scenes to add.';
     setStatus(reasonText);
     await ensureSafeVisuals(traceId, reasonText);
     return null;
   }
   const sourceScene =
-    migratedProject.scenes.find((scene: any) => scene.id === migratedProject.activeSceneId) ??
-    migratedProject.scenes[0];
+    sourceProject.scenes.find((scene) => scene.id === sourceProject?.activeSceneId) ??
+    sourceProject.scenes[0];
   const presetName = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
   const assetIdMap = new Map<string, string>();
   const referencedAssetIds = new Set<string>();
@@ -4218,9 +4634,9 @@ const addSceneFromPreset = async (presetPath: string) => {
     const assetId = (layer as LayerConfig & { assetId?: string }).assetId;
     if (assetId) referencedAssetIds.add(assetId);
   });
-  if (migratedProject.assets && migratedProject.assets.length > 0 && referencedAssetIds.size > 0) {
+  if (sourceProject.assets && sourceProject.assets.length > 0 && referencedAssetIds.size > 0) {
     const nextAssets = [...currentProject.assets];
-    migratedProject.assets.forEach((asset: any) => {
+    sourceProject.assets.forEach((asset) => {
       if (!referencedAssetIds.has(asset.id)) return;
       const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
       const newId = hasCollision ? getNextAssetId() : asset.id;
@@ -4231,16 +4647,16 @@ const addSceneFromPreset = async (presetPath: string) => {
     renderAssets();
   }
   const look: SceneLook = {
-    effects: cloneValue(migratedProject.effects || {}),
-    particles: cloneValue(migratedProject.particles || {}),
-    sdf: cloneValue(migratedProject.sdf || {}),
-    visualizer: cloneValue(migratedProject.visualizer || {}),
-    stylePresets: cloneValue(migratedProject.stylePresets || []),
-    activeStylePresetId: cloneValue(migratedProject.activeStylePresetId || ''),
-    palettes: cloneValue(migratedProject.palettes || []),
-    activePaletteId: cloneValue(migratedProject.activePaletteId || ''),
-    macros: cloneValue(migratedProject.macros || []),
-    modMatrix: cloneValue(migratedProject.modMatrix || [])
+    effects: cloneValue(sourceProject.effects || {}),
+    particles: cloneValue(sourceProject.particles || {}),
+    sdf: cloneValue(sourceProject.sdf || {}),
+    visualizer: cloneValue(sourceProject.visualizer || {}),
+    stylePresets: cloneValue(sourceProject.stylePresets || []),
+    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
+    palettes: cloneValue(sourceProject.palettes || []),
+    activePaletteId: cloneValue(sourceProject.activePaletteId || ''),
+    macros: cloneValue(sourceProject.macros || []),
+    modMatrix: cloneValue(sourceProject.modMatrix || [])
   };
   const newSceneId = getNextSceneId();
   const newScene: SceneConfig = {
@@ -5489,11 +5905,20 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
       currentProject.macros[index].value = Number(slider.value);
       updateMacroPreviews();
     }
+    return;
+  }
+  if (target.startsWith('playlist-slot-')) {
+    const index = Number(target.split('-')[2]) - 1;
+    if (value > 0.5) {
+      void triggerPlaylistSlot(index);
+    }
+    return;
   }
 };
 
 const armMidiLearn = (target: string, label: string) => {
   learnTarget = { target, label };
+  updateMappingHud();
   setStatus(`MIDI Learn: move a control for ${label}`);
 };
 
@@ -5578,8 +6003,19 @@ const initPalettes = () => {
   if (paletteSelect.value) {
     applyPaletteSelection(paletteSelect.value);
   }
+  
+  // Sync Chemistry
+  if (currentProject.colorChemistry?.includes('triadic')) chemistrySelect.value = 'triadic';
+  else if (currentProject.colorChemistry?.includes('complementary')) chemistrySelect.value = 'complementary';
+  else if (currentProject.colorChemistry?.includes('monochromatic')) chemistrySelect.value = 'monochromatic';
+  else chemistrySelect.value = 'analog';
+
   paletteSelect.onchange = () => {
     applyPaletteSelection(paletteSelect.value);
+  };
+  chemistrySelect.onchange = () => {
+    currentProject.colorChemistry = [chemistrySelect.value];
+    setStatus(`Color Chemistry set to: ${chemistrySelect.value}`);
   };
   paletteApplyToggle.onchange = () => {
     const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
@@ -5610,9 +6046,15 @@ const initMacros = () => {
   macroList.innerHTML = '';
   macroInputs = [];
   macroPreviewRows = [];
+  
+  const engineId = currentProject.activeEngineId as EngineId;
+  const engine = ENGINE_REGISTRY[engineId];
+  const engineMacroCount = engine ? engine.macros.length : 8;
+
   currentProject.macros.forEach((macro, index) => {
+    const isEngineMacro = index < engineMacroCount;
     const row = document.createElement('div');
-    row.className = 'macro-row';
+    row.className = `macro-row${!isEngineMacro ? ' macro-inactive' : ''}`;
 
     const label = document.createElement('div');
     label.className = 'macro-label';
@@ -5624,20 +6066,25 @@ const initMacros = () => {
     slider.max = '1';
     slider.step = '0.01';
     slider.value = String(macro.value);
+    slider.disabled = !isEngineMacro;
     slider.dataset.learnTarget = `macro-${index + 1}.value`;
     slider.dataset.learnLabel = macro.name || `Macro ${index + 1}`;
     slider.addEventListener('input', () => {
       macro.value = Number(slider.value);
       updateMacroPreviews();
-      syncMacroHeroFromProject();
-      syncMacrosToActiveScene();
+      // Also update hero sliders if visible
+      if (index < 4) {
+          const heroSlider = [macroEnergy, macroMotion, macroColor, macroDensity][index];
+          if (heroSlider) heroSlider.value = slider.value;
+      }
     });
 
     const learn = document.createElement('button');
     learn.className = 'macro-learn';
     learn.textContent = 'Learn';
+    learn.disabled = !isEngineMacro;
     learn.addEventListener('click', () => {
-      setStatus(`MIDI learn placeholder for ${macro.name}`);
+      armMidiLearn(slider.dataset.learnTarget!, slider.dataset.learnLabel!);
     });
 
     const preview = document.createElement('div');
@@ -5652,9 +6099,16 @@ const initMacros = () => {
     macroInputs.push(slider);
     macroPreviewRows.push(preview);
   });
+
+  // Update Macro Hero Grid Visibility
+  const heroItems = macroHero?.querySelectorAll('.macro-hero-item');
+  heroItems?.forEach((item, index) => {
+      (item as HTMLElement).style.opacity = index < engineMacroCount ? '1' : '0.2';
+      (item as HTMLElement).style.pointerEvents = index < engineMacroCount ? 'auto' : 'none';
+  });
+
   initLearnables();
   updateMacroPreviews();
-  syncMacroHeroFromProject();
 };
 
 const initEffects = () => {
@@ -6589,17 +7043,53 @@ const updateAudioAnalysis = () => {
     audioState.waveform[i] = (sample - 128) / 128;
   }
 
+  // Engine Grammar: Inertial Energy Accumulation
+  const engine = ENGINE_REGISTRY[currentProject.activeEngineId as EngineId];
+  if (engine) {
+    const mass = engine.grammar.mass;
+    const friction = engine.grammar.friction;
+    const elastic = engine.grammar.elasticity;
+
+    const rawLow = audioState.bands[0]; // Kick region
+    const rawMid = (audioState.bands[2] + audioState.bands[3] + audioState.bands[4]) / 3;
+    const rawHigh = (audioState.bands[6] + audioState.bands[7]) / 2;
+
+    const targetLow = Math.pow(rawLow, 2.0 / elastic);
+    const targetMid = Math.pow(rawMid, 1.5 / elastic);
+    const targetHigh = Math.pow(rawHigh, 1.0 / elastic);
+
+    // Apply smoothing based on Mass (inertia)
+    audioState.energyLow = audioState.energyLow * friction + targetLow * (1.0 - mass);
+    audioState.energyMid = audioState.energyMid * friction + targetMid * (1.0 - mass);
+    audioState.energyHigh = audioState.energyHigh * friction + targetHigh * (1.0 - mass);
+  } else {
+    audioState.energyLow = audioState.rms;
+    audioState.energyMid = audioState.rms;
+    audioState.energyHigh = audioState.rms;
+  }
+
   const now = performance.now();
   if (!spectrumPrev || spectrumPrev.length !== bufferLength) {
     spectrumPrev = new Float32Array(bufferLength);
   }
   let flux = 0;
-  for (let i = 0; i < bufferLength; i += 1) {
+  
+  // Apply Filter Range to Flux calculation
+  const startBin = beatFilterRange === 'bass' ? 0 : beatFilterRange === 'mids' ? 8 : 0;
+  const endBin = beatFilterRange === 'bass' ? 8 : beatFilterRange === 'mids' ? 32 : bufferLength;
+
+  for (let i = startBin; i < endBin; i += 1) {
     const value = data[i] / 255;
     const delta = value - spectrumPrev[i];
     if (delta > 0) flux += delta;
     spectrumPrev[i] = value;
   }
+  
+  // Track all spectrum for next frame
+  for (let i = 0; i < bufferLength; i += 1) {
+    spectrumPrev[i] = data[i] / 255;
+  }
+
   fluxHistory.push({ time: now, value: flux });
   fluxHistory = fluxHistory.filter((entry) => now - entry.time < 1000);
 
@@ -6610,12 +7100,15 @@ const updateAudioAnalysis = () => {
     fluxHistory.reduce((sum, entry) => sum + (entry.value - mean) ** 2, 0) /
     Math.max(1, fluxHistory.length);
   const std = Math.sqrt(variance);
-  const threshold = mean + std * 1.5;
+  const threshold = mean + std * beatSensitivity;
 
   if (fluxPrev > fluxPrevPrev && fluxPrev > flux && fluxPrev > threshold) {
-    onsetTimes.push(fluxPrevTime);
-    onsetTimes = onsetTimes.filter((time) => now - time < 8000);
-    glyphBeatPulse = 1;
+    if (now - lastBeatTime > beatHoldOffMs) {
+      onsetTimes.push(fluxPrevTime);
+      onsetTimes = onsetTimes.filter((time) => now - time < 8000);
+      glyphBeatPulse = 1;
+      lastBeatTime = now;
+    }
   }
   fluxPrevPrev = fluxPrev;
   fluxPrev = flux;
@@ -6716,12 +7209,12 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
       (item) => item.target !== learnTarget?.target
     );
     currentProject.midiMappings.push(mapping);
-    renderMidiMappings();
-    setStatus(`Mapped ${learnTarget.label} to ${mapping.message.toUpperCase()} ${mapping.control}`);
-    learnTarget = null;
-    return;
-  }
-
+        renderMidiMappings();
+        setStatus(`Mapped ${learnTarget.label} to ${mapping.message.toUpperCase()} ${mapping.control}`);      
+        learnTarget = null;
+        updateMappingHud();
+        return;
+      }
   const applyMappings = () => {
     currentProject.midiMappings.forEach((mapping) => {
       if (mapping.channel !== channel) return;
@@ -6758,12 +7251,13 @@ const serializePerformance = () => {
   const currentMode = VISUAL_MODES.find(m => m.id === currentProject.activeModeId) || VISUAL_MODES[0];
 
   const performance: any = {
-    version: 5,
+    version: 6,
     metadata: {
-      version: 5,
+      version: 6,
       name: currentProject.name,
       createdAt: currentProject.createdAt || now,
       updatedAt: now,
+      activeEngineId: currentProject.activeEngineId || 'engine-radial-core',
       activeModeId: currentProject.activeModeId || 'mode-cosmic',
       intendedMusicStyle: currentProject.intendedMusicStyle || 'Any',
       visualIntentTags: currentProject.visualIntentTags || [],
@@ -6792,7 +7286,7 @@ const serializePerformance = () => {
     }),
     macros: currentProject.macros.map(macro => ({
       ...macro,
-      value: macro.value // Presets save default values, but we capture current for performance state
+      value: macro.value
     }))
   };
 
@@ -6854,10 +7348,18 @@ const applyProject = async (project: VisualSynthProject) => {
   if (visualModeSelect) {
     visualModeSelect.value = normalized.activeModeId || 'mode-cosmic';
   }
+  if (engineSelect) {
+    engineSelect.value = normalized.activeEngineId || 'engine-radial-core';
+  }
   if (normalized.roleWeights) {
     mixRoleCore.value = String(normalized.roleWeights.core);
     mixRoleSupport.value = String(normalized.roleWeights.support);
     mixRoleAtmosphere.value = String(normalized.roleWeights.atmosphere);
+  }
+  if (normalized.tempoSync) {
+    syncTempoInputs(normalized.tempoSync.bpm);
+    bpmSource = normalized.tempoSync.source;
+    if (bpmSourceSelect) bpmSourceSelect.value = bpmSource;
   }
   initModulators();
   renderModulators();
@@ -7014,7 +7516,25 @@ bpmRangeSelect.addEventListener('change', () => {
 });
 
 bpmMinInput.addEventListener('change', updateBpmRangeUI);
+mappingHudCancel.addEventListener('click', () => {
+  learnTarget = null;
+  updateMappingHud();
+  setStatus('Mapping canceled.');
+});
+
 bpmMaxInput.addEventListener('change', updateBpmRangeUI);
+
+beatSensitivityInput.addEventListener('input', () => {
+  beatSensitivity = Number(beatSensitivityInput.value);
+});
+
+beatFilterSelect.addEventListener('change', () => {
+  beatFilterRange = beatFilterSelect.value as any;
+});
+
+beatHoldOffInput.addEventListener('change', () => {
+  beatHoldOffMs = Number(beatHoldOffInput.value) || 200;
+});
 
 bpmNetworkToggle.addEventListener('click', async () => {
   if (!bpmNetworkActive) {
@@ -7219,6 +7739,17 @@ styleSelect.addEventListener('change', () => {
   setStatus(`Style preset: ${styleSelect.selectedOptions[0]?.textContent ?? activeStyleId}`);
 });
 
+sceneTransitionTypeSelect.addEventListener('change', () => {
+  const scene = getActiveScene();
+  if (scene) {
+    if (!scene.transition_in) {
+      scene.transition_in = { ...DEFAULT_SCENE_TRANSITION, type: 'fade' };
+    }
+    scene.transition_in.type = sceneTransitionTypeSelect.value as any;
+    setStatus(`Scene transition set to: ${scene.transition_in.type}`);
+  }
+});
+
 [styleContrast, styleSaturation, styleShift].forEach((control) => {
   control.addEventListener('input', () => {
     applyStyleControls();
@@ -7306,6 +7837,10 @@ visualModeSelect.addEventListener('change', () => {
   applyVisualMode(visualModeSelect.value);
 });
 
+engineSelect.addEventListener('change', () => {
+  applyVisualEngine(engineSelect.value as any);
+});
+
 [mixRoleCore, mixRoleSupport, mixRoleAtmosphere].forEach((slider) => {
   slider.addEventListener('input', () => {
     if (!currentProject.roleWeights) {
@@ -7362,7 +7897,12 @@ playlistAddButton.addEventListener('click', () => {
   const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
   const exists = playlist.some((item) => item.path === presetSelect.value);
   if (!exists) {
-    playlist.push({ name, path: presetSelect.value });
+    playlist.push({ 
+      name, 
+      path: presetSelect.value,
+      duration: Number(playlistSlotSeconds.value) || 16,
+      crossfade: Number(playlistFadeSeconds.value) || 2
+    });
     savePlaylist();
     renderPlaylist();
     setStatus(`Added to playlist: ${name}`);
@@ -7383,9 +7923,12 @@ playlistPlayButton.addEventListener('click', async () => {
   playlistActive = true;
   playlistOverrides = {};
   playlistIndex = 0;
-  await advancePlaylist();
-  const slotMs = Math.max(2000, Number(playlistSlotSeconds.value) * 1000 || 16000);
-  playlistTimer = window.setInterval(() => {
+  
+  const firstItem = playlist[0];
+  await triggerPlaylistSlot(0);
+  
+  const slotMs = Math.max(2000, (firstItem.duration || 16) * 1000);
+  playlistTimer = window.setTimeout(() => {
     void advancePlaylist();
   }, slotMs);
 });
@@ -7876,6 +8419,9 @@ const buildModSources = (bpm: number, macros: MacroConfig[] = currentProject.mac
     'audio.rms': audioState.rms,
     'audio.peak': audioState.peak,
     'audio.strobe': strobeIntensity,
+    'engine.low': audioState.energyLow,
+    'engine.mid': audioState.energyMid,
+    'engine.high': audioState.energyHigh,
     'tempo.bpm': bpmNormalized,
     'lfo-1': lfoValues[0] ?? 0,
     'lfo-2': lfoValues[1] ?? 0,
@@ -7970,6 +8516,13 @@ const getRoleAudioScale = (role: keyof typeof ROLE_SETTINGS, lowFreq: number) =>
   return settings.audioScale * lowFreqScale;
 };
 
+const getChemistryModeIndex = (tags: string[] = []) => {
+  if (tags.includes('triadic')) return 1;
+  if (tags.includes('complementary')) return 2;
+  if (tags.includes('monochromatic')) return 3;
+  return 0; // analog default
+};
+
 const render = (time: number) => {
   const delta = time - lastTime;
   lastTime = time;
@@ -8060,6 +8613,24 @@ const render = (time: number) => {
   }
 
   updateAudioAnalysis();
+  if (activeMode === 'mixer') {
+    mixerPanel?.updateMeters(audioState.rms, audioState.peak, audioState.bands);
+  }
+  if (activeMode === 'performance') {
+    const updateMeter = (id: string, val: number) => {
+      const el = document.getElementById(id);
+      if (el) {
+        const height = Math.min(100, val * 150);
+        el.style.width = `${height}%`;
+        if (height > 85) el.style.background = '#ff4b4b';
+        else if (height > 60) el.style.background = '#ffd166';
+        else el.style.background = '#1ec8ff';
+      }
+    };
+    updateMeter('perf-meter-core', audioState.rms * 1.2);
+    updateMeter('perf-meter-support', audioState.bands[3] || audioState.rms);
+    updateMeter('perf-meter-atmosphere', audioState.rms * 0.6);
+  }
   updateGravityWells(time, delta * 0.001);
   updatePortals(time, delta * 0.001);
   updateMediaBursts(time, delta * 0.001);
@@ -8098,7 +8669,7 @@ const render = (time: number) => {
     
     // Transition Decay
     if (currentTransitionAmount > 0) {
-      currentTransitionAmount = Math.max(0, currentTransitionAmount - delta * 0.002);
+      currentTransitionAmount = Math.max(0, currentTransitionAmount - delta * currentTransitionDecay);
     } else {
       currentTransitionType = 0;
     }
@@ -8579,6 +9150,16 @@ const render = (time: number) => {
     roleWeights: currentProject.roleWeights || { core: 1, support: 1, atmosphere: 1 },
     transitionAmount: currentTransitionAmount,
     transitionType: currentTransitionType,
+    motionTemplate: currentMotionTemplate,
+    engineMass: (currentProject as any).engineGrammar?.mass ?? 0.5,
+    engineFriction: (currentProject as any).engineGrammar?.friction ?? 0.95,
+    engineElasticity: (currentProject as any).engineGrammar?.elasticity ?? 1.0,
+    engineGrain: (currentProject as any).engineFinish?.grain ?? 0.2,
+    engineVignette: (currentProject as any).engineFinish?.vignette ?? 1.0,
+    engineCA: (currentProject as any).engineFinish?.ca ?? 0.3,
+    maxBloom: ENGINE_REGISTRY[currentProject.activeEngineId as EngineId]?.constraints?.maxBloom ?? 1.0,
+    forceFeedback: ENGINE_REGISTRY[currentProject.activeEngineId as EngineId]?.constraints?.forceFeedback ?? false,
+    chemistryMode: getChemistryModeIndex(currentProject.colorChemistry),
     effectsEnabled: effects.enabled,
     bloom: moddedEffects.bloom,
     blur: moddedEffects.blur,
@@ -8817,6 +9398,7 @@ const init = async () => {
   initShortcuts();
   initSceneStrip();
   initPanelCollapse();
+  initDragAndDropMapping();
   initMatrixTabs();
   initLearnables();
   initSpectrumHint();
@@ -8855,6 +9437,20 @@ const init = async () => {
   initEffects();
   initParticles();
   initSdf();
+  mixerPanel = createMixerPanel({
+    store: {
+      getState: () => ({ project: currentProject }),
+      dispatch: (action: any) => { /* dummy */ }
+    } as any,
+    onLayerListChanged: () => {
+      renderLayerList();
+      syncPerformanceToggles();
+    }
+  });
+  modeDashboard = createModeDashboard({
+    store: { getState: () => ({ project: currentProject }) } as any,
+    onApplyMode: (modeId) => applyVisualMode(modeId)
+  });
   initModulators();
   renderModulators();
   renderModMatrix();

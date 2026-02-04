@@ -1,9 +1,10 @@
-export type UiMode = 'performance' | 'scene' | 'design' | 'matrix' | 'system';
+export type UiMode = 'performance' | 'scene' | 'mixer' | 'mapping' | 'design' | 'system';
 
 export const getModeVisibility = (mode: UiMode) => ({
   performance: mode === 'performance',
   scene: mode === 'scene',
+  mixer: mode === 'mixer',
+  mapping: mode === 'mapping',
   design: mode === 'design',
-  matrix: mode === 'matrix',
   system: mode === 'system'
 });

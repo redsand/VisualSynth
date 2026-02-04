@@ -1,26 +1,30 @@
 {
-  "version": 4,
+  "version": 6,
   "metadata": {
-    "version": 4,
+    "version": 6,
     "name": "Glitch Datamosh Hard",
     "createdAt": "2026-02-01T12:35:00.000Z",
-    "updatedAt": "2026-02-01T21:18:49.139Z",
+    "updatedAt": "2026-02-02T01:09:55.228Z",
     "category": "Generators",
     "compatibility": {
       "minVersion": "0.9.0"
     },
     "presetType": "scene",
-    "intendedMusicStyle": "Experimental",
+    "intendedMusicStyle": "Acid",
     "visualIntentTags": [
       "glitch",
-      "retro",
-      "distorted",
-      "digital"
+      "fractal"
     ],
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "activeModeId": "mode-acid",
+    "colorChemistry": [
+      "analog",
+      "shifting"
+    ],
+    "activeEngineId": "engine-radial-core"
   },
   "scenes": [
     {
@@ -439,6 +443,15 @@
     }
   ],
   "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
   "modulations": [],
   "macros": []
 }

@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { PARAMETER_REGISTRY, getLayerType, getParamDef, parseLegacyTarget, buildLegacyTarget } from './parameterRegistry';
 import { DEFAULT_PROJECT, DEFAULT_SCENE_TRANSITION, SceneConfig, SceneTransition, VisualSynthProject } from './project';
 import { projectSchema } from './projectSchema';
+import { ENGINE_REGISTRY, EngineId } from './engines';
 
 export const APP_VERSION = '0.9.0';
 
@@ -40,6 +41,16 @@ export interface PresetMetadataV4 extends PresetMetadata {
 
 export interface PresetMetadataV5 extends PresetMetadata {
   version: 5;
+  activeModeId: string;
+  intendedMusicStyle: string;
+  visualIntentTags: string[];
+  colorChemistry: string[];
+  defaultTransition: SceneTransition;
+}
+
+export interface PresetMetadataV6 extends PresetMetadata {
+  version: 6;
+  activeEngineId: string;
   activeModeId: string;
   intendedMusicStyle: string;
   visualIntentTags: string[];
@@ -194,11 +205,43 @@ export const presetV5Schema = z.object({
   project: projectSchema.optional()
 });
 
+export const presetV6Schema = z.object({
+  version: z.literal(6),
+  metadata: z.object({
+    version: z.literal(6),
+    name: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    category: z.string().optional(),
+    compatibility: z.object({
+      minVersion: z.string(),
+      maxVersion: z.string().optional()
+    }).optional(),
+    activeEngineId: z.string(),
+    activeModeId: z.string(),
+    intendedMusicStyle: z.string(),
+    visualIntentTags: z.array(z.string()),
+    colorChemistry: z.array(z.string()),
+    defaultTransition: z.object({
+      durationMs: z.number(),
+      curve: z.enum(['linear', 'easeInOut'])
+    })
+  }),
+  scenes: projectSchema.shape.scenes,
+  activeSceneId: z.string().optional(),
+  roleWeights: projectSchema.shape.roleWeights,
+  tempoSync: projectSchema.shape.tempoSync,
+  modulations: z.array(presetV3ModulationSchema).optional(),
+  macros: z.array(z.any()).optional(),
+  project: projectSchema.optional()
+});
+
 export type PresetV1 = z.infer<typeof presetV1Schema>;
 export type PresetV2 = z.infer<typeof presetV2Schema>;
 export type PresetV3 = z.infer<typeof presetV3Schema>;
 export type PresetV4 = z.infer<typeof presetV4Schema>;
 export type PresetV5 = z.infer<typeof presetV5Schema>;
+export type PresetV6 = z.infer<typeof presetV6Schema>;
 
 /**
  * Migration result
@@ -274,7 +317,7 @@ export const migratePreset = (preset: any): MigrationResult => {
     }
 
     // Already at latest version
-    if (preset.version === 5) {
+    if (preset.version === 6) {
       return { success: true, preset, warnings, errors };
     }
 
@@ -307,6 +350,14 @@ export const migratePreset = (preset: any): MigrationResult => {
     // Migrate from v4 to v5
     if (migratedPreset.version === 4) {
       const result = migrateV4ToV5(migratedPreset);
+      migratedPreset = result.preset;
+      warnings.push(...result.warnings);
+      errors.push(...result.errors);
+    }
+
+    // Migrate from v5 to v6
+    if (migratedPreset.version === 5) {
+      const result = migrateV5ToV6(migratedPreset);
       migratedPreset = result.preset;
       warnings.push(...result.warnings);
       errors.push(...result.errors);
@@ -535,6 +586,33 @@ const migrateV4ToV5 = (preset: PresetV4): { preset: any; warnings: string[]; err
 };
 
 /**
+ * Migrate preset from version 5 to version 6 (Engine scoped)
+ */
+const migrateV5ToV6 = (preset: PresetV5): { preset: any; warnings: string[]; errors: string[] } => {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  const presetV6: any = {
+    version: 6,
+    metadata: {
+      ...preset.metadata,
+      version: 6,
+      activeEngineId: 'engine-radial-core', // Default engine for legacy conversion
+      updatedAt: new Date().toISOString()
+    },
+    scenes: preset.scenes,
+    activeSceneId: preset.activeSceneId,
+    roleWeights: preset.roleWeights || { core: 1, support: 1, atmosphere: 1 },
+    tempoSync: preset.tempoSync || { bpm: 120, source: 'manual' },
+    modulations: preset.modulations ?? [],
+    macros: preset.macros ?? [],
+    project: preset.project
+  };
+
+  return { preset: presetV6, warnings, errors };
+};
+
+/**
  * Validate a preset against the current parameter registry
  */
 export const validatePreset = (preset: any): { valid: boolean; warnings: string[]; errors: string[] } => {
@@ -558,6 +636,14 @@ export const validatePreset = (preset: any): { valid: boolean; warnings: string[
     const parsed = presetV5Schema.safeParse(preset);
     if (!parsed.success) {
       errors.push(`Preset v5 schema invalid: ${JSON.stringify(parsed.error.format())}`);
+      return { valid: false, warnings, errors };
+    }
+  }
+
+  if (preset.version === 6) {
+    const parsed = presetV6Schema.safeParse(preset);
+    if (!parsed.success) {
+      errors.push(`Preset v6 schema invalid: ${JSON.stringify(parsed.error.format())}`);
       return { valid: false, warnings, errors };
     }
   }
@@ -904,6 +990,71 @@ export const applyPresetV5 = (preset: any, currentProject: any): { project: any;
         })) || []
       };
     });
+  }
+
+  return { project, warnings };
+};
+
+/**
+ * Apply a v6 preset (Engine Scoped) to a project.
+ */
+export const applyPresetV6 = (preset: any, currentProject: any): { project: any; warnings: string[] } => {
+  const warnings: string[] = [];
+  
+  // Scoped fresh project
+  const project: VisualSynthProject = JSON.parse(JSON.stringify(preset.project ?? currentProject ?? DEFAULT_PROJECT));
+  
+  project.activeEngineId = preset.metadata?.activeEngineId || 'engine-radial-core';
+  project.activeModeId = preset.metadata?.activeModeId || 'mode-cosmic';
+  project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
+  project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
+  project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
+  
+  if (Array.isArray(preset.scenes)) {
+    project.scenes = preset.scenes;
+    project.activeSceneId = preset.activeSceneId ?? project.scenes[0].id;
+  }
+
+  if (preset.modulations) {
+    project.modMatrix = preset.modulations.map((mod: any) => ({
+      id: `mod-v6-${Date.now()}-${Math.random()}`,
+      source: mod.source,
+      target: typeof mod.target === 'string' ? mod.target : buildLegacyTarget(mod.target.type || mod.target.layerType, mod.target.param),
+      amount: mod.amount,
+      min: mod.min,
+      max: mod.max,
+      curve: mod.curve,
+      smoothing: mod.smoothing,
+      bipolar: mod.bipolar
+    }));
+  }
+
+  if (preset.macros) {
+    const engineId = project.activeEngineId as EngineId;
+    const engine = ENGINE_REGISTRY[engineId];
+    if (engine) {
+      // Re-map macros to ensure they adhere to Engine Surface (5-7 macros)
+      project.macros = engine.macros.map((m, i) => {
+        const incoming = preset.macros.find((pm: any) => pm.name === m.name || pm.id === `macro-${i + 1}`);
+        return {
+          id: `macro-${i + 1}`,
+          name: m.name,
+          value: incoming?.value ?? m.defaultValue,
+          targets: [{ target: m.target, amount: 1.0 }]
+        };
+      });
+      // Fill remaining to 8 with empty to keep UI stable
+      for (let i = engine.macros.length; i < 8; i++) {
+        project.macros.push({
+          id: `macro-${i + 1}`,
+          name: `Macro ${i + 1}`,
+          value: 0.5,
+          targets: []
+        });
+      }
+    } else {
+      project.macros = preset.macros;
+    }
   }
 
   return { project, warnings };

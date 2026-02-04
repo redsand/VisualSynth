@@ -63,6 +63,7 @@ export type SceneIntent = 'calm' | 'pulse' | 'build' | 'chaos' | 'ambient';
 export interface SceneTransition {
   durationMs: number;
   curve: 'linear' | 'easeInOut';
+  type?: 'fade' | 'crossfade' | 'warp' | 'glitch' | 'dissolve';
 }
 
 export interface SceneTrigger {
@@ -462,6 +463,7 @@ export interface VisualSynthProject {
   midiMappings: MidiMapping[];
   activeSceneId: string;
   activeModeId: string;
+  activeEngineId: string;
   colorChemistry?: string[];
   roleWeights?: {
     core: number;
@@ -505,16 +507,18 @@ export interface SceneLook {
 }
 
 export const DEFAULT_PROJECT: VisualSynthProject = {
-  version: 3,
-  name: 'Untitled VisualSynth Project',
+  version: 6,
+  name: 'Performance Template',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   output: { ...DEFAULT_OUTPUT_CONFIG },
+  activeEngineId: 'engine-radial-core',
+  activeModeId: 'mode-cosmic',
   stylePresets: [
     {
-      id: 'style-neutral',
-      name: 'Neutral',
-      settings: { contrast: 1, saturation: 1, paletteShift: 0 }
+      id: 'style-signature',
+      name: 'Signature Glow',
+      settings: { contrast: 1.15, saturation: 1.25, paletteShift: 0.05 }
     },
     {
       id: 'style-surge',
@@ -527,7 +531,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
       settings: { contrast: 1.4, saturation: 0.7, paletteShift: -0.12 }
     }
   ],
-  activeStylePresetId: 'style-neutral',
+  activeStylePresetId: 'style-signature',
   palettes: COLOR_PALETTES,
   activePaletteId: 'heat',
   macros: [
@@ -670,13 +674,13 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     {
       id: 'env-1',
       name: 'Env 1',
+      trigger: 'engine.low',
+      threshold: 0.65,
       attack: 0.05,
       decay: 0.2,
-      sustain: 0.6,
-      release: 0.3,
-      hold: 0.4,
-      trigger: 'audio.peak',
-      threshold: 0.6
+      sustain: 0.4,
+      hold: 0.1,
+      release: 0.8
     },
     {
       id: 'env-2',
@@ -1024,6 +1028,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   midiMappings: [],
   activeSceneId: 'scene-1',
   activeModeId: 'mode-cosmic',
+  activeEngineId: 'engine-radial-core',
   colorChemistry: ['analog', 'balanced'],
   roleWeights: { core: 1, support: 1, atmosphere: 1 },
   tempoSync: { bpm: 120, source: 'manual' }

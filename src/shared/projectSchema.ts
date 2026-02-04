@@ -310,7 +310,8 @@ const expressiveFxSchema = z.object({
 
 const sceneTransitionSchema = z.object({
   durationMs: z.number(),
-  curve: z.enum(['linear', 'easeInOut'])
+  curve: z.enum(['linear', 'easeInOut']),
+  type: z.enum(['fade', 'crossfade', 'warp', 'glitch', 'dissolve']).default('fade')
 });
 
 const sceneTriggerSchema = z.object({
@@ -362,7 +363,7 @@ const envelopeSchema = z.object({
   sustain: z.number(),
   release: z.number(),
   hold: z.number(),
-  trigger: z.enum(['audio.peak', 'strobe', 'manual']),
+  trigger: z.enum(['audio.peak', 'engine.low', 'strobe', 'manual']),
   threshold: z.number()
 });
 
@@ -685,6 +686,7 @@ export const projectSchema = z.object({
   midiMappings: z.array(midiMappingSchema),
   activeSceneId: z.string(),
   activeModeId: z.string().default('mode-cosmic'),
+  activeEngineId: z.string().default('engine-radial-core'),
   colorChemistry: z.array(z.string()).default(['analog', 'balanced']),
   roleWeights: z.object({
     core: z.number().default(1),

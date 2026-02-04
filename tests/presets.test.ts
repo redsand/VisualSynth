@@ -61,6 +61,18 @@ describe('preset library', () => {
           validatedData = parsed.data;
           isValid = true;
         }
+      } else if (presetVersion === 6) {
+        // Validate v6 preset against presetV6Schema
+        const { presetV6Schema } = await import('../src/shared/presetMigration');
+        const parsed = presetV6Schema.safeParse(data);
+        if (!parsed.success) {
+          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
+        }
+        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
+        if (parsed.success) {
+          validatedData = parsed.data;
+          isValid = true;
+        }
       } else {
         // Validate v2 preset against projectSchema
         const parsed = projectSchema.safeParse(data);
@@ -112,6 +124,20 @@ describe('preset library', () => {
           expect(convertedProject.activeModeId).toBe(validatedData.metadata.activeModeId);
           expect(convertedProject.roleWeights).toBeDefined();
           expect(convertedProject.tempoSync).toBeDefined();
+        } else if (presetVersion === 6) {
+          // For v6 presets, convert to project format and validate
+          const { applyPresetV6 } = await import('../src/shared/presetMigration');
+          const { project: convertedProject, warnings } = applyPresetV6(validatedData, DEFAULT_PROJECT);
+
+          // Structural Integrity
+          expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+
+          const sceneIds = convertedProject.scenes.map((s: any) => s.id);
+          expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
+          
+          // Verify Engine scope
+          expect(convertedProject.activeEngineId).toBe(validatedData.metadata.activeEngineId);
+          expect(convertedProject.activeModeId).toBe(validatedData.metadata.activeModeId);
         } else {
           const project = validatedData;
 

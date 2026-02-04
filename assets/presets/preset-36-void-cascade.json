@@ -1,26 +1,29 @@
 {
-  "version": 4,
+  "version": 6,
   "metadata": {
-    "version": 4,
+    "version": 6,
     "name": "Void Cascade",
     "createdAt": "2026-01-26T18:16:36.205401",
-    "updatedAt": "2026-02-01T21:18:49.159Z",
+    "updatedAt": "2026-02-02T01:09:55.244Z",
     "category": "Abstract",
     "compatibility": {
       "minVersion": "0.9.0"
     },
     "presetType": "scene",
-    "intendedMusicStyle": "Dark",
+    "intendedMusicStyle": "Any",
     "visualIntentTags": [
-      "dark",
-      "moody",
-      "minimal",
-      "deep"
+      "general"
     ],
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "activeEngineId": "engine-radial-core"
   },
   "scenes": [
     {
@@ -439,6 +442,15 @@
     }
   ],
   "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
   "modulations": [],
   "macros": [
     {

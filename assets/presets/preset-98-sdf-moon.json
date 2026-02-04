@@ -1,10 +1,10 @@
 {
-  "version": 4,
+  "version": 6,
   "metadata": {
-    "version": 4,
+    "version": 6,
     "name": "SDF Crater Moon",
     "createdAt": "2026-01-27T18:35:38.951Z",
-    "updatedAt": "2026-02-01T21:18:49.196Z",
+    "updatedAt": "2026-02-02T01:09:55.274Z",
     "category": "Space",
     "compatibility": {
       "minVersion": "0.9.0"
@@ -13,14 +13,18 @@
     "intendedMusicStyle": "Ambient",
     "visualIntentTags": [
       "space",
-      "nebula",
-      "atmospheric",
       "slow"
     ],
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "triadic",
+      "deep"
+    ],
+    "activeEngineId": "engine-kaleido-pulse"
   },
   "scenes": [
     {
@@ -416,6 +420,15 @@
     }
   ],
   "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
   "modulations": [],
   "macros": []
 }

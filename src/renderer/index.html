@@ -23,10 +23,11 @@
         <div class="top-controls">
           <div id="mode-switcher" class="mode-switcher">
             <button type="button" class="mode-button active" data-mode="performance">Performance</button>
-            <button type="button" class="mode-button" data-mode="scene">Scene</button>
-            <button type="button" class="mode-button" data-mode="design">Design</button>
-            <button type="button" class="mode-button" data-mode="matrix">Matrix</button>
-            <button type="button" class="mode-button" data-mode="system">System</button>
+            <button type="button" class="mode-button" data-mode="mixer">Mixer</button>
+            <button type="button" class="mode-button" data-mode="mapping">Mapping</button>
+            <div class="mode-separator"></div>
+            <button type="button" class="mode-button secondary-mode" data-mode="scene">Design</button>
+            <button type="button" class="mode-button secondary-mode" data-mode="system">System</button>
           </div>
           <div class="transport">
             <label class="transport-label">
@@ -50,6 +51,15 @@
               <option value="mode-ignite">Ignite</option>
               <option value="mode-minimal">Minimal</option>
               <option value="mode-acid">Acid</option>
+            </select>
+          </label>
+          <label class="engine-route">
+            Visual Engine
+            <select id="engine-select">
+              <option value="engine-radial-core">Radial Energy Core</option>
+              <option value="engine-particle-flow">Particle Flow Field</option>
+              <option value="engine-kaleido-pulse">Kaleidoscopic Pulse</option>
+              <option value="engine-vapor-grid">Vapor Grid Shift</option>
             </select>
           </label>
           <div class="health-strip">
@@ -76,6 +86,7 @@
 <section class="left-panel">
           <div id="mode-performance-left" class="mode-pane">
             <h2>Performance</h2>
+            <div id="engine-description" class="engine-description">Select an engine to begin...</div>
             <div id="scene-strip" class="panel-block scene-strip">
               <div class="scene-strip-header">
                 <h3>Scene Strip</h3>
@@ -113,14 +124,17 @@
               <div class="scene-row">
                 <label class="scene-inline">
                   Core
+                  <div class="mixer-meter-container mini-meter"><div id="perf-meter-core" class="mixer-meter-fill"></div></div>
                   <input id="mix-role-core" type="range" min="0" max="2" step="0.05" value="1" />
                 </label>
                 <label class="scene-inline">
                   Support
+                  <div class="mixer-meter-container mini-meter"><div id="perf-meter-support" class="mixer-meter-fill"></div></div>
                   <input id="mix-role-support" type="range" min="0" max="2" step="0.05" value="1" />
                 </label>
                 <label class="scene-inline">
                   Atmosphere
+                  <div class="mixer-meter-container mini-meter"><div id="perf-meter-atmosphere" class="mixer-meter-fill"></div></div>
                   <input id="mix-role-atmosphere" type="range" min="0" max="2" step="0.05" value="1" />
                 </label>
               </div>
@@ -216,6 +230,13 @@
                 <button id="export-macros">Export Macros</button>
                 <button id="import-macros">Import Macros</button>
               </div>
+            </div>
+          </div>
+
+          <div id="mode-mixer-left" class="mode-pane hidden">
+            <h2>Mixer</h2>
+            <div id="mixer-panel-anchor" class="mixer-panel-container">
+              <!-- Mixer UI injected here -->
             </div>
           </div>
 
@@ -452,6 +473,15 @@
                 Palette
                 <select id="palette-select"></select>
               </label>
+              <label class="scene-label">
+                Chemistry
+                <select id="chemistry-select">
+                  <option value="analog">Analog (Smooth)</option>
+                  <option value="triadic">Triadic (Balanced)</option>
+                  <option value="complementary">Complementary (Contrast)</option>
+                  <option value="monochromatic">Monochromatic (Single)</option>
+                </select>
+              </label>
               <div id="palette-preview" class="palette-preview"></div>
               <label class="scene-label scene-label-inline">
                 <input type="checkbox" id="palette-apply-scene" /> Apply to Scene Look
@@ -548,26 +578,41 @@
             </div>
           </div>
 
-          <div id="mode-matrix-left" class="mode-pane hidden">
-            <h2>Matrix</h2>
+          <div id="mode-mapping-left" class="mode-pane hidden">
+            <h2>Mapping</h2>
             <div class="panel-block">
-              <div class="output-hint">Matrix grid is shown in the center panel.</div>
+              <div class="output-hint">Drag a Source to any parameter to create a mapping.</div>
+            </div>
+            <div id="mapping-sources-anchor" class="panel-block">
+              <h3>Sources</h3>
+              <!-- Reactive sources list -->
             </div>
           </div>
 
           <div id="mode-system-left" class="mode-pane hidden">
             <h2>System</h2>
             <div class="panel-block">
-              <h3>Devices</h3>
-              <label class="scene-label">
-                Audio Input
-                <select id="audio-device"></select>
-              </label>
-              <label class="scene-label">
-                MIDI Input
-                <select id="midi-device"></select>
-              </label>
-              <button id="toggle-midi">Enable MIDI</button>
+              <h3>Beat Tuning</h3>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Sensitivity
+                  <input id="beat-sensitivity" type="range" min="0.5" max="4" step="0.1" value="1.5" />
+                </label>
+                <label class="scene-inline">
+                  Onset Filter
+                  <select id="beat-filter">
+                    <option value="full">Full Range</option>
+                    <option value="bass" selected>Bass (0-150Hz)</option>
+                    <option value="mids">Mids (150-2kHz)</option>
+                  </select>
+                </label>
+              </div>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Hold-off (ms)
+                  <input id="beat-holdoff" type="number" min="50" max="1000" step="10" value="200" />
+                </label>
+              </div>
             </div>
             <div class="panel-block">
               <h3>Project</h3>
@@ -625,25 +670,33 @@
             </div>
           </div>
         </section>
-<section class="center-panel">
-          <div id="mode-matrix-center" class="mode-pane hidden">
-            <h2>Matrix</h2>
-            <div class="panel-block">
-              <h3>Mod Matrix</h3>
-              <div class="matrix-header">
-                <button id="mod-matrix-add">Add Mod</button>
-              </div>
-              <div id="mod-matrix-list" class="matrix-list"></div>
-            </div>
-            <div class="panel-block">
-              <h3>MIDI Mapping</h3>
-              <div class="matrix-header">
-                <button id="midi-map-add">Add Mapping</button>
-              </div>
-              <div id="midi-map-list" class="matrix-list"></div>
-            </div>
-          </div>
-          <canvas id="gl-canvas" width="1280" height="720"></canvas>
+        <section class="center-panel">
+                    <div id="mode-mapping-center" class="mode-pane hidden">
+                      <h2>Mapping</h2>
+                      <div class="panel-block">
+                        <h3>Mod Matrix</h3>
+                        <div class="matrix-header">
+                          <button id="mod-matrix-add">Add Mod</button>
+                        </div>
+                        <div id="mod-matrix-list" class="matrix-list"></div>
+                      </div>
+                      <div class="panel-block">
+                        <h3>MIDI Mapping</h3>
+                        <div class="matrix-header">
+                          <button id="midi-map-add">Add Mapping</button>
+                        </div>
+                        <div id="midi-map-list" class="matrix-list"></div>
+                      </div>
+                    </div>
+                    <div id="mapping-hud" class="mapping-hud hidden">
+                      <div class="mapping-hud-icon">⚡</div>
+                      <div class="mapping-hud-content">
+                        <div id="mapping-hud-title" class="mapping-hud-title">Mapping Mode</div>
+                        <div id="mapping-hud-target" class="mapping-hud-target">Select a target...</div>
+                      </div>
+                      <button id="mapping-hud-cancel" class="mapping-hud-cancel">✕</button>
+                    </div>
+                    <canvas id="gl-canvas" width="1280" height="720"></canvas>
           <canvas id="visualizer-canvas" width="1280" height="720"></canvas>
           <div id="fade-overlay" class="fade-overlay hidden"></div>
           <div id="quantize-hud" class="quantize-hud hidden">Switching in --</div>
@@ -743,6 +796,16 @@
               <label class="scene-label">
                 Preset
                 <select id="style-select"></select>
+              </label>
+              <label class="scene-label">
+                Transition Type
+                <select id="scene-transition-type">
+                  <option value="fade">Fade</option>
+                  <option value="crossfade">Crossfade</option>
+                  <option value="warp">Warp</option>
+                  <option value="glitch">Glitch</option>
+                  <option value="dissolve">Dissolve</option>
+                </select>
               </label>
               <div class="scene-row">
                 <label class="scene-inline">
@@ -854,6 +917,15 @@
                 <button id="marker-add">Add Marker</button>
               </div>
               <div id="marker-list" class="marker-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-mixer-right" class="mode-pane hidden">
+            <h2>Mixer Controls</h2>
+            <div class="panel-block">
+              <h3>Role Weights</h3>
+              <!-- Shared with Performance tab for consistency -->
+              <div id="mixer-role-weights-anchor"></div>
             </div>
           </div>
 

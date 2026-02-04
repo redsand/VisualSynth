@@ -1,26 +1,30 @@
 {
-  "version": 4,
+  "version": 6,
   "metadata": {
-    "version": 4,
+    "version": 6,
     "name": "Glitch Grid",
     "createdAt": "2026-01-27T18:35:38.960Z",
-    "updatedAt": "2026-02-01T21:18:49.128Z",
+    "updatedAt": "2026-02-02T01:09:55.219Z",
     "category": "Abstract",
     "compatibility": {
       "minVersion": "0.9.0"
     },
     "presetType": "scene",
-    "intendedMusicStyle": "Experimental",
+    "intendedMusicStyle": "Acid",
     "visualIntentTags": [
       "glitch",
-      "retro",
-      "distorted",
-      "digital"
+      "fractal"
     ],
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "activeModeId": "mode-acid",
+    "colorChemistry": [
+      "analog",
+      "shifting"
+    ],
+    "activeEngineId": "engine-radial-core"
   },
   "scenes": [
     {
@@ -416,6 +420,15 @@
     }
   ],
   "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
   "modulations": [],
   "macros": [
     {

@@ -1,10 +1,10 @@
 {
-  "version": 4,
+  "version": 6,
   "metadata": {
-    "version": 4,
+    "version": 6,
     "name": "Cosmic Plasma",
     "createdAt": "2026-01-25T19:05:43.040937",
-    "updatedAt": "2026-02-01T21:18:49.103Z",
+    "updatedAt": "2026-02-02T01:09:55.207Z",
     "category": "Essentials",
     "compatibility": {
       "minVersion": "0.9.0"
@@ -13,14 +13,18 @@
     "intendedMusicStyle": "Ambient",
     "visualIntentTags": [
       "space",
-      "nebula",
-      "atmospheric",
       "slow"
     ],
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "triadic",
+      "deep"
+    ],
+    "activeEngineId": "engine-radial-core"
   },
   "scenes": [
     {
@@ -439,6 +443,15 @@
     }
   ],
   "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
   "modulations": [
     {
       "source": "audio.rms",

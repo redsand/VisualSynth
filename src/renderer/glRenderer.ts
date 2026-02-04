@@ -140,7 +140,17 @@ export interface RenderState {
     atmosphere: number;
   };
   transitionAmount: number;
-  transitionType: number; // 0: none, 1: fade, 2: warp, 3: glitch
+  transitionType: number; // 0: none, 1: fade, 2: warp, 3: glitch, 4: dissolve
+  chemistryMode: number; // 0: analog, 1: triadic, 2: complementary, 3: monochromatic
+  motionTemplate: number;
+  engineMass: number;
+  engineFriction: number;
+  engineElasticity: number;
+  maxBloom: number;
+  forceFeedback: boolean;
+  engineGrain: number;
+  engineVignette: number;
+  engineCA: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -324,6 +334,16 @@ uniform float uDebugTint;
 uniform vec3 uRoleWeights; // x: core, y: support, z: atmosphere
 uniform float uTransitionAmount;
 uniform float uTransitionType;
+uniform float uChemistryMode;
+uniform float uMotionTemplate;
+uniform float uEngineMass;
+uniform float uEngineFriction;
+uniform float uEngineElasticity;
+uniform float uMaxBloom;
+uniform float uForceFeedback;
+uniform float uEngineGrain;
+uniform float uEngineVignette;
+uniform float uEngineCA;
 
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
@@ -693,6 +713,17 @@ vec3 applyContrast(vec3 color, float amount) {
 
 vec3 shiftPalette(vec3 color, float shift) {
   float angle = shift * 6.28318;
+  
+  // Apply Chemistry Constraints
+  if (uChemistryMode > 0.5 && uChemistryMode < 1.5) { // Triadic
+    angle = floor(shift * 3.0) * (6.28318 / 3.0);
+  } else if (uChemistryMode > 1.5 && uChemistryMode < 2.5) { // Complementary
+    angle = floor(shift * 2.0) * 3.14159;
+  } else if (uChemistryMode > 2.5) { // Monochromatic
+    float luma = dot(color, vec3(0.299, 0.587, 0.114));
+    return mix(vec3(luma), uPalette[0] * luma, 0.8);
+  }
+
   mat3 rot = mat3(
     0.299 + 0.701 * cos(angle) + 0.168 * sin(angle), 0.587 - 0.587 * cos(angle) + 0.330 * sin(angle), 0.114 - 0.114 * cos(angle) - 0.497 * sin(angle),
     0.299 - 0.299 * cos(angle) - 0.328 * sin(angle), 0.587 + 0.413 * cos(angle) + 0.035 * sin(angle), 0.114 - 0.114 * cos(angle) + 0.292 * sin(angle),
@@ -733,6 +764,33 @@ ${plasmaSource ?? ''}
 void main() {
   vec2 uv = vUv;
   
+  // Apply Motion Template Distortion
+  if (uMotionTemplate > 0.5 && uMotionTemplate < 1.5) { // Radial
+      vec2 centered = uv * 2.0 - 1.0;
+      float r = length(centered);
+      float a = atan(centered.y, centered.x);
+      
+      // Radial Core Semantic: Kick drives compression
+      if (uMotionTemplate > 0.9 && uMotionTemplate < 1.1) {
+          r *= (1.0 + low * 0.4); // Push outward on kick
+      }
+      
+      uv = vec2(r, a / 6.2831 + 0.5);
+  } else if (uMotionTemplate > 1.5 && uMotionTemplate < 2.5) { // Vortex
+      vec2 centered = uv * 2.0 - 1.0;
+      float r = length(centered);
+      float torque = uTime * 0.2 + mid * 2.5; // Torque driven by mids
+      float a = atan(centered.y, centered.x) + r * 3.1415 * (1.0 + sin(torque));
+      uv = vec2(cos(a), sin(a)) * r * 0.5 + 0.5;
+  } else if (uMotionTemplate > 4.5 && uMotionTemplate < 5.5) { // Organic
+      vec2 noiseOffset = vec2(fbm(uv * 2.5 + uTime * 0.15), fbm(uv * 3.0 - uTime * 0.1));
+      uv += (noiseOffset - 0.5) * 0.12;
+  } else if (uMotionTemplate > 7.5) { // Vapor
+      uv.y = 1.0 / (uv.y + 0.5); 
+      uv.x = (uv.x - 0.5) * uv.y + 0.5;
+      uv.y += uTime * 0.05; // Scents of movement
+  }
+
   // Apply Transition Distortion
   if (uTransitionAmount > 0.01) {
     if (uTransitionType > 1.5 && uTransitionType < 2.5) { // Warp
@@ -740,12 +798,17 @@ void main() {
       float dist = length(centered);
       float angle = atan(centered.y, centered.x);
       angle += uTransitionAmount * 3.1415 * (1.0 - dist);
-      float zoom = 1.0 + uTransitionAmount * 2.0;
+      float zoom = 1.0 - uTransitionAmount * 0.5;
       uv = vec2(cos(angle), sin(angle)) * dist * zoom * 0.5 + 0.5;
     } else if (uTransitionType > 2.5) { // Glitch
-      float noiseVal = hash21(vec2(floor(uv.y * 20.0), uTime * 10.0));
+      float noiseVal = hash21(vec2(floor(uv.y * 40.0), uTime * 15.0));
       if (noiseVal < uTransitionAmount) {
-        uv.x += (hash21(vec2(uTime)) - 0.5) * uTransitionAmount * 0.2;
+        uv.x += (hash21(vec2(uTime * 20.0)) - 0.5) * uTransitionAmount * 0.3;
+      }
+    } else if (uTransitionType > 3.5) { // Dissolve
+      float dNoise = noise(uv * 12.0 + uTime * 0.1);
+      if (dNoise < uTransitionAmount * 1.2) {
+        discard;
       }
     }
   }
@@ -760,6 +823,18 @@ void main() {
   float high = 0.0;
   for (int i = 24; i < 64; i += 1) { high += uSpectrum[i]; }
   high /= 40.0;
+  
+  // Engine Grammar: Inertial Energy Accumulation
+  // We use Time to simulate a decaying energy state that "charges" on audio peaks
+  float lowEnergy = pow(low, 2.0 / uEngineElasticity);
+  float midEnergy = pow(mid, 1.5 / uEngineElasticity);
+  float highEnergy = pow(high, 1.0 / uEngineElasticity);
+
+  // Apply Mass/Friction simulation (simulated via smoothing)
+  low = mix(low, lowEnergy, 1.0 - uEngineMass);
+  mid = mix(mid, midEnergy, 1.0 - uEngineMass);
+  high = mix(high, highEnergy, 1.0 - uEngineMass);
+
   low = pow(low, 1.2);
   mid = pow(mid, 1.1);
   high = pow(high, 1.0);
@@ -1051,50 +1126,21 @@ void main() {
       color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6) * uRoleWeights.y;
     }
   }
-  if (uExpressiveEnergyBloom > 0.01) {
-    float luma = dot(color, vec3(0.299, 0.587, 0.114));
-    float energy = smoothstep(
-      uExpressiveEnergyThreshold,
-      1.0,
-      luma + uRms * 0.45 + uPeak * 0.55
-    );
-    float bloomBoost = uExpressiveEnergyAccumulation * uExpressiveEnergyBloom;
-    color += color * energy * (0.6 + low * 0.4) * bloomBoost;
-  }
-  if (uExpressiveMotionEcho > 0.01) {
-    float trail = 0.0;
-    for (int i = 0; i < 8; i += 1) { trail += uTrailSpectrum[i]; }
-    trail /= 8.0;
-    float echoMix = uExpressiveMotionEcho * (0.25 + trail * 0.75);
-    float decay = clamp(uExpressiveMotionEchoDecay, 0.0, 1.0);
-    float pulse = 0.5 + 0.5 * sin(uTime * 0.8 + dot(uv, vec2(6.0, 4.0)));
-    float warp = clamp(uExpressiveMotionEchoWarp, 0.0, 1.0);
-    vec2 warpVec = vec2(
-      sin(uTime * (0.6 + warp) + uv.y * 4.0),
-      cos(uTime * (0.5 + warp * 0.8) + uv.x * 3.0)
-    ) * warp * 0.03;
-    vec3 echoTint = shiftPalette(color, (low - high) * 0.15 + pulse * 0.05);
-    vec3 echoColor = mix(color, echoTint, 0.35 + pulse * 0.25);
-    echoColor += vec3(warpVec.x, warpVec.y, -warpVec.x) * 0.15;
-    echoColor *= 0.85 + pulse * 0.2;
-    color = mix(color, echoColor, echoMix * (1.0 - decay));
-  }
-  if (uExpressiveSpectralSmear > 0.01) {
-    float smear = uExpressiveSpectralSmear;
-    float offset = uExpressiveSpectralOffset * 0.02;
-    float mixAmt = uExpressiveSpectralMix;
-    vec2 dir = normalize(vec2(mid - low, high - mid) + 0.0001);
-    float phase = sin(uTime * 0.4 + dot(uv, dir) * 12.0);
-    float channelShift = phase * offset * (0.4 + smear);
-    vec3 displaced = vec3(
-      color.r + channelShift * (0.5 + high),
-      color.g - channelShift * (0.4 + mid),
-      color.b + channelShift * (0.3 + low)
-    );
-    color = mix(color, clamp(displaced, 0.0, 1.0), smear * mixAmt);
-  }
   color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
-  if (uEffectsEnabled > 0.5) { color += pow(color, vec3(2.0)) * uBloom; color = posterize(color, uPosterize); }
+
+  // Opinionated Engine Glow (HDR-style accumulation)
+  if (uEffectsEnabled > 0.5) {
+      vec3 glow = pow(color, vec3(2.2)) * uBloom * uMaxBloom;
+      glow *= (0.7 + high * 0.5); // Boost glow based on spectral energy
+      color += glow;
+      
+      if (uForceFeedback > 0.5) {
+          color = mix(color, color * color, 0.15 * low); // Organic feedback-like saturation
+      }
+      
+      color = posterize(color, uPosterize);
+  }
+
   if (uEffectsEnabled > 0.5 && uChroma > 0.01) color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
   if (uEffectsEnabled > 0.5 && uBlur > 0.01) color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
   color = shiftPalette(color, uPaletteShift);
@@ -1103,6 +1149,28 @@ void main() {
   color = color / (vec3(1.0) + color);
   color = pow(color, vec3(1.0 / 1.35));
   color *= uGlobalColor;
+
+  // --- Engine Finish (Aesthetic Polish) ---
+  // 1. Chromatic Aberration
+  if (uEngineCA > 0.01) {
+      float ca = uEngineCA * 0.015;
+      vec2 dist = uv - 0.5;
+      color.r = mix(color.r, color.r + ca * dist.x, 0.5);
+      color.b = mix(color.b, color.b - ca * dist.y, 0.5);
+  }
+
+  // 2. Film Grain
+  if (uEngineGrain > 0.01) {
+      float grain = hash21(uv + uTime) * uEngineGrain * 0.08;
+      color += grain;
+  }
+
+  // 3. Vignette
+  if (uEngineVignette > 0.01) {
+      float vig = length(uv - 0.5);
+      color *= smoothstep(0.8, 0.2, vig * uEngineVignette);
+  }
+
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);
 }
@@ -1348,6 +1416,16 @@ void main() {
     gl.uniform3f(getLocation('uRoleWeights'), state.roleWeights.core, state.roleWeights.support, state.roleWeights.atmosphere);
     gl.uniform1f(getLocation('uTransitionAmount'), state.transitionAmount);
     gl.uniform1f(getLocation('uTransitionType'), state.transitionType);
+    gl.uniform1f(getLocation('uChemistryMode'), state.chemistryMode);
+    gl.uniform1f(getLocation('uMotionTemplate'), state.motionTemplate);
+    gl.uniform1f(getLocation('uEngineMass'), state.engineMass);
+    gl.uniform1f(getLocation('uEngineFriction'), state.engineFriction);
+    gl.uniform1f(getLocation('uEngineElasticity'), state.engineElasticity);
+    gl.uniform1f(getLocation('uMaxBloom'), state.maxBloom);
+    gl.uniform1f(getLocation('uForceFeedback'), state.forceFeedback ? 1.0 : 0.0);
+    gl.uniform1f(getLocation('uEngineGrain'), state.engineGrain);
+    gl.uniform1f(getLocation('uEngineVignette'), state.engineVignette);
+    gl.uniform1f(getLocation('uEngineCA'), state.engineCA);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
     const pLoc = gl.getAttribLocation(prog, 'position');

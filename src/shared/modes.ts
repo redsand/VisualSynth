@@ -1,7 +1,7 @@
 import { ColorPalette, SceneTransition, COLOR_PALETTES } from './project';
 
-export type MotionTemplate = 'linear' | 'radial' | 'vortex' | 'fractal' | 'grid' | 'organic' | 'data' | 'strobe';
-export type TransitionType = 'fade' | 'crossfade' | 'warp' | 'glitch';
+export type MotionTemplate = 'linear' | 'radial' | 'vortex' | 'fractal' | 'grid' | 'organic' | 'data' | 'strobe' | 'vapor';
+export type TransitionType = 'fade' | 'crossfade' | 'warp' | 'glitch' | 'dissolve';
 
 export interface AudioMappingDefault {
   source: string;
