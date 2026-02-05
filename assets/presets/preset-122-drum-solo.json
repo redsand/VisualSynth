@@ -1,0 +1,102 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Drum Solo",
+    "createdAt": "2026-02-05T23:21:07.530Z",
+    "updatedAt": "2026-02-05T23:21:07.530Z",
+    "category": "Rock",
+    "compatibility": {
+      "minVersion": "1.1.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Rock",
+    "visualIntentTags": [
+      "rock",
+      "energy",
+      "new"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-rock",
+    "colorChemistry": [
+      "complementary"
+    ],
+    "activeEngineId": "engine-rock"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-strobe-1",
+          "name": "Strobe",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-strobe",
+          "params": {
+            "rate": 8,
+            "mode": 0
+          }
+        },
+        {
+          "id": "layer-burst-1",
+          "name": "Shape Burst",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-shape-burst",
+          "params": {
+            "shape": 1,
+            "expandSpeed": 3,
+            "thickness": 0.05
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.4,
+    "blur": 0.1,
+    "chroma": 0.2,
+    "posterize": 0.1,
+    "kaleidoscope": 0,
+    "feedback": 0.1,
+    "persistence": 0.2
+  },
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "strobe-1",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": []
+}

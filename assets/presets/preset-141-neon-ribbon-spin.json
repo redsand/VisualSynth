@@ -1,0 +1,88 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Neon Ribbon Spin",
+    "createdAt": "2026-02-05T23:30:27.260Z",
+    "updatedAt": "2026-02-05T23:30:27.260Z",
+    "category": "Immersion",
+    "compatibility": {
+      "minVersion": "1.2.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Electronic/Rock",
+    "visualIntentTags": [
+      "immersion",
+      "tunnel",
+      "weaving"
+    ],
+    "defaultTransition": {
+      "durationMs": 800,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-performance",
+    "colorChemistry": [
+      "analog"
+    ],
+    "activeEngineId": "engine-immersion"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-ribbon-spin",
+          "name": "Twisting Ribbons",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-ribbon-tunnel",
+          "params": {
+            "speed": 2,
+            "twist": 2.5
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.6,
+    "blur": 0.02,
+    "chroma": 0.4,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.2,
+    "persistence": 0.4
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "ribbon-tunnel",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.7,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "macros": []
+}

@@ -1,0 +1,102 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Electric Arena",
+    "createdAt": "2026-02-05T23:24:12.008Z",
+    "updatedAt": "2026-02-05T23:24:12.008Z",
+    "category": "Rock Pro",
+    "compatibility": {
+      "minVersion": "1.1.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Rock/Metal/Synth",
+    "visualIntentTags": [
+      "rock",
+      "pro",
+      "new-gen"
+    ],
+    "defaultTransition": {
+      "durationMs": 400,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-performance",
+    "colorChemistry": [
+      "vibrant"
+    ],
+    "activeEngineId": "engine-rock-ultra"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-arc-1",
+          "name": "Tesla Coil",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-electric-arc",
+          "params": {
+            "radius": 0.6,
+            "chaos": 2
+          }
+        },
+        {
+          "id": "layer-lightning-bg",
+          "name": "Background Bolts",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "add",
+          "generatorId": "gen-lightning",
+          "params": {
+            "speed": 1,
+            "branches": 2,
+            "color": 2
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.5,
+    "blur": 0.05,
+    "chroma": 0.3,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.15,
+    "persistence": 0.3
+  },
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "arc-1",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": []
+}

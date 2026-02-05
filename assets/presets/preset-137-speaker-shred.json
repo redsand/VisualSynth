@@ -1,0 +1,100 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Speaker Shred",
+    "createdAt": "2026-02-05T23:24:12.012Z",
+    "updatedAt": "2026-02-05T23:24:12.012Z",
+    "category": "Rock Pro",
+    "compatibility": {
+      "minVersion": "1.1.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Rock/Metal/Synth",
+    "visualIntentTags": [
+      "rock",
+      "pro",
+      "new-gen"
+    ],
+    "defaultTransition": {
+      "durationMs": 400,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-performance",
+    "colorChemistry": [
+      "vibrant"
+    ],
+    "activeEngineId": "engine-rock-ultra"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-speaker-extreme",
+          "name": "Max Woofer",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-speaker-cone",
+          "params": {
+            "force": 2
+          }
+        },
+        {
+          "id": "layer-ribbon-bg",
+          "name": "Back Ribbons",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "add",
+          "generatorId": "gen-pulsing-ribbons",
+          "params": {
+            "count": 2,
+            "width": 0.1
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.5,
+    "blur": 0.05,
+    "chroma": 0.3,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.15,
+    "persistence": 0.3
+  },
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "speaker-extreme",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": []
+}

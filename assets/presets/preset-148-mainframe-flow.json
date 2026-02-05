@@ -1,0 +1,100 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Mainframe Flow",
+    "createdAt": "2026-02-05T23:34:56.108Z",
+    "updatedAt": "2026-02-05T23:34:56.108Z",
+    "category": "Unique",
+    "compatibility": {
+      "minVersion": "1.3.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Any",
+    "visualIntentTags": [
+      "unique",
+      "new-gen",
+      "showcase"
+    ],
+    "defaultTransition": {
+      "durationMs": 1000,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-performance",
+    "colorChemistry": [
+      "triadic"
+    ],
+    "activeEngineId": "engine-unique"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-data-1",
+          "name": "Digital Rain",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-data-stream",
+          "params": {
+            "speed": 1.5
+          }
+        },
+        {
+          "id": "layer-glitch-subtle",
+          "name": "Tracking Error",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "screen",
+          "generatorId": "gen-glitch-scanline",
+          "params": {
+            "speed": 0.5,
+            "count": 2
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.4,
+    "blur": 0.05,
+    "chroma": 0.2,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.1,
+    "persistence": 0.3
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "data-stream",
+        "param": "opacity"
+      },
+      "amount": 0.4,
+      "min": 0.6,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "macros": []
+}

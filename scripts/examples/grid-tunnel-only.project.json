@@ -1,0 +1,79 @@
+{
+  "version": 6,
+  "name": "Grid Tunnel Only",
+  "createdAt": "2026-02-05T19:30:00Z",
+  "updatedAt": "2026-02-05T19:30:00Z",
+  "output": { "enabled": false, "fullscreen": false, "scale": 1 },
+  "stylePresets": [
+    { "id": "style-signature", "name": "Signature Glow", "settings": { "contrast": 1.15, "saturation": 1.25, "paletteShift": 0.05 } },
+    { "id": "style-surge", "name": "Surge", "settings": { "contrast": 1.2, "saturation": 1.4, "paletteShift": 0.08 } },
+    { "id": "style-noir", "name": "Noir", "settings": { "contrast": 1.4, "saturation": 0.7, "paletteShift": -0.12 } }
+  ],
+  "activeStylePresetId": "style-signature",
+  "palettes": [
+    { "id": "heat", "name": "Heat", "colors": ["#000000", "#ff0000", "#ff7f00", "#ffff00", "#ffffff"] },
+    { "id": "ocean", "name": "Ocean", "colors": ["#000000", "#0000ff", "#007fff", "#00ffff", "#ffffff"] },
+    { "id": "forest", "name": "Forest", "colors": ["#000000", "#004000", "#008000", "#00c000", "#ffffff"] },
+    { "id": "synthwave", "name": "Synthwave", "colors": ["#000000", "#ff00ff", "#7f00ff", "#00ffff", "#ffffff"] },
+    { "id": "industrial", "name": "Industrial", "colors": ["#000000", "#808080", "#c0c0c0", "#ffffff", "#ff0000"] },
+    { "id": "grayscale", "name": "Grayscale", "colors": ["#000000", "#404040", "#808080", "#c0c0c0", "#ffffff"] }
+  ],
+  "activePaletteId": "ocean",
+  "effects": { "enabled": false, "bloom": 0, "blur": 0, "chroma": 0, "posterize": 0, "kaleidoscope": 0, "feedback": 0, "persistence": 0 },
+  "expressiveFx": {
+    "enabled": false,
+    "energyBloom": { "enabled": false, "macro": 0.35, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "threshold": 0.55, "accumulation": 0.65 } },
+    "radialGravity": { "enabled": false, "macro": 0.3, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "strength": 0.6, "radius": 0.65, "focusX": 0.5, "focusY": 0.5 } },
+    "motionEcho": { "enabled": false, "macro": 0.3, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "decay": 0.6, "warp": 0.35 } },
+    "spectralSmear": { "enabled": false, "macro": 0.3, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "offset": 0.4, "mix": 0.6 } }
+  },
+  "particles": { "enabled": false, "density": 0.2, "speed": 0.2, "size": 0.4, "glow": 0.2 },
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0, "color": [1, 1, 1] },
+  "visualizer": { "enabled": false, "mode": "off", "opacity": 0.8, "macroEnabled": false, "macroId": 8 },
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": [],
+  "padMappings": [],
+  "timelineMarkers": [],
+  "assets": [],
+  "plugins": [],
+  "scenes": [
+    {
+      "id": "scene-grid-tunnel",
+      "name": "Grid Tunnel Only",
+      "intent": "ambient",
+      "duration": 0,
+      "layers": [
+        {
+          "id": "layer-grid-tunnel-1",
+          "name": "Grid Tunnel Generator",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-grid-tunnel",
+          "params": {
+            "opacity": 1,
+            "speed": 1.1,
+            "gridSize": 20,
+            "lineWidth": 0.02,
+            "perspective": 1,
+            "horizonY": 0.5,
+            "glow": 0.6,
+            "audioReact": 0.3,
+            "mode": 1
+          }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-grid-tunnel",
+  "activeModeId": "mode-minimal",
+  "activeEngineId": "engine-none",
+  "colorChemistry": ["analog", "balanced"],
+  "roleWeights": { "core": 1, "support": 1, "atmosphere": 1 },
+  "tempoSync": { "bpm": 120, "source": "manual" }
+}

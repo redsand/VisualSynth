@@ -1,0 +1,101 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Geo Shredder",
+    "createdAt": "2026-02-05T23:24:12.010Z",
+    "updatedAt": "2026-02-05T23:24:12.010Z",
+    "category": "Rock Pro",
+    "compatibility": {
+      "minVersion": "1.1.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Rock/Metal/Synth",
+    "visualIntentTags": [
+      "rock",
+      "pro",
+      "new-gen"
+    ],
+    "defaultTransition": {
+      "durationMs": 400,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-performance",
+    "colorChemistry": [
+      "vibrant"
+    ],
+    "activeEngineId": "engine-rock-ultra"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-geo-1",
+          "name": "Rotating Cube",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-geo-wireframe",
+          "params": {
+            "shape": 0,
+            "scale": 0.7
+          }
+        },
+        {
+          "id": "layer-oscillo-shred",
+          "name": "Waveform Overlay",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "add",
+          "generatorId": "gen-analog-oscillo",
+          "params": {
+            "thickness": 0.005,
+            "glow": 1
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.5,
+    "blur": 0.05,
+    "chroma": 0.3,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.15,
+    "persistence": 0.3
+  },
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "geo-1",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": []
+}

@@ -1,0 +1,100 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Pyro Stage",
+    "createdAt": "2026-02-05T23:24:12.009Z",
+    "updatedAt": "2026-02-05T23:24:12.009Z",
+    "category": "Rock Pro",
+    "compatibility": {
+      "minVersion": "1.1.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Rock/Metal/Synth",
+    "visualIntentTags": [
+      "rock",
+      "pro",
+      "new-gen"
+    ],
+    "defaultTransition": {
+      "durationMs": 400,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-performance",
+    "colorChemistry": [
+      "vibrant"
+    ],
+    "activeEngineId": "engine-rock-ultra"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-pyro-1",
+          "name": "Firework Burst",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-pyro-burst",
+          "params": {
+            "force": 2.5
+          }
+        },
+        {
+          "id": "layer-strobe-hit",
+          "name": "Strobe Hit",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "add",
+          "generatorId": "gen-strobe",
+          "params": {
+            "rate": 4,
+            "mode": 1
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.5,
+    "blur": 0.05,
+    "chroma": 0.3,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.15,
+    "persistence": 0.3
+  },
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "pyro-1",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": []
+}
