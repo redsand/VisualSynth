@@ -1,0 +1,163 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Pure Spectrum",
+    "createdAt": "2026-01-25T19:05:43.040937",
+    "updatedAt": "2026-02-02T01:09:55.207Z",
+    "category": "Essentials",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Any",
+    "visualIntentTags": [
+      "general"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "activeEngineId": "engine-kaleido-pulse"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.9,
+            "enabled": true,
+            "blendMode": "add",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Pulse Scene",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Audio Spectrum smoothing",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Audio Spectrum smoothing"
+    },
+    {
+      "id": "macro-2",
+      "name": "Audio Spectrum sensitivity",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Audio Spectrum sensitivity"
+    },
+    {
+      "id": "macro-3",
+      "name": "Audio Spectrum bar Width",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Audio Spectrum bar Width"
+    },
+    {
+      "id": "macro-4",
+      "name": "Audio Spectrum glow",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Audio Spectrum glow"
+    }
+  ]
+}

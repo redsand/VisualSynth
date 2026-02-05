@@ -1,0 +1,273 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Ink Flow",
+    "createdAt": "2026-01-27T00:54:34.000Z",
+    "updatedAt": "2026-02-02T01:09:55.250Z",
+    "category": "Organic",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Liquid",
+    "visualIntentTags": [
+      "organic",
+      "fluid"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-liquid",
+    "colorChemistry": [
+      "analog",
+      "smooth"
+    ],
+    "activeEngineId": "engine-particle-flow"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-plasma",
+          "layer-inkflow"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Plasma",
+          "enabled": true,
+          "opacity": 0.2,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.05,
+            "rotation": 0.04
+          },
+          "params": {
+            "opacity": 0.2,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1.05,
+              "rotation": 0.04
+            },
+            "speed": 1,
+            "scale": 1,
+            "complexity": 0.5
+          }
+        },
+        {
+          "id": "layer-inkflow",
+          "name": "Ink Flow",
+          "enabled": true,
+          "opacity": 0.75,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.75,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 1,
+            "scale": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Pulse Scene",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": [
+          "layer-inkflow"
+        ]
+      },
+      "layers": [
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-inkflow",
+          "name": "Ink Flow",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "inkflow",
+        "param": "speed"
+      },
+      "amount": 0.42,
+      "min": 0.71,
+      "max": 1.13,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    },
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.36,
+      "min": 0.82,
+      "max": 1.18,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Ink Opacity",
+      "value": 0.6,
+      "targets": [
+        {
+          "target": {
+            "type": "inkflow",
+            "param": "opacity"
+          },
+          "amount": 0.7
+        }
+      ],
+      "description": "Controls: Ink Opacity"
+    },
+    {
+      "id": "macro-2",
+      "name": "Ink Trails",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Ink Trails"
+    },
+    {
+      "id": "macro-3",
+      "name": "Flourish",
+      "value": 0.3,
+      "targets": [],
+      "description": "Controls: Flourish"
+    },
+    {
+      "id": "macro-4",
+      "name": "Soak",
+      "value": 0.3,
+      "targets": [],
+      "description": "Controls: Soak"
+    },
+    {
+      "id": "macro-5",
+      "name": "Ink Flow pressure",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Ink Flow pressure"
+    },
+    {
+      "id": "macro-6",
+      "name": "Ink Flow lifespan",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Ink Flow lifespan"
+    },
+    {
+      "id": "macro-7",
+      "name": "Macro 7",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 7"
+    },
+    {
+      "id": "macro-8",
+      "name": "Macro 8",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 8"
+    }
+  ]
+}

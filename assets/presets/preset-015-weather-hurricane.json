@@ -1,0 +1,225 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Weather Hurricane",
+    "createdAt": "2026-01-27T18:35:38.957Z",
+    "updatedAt": "2026-02-02T01:09:55.217Z",
+    "category": "Atmosphere & Terrain",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Any",
+    "visualIntentTags": [
+      "general"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "activeEngineId": "engine-particle-flow"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-weather"
+        ],
+        "atmosphere": [
+          "layer-topo"
+        ]
+      },
+      "layers": [
+        {
+          "id": "layer-topo",
+          "name": "Topo Terrain",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-weather",
+          "name": "Weather",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "normal",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Pulse Scene",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": [
+          "layer-topo",
+          "layer-weather"
+        ]
+      },
+      "layers": [
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-topo",
+          "name": "Topo Terrain",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-weather",
+          "name": "Audio Weather",
+          "role": "atmosphere",
+          "enabled": false,
+          "opacity": 0.85,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "lfo-2",
+      "target": {
+        "type": "weather",
+        "param": "speed"
+      },
+      "amount": 4,
+      "min": 1,
+      "max": 5,
+      "curve": "linear",
+      "smoothing": 0,
+      "bipolar": false
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Main Layer intensity",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Main Layer intensity"
+    },
+    {
+      "id": "macro-2",
+      "name": "Main Layer mode",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Main Layer mode"
+    },
+    {
+      "id": "macro-3",
+      "name": "Macro 3",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 3"
+    },
+    {
+      "id": "macro-4",
+      "name": "Macro 4",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 4"
+    }
+  ]
+}

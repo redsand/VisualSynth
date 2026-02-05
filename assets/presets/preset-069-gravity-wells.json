@@ -1,0 +1,216 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Gravity Wells",
+    "createdAt": "2026-01-27T00:33:29.000Z",
+    "updatedAt": "2026-02-02T01:09:55.248Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Any",
+    "visualIntentTags": [
+      "general"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "activeEngineId": "engine-radial-core"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-plasma"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Plasma",
+          "enabled": true,
+          "opacity": 0.45,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.2,
+            "rotation": 0.06
+          },
+          "params": {
+            "opacity": 0.45,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1.2,
+              "rotation": 0.06
+            },
+            "speed": 1,
+            "scale": 1,
+            "complexity": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Pulse Scene",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.48,
+      "min": 0.57,
+      "max": 1.05,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Spawn Well",
+      "value": 0,
+      "targets": [],
+      "description": "Controls: Spawn Well"
+    },
+    {
+      "id": "macro-2",
+      "name": "Destroy Well",
+      "value": 0,
+      "targets": [],
+      "description": "Controls: Destroy Well"
+    },
+    {
+      "id": "macro-3",
+      "name": "Polarity Shift",
+      "value": 0,
+      "targets": [],
+      "description": "Controls: Polarity Shift"
+    },
+    {
+      "id": "macro-4",
+      "name": "Singularity Collapse",
+      "value": 0,
+      "targets": [],
+      "description": "Controls: Singularity Collapse"
+    },
+    {
+      "id": "macro-5",
+      "name": "Shader Plasma scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
+          "amount": 1.5
+        }
+      ],
+      "description": "Controls: Shader Plasma scale"
+    },
+    {
+      "id": "macro-6",
+      "name": "Shader Plasma color Shift",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Shader Plasma color Shift"
+    },
+    {
+      "id": "macro-7",
+      "name": "Shader Plasma brightness",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Shader Plasma brightness"
+    },
+    {
+      "id": "macro-8",
+      "name": "Macro 8",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Macro 8"
+    }
+  ]
+}

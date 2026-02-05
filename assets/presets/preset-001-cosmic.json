@@ -1,0 +1,246 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Cosmic Plasma",
+    "createdAt": "2026-01-25T19:05:43.040937",
+    "updatedAt": "2026-02-02T01:09:55.207Z",
+    "category": "Essentials",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Ambient",
+    "visualIntentTags": [
+      "space",
+      "slow"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "triadic",
+      "deep"
+    ],
+    "activeEngineId": "engine-radial-core"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-plasma",
+          "layer-spectrum"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Plasma",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.95,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 1,
+            "scale": 1,
+            "complexity": 0.5
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.9,
+            "enabled": true,
+            "blendMode": "add",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Pulse Scene",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "layer-plasma"
+        ],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "role": "core",
+          "enabled": false,
+          "opacity": 0.8,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.05,
+            "rotation": 0.04
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.41,
+      "min": 0.73,
+      "max": 1.14,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Plasma Speed",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": {
+            "type": "plasma",
+            "param": "speed"
+          },
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Plasma Speed"
+    },
+    {
+      "id": "macro-2",
+      "name": "Plasma Scale",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": {
+            "type": "plasma",
+            "param": "scale"
+          },
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Plasma Scale"
+    },
+    {
+      "id": "macro-3",
+      "name": "Spectrum Intensity",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": {
+            "type": "spectrum",
+            "param": "opacity"
+          },
+          "amount": 1
+        }
+      ],
+      "description": "Controls: Spectrum Intensity"
+    },
+    {
+      "id": "macro-4",
+      "name": "Spectrum Detail",
+      "value": 0.5,
+      "targets": [],
+      "description": "Controls: Spectrum Detail"
+    }
+  ]
+}

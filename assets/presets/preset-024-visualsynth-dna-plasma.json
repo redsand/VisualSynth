@@ -1,0 +1,208 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "VisualSynth DNA - Plasma Drift",
+    "createdAt": "2026-01-26T09:05:12.177Z",
+    "updatedAt": "2026-02-02T01:09:55.221Z",
+    "category": "DNA",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Official",
+    "visualIntentTags": [
+      "dna",
+      "brand"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "analog",
+      "identity"
+    ],
+    "activeEngineId": "engine-radial-core"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-plasma"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Plasma",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.2,
+            "rotation": 0.12
+          },
+          "params": {
+            "opacity": 0.95,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1.2,
+              "rotation": 0.12
+            },
+            "params": {
+              "complexity": 6,
+              "audioReact": 0.8
+            },
+            "speed": 1,
+            "scale": 1,
+            "complexity": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Pulse Scene",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "layer-plasma"
+        ],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "role": "core",
+          "enabled": false,
+          "opacity": 0.8,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1.05,
+            "rotation": 0.04
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum Bars",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "plasma",
+        "param": "speed"
+      },
+      "amount": 0.5,
+      "min": 0.5,
+      "max": 1.5,
+      "curve": "linear",
+      "smoothing": 0.2,
+      "bipolar": false
+    },
+    {
+      "source": "lfo-1",
+      "target": {
+        "type": "plasma",
+        "param": "scale"
+      },
+      "amount": 0.4,
+      "min": 0.8,
+      "max": 1.6,
+      "curve": "linear",
+      "smoothing": 0.1,
+      "bipolar": true
+    }
+  ],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Complexity",
+      "value": 0.6,
+      "targets": [
+        {
+          "target": {
+            "type": "plasma",
+            "param": "complexity"
+          },
+          "amount": 8
+        }
+      ],
+      "description": "Inner wave detail"
+    },
+    {
+      "id": "macro-2",
+      "name": "Color Flux",
+      "value": 0.5,
+      "targets": [],
+      "description": "Spectral drift"
+    }
+  ]
+}
