@@ -1,6 +1,7 @@
 import { applyModMatrix } from '../../shared/modMatrix';
 import { buildLegacyTarget } from '../../shared/parameterRegistry';
 import { DEFAULT_PROJECT } from '../../shared/project';
+import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 
@@ -59,6 +60,13 @@ const ROLE_SETTINGS: Record<LayerRole, { audioScale: number; fxCap: number; bloo
   core: { audioScale: 1.0, fxCap: 1.0, bloomBoost: 1.15, opacityBoost: 1.05, lowFreqOnly: false },
   support: { audioScale: 0.75, fxCap: 0.75, bloomBoost: 1.0, opacityBoost: 1.0, lowFreqOnly: false },
   atmosphere: { audioScale: 0.45, fxCap: 0.5, bloomBoost: 0.9, opacityBoost: 0.95, lowFreqOnly: true }
+};
+
+const getChemistryModeIndex = (tags: string[] = []) => {
+  if (tags.includes('triadic')) return 1;
+  if (tags.includes('complementary')) return 2;
+  if (tags.includes('monochromatic')) return 3;
+  return 0;
 };
 
 const getLayerRole = (layer?: { role?: LayerRole; id?: string }): LayerRole => {
@@ -763,6 +771,27 @@ export class RenderGraph {
       saturation: modValue('style.saturation', styleSettings.saturation),
       paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + runtime.portalShift)
     };
+    const roleWeights = state.project.roleWeights ?? { core: 1, support: 1, atmosphere: 1 };
+    const engineId = state.project.activeEngineId as EngineId;
+    const engine = ENGINE_REGISTRY[engineId];
+    const templates = ['linear', 'radial', 'vortex', 'fractal', 'grid', 'organic', 'data', 'strobe', 'vapor'];
+    const motionTemplate = engine?.constraints?.preferredMotion
+      ? Math.max(0, templates.indexOf(engine.constraints.preferredMotion))
+      : 0;
+    const engineGrammar = (state.project as any).engineGrammar ?? {};
+    const engineFinish = (state.project as any).engineFinish ?? {};
+    const engineSignature = (() => {
+      if (engineId === 'engine-radial-core') return 1;
+      if (engineId === 'engine-particle-flow') return 2;
+      if (engineId === 'engine-kaleido-pulse') return 3;
+      if (engineId === 'engine-vapor-grid') return 4;
+      return 0;
+    })();
+    const maxBloom = engine?.constraints?.maxBloom ?? 1.0;
+    const forceFeedback = engine?.constraints?.forceFeedback ?? false;
+    const chemistryMode = getChemistryModeIndex(state.project.colorChemistry ?? ['analog', 'balanced']);
+    const transitionAmount = 0;
+    const transitionType = 0;
 
     const fxDeltaNow = performance.now();
     const fxDelta = (id: FxId, base: number, boost: number) =>
@@ -793,7 +822,9 @@ export class RenderGraph {
       density: modValue('particles.density', particles.density),
       speed: modValue('particles.speed', particles.speed),
       size: modValue('particles.size', particles.size),
-      glow: modValue('particles.glow', particles.glow)
+      glow: modValue('particles.glow', particles.glow),
+      turbulence: modValue('particles.turbulence', particles.turbulence ?? 0.3),
+      audioLift: modValue('particles.audioLift', particles.audioLift ?? 0.5)
     };
 
     let moddedSdf = {
@@ -1163,6 +1194,8 @@ export class RenderGraph {
       oscilloFreeze: runtime.oscilloFreeze,
       oscilloRotate: runtime.oscilloRotate,
       oscilloData: this.oscilloCapture,
+      modulatorValues: new Float32Array(16),
+      midiData: new Float32Array(256),
       plasmaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-plasma'],
       plasmaAssetAudioReact:
         state.renderSettings.assetLayerAudioReact['layer-plasma'] * getRoleAudioScale(plasmaRole, lowFreq),
@@ -1172,6 +1205,20 @@ export class RenderGraph {
       mediaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-media'],
       mediaAssetAudioReact:
         state.renderSettings.assetLayerAudioReact['layer-media'] * getRoleAudioScale(mediaRole, lowFreq),
+      roleWeights,
+      transitionAmount,
+      transitionType,
+      motionTemplate,
+      engineMass: engineGrammar.mass ?? 0.5,
+      engineFriction: engineGrammar.friction ?? 0.95,
+      engineElasticity: engineGrammar.elasticity ?? 1.0,
+      engineGrain: engineFinish.grain ?? 0.2,
+      engineVignette: engineFinish.vignette ?? 1.0,
+      engineCA: engineFinish.ca ?? 0.3,
+      engineSignature,
+      maxBloom,
+      forceFeedback,
+      chemistryMode,
       effectsEnabled: effects.enabled,
       bloom: moddedBloom,
       blur: moddedBlur,
@@ -1203,6 +1250,8 @@ export class RenderGraph {
       particleSpeed: moddedParticles.speed,
       particleSize: moddedParticles.size,
       particleGlow: moddedParticles.glow,
+      particleTurbulence: moddedParticles.turbulence,
+      particleAudioLift: moddedParticles.audioLift,
       sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf')) : sdf.enabled),
       sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
       sdfScale: moddedSdf.scale,

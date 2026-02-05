@@ -1889,6 +1889,10 @@ const midiTargetOptions = [
   { id: 'layer-media.opacity', label: 'Media Opacity' },
   { id: 'layer-media.burst', label: 'Media Burst' },
   { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity' },
+  { id: 'gen-laser-beam.opacity', label: 'Laser Opacity' },
+  { id: 'gen-laser-beam.beamWidth', label: 'Laser Beam Width' },
+  { id: 'gen-laser-beam.rotationSpeed', label: 'Laser Sweep Speed' },
+  { id: 'gen-laser-beam.colorShift', label: 'Laser Color Shift' },
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
   { id: 'style.paletteShift', label: 'Palette Shift' },
@@ -6124,6 +6128,22 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     }
     return;
   }
+  if (target === 'gen-laser-beam.opacity') {
+    midiSum[target] = scaleMidiValue(value, 0, 1);
+    return;
+  }
+  if (target === 'gen-laser-beam.beamWidth') {
+    midiSum[target] = scaleMidiValue(value, 0.2, 3);
+    return;
+  }
+  if (target === 'gen-laser-beam.rotationSpeed') {
+    midiSum[target] = scaleMidiValue(value, 0, 3);
+    return;
+  }
+  if (target === 'gen-laser-beam.colorShift') {
+    midiSum[target] = scaleMidiValue(value, 0, 1);
+    return;
+  }
   // Speed/Scale/Elevation targets - stored in midiSum
   if (target === 'layer-plasma.speed' || target === 'layer-plasma.scale') {
     midiSum[target] = scaleMidiValue(value, 0, 2);
@@ -8585,7 +8605,15 @@ const updateShapeBursts = (time: number, dt: number) => {
   const activeScene =
     currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
     currentProject.scenes[0];
-  const shapeBurstLayer = activeScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
+  const shapeBurstLayers = activeScene?.layers.filter(
+    (layer) => layer.generatorId === 'gen-shape-burst'
+  ) ?? [];
+  const shapeBurstLayer = (() => {
+    for (let i = shapeBurstLayers.length - 1; i >= 0; i -= 1) {
+      if (shapeBurstLayers[i]?.enabled) return shapeBurstLayers[i];
+    }
+    return shapeBurstLayers[0] ?? null;
+  })();
   const shapeBurstEnabled = shapeBurstLayer?.enabled ?? false;
 
   if (!shapeBurstEnabled) {
@@ -9178,6 +9206,29 @@ const render = (time: number) => {
     saturation: modValue('style.saturation', styleSettings.saturation),
     paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift)
   };
+  const macroSum = effectiveMacros.reduce(
+    (acc, macro) => {
+      macro.targets.forEach((target) => {
+        const rawTarget = target.target as
+          | string
+          | { type?: string; layerType?: string; param: string };
+        let key: string | null = null;
+        if (typeof rawTarget === 'string') {
+          key = rawTarget;
+        } else if (rawTarget && rawTarget.param) {
+          const layerType = rawTarget.type ?? rawTarget.layerType;
+          if (layerType) {
+            key = buildLegacyTarget(layerType, rawTarget.param);
+          }
+        }
+        if (!key) return;
+        acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
+      });
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+  const macroVal = (target: string) => macroSum[target] ?? 0;
   const effectsActive = effects.enabled;
   let moddedEffects = effectsActive
     ? {
@@ -9229,32 +9280,17 @@ const render = (time: number) => {
   } else {
     trailSpectrum = new Float32Array(audioState.spectrum);
   }
-  const macroSum = effectiveMacros.reduce(
-    (acc, macro) => {
-      macro.targets.forEach((target) => {
-        const rawTarget = target.target as
-          | string
-          | { type?: string; layerType?: string; param: string };
-        let key: string | null = null;
-        if (typeof rawTarget === 'string') {
-          key = rawTarget;
-        } else if (rawTarget && rawTarget.param) {
-          const layerType = rawTarget.type ?? rawTarget.layerType;
-          if (layerType) {
-            key = buildLegacyTarget(layerType, rawTarget.param);
-          }
-        }
-        if (!key) return;
-        acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
-      });
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-  const macroVal = (target: string) => macroSum[target] ?? 0;
   const renderScene =
     blendSnapshot?.scene ??
     currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
+  const getGeneratorLayers = (scene: typeof renderScene | undefined, generatorId: string) =>
+    scene?.layers.filter((layer) => layer.generatorId === generatorId) ?? [];
+  const pickTopmostEnabled = (layers: typeof renderScene extends undefined ? never : typeof renderScene.layers) => {
+    for (let i = layers.length - 1; i >= 0; i -= 1) {
+      if (layers[i]?.enabled) return layers[i];
+    }
+    return layers[0] ?? null;
+  };
   const plasmaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-plasma');
   const spectrumLayer = renderScene?.layers.find((layer) => layer.id === 'layer-spectrum');
   const origamiLayer = renderScene?.layers.find((layer) => layer.id === 'layer-origami');
@@ -9267,10 +9303,10 @@ const render = (time: number) => {
   const mediaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-media');
   const oscilloLayer = renderScene?.layers.find((layer) => layer.id === 'layer-oscillo');
   // EDM Generators
-  const laserLayer = renderScene?.layers.find((layer) => layer.id === 'gen-laser-beam');
-  const strobeLayer = renderScene?.layers.find((layer) => layer.id === 'gen-strobe');
-  const shapeBurstLayer = renderScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
-  const gridTunnelLayer = renderScene?.layers.find((layer) => layer.id === 'gen-grid-tunnel');
+  const laserLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-laser-beam'));
+  const strobeLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-strobe'));
+  const shapeBurstLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-shape-burst'));
+  const gridTunnelLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-grid-tunnel'));
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);
   const origamiRole = getLayerRole(origamiLayer);
@@ -9519,6 +9555,60 @@ const render = (time: number) => {
   const strobeEnabled = strobeLayer?.enabled ?? false;
   const shapeBurstEnabled = shapeBurstLayer?.enabled ?? false;
   const gridTunnelEnabled = gridTunnelLayer?.enabled ?? false;
+  const laserMidiOpacity = midiSum['gen-laser-beam.opacity'];
+  const laserMidiWidth = midiSum['gen-laser-beam.beamWidth'];
+  const laserMidiSpeed = midiSum['gen-laser-beam.rotationSpeed'];
+  const laserMidiColorShift = midiSum['gen-laser-beam.colorShift'];
+  const laserOpacity = Math.min(
+    1,
+    Math.max(
+      0,
+      (laserLayer?.opacity ?? 1) *
+        getLayerParamNumber(laserLayer, 'opacity', 1.0) *
+        (laserMidiOpacity ?? 1)
+    )
+  );
+  const laserBeamCount = getLayerParamNumber(laserLayer, 'beamCount', 4);
+  const laserBeamWidth = getLayerParamNumber(laserLayer, 'beamWidth', 0.02) * (laserMidiWidth ?? 1);
+  const laserBeamLength = getLayerParamNumber(laserLayer, 'beamLength', 1.0);
+  const laserRotation = getLayerParamNumber(laserLayer, 'rotation', 0);
+  const laserRotationSpeed =
+    getLayerParamNumber(laserLayer, 'rotationSpeed', 0.5) * (laserMidiSpeed ?? 1);
+  const laserSpread = getLayerParamNumber(laserLayer, 'spread', 1.57);
+  const laserMode = getLayerParamNumber(laserLayer, 'mode', 0);
+  const laserColorShift = Math.min(
+    1,
+    Math.max(0, getLayerParamNumber(laserLayer, 'colorShift', 0) + (laserMidiColorShift ?? 0))
+  );
+  const laserAudioReact = getLayerParamNumber(laserLayer, 'audioReact', 0.7);
+  const laserGlow = getLayerParamNumber(laserLayer, 'glow', 0.5);
+  const strobeOpacity =
+    (strobeLayer?.opacity ?? 1) * getLayerParamNumber(strobeLayer, 'opacity', 1.0);
+  const strobeRate = getLayerParamNumber(strobeLayer, 'rate', 4);
+  const strobeDutyCycle = getLayerParamNumber(strobeLayer, 'dutyCycle', 0.1);
+  const strobeMode = getLayerParamNumber(strobeLayer, 'mode', 0);
+  const strobePattern = getLayerParamNumber(strobeLayer, 'pattern', 0);
+  const strobeThreshold = getLayerParamNumber(strobeLayer, 'threshold', 0.6);
+  const strobeFadeOut = getLayerParamNumber(strobeLayer, 'fadeOut', 0.1);
+  const strobeAudioTrigger = (strobeLayer?.params as any)?.audioTrigger ?? true;
+  const shapeBurstOpacity =
+    (shapeBurstLayer?.opacity ?? 1) * getLayerParamNumber(shapeBurstLayer, 'opacity', 1.0);
+  const shapeBurstShape = getLayerParamNumber(shapeBurstLayer, 'shape', 0);
+  const shapeBurstExpandSpeed = getLayerParamNumber(shapeBurstLayer, 'expandSpeed', 2);
+  const shapeBurstStartSize = getLayerParamNumber(shapeBurstLayer, 'startSize', 0.05);
+  const shapeBurstMaxSize = getLayerParamNumber(shapeBurstLayer, 'maxSize', 1.5);
+  const shapeBurstThickness = getLayerParamNumber(shapeBurstLayer, 'thickness', 0.03);
+  const shapeBurstFadeMode = getLayerParamNumber(shapeBurstLayer, 'fadeMode', 2);
+  const gridTunnelOpacity =
+    (gridTunnelLayer?.opacity ?? 1) * getLayerParamNumber(gridTunnelLayer, 'opacity', 1.0);
+  const gridTunnelSpeed = getLayerParamNumber(gridTunnelLayer, 'speed', 1);
+  const gridTunnelGridSize = getLayerParamNumber(gridTunnelLayer, 'gridSize', 20);
+  const gridTunnelLineWidth = getLayerParamNumber(gridTunnelLayer, 'lineWidth', 0.02);
+  const gridTunnelPerspective = getLayerParamNumber(gridTunnelLayer, 'perspective', 1);
+  const gridTunnelHorizonY = getLayerParamNumber(gridTunnelLayer, 'horizonY', 0.5);
+  const gridTunnelGlow = getLayerParamNumber(gridTunnelLayer, 'glow', 0.5);
+  const gridTunnelAudioReact = getLayerParamNumber(gridTunnelLayer, 'audioReact', 0.3);
+  const gridTunnelMode = getLayerParamNumber(gridTunnelLayer, 'mode', 0);
   if (oscilloFreeze < 0.5) {
     oscilloCapture.set(audioState.waveform);
   }
@@ -9896,29 +9986,42 @@ const render = (time: number) => {
       maxBloom: renderState.maxBloom,
       forceFeedback: renderState.forceFeedback,
       plasmaOpacity: renderState.plasmaOpacity,
+      plasmaSpeed: renderState.plasmaSpeed,
+      plasmaScale: renderState.plasmaScale,
+      plasmaComplexity: renderState.plasmaComplexity,
+      plasmaAudioReact: renderState.plasmaAudioReact,
       spectrumOpacity: renderState.spectrumOpacity,
       origamiOpacity: renderState.origamiOpacity,
+      origamiSpeed: renderState.origamiSpeed,
       origamiFoldState: renderState.origamiFoldState,
       origamiFoldSharpness: renderState.origamiFoldSharpness,
       glyphOpacity: renderState.glyphOpacity,
+      glyphSpeed: renderState.glyphSpeed,
       glyphMode: renderState.glyphMode,
       glyphSeed: renderState.glyphSeed,
       glyphBeat: renderState.glyphBeat,
       crystalOpacity: renderState.crystalOpacity,
       crystalMode: renderState.crystalMode,
       crystalBrittleness: renderState.crystalBrittleness,
+      crystalScale: renderState.crystalScale,
+      crystalSpeed: renderState.crystalSpeed,
       inkOpacity: renderState.inkOpacity,
       inkBrush: renderState.inkBrush,
       inkPressure: renderState.inkPressure,
       inkLifespan: renderState.inkLifespan,
+      inkSpeed: renderState.inkSpeed,
+      inkScale: renderState.inkScale,
       topoOpacity: renderState.topoOpacity,
       topoQuake: renderState.topoQuake,
       topoSlide: renderState.topoSlide,
       topoPlate: renderState.topoPlate,
       topoTravel: renderState.topoTravel,
+      topoScale: renderState.topoScale,
+      topoElevation: renderState.topoElevation,
       weatherOpacity: renderState.weatherOpacity,
       weatherMode: renderState.weatherMode,
       weatherIntensity: renderState.weatherIntensity,
+      weatherSpeed: renderState.weatherSpeed,
       portalOpacity: renderState.portalOpacity,
       portalShift: renderState.portalShift,
       portalStyle: renderState.portalStyle,
@@ -9949,7 +10052,10 @@ const render = (time: number) => {
       chroma: renderState.chroma,
       posterize: renderState.posterize,
       kaleidoscope: renderState.kaleidoscope,
+      kaleidoscopeRotation: renderState.kaleidoscopeRotation,
       feedback: renderState.feedback,
+      feedbackZoom: renderState.feedbackZoom,
+      feedbackRotation: renderState.feedbackRotation,
       persistence: renderState.persistence,
       trailSpectrum: renderState.trailSpectrum,
       expressiveEnergyBloom: renderState.expressiveEnergyBloom,
@@ -9971,6 +10077,8 @@ const render = (time: number) => {
       particleSpeed: renderState.particleSpeed,
       particleSize: renderState.particleSize,
       particleGlow: renderState.particleGlow,
+      particleTurbulence: renderState.particleTurbulence,
+      particleAudioLift: renderState.particleAudioLift,
       sdfEnabled: renderState.sdfEnabled,
       sdfShape: renderState.sdfShape,
       sdfScale: renderState.sdfScale,
@@ -9984,6 +10092,48 @@ const render = (time: number) => {
       gravityPolarities: renderState.gravityPolarities,
       gravityActives: renderState.gravityActives,
       gravityCollapse: renderState.gravityCollapse,
+      // EDM Generators
+      laserEnabled: renderState.laserEnabled,
+      laserOpacity: renderState.laserOpacity,
+      laserBeamCount: renderState.laserBeamCount,
+      laserBeamWidth: renderState.laserBeamWidth,
+      laserBeamLength: renderState.laserBeamLength,
+      laserRotation: renderState.laserRotation,
+      laserRotationSpeed: renderState.laserRotationSpeed,
+      laserSpread: renderState.laserSpread,
+      laserMode: renderState.laserMode,
+      laserColorShift: renderState.laserColorShift,
+      laserAudioReact: renderState.laserAudioReact,
+      laserGlow: renderState.laserGlow,
+      strobeEnabled: renderState.strobeEnabled,
+      strobeOpacity: renderState.strobeOpacity,
+      strobeRate: renderState.strobeRate,
+      strobeDutyCycle: renderState.strobeDutyCycle,
+      strobeMode: renderState.strobeMode,
+      strobeAudioTrigger: renderState.strobeAudioTrigger,
+      strobeThreshold: renderState.strobeThreshold,
+      strobeFadeOut: renderState.strobeFadeOut,
+      strobePattern: renderState.strobePattern,
+      shapeBurstEnabled: renderState.shapeBurstEnabled,
+      shapeBurstOpacity: renderState.shapeBurstOpacity,
+      shapeBurstShape: renderState.shapeBurstShape,
+      shapeBurstExpandSpeed: renderState.shapeBurstExpandSpeed,
+      shapeBurstStartSize: renderState.shapeBurstStartSize,
+      shapeBurstMaxSize: renderState.shapeBurstMaxSize,
+      shapeBurstThickness: renderState.shapeBurstThickness,
+      shapeBurstFadeMode: renderState.shapeBurstFadeMode,
+      shapeBurstSpawnTimes: renderState.shapeBurstSpawnTimes,
+      shapeBurstActives: renderState.shapeBurstActives,
+      gridTunnelEnabled: renderState.gridTunnelEnabled,
+      gridTunnelOpacity: renderState.gridTunnelOpacity,
+      gridTunnelSpeed: renderState.gridTunnelSpeed,
+      gridTunnelGridSize: renderState.gridTunnelGridSize,
+      gridTunnelLineWidth: renderState.gridTunnelLineWidth,
+      gridTunnelPerspective: renderState.gridTunnelPerspective,
+      gridTunnelHorizonY: renderState.gridTunnelHorizonY,
+      gridTunnelGlow: renderState.gridTunnelGlow,
+      gridTunnelAudioReact: renderState.gridTunnelAudioReact,
+      gridTunnelMode: renderState.gridTunnelMode,
       roleWeights: renderState.roleWeights
     });
   }

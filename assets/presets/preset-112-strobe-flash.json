@@ -1,0 +1,363 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Strobe Flash Ride",
+    "createdAt": "2026-02-05T02:16:57.172Z",
+    "updatedAt": "2026-02-05T02:16:57.172Z",
+    "category": "EDM Generators",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "EDM",
+    "visualIntentTags": [
+      "generator",
+      "edm"
+    ],
+    "defaultTransition": {
+      "curve": "easeInOut",
+      "durationMs": 600
+    },
+    "activeModeId": "mode-minimal",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "activeEngineId": "engine-none"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "curve": "easeInOut",
+        "durationMs": 600
+      },
+      "transition_out": {
+        "curve": "easeInOut",
+        "durationMs": 600
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "support": [
+          "layer-plasma",
+          "layer-spectrum"
+        ],
+        "atmosphere": [],
+        "core": [
+          "layer-strobe-1"
+        ]
+      },
+      "layers": [
+        {
+          "id": "layer-strobe-1",
+          "name": "Strobe Flash Generator",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "y": 0,
+            "rotation": 0,
+            "scale": 1,
+            "x": 0
+          },
+          "generatorId": "gen-strobe",
+          "params": {
+            "audioTrigger": true,
+            "mode": 1,
+            "opacity": 1,
+            "dutyCycle": 0.12,
+            "fadeOut": 0.12,
+            "pattern": 0,
+            "rate": 4,
+            "threshold": 0.6
+          }
+        },
+        {
+          "id": "layer-plasma",
+          "name": "Plasma",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.65,
+          "blendMode": "screen",
+          "transform": {
+            "y": 0,
+            "rotation": 0,
+            "scale": 1,
+            "x": 0
+          },
+          "params": {
+            "scale": 1.0,
+            "opacity": 0.65,
+            "complexity": 0.5,
+            "speed": 0.9
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.75,
+          "blendMode": "add",
+          "transform": {
+            "y": 0,
+            "rotation": 0,
+            "scale": 1,
+            "x": 0
+          },
+          "params": {
+            "opacity": 0.75
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "support": 1,
+    "atmosphere": 1,
+    "core": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "project": {
+    "version": 6,
+    "name": "Strobe Flash Ride",
+    "createdAt": "2026-02-05T02:16:57.172Z",
+    "updatedAt": "2026-02-05T02:16:57.172Z",
+    "output": {
+      "fullscreen": false,
+      "scale": 1,
+      "enabled": false
+    },
+    "activeStylePresetId": "style-signature",
+    "palettes": [],
+    "activePaletteId": "heat",
+    "effects": {
+      "feedback": 0,
+      "chroma": 0,
+      "blur": 0,
+      "kaleidoscope": 0,
+      "enabled": false,
+      "bloom": 0,
+      "persistence": 0,
+      "posterize": 0
+    },
+    "expressiveFx": {
+      "spectralSmear": {
+        "intentBinding": {
+          "intent": "ambient",
+          "amount": 0.35,
+          "enabled": false
+        },
+        "expert": {
+          "mix": 0.6,
+          "offset": 0.4
+        },
+        "macro": 0.3,
+        "enabled": false
+      },
+      "radialGravity": {
+        "intentBinding": {
+          "intent": "ambient",
+          "amount": 0.35,
+          "enabled": false
+        },
+        "expert": {
+          "focusX": 0.5,
+          "strength": 0.6,
+          "focusY": 0.5,
+          "radius": 0.65
+        },
+        "macro": 0.3,
+        "enabled": false
+      },
+      "energyBloom": {
+        "intentBinding": {
+          "intent": "ambient",
+          "amount": 0.35,
+          "enabled": false
+        },
+        "expert": {
+          "threshold": 0.55,
+          "accumulation": 0.65
+        },
+        "macro": 0.35,
+        "enabled": false
+      },
+      "motionEcho": {
+        "intentBinding": {
+          "intent": "ambient",
+          "amount": 0.35,
+          "enabled": false
+        },
+        "expert": {
+          "warp": 0.35,
+          "decay": 0.6
+        },
+        "macro": 0.3,
+        "enabled": false
+      },
+      "enabled": false
+    },
+    "particles": {
+      "density": 0.2,
+      "speed": 0.2,
+      "size": 0.4,
+      "glow": 0.2,
+      "enabled": false
+    },
+    "sdf": {
+      "enabled": false,
+      "shape": "circle",
+      "edge": 0.05,
+      "glow": 0.1,
+      "rotation": 0,
+      "scale": 0.5,
+      "color": [
+        1,
+        1,
+        1
+      ],
+      "fill": 0
+    },
+    "visualizer": {
+      "mode": "off",
+      "macroEnabled": false,
+      "opacity": 0.8,
+      "macroId": 8,
+      "enabled": false
+    },
+    "lfos": [],
+    "envelopes": [],
+    "sampleHold": [],
+    "padMappings": [],
+    "timelineMarkers": [],
+    "assets": [],
+    "plugins": [],
+    "scenes": [
+      {
+        "id": "scene-1",
+        "scene_id": "scene-1",
+        "name": "Main Scene",
+        "intent": "ambient",
+        "duration": 0,
+        "transition_in": {
+          "curve": "easeInOut",
+          "durationMs": 600
+        },
+        "transition_out": {
+          "curve": "easeInOut",
+          "durationMs": 600
+        },
+        "trigger": {
+          "type": "manual"
+        },
+        "assigned_layers": {
+          "support": [
+            "layer-plasma",
+            "layer-spectrum"
+          ],
+          "atmosphere": [],
+          "core": [
+            "layer-strobe-1"
+          ]
+        },
+        "layers": [
+          {
+            "id": "layer-strobe-1",
+            "name": "Strobe Flash Generator",
+            "role": "core",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "screen",
+            "transform": {
+              "y": 0,
+              "rotation": 0,
+              "scale": 1,
+              "x": 0
+            },
+            "generatorId": "gen-strobe",
+            "params": {
+              "audioTrigger": true,
+              "mode": 1,
+              "opacity": 1,
+              "dutyCycle": 0.12,
+              "fadeOut": 0.12,
+              "pattern": 0,
+              "rate": 4,
+              "threshold": 0.6
+            }
+          },
+          {
+            "id": "layer-plasma",
+            "name": "Plasma",
+            "role": "support",
+            "enabled": true,
+            "opacity": 0.65,
+            "blendMode": "screen",
+            "transform": {
+              "y": 0,
+              "rotation": 0,
+              "scale": 1,
+              "x": 0
+            },
+            "params": {
+              "scale": 1.0,
+              "opacity": 0.65,
+              "complexity": 0.5,
+              "speed": 0.9
+            }
+          },
+          {
+            "id": "layer-spectrum",
+            "name": "Spectrum",
+            "role": "support",
+            "enabled": true,
+            "opacity": 0.75,
+            "blendMode": "add",
+            "transform": {
+              "y": 0,
+              "rotation": 0,
+              "scale": 1,
+              "x": 0
+            },
+            "params": {
+              "opacity": 0.75
+            }
+          }
+        ]
+      }
+    ],
+    "modMatrix": [],
+    "midiMappings": [],
+    "activeSceneId": "scene-1",
+    "activeModeId": "mode-minimal",
+    "activeEngineId": "engine-none",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "roleWeights": {
+      "support": 1,
+      "atmosphere": 1,
+      "core": 1
+    },
+    "tempoSync": {
+      "bpm": 120,
+      "source": "manual"
+    }
+  }
+}

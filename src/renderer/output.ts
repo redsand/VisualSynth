@@ -46,29 +46,42 @@ const state: RenderState = {
   maxBloom: 1,
   forceFeedback: false,
   plasmaOpacity: 1,
+  plasmaSpeed: 1,
+  plasmaScale: 1,
+  plasmaComplexity: 0.5,
+  plasmaAudioReact: 0.6,
   spectrumOpacity: 1,
   origamiOpacity: 0.9,
   origamiFoldState: 0,
   origamiFoldSharpness: 0.65,
+  origamiSpeed: 1,
   glyphOpacity: 0.8,
   glyphMode: 0,
   glyphSeed: 0,
   glyphBeat: 0,
+  glyphSpeed: 1,
   crystalOpacity: 0.85,
   crystalMode: 0,
   crystalBrittleness: 0.4,
+  crystalScale: 1,
+  crystalSpeed: 1,
   inkOpacity: 0.85,
   inkBrush: 0,
   inkPressure: 0.6,
   inkLifespan: 0.6,
+  inkSpeed: 1,
+  inkScale: 1,
   topoOpacity: 0.85,
   topoQuake: 0,
   topoSlide: 0,
   topoPlate: 0,
   topoTravel: 0,
+  topoScale: 1,
+  topoElevation: 0.5,
   weatherOpacity: 0.85,
   weatherMode: 0,
   weatherIntensity: 0.6,
+  weatherSpeed: 1,
   portalOpacity: 0.85,
   portalShift: 0,
   portalStyle: 0,
@@ -99,7 +112,10 @@ const state: RenderState = {
   chroma: 0.1,
   posterize: 0,
   kaleidoscope: 0,
+  kaleidoscopeRotation: 0,
   feedback: 0,
+  feedbackZoom: 0,
+  feedbackRotation: 0,
   persistence: 0,
   trailSpectrum: new Float32Array(64),
   expressiveEnergyBloom: 0,
@@ -121,6 +137,8 @@ const state: RenderState = {
   particleSpeed: 0.3,
   particleSize: 0.45,
   particleGlow: 0.6,
+  particleTurbulence: 0.3,
+  particleAudioLift: 0.5,
   sdfEnabled: true,
   sdfShape: 0,
   sdfScale: 0.45,
@@ -222,32 +240,45 @@ channel.onmessage = (event) => {
   if (typeof data.maxBloom === 'number') state.maxBloom = data.maxBloom;
   if (typeof data.forceFeedback === 'boolean') state.forceFeedback = data.forceFeedback;
   if (typeof data.plasmaOpacity === 'number') state.plasmaOpacity = data.plasmaOpacity;
+  if (typeof data.plasmaSpeed === 'number') state.plasmaSpeed = data.plasmaSpeed;
+  if (typeof data.plasmaScale === 'number') state.plasmaScale = data.plasmaScale;
+  if (typeof data.plasmaComplexity === 'number') state.plasmaComplexity = data.plasmaComplexity;
+  if (typeof data.plasmaAudioReact === 'number') state.plasmaAudioReact = data.plasmaAudioReact;
   if (typeof data.spectrumOpacity === 'number') state.spectrumOpacity = data.spectrumOpacity;
   if (typeof data.origamiOpacity === 'number') state.origamiOpacity = data.origamiOpacity;
   if (typeof data.origamiFoldState === 'number') state.origamiFoldState = data.origamiFoldState;
   if (typeof data.origamiFoldSharpness === 'number')
     state.origamiFoldSharpness = data.origamiFoldSharpness;
+  if (typeof data.origamiSpeed === 'number') state.origamiSpeed = data.origamiSpeed;
   if (typeof data.glyphOpacity === 'number') state.glyphOpacity = data.glyphOpacity;
   if (typeof data.glyphMode === 'number') state.glyphMode = data.glyphMode;
   if (typeof data.glyphSeed === 'number') state.glyphSeed = data.glyphSeed;
   if (typeof data.glyphBeat === 'number') state.glyphBeat = data.glyphBeat;
+  if (typeof data.glyphSpeed === 'number') state.glyphSpeed = data.glyphSpeed;
   if (typeof data.crystalOpacity === 'number') state.crystalOpacity = data.crystalOpacity;
   if (typeof data.crystalMode === 'number') state.crystalMode = data.crystalMode;
   if (typeof data.crystalBrittleness === 'number')
     state.crystalBrittleness = data.crystalBrittleness;
+  if (typeof data.crystalScale === 'number') state.crystalScale = data.crystalScale;
+  if (typeof data.crystalSpeed === 'number') state.crystalSpeed = data.crystalSpeed;
   if (typeof data.inkOpacity === 'number') state.inkOpacity = data.inkOpacity;
   if (typeof data.inkBrush === 'number') state.inkBrush = data.inkBrush;
   if (typeof data.inkPressure === 'number') state.inkPressure = data.inkPressure;
   if (typeof data.inkLifespan === 'number') state.inkLifespan = data.inkLifespan;
+  if (typeof data.inkSpeed === 'number') state.inkSpeed = data.inkSpeed;
+  if (typeof data.inkScale === 'number') state.inkScale = data.inkScale;
   if (typeof data.topoOpacity === 'number') state.topoOpacity = data.topoOpacity;
   if (typeof data.topoQuake === 'number') state.topoQuake = data.topoQuake;
   if (typeof data.topoSlide === 'number') state.topoSlide = data.topoSlide;
   if (typeof data.topoPlate === 'number') state.topoPlate = data.topoPlate;
   if (typeof data.topoTravel === 'number') state.topoTravel = data.topoTravel;
+  if (typeof data.topoScale === 'number') state.topoScale = data.topoScale;
+  if (typeof data.topoElevation === 'number') state.topoElevation = data.topoElevation;
   if (typeof data.weatherOpacity === 'number') state.weatherOpacity = data.weatherOpacity;
   if (typeof data.weatherMode === 'number') state.weatherMode = data.weatherMode;
   if (typeof data.weatherIntensity === 'number')
     state.weatherIntensity = data.weatherIntensity;
+  if (typeof data.weatherSpeed === 'number') state.weatherSpeed = data.weatherSpeed;
   if (typeof data.portalOpacity === 'number') state.portalOpacity = data.portalOpacity;
   if (typeof data.portalShift === 'number') state.portalShift = data.portalShift;
   if (typeof data.portalStyle === 'number') state.portalStyle = data.portalStyle;
@@ -278,7 +309,10 @@ channel.onmessage = (event) => {
   if (typeof data.chroma === 'number') state.chroma = data.chroma;
   if (typeof data.posterize === 'number') state.posterize = data.posterize;
   if (typeof data.kaleidoscope === 'number') state.kaleidoscope = data.kaleidoscope;
+  if (typeof data.kaleidoscopeRotation === 'number') state.kaleidoscopeRotation = data.kaleidoscopeRotation;
   if (typeof data.feedback === 'number') state.feedback = data.feedback;
+  if (typeof data.feedbackZoom === 'number') state.feedbackZoom = data.feedbackZoom;
+  if (typeof data.feedbackRotation === 'number') state.feedbackRotation = data.feedbackRotation;
   if (typeof data.persistence === 'number') state.persistence = data.persistence;
   if (typeof data.expressiveEnergyBloom === 'number')
     state.expressiveEnergyBloom = data.expressiveEnergyBloom;
@@ -313,6 +347,8 @@ channel.onmessage = (event) => {
   if (typeof data.particleSpeed === 'number') state.particleSpeed = data.particleSpeed;
   if (typeof data.particleSize === 'number') state.particleSize = data.particleSize;
   if (typeof data.particleGlow === 'number') state.particleGlow = data.particleGlow;
+  if (typeof data.particleTurbulence === 'number') state.particleTurbulence = data.particleTurbulence;
+  if (typeof data.particleAudioLift === 'number') state.particleAudioLift = data.particleAudioLift;
   if (typeof data.sdfEnabled === 'boolean') state.sdfEnabled = data.sdfEnabled;
   if (typeof data.sdfShape === 'number') state.sdfShape = data.sdfShape;
   if (typeof data.sdfScale === 'number') state.sdfScale = data.sdfScale;
@@ -337,6 +373,47 @@ channel.onmessage = (event) => {
       atmosphere: data.roleWeights.atmosphere ?? state.roleWeights.atmosphere
     };
   }
+  if (typeof data.laserEnabled === 'boolean') state.laserEnabled = data.laserEnabled;
+  if (typeof data.laserOpacity === 'number') state.laserOpacity = data.laserOpacity;
+  if (typeof data.laserBeamCount === 'number') state.laserBeamCount = data.laserBeamCount;
+  if (typeof data.laserBeamWidth === 'number') state.laserBeamWidth = data.laserBeamWidth;
+  if (typeof data.laserBeamLength === 'number') state.laserBeamLength = data.laserBeamLength;
+  if (typeof data.laserRotation === 'number') state.laserRotation = data.laserRotation;
+  if (typeof data.laserRotationSpeed === 'number') state.laserRotationSpeed = data.laserRotationSpeed;
+  if (typeof data.laserSpread === 'number') state.laserSpread = data.laserSpread;
+  if (typeof data.laserMode === 'number') state.laserMode = data.laserMode;
+  if (typeof data.laserColorShift === 'number') state.laserColorShift = data.laserColorShift;
+  if (typeof data.laserAudioReact === 'number') state.laserAudioReact = data.laserAudioReact;
+  if (typeof data.laserGlow === 'number') state.laserGlow = data.laserGlow;
+  if (typeof data.strobeEnabled === 'boolean') state.strobeEnabled = data.strobeEnabled;
+  if (typeof data.strobeOpacity === 'number') state.strobeOpacity = data.strobeOpacity;
+  if (typeof data.strobeRate === 'number') state.strobeRate = data.strobeRate;
+  if (typeof data.strobeDutyCycle === 'number') state.strobeDutyCycle = data.strobeDutyCycle;
+  if (typeof data.strobeMode === 'number') state.strobeMode = data.strobeMode;
+  if (typeof data.strobeAudioTrigger === 'boolean') state.strobeAudioTrigger = data.strobeAudioTrigger;
+  if (typeof data.strobeThreshold === 'number') state.strobeThreshold = data.strobeThreshold;
+  if (typeof data.strobeFadeOut === 'number') state.strobeFadeOut = data.strobeFadeOut;
+  if (typeof data.strobePattern === 'number') state.strobePattern = data.strobePattern;
+  if (typeof data.shapeBurstEnabled === 'boolean') state.shapeBurstEnabled = data.shapeBurstEnabled;
+  if (typeof data.shapeBurstOpacity === 'number') state.shapeBurstOpacity = data.shapeBurstOpacity;
+  if (typeof data.shapeBurstShape === 'number') state.shapeBurstShape = data.shapeBurstShape;
+  if (typeof data.shapeBurstExpandSpeed === 'number') state.shapeBurstExpandSpeed = data.shapeBurstExpandSpeed;
+  if (typeof data.shapeBurstStartSize === 'number') state.shapeBurstStartSize = data.shapeBurstStartSize;
+  if (typeof data.shapeBurstMaxSize === 'number') state.shapeBurstMaxSize = data.shapeBurstMaxSize;
+  if (typeof data.shapeBurstThickness === 'number') state.shapeBurstThickness = data.shapeBurstThickness;
+  if (typeof data.shapeBurstFadeMode === 'number') state.shapeBurstFadeMode = data.shapeBurstFadeMode;
+  if (data.shapeBurstSpawnTimes) state.shapeBurstSpawnTimes = new Float32Array(data.shapeBurstSpawnTimes);
+  if (data.shapeBurstActives) state.shapeBurstActives = new Float32Array(data.shapeBurstActives);
+  if (typeof data.gridTunnelEnabled === 'boolean') state.gridTunnelEnabled = data.gridTunnelEnabled;
+  if (typeof data.gridTunnelOpacity === 'number') state.gridTunnelOpacity = data.gridTunnelOpacity;
+  if (typeof data.gridTunnelSpeed === 'number') state.gridTunnelSpeed = data.gridTunnelSpeed;
+  if (typeof data.gridTunnelGridSize === 'number') state.gridTunnelGridSize = data.gridTunnelGridSize;
+  if (typeof data.gridTunnelLineWidth === 'number') state.gridTunnelLineWidth = data.gridTunnelLineWidth;
+  if (typeof data.gridTunnelPerspective === 'number') state.gridTunnelPerspective = data.gridTunnelPerspective;
+  if (typeof data.gridTunnelHorizonY === 'number') state.gridTunnelHorizonY = data.gridTunnelHorizonY;
+  if (typeof data.gridTunnelGlow === 'number') state.gridTunnelGlow = data.gridTunnelGlow;
+  if (typeof data.gridTunnelAudioReact === 'number') state.gridTunnelAudioReact = data.gridTunnelAudioReact;
+  if (typeof data.gridTunnelMode === 'number') state.gridTunnelMode = data.gridTunnelMode;
   if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
     const colors = (data as any).paletteColors as string[];
     if (colors.length >= 5) {

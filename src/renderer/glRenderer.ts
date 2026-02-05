@@ -861,13 +861,14 @@ vec3 laserBeam(vec2 uv, float t, float audio) {
   vec2 centered = uv - 0.5;
   centered.x *= uAspect;
   vec3 color = vec3(0.0);
-  float beamCount = uLaserBeamCount;
+  float beamCount = (uLaserMode > 3.5) ? 1.0 : uLaserBeamCount;
 
   for (float i = 0.0; i < 16.0; i++) {
     if (i >= beamCount) break;
 
     float angle;
     vec2 beamOrigin = vec2(0.0);
+    float beamLength = uLaserBeamLength;
 
     // Mode 0: Radial - beams emanate from center
     if (uLaserMode < 0.5) {
@@ -890,6 +891,13 @@ vec3 laserBeam(vec2 uv, float t, float audio) {
       float sweep = sin(t * uLaserRotationSpeed + i * 0.5) * uLaserSpread * 0.5;
       angle = uLaserRotation + sweep;
     }
+    // Mode 4: Distance Sweep - single beam across screen from far origin
+    if (uLaserMode > 3.5) {
+      float sweep = sin(t * uLaserRotationSpeed) * 0.6;
+      angle = uLaserRotation;
+      beamOrigin = vec2(-1.2, sweep);
+      beamLength = 3.0;
+    }
 
     vec2 dir = vec2(cos(angle), sin(angle));
     vec2 delta = centered - beamOrigin;
@@ -899,7 +907,7 @@ vec3 laserBeam(vec2 uv, float t, float audio) {
     float perp = abs(dot(delta, vec2(-dir.y, dir.x)));
 
     // Beam visibility
-    float inBeam = step(0.0, proj) * step(proj, uLaserBeamLength);
+    float inBeam = step(0.0, proj) * step(proj, beamLength);
 
     // Soft edge with audio-reactive width
     float width = uLaserBeamWidth * (1.0 + audio * uLaserAudioReact * 0.5);

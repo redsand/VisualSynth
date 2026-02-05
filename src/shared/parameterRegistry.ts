@@ -516,7 +516,8 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
           { value: 0, label: 'Radial' },
           { value: 1, label: 'Parallel' },
           { value: 2, label: 'Crossing' },
-          { value: 3, label: 'Scanning' }
+          { value: 3, label: 'Scanning' },
+          { value: 4, label: 'Distance Sweep' }
         ],
         description: 'Beam arrangement mode',
         modulatable: false,
