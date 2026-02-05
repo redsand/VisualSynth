@@ -6,6 +6,8 @@ import type { RenderState } from '../glRenderer';
 
 export interface LayerDebugInfo {
   id: string;
+  idRaw: string;
+  generatorId: string;
   name: string;
   enabled: boolean;
   opacity: number;
@@ -24,12 +26,30 @@ export interface FxDebugInfo {
 
 export interface RenderDebugState {
   frameId: number;
+  activeSceneId: string;
   activeSceneName: string;
+  activeModeId: string;
+  activeEngineId: string;
+  activePaletteId: string;
   layerCount: number;
   layers: LayerDebugInfo[];
   fx: FxDebugInfo[];
   masterBusFrameId: number;
   uniformsUpdatedFrameId: number;
+  laser: {
+    enabled: boolean;
+    opacity: number;
+    beamCount: number;
+    beamWidth: number;
+    beamLength: number;
+    glow: number;
+    present: boolean;
+    enabledInScene: boolean;
+    idRaw: string;
+    idBytes: string;
+    matchTarget: string;
+    matchNormalized: string;
+  };
 }
 
 type FxId = 'bloom' | 'blur' | 'chroma' | 'posterize' | 'kaleidoscope' | 'feedback' | 'persistence';
@@ -74,6 +94,26 @@ const getRoleAudioScale = (role: LayerRole, lowFreq: number) => {
   const settings = ROLE_SETTINGS[role];
   const lowFreqScale = settings.lowFreqOnly ? 0.3 + lowFreq * 0.7 : 1;
   return settings.audioScale * lowFreqScale;
+};
+
+const normalizeLayerId = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const findLayerById = (
+  layers: { id?: string; generatorId?: string }[] | undefined,
+  id: string
+) => {
+  const target = normalizeLayerId(id);
+  return layers?.find((layer) => {
+    const layerId = normalizeLayerId(layer.id ?? '');
+    if (layerId === target) return true;
+    const generatorId = normalizeLayerId(layer.generatorId ?? '');
+    return generatorId === target;
+  });
 };
 
 export class RenderGraph {
@@ -130,11 +170,26 @@ export class RenderGraph {
   private debugState: RenderDebugState = {
     frameId: 0,
     activeSceneName: '',
+    activeModeId: '',
+    activeEngineId: '',
+    activePaletteId: '',
     layerCount: 0,
     layers: [],
     fx: [],
     masterBusFrameId: 0,
-    uniformsUpdatedFrameId: 0
+    uniformsUpdatedFrameId: 0,
+    laser: {
+      enabled: false,
+      opacity: 0,
+      beamCount: 0,
+      beamWidth: 0,
+      beamLength: 0,
+      glow: 0,
+      present: false,
+      enabledInScene: false,
+      idRaw: '',
+      idBytes: ''
+    }
   };
   private fxDeltaUntil: Record<FxId, number> = {
     bloom: 0,
@@ -647,6 +702,7 @@ export class RenderGraph {
       fill: 0.35
     };
     const expressiveFx = state.project.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
+    const expressiveEnabled = expressiveFx.enabled ?? true;
     const energyFx = {
       ...DEFAULT_PROJECT.expressiveFx.energyBloom,
       ...expressiveFx.energyBloom,
@@ -721,6 +777,17 @@ export class RenderGraph {
       feedback: fxDelta('feedback', modValue('effects.feedback', effects.feedback), 0.35),
       persistence: fxDelta('persistence', modValue('effects.persistence', effects.persistence), 0.35)
     };
+    if (!effects.enabled) {
+      moddedEffects = {
+        bloom: 0,
+        blur: 0,
+        chroma: 0,
+        posterize: 0,
+        kaleidoscope: 0,
+        feedback: 0,
+        persistence: 0
+      };
+    }
 
     let moddedParticles = {
       density: modValue('particles.density', particles.density),
@@ -785,23 +852,35 @@ export class RenderGraph {
     const radialMacro = resolveExpressiveMacro(radialFx.macro, radialFx.intentBinding);
     const echoMacro = resolveExpressiveMacro(motionFx.macro, motionFx.intentBinding);
     const smearMacro = resolveExpressiveMacro(smearFx.macro, smearFx.intentBinding);
-    const plasmaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-plasma');
-    const spectrumLayer = activeScene?.layers.find((layer) => layer.id === 'layer-spectrum');
-    const origamiLayer = activeScene?.layers.find((layer) => layer.id === 'layer-origami');
-    const glyphLayer = activeScene?.layers.find((layer) => layer.id === 'layer-glyph');
-    const crystalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-crystal');
-    const inkLayer = activeScene?.layers.find((layer) => layer.id === 'layer-inkflow');
-    const topoLayer = activeScene?.layers.find((layer) => layer.id === 'layer-topo');
-    const weatherLayer = activeScene?.layers.find((layer) => layer.id === 'layer-weather');
-    const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
-    const mediaLayer = activeScene?.layers.find((layer) => layer.id === 'layer-media');
-    const oscilloLayer = activeScene?.layers.find((layer) => layer.id === 'layer-oscillo');
-    const advancedSdfLayer = activeScene?.layers.find((layer) => layer.id === 'gen-sdf-scene');
+    const energyEnabled = expressiveEnabled && energyFx.enabled;
+    const radialEnabled = expressiveEnabled && radialFx.enabled;
+    const motionEnabled = expressiveEnabled && motionFx.enabled;
+    const smearEnabled = expressiveEnabled && smearFx.enabled;
+    const plasmaLayer = findLayerById(activeScene?.layers, 'layer-plasma');
+    const spectrumLayer = findLayerById(activeScene?.layers, 'layer-spectrum');
+    const origamiLayer = findLayerById(activeScene?.layers, 'layer-origami');
+    const glyphLayer = findLayerById(activeScene?.layers, 'layer-glyph');
+    const crystalLayer = findLayerById(activeScene?.layers, 'layer-crystal');
+    const inkLayer = findLayerById(activeScene?.layers, 'layer-inkflow');
+    const topoLayer = findLayerById(activeScene?.layers, 'layer-topo');
+    const weatherLayer = findLayerById(activeScene?.layers, 'layer-weather');
+    const portalLayer = findLayerById(activeScene?.layers, 'layer-portal');
+    const mediaLayer = findLayerById(activeScene?.layers, 'layer-media');
+    const oscilloLayer = findLayerById(activeScene?.layers, 'layer-oscillo');
+    const advancedSdfLayer = findLayerById(activeScene?.layers, 'gen-sdf-scene');
     // EDM Generator Layers
-    const laserLayer = activeScene?.layers.find((layer) => layer.id === 'gen-laser-beam');
-    const strobeLayer = activeScene?.layers.find((layer) => layer.id === 'gen-strobe');
-    const shapeBurstLayer = activeScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
-    const gridTunnelLayer = activeScene?.layers.find((layer) => layer.id === 'gen-grid-tunnel');
+    const rawLaserLayer =
+      activeScene?.layers.find((layer) => normalizeLayerId(layer.id ?? '').includes('laser')) ??
+      activeScene?.layers.find((layer) => normalizeLayerId(layer.generatorId ?? '').includes('laser')) ??
+      activeScene?.layers.find((layer) => (layer.name ?? '').toLowerCase().includes('laser'));
+    const laserLayer = findLayerById(activeScene?.layers, 'gen-laser-beam') ?? rawLaserLayer;
+    const laserIdRaw = rawLaserLayer?.id ?? '';
+    const laserIdBytes = laserIdRaw
+      ? Array.from(laserIdRaw).map((ch) => ch.charCodeAt(0)).join(' ')
+      : '';
+    const strobeLayer = findLayerById(activeScene?.layers, 'gen-strobe');
+    const shapeBurstLayer = findLayerById(activeScene?.layers, 'gen-shape-burst');
+    const gridTunnelLayer = findLayerById(activeScene?.layers, 'gen-grid-tunnel');
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
     const origamiRole = getLayerRole(origamiLayer);
@@ -1105,18 +1184,18 @@ export class RenderGraph {
       feedbackRotation: moddedFeedbackRotation,
       persistence: moddedPersistence,
       trailSpectrum: this.trailSpectrum,
-      expressiveEnergyBloom: energyFx.enabled ? energyMacro : 0,
+      expressiveEnergyBloom: energyEnabled ? energyMacro : 0,
       expressiveEnergyThreshold: energyFx.expert.threshold,
       expressiveEnergyAccumulation: energyFx.expert.accumulation,
-      expressiveRadialGravity: radialFx.enabled ? radialMacro : 0,
+      expressiveRadialGravity: radialEnabled ? radialMacro : 0,
       expressiveRadialStrength: radialFx.expert.strength,
       expressiveRadialRadius: radialFx.expert.radius,
       expressiveRadialFocusX: radialFx.expert.focusX,
       expressiveRadialFocusY: radialFx.expert.focusY,
-      expressiveMotionEcho: motionFx.enabled ? echoMacro : 0,
+      expressiveMotionEcho: motionEnabled ? echoMacro : 0,
       expressiveMotionEchoDecay: motionFx.expert.decay,
       expressiveMotionEchoWarp: motionFx.expert.warp,
-      expressiveSpectralSmear: smearFx.enabled ? smearMacro : 0,
+      expressiveSpectralSmear: smearEnabled ? smearMacro : 0,
       expressiveSpectralOffset: smearFx.expert.offset,
       expressiveSpectralMix: smearFx.expert.mix,
       particlesEnabled: particles.enabled,
@@ -1156,7 +1235,7 @@ export class RenderGraph {
       strobeRate: getLayerParamNumber(strobeLayer, 'rate', 4),
       strobeDutyCycle: getLayerParamNumber(strobeLayer, 'dutyCycle', 0.1),
       strobeMode: getLayerParamNumber(strobeLayer, 'mode', 0),
-      strobeAudioTrigger: (laserLayer?.params as any)?.audioTrigger ?? true,
+      strobeAudioTrigger: (strobeLayer?.params as any)?.audioTrigger ?? true,
       strobeThreshold: getLayerParamNumber(strobeLayer, 'threshold', 0.6),
       strobeFadeOut: getLayerParamNumber(strobeLayer, 'fadeOut', 0.1),
       strobePattern: getLayerParamNumber(strobeLayer, 'pattern', 0),
@@ -1187,24 +1266,48 @@ export class RenderGraph {
   }
 
   private updateDebug(
-    activeScene: { name: string; layers: { id: string; name: string; enabled: boolean; opacity: number; blendMode: string }[] } | undefined,
+    activeScene: {
+      name: string;
+      layers: {
+        id: string;
+        generatorId?: string;
+        name: string;
+        enabled: boolean;
+        opacity: number;
+        blendMode: string;
+      }[];
+    } | undefined,
     canvasSize: { width: number; height: number },
     renderState: RenderState
   ) {
     const frameId = this.debugState.frameId + 1;
     this.debugState.frameId = frameId;
     this.debugState.activeSceneName = activeScene?.name ?? '—';
+    this.debugState.activeSceneId = activeScene?.id ?? '';
+    const project = this.store.getState().project;
+    this.debugState.activeModeId = project.activeModeId ?? '';
+    this.debugState.activeEngineId = project.activeEngineId ?? '';
+    this.debugState.activePaletteId =
+      activeScene?.look?.activePaletteId ??
+      project.activePaletteId ??
+      '';
     const fboSize = `${canvasSize.width}x${canvasSize.height}`;
-    const layers = (activeScene?.layers ?? []).map((layer) => ({
-      id: layer.id,
-      name: layer.name,
-      enabled: layer.enabled,
-      opacity: layer.opacity,
-      blendMode: layer.blendMode,
-      fboSize,
-      lastRenderedFrameId: layer.enabled ? frameId : this.debugState.layers.find((l) => l.id === layer.id)?.lastRenderedFrameId ?? 0,
-      nonEmpty: layer.enabled && layer.opacity > 0.01
-    }));
+    const layers = (activeScene?.layers ?? []).map((layer) => {
+      const idRaw = layer.id ?? '';
+      const id = normalizeLayerId(idRaw);
+      return {
+        id,
+        idRaw,
+        generatorId: layer.generatorId ?? '',
+        name: layer.name,
+        enabled: layer.enabled,
+        opacity: layer.opacity,
+        blendMode: layer.blendMode,
+        fboSize,
+        lastRenderedFrameId: layer.enabled ? frameId : this.debugState.layers.find((l) => l.id === id)?.lastRenderedFrameId ?? 0,
+        nonEmpty: layer.enabled && layer.opacity > 0.01
+      };
+    });
     this.debugState.layers = layers;
     this.debugState.layerCount = layers.length;
 
@@ -1218,6 +1321,31 @@ export class RenderGraph {
       { id: 'persistence', enabled: renderState.effectsEnabled && renderState.persistence > 0, bypassed: !renderState.effectsEnabled, lastAppliedFrameId: frameId }
     ];
     this.debugState.fx = fx;
+    const rawLaserLayer =
+      (activeScene?.layers ?? []).find((layer) => normalizeLayerId(layer.id ?? '').includes('laser')) ??
+      (activeScene?.layers ?? []).find((layer) => normalizeLayerId(layer.generatorId ?? '').includes('laser')) ??
+      (activeScene?.layers ?? []).find((layer) => (layer.name ?? '').toLowerCase().includes('laser'));
+    const laserIdRaw = rawLaserLayer?.id ?? '';
+    const laserIdBytes = laserIdRaw
+      ? Array.from(laserIdRaw).map((ch) => ch.charCodeAt(0)).join(' ')
+      : '';
+    const laserLayer = findLayerById(activeScene?.layers, 'gen-laser-beam') ?? rawLaserLayer;
+    const laserTarget = 'gen-laser-beam';
+    const laserNormalized = normalizeLayerId(laserIdRaw);
+    this.debugState.laser = {
+      enabled: renderState.laserEnabled,
+      opacity: renderState.laserOpacity ?? 0,
+      beamCount: renderState.laserBeamCount ?? 0,
+      beamWidth: renderState.laserBeamWidth ?? 0,
+      beamLength: renderState.laserBeamLength ?? 0,
+      glow: renderState.laserGlow ?? 0,
+      present: Boolean(laserLayer),
+      enabledInScene: laserLayer?.enabled ?? false,
+      idRaw: laserIdRaw,
+      idBytes: laserIdBytes,
+      matchTarget: laserTarget,
+      matchNormalized: laserNormalized
+    };
     this.debugState.masterBusFrameId = frameId;
     this.debugState.uniformsUpdatedFrameId = frameId;
   }

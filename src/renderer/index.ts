@@ -33,7 +33,7 @@ import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
-import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
+import { buildLegacyTarget, getLayerType, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
 import { lfoValueForShape } from '../shared/lfoUtils';
 import { reorderLayers, cloneLayerConfig, ensureLayerWithDefaults } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
@@ -170,6 +170,7 @@ const perfTogglePlasma = document.getElementById('perf-toggle-plasma') as HTMLIn
 const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement;
 const spectrumHintDismiss = document.getElementById('spectrum-hint-dismiss') as HTMLButtonElement;
 const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
+const designAddLayerButton = document.getElementById('design-add-layer') as HTMLButtonElement;
 const generatorPanel = document.getElementById('generator-panel') as HTMLDivElement;
 const playlistAddButton = document.getElementById('playlist-add') as HTMLButtonElement;
 const playlistRemoveButton = document.getElementById('playlist-remove') as HTMLButtonElement;
@@ -606,6 +607,15 @@ const mediaBurstRadii = new Float32Array(8);
 const mediaBurstTypes = new Float32Array(8);
 const mediaBurstActives = new Float32Array(8);
 
+const shapeBurstSlots = Array.from({ length: 8 }, () => ({
+  active: false,
+  spawnTime: 0
+}));
+const shapeBurstSpawnTimes = new Float32Array(8);
+const shapeBurstActives = new Float32Array(8);
+let shapeBurstSlotIndex = 0;
+let lastShapeBurstSpawn = 0;
+
 const oscilloCapture = new Float32Array(256);
 
 const padStates = Array.from({ length: 256 }, () => false);
@@ -743,6 +753,10 @@ const applyVisualEngine = (engineId: EngineId) => {
       engineDescription.textContent = engine.description;
   }
 
+  if (engineId === 'engine-none') {
+    return;
+  }
+
   // Set Engine Motion Template
   const templates = ['linear', 'radial', 'vortex', 'fractal', 'grid', 'organic', 'data', 'strobe', 'vapor'];
   currentMotionTemplate = templates.indexOf(engine.constraints.preferredMotion) || 0;
@@ -797,7 +811,15 @@ const applyVisualEngine = (engineId: EngineId) => {
   renderModMatrix();
 };
 
-const applyVisualMode = (modeId: string) => {
+const applyVisualMode = (
+  modeId: string,
+  options?: {
+    preservePalette?: boolean;
+    preserveEffects?: boolean;
+    preserveModMatrix?: boolean;
+    preserveMotionMacro?: boolean;
+  }
+) => {
   const mode = VISUAL_MODES.find(m => m.id === modeId);
   if (!mode) return;
 
@@ -811,33 +833,39 @@ const applyVisualMode = (modeId: string) => {
   setStatus(`Visual Mode applied: ${mode.name}`);
 
   // 1. Apply Palette
-  applyPaletteSelection(mode.palette.id);
-  paletteSelect.value = mode.palette.id;
+  if (!options?.preservePalette) {
+    applyPaletteSelection(mode.palette.id);
+    paletteSelect.value = mode.palette.id;
+  }
 
   // 2. Apply Audio Mappings (Mod Matrix)
   // We'll append these or replace them? User said "grouped into high-level expressions"
   // Let's replace the mod matrix for a clean "expression"
-  currentProject.modMatrix = mode.audioMappings.map((mapping, index) => {
-    const defaults = getTargetDefaults(mapping.target);
-    return {
-      id: `mod-mode-${index}`,
-      source: mapping.source,
-      target: mapping.target,
-      amount: mapping.amount,
-      curve: 'linear',
-      smoothing: 0.1,
-      bipolar: false,
-      min: defaults.min,
-      max: defaults.max
-    };
-  });
-  renderModMatrix();
+  if (!options?.preserveModMatrix) {
+    currentProject.modMatrix = mode.audioMappings.map((mapping, index) => {
+      const defaults = getTargetDefaults(mapping.target);
+      return {
+        id: `mod-mode-${index}`,
+        source: mapping.source,
+        target: mapping.target,
+        amount: mapping.amount,
+        curve: 'linear',
+        smoothing: 0.1,
+        bipolar: false,
+        min: defaults.min,
+        max: defaults.max
+      };
+    });
+    renderModMatrix();
+  }
 
   // 3. Apply Glow/Depth (Effects)
-  currentProject.effects.bloom = mode.glowDepth.glow;
-  // We'll use 'blur' as a proxy for depth for now if not available
-  currentProject.effects.blur = mode.glowDepth.depth * 0.2; 
-  initEffects();
+  if (!options?.preserveEffects) {
+    currentProject.effects.bloom = mode.glowDepth.glow;
+    // We'll use 'blur' as a proxy for depth for now if not available
+    currentProject.effects.blur = mode.glowDepth.depth * 0.2; 
+    initEffects();
+  }
 
   // 4. Intensity Envelopes
   if (currentProject.envelopes[0]) {
@@ -848,16 +876,18 @@ const applyVisualMode = (modeId: string) => {
 
   // 5. Motion Template (Set macro targets for motion)
   // We'll map motionTemplate to macro-2 (Motion)
-  const motionMacro = currentProject.macros.find(m => m.id === 'macro-2');
-  if (motionMacro) {
-    if (mode.motionTemplate === 'vortex') {
-      motionMacro.value = 0.8;
-    } else if (mode.motionTemplate === 'radial') {
-      motionMacro.value = 0.3;
-    } else {
-      motionMacro.value = 0.5;
+  if (!options?.preserveMotionMacro) {
+    const motionMacro = currentProject.macros.find(m => m.id === 'macro-2');
+    if (motionMacro) {
+      if (mode.motionTemplate === 'vortex') {
+        motionMacro.value = 0.8;
+      } else if (mode.motionTemplate === 'radial') {
+        motionMacro.value = 0.3;
+      } else {
+        motionMacro.value = 0.5;
+      }
+      updateMacroPreviews();
     }
-    updateMacroPreviews();
   }
 };
 
@@ -2016,7 +2046,32 @@ const getDefaultRoleForLayerId = (layerId: string) => {
   if (layerId === 'layer-portal') return 'atmosphere';
   if (layerId === 'layer-media') return 'support';
   if (layerId === 'layer-oscillo') return 'support';
+  if (layerId === 'gen-strobe') return 'core';
+  if (layerId === 'gen-laser-beam') return 'support';
+  if (layerId === 'gen-shape-burst') return 'support';
+  if (layerId === 'gen-grid-tunnel') return 'atmosphere';
   return 'support';
+};
+
+const buildDefaultParamsForLayerId = (layerId: string) => {
+  const layerType = getLayerType(layerId);
+  if (!layerType) return {} as Record<string, any>;
+  const params: Record<string, any> = {};
+  layerType.params.forEach((param) => {
+    if (param.default !== undefined) {
+      params[param.id] = param.default;
+    }
+  });
+  return params;
+};
+
+const applyDefaultParams = (layerId: string, params: Record<string, any>) => {
+  const defaults = buildDefaultParamsForLayerId(layerId);
+  Object.entries(defaults).forEach(([key, value]) => {
+    if (params[key] === undefined) {
+      params[key] = value;
+    }
+  });
 };
 
 const normalizeSceneLayerRoles = (scene: SceneConfig) => {
@@ -5007,6 +5062,33 @@ const refreshGeneratorUI = () => {
   renderGeneratorList(generatorRecents, generatorRecentsState);
 };
 
+const ensureGeneratorLayer = (
+  scene: SceneConfig,
+  layerId: string,
+  name: string,
+  options?: { blendMode?: string; opacity?: number; role?: string }
+) => {
+  let layer = scene.layers.find((item) => item.id === layerId);
+  if (!layer) {
+    layer = {
+      id: layerId,
+      name,
+      role: options?.role ?? getDefaultRoleForLayerId(layerId),
+      enabled: true,
+      opacity: options?.opacity ?? 1,
+      blendMode: options?.blendMode ?? 'screen',
+      transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+      params: buildDefaultParamsForLayerId(layerId)
+    };
+    scene.layers.push(layer);
+  } else {
+    layer.enabled = true;
+    if (!layer.params) layer.params = {};
+    applyDefaultParams(layerId, layer.params);
+  }
+  return layer;
+};
+
 const addGenerator = (id: GeneratorId) => {
   recordPlaylistOverride(id, { enabled: true });
   if (id === 'layer-plasma') {
@@ -5642,6 +5724,38 @@ const addGenerator = (id: GeneratorId) => {
       blendMode: 'add'
     });
     setStatus('Generator: Nebula Drift (Cold) added.');
+  }
+  if (id === 'gen-laser-beam') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-laser-beam', 'Laser Beam Generator');
+      renderLayerList();
+    }
+    setStatus('Generator: Laser Beam added.');
+  }
+  if (id === 'gen-strobe') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-strobe', 'Strobe Flash Generator', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Strobe Flash added.');
+  }
+  if (id === 'gen-shape-burst') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-shape-burst', 'Shape Burst Generator');
+      renderLayerList();
+    }
+    setStatus('Generator: Shape Burst added.');
+  }
+  if (id === 'gen-grid-tunnel') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-grid-tunnel', 'Grid Tunnel Generator', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Grid Tunnel added.');
   }
   if (id === 'viz-off') {
     currentProject.visualizer.enabled = false;
@@ -6529,6 +6643,18 @@ const ensureAdvancedSdfLayer = () => {
     };
     scene.layers.push(layer);
     renderLayerList();
+  } else {
+    if (!layer.enabled) {
+      layer.enabled = true;
+      renderLayerList();
+    }
+    if (!layer.sdfScene) {
+      layer.sdfScene = {
+        nodes: [],
+        connections: [],
+        mode: '2d'
+      };
+    }
   }
 };
 
@@ -8156,6 +8282,13 @@ perfAddLayerButton.addEventListener('click', () => {
   setStatus('Scene mode: use Generator Library to add layers.');
 });
 
+designAddLayerButton.addEventListener('click', () => {
+  setMode('scene');
+  generatorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  generatorSelect.focus();
+  setStatus('Scene mode: use Generator Library to add layers.');
+});
+
 playlistAddButton.addEventListener('click', () => {
   if (!presetSelect.value) return;
   const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
@@ -8446,6 +8579,64 @@ const updatePortals = (time: number, dt: number) => {
     portalRadii[index] = portal.radius * (0.8 + harmonic * 0.8);
     portalActives[index] = 1;
   });
+};
+
+const updateShapeBursts = (time: number, dt: number) => {
+  const activeScene =
+    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const shapeBurstLayer = activeScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
+  const shapeBurstEnabled = shapeBurstLayer?.enabled ?? false;
+
+  if (!shapeBurstEnabled) {
+    for (let i = 0; i < 8; i += 1) {
+      shapeBurstSlots[i].active = false;
+      shapeBurstActives[i] = 0;
+    }
+    return;
+  }
+
+  const audioTrigger = (shapeBurstLayer?.params as any)?.audioTrigger ?? true;
+  const expandSpeed =
+    typeof shapeBurstLayer?.params?.expandSpeed === 'number' ? shapeBurstLayer.params.expandSpeed : 2;
+  const maxSize =
+    typeof shapeBurstLayer?.params?.maxSize === 'number' ? shapeBurstLayer.params.maxSize : 1.5;
+  const spawnRate =
+    typeof shapeBurstLayer?.params?.spawnRate === 'number' ? shapeBurstLayer.params.spawnRate : 1;
+
+  const peak = audioState.peak;
+  const threshold = 0.5;
+  const timeSinceLastSpawn = time - lastShapeBurstSpawn;
+  const minInterval = 200 / spawnRate;
+
+  if (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) {
+    const slotIndex = shapeBurstSlotIndex;
+    shapeBurstSlots[slotIndex] = {
+      active: true,
+      spawnTime: time / 1000
+    };
+    shapeBurstSlotIndex = (shapeBurstSlotIndex + 1) % 8;
+    lastShapeBurstSpawn = time;
+  }
+
+  const currentTimeSeconds = time / 1000;
+  const maxAge = maxSize / expandSpeed;
+
+  for (let i = 0; i < 8; i += 1) {
+    const slot = shapeBurstSlots[i];
+    if (slot.active) {
+      const age = currentTimeSeconds - slot.spawnTime;
+      if (age > maxAge) {
+        slot.active = false;
+        shapeBurstActives[i] = 0;
+      } else {
+        shapeBurstSpawnTimes[i] = slot.spawnTime;
+        shapeBurstActives[i] = 1;
+      }
+    } else {
+      shapeBurstActives[i] = 0;
+    }
+  }
 };
 
 const updateMediaBursts = (time: number, dt: number) => {
@@ -8901,6 +9092,7 @@ const render = (time: number) => {
   }
   updateGravityWells(time, delta * 0.001);
   updatePortals(time, delta * 0.001);
+  updateShapeBursts(time, delta * 0.001);
   updateMediaBursts(time, delta * 0.001);
   if (glyphBeatPulse > 0) {
     glyphBeatPulse = Math.max(0, glyphBeatPulse - delta * 0.006);
@@ -9008,11 +9200,19 @@ const render = (time: number) => {
         feedback: 0,
         persistence: 0
       };
+  let moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
+  let moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
+  if (!effectsActive) {
+    moddedFeedbackZoom = 0;
+    moddedFeedbackRotation = 0;
+  }
   let moddedParticles = {
     density: modValue('particles.density', particles.density),
     speed: modValue('particles.speed', particles.speed),
     size: modValue('particles.size', particles.size),
-    glow: modValue('particles.glow', particles.glow)
+    glow: modValue('particles.glow', particles.glow),
+    turbulence: modValue('particles.turbulence', particles.turbulence ?? 0.3),
+    audioLift: modValue('particles.audioLift', particles.audioLift ?? 0.5)
   };
   let moddedSdf = {
     scale: modValue('sdf.scale', sdf.scale),
@@ -9051,6 +9251,7 @@ const render = (time: number) => {
     },
     {} as Record<string, number>
   );
+  const macroVal = (target: string) => macroSum[target] ?? 0;
   const renderScene =
     blendSnapshot?.scene ??
     currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
@@ -9065,6 +9266,11 @@ const render = (time: number) => {
   const portalLayer = renderScene?.layers.find((layer) => layer.id === 'layer-portal');
   const mediaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-media');
   const oscilloLayer = renderScene?.layers.find((layer) => layer.id === 'layer-oscillo');
+  // EDM Generators
+  const laserLayer = renderScene?.layers.find((layer) => layer.id === 'gen-laser-beam');
+  const strobeLayer = renderScene?.layers.find((layer) => layer.id === 'gen-strobe');
+  const shapeBurstLayer = renderScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
+  const gridTunnelLayer = renderScene?.layers.find((layer) => layer.id === 'gen-grid-tunnel');
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);
   const origamiRole = getLayerRole(origamiLayer);
@@ -9123,6 +9329,7 @@ const render = (time: number) => {
   );
   const plasmaBaseSpeed = getLayerParamNumber(plasmaLayer, 'speed', 1.0);
   const plasmaBaseScale = getLayerParamNumber(plasmaLayer, 'scale', 1.0);
+  const plasmaBaseComplexity = getLayerParamNumber(plasmaLayer, 'complexity', 0.5);
   const plasmaSpeed = Math.max(
     0.1,
     plasmaBaseSpeed + (macroSum['layer-plasma.speed'] ?? 0) + (midiSum['layer-plasma.speed'] ?? 0)
@@ -9130,6 +9337,12 @@ const render = (time: number) => {
   const plasmaScale = Math.max(
     0.1,
     plasmaBaseScale + (macroSum['layer-plasma.scale'] ?? 0) + (midiSum['layer-plasma.scale'] ?? 0)
+  );
+  const plasmaComplexity = Math.max(
+    0.1,
+    plasmaBaseComplexity +
+      (macroSum['layer-plasma.complexity'] ?? 0) +
+      (midiSum['layer-plasma.complexity'] ?? 0)
   );
 
   const spectrumOpacity = Math.min(
@@ -9231,6 +9444,7 @@ const render = (time: number) => {
   );
   const moddedPlasmaSpeed = modValue('layer-plasma.speed', plasmaSpeed);
   const moddedPlasmaScale = modValue('layer-plasma.scale', plasmaScale);
+  const moddedPlasmaComplexity = modValue('layer-plasma.complexity', plasmaComplexity);
   const moddedSpectrumOpacity = applyRoleOpacity(
     modValue('layer-spectrum.opacity', spectrumOpacity),
     spectrumRole,
@@ -9301,6 +9515,10 @@ const render = (time: number) => {
   const portalEnabled = portalLayer?.enabled ?? false;
   const mediaEnabled = mediaLayer?.enabled ?? false;
   const oscilloEnabled = oscilloLayer?.enabled ?? false;
+  const laserEnabled = laserLayer?.enabled ?? false;
+  const strobeEnabled = strobeLayer?.enabled ?? false;
+  const shapeBurstEnabled = shapeBurstLayer?.enabled ?? false;
+  const gridTunnelEnabled = gridTunnelLayer?.enabled ?? false;
   if (oscilloFreeze < 0.5) {
     oscilloCapture.set(audioState.waveform);
   }
@@ -9360,6 +9578,48 @@ const render = (time: number) => {
     portalEnabled,
     mediaEnabled,
     oscilloEnabled,
+    // EDM Generators
+    laserEnabled,
+    laserOpacity,
+    laserBeamCount,
+    laserBeamWidth,
+    laserBeamLength,
+    laserRotation,
+    laserRotationSpeed,
+    laserSpread,
+    laserMode,
+    laserColorShift,
+    laserAudioReact,
+    laserGlow,
+    strobeEnabled,
+    strobeOpacity,
+    strobeRate,
+    strobeDutyCycle,
+    strobeMode,
+    strobePattern,
+    strobeAudioTrigger,
+    strobeThreshold,
+    strobeFadeOut,
+    shapeBurstEnabled,
+    shapeBurstOpacity,
+    shapeBurstShape,
+    shapeBurstExpandSpeed,
+    shapeBurstStartSize,
+    shapeBurstMaxSize,
+    shapeBurstThickness,
+    shapeBurstFadeMode,
+    shapeBurstSpawnTimes,
+    shapeBurstActives,
+    gridTunnelEnabled,
+    gridTunnelOpacity,
+    gridTunnelSpeed,
+    gridTunnelGridSize,
+    gridTunnelLineWidth,
+    gridTunnelPerspective,
+    gridTunnelHorizonY,
+    gridTunnelGlow,
+    gridTunnelAudioReact,
+    gridTunnelMode,
     spectrum: audioState.spectrum,
     contrast: moddedStyle.contrast,
     saturation: moddedStyle.saturation,
@@ -9367,6 +9627,7 @@ const render = (time: number) => {
     plasmaOpacity: moddedPlasmaOpacity,
     plasmaSpeed: moddedPlasmaSpeed,
     plasmaScale: moddedPlasmaScale,
+    plasmaComplexity: moddedPlasmaComplexity,
     plasmaAudioReact: plasmaAssetAudioReact,
     spectrumOpacity: moddedSpectrumOpacity,
     origamiOpacity: moddedOrigamiOpacity,
@@ -9384,9 +9645,9 @@ const render = (time: number) => {
     crystalScale: moddedCrystalScale,
     crystalSpeed: moddedCrystalSpeed,
     inkOpacity: moddedInkOpacity,
-    inkBrush: inkLayer ? 1.0 : 0.0, // Simplification based on existing logic or extraction if available
-    inkPressure: 0.5, // Placeholder or extraction
-    inkLifespan: 0.5, // Placeholder or extraction
+    inkBrush,
+    inkPressure,
+    inkLifespan,
     inkSpeed: moddedInkSpeed,
     inkScale: moddedInkScale,
     topoOpacity: moddedTopoOpacity,
@@ -9453,6 +9714,8 @@ const render = (time: number) => {
     kaleidoscope: moddedEffects.kaleidoscope,
     kaleidoscopeRotation: moddedEffects.kaleidoscopeRotation,
     feedback: moddedEffects.feedback,
+    feedbackZoom: moddedFeedbackZoom,
+    feedbackRotation: moddedFeedbackRotation,
     persistence: moddedEffects.persistence,
     trailSpectrum: trailSpectrum,
     expressiveEnergyBloom: expressiveEnabled && expressive.energyBloom.enabled ? energyMacro : 0,
@@ -9474,6 +9737,8 @@ const render = (time: number) => {
     particleSpeed: moddedParticles.speed,
     particleSize: moddedParticles.size,
     particleGlow: moddedParticles.glow,
+    particleTurbulence: moddedParticles.turbulence,
+    particleAudioLift: moddedParticles.audioLift,
     sdfEnabled: sdf.enabled,
     sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : sdf.shape === 'triangle' ? 2 : sdf.shape === 'hexagon' ? 3 : sdf.shape === 'star' ? 4 : 5,
     sdfScale: moddedSdf.scale,
@@ -9499,13 +9764,26 @@ const render = (time: number) => {
   // Debug Overlay Update - Shows layer/FX execution status
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const debugActiveScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+  const laserIdRaw = laserLayer?.id ?? '';
+  const laserIdBytes = laserIdRaw
+    ? Array.from(laserIdRaw).map((ch) => ch.charCodeAt(0)).join(' ')
+    : '';
   debugOverlay.update(
     {
       frameId: Math.floor(time),
+      activeSceneId: debugActiveScene?.id ?? '',
       activeSceneName: debugActiveScene?.name ?? '—',
+      activeModeId: currentProject.activeModeId ?? '',
+      activeEngineId: currentProject.activeEngineId ?? '',
+      activePaletteId:
+        debugActiveScene?.look?.activePaletteId ??
+        currentProject.activePaletteId ??
+        '',
       layerCount: debugActiveScene?.layers.length ?? 0,
       layers: (debugActiveScene?.layers ?? []).map((layer) => ({
         id: layer.id,
+        idRaw: layer.id,
+        generatorId: layer.generatorId ?? '',
         name: layer.name,
         enabled: layer.enabled,
         opacity: layer.opacity,
@@ -9559,7 +9837,21 @@ const render = (time: number) => {
         }
       ],
       masterBusFrameId: Math.floor(time),
-      uniformsUpdatedFrameId: Math.floor(time)
+      uniformsUpdatedFrameId: Math.floor(time),
+      laser: {
+        enabled: laserEnabled,
+        opacity: laserOpacity,
+        beamCount: laserBeamCount,
+        beamWidth: laserBeamWidth,
+        beamLength: laserBeamLength,
+        glow: laserGlow,
+        present: Boolean(laserLayer),
+        enabledInScene: laserLayer?.enabled ?? false,
+        idRaw: laserIdRaw,
+        idBytes: laserIdBytes,
+        matchTarget: 'gen-laser-beam',
+        matchNormalized: laserIdRaw
+      }
     },
     currentFps
   );
@@ -9814,7 +10106,12 @@ const init = async () => {
   console.log('[Init] setMode completed');
 
   if (currentProject.activeModeId) {
-    applyVisualMode(currentProject.activeModeId);
+    applyVisualMode(currentProject.activeModeId, {
+      preservePalette: true,
+      preserveEffects: true,
+      preserveModMatrix: true,
+      preserveMotionMacro: true
+    });
   }
 
   updateTransportUI();

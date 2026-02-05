@@ -1513,7 +1513,20 @@ void main() {
   }
   // --- End EDM Generators ---
 
-  color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
+  if (uStrobeEnabled > 0.5) {
+    color += vec3(uStrobe * 1.5);
+  }
+  if (
+    uPlasmaEnabled > 0.5 ||
+    uSpectrumEnabled > 0.5 ||
+    uInkEnabled > 0.5 ||
+    uTopoEnabled > 0.5 ||
+    uPortalEnabled > 0.5 ||
+    uOscilloEnabled > 0.5 ||
+    uParticlesEnabled > 0.5
+  ) {
+    color += vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
+  }
 
   // Opinionated Engine Glow (HDR-style accumulation)
   if (uEffectsEnabled > 0.5) {

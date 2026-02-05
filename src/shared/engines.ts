@@ -1,6 +1,11 @@
 import { LayerConfig, SceneLook, ColorPalette, COLOR_PALETTES } from './project';
 
-export type EngineId = 'engine-radial-core' | 'engine-particle-flow' | 'engine-kaleido-pulse' | 'engine-vapor-grid';
+export type EngineId =
+  | 'engine-none'
+  | 'engine-radial-core'
+  | 'engine-particle-flow'
+  | 'engine-kaleido-pulse'
+  | 'engine-vapor-grid';
 
 export interface EngineMacro {
   id: string;
@@ -45,6 +50,34 @@ export interface VisualEngine {
 }
 
 export const ENGINE_REGISTRY: Record<EngineId, VisualEngine> = {
+  'engine-none': {
+    id: 'engine-none',
+    name: 'None (Keep Current Layers)',
+    description: 'Leaves existing layers and macros untouched.',
+    curatedPalette: COLOR_PALETTES[0],
+    semantics: {
+      kick: 'none',
+      mids: 'none',
+      highs: 'none'
+    },
+    grammar: {
+      mass: 0.5,
+      friction: 0.95,
+      elasticity: 1.0
+    },
+    constraints: {
+      maxBloom: 1.0,
+      forceFeedback: false,
+      preferredMotion: 'linear'
+    },
+    finish: {
+      grain: 0.0,
+      vignette: 0.0,
+      ca: 0.0
+    },
+    macros: [],
+    baseLayers: []
+  },
   'engine-radial-core': {
     id: 'engine-radial-core',
     name: 'Radial Energy Core',
