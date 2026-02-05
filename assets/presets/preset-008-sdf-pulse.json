@@ -144,14 +144,20 @@
     "bpm": 120,
     "source": "manual"
   },
-  "modulations": [],
-  "macros": [
+  "modulations": [
     {
-      "id": "macro-1",
-      "name": "Macro 1",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 1"
+      "source": "audio.rms",
+      "target": {
+        "type": "portal",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
     }
-  ]
+  ],
+  "macros": []
 }

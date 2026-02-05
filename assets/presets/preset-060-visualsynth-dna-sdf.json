@@ -207,13 +207,6 @@
       "value": 0.5,
       "targets": [],
       "description": "Controls: Shader Plasma brightness"
-    },
-    {
-      "id": "macro-4",
-      "name": "Macro 4",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 4"
     }
   ]
 }

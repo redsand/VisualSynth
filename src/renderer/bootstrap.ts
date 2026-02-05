@@ -21,7 +21,7 @@ import { actions } from './state/actions';
 import { setStatus } from './state/events';
 import { createAudioEngine } from './audio/AudioEngine';
 import { createMidiEngine } from './midi/MidiEngine';
-import { createRenderGraph } from './render/RenderGraph';
+import { RenderGraph } from './render/RenderGraph';
 import { createDebugOverlay } from './render/debugOverlay';
 import { createRenderer } from './render/Renderer';
 import { createProjectIO } from './persistence/projectIO';
@@ -62,16 +62,53 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   // MIDI engine with callbacks for pad triggers and MIDI learn
   const midiEngine = createMidiEngine(store, {
     onPadTrigger: (logicalIndex, velocity) => {
-      // TODO: Implement pad trigger handling
-      console.log('[MIDI] Pad trigger:', logicalIndex, velocity);
+      // Try to handle as MIDI scene trigger first
+      const padState = store.getState().pad;
+      const channel = 1; // Default MIDI channel
+      const note = logicalIndex; // Use logical index as note number
+      const bank = padState.activeBank ?? 0;
+
+      // Check if this triggers a scene macro/preset
+      const handled = renderGraph.handleMidiNote(channel, note, velocity * 127, bank);
+
+      if (!handled) {
+        // Fall back to standard pad action handling
+        const padConfig = padState.config?.[logicalIndex];
+        if (padConfig?.action) {
+          renderGraph.handlePadAction(padConfig.action, velocity);
+        }
+      }
     },
     onMidiTarget: (target, value, isToggle) => {
-      // TODO: Implement MIDI target handling
+      // Check if this is a scene CC parameter
+      const channel = 1; // Default channel
+      // Extract CC number from target if it's in format "cc.N"
+      const ccMatch = target.match(/^cc\.(\d+)$/);
+      if (ccMatch) {
+        const cc = parseInt(ccMatch[1], 10);
+        const handled = renderGraph.handleMidiCC(channel, cc, value * 127);
+        if (handled) return;
+      }
+
+      // Fall back to standard MIDI target handling (modulation, etc.)
       console.log('[MIDI] Target:', target, value, isToggle);
     },
     onLearnMapping: (mapping) => {
-      // TODO: Implement MIDI learn mapping
-      console.log('[MIDI] Learn mapping:', mapping);
+      // Add the learned mapping to the project
+      actions.mutateProject(store, (project) => {
+        // Remove any existing mapping for this target
+        project.midiMappings = project.midiMappings.filter(m => m.target !== mapping.target);
+        // Add the new mapping
+        project.midiMappings.push({
+          id: `midi_${Date.now()}`,
+          message: mapping.message,
+          channel: mapping.channel,
+          control: mapping.control,
+          target: mapping.target,
+          mode: mapping.mode
+        });
+      });
+      setStatus(`MIDI mapped: ${mapping.label} -> ${mapping.message} ${mapping.control}`);
     }
   });
 

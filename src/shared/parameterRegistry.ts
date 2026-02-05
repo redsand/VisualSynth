@@ -418,6 +418,211 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
     ]
   },
   {
+    id: 'lightning',
+    name: 'Lightning Bolt',
+    description: 'High-voltage lightning generator',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'branches', name: 'Branches', type: 'number', min: 1, max: 5, default: 3, modulatable: false, midiMappable: true },
+      { id: 'thickness', name: 'Thickness', type: 'number', min: 0.01, max: 0.1, default: 0.02, modulatable: true, midiMappable: true },
+      { id: 'color', name: 'Color Mode', type: 'enum', default: 0, options: [{value: 0, label: 'Blue'}, {value: 1, label: 'Yellow'}, {value: 2, label: 'Purple'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'analog-oscillo',
+    name: 'Analog Oscillo',
+    description: 'Gritty CRT oscilloscope',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'thickness', name: 'Thickness', type: 'number', min: 0.005, max: 0.05, default: 0.01, modulatable: true, midiMappable: true },
+      { id: 'glow', name: 'Glow', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'color', name: 'Color', type: 'enum', default: 0, options: [{value: 0, label: 'White'}, {value: 1, label: 'Red'}, {value: 2, label: 'Green'}], modulatable: false, midiMappable: true },
+      { id: 'mode', name: 'Mode', type: 'enum', default: 0, options: [{value: 0, label: 'Line'}, {value: 1, label: 'Dots'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'speaker-cone',
+    name: 'Speaker Cone',
+    description: 'Bass-driven radial distortion',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'force', name: 'Force', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'glitch-scanline',
+    name: 'Glitch Scanline',
+    description: 'VHS tracking and glitch artifacts',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Line Count', type: 'number', min: 1, max: 10, default: 1, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'laser-starfield',
+    name: 'Laser Starfield',
+    description: 'Geometric starfield with high-frequency reaction',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'pulsing-ribbons',
+    name: 'Pulsing Ribbons',
+    description: 'Flowing frequency ribbons',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Ribbon Count', type: 'number', min: 1, max: 10, default: 3, modulatable: false, midiMappable: true },
+      { id: 'width', name: 'Ribbon Width', type: 'number', min: 0.01, max: 0.2, default: 0.05, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'electric-arc',
+    name: 'Electric Arc',
+    description: 'Circular high-voltage arcs',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'radius', name: 'Arc Radius', type: 'number', min: 0.1, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'chaos', name: 'Arc Chaos', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'pyro-burst',
+    name: 'Pyro Burst',
+    description: 'Firework-style bursts on transients',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'force', name: 'Burst Force', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'geo-wireframe',
+    name: 'Geo Wireframe',
+    description: 'Rotating 3D wireframe shapes',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'shape', name: 'Shape Type', type: 'enum', default: 0, options: [{value: 0, label: 'Box'}, {value: 1, label: 'Triangle'}], modulatable: false, midiMappable: true },
+      { id: 'scale', name: 'Shape Scale', type: 'number', min: 0.1, max: 2, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'signal-noise',
+    name: 'Signal Noise',
+    description: 'Radio interference and static',
+    sinceVersion: '1.1.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'amount', name: 'Noise Amount', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'infinite-wormhole',
+    name: 'Infinite Wormhole',
+    description: 'Organic weaving tunnel',
+    sinceVersion: '1.2.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Travel Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'weave', name: 'Weave Strength', type: 'number', min: 0, max: 1, default: 0.2, modulatable: true, midiMappable: true },
+      { id: 'iter', name: 'Iterations', type: 'number', min: 1, max: 8, default: 3, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'ribbon-tunnel',
+    name: 'Ribbon Tunnel',
+    description: 'Twisting neon ribbon path',
+    sinceVersion: '1.2.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Rotation Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'twist', name: 'Spiral Twist', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'fractal-tunnel',
+    name: 'Fractal Tunnel',
+    description: 'Recursive geometric tunnel',
+    sinceVersion: '1.2.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Zoom Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'complexity', name: 'Recursion Depth', type: 'number', min: 1, max: 5, default: 3, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'circuit-conduit',
+    name: 'Circuit Conduit',
+    description: 'Square data-flow tunnel',
+    sinceVersion: '1.2.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Data Flow Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'aura-portal',
+    name: 'Aura Portal',
+    description: 'Volumetric glowing void',
+    sinceVersion: '1.3.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'color', name: 'Color Style', type: 'enum', default: 0, options: [{value: 0, label: 'Cool'}, {value: 1, label: 'Warm'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'freq-terrain',
+    name: 'Frequency Terrain',
+    description: 'Audio-spectrum based landscape',
+    sinceVersion: '1.3.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Height Scale', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'data-stream',
+    name: 'Data Stream',
+    description: 'Cyberpunk digital rainfall',
+    sinceVersion: '1.3.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Stream Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'caustic-liquid',
+    name: 'Caustic Liquid',
+    description: 'Underwater light refraction',
+    sinceVersion: '1.3.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Flow Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'shimmer-veil',
+    name: 'Shimmer Veil',
+    description: 'Rippling curtain of light',
+    sinceVersion: '1.3.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'complexity', name: 'Veil Complexity', type: 'number', min: 1, max: 20, default: 10, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
     id: 'laser-beam',
     name: 'Laser Beam',
     description: 'EDM-style laser beams with audio reactivity',
@@ -946,7 +1151,26 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-laser-beam': 'laser-beam',
     'gen-strobe': 'strobe',
     'gen-shape-burst': 'shape-burst',
-    'gen-grid-tunnel': 'grid-tunnel'
+    'gen-grid-tunnel': 'grid-tunnel',
+    'gen-lightning': 'lightning',
+    'gen-analog-oscillo': 'analog-oscillo',
+    'gen-speaker-cone': 'speaker-cone',
+    'gen-glitch-scanline': 'glitch-scanline',
+    'gen-laser-starfield': 'laser-starfield',
+    'gen-pulsing-ribbons': 'pulsing-ribbons',
+    'gen-electric-arc': 'electric-arc',
+    'gen-pyro-burst': 'pyro-burst',
+    'gen-geo-wireframe': 'geo-wireframe',
+    'gen-signal-noise': 'signal-noise',
+    'gen-infinite-wormhole': 'infinite-wormhole',
+    'gen-ribbon-tunnel': 'ribbon-tunnel',
+    'gen-fractal-tunnel': 'fractal-tunnel',
+    'gen-circuit-conduit': 'circuit-conduit',
+    'gen-aura-portal': 'aura-portal',
+    'gen-freq-terrain': 'freq-terrain',
+    'gen-data-stream': 'data-stream',
+    'gen-caustic-liquid': 'caustic-liquid',
+    'gen-shimmer-veil': 'shimmer-veil'
   };
 
   const type = idMapping[layerId] || layerId;

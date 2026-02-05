@@ -67,47 +67,6 @@
           }
         }
       ]
-    },
-    {
-      "id": "scene-2",
-      "scene_id": "scene-2",
-      "name": "Pulse Scene",
-      "intent": "pulse",
-      "duration": 0,
-      "transition_in": {
-        "durationMs": 600,
-        "curve": "easeInOut"
-      },
-      "transition_out": {
-        "durationMs": 600,
-        "curve": "easeInOut"
-      },
-      "trigger": {
-        "type": "manual"
-      },
-      "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-spectrum"
-        ],
-        "atmosphere": []
-      },
-      "layers": [
-        {
-          "id": "layer-spectrum",
-          "name": "Spectrum Bars",
-          "role": "support",
-          "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
     }
   ],
   "activeSceneId": "scene-1",
@@ -120,6 +79,20 @@
     "bpm": 120,
     "source": "manual"
   },
-  "modulations": [],
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "spectrum",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "macros": []
 }

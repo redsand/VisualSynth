@@ -26,6 +26,7 @@ import { createLayerPanel } from './panels/LayerPanel';
 import { createMixerPanel } from './ui/panels/MixerPanel';
 import { createModeDashboard } from './ui/panels/ModeDashboard';
 import { createSdfPanel } from './ui/panels/SdfPanel';
+import { createOutputManagerPanel, injectOutputManagerStyles } from './ui/panels/OutputManagerPanel';
 import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './panels/ModulationPanel';
 import { getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
@@ -45,6 +46,7 @@ import type { AssetImportResult } from '../shared/assets';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
+import { playlistManager, PlaylistEvent } from './playlist/PlaylistManager';
 
 declare global {
   interface Window {
@@ -98,6 +100,23 @@ declare global {
       ) => Promise<{ canceled: boolean; filePath?: string }>;
       importPlugin: () => Promise<{ canceled: boolean; filePath?: string; payload?: string }>;
       openAssetFolder: (filePath: string) => Promise<{ opened: boolean }>;
+      // Spout/NDI output integration
+      spoutIsAvailable: () => Promise<boolean>;
+      spoutGetStatus: () => Promise<{ enabled: boolean; senderName: string; connectedReceivers?: number }>;
+      spoutEnable: (name: string) => Promise<boolean>;
+      spoutDisable: () => Promise<void>;
+      spoutSetSenderName: (name: string) => Promise<void>;
+      ndiIsAvailable: () => Promise<boolean>;
+      ndiGetStatus: () => Promise<{ enabled: boolean; senderName: string }>;
+      ndiEnable: (options: { senderName: string; groups?: string }) => Promise<boolean>;
+      ndiDisable: () => Promise<void>;
+      ndiSetSenderName: (name: string) => Promise<void>;
+    };
+    // RenderGraph for macro triggering (set in bootstrap.ts)
+    renderGraph?: {
+      triggerMacro: (macroId: string) => void;
+      handleMidiNote: (channel: number, note: number, velocity: number, bank?: number) => boolean;
+      handleMidiCC: (channel: number, cc: number, value: number) => boolean;
     };
   }
 }
@@ -535,6 +554,105 @@ const triggerPlaylistSlot = async (index: number) => {
   // Update UI to highlight active slot
   renderPlaylist();
 };
+
+// ============================================================================
+// PlaylistManager Integration
+// ============================================================================
+
+let playlistManagerInitialized = false;
+
+const initPlaylistManager = () => {
+  if (playlistManagerInitialized) return;
+  playlistManagerInitialized = true;
+
+  // Set up preset loader callback
+  playlistManager.setPresetLoader(async (path, name, crossfadeSeconds) => {
+    const presetName = name || path;
+    setStatus(`Sequencing: ${presetName}...`);
+
+    if (crossfadeSeconds > 0) {
+      await crossfadeToPreset(path, presetName, crossfadeSeconds);
+    } else {
+      await applyPresetPath(path, 'Playlist');
+    }
+  });
+
+  // Set up macro trigger callback
+  playlistManager.setMacroTrigger((macroId) => {
+    // Trigger scene macros (DROP, BUILD, BREAKDOWN, TRANSITION)
+    if (window.renderGraph) {
+      window.renderGraph.triggerMacro(macroId);
+    }
+    console.log('[PlaylistManager] Triggered macro:', macroId);
+  });
+
+  // Subscribe to playlist events
+  playlistManager.on((event: PlaylistEvent) => {
+    switch (event.type) {
+      case 'playlist-started':
+        playlistActive = true;
+        playlistOverrides = {};
+        renderPlaylist();
+        setStatus('Playlist started');
+        break;
+
+      case 'playlist-stopped':
+        playlistActive = false;
+        playlistOverrides = {};
+        renderPlaylist();
+        setStatus('Playlist stopped');
+        break;
+
+      case 'slot-changed':
+        if (event.slotIndex !== undefined) {
+          playlistIndex = event.slotIndex;
+          renderPlaylist();
+        }
+        break;
+
+      case 'condition-waiting':
+        if (event.slot) {
+          setStatus(`Waiting for: ${event.slot.advanceCondition}`);
+        }
+        break;
+
+      case 'cue-point-reached':
+        if (event.cuePoint) {
+          setStatus(`Cue: ${event.cuePoint.name}`);
+        }
+        break;
+
+      case 'playlist-completed':
+        playlistActive = false;
+        renderPlaylist();
+        setStatus('Playlist completed');
+        break;
+    }
+  });
+
+  // Import existing legacy playlist if available
+  if (playlist.length > 0) {
+    playlistManager.importLegacyPlaylist(playlist);
+  }
+
+  console.log('[PlaylistManager] Initialized');
+};
+
+// Connect BPM updates to playlist manager (call this from BPM detection)
+const updatePlaylistBpm = (bpm: number) => {
+  playlistManager.setBpm(bpm);
+};
+
+// Connect energy updates to playlist manager (call this from audio analysis)
+const updatePlaylistEnergy = (energy: number) => {
+  playlistManager.setEnergy(energy);
+};
+
+// Connect beat drop detection to playlist manager
+const markPlaylistBeatDrop = () => {
+  playlistManager.markBeatDrop();
+};
+
 let presetLibrary: { name: string; path: string; category: string }[] = [];
 const presetThumbStorageKey = 'vs.preset.thumbs';
 let presetThumbs: Record<string, string> = {};
@@ -2322,7 +2440,6 @@ const renderSceneStrip = () => {
     remove.textContent = '✕';
     remove.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (!window.confirm(`Remove scene "${scene.name}"?`)) return;
       removeScene(scene.id);
     });
     card.appendChild(title);
@@ -2348,7 +2465,6 @@ const renderSceneStrip = () => {
     rowRemove.textContent = '✕';
     rowRemove.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (!window.confirm(`Remove scene "${scene.name}"?`)) return;
       removeScene(scene.id);
     });
     row.appendChild(name);
@@ -2374,7 +2490,6 @@ const renderSceneTimeline = () => {
       setStatus(`Scene switched: ${sceneName}`);
     },
     onRemove: (sceneId, sceneName) => {
-      if (!window.confirm(`Remove scene \"${sceneName}\"?`)) return;
       removeScene(sceneId);
     }
   });
@@ -2572,7 +2687,6 @@ const renderLayerList = () => {
       removeButton.className = 'layer-remove';
       removeButton.textContent = '✕';
       removeButton.addEventListener('click', () => {
-        if (!window.confirm(`Remove "${layer.name}" from this scene?`)) return;
         removeLayer(scene.id, layer.id);
       });
       controls.appendChild(upButton);
@@ -8735,6 +8849,31 @@ const initOutputConfig = async () => {
   });
 };
 
+// Output Manager Panel (VJ Integration - Spout/NDI)
+let outputManagerPanel: ReturnType<typeof createOutputManagerPanel> | null = null;
+
+const initOutputManagerPanel = async () => {
+  // Inject styles
+  injectOutputManagerStyles();
+
+  // Create the panel
+  const dummyStore = {
+    getState: () => ({ project: currentProject }),
+    update: () => {},
+    subscribe: () => () => {}
+  };
+  outputManagerPanel = createOutputManagerPanel({ store: dummyStore as any });
+
+  // Add to container
+  const container = document.getElementById('output-manager-container');
+  if (container) {
+    container.appendChild(outputManagerPanel.getContainer());
+  }
+
+  // Refresh to get current status
+  await outputManagerPanel.refresh();
+};
+
 const initBpmNetworking = async () => {
   // Check if the visualSynth API is available
   if (!window.visualSynth || !window.visualSynth.isProlinkAvailable) {
@@ -9154,7 +9293,12 @@ const render = (time: number) => {
     updateLfos(delta * 0.001, activeBpm);
     updateEnvelopes(delta * 0.001);
     updateSampleHold(delta * 0.001, activeBpm);
-    
+
+    // Update PlaylistManager with current BPM and audio energy
+    updatePlaylistBpm(activeBpm);
+    const totalEnergy = audioState.energyLow + audioState.energyMid + audioState.energyHigh;
+    updatePlaylistEnergy(totalEnergy / 3);
+
     // Transition Decay
     if (currentTransitionAmount > 0) {
       currentTransitionAmount = Math.max(0, currentTransitionAmount - delta * currentTransitionDecay);
@@ -10173,6 +10317,14 @@ const init = async () => {
   console.log('[Init] Starting initOutputConfig...');
   await initOutputConfig();
   console.log('[Init] initOutputConfig completed');
+
+  console.log('[Init] Starting initOutputManagerPanel...');
+  await initOutputManagerPanel();
+  console.log('[Init] initOutputManagerPanel completed');
+
+  console.log('[Init] Starting initPlaylistManager...');
+  initPlaylistManager();
+  console.log('[Init] initPlaylistManager completed');
 
   refreshSceneSelect();
   applyScene(currentProject.activeSceneId);

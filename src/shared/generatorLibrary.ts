@@ -49,6 +49,25 @@ export type GeneratorId =
   | 'gen-particles'
   | 'gen-sdf'
   | 'gen-sdf-scene'
+  | 'gen-lightning'
+  | 'gen-analog-oscillo'
+  | 'gen-speaker-cone'
+  | 'gen-glitch-scanline'
+  | 'gen-laser-starfield'
+  | 'gen-pulsing-ribbons'
+  | 'gen-electric-arc'
+  | 'gen-pyro-burst'
+  | 'gen-geo-wireframe'
+  | 'gen-signal-noise'
+  | 'gen-infinite-wormhole'
+  | 'gen-ribbon-tunnel'
+  | 'gen-fractal-tunnel'
+  | 'gen-circuit-conduit'
+  | 'gen-aura-portal'
+  | 'gen-freq-terrain'
+  | 'gen-data-stream'
+  | 'gen-caustic-liquid'
+  | 'gen-shimmer-veil'
   | 'gen-laser-beam'
   | 'gen-strobe'
   | 'gen-shape-burst'
@@ -121,6 +140,25 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-particles', name: 'Particle Field' },
   { id: 'gen-sdf', name: 'SDF Shapes (Simple)' },
   { id: 'gen-sdf-scene', name: 'SDF Scene (Advanced)' },
+  { id: 'gen-lightning', name: 'Generator: Lightning Bolt' },
+  { id: 'gen-analog-oscillo', name: 'Generator: Analog Oscilloscope' },
+  { id: 'gen-speaker-cone', name: 'Generator: Speaker Cone' },
+  { id: 'gen-glitch-scanline', name: 'Generator: Glitch Scanline' },
+  { id: 'gen-laser-starfield', name: 'Generator: Laser Starfield' },
+  { id: 'gen-pulsing-ribbons', name: 'Generator: Pulsing Ribbons' },
+  { id: 'gen-electric-arc', name: 'Generator: Electric Arc' },
+  { id: 'gen-pyro-burst', name: 'Generator: Pyro Burst' },
+  { id: 'gen-geo-wireframe', name: 'Generator: Geo Wireframe' },
+  { id: 'gen-signal-noise', name: 'Generator: Signal Noise' },
+  { id: 'gen-infinite-wormhole', name: 'Generator: Infinite Wormhole' },
+  { id: 'gen-ribbon-tunnel', name: 'Generator: Ribbon Tunnel' },
+  { id: 'gen-fractal-tunnel', name: 'Generator: Fractal Tunnel' },
+  { id: 'gen-circuit-conduit', name: 'Generator: Circuit Conduit' },
+  { id: 'gen-aura-portal', name: 'Generator: Aura Portal' },
+  { id: 'gen-freq-terrain', name: 'Generator: Frequency Terrain' },
+  { id: 'gen-data-stream', name: 'Generator: Data Stream' },
+  { id: 'gen-caustic-liquid', name: 'Generator: Caustic Liquid' },
+  { id: 'gen-shimmer-veil', name: 'Generator: Shimmer Veil' },
   { id: 'gen-laser-beam', name: 'Generator: Laser Beam' },
   { id: 'gen-strobe', name: 'Generator: Strobe Flash' },
   { id: 'gen-shape-burst', name: 'Generator: Shape Burst' },

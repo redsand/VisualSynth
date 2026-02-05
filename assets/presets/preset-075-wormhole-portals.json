@@ -243,20 +243,6 @@
       "value": 0.5,
       "targets": [],
       "description": "Controls: Wormhole Portal distortion"
-    },
-    {
-      "id": "macro-7",
-      "name": "Macro 7",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 7"
-    },
-    {
-      "id": "macro-8",
-      "name": "Macro 8",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 8"
     }
   ]
 }

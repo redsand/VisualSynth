@@ -144,7 +144,21 @@
     "bpm": 120,
     "source": "manual"
   },
-  "modulations": [],
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "oscillo",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "macros": [
     {
       "id": "macro-1",
@@ -166,13 +180,6 @@
       "value": 0.5,
       "targets": [],
       "description": "Controls: Sacred Oscilloscope rotate"
-    },
-    {
-      "id": "macro-4",
-      "name": "Macro 4",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 4"
     }
   ]
 }

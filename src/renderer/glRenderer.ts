@@ -194,6 +194,79 @@ export interface RenderState {
   gridTunnelGlow: number;
   gridTunnelAudioReact: number;
   gridTunnelMode: number;
+  // Rock Generators
+  lightningEnabled: boolean;
+  lightningOpacity: number;
+  lightningSpeed: number;
+  lightningBranches: number;
+  lightningThickness: number;
+  lightningColor: number;
+  analogOscilloEnabled: boolean;
+  analogOscilloOpacity: number;
+  analogOscilloThickness: number;
+  analogOscilloGlow: number;
+  analogOscilloColor: number;
+  analogOscilloMode: number;
+  speakerConeEnabled: boolean;
+  speakerConeOpacity: number;
+  speakerConeForce: number;
+  glitchScanlineEnabled: boolean;
+  glitchScanlineOpacity: number;
+  glitchScanlineSpeed: number;
+  glitchScanlineCount: number;
+  laserStarfieldEnabled: boolean;
+  laserStarfieldOpacity: number;
+  laserStarfieldSpeed: number;
+  laserStarfieldDensity: number;
+  pulsingRibbonsEnabled: boolean;
+  pulsingRibbonsOpacity: number;
+  pulsingRibbonsCount: number;
+  pulsingRibbonsWidth: number;
+  electricArcEnabled: boolean;
+  electricArcOpacity: number;
+  electricArcRadius: number;
+  electricArcChaos: number;
+  pyroBurstEnabled: boolean;
+  pyroBurstOpacity: number;
+  pyroBurstForce: number;
+  geoWireframeEnabled: boolean;
+  geoWireframeOpacity: number;
+  geoWireframeShape: number;
+  geoWireframeScale: number;
+  signalNoiseEnabled: boolean;
+  signalNoiseOpacity: number;
+  signalNoiseAmount: number;
+  wormholeEnabled: boolean;
+  wormholeOpacity: number;
+  wormholeSpeed: number;
+  wormholeWeave: number;
+  wormholeIter: number;
+  ribbonTunnelEnabled: boolean;
+  ribbonTunnelOpacity: number;
+  ribbonTunnelSpeed: number;
+  ribbonTunnelTwist: number;
+  fractalTunnelEnabled: boolean;
+  fractalTunnelOpacity: number;
+  fractalTunnelSpeed: number;
+  fractalTunnelComplexity: number;
+  circuitConduitEnabled: boolean;
+  circuitConduitOpacity: number;
+  circuitConduitSpeed: number;
+  auraPortalEnabled: boolean;
+  auraPortalOpacity: number;
+  auraPortalColor: number;
+  freqTerrainEnabled: boolean;
+  freqTerrainOpacity: number;
+  freqTerrainScale: number;
+  dataStreamEnabled: boolean;
+  dataStreamOpacity: number;
+  dataStreamSpeed: number;
+  causticLiquidEnabled: boolean;
+  causticLiquidOpacity: number;
+  causticLiquidSpeed: number;
+  shimmerVeilEnabled: boolean;
+  shimmerVeilOpacity: number;
+  shimmerVeilComplexity: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -431,6 +504,80 @@ uniform float uGridTunnelHorizonY;
 uniform float uGridTunnelGlow;
 uniform float uGridTunnelAudioReact;
 uniform float uGridTunnelMode;
+
+// --- Rock Generators ---
+uniform float uLightningEnabled;
+uniform float uLightningOpacity;
+uniform float uLightningSpeed;
+uniform float uLightningBranches;
+uniform float uLightningThickness;
+uniform float uLightningColor;
+uniform float uAnalogOscilloEnabled;
+uniform float uAnalogOscilloOpacity;
+uniform float uAnalogOscilloThickness;
+uniform float uAnalogOscilloGlow;
+uniform float uAnalogOscilloColor;
+uniform float uAnalogOscilloMode;
+uniform float uSpeakerConeEnabled;
+uniform float uSpeakerConeOpacity;
+uniform float uSpeakerConeForce;
+uniform float uGlitchScanlineEnabled;
+uniform float uGlitchScanlineOpacity;
+uniform float uGlitchScanlineSpeed;
+uniform float uGlitchScanlineCount;
+uniform float uLaserStarfieldEnabled;
+uniform float uLaserStarfieldOpacity;
+uniform float uLaserStarfieldSpeed;
+uniform float uLaserStarfieldDensity;
+uniform float uPulsingRibbonsEnabled;
+uniform float uPulsingRibbonsOpacity;
+uniform float uPulsingRibbonsCount;
+uniform float uPulsingRibbonsWidth;
+uniform float uElectricArcEnabled;
+uniform float uElectricArcOpacity;
+uniform float uElectricArcRadius;
+uniform float uElectricArcChaos;
+uniform float uPyroBurstEnabled;
+uniform float uPyroBurstOpacity;
+uniform float uPyroBurstForce;
+uniform float uGeoWireframeEnabled;
+uniform float uGeoWireframeOpacity;
+uniform float uGeoWireframeShape;
+uniform float uGeoWireframeScale;
+uniform float uSignalNoiseEnabled;
+uniform float uSignalNoiseOpacity;
+uniform float uSignalNoiseAmount;
+uniform float uWormholeEnabled;
+uniform float uWormholeOpacity;
+uniform float uWormholeSpeed;
+uniform float uWormholeWeave;
+uniform float uWormholeIter;
+uniform float uRibbonTunnelEnabled;
+uniform float uRibbonTunnelOpacity;
+uniform float uRibbonTunnelSpeed;
+uniform float uRibbonTunnelTwist;
+uniform float uFractalTunnelEnabled;
+uniform float uFractalTunnelOpacity;
+uniform float uFractalTunnelSpeed;
+uniform float uFractalTunnelComplexity;
+uniform float uCircuitConduitEnabled;
+uniform float uCircuitConduitOpacity;
+uniform float uCircuitConduitSpeed;
+uniform float uAuraPortalEnabled;
+uniform float uAuraPortalOpacity;
+uniform float uAuraPortalColor;
+uniform float uFreqTerrainEnabled;
+uniform float uFreqTerrainOpacity;
+uniform float uFreqTerrainScale;
+uniform float uDataStreamEnabled;
+uniform float uDataStreamOpacity;
+uniform float uDataStreamSpeed;
+uniform float uCausticLiquidEnabled;
+uniform float uCausticLiquidOpacity;
+uniform float uCausticLiquidSpeed;
+uniform float uShimmerVeilEnabled;
+uniform float uShimmerVeilOpacity;
+uniform float uShimmerVeilComplexity;
 
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
@@ -845,6 +992,242 @@ vec3 palette(float t) {
          mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, t));
 }
 
+// --- Rock Generator Functions ---
+
+float lightningBolt(vec2 uv, float t, float audio) {
+  vec2 p = (uv * 2.0 - 1.0);
+  p.x *= uAspect;
+  
+  float v = 0.0;
+  float intensity = uLightningOpacity;
+  float branches = uLightningBranches; 
+  float thickness = uLightningThickness; 
+  
+  for (float i = 0.0; i < 3.0; i++) {
+    if (i >= branches) break;
+    float t2 = t * uLightningSpeed * (1.0 + i * 0.5) + i * 135.2;
+    vec2 seed = vec2(t2 * 0.5, t2 * 0.2);
+    
+    float noiseVal = fbm(p * (2.0 + i) + seed);
+    float bolt = 1.0 / (abs(p.y + (noiseVal - 0.5) * 1.5) + 0.05);
+    
+    // Masking to keep it somewhat central but wild
+    bolt *= smoothstep(1.5, 0.0, abs(p.x));
+    
+    v += bolt * thickness;
+  }
+  
+  v *= (1.0 + audio * 2.0);
+  return clamp(v, 0.0, 1.0) * intensity;
+}
+
+float analogOscillo(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float v = 0.0;
+  
+  float wave = getWaveform(p.x);
+  float jitter = (hash21(vec2(t * 100.0, p.y)) - 0.5) * 0.01;
+  float dist = abs(p.y - 0.5 - wave * 0.5 + jitter);
+  float thickness = uAnalogOscilloThickness; 
+  float glow = uAnalogOscilloGlow;
+  
+  v = smoothstep(thickness, 0.0, dist);
+  v += exp(-dist * 20.0) * glow;
+  
+  return clamp(v, 0.0, 1.0) * uAnalogOscilloOpacity * (1.0 + audio * 0.5);
+}
+
+vec2 speakerCone(vec2 uv, float bass) {
+  vec2 centered = uv - 0.5;
+  float dist = length(centered);
+  float push = bass * uSpeakerConeForce * 0.2 * smoothstep(0.5, 0.0, dist);
+  return uv - centered * push;
+}
+
+vec3 glitchScanline(vec2 uv, float t, float audio) {
+  float speed = uGlitchScanlineSpeed;
+  float scan = sin(uv.y * 100.0 * uGlitchScanlineCount + t * speed) * 0.5 + 0.5;
+  vec3 col = vec3(scan);
+  
+  if (hash21(vec2(t * speed, floor(uv.y * 20.0))) > 0.95) {
+    col.r = 1.0;
+    col.gb *= 0.0;
+  }
+  
+  return col * uGlitchScanlineOpacity * (1.0 + audio);
+}
+
+vec3 laserStarfield(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  p.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float layers = 3.0;
+  for(float i=0.0; i<layers; i++) {
+    float depth = fract(t * uLaserStarfieldSpeed * 0.1 + i/layers);
+    float scale = mix(20.0, 0.1, depth);
+    float fade = depth * smoothstep(1.0, 0.8, depth);
+    vec2 gv = p * scale + i * 453.2;
+    vec2 id = floor(gv);
+    vec2 f = fract(gv) - 0.5;
+    float rnd = hash21(id);
+    if(rnd > 1.0 - uLaserStarfieldDensity * 0.2) {
+      float star = smoothstep(0.1, 0.0, length(f));
+      col += palette(rnd) * star * fade;
+    }
+  }
+  return col * uLaserStarfieldOpacity * (1.0 + audio * 0.5);
+}
+
+vec3 pulsingRibbons(vec2 uv, float t, float audio) {
+  vec3 col = vec3(0.0);
+  for(float i=0.0; i<uPulsingRibbonsCount; i++) {
+    float offset = i * 0.2;
+    float wave = sin(uv.x * 5.0 + t * 2.0 + offset) * 0.2;
+    wave += sin(uv.x * 10.0 - t * 1.5) * 0.1;
+    float d = abs(uv.y - 0.5 - wave);
+    float ribbon = smoothstep(uPulsingRibbonsWidth, 0.0, d);
+    col += palette(fract(i * 0.3 + t * 0.1)) * ribbon;
+  }
+  return col * uPulsingRibbonsOpacity * (1.0 + audio);
+}
+
+vec3 electricArc(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  float d = length(p);
+  float arc = abs(d - uElectricArcRadius);
+  float noise = fbm(p * uElectricArcChaos + t * 2.0);
+  float val = smoothstep(0.05, 0.0, arc + noise * 0.1);
+  return vec3(0.6, 0.8, 1.0) * val * uElectricArcOpacity * (1.0 + audio);
+}
+
+vec3 pyroBurst(vec2 uv, float t, float peak) {
+  vec2 p = uv - 0.5;
+  p.x *= uAspect;
+  float d = length(p);
+  float angle = atan(p.y, p.x);
+  float burst = smoothstep(0.1, 0.0, abs(sin(angle * 10.0 + t * 10.0))) * smoothstep(uPyroBurstForce * peak, 0.0, d);
+  return vec3(1.0, 0.5, 0.2) * burst * uPyroBurstOpacity;
+}
+
+vec3 geoWireframe(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  p = rotate2d(p, t * 0.5);
+  float shape = 0.0;
+  if(uGeoWireframeShape < 0.5) shape = abs(sdBox(p, vec2(uGeoWireframeScale))) - 0.01;
+  else shape = abs(sdEquilateralTriangle(p, uGeoWireframeScale)) - 0.01;
+  float val = smoothstep(0.02, 0.0, shape);
+  return palette(0.8) * val * uGeoWireframeOpacity * (1.0 + audio * 0.5);
+}
+
+vec3 signalNoise(vec2 uv, float t) {
+  float n = hash21(uv + t);
+  float line = step(0.99, hash21(vec2(t, uv.y)));
+  return vec3(n * 0.2 + line) * uSignalNoiseOpacity * uSignalNoiseAmount;
+}
+
+vec3 infiniteWormhole(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  p.x *= uAspect;
+  float r = length(p);
+  float a = atan(p.y, p.x);
+  
+  // The Weave: animate center
+  vec2 center = vec2(sin(t * uWormholeSpeed * 0.5) * uWormholeWeave, cos(t * uWormholeSpeed * 0.3) * uWormholeWeave);
+  p -= center;
+  r = length(p);
+  
+  float z = 1.0 / (r + 0.01);
+  float uv_z = z + t * uWormholeSpeed;
+  
+  float col = 0.0;
+  for(float i=0.0; i<uWormholeIter; i++) {
+    float shift = i * 0.5;
+    col += smoothstep(0.1, 0.0, abs(sin(a * 3.0 + uv_z + shift) * 0.5));
+  }
+  
+  vec3 baseCol = palette(fract(uv_z * 0.1));
+  return baseCol * col * uWormholeOpacity * (1.0 + audio);
+}
+
+vec3 ribbonTunnel(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  float r = length(p);
+  float a = atan(p.y, p.x);
+  
+  float z = 1.0 / (r + 0.01);
+  float twist = a + z * uRibbonTunnelTwist + t * uRibbonTunnelSpeed;
+  
+  float ribbon = smoothstep(0.2, 0.0, abs(sin(twist * 4.0)));
+  ribbon *= smoothstep(0.0, 0.5, r); // Fade center
+  
+  return palette(fract(z * 0.2)) * ribbon * uRibbonTunnelOpacity * (1.0 + audio);
+}
+
+vec3 fractalTunnel(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  p.x *= uAspect;
+  
+  float col = 0.0;
+  float z = t * uFractalTunnelSpeed;
+  
+  for(int i=0; i<4; i++) {
+    p = abs(p) / dot(p,p) - 0.5;
+    p = rotate2d(p, z * 0.1);
+    col += exp(-length(p) * (5.0 - uFractalTunnelComplexity));
+  }
+  
+  return palette(col * 0.1) * col * uFractalTunnelOpacity * (1.0 + audio);
+}
+
+vec3 circuitConduit(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  float r = max(abs(p.x), abs(p.y)); // Square tunnel
+  float z = 1.0 / (r + 0.01);
+  vec2 tu = vec2(atan(p.y, p.x) / 1.57, z + t * uCircuitConduitSpeed);
+  
+  float grid = step(0.95, fract(tu.x * 4.0)) + step(0.95, fract(tu.y * 10.0));
+  float pulses = step(0.98, fract(tu.y * 2.0 - t * 5.0));
+  
+  return vec3(0.2, 0.5, 1.0) * (grid + pulses * 2.0) * uCircuitConduitOpacity * (1.0 + audio);
+}
+
+vec3 auraPortal(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  float d = length(p);
+  float aura = exp(-d * 3.0) * (1.0 + audio);
+  vec3 col = uAuraPortalColor < 0.5 ? vec3(0.1, 0.4, 1.0) : vec3(1.0, 0.2, 0.5);
+  return col * aura * uAuraPortalOpacity;
+}
+
+vec3 frequencyTerrain(vec2 uv, float t, float audio) {
+  float band = floor(uv.x * 64.0);
+  float amp = uSpectrum[int(band)];
+  float d = abs(uv.y - 0.5 - (amp - 0.5) * uFreqTerrainScale);
+  float line = smoothstep(0.02, 0.0, d);
+  return palette(amp) * line * uFreqTerrainOpacity;
+}
+
+vec3 dataStream(vec2 uv, float t, float audio) {
+  vec2 gv = fract(uv * vec2(20.0, 1.0) + vec2(0.0, t * uDataStreamSpeed));
+  float line = step(0.98, gv.x);
+  float bits = step(0.9, hash21(floor(uv * vec2(20.0, 10.0) + vec2(0.0, t * 5.0))));
+  return vec3(0.0, 1.0, 0.4) * (line + bits) * uDataStreamOpacity * (1.0 + audio);
+}
+
+vec3 causticLiquid(vec2 uv, float t, float audio) {
+  vec2 p = uv * 5.0;
+  for(int i=0; i<3; i++) {
+    p += sin(p.yx * 1.5 + t * uCausticLiquidSpeed) * 0.5;
+  }
+  float c = sin(p.x + p.y) * 0.5 + 0.5;
+  return palette(c) * c * uCausticLiquidOpacity * (1.0 + audio);
+}
+
+vec3 shimmerVeil(vec2 uv, float t, float audio) {
+  float v = sin(uv.x * 10.0 + t) * sin(uv.y * uShimmerVeilComplexity + t * 0.5);
+  return vec3(0.8, 0.9, 1.0) * smoothstep(0.1, 0.0, abs(v)) * uShimmerVeilOpacity * (1.0 + audio);
+}
+
 // --- EDM Generator Functions ---
 vec3 hueRotate(vec3 col, float hue) {
   float s = sin(hue);
@@ -939,11 +1322,11 @@ vec3 strobeFlash(vec2 uv, float t, float audio, float peak) {
   float fadeT = beatPhase / max(uStrobeDutyCycle, 0.01);
   flash *= exp(-fadeT * (1.0 / max(uStrobeFadeOut, 0.01)));
 
-  vec3 color = vec3(1.0); // white default
+  vec3 color = vec3(0.85, 0.9, 1.0); // Soft cool white (prevents retina burn)
 
   // Mode 0: White
   if (uStrobeMode < 0.5) {
-    color = vec3(1.0);
+    color = vec3(0.85, 0.9, 1.0);
   }
   // Mode 1: Color (use palette)
   else if (uStrobeMode < 1.5) {
@@ -1490,6 +1873,88 @@ void main() {
     }
   }
 
+  // --- Rock Generators ---
+  if (uLightningEnabled > 0.5) {
+    float lightningVal = lightningBolt(effectUv, uTime, high);
+    vec3 lightningCol = vec3(0.8, 0.9, 1.0); // Default blue-white
+    if (uLightningColor > 0.5 && uLightningColor < 1.5) lightningCol = vec3(1.0, 0.8, 0.2); // Yellow
+    else if (uLightningColor > 1.5) lightningCol = vec3(0.8, 0.2, 1.0); // Purple
+    
+    color += lightningCol * lightningVal * uRoleWeights.y;
+  }
+  
+  if (uAnalogOscilloEnabled > 0.5) {
+    float oscVal = analogOscillo(effectUv, uTime, mid);
+    vec3 oscCol = vec3(1.0);
+    if (uAnalogOscilloColor > 0.5 && uAnalogOscilloColor < 1.5) oscCol = vec3(1.0, 0.2, 0.1); // Red
+    else if (uAnalogOscilloColor > 1.5) oscCol = vec3(0.2, 1.0, 0.2); // Green
+    
+    color += oscCol * oscVal * uRoleWeights.core;
+  }
+  
+  if (uGlitchScanlineEnabled > 0.5) {
+    color += glitchScanline(effectUv, uTime, low) * uRoleWeights.atmosphere;
+  }
+  
+  // Speaker cone distortion applied to future layers if I were processing texture, 
+  // but here I'll just modulate color slightly to show it exists or maybe rely on it being used earlier?
+  // Actually, I should have applied it to effectUv earlier.
+  // For now, let's just make it affect the background slightly if enabled.
+  if (uSpeakerConeEnabled > 0.5) {
+     vec2 distorted = speakerCone(effectUv, low);
+     float dist = length(distorted - 0.5);
+     float ring = smoothstep(0.02, 0.0, abs(dist - 0.4)) * uSpeakerConeOpacity;
+     color += vec3(0.2, 0.0, 0.0) * ring * uRoleWeights.atmosphere;
+  }
+
+  if (uLaserStarfieldEnabled > 0.5) {
+    color += laserStarfield(effectUv, uTime, high) * uRoleWeights.core;
+  }
+  if (uPulsingRibbonsEnabled > 0.5) {
+    color += pulsingRibbons(effectUv, uTime, mid) * uRoleWeights.support;
+  }
+  if (uElectricArcEnabled > 0.5) {
+    color += electricArc(effectUv, uTime, mid) * uRoleWeights.atmosphere;
+  }
+  if (uPyroBurstEnabled > 0.5) {
+    color += pyroBurst(effectUv, uTime, uPeak) * uRoleWeights.support;
+  }
+  if (uGeoWireframeEnabled > 0.5) {
+    color += geoWireframe(effectUv, uTime, low) * uRoleWeights.core;
+  }
+  if (uSignalNoiseEnabled > 0.5) {
+    color += signalNoise(effectUv, uTime) * uRoleWeights.atmosphere;
+  }
+
+  if (uWormholeEnabled > 0.5) {
+    color += infiniteWormhole(effectUv, uTime, low) * uRoleWeights.core;
+  }
+  if (uRibbonTunnelEnabled > 0.5) {
+    color += ribbonTunnel(effectUv, uTime, mid) * uRoleWeights.support;
+  }
+  if (uFractalTunnelEnabled > 0.5) {
+    color += fractalTunnel(effectUv, uTime, low) * uRoleWeights.core;
+  }
+  if (uCircuitConduitEnabled > 0.5) {
+    color += circuitConduit(effectUv, uTime, low) * uRoleWeights.atmosphere;
+  }
+
+  if (uAuraPortalEnabled > 0.5) {
+    color += auraPortal(effectUv, uTime, low) * uRoleWeights.core;
+  }
+  if (uFreqTerrainEnabled > 0.5) {
+    color += frequencyTerrain(effectUv, uTime, mid) * uRoleWeights.support;
+  }
+  if (uDataStreamEnabled > 0.5) {
+    color += dataStream(effectUv, uTime, low) * uRoleWeights.atmosphere;
+  }
+  if (uCausticLiquidEnabled > 0.5) {
+    color += causticLiquid(effectUv, uTime, mid) * uRoleWeights.core;
+  }
+  if (uShimmerVeilEnabled > 0.5) {
+    color += shimmerVeil(effectUv, uTime, high) * uRoleWeights.support;
+  }
+
   // --- EDM Generators ---
   // Laser Beam Generator
   if (uLaserEnabled > 0.5) {
@@ -1594,6 +2059,12 @@ void main() {
           float scan = sin(uv.y * 400.0) * 0.04;
           color -= scan;
       }
+  }
+
+  // Final Safety Check: Prevent retina-burning white-out
+  float totalLuma = dot(color, vec3(0.299, 0.587, 0.114));
+  if (totalLuma > 0.92) {
+      color *= (0.92 / totalLuma);
   }
 
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
@@ -1894,6 +2365,79 @@ void main() {
     gl.uniform1f(getLocation('uGridTunnelGlow'), state.gridTunnelGlow ?? 0.5);
     gl.uniform1f(getLocation('uGridTunnelAudioReact'), state.gridTunnelAudioReact ?? 0.3);
     gl.uniform1f(getLocation('uGridTunnelMode'), state.gridTunnelMode ?? 0);
+    // Rock Generators
+    gl.uniform1f(getLocation('uLightningEnabled'), state.lightningEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uLightningOpacity'), state.lightningOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uLightningSpeed'), state.lightningSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uLightningBranches'), state.lightningBranches ?? 3.0);
+    gl.uniform1f(getLocation('uLightningThickness'), state.lightningThickness ?? 0.02);
+    gl.uniform1f(getLocation('uLightningColor'), state.lightningColor ?? 0);
+    gl.uniform1f(getLocation('uAnalogOscilloEnabled'), state.analogOscilloEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAnalogOscilloOpacity'), state.analogOscilloOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uAnalogOscilloThickness'), state.analogOscilloThickness ?? 0.01);
+    gl.uniform1f(getLocation('uAnalogOscilloGlow'), state.analogOscilloGlow ?? 0.5);
+    gl.uniform1f(getLocation('uAnalogOscilloColor'), state.analogOscilloColor ?? 0);
+    gl.uniform1f(getLocation('uAnalogOscilloMode'), state.analogOscilloMode ?? 0);
+    gl.uniform1f(getLocation('uSpeakerConeEnabled'), state.speakerConeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uSpeakerConeOpacity'), state.speakerConeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uSpeakerConeForce'), state.speakerConeForce ?? 1.0);
+    gl.uniform1f(getLocation('uGlitchScanlineEnabled'), state.glitchScanlineEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGlitchScanlineOpacity'), state.glitchScanlineOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uGlitchScanlineSpeed'), state.glitchScanlineSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uGlitchScanlineCount'), state.glitchScanlineCount ?? 1.0);
+    gl.uniform1f(getLocation('uLaserStarfieldEnabled'), state.laserStarfieldEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uLaserStarfieldOpacity'), state.laserStarfieldOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uLaserStarfieldSpeed'), state.laserStarfieldSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uLaserStarfieldDensity'), state.laserStarfieldDensity ?? 1.0);
+    gl.uniform1f(getLocation('uPulsingRibbonsEnabled'), state.pulsingRibbonsEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPulsingRibbonsOpacity'), state.pulsingRibbonsOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPulsingRibbonsCount'), state.pulsingRibbonsCount ?? 3.0);
+    gl.uniform1f(getLocation('uPulsingRibbonsWidth'), state.pulsingRibbonsWidth ?? 0.05);
+    gl.uniform1f(getLocation('uElectricArcEnabled'), state.electricArcEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uElectricArcOpacity'), state.electricArcOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uElectricArcRadius'), state.electricArcRadius ?? 0.5);
+    gl.uniform1f(getLocation('uElectricArcChaos'), state.electricArcChaos ?? 1.0);
+    gl.uniform1f(getLocation('uPyroBurstEnabled'), state.pyroBurstEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPyroBurstOpacity'), state.pyroBurstOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPyroBurstForce'), state.pyroBurstForce ?? 1.0);
+    gl.uniform1f(getLocation('uGeoWireframeEnabled'), state.geoWireframeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGeoWireframeOpacity'), state.geoWireframeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uGeoWireframeShape'), state.geoWireframeShape ?? 0);
+    gl.uniform1f(getLocation('uGeoWireframeScale'), state.geoWireframeScale ?? 0.5);
+    gl.uniform1f(getLocation('uSignalNoiseEnabled'), state.signalNoiseEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uSignalNoiseOpacity'), state.signalNoiseOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uSignalNoiseAmount'), state.signalNoiseAmount ?? 1.0);
+    gl.uniform1f(getLocation('uWormholeEnabled'), state.wormholeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uWormholeOpacity'), state.wormholeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uWormholeSpeed'), state.wormholeSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uWormholeWeave'), state.wormholeWeave ?? 0.2);
+    gl.uniform1f(getLocation('uWormholeIter'), state.wormholeIter ?? 3.0);
+    gl.uniform1f(getLocation('uRibbonTunnelEnabled'), state.ribbonTunnelEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uRibbonTunnelOpacity'), state.ribbonTunnelOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uRibbonTunnelSpeed'), state.ribbonTunnelSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uRibbonTunnelTwist'), state.ribbonTunnelTwist ?? 1.0);
+    gl.uniform1f(getLocation('uFractalTunnelEnabled'), state.fractalTunnelEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uFractalTunnelOpacity'), state.fractalTunnelOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uFractalTunnelSpeed'), state.fractalTunnelSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uFractalTunnelComplexity'), state.fractalTunnelComplexity ?? 3.0);
+    gl.uniform1f(getLocation('uCircuitConduitEnabled'), state.circuitConduitEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCircuitConduitOpacity'), state.circuitConduitOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCircuitConduitSpeed'), state.circuitConduitSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uAuraPortalEnabled'), state.auraPortalEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAuraPortalOpacity'), state.auraPortalOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uAuraPortalColor'), state.auraPortalColor ?? 0);
+    gl.uniform1f(getLocation('uFreqTerrainEnabled'), state.freqTerrainEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uFreqTerrainOpacity'), state.freqTerrainOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uFreqTerrainScale'), state.freqTerrainScale ?? 1.0);
+    gl.uniform1f(getLocation('uDataStreamEnabled'), state.dataStreamEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uDataStreamOpacity'), state.dataStreamOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uDataStreamSpeed'), state.dataStreamSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uCausticLiquidEnabled'), state.causticLiquidEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCausticLiquidOpacity'), state.causticLiquidOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCausticLiquidSpeed'), state.causticLiquidSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uShimmerVeilEnabled'), state.shimmerVeilEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uShimmerVeilOpacity'), state.shimmerVeilOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uShimmerVeilComplexity'), state.shimmerVeilComplexity ?? 10.0);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
     const pLoc = gl.getAttribLocation(prog, 'position');

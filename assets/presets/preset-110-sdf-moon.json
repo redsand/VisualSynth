@@ -136,6 +136,20 @@
     "bpm": 120,
     "source": "manual"
   },
-  "modulations": [],
+  "modulations": [
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "weather",
+        "param": "opacity"
+      },
+      "amount": 0.3,
+      "min": 0.5,
+      "max": 1,
+      "curve": "linear",
+      "smoothing": 0.5,
+      "bipolar": false
+    }
+  ],
   "macros": []
 }

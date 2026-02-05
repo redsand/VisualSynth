@@ -79,47 +79,6 @@
           }
         }
       ]
-    },
-    {
-      "id": "scene-2",
-      "scene_id": "scene-2",
-      "name": "Pulse Scene",
-      "intent": "pulse",
-      "duration": 0,
-      "transition_in": {
-        "durationMs": 600,
-        "curve": "easeInOut"
-      },
-      "transition_out": {
-        "durationMs": 600,
-        "curve": "easeInOut"
-      },
-      "trigger": {
-        "type": "manual"
-      },
-      "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-spectrum"
-        ],
-        "atmosphere": []
-      },
-      "layers": [
-        {
-          "id": "layer-spectrum",
-          "name": "Spectrum Bars",
-          "role": "support",
-          "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "add",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        }
-      ]
     }
   ],
   "activeSceneId": "scene-1",
@@ -204,13 +163,6 @@
       "value": 0.5,
       "targets": [],
       "description": "Controls: Shader Plasma brightness"
-    },
-    {
-      "id": "macro-8",
-      "name": "Macro 8",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Macro 8"
     }
   ]
 }

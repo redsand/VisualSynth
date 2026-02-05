@@ -238,3 +238,253 @@ export const LFO_SHAPES: LfoShape[] = ['sine', 'triangle', 'saw', 'square'];
  * Get envelope trigger options
  */
 export const ENVELOPE_TRIGGERS: EnvelopeParams['trigger'][] = ['audio.peak', 'strobe', 'manual'];
+
+// ============================================================================
+// BURST ENVELOPE SYSTEM
+// One-shot envelopes for beat-triggered expanding shapes
+// ============================================================================
+
+/**
+ * Burst trigger types
+ */
+export type BurstTrigger = 'audio.peak' | 'audio.bass' | 'audio.mid' | 'audio.high' | 'manual';
+
+/**
+ * Burst envelope parameters
+ */
+export interface BurstEnvelopeParams {
+  attack: number;         // 0.01-0.1s (quick expand)
+  hold: number;           // 0-0.2s (optional hold at peak)
+  decay: number;          // 0.1-1s (fade out)
+  trigger: BurstTrigger;
+  threshold: number;      // 0-1 trigger threshold
+  maxConcurrent: number;  // 1-8 simultaneous bursts
+}
+
+/**
+ * Individual burst state
+ */
+export interface BurstInstance {
+  active: boolean;
+  stage: 'attack' | 'hold' | 'decay' | 'done';
+  value: number;          // 0-1 envelope output
+  timeInStage: number;
+  spawnTime: number;      // Time when burst was triggered
+}
+
+/**
+ * Burst envelope state (manages multiple concurrent bursts)
+ */
+export interface BurstEnvelopeState {
+  instances: BurstInstance[];
+  triggerArmed: boolean;
+  lastTriggerTime: number;
+  minRetriggerTime: number; // Prevent rapid re-triggering
+}
+
+/**
+ * Create default burst instance
+ */
+export const createBurstInstance = (): BurstInstance => ({
+  active: false,
+  stage: 'done',
+  value: 0,
+  timeInStage: 0,
+  spawnTime: 0
+});
+
+/**
+ * Create default burst envelope state
+ */
+export const createDefaultBurstState = (maxConcurrent: number = 8): BurstEnvelopeState => ({
+  instances: Array.from({ length: maxConcurrent }, () => createBurstInstance()),
+  triggerArmed: true,
+  lastTriggerTime: -1,
+  minRetriggerTime: 0.05 // 50ms minimum between triggers
+});
+
+/**
+ * Find an inactive slot for a new burst
+ */
+const findInactiveSlot = (instances: BurstInstance[]): number => {
+  // First, look for completely inactive slots
+  for (let i = 0; i < instances.length; i++) {
+    if (!instances[i].active) return i;
+  }
+  // If all active, find the oldest (furthest along in decay)
+  let oldestIdx = 0;
+  let oldestProgress = 0;
+  for (let i = 0; i < instances.length; i++) {
+    const inst = instances[i];
+    if (inst.stage === 'decay') {
+      const progress = 1 - inst.value;
+      if (progress > oldestProgress) {
+        oldestProgress = progress;
+        oldestIdx = i;
+      }
+    }
+  }
+  return oldestIdx;
+};
+
+/**
+ * Trigger a new burst
+ */
+export const triggerBurst = (
+  state: BurstEnvelopeState,
+  currentTime: number
+): BurstEnvelopeState => {
+  const slotIdx = findInactiveSlot(state.instances);
+  const newInstances = [...state.instances];
+
+  newInstances[slotIdx] = {
+    active: true,
+    stage: 'attack',
+    value: 0,
+    timeInStage: 0,
+    spawnTime: currentTime
+  };
+
+  return {
+    ...state,
+    instances: newInstances,
+    triggerArmed: false,
+    lastTriggerTime: currentTime
+  };
+};
+
+/**
+ * Update a single burst instance
+ */
+const updateBurstInstance = (
+  instance: BurstInstance,
+  params: BurstEnvelopeParams,
+  dt: number
+): BurstInstance => {
+  if (!instance.active) return instance;
+
+  const newInstance = { ...instance, timeInStage: instance.timeInStage + dt };
+  const attack = Math.max(params.attack, 0.001);
+  const hold = Math.max(params.hold, 0);
+  const decay = Math.max(params.decay, 0.001);
+
+  if (newInstance.stage === 'attack') {
+    newInstance.value += dt / attack;
+    if (newInstance.value >= 1) {
+      newInstance.value = 1;
+      newInstance.stage = hold > 0 ? 'hold' : 'decay';
+      newInstance.timeInStage = 0;
+    }
+  } else if (newInstance.stage === 'hold') {
+    newInstance.value = 1;
+    if (newInstance.timeInStage >= hold) {
+      newInstance.stage = 'decay';
+      newInstance.timeInStage = 0;
+    }
+  } else if (newInstance.stage === 'decay') {
+    newInstance.value -= dt / decay;
+    if (newInstance.value <= 0) {
+      newInstance.value = 0;
+      newInstance.stage = 'done';
+      newInstance.active = false;
+    }
+  }
+
+  return newInstance;
+};
+
+/**
+ * Update burst envelope state
+ * @param state - Current burst state
+ * @param params - Burst parameters
+ * @param dt - Time delta in seconds
+ * @param currentTime - Current time in seconds
+ * @param triggerInput - Trigger value (0-1) based on trigger type
+ * @returns Updated burst state
+ */
+export const updateBurstEnvelope = (
+  state: BurstEnvelopeState,
+  params: BurstEnvelopeParams,
+  dt: number,
+  currentTime: number,
+  triggerInput: number = 0
+): BurstEnvelopeState => {
+  let newState = { ...state };
+
+  // Check for trigger (if enough time has passed since last trigger)
+  const canRetrigger = currentTime - state.lastTriggerTime >= state.minRetriggerTime;
+
+  if (params.trigger !== 'manual' && canRetrigger) {
+    if (triggerInput >= params.threshold && state.triggerArmed) {
+      newState = triggerBurst(newState, currentTime);
+    }
+    if (triggerInput < params.threshold * 0.6) {
+      newState.triggerArmed = true;
+    }
+  }
+
+  // Update all instances
+  newState.instances = newState.instances.map(inst =>
+    updateBurstInstance(inst, params, dt)
+  );
+
+  return newState;
+};
+
+/**
+ * Get trigger input value for burst trigger type
+ * @param trigger - Burst trigger type
+ * @param audioData - Audio data object with peak, bass, mid, high values
+ * @returns Trigger input value (0-1)
+ */
+export const getBurstTriggerValue = (
+  trigger: BurstTrigger,
+  audioData: { peak: number; bass: number; mid: number; high: number }
+): number => {
+  switch (trigger) {
+    case 'audio.peak': return audioData.peak;
+    case 'audio.bass': return audioData.bass;
+    case 'audio.mid': return audioData.mid;
+    case 'audio.high': return audioData.high;
+    case 'manual': return 0;
+    default: return 0;
+  }
+};
+
+/**
+ * Get active burst values (for shader uniforms)
+ * Returns array of [value, age] pairs for active bursts
+ */
+export const getActiveBurstValues = (
+  state: BurstEnvelopeState,
+  currentTime: number
+): { values: number[]; ages: number[]; actives: number[] } => {
+  const values: number[] = [];
+  const ages: number[] = [];
+  const actives: number[] = [];
+
+  for (const inst of state.instances) {
+    values.push(inst.value);
+    ages.push(inst.active ? currentTime - inst.spawnTime : 0);
+    actives.push(inst.active ? 1 : 0);
+  }
+
+  return { values, ages, actives };
+};
+
+/**
+ * Default burst envelope parameters
+ */
+export const DEFAULT_BURST_PARAMS: BurstEnvelopeParams = {
+  attack: 0.05,
+  hold: 0.05,
+  decay: 0.5,
+  trigger: 'audio.peak',
+  threshold: 0.6,
+  maxConcurrent: 8
+};
+
+/**
+ * Get available burst triggers
+ */
+export const BURST_TRIGGERS: BurstTrigger[] = ['audio.peak', 'audio.bass', 'audio.mid', 'audio.high', 'manual'];

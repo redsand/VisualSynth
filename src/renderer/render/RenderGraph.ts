@@ -4,6 +4,32 @@ import { DEFAULT_PROJECT } from '../../shared/project';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
+import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
+import { EDM_DROP_COLLECTION, getEdmPreset } from '../sdf/presets/edmPresets';
+import {
+  SceneMacro,
+  MacroExecutionState,
+  createMacroExecutionState,
+  getSceneMacro,
+  interpolateMacroValue
+} from '../../shared/sceneMacros';
+import {
+  MidiSceneConfig,
+  MidiTriggerResult,
+  processMidiNote,
+  processMidiCC,
+  createLaunchpadLayout,
+  DEFAULT_MIDI_SCENE_CONFIG
+} from '../../shared/midiSceneTriggers';
+import {
+  DROP_CLASSIC,
+  DROP_HARD,
+  BREAKDOWN_CALM,
+  BREAKDOWN_ATMOSPHERIC,
+  BUILD_8BAR,
+  BUILD_4BAR,
+  TRANSITION_FLASH
+} from '../../shared/sceneMacros';
 
 export interface LayerDebugInfo {
   id: string;
@@ -210,8 +236,314 @@ export class RenderGraph {
   };
   private debugTint = false;
   private debugFxDelta = false;
+  private burstSdfInitialized = false;
+  private macroState: MacroExecutionState = createMacroExecutionState();
+  private midiSceneConfig: MidiSceneConfig = DEFAULT_MIDI_SCENE_CONFIG;
+  private onLoadPreset: ((path: string, name: string, crossfade: number) => Promise<void>) | null = null;
+  private onPlaylistControl: ((control: string) => void) | null = null;
 
-  constructor(private store: Store) {}
+  constructor(private store: Store) {
+    // Initialize with Launchpad layout by default
+    this.midiSceneConfig = createLaunchpadLayout();
+  }
+
+  /**
+   * Initialize burst SDF presets for beat-triggered expanding shapes
+   */
+  private initBurstSdfPresets() {
+    if (this.burstSdfInitialized) return;
+
+    // Load the EDM drop collection presets by default
+    for (const config of EDM_DROP_COLLECTION) {
+      burstSdfManager.addBurst(config);
+    }
+
+    this.burstSdfInitialized = true;
+    console.log('[RenderGraph] EDM burst SDF presets initialized');
+  }
+
+  /**
+   * Load a specific EDM preset collection by ID
+   */
+  loadEdmPreset(presetId: string): boolean {
+    const preset = getEdmPreset(presetId);
+    if (!preset) {
+      console.warn(`[RenderGraph] EDM preset "${presetId}" not found`);
+      return false;
+    }
+
+    burstSdfManager.clearBursts();
+    for (const config of preset.configs) {
+      burstSdfManager.addBurst(config);
+    }
+    console.log(`[RenderGraph] Loaded EDM preset: ${preset.name}`);
+    return true;
+  }
+
+  /**
+   * Trigger a scene macro
+   */
+  triggerMacro(macroId: string): boolean {
+    const macro = getSceneMacro(macroId);
+    if (!macro) {
+      console.warn(`[RenderGraph] Scene macro "${macroId}" not found`);
+      return false;
+    }
+
+    const state = this.store.getState();
+    const runtime = state.runtime;
+
+    this.macroState = {
+      activeMacro: macro,
+      startTime: runtime.time,
+      startBeat: runtime.beatCount ?? 0,
+      progress: 0,
+      isRunning: macro.durationBeats > 0
+    };
+
+    // Apply instant changes
+    if (macro.durationBeats === 0) {
+      this.applyMacroChanges(macro, 1.0);
+    }
+
+    console.log(`[RenderGraph] Triggered macro: ${macro.name}`);
+    return true;
+  }
+
+  /**
+   * Apply macro parameter changes
+   */
+  private applyMacroChanges(macro: SceneMacro, progress: number): void {
+    const state = this.store.getState();
+    const runtime = state.runtime;
+    const project = state.project;
+
+    for (const change of macro.changes) {
+      const value = macro.durationBeats > 0
+        ? interpolateMacroValue(change, progress, macro.easing)
+        : change.value;
+
+      this.applyMacroParam(change.target, value);
+    }
+  }
+
+  /**
+   * Apply a single macro parameter
+   */
+  private applyMacroParam(target: string, value: number | string | boolean): void {
+    const state = this.store.getState();
+    const runtime = state.runtime;
+
+    // Map target paths to actual state updates
+    switch (target) {
+      case 'effects.bloom':
+        if (state.project.effects && typeof value === 'number') {
+          state.project.effects.bloom = value;
+        }
+        break;
+      case 'effects.blur':
+        if (state.project.effects && typeof value === 'number') {
+          state.project.effects.blur = value;
+        }
+        break;
+      case 'effects.chroma':
+        if (state.project.effects && typeof value === 'number') {
+          state.project.effects.chroma = value;
+        }
+        break;
+      case 'effects.feedback':
+        if (state.project.effects && typeof value === 'number') {
+          state.project.effects.feedback = value;
+        }
+        break;
+      case 'effects.persistence':
+        if (state.project.effects && typeof value === 'number') {
+          state.project.effects.persistence = value;
+        }
+        break;
+      case 'effects.kaleidoscope':
+        if (state.project.effects && typeof value === 'number') {
+          state.project.effects.kaleidoscope = value;
+        }
+        break;
+      case 'strobe.intensity':
+        if (typeof value === 'number') {
+          runtime.strobeIntensity = value;
+        }
+        break;
+      case 'strobe.rate':
+        // Store in runtime for reference
+        if (typeof value === 'number') {
+          (runtime as any).strobeRate = value;
+        }
+        break;
+      case 'burst.enabled':
+        if (typeof value === 'boolean') {
+          burstSdfManager.setEnabled(value);
+        }
+        break;
+      case 'burst.preset':
+        if (typeof value === 'string') {
+          this.loadEdmPreset(value);
+        }
+        break;
+      // Note: Layer-specific params would need to go through the project mutation
+      // For now, we handle the runtime-accessible ones
+      default:
+        // Store as runtime property for shader access
+        const key = target.replace('.', '_');
+        (runtime as any)[`macro_${key}`] = value;
+        break;
+    }
+  }
+
+  /**
+   * Update running macro progress
+   */
+  private updateMacro(time: number, currentBeat: number): void {
+    if (!this.macroState.isRunning || !this.macroState.activeMacro) {
+      return;
+    }
+
+    const macro = this.macroState.activeMacro;
+    const elapsedBeats = currentBeat - this.macroState.startBeat;
+    const progress = Math.min(1, elapsedBeats / macro.durationBeats);
+
+    this.macroState.progress = progress;
+    this.applyMacroChanges(macro, progress);
+
+    if (progress >= 1) {
+      this.macroState.isRunning = false;
+      console.log(`[RenderGraph] Macro completed: ${macro.name}`);
+    }
+  }
+
+  /**
+   * Get current macro state (for UI)
+   */
+  getMacroState(): MacroExecutionState {
+    return this.macroState;
+  }
+
+  // ============================================================================
+  // MIDI Scene Trigger Methods
+  // ============================================================================
+
+  /**
+   * Set callback for loading presets (from MIDI triggers)
+   */
+  setPresetLoader(handler: (path: string, name: string, crossfade: number) => Promise<void>): void {
+    this.onLoadPreset = handler;
+  }
+
+  /**
+   * Set callback for playlist controls
+   */
+  setPlaylistController(handler: (control: string) => void): void {
+    this.onPlaylistControl = handler;
+  }
+
+  /**
+   * Set MIDI scene trigger configuration
+   */
+  setMidiSceneConfig(config: MidiSceneConfig): void {
+    this.midiSceneConfig = config;
+    console.log('[RenderGraph] MIDI scene config updated');
+  }
+
+  /**
+   * Get current MIDI scene config
+   */
+  getMidiSceneConfig(): MidiSceneConfig {
+    return this.midiSceneConfig;
+  }
+
+  /**
+   * Handle MIDI note trigger for scene actions
+   */
+  handleMidiNote(channel: number, note: number, velocity: number, bank: number = 0): boolean {
+    const result = processMidiNote(this.midiSceneConfig, channel, note, velocity, bank);
+
+    if (!result.handled || !result.action) {
+      return false;
+    }
+
+    const { type, value, velocity: actionVelocity } = result.action;
+
+    switch (type) {
+      case 'macro':
+        this.triggerMacro(value as string);
+        break;
+
+      case 'preset':
+        if (this.onLoadPreset) {
+          const path = value as string;
+          const name = path.split('/').pop()?.replace('.json', '') ?? 'Preset';
+          this.onLoadPreset(path, name, 2); // 2 second crossfade default
+        }
+        break;
+
+      case 'scene':
+        // Scene switching would be handled by the main app
+        console.log('[RenderGraph] Scene switch:', value);
+        break;
+
+      case 'playlist-slot':
+        if (this.onPlaylistControl) {
+          this.onPlaylistControl(`jump:${value}`);
+        }
+        break;
+
+      case 'playlist-control':
+        if (this.onPlaylistControl) {
+          this.onPlaylistControl(value as string);
+        }
+        break;
+
+      case 'burst-preset':
+        this.loadEdmPreset(value as string);
+        break;
+
+      case 'action':
+        this.handlePadAction(value as string, actionVelocity);
+        break;
+    }
+
+    return true;
+  }
+
+  /**
+   * Handle MIDI CC for scene parameter control
+   */
+  handleMidiCC(channel: number, cc: number, value: number): boolean {
+    const result = processMidiCC(this.midiSceneConfig, channel, cc, value);
+
+    if (!result.handled || !result.target || result.value === undefined) {
+      return false;
+    }
+
+    // Apply the CC value to the target
+    this.applyMacroParam(result.target, result.value);
+    return true;
+  }
+
+  /**
+   * Update burst SDF manager with current audio data
+   */
+  private updateBurstSdf(time: number, dt: number) {
+    const state = this.store.getState();
+    const audio = state.audio;
+
+    // Get audio data for burst triggers
+    const audioData = {
+      peak: audio.peak ?? 0,
+      bass: audio.bands?.[0] ?? 0,
+      mid: audio.bands?.[2] ?? 0,
+      high: audio.bands?.[6] ?? 0
+    };
+
+    burstSdfManager.update(dt, time / 1000, audioData);
+  }
 
   getDebugState() {
     return this.debugState;
@@ -389,6 +721,83 @@ export class RenderGraph {
     }
     if (action === 'strobe') {
       runtime.strobeIntensity = Math.max(runtime.strobeIntensity, velocity);
+    }
+    // Burst SDF manual triggers
+    if (action === 'burst-ring') {
+      const state = this.store.getState();
+      burstSdfManager.triggerManual(0, state.runtime.time);
+      return;
+    }
+    if (action === 'burst-star') {
+      const state = this.store.getState();
+      burstSdfManager.triggerManual(1, state.runtime.time);
+      return;
+    }
+    if (action === 'burst-toggle') {
+      burstSdfManager.setEnabled(!burstSdfManager.getState().enabled);
+      return;
+    }
+    // EDM preset switching
+    if (action === 'burst-preset-drop') {
+      this.loadEdmPreset('drop-classic');
+      return;
+    }
+    if (action === 'burst-preset-energy') {
+      this.loadEdmPreset('high-energy');
+      return;
+    }
+    if (action === 'burst-preset-tech') {
+      this.loadEdmPreset('tech-future');
+      return;
+    }
+    if (action === 'burst-preset-minimal') {
+      this.loadEdmPreset('minimal');
+      return;
+    }
+    // Scene macro triggers
+    if (action === 'macro-drop') {
+      this.triggerMacro('drop-classic');
+      return;
+    }
+    if (action === 'macro-drop-hard') {
+      this.triggerMacro('drop-hard');
+      return;
+    }
+    if (action === 'macro-drop-subtle') {
+      this.triggerMacro('drop-subtle');
+      return;
+    }
+    if (action === 'macro-breakdown') {
+      this.triggerMacro('breakdown-calm');
+      return;
+    }
+    if (action === 'macro-breakdown-atmospheric') {
+      this.triggerMacro('breakdown-atmospheric');
+      return;
+    }
+    if (action === 'macro-build-8bar') {
+      this.triggerMacro('build-8bar');
+      return;
+    }
+    if (action === 'macro-build-4bar') {
+      this.triggerMacro('build-4bar');
+      return;
+    }
+    if (action === 'macro-build-epic') {
+      this.triggerMacro('build-epic');
+      return;
+    }
+    if (action === 'macro-transition-flash') {
+      this.triggerMacro('transition-flash');
+      return;
+    }
+    if (action === 'macro-transition-fade-out') {
+      this.triggerMacro('transition-fade-out');
+      return;
+    }
+    if (action === 'macro-transition-fade-in') {
+      this.triggerMacro('transition-fade-in');
+      return;
     }
   }
 
@@ -629,19 +1038,19 @@ export class RenderGraph {
 
   private getModdedSdfScene(scene: any, modSources: any, modMatrix: any[]) {
     if (!scene) return undefined;
-    
+
     // Deep clone the scene to avoid mutating the original project state
     const cloned = JSON.parse(JSON.stringify(scene));
-    
+
     // Apply modulation to each node's parameters
     if (cloned.nodes) {
       cloned.nodes.forEach((node: any) => {
         if (!node.params) return;
-        
+
         Object.keys(node.params).forEach(paramId => {
           const targetId = `${node.instanceId}.${paramId}`;
           const baseValue = node.params[paramId];
-          
+
           if (typeof baseValue === 'number') {
             node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix);
           } else if (Array.isArray(baseValue)) {
@@ -657,7 +1066,14 @@ export class RenderGraph {
         });
       });
     }
-    
+
+    // Inject burst SDF nodes from the beat-triggered system
+    const burstNodes = burstSdfManager.getActiveNodes();
+    if (burstNodes.length > 0) {
+      if (!cloned.nodes) cloned.nodes = [];
+      cloned.nodes.push(...burstNodes);
+    }
+
     return cloned;
   }
 
@@ -669,6 +1085,14 @@ export class RenderGraph {
     this.updateGravityWells(time, deltaSeconds);
     this.updatePortals(time, deltaSeconds);
     this.updateShapeBursts(time, deltaSeconds);
+
+    // Initialize and update burst SDF system
+    this.initBurstSdfPresets();
+    this.updateBurstSdf(time, deltaSeconds);
+
+    // Update running scene macros
+    const currentBeat = runtime.beatCount ?? Math.floor(time / 1000 * (runtime.bpm ?? 120) / 60);
+    this.updateMacro(time, currentBeat);
 
     if (runtime.glyphBeatPulse > 0) {
       runtime.glyphBeatPulse = Math.max(0, runtime.glyphBeatPulse - deltaMs * 0.006);
@@ -912,6 +1336,26 @@ export class RenderGraph {
     const strobeLayer = findLayerById(activeScene?.layers, 'gen-strobe');
     const shapeBurstLayer = findLayerById(activeScene?.layers, 'gen-shape-burst');
     const gridTunnelLayer = findLayerById(activeScene?.layers, 'gen-grid-tunnel');
+    // Rock Generator Layers
+    const lightningLayer = findLayerById(activeScene?.layers, 'gen-lightning');
+    const analogOscilloLayer = findLayerById(activeScene?.layers, 'gen-analog-oscillo');
+    const speakerConeLayer = findLayerById(activeScene?.layers, 'gen-speaker-cone');
+    const glitchScanlineLayer = findLayerById(activeScene?.layers, 'gen-glitch-scanline');
+    const laserStarfieldLayer = findLayerById(activeScene?.layers, 'gen-laser-starfield');
+    const pulsingRibbonsLayer = findLayerById(activeScene?.layers, 'gen-pulsing-ribbons');
+    const electricArcLayer = findLayerById(activeScene?.layers, 'gen-electric-arc');
+    const pyroBurstLayer = findLayerById(activeScene?.layers, 'gen-pyro-burst');
+    const geoWireframeLayer = findLayerById(activeScene?.layers, 'gen-geo-wireframe');
+    const signalNoiseLayer = findLayerById(activeScene?.layers, 'gen-signal-noise');
+    const wormholeLayer = findLayerById(activeScene?.layers, 'gen-infinite-wormhole');
+    const ribbonTunnelLayer = findLayerById(activeScene?.layers, 'gen-ribbon-tunnel');
+    const fractalTunnelLayer = findLayerById(activeScene?.layers, 'gen-fractal-tunnel');
+    const circuitConduitLayer = findLayerById(activeScene?.layers, 'gen-circuit-conduit');
+    const auraPortalLayer = findLayerById(activeScene?.layers, 'gen-aura-portal');
+    const freqTerrainLayer = findLayerById(activeScene?.layers, 'gen-freq-terrain');
+    const dataStreamLayer = findLayerById(activeScene?.layers, 'gen-data-stream');
+    const causticLiquidLayer = findLayerById(activeScene?.layers, 'gen-caustic-liquid');
+    const shimmerVeilLayer = findLayerById(activeScene?.layers, 'gen-shimmer-veil');
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
     const origamiRole = getLayerRole(origamiLayer);
@@ -1307,7 +1751,80 @@ export class RenderGraph {
       gridTunnelHorizonY: getLayerParamNumber(gridTunnelLayer, 'horizonY', 0.5),
       gridTunnelGlow: getLayerParamNumber(gridTunnelLayer, 'glow', 0.5),
       gridTunnelAudioReact: getLayerParamNumber(gridTunnelLayer, 'audioReact', 0.3),
-      gridTunnelMode: getLayerParamNumber(gridTunnelLayer, 'mode', 0)
+      gridTunnelMode: getLayerParamNumber(gridTunnelLayer, 'mode', 0),
+      // Rock Generators
+      lightningEnabled: lightningLayer?.enabled ?? false,
+      lightningOpacity: getLayerParamNumber(lightningLayer, 'opacity', 1.0),
+      lightningSpeed: getLayerParamNumber(lightningLayer, 'speed', 1.0),
+      lightningBranches: getLayerParamNumber(lightningLayer, 'branches', 3.0),
+      lightningThickness: getLayerParamNumber(lightningLayer, 'thickness', 0.02),
+      lightningColor: getLayerParamNumber(lightningLayer, 'color', 0),
+      analogOscilloEnabled: analogOscilloLayer?.enabled ?? false,
+      analogOscilloOpacity: getLayerParamNumber(analogOscilloLayer, 'opacity', 1.0),
+      analogOscilloThickness: getLayerParamNumber(analogOscilloLayer, 'thickness', 0.01),
+      analogOscilloGlow: getLayerParamNumber(analogOscilloLayer, 'glow', 0.5),
+      analogOscilloColor: getLayerParamNumber(analogOscilloLayer, 'color', 0),
+      analogOscilloMode: getLayerParamNumber(analogOscilloLayer, 'mode', 0),
+      speakerConeEnabled: speakerConeLayer?.enabled ?? false,
+      speakerConeOpacity: getLayerParamNumber(speakerConeLayer, 'opacity', 1.0),
+      speakerConeForce: getLayerParamNumber(speakerConeLayer, 'force', 1.0),
+      glitchScanlineEnabled: glitchScanlineLayer?.enabled ?? false,
+      glitchScanlineOpacity: getLayerParamNumber(glitchScanlineLayer, 'opacity', 1.0),
+      glitchScanlineSpeed: getLayerParamNumber(glitchScanlineLayer, 'speed', 1.0),
+      glitchScanlineCount: getLayerParamNumber(glitchScanlineLayer, 'count', 1.0),
+      laserStarfieldEnabled: laserStarfieldLayer?.enabled ?? false,
+      laserStarfieldOpacity: getLayerParamNumber(laserStarfieldLayer, 'opacity', 1.0),
+      laserStarfieldSpeed: getLayerParamNumber(laserStarfieldLayer, 'speed', 1.0),
+      laserStarfieldDensity: getLayerParamNumber(laserStarfieldLayer, 'density', 1.0),
+      pulsingRibbonsEnabled: pulsingRibbonsLayer?.enabled ?? false,
+      pulsingRibbonsOpacity: getLayerParamNumber(pulsingRibbonsLayer, 'opacity', 1.0),
+      pulsingRibbonsCount: getLayerParamNumber(pulsingRibbonsLayer, 'count', 3.0),
+      pulsingRibbonsWidth: getLayerParamNumber(pulsingRibbonsLayer, 'width', 0.05),
+      electricArcEnabled: electricArcLayer?.enabled ?? false,
+      electricArcOpacity: getLayerParamNumber(electricArcLayer, 'opacity', 1.0),
+      electricArcRadius: getLayerParamNumber(electricArcLayer, 'radius', 0.5),
+      electricArcChaos: getLayerParamNumber(electricArcLayer, 'chaos', 1.0),
+      pyroBurstEnabled: pyroBurstLayer?.enabled ?? false,
+      pyroBurstOpacity: getLayerParamNumber(pyroBurstLayer, 'opacity', 1.0),
+      pyroBurstForce: getLayerParamNumber(pyroBurstLayer, 'force', 1.0),
+      geoWireframeEnabled: geoWireframeLayer?.enabled ?? false,
+      geoWireframeOpacity: getLayerParamNumber(geoWireframeLayer, 'opacity', 1.0),
+      geoWireframeShape: getLayerParamNumber(geoWireframeLayer, 'shape', 0),
+      geoWireframeScale: getLayerParamNumber(geoWireframeLayer, 'scale', 0.5),
+      signalNoiseEnabled: signalNoiseLayer?.enabled ?? false,
+      signalNoiseOpacity: getLayerParamNumber(signalNoiseLayer, 'opacity', 1.0),
+      signalNoiseAmount: getLayerParamNumber(signalNoiseLayer, 'amount', 1.0),
+      wormholeEnabled: wormholeLayer?.enabled ?? false,
+      wormholeOpacity: getLayerParamNumber(wormholeLayer, 'opacity', 1.0),
+      wormholeSpeed: getLayerParamNumber(wormholeLayer, 'speed', 1.0),
+      wormholeWeave: getLayerParamNumber(wormholeLayer, 'weave', 0.2),
+      wormholeIter: getLayerParamNumber(wormholeLayer, 'iter', 3.0),
+      ribbonTunnelEnabled: ribbonTunnelLayer?.enabled ?? false,
+      ribbonTunnelOpacity: getLayerParamNumber(ribbonTunnelLayer, 'opacity', 1.0),
+      ribbonTunnelSpeed: getLayerParamNumber(ribbonTunnelLayer, 'speed', 1.0),
+      ribbonTunnelTwist: getLayerParamNumber(ribbonTunnelLayer, 'twist', 1.0),
+      fractalTunnelEnabled: fractalTunnelLayer?.enabled ?? false,
+      fractalTunnelOpacity: getLayerParamNumber(fractalTunnelLayer, 'opacity', 1.0),
+      fractalTunnelSpeed: getLayerParamNumber(fractalTunnelLayer, 'speed', 1.0),
+      fractalTunnelComplexity: getLayerParamNumber(fractalTunnelLayer, 'complexity', 3.0),
+      circuitConduitEnabled: circuitConduitLayer?.enabled ?? false,
+      circuitConduitOpacity: getLayerParamNumber(circuitConduitLayer, 'opacity', 1.0),
+      circuitConduitSpeed: getLayerParamNumber(circuitConduitLayer, 'speed', 1.0),
+      auraPortalEnabled: auraPortalLayer?.enabled ?? false,
+      auraPortalOpacity: getLayerParamNumber(auraPortalLayer, 'opacity', 1.0),
+      auraPortalColor: getLayerParamNumber(auraPortalLayer, 'color', 0),
+      freqTerrainEnabled: freqTerrainLayer?.enabled ?? false,
+      freqTerrainOpacity: getLayerParamNumber(freqTerrainLayer, 'opacity', 1.0),
+      freqTerrainScale: getLayerParamNumber(freqTerrainLayer, 'scale', 1.0),
+      dataStreamEnabled: dataStreamLayer?.enabled ?? false,
+      dataStreamOpacity: getLayerParamNumber(dataStreamLayer, 'opacity', 1.0),
+      dataStreamSpeed: getLayerParamNumber(dataStreamLayer, 'speed', 1.0),
+      causticLiquidEnabled: causticLiquidLayer?.enabled ?? false,
+      causticLiquidOpacity: getLayerParamNumber(causticLiquidLayer, 'opacity', 1.0),
+      causticLiquidSpeed: getLayerParamNumber(causticLiquidLayer, 'speed', 1.0),
+      shimmerVeilEnabled: shimmerVeilLayer?.enabled ?? false,
+      shimmerVeilOpacity: getLayerParamNumber(shimmerVeilLayer, 'opacity', 1.0),
+      shimmerVeilComplexity: getLayerParamNumber(shimmerVeilLayer, 'complexity', 10.0)
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);
