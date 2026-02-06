@@ -51,6 +51,14 @@ export interface FxDebugInfo {
   lastAppliedFrameId: number;
 }
 
+export interface GeneratorDebugInfo {
+  id: string;
+  enabled: boolean;
+  opacity: number;
+  found: boolean;
+  generatorId: string;
+}
+
 export interface RenderDebugState {
   frameId: number;
   activeSceneId: string;
@@ -61,6 +69,7 @@ export interface RenderDebugState {
   layerCount: number;
   layers: LayerDebugInfo[];
   fx: FxDebugInfo[];
+  generators: GeneratorDebugInfo[];
   masterBusFrameId: number;
   uniformsUpdatedFrameId: number;
   laser: {
@@ -257,7 +266,9 @@ export class RenderGraph {
       enabledInScene: false,
       idRaw: '',
       idBytes: ''
-    }
+    },
+    generators: [],
+    activeSceneId: ''
   };
   private fxDeltaUntil: Record<FxId, number> = {
     bloom: 0,
@@ -2078,6 +2089,68 @@ export class RenderGraph {
       { id: 'persistence', enabled: renderState.effectsEnabled && renderState.persistence > 0, bypassed: !renderState.effectsEnabled, lastAppliedFrameId: frameId }
     ];
     this.debugState.fx = fx;
+
+    // Generator diagnostics: track which generators are active, found, and their opacity
+    const sceneLayers = activeScene?.layers;
+    const genLookups: [string, string, boolean, number][] = [
+      ['lightning', 'gen-lightning', renderState.lightningEnabled, renderState.lightningOpacity ?? 0],
+      ['analogOscillo', 'gen-analog-oscillo', renderState.analogOscilloEnabled, renderState.analogOscilloOpacity ?? 0],
+      ['speakerCone', 'gen-speaker-cone', renderState.speakerConeEnabled, renderState.speakerConeOpacity ?? 0],
+      ['glitchScanline', 'gen-glitch-scanline', renderState.glitchScanlineEnabled, renderState.glitchScanlineOpacity ?? 0],
+      ['laserStarfield', 'gen-laser-starfield', renderState.laserStarfieldEnabled, renderState.laserStarfieldOpacity ?? 0],
+      ['pulsingRibbons', 'gen-pulsing-ribbons', renderState.pulsingRibbonsEnabled, renderState.pulsingRibbonsOpacity ?? 0],
+      ['electricArc', 'gen-electric-arc', renderState.electricArcEnabled, renderState.electricArcOpacity ?? 0],
+      ['pyroBurst', 'gen-pyro-burst', renderState.pyroBurstEnabled, renderState.pyroBurstOpacity ?? 0],
+      ['geoWireframe', 'gen-geo-wireframe', renderState.geoWireframeEnabled, renderState.geoWireframeOpacity ?? 0],
+      ['signalNoise', 'gen-signal-noise', renderState.signalNoiseEnabled, renderState.signalNoiseOpacity ?? 0],
+      ['wormhole', 'gen-infinite-wormhole', renderState.wormholeEnabled, renderState.wormholeOpacity ?? 0],
+      ['ribbonTunnel', 'gen-ribbon-tunnel', renderState.ribbonTunnelEnabled, renderState.ribbonTunnelOpacity ?? 0],
+      ['fractalTunnel', 'gen-fractal-tunnel', renderState.fractalTunnelEnabled, renderState.fractalTunnelOpacity ?? 0],
+      ['circuitConduit', 'gen-circuit-conduit', renderState.circuitConduitEnabled, renderState.circuitConduitOpacity ?? 0],
+      ['auraPortal', 'gen-aura-portal', renderState.auraPortalEnabled, renderState.auraPortalOpacity ?? 0],
+      ['freqTerrain', 'gen-freq-terrain', renderState.freqTerrainEnabled, renderState.freqTerrainOpacity ?? 0],
+      ['dataStream', 'gen-data-stream', renderState.dataStreamEnabled, renderState.dataStreamOpacity ?? 0],
+      ['causticLiquid', 'gen-caustic-liquid', renderState.causticLiquidEnabled, renderState.causticLiquidOpacity ?? 0],
+      ['shimmerVeil', 'gen-shimmer-veil', renderState.shimmerVeilEnabled, renderState.shimmerVeilOpacity ?? 0],
+      ['nebulaCloud', 'gen-nebula-cloud', renderState.nebulaCloudEnabled, renderState.nebulaCloudOpacity ?? 0],
+      ['circuitBoard', 'gen-circuit-board', renderState.circuitBoardEnabled, renderState.circuitBoardOpacity ?? 0],
+      ['lorenzAttractor', 'gen-lorenz-attractor', renderState.lorenzAttractorEnabled, renderState.lorenzAttractorOpacity ?? 0],
+      ['mandalaSpinner', 'gen-mandala-spinner', renderState.mandalaSpinnerEnabled, renderState.mandalaSpinnerOpacity ?? 0],
+      ['starburstGalaxy', 'gen-starburst-galaxy', renderState.starburstGalaxyEnabled, renderState.starburstGalaxyOpacity ?? 0],
+      ['digitalRainV2', 'gen-digital-rain-v2', renderState.digitalRainV2Enabled, renderState.digitalRainV2Opacity ?? 0],
+      ['lavaFlow', 'gen-lava-flow', renderState.lavaFlowEnabled, renderState.lavaFlowOpacity ?? 0],
+      ['crystalGrowth', 'gen-crystal-growth', renderState.crystalGrowthEnabled, renderState.crystalGrowthOpacity ?? 0],
+      ['technoGrid', 'gen-techno-grid', renderState.technoGridEnabled, renderState.technoGridOpacity ?? 0],
+      ['magneticField', 'gen-magnetic-field', renderState.magneticFieldEnabled, renderState.magneticFieldOpacity ?? 0],
+      ['prismShards', 'gen-prism-shards', renderState.prismShardsEnabled, renderState.prismShardsOpacity ?? 0],
+      ['neuralNet', 'gen-neural-net', renderState.neuralNetEnabled, renderState.neuralNetOpacity ?? 0],
+      ['auroraChord', 'gen-aurora-chord', renderState.auroraChordEnabled, renderState.auroraChordOpacity ?? 0],
+      ['vhsGlitch', 'gen-vhs-glitch', renderState.vhsGlitchEnabled, renderState.vhsGlitchOpacity ?? 0],
+      ['moirePattern', 'gen-moire-pattern', renderState.moirePatternEnabled, renderState.moirePatternOpacity ?? 0],
+      ['hypercube', 'gen-hypercube', renderState.hypercubeEnabled, renderState.hypercubeOpacity ?? 0],
+      ['fluidSwirl', 'gen-fluid-swirl', renderState.fluidSwirlEnabled, renderState.fluidSwirlOpacity ?? 0],
+      ['asciiStream', 'gen-ascii-stream', renderState.asciiStreamEnabled, renderState.asciiStreamOpacity ?? 0],
+      ['retroWave', 'gen-retro-wave', renderState.retroWaveEnabled, renderState.retroWaveOpacity ?? 0],
+      ['bubblePop', 'gen-bubble-pop', renderState.bubblePopEnabled, renderState.bubblePopOpacity ?? 0],
+      ['soundWave3D', 'gen-sound-wave-3d', renderState.soundWave3DEnabled, renderState.soundWave3DOpacity ?? 0],
+      ['particleVortex', 'gen-particle-vortex', renderState.particleVortexEnabled, renderState.particleVortexOpacity ?? 0],
+      ['glowWorms', 'gen-glow-worms', renderState.glowWormsEnabled, renderState.glowWormsOpacity ?? 0],
+      ['mirrorMaze', 'gen-mirror-maze', renderState.mirrorMazeEnabled, renderState.mirrorMazeOpacity ?? 0],
+      ['pulseHeart', 'gen-pulse-heart', renderState.pulseHeartEnabled, renderState.pulseHeartOpacity ?? 0],
+      ['dataShards', 'gen-data-shards', renderState.dataShardsEnabled, renderState.dataShardsOpacity ?? 0],
+      ['hexCell', 'gen-hex-cell', renderState.hexCellEnabled, renderState.hexCellOpacity ?? 0],
+      ['plasmaBall', 'gen-plasma-ball', renderState.plasmaBallEnabled, renderState.plasmaBallOpacity ?? 0],
+      ['warpDrive', 'gen-warp-drive', renderState.warpDriveEnabled, renderState.warpDriveOpacity ?? 0],
+      ['visualFeedback', 'gen-visual-feedback', renderState.visualFeedbackEnabled, renderState.visualFeedbackOpacity ?? 0],
+    ];
+    this.debugState.generators = genLookups.map(([id, genId, enabled, opacity]) => ({
+      id,
+      generatorId: genId,
+      enabled,
+      opacity,
+      found: Boolean(findLayerById(sceneLayers, genId))
+    }));
+
     const rawLaserLayer =
       (activeScene?.layers ?? []).find((layer) => normalizeLayerId(layer.id ?? '').includes('laser')) ??
       (activeScene?.layers ?? []).find((layer) => normalizeLayerId(layer.generatorId ?? '').includes('laser')) ??

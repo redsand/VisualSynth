@@ -198,7 +198,205 @@ const state: RenderState = {
   gridTunnelHorizonY: 0.5,
   gridTunnelGlow: 0.5,
   gridTunnelAudioReact: 0.3,
-  gridTunnelMode: 0
+  gridTunnelMode: 0,
+  // Rock Generators
+  lightningEnabled: false,
+  lightningOpacity: 1,
+  lightningSpeed: 1,
+  lightningBranches: 3,
+  lightningThickness: 0.02,
+  lightningColor: 0,
+  analogOscilloEnabled: false,
+  analogOscilloOpacity: 1,
+  analogOscilloThickness: 0.02,
+  analogOscilloGlow: 0.5,
+  analogOscilloColor: 0,
+  analogOscilloMode: 0,
+  speakerConeEnabled: false,
+  speakerConeOpacity: 1,
+  speakerConeForce: 1,
+  glitchScanlineEnabled: false,
+  glitchScanlineOpacity: 1,
+  glitchScanlineSpeed: 1,
+  glitchScanlineCount: 5,
+  laserStarfieldEnabled: false,
+  laserStarfieldOpacity: 1,
+  laserStarfieldSpeed: 1,
+  laserStarfieldDensity: 1,
+  pulsingRibbonsEnabled: false,
+  pulsingRibbonsOpacity: 1,
+  pulsingRibbonsCount: 4,
+  pulsingRibbonsWidth: 0.05,
+  electricArcEnabled: false,
+  electricArcOpacity: 1,
+  electricArcRadius: 0.4,
+  electricArcChaos: 3,
+  pyroBurstEnabled: false,
+  pyroBurstOpacity: 1,
+  pyroBurstForce: 1,
+  geoWireframeEnabled: false,
+  geoWireframeOpacity: 1,
+  geoWireframeShape: 0,
+  geoWireframeScale: 0.5,
+  signalNoiseEnabled: false,
+  signalNoiseOpacity: 1,
+  signalNoiseAmount: 1,
+  wormholeEnabled: false,
+  wormholeOpacity: 1,
+  wormholeSpeed: 1,
+  wormholeWeave: 0.3,
+  wormholeIter: 4,
+  ribbonTunnelEnabled: false,
+  ribbonTunnelOpacity: 1,
+  ribbonTunnelSpeed: 1,
+  ribbonTunnelTwist: 2,
+  fractalTunnelEnabled: false,
+  fractalTunnelOpacity: 1,
+  fractalTunnelSpeed: 1,
+  fractalTunnelComplexity: 3,
+  circuitConduitEnabled: false,
+  circuitConduitOpacity: 1,
+  circuitConduitSpeed: 1,
+  auraPortalEnabled: false,
+  auraPortalOpacity: 1,
+  auraPortalColor: 0,
+  freqTerrainEnabled: false,
+  freqTerrainOpacity: 1,
+  freqTerrainScale: 1,
+  dataStreamEnabled: false,
+  dataStreamOpacity: 1,
+  dataStreamSpeed: 1,
+  causticLiquidEnabled: false,
+  causticLiquidOpacity: 1,
+  causticLiquidSpeed: 1,
+  shimmerVeilEnabled: false,
+  shimmerVeilOpacity: 1,
+  shimmerVeilComplexity: 5,
+  // New 31 Generators
+  nebulaCloudEnabled: false,
+  nebulaCloudOpacity: 1,
+  nebulaCloudDensity: 3,
+  nebulaCloudSpeed: 0.5,
+  circuitBoardEnabled: false,
+  circuitBoardOpacity: 1,
+  circuitBoardGrowth: 1,
+  circuitBoardComplexity: 10,
+  lorenzAttractorEnabled: false,
+  lorenzAttractorOpacity: 1,
+  lorenzAttractorSpeed: 1,
+  lorenzAttractorChaos: 1,
+  mandalaSpinnerEnabled: false,
+  mandalaSpinnerOpacity: 1,
+  mandalaSpinnerSides: 6,
+  mandalaSpinnerSpeed: 1,
+  starburstGalaxyEnabled: false,
+  starburstGalaxyOpacity: 1,
+  starburstGalaxyForce: 1,
+  starburstGalaxyCount: 100,
+  digitalRainV2Enabled: false,
+  digitalRainV2Opacity: 1,
+  digitalRainV2Speed: 1,
+  digitalRainV2Density: 1,
+  lavaFlowEnabled: false,
+  lavaFlowOpacity: 1,
+  lavaFlowHeat: 1,
+  lavaFlowViscosity: 1,
+  crystalGrowthEnabled: false,
+  crystalGrowthOpacity: 1,
+  crystalGrowthRate: 1,
+  crystalGrowthSharpness: 1,
+  technoGridEnabled: false,
+  technoGridOpacity: 1,
+  technoGridHeight: 1,
+  technoGridSpeed: 1,
+  magneticFieldEnabled: false,
+  magneticFieldOpacity: 1,
+  magneticFieldStrength: 1,
+  magneticFieldDensity: 1,
+  prismShardsEnabled: false,
+  prismShardsOpacity: 1,
+  prismShardsRefraction: 1,
+  prismShardsCount: 5,
+  neuralNetEnabled: false,
+  neuralNetOpacity: 1,
+  neuralNetActivity: 1,
+  neuralNetDensity: 1,
+  auroraChordEnabled: false,
+  auroraChordOpacity: 1,
+  auroraChordWaviness: 1,
+  auroraChordColorRange: 1,
+  vhsGlitchEnabled: false,
+  vhsGlitchOpacity: 1,
+  vhsGlitchJitter: 1,
+  vhsGlitchNoise: 1,
+  moirePatternEnabled: false,
+  moirePatternOpacity: 1,
+  moirePatternScale: 1,
+  moirePatternSpeed: 1,
+  hypercubeEnabled: false,
+  hypercubeOpacity: 1,
+  hypercubeProjection: 1,
+  hypercubeSpeed: 1,
+  fluidSwirlEnabled: false,
+  fluidSwirlOpacity: 1,
+  fluidSwirlVorticity: 1,
+  fluidSwirlColorMix: 0.5,
+  asciiStreamEnabled: false,
+  asciiStreamOpacity: 1,
+  asciiStreamResolution: 1,
+  asciiStreamContrast: 1,
+  retroWaveEnabled: false,
+  retroWaveOpacity: 1,
+  retroWaveSunSize: 0.3,
+  retroWaveGridSpeed: 1,
+  bubblePopEnabled: false,
+  bubblePopOpacity: 1,
+  bubblePopPopRate: 1,
+  bubblePopSize: 0.05,
+  soundWave3DEnabled: false,
+  soundWave3DOpacity: 1,
+  soundWave3DAmplitude: 1,
+  soundWave3DSmoothness: 0.5,
+  particleVortexEnabled: false,
+  particleVortexOpacity: 1,
+  particleVortexSuction: 1,
+  particleVortexSpin: 1,
+  glowWormsEnabled: false,
+  glowWormsOpacity: 1,
+  glowWormsLength: 1,
+  glowWormsSpeed: 1,
+  mirrorMazeEnabled: false,
+  mirrorMazeOpacity: 1,
+  mirrorMazeRecursion: 3,
+  mirrorMazeAngle: 0.5,
+  pulseHeartEnabled: false,
+  pulseHeartOpacity: 1,
+  pulseHeartBeats: 1,
+  pulseHeartLayers: 3,
+  dataShardsEnabled: false,
+  dataShardsOpacity: 1,
+  dataShardsSpeed: 1,
+  dataShardsSharpness: 1,
+  hexCellEnabled: false,
+  hexCellOpacity: 1,
+  hexCellPulse: 1,
+  hexCellScale: 1,
+  plasmaBallEnabled: false,
+  plasmaBallOpacity: 1,
+  plasmaBallVoltage: 1,
+  plasmaBallFilaments: 5,
+  warpDriveEnabled: false,
+  warpDriveOpacity: 1,
+  warpDriveWarp: 1,
+  warpDriveGlow: 0.5,
+  visualFeedbackEnabled: false,
+  visualFeedbackOpacity: 1,
+  visualFeedbackZoom: 1,
+  visualFeedbackRotation: 0,
+  myceliumGrowthEnabled: false,
+  myceliumGrowthOpacity: 1,
+  myceliumGrowthSpread: 1,
+  myceliumGrowthDecay: 0.5
 };
 
 const channel = new BroadcastChannel('visualsynth-output');
@@ -414,6 +612,204 @@ channel.onmessage = (event) => {
   if (typeof data.gridTunnelGlow === 'number') state.gridTunnelGlow = data.gridTunnelGlow;
   if (typeof data.gridTunnelAudioReact === 'number') state.gridTunnelAudioReact = data.gridTunnelAudioReact;
   if (typeof data.gridTunnelMode === 'number') state.gridTunnelMode = data.gridTunnelMode;
+  // Rock Generators
+  if (typeof data.lightningEnabled === 'boolean') state.lightningEnabled = data.lightningEnabled;
+  if (typeof data.lightningOpacity === 'number') state.lightningOpacity = data.lightningOpacity;
+  if (typeof data.lightningSpeed === 'number') state.lightningSpeed = data.lightningSpeed;
+  if (typeof data.lightningBranches === 'number') state.lightningBranches = data.lightningBranches;
+  if (typeof data.lightningThickness === 'number') state.lightningThickness = data.lightningThickness;
+  if (typeof data.lightningColor === 'number') state.lightningColor = data.lightningColor;
+  if (typeof data.analogOscilloEnabled === 'boolean') state.analogOscilloEnabled = data.analogOscilloEnabled;
+  if (typeof data.analogOscilloOpacity === 'number') state.analogOscilloOpacity = data.analogOscilloOpacity;
+  if (typeof data.analogOscilloThickness === 'number') state.analogOscilloThickness = data.analogOscilloThickness;
+  if (typeof data.analogOscilloGlow === 'number') state.analogOscilloGlow = data.analogOscilloGlow;
+  if (typeof data.analogOscilloColor === 'number') state.analogOscilloColor = data.analogOscilloColor;
+  if (typeof data.analogOscilloMode === 'number') state.analogOscilloMode = data.analogOscilloMode;
+  if (typeof data.speakerConeEnabled === 'boolean') state.speakerConeEnabled = data.speakerConeEnabled;
+  if (typeof data.speakerConeOpacity === 'number') state.speakerConeOpacity = data.speakerConeOpacity;
+  if (typeof data.speakerConeForce === 'number') state.speakerConeForce = data.speakerConeForce;
+  if (typeof data.glitchScanlineEnabled === 'boolean') state.glitchScanlineEnabled = data.glitchScanlineEnabled;
+  if (typeof data.glitchScanlineOpacity === 'number') state.glitchScanlineOpacity = data.glitchScanlineOpacity;
+  if (typeof data.glitchScanlineSpeed === 'number') state.glitchScanlineSpeed = data.glitchScanlineSpeed;
+  if (typeof data.glitchScanlineCount === 'number') state.glitchScanlineCount = data.glitchScanlineCount;
+  if (typeof data.laserStarfieldEnabled === 'boolean') state.laserStarfieldEnabled = data.laserStarfieldEnabled;
+  if (typeof data.laserStarfieldOpacity === 'number') state.laserStarfieldOpacity = data.laserStarfieldOpacity;
+  if (typeof data.laserStarfieldSpeed === 'number') state.laserStarfieldSpeed = data.laserStarfieldSpeed;
+  if (typeof data.laserStarfieldDensity === 'number') state.laserStarfieldDensity = data.laserStarfieldDensity;
+  if (typeof data.pulsingRibbonsEnabled === 'boolean') state.pulsingRibbonsEnabled = data.pulsingRibbonsEnabled;
+  if (typeof data.pulsingRibbonsOpacity === 'number') state.pulsingRibbonsOpacity = data.pulsingRibbonsOpacity;
+  if (typeof data.pulsingRibbonsCount === 'number') state.pulsingRibbonsCount = data.pulsingRibbonsCount;
+  if (typeof data.pulsingRibbonsWidth === 'number') state.pulsingRibbonsWidth = data.pulsingRibbonsWidth;
+  if (typeof data.electricArcEnabled === 'boolean') state.electricArcEnabled = data.electricArcEnabled;
+  if (typeof data.electricArcOpacity === 'number') state.electricArcOpacity = data.electricArcOpacity;
+  if (typeof data.electricArcRadius === 'number') state.electricArcRadius = data.electricArcRadius;
+  if (typeof data.electricArcChaos === 'number') state.electricArcChaos = data.electricArcChaos;
+  if (typeof data.pyroBurstEnabled === 'boolean') state.pyroBurstEnabled = data.pyroBurstEnabled;
+  if (typeof data.pyroBurstOpacity === 'number') state.pyroBurstOpacity = data.pyroBurstOpacity;
+  if (typeof data.pyroBurstForce === 'number') state.pyroBurstForce = data.pyroBurstForce;
+  if (typeof data.geoWireframeEnabled === 'boolean') state.geoWireframeEnabled = data.geoWireframeEnabled;
+  if (typeof data.geoWireframeOpacity === 'number') state.geoWireframeOpacity = data.geoWireframeOpacity;
+  if (typeof data.geoWireframeShape === 'number') state.geoWireframeShape = data.geoWireframeShape;
+  if (typeof data.geoWireframeScale === 'number') state.geoWireframeScale = data.geoWireframeScale;
+  if (typeof data.signalNoiseEnabled === 'boolean') state.signalNoiseEnabled = data.signalNoiseEnabled;
+  if (typeof data.signalNoiseOpacity === 'number') state.signalNoiseOpacity = data.signalNoiseOpacity;
+  if (typeof data.signalNoiseAmount === 'number') state.signalNoiseAmount = data.signalNoiseAmount;
+  if (typeof data.wormholeEnabled === 'boolean') state.wormholeEnabled = data.wormholeEnabled;
+  if (typeof data.wormholeOpacity === 'number') state.wormholeOpacity = data.wormholeOpacity;
+  if (typeof data.wormholeSpeed === 'number') state.wormholeSpeed = data.wormholeSpeed;
+  if (typeof data.wormholeWeave === 'number') state.wormholeWeave = data.wormholeWeave;
+  if (typeof data.wormholeIter === 'number') state.wormholeIter = data.wormholeIter;
+  if (typeof data.ribbonTunnelEnabled === 'boolean') state.ribbonTunnelEnabled = data.ribbonTunnelEnabled;
+  if (typeof data.ribbonTunnelOpacity === 'number') state.ribbonTunnelOpacity = data.ribbonTunnelOpacity;
+  if (typeof data.ribbonTunnelSpeed === 'number') state.ribbonTunnelSpeed = data.ribbonTunnelSpeed;
+  if (typeof data.ribbonTunnelTwist === 'number') state.ribbonTunnelTwist = data.ribbonTunnelTwist;
+  if (typeof data.fractalTunnelEnabled === 'boolean') state.fractalTunnelEnabled = data.fractalTunnelEnabled;
+  if (typeof data.fractalTunnelOpacity === 'number') state.fractalTunnelOpacity = data.fractalTunnelOpacity;
+  if (typeof data.fractalTunnelSpeed === 'number') state.fractalTunnelSpeed = data.fractalTunnelSpeed;
+  if (typeof data.fractalTunnelComplexity === 'number') state.fractalTunnelComplexity = data.fractalTunnelComplexity;
+  if (typeof data.circuitConduitEnabled === 'boolean') state.circuitConduitEnabled = data.circuitConduitEnabled;
+  if (typeof data.circuitConduitOpacity === 'number') state.circuitConduitOpacity = data.circuitConduitOpacity;
+  if (typeof data.circuitConduitSpeed === 'number') state.circuitConduitSpeed = data.circuitConduitSpeed;
+  if (typeof data.auraPortalEnabled === 'boolean') state.auraPortalEnabled = data.auraPortalEnabled;
+  if (typeof data.auraPortalOpacity === 'number') state.auraPortalOpacity = data.auraPortalOpacity;
+  if (typeof data.auraPortalColor === 'number') state.auraPortalColor = data.auraPortalColor;
+  if (typeof data.freqTerrainEnabled === 'boolean') state.freqTerrainEnabled = data.freqTerrainEnabled;
+  if (typeof data.freqTerrainOpacity === 'number') state.freqTerrainOpacity = data.freqTerrainOpacity;
+  if (typeof data.freqTerrainScale === 'number') state.freqTerrainScale = data.freqTerrainScale;
+  if (typeof data.dataStreamEnabled === 'boolean') state.dataStreamEnabled = data.dataStreamEnabled;
+  if (typeof data.dataStreamOpacity === 'number') state.dataStreamOpacity = data.dataStreamOpacity;
+  if (typeof data.dataStreamSpeed === 'number') state.dataStreamSpeed = data.dataStreamSpeed;
+  if (typeof data.causticLiquidEnabled === 'boolean') state.causticLiquidEnabled = data.causticLiquidEnabled;
+  if (typeof data.causticLiquidOpacity === 'number') state.causticLiquidOpacity = data.causticLiquidOpacity;
+  if (typeof data.causticLiquidSpeed === 'number') state.causticLiquidSpeed = data.causticLiquidSpeed;
+  if (typeof data.shimmerVeilEnabled === 'boolean') state.shimmerVeilEnabled = data.shimmerVeilEnabled;
+  if (typeof data.shimmerVeilOpacity === 'number') state.shimmerVeilOpacity = data.shimmerVeilOpacity;
+  if (typeof data.shimmerVeilComplexity === 'number') state.shimmerVeilComplexity = data.shimmerVeilComplexity;
+  // New 31 Generators
+  if (typeof data.nebulaCloudEnabled === 'boolean') state.nebulaCloudEnabled = data.nebulaCloudEnabled;
+  if (typeof data.nebulaCloudOpacity === 'number') state.nebulaCloudOpacity = data.nebulaCloudOpacity;
+  if (typeof data.nebulaCloudDensity === 'number') state.nebulaCloudDensity = data.nebulaCloudDensity;
+  if (typeof data.nebulaCloudSpeed === 'number') state.nebulaCloudSpeed = data.nebulaCloudSpeed;
+  if (typeof data.circuitBoardEnabled === 'boolean') state.circuitBoardEnabled = data.circuitBoardEnabled;
+  if (typeof data.circuitBoardOpacity === 'number') state.circuitBoardOpacity = data.circuitBoardOpacity;
+  if (typeof data.circuitBoardGrowth === 'number') state.circuitBoardGrowth = data.circuitBoardGrowth;
+  if (typeof data.circuitBoardComplexity === 'number') state.circuitBoardComplexity = data.circuitBoardComplexity;
+  if (typeof data.lorenzAttractorEnabled === 'boolean') state.lorenzAttractorEnabled = data.lorenzAttractorEnabled;
+  if (typeof data.lorenzAttractorOpacity === 'number') state.lorenzAttractorOpacity = data.lorenzAttractorOpacity;
+  if (typeof data.lorenzAttractorSpeed === 'number') state.lorenzAttractorSpeed = data.lorenzAttractorSpeed;
+  if (typeof data.lorenzAttractorChaos === 'number') state.lorenzAttractorChaos = data.lorenzAttractorChaos;
+  if (typeof data.mandalaSpinnerEnabled === 'boolean') state.mandalaSpinnerEnabled = data.mandalaSpinnerEnabled;
+  if (typeof data.mandalaSpinnerOpacity === 'number') state.mandalaSpinnerOpacity = data.mandalaSpinnerOpacity;
+  if (typeof data.mandalaSpinnerSides === 'number') state.mandalaSpinnerSides = data.mandalaSpinnerSides;
+  if (typeof data.mandalaSpinnerSpeed === 'number') state.mandalaSpinnerSpeed = data.mandalaSpinnerSpeed;
+  if (typeof data.starburstGalaxyEnabled === 'boolean') state.starburstGalaxyEnabled = data.starburstGalaxyEnabled;
+  if (typeof data.starburstGalaxyOpacity === 'number') state.starburstGalaxyOpacity = data.starburstGalaxyOpacity;
+  if (typeof data.starburstGalaxyForce === 'number') state.starburstGalaxyForce = data.starburstGalaxyForce;
+  if (typeof data.starburstGalaxyCount === 'number') state.starburstGalaxyCount = data.starburstGalaxyCount;
+  if (typeof data.digitalRainV2Enabled === 'boolean') state.digitalRainV2Enabled = data.digitalRainV2Enabled;
+  if (typeof data.digitalRainV2Opacity === 'number') state.digitalRainV2Opacity = data.digitalRainV2Opacity;
+  if (typeof data.digitalRainV2Speed === 'number') state.digitalRainV2Speed = data.digitalRainV2Speed;
+  if (typeof data.digitalRainV2Density === 'number') state.digitalRainV2Density = data.digitalRainV2Density;
+  if (typeof data.lavaFlowEnabled === 'boolean') state.lavaFlowEnabled = data.lavaFlowEnabled;
+  if (typeof data.lavaFlowOpacity === 'number') state.lavaFlowOpacity = data.lavaFlowOpacity;
+  if (typeof data.lavaFlowHeat === 'number') state.lavaFlowHeat = data.lavaFlowHeat;
+  if (typeof data.lavaFlowViscosity === 'number') state.lavaFlowViscosity = data.lavaFlowViscosity;
+  if (typeof data.crystalGrowthEnabled === 'boolean') state.crystalGrowthEnabled = data.crystalGrowthEnabled;
+  if (typeof data.crystalGrowthOpacity === 'number') state.crystalGrowthOpacity = data.crystalGrowthOpacity;
+  if (typeof data.crystalGrowthRate === 'number') state.crystalGrowthRate = data.crystalGrowthRate;
+  if (typeof data.crystalGrowthSharpness === 'number') state.crystalGrowthSharpness = data.crystalGrowthSharpness;
+  if (typeof data.technoGridEnabled === 'boolean') state.technoGridEnabled = data.technoGridEnabled;
+  if (typeof data.technoGridOpacity === 'number') state.technoGridOpacity = data.technoGridOpacity;
+  if (typeof data.technoGridHeight === 'number') state.technoGridHeight = data.technoGridHeight;
+  if (typeof data.technoGridSpeed === 'number') state.technoGridSpeed = data.technoGridSpeed;
+  if (typeof data.magneticFieldEnabled === 'boolean') state.magneticFieldEnabled = data.magneticFieldEnabled;
+  if (typeof data.magneticFieldOpacity === 'number') state.magneticFieldOpacity = data.magneticFieldOpacity;
+  if (typeof data.magneticFieldStrength === 'number') state.magneticFieldStrength = data.magneticFieldStrength;
+  if (typeof data.magneticFieldDensity === 'number') state.magneticFieldDensity = data.magneticFieldDensity;
+  if (typeof data.prismShardsEnabled === 'boolean') state.prismShardsEnabled = data.prismShardsEnabled;
+  if (typeof data.prismShardsOpacity === 'number') state.prismShardsOpacity = data.prismShardsOpacity;
+  if (typeof data.prismShardsRefraction === 'number') state.prismShardsRefraction = data.prismShardsRefraction;
+  if (typeof data.prismShardsCount === 'number') state.prismShardsCount = data.prismShardsCount;
+  if (typeof data.neuralNetEnabled === 'boolean') state.neuralNetEnabled = data.neuralNetEnabled;
+  if (typeof data.neuralNetOpacity === 'number') state.neuralNetOpacity = data.neuralNetOpacity;
+  if (typeof data.neuralNetActivity === 'number') state.neuralNetActivity = data.neuralNetActivity;
+  if (typeof data.neuralNetDensity === 'number') state.neuralNetDensity = data.neuralNetDensity;
+  if (typeof data.auroraChordEnabled === 'boolean') state.auroraChordEnabled = data.auroraChordEnabled;
+  if (typeof data.auroraChordOpacity === 'number') state.auroraChordOpacity = data.auroraChordOpacity;
+  if (typeof data.auroraChordWaviness === 'number') state.auroraChordWaviness = data.auroraChordWaviness;
+  if (typeof data.auroraChordColorRange === 'number') state.auroraChordColorRange = data.auroraChordColorRange;
+  if (typeof data.vhsGlitchEnabled === 'boolean') state.vhsGlitchEnabled = data.vhsGlitchEnabled;
+  if (typeof data.vhsGlitchOpacity === 'number') state.vhsGlitchOpacity = data.vhsGlitchOpacity;
+  if (typeof data.vhsGlitchJitter === 'number') state.vhsGlitchJitter = data.vhsGlitchJitter;
+  if (typeof data.vhsGlitchNoise === 'number') state.vhsGlitchNoise = data.vhsGlitchNoise;
+  if (typeof data.moirePatternEnabled === 'boolean') state.moirePatternEnabled = data.moirePatternEnabled;
+  if (typeof data.moirePatternOpacity === 'number') state.moirePatternOpacity = data.moirePatternOpacity;
+  if (typeof data.moirePatternScale === 'number') state.moirePatternScale = data.moirePatternScale;
+  if (typeof data.moirePatternSpeed === 'number') state.moirePatternSpeed = data.moirePatternSpeed;
+  if (typeof data.hypercubeEnabled === 'boolean') state.hypercubeEnabled = data.hypercubeEnabled;
+  if (typeof data.hypercubeOpacity === 'number') state.hypercubeOpacity = data.hypercubeOpacity;
+  if (typeof data.hypercubeProjection === 'number') state.hypercubeProjection = data.hypercubeProjection;
+  if (typeof data.hypercubeSpeed === 'number') state.hypercubeSpeed = data.hypercubeSpeed;
+  if (typeof data.fluidSwirlEnabled === 'boolean') state.fluidSwirlEnabled = data.fluidSwirlEnabled;
+  if (typeof data.fluidSwirlOpacity === 'number') state.fluidSwirlOpacity = data.fluidSwirlOpacity;
+  if (typeof data.fluidSwirlVorticity === 'number') state.fluidSwirlVorticity = data.fluidSwirlVorticity;
+  if (typeof data.fluidSwirlColorMix === 'number') state.fluidSwirlColorMix = data.fluidSwirlColorMix;
+  if (typeof data.asciiStreamEnabled === 'boolean') state.asciiStreamEnabled = data.asciiStreamEnabled;
+  if (typeof data.asciiStreamOpacity === 'number') state.asciiStreamOpacity = data.asciiStreamOpacity;
+  if (typeof data.asciiStreamResolution === 'number') state.asciiStreamResolution = data.asciiStreamResolution;
+  if (typeof data.asciiStreamContrast === 'number') state.asciiStreamContrast = data.asciiStreamContrast;
+  if (typeof data.retroWaveEnabled === 'boolean') state.retroWaveEnabled = data.retroWaveEnabled;
+  if (typeof data.retroWaveOpacity === 'number') state.retroWaveOpacity = data.retroWaveOpacity;
+  if (typeof data.retroWaveSunSize === 'number') state.retroWaveSunSize = data.retroWaveSunSize;
+  if (typeof data.retroWaveGridSpeed === 'number') state.retroWaveGridSpeed = data.retroWaveGridSpeed;
+  if (typeof data.bubblePopEnabled === 'boolean') state.bubblePopEnabled = data.bubblePopEnabled;
+  if (typeof data.bubblePopOpacity === 'number') state.bubblePopOpacity = data.bubblePopOpacity;
+  if (typeof data.bubblePopPopRate === 'number') state.bubblePopPopRate = data.bubblePopPopRate;
+  if (typeof data.bubblePopSize === 'number') state.bubblePopSize = data.bubblePopSize;
+  if (typeof data.soundWave3DEnabled === 'boolean') state.soundWave3DEnabled = data.soundWave3DEnabled;
+  if (typeof data.soundWave3DOpacity === 'number') state.soundWave3DOpacity = data.soundWave3DOpacity;
+  if (typeof data.soundWave3DAmplitude === 'number') state.soundWave3DAmplitude = data.soundWave3DAmplitude;
+  if (typeof data.soundWave3DSmoothness === 'number') state.soundWave3DSmoothness = data.soundWave3DSmoothness;
+  if (typeof data.particleVortexEnabled === 'boolean') state.particleVortexEnabled = data.particleVortexEnabled;
+  if (typeof data.particleVortexOpacity === 'number') state.particleVortexOpacity = data.particleVortexOpacity;
+  if (typeof data.particleVortexSuction === 'number') state.particleVortexSuction = data.particleVortexSuction;
+  if (typeof data.particleVortexSpin === 'number') state.particleVortexSpin = data.particleVortexSpin;
+  if (typeof data.glowWormsEnabled === 'boolean') state.glowWormsEnabled = data.glowWormsEnabled;
+  if (typeof data.glowWormsOpacity === 'number') state.glowWormsOpacity = data.glowWormsOpacity;
+  if (typeof data.glowWormsLength === 'number') state.glowWormsLength = data.glowWormsLength;
+  if (typeof data.glowWormsSpeed === 'number') state.glowWormsSpeed = data.glowWormsSpeed;
+  if (typeof data.mirrorMazeEnabled === 'boolean') state.mirrorMazeEnabled = data.mirrorMazeEnabled;
+  if (typeof data.mirrorMazeOpacity === 'number') state.mirrorMazeOpacity = data.mirrorMazeOpacity;
+  if (typeof data.mirrorMazeRecursion === 'number') state.mirrorMazeRecursion = data.mirrorMazeRecursion;
+  if (typeof data.mirrorMazeAngle === 'number') state.mirrorMazeAngle = data.mirrorMazeAngle;
+  if (typeof data.pulseHeartEnabled === 'boolean') state.pulseHeartEnabled = data.pulseHeartEnabled;
+  if (typeof data.pulseHeartOpacity === 'number') state.pulseHeartOpacity = data.pulseHeartOpacity;
+  if (typeof data.pulseHeartBeats === 'number') state.pulseHeartBeats = data.pulseHeartBeats;
+  if (typeof data.pulseHeartLayers === 'number') state.pulseHeartLayers = data.pulseHeartLayers;
+  if (typeof data.dataShardsEnabled === 'boolean') state.dataShardsEnabled = data.dataShardsEnabled;
+  if (typeof data.dataShardsOpacity === 'number') state.dataShardsOpacity = data.dataShardsOpacity;
+  if (typeof data.dataShardsSpeed === 'number') state.dataShardsSpeed = data.dataShardsSpeed;
+  if (typeof data.dataShardsSharpness === 'number') state.dataShardsSharpness = data.dataShardsSharpness;
+  if (typeof data.hexCellEnabled === 'boolean') state.hexCellEnabled = data.hexCellEnabled;
+  if (typeof data.hexCellOpacity === 'number') state.hexCellOpacity = data.hexCellOpacity;
+  if (typeof data.hexCellPulse === 'number') state.hexCellPulse = data.hexCellPulse;
+  if (typeof data.hexCellScale === 'number') state.hexCellScale = data.hexCellScale;
+  if (typeof data.plasmaBallEnabled === 'boolean') state.plasmaBallEnabled = data.plasmaBallEnabled;
+  if (typeof data.plasmaBallOpacity === 'number') state.plasmaBallOpacity = data.plasmaBallOpacity;
+  if (typeof data.plasmaBallVoltage === 'number') state.plasmaBallVoltage = data.plasmaBallVoltage;
+  if (typeof data.plasmaBallFilaments === 'number') state.plasmaBallFilaments = data.plasmaBallFilaments;
+  if (typeof data.warpDriveEnabled === 'boolean') state.warpDriveEnabled = data.warpDriveEnabled;
+  if (typeof data.warpDriveOpacity === 'number') state.warpDriveOpacity = data.warpDriveOpacity;
+  if (typeof data.warpDriveWarp === 'number') state.warpDriveWarp = data.warpDriveWarp;
+  if (typeof data.warpDriveGlow === 'number') state.warpDriveGlow = data.warpDriveGlow;
+  if (typeof data.visualFeedbackEnabled === 'boolean') state.visualFeedbackEnabled = data.visualFeedbackEnabled;
+  if (typeof data.visualFeedbackOpacity === 'number') state.visualFeedbackOpacity = data.visualFeedbackOpacity;
+  if (typeof data.visualFeedbackZoom === 'number') state.visualFeedbackZoom = data.visualFeedbackZoom;
+  if (typeof data.visualFeedbackRotation === 'number') state.visualFeedbackRotation = data.visualFeedbackRotation;
+  if (typeof (data as any).myceliumGrowthEnabled === 'boolean') (state as any).myceliumGrowthEnabled = (data as any).myceliumGrowthEnabled;
+  if (typeof (data as any).myceliumGrowthOpacity === 'number') (state as any).myceliumGrowthOpacity = (data as any).myceliumGrowthOpacity;
+  if (typeof (data as any).myceliumGrowthSpread === 'number') (state as any).myceliumGrowthSpread = (data as any).myceliumGrowthSpread;
+  if (typeof (data as any).myceliumGrowthDecay === 'number') (state as any).myceliumGrowthDecay = (data as any).myceliumGrowthDecay;
   if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
     const colors = (data as any).paletteColors as string[];
     if (colors.length >= 5) {

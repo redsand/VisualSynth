@@ -178,6 +178,19 @@ export const createDebugOverlay = (onFlagsChange: (flags: DebugOverlayFlags) => 
       const status = fx.enabled ? 'on' : fx.bypassed ? 'bypass' : 'off';
       lines.push(`- ${fx.id}: ${status} | last=${fx.lastAppliedFrameId}`);
     });
+    // Generator status
+    const activeGens = (state.generators ?? []).filter(g => g.enabled);
+    const notFoundGens = (state.generators ?? []).filter(g => !g.found && g.enabled);
+    if (activeGens.length > 0 || notFoundGens.length > 0) {
+      lines.push(`Generators: ${activeGens.length} active`);
+      activeGens.forEach((g) => {
+        const status = g.found ? 'ok' : 'NOT FOUND';
+        lines.push(`- ${g.id}: op=${g.opacity.toFixed(2)} [${status}]`);
+      });
+      if (notFoundGens.length > 0) {
+        lines.push(`WARNING: ${notFoundGens.length} enabled but not found in scene`);
+      }
+    }
     lines.push(`Master: ${state.masterBusFrameId}`);
     lines.push(`Uniforms: ${state.uniformsUpdatedFrameId}`);
     body.textContent = lines.join('\n');

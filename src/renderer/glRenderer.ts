@@ -414,6 +414,11 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
   let lastShaderError: string | null = null;
   let customPlasmaSource: string | null = null;
 
+  // --- Generator Diagnostics ---
+  const missingUniforms = new Set<string>();
+  let uniformWarningsLogged = false;
+  const generatorDiagnostics: Map<string, { enabled: boolean; opacity: number; uniformsBound: boolean }> = new Map();
+
   const vertexShaderSrc = `#version 300 es
 in vec2 position;
 out vec2 vUv;
@@ -1299,13 +1304,27 @@ vec2 speakerCone(vec2 uv, float bass) {
 vec3 glitchScanline(vec2 uv, float t, float audio) {
   float speed = uGlitchScanlineSpeed;
   float scan = sin(uv.y * 100.0 * uGlitchScanlineCount + t * speed) * 0.5 + 0.5;
-  vec3 col = vec3(scan);
-  
-  if (hash21(vec2(t * speed, floor(uv.y * 20.0))) > 0.95) {
-    col.r = 1.0;
-    col.gb *= 0.0;
+
+  float blockY = floor(uv.y * 20.0);
+  float blockHash = hash21(vec2(floor(t * speed * 3.0), blockY));
+  float hShift = 0.0;
+  if (blockHash > 0.85) {
+    hShift = (hash21(vec2(t * speed * 5.0, blockY)) - 0.5) * 0.2;
   }
-  
+  vec2 glitchUv = vec2(uv.x + hShift, uv.y);
+
+  float tearLine = smoothstep(0.01, 0.0, abs(fract(uv.y * 15.0 + t * speed * 0.5) - 0.5)) * 0.6;
+  float flicker = step(0.92, hash21(vec2(floor(t * 20.0), 0.0))) * 0.4;
+
+  vec3 col = vec3(scan * 0.6);
+  col += palette(fract(blockY * 0.1 + t * 0.05)) * abs(hShift) * 5.0;
+  col += vec3(tearLine);
+  col *= (1.0 - flicker);
+
+  if (blockHash > 0.93) {
+    col = vec3(1.0, 0.1, 0.1) * (0.5 + audio);
+  }
+
   return col * uGlitchScanlineOpacity * (1.0 + audio);
 }
 
@@ -1372,9 +1391,18 @@ vec3 geoWireframe(vec2 uv, float t, float audio) {
 }
 
 vec3 signalNoise(vec2 uv, float t) {
-  float n = hash21(uv + t);
-  float line = step(0.99, hash21(vec2(t, uv.y)));
-  return palette(n) * (n * 0.2 + line) * uSignalNoiseOpacity * uSignalNoiseAmount;
+  float n = hash21(uv * 200.0 + t * 10.0);
+  float n2 = hash21(floor(uv * 80.0) + t * 5.0);
+
+  float scanline = step(0.97, hash21(vec2(t * 7.0, floor(uv.y * 30.0))));
+  float hShift = scanline * (hash21(vec2(t * 13.0, floor(uv.y * 30.0))) - 0.5) * 0.15;
+  float staticGrain = n * 0.5 + n2 * 0.3;
+  float burst = scanline * 1.5;
+
+  vec3 col = palette(fract(n + t * 0.1)) * (staticGrain + burst);
+  col += vec3(scanline) * 0.4;
+
+  return col * uSignalNoiseOpacity * uSignalNoiseAmount;
 }
 
 vec3 infiniteWormhole(vec2 uv, float t, float audio) {
@@ -1403,32 +1431,52 @@ vec3 infiniteWormhole(vec2 uv, float t, float audio) {
 
 vec3 ribbonTunnel(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
+  p.x *= uAspect;
   float r = length(p);
   float a = atan(p.y, p.x);
-  
+
   float z = 1.0 / (r + 0.01);
-  float twist = a + z * uRibbonTunnelTwist + t * uRibbonTunnelSpeed;
-  
-  float ribbon = smoothstep(0.2, 0.0, abs(sin(twist * 4.0)));
-  ribbon *= smoothstep(0.0, 0.5, r); // Fade center
-  
-  return palette(fract(z * 0.2)) * ribbon * uRibbonTunnelOpacity * (1.0 + audio);
+  vec3 col = vec3(0.0);
+
+  for (float i = 0.0; i < 3.0; i += 1.0) {
+    float offset = i * 0.8;
+    float twist = a + z * uRibbonTunnelTwist * (1.0 + i * 0.3) + t * uRibbonTunnelSpeed + offset;
+    float ribbon = smoothstep(0.15, 0.0, abs(sin(twist * (4.0 + i))));
+    ribbon *= smoothstep(0.0, 0.4, r);
+    float glow = exp(-abs(sin(twist * (4.0 + i))) * 6.0) * 0.4;
+    glow *= smoothstep(0.0, 0.3, r);
+    col += palette(fract(z * 0.15 + i * 0.33 + t * 0.03)) * (ribbon + glow);
+  }
+
+  float depth = smoothstep(2.0, 0.5, z) * 0.6;
+  col += palette(fract(z * 0.1 + 0.5)) * depth * smoothstep(0.0, 0.3, r);
+
+  return col * uRibbonTunnelOpacity * (1.0 + audio * 0.8);
 }
 
 vec3 fractalTunnel(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
   p.x *= uAspect;
-  
+
   float col = 0.0;
   float z = t * uFractalTunnelSpeed;
-  
-  for (float i = 0.0; i < 4.0; i += 1.0) {
-    p = abs(p) / dot(p,p) - 0.5;
-    p = rotate2d(p, z * 0.1);
-    col += exp(-length(p) * (5.0 - uFractalTunnelComplexity));
+  float glow = 0.0;
+  vec2 p0 = p;
+
+  for (float i = 0.0; i < 8.0; i += 1.0) {
+    p = abs(p) / dot(p, p) - (0.5 + audio * 0.1);
+    p = rotate2d(p, z * 0.15 + i * 0.2);
+    float d = length(p);
+    float fade = exp(-d * max(0.5, 5.0 - uFractalTunnelComplexity));
+    col += fade;
+    glow += smoothstep(0.3, 0.0, d) * (1.0 / (i + 1.0));
   }
-  
-  return palette(col * 0.1) * col * uFractalTunnelOpacity * (1.0 + audio);
+
+  col *= 0.25;
+  vec3 c = palette(fract(col * 0.3 + z * 0.05)) * col;
+  c += palette(fract(col * 0.5 + 0.3)) * glow * 0.4;
+
+  return c * uFractalTunnelOpacity * (1.0 + audio * 0.8);
 }
 
 vec3 circuitConduit(vec2 uv, float t, float audio) {
@@ -1445,18 +1493,57 @@ vec3 circuitConduit(vec2 uv, float t, float audio) {
 
 vec3 auraPortal(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
+  p.x *= uAspect;
   float d = length(p);
-  float aura = exp(-d * 3.0) * (1.0 + audio);
-  vec3 col = palette(uAuraPortalColor < 0.5 ? 0.2 : 0.8);
-  return col * aura * uAuraPortalOpacity;
+  float a = atan(p.y, p.x);
+
+  float core = exp(-d * 4.0) * (1.5 + audio);
+  float ring1 = smoothstep(0.03, 0.0, abs(d - 0.3 - audio * 0.1)) * 0.8;
+  float ring2 = smoothstep(0.04, 0.0, abs(d - 0.55 - audio * 0.05)) * 0.5;
+  float ring3 = smoothstep(0.05, 0.0, abs(d - 0.8)) * 0.3;
+
+  float pulse = sin(d * 12.0 - t * 2.0) * 0.5 + 0.5;
+  pulse *= smoothstep(1.0, 0.2, d);
+
+  float rays = smoothstep(0.4, 0.0, abs(sin(a * 6.0 + t * 0.5))) * smoothstep(1.0, 0.1, d) * 0.3;
+
+  float baseHue = uAuraPortalColor < 0.5 ? 0.2 : 0.8;
+  vec3 coreCol = palette(baseHue) * core;
+  vec3 ringCol = palette(baseHue + 0.1) * (ring1 + ring2 + ring3);
+  vec3 pulseCol = palette(baseHue + 0.2) * pulse * 0.35;
+  vec3 rayCol = palette(baseHue + 0.3) * rays;
+
+  return (coreCol + ringCol + pulseCol + rayCol) * uAuraPortalOpacity;
 }
 
 vec3 frequencyTerrain(vec2 uv, float t, float audio) {
-  float band = floor(uv.x * 64.0);
-  float amp = uSpectrum[int(band)];
-  float d = abs(uv.y - 0.5 - (amp - 0.5) * uFreqTerrainScale);
-  float line = smoothstep(0.02, 0.0, d);
-  return palette(amp) * line * uFreqTerrainOpacity;
+  vec3 col = vec3(0.0);
+  float bandF = uv.x * 64.0;
+  float bandFloor = floor(bandF);
+  float amp = uSpectrum[int(clamp(bandFloor, 0.0, 63.0))];
+
+  float bandNextF = min(bandFloor + 1.0, 63.0);
+  float ampNext = uSpectrum[int(bandNextF)];
+  float fr = fract(bandF);
+  float smoothAmp = mix(amp, ampNext, fr);
+
+  float barHeight = smoothAmp * uFreqTerrainScale;
+  float barBase = 0.5 - barHeight * 0.5;
+  float barTop = 0.5 + barHeight * 0.5;
+  float inBar = step(barBase, uv.y) * step(uv.y, barTop);
+
+  float edge = smoothstep(0.02, 0.0, abs(uv.y - barTop));
+  edge += smoothstep(0.02, 0.0, abs(uv.y - barBase));
+
+  float glow = exp(-abs(uv.y - barTop) * 15.0) * smoothAmp;
+  glow += exp(-abs(uv.y - barBase) * 15.0) * smoothAmp;
+
+  vec3 barCol = palette(smoothAmp * 0.8 + 0.1) * inBar * (0.4 + smoothAmp * 0.6);
+  vec3 edgeCol = palette(smoothAmp * 0.6 + 0.3) * edge;
+  vec3 glowCol = palette(smoothAmp * 0.4 + 0.5) * glow * 0.5;
+
+  col = barCol + edgeCol + glowCol;
+  return col * uFreqTerrainOpacity;
 }
 
 vec3 dataStream(vec2 uv, float t, float audio) {
@@ -1536,13 +1623,20 @@ vec3 starburstGalaxy(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
   p.x *= uAspect;
   vec3 col = vec3(0.0);
-  for (float i = 0.0; i < 10.0; i += 1.0) { // Sample limited stars for performance
+  float count = clamp(uStarburstGalaxyCount, 10.0, 200.0);
+  for (float i = 0.0; i < 200.0; i += 1.0) {
+    if (i >= count) break;
     float h = hash21(vec2(i, 123.4));
-    float burst = fract(t * uStarburstGalaxyForce + h);
-    vec2 dir = vec2(cos(h * 6.28), sin(h * 6.28));
+    float h2 = hash21(vec2(i, 456.7));
+    float burst = fract(t * uStarburstGalaxyForce * (0.5 + h2 * 0.5) + h);
+    float angle = h * 6.28 + h2 * 0.5;
+    vec2 dir = vec2(cos(angle), sin(angle));
     vec2 pos = dir * burst * 1.5;
-    float star = smoothstep(0.05, 0.0, length(p - pos));
-    col += palette(h) * star * (1.0 - burst);
+    float size = mix(0.06, 0.02, burst);
+    float star = smoothstep(size, 0.0, length(p - pos));
+    float trail = smoothstep(size * 3.0, 0.0, length(p - pos)) * 0.3;
+    float fade = (1.0 - burst) * (1.0 - burst);
+    col += palette(fract(h + t * 0.05)) * (star + trail) * fade;
   }
   return col * uStarburstGalaxyOpacity * (1.0 + audio);
 }
@@ -2331,7 +2425,7 @@ void main() {
     if (uGlyphMode > 2.5) { local.y += (mod(cell.y, 4.0) - 1.5) * 0.06; local.x += sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.8) * 0.06; }
     float dist = glyphShape(local, seed, band, complexity);
     float stroke = smoothstep(0.04, 0.0, dist);
-    vec3 glyphColor = palette(fract(bandIndex * 0.15 + uTime * 0.05));
+    vec3 glyphColor = palette(fract(float(bandIndex) * 0.15 + uTime * 0.05));
     glyphColor *= 0.55 + complexity * 0.75;
     color += glyphColor * stroke * uGlyphOpacity * uRoleWeights.y;
   }
@@ -2812,7 +2906,14 @@ void main() {
 
   const updateStandardUniforms = (prog: WebGLProgram, state: RenderState) => {
     gl.useProgram(prog);
-    const getLocation = (name: string) => gl.getUniformLocation(prog, name);
+    const getLocation = (name: string) => {
+      const loc = gl.getUniformLocation(prog, name);
+      if (!loc && !missingUniforms.has(name)) {
+        missingUniforms.add(name);
+        console.warn(`[VisualSynth] Uniform not found in shader: "${name}"`);
+      }
+      return loc;
+    };
     gl.uniform1f(getLocation('uTime'), state.timeMs / 1000);
     gl.uniform1f(getLocation('uRms'), state.rms);
     gl.uniform1f(getLocation('uPeak'), state.peak);
@@ -3199,6 +3300,88 @@ void main() {
     gl.enableVertexAttribArray(pLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+
+    // --- Generator Diagnostics: track enable/opacity state ---
+    const genEntries: [string, boolean, number][] = [
+      ['plasma', state.plasmaEnabled, state.plasmaOpacity],
+      ['spectrum', state.spectrumEnabled, state.spectrumOpacity],
+      ['origami', state.origamiEnabled, state.origamiOpacity],
+      ['glyph', state.glyphEnabled, state.glyphOpacity],
+      ['crystal', state.crystalEnabled, state.crystalOpacity],
+      ['ink', state.inkEnabled, state.inkOpacity],
+      ['topo', state.topoEnabled, state.topoOpacity],
+      ['weather', state.weatherEnabled, state.weatherOpacity],
+      ['portal', state.portalEnabled, state.portalOpacity],
+      ['media', state.mediaEnabled, state.mediaOpacity],
+      ['oscillo', state.oscilloEnabled, state.oscilloOpacity],
+      ['laser', state.laserEnabled, state.laserOpacity],
+      ['strobe', state.strobeEnabled, state.strobeOpacity],
+      ['shapeBurst', state.shapeBurstEnabled, state.shapeBurstOpacity],
+      ['gridTunnel', state.gridTunnelEnabled, state.gridTunnelOpacity],
+      ['lightning', state.lightningEnabled, state.lightningOpacity],
+      ['analogOscillo', state.analogOscilloEnabled, state.analogOscilloOpacity],
+      ['speakerCone', state.speakerConeEnabled, state.speakerConeOpacity],
+      ['glitchScanline', state.glitchScanlineEnabled, state.glitchScanlineOpacity],
+      ['laserStarfield', state.laserStarfieldEnabled, state.laserStarfieldOpacity],
+      ['pulsingRibbons', state.pulsingRibbonsEnabled, state.pulsingRibbonsOpacity],
+      ['electricArc', state.electricArcEnabled, state.electricArcOpacity],
+      ['pyroBurst', state.pyroBurstEnabled, state.pyroBurstOpacity],
+      ['geoWireframe', state.geoWireframeEnabled, state.geoWireframeOpacity],
+      ['signalNoise', state.signalNoiseEnabled, state.signalNoiseOpacity],
+      ['wormhole', state.wormholeEnabled, state.wormholeOpacity],
+      ['ribbonTunnel', state.ribbonTunnelEnabled, state.ribbonTunnelOpacity],
+      ['fractalTunnel', state.fractalTunnelEnabled, state.fractalTunnelOpacity],
+      ['circuitConduit', state.circuitConduitEnabled, state.circuitConduitOpacity],
+      ['auraPortal', state.auraPortalEnabled, state.auraPortalOpacity],
+      ['freqTerrain', state.freqTerrainEnabled, state.freqTerrainOpacity],
+      ['dataStream', state.dataStreamEnabled, state.dataStreamOpacity],
+      ['causticLiquid', state.causticLiquidEnabled, state.causticLiquidOpacity],
+      ['shimmerVeil', state.shimmerVeilEnabled, state.shimmerVeilOpacity],
+      ['nebulaCloud', state.nebulaCloudEnabled, state.nebulaCloudOpacity],
+      ['circuitBoard', state.circuitBoardEnabled, state.circuitBoardOpacity],
+      ['lorenzAttractor', state.lorenzAttractorEnabled, state.lorenzAttractorOpacity],
+      ['mandalaSpinner', state.mandalaSpinnerEnabled, state.mandalaSpinnerOpacity],
+      ['starburstGalaxy', state.starburstGalaxyEnabled, state.starburstGalaxyOpacity],
+      ['digitalRainV2', state.digitalRainV2Enabled, state.digitalRainV2Opacity],
+      ['lavaFlow', state.lavaFlowEnabled, state.lavaFlowOpacity],
+      ['crystalGrowth', state.crystalGrowthEnabled, state.crystalGrowthOpacity],
+      ['technoGrid', state.technoGridEnabled, state.technoGridOpacity],
+      ['magneticField', state.magneticFieldEnabled, state.magneticFieldOpacity],
+      ['prismShards', state.prismShardsEnabled, state.prismShardsOpacity],
+      ['neuralNet', state.neuralNetEnabled, state.neuralNetOpacity],
+      ['auroraChord', state.auroraChordEnabled, state.auroraChordOpacity],
+      ['vhsGlitch', state.vhsGlitchEnabled, state.vhsGlitchOpacity],
+      ['moirePattern', state.moirePatternEnabled, state.moirePatternOpacity],
+      ['hypercube', state.hypercubeEnabled, state.hypercubeOpacity],
+      ['fluidSwirl', state.fluidSwirlEnabled, state.fluidSwirlOpacity],
+      ['asciiStream', state.asciiStreamEnabled, state.asciiStreamOpacity],
+      ['retroWave', state.retroWaveEnabled, state.retroWaveOpacity],
+      ['bubblePop', state.bubblePopEnabled, state.bubblePopOpacity],
+      ['soundWave3D', state.soundWave3DEnabled, state.soundWave3DOpacity],
+      ['particleVortex', state.particleVortexEnabled, state.particleVortexOpacity],
+      ['glowWorms', state.glowWormsEnabled, state.glowWormsOpacity],
+      ['mirrorMaze', state.mirrorMazeEnabled, state.mirrorMazeOpacity],
+      ['pulseHeart', state.pulseHeartEnabled, state.pulseHeartOpacity],
+      ['dataShards', state.dataShardsEnabled, state.dataShardsOpacity],
+      ['hexCell', state.hexCellEnabled, state.hexCellOpacity],
+      ['plasmaBall', state.plasmaBallEnabled, state.plasmaBallOpacity],
+      ['warpDrive', state.warpDriveEnabled, state.warpDriveOpacity],
+      ['visualFeedback', state.visualFeedbackEnabled, state.visualFeedbackOpacity],
+    ];
+    generatorDiagnostics.clear();
+    for (const [name, enabled, opacity] of genEntries) {
+      generatorDiagnostics.set(name, {
+        enabled,
+        opacity,
+        uniformsBound: !missingUniforms.has(`u${name.charAt(0).toUpperCase() + name.slice(1)}Enabled`)
+      });
+    }
+
+    // Log uniform binding summary once
+    if (!uniformWarningsLogged && missingUniforms.size > 0) {
+      uniformWarningsLogged = true;
+      console.warn(`[VisualSynth] ${missingUniforms.size} uniforms not found in shader:`, Array.from(missingUniforms));
+    }
   };
 
   type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
@@ -3508,5 +3691,15 @@ void main() {
 
   const getLastShaderError = () => lastShaderError;
 
-  return { render, setLayerAsset, setPalette, setPlasmaShaderSource, getLastShaderError };
+  const getGeneratorDiagnostics = () => {
+    const result: { name: string; enabled: boolean; opacity: number; uniformsBound: boolean }[] = [];
+    generatorDiagnostics.forEach((diag, name) => {
+      result.push({ name, ...diag });
+    });
+    return result;
+  };
+
+  const getMissingUniforms = () => Array.from(missingUniforms);
+
+  return { render, setLayerAsset, setPalette, setPlasmaShaderSource, getLastShaderError, getGeneratorDiagnostics, getMissingUniforms };
 };
