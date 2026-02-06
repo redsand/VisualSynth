@@ -437,6 +437,7 @@ precision highp float;
 
 uniform float uTime;
 uniform float uAspect;
+uniform vec2 uResolution;
 uniform float uRms;
 uniform float uPeak;
 uniform float uStrobe;
@@ -1281,6 +1282,14 @@ float lightningBolt(vec2 uv, float t, float audio) {
 float analogOscillo(vec2 uv, float t, float audio) {
   vec2 p = uv;
   float v = 0.0;
+  float mode = floor(uAnalogOscilloMode + 0.5);
+  if (mode > 0.5 && mode < 1.5) {
+    p = vec2(p.y, p.x);
+  } else if (mode > 1.5 && mode < 2.5) {
+    p = vec2(length(p - 0.5), p.x);
+  } else if (mode > 2.5) {
+    p.x = fract(p.x + sin(t * 0.2) * 0.2);
+  }
   
   float wave = getWaveform(p.x);
   float jitter = (hash21(vec2(t * 100.0, p.y)) - 0.5) * 0.01;
@@ -1297,7 +1306,7 @@ float analogOscillo(vec2 uv, float t, float audio) {
 vec2 speakerCone(vec2 uv, float bass) {
   vec2 centered = uv - 0.5;
   float dist = length(centered);
-  float push = bass * uSpeakerConeForce * 0.2 * smoothstep(0.5, 0.0, dist);
+  float push = bass * uSpeakerConeForce * uSpeakerConeOpacity * 0.2 * smoothstep(0.5, 0.0, dist);
   return uv - centered * push;
 }
 
@@ -1642,12 +1651,15 @@ vec3 starburstGalaxy(vec2 uv, float t, float audio) {
 }
 
 vec3 digitalRainV2(vec2 uv, float t, float audio) {
-  vec2 p = uv * vec2(30.0, 1.0);
+  float density = clamp(uDigitalRainV2Density, 0.0, 1.0);
+  float columns = mix(10.0, 60.0, density);
+  vec2 p = uv * vec2(columns, 1.0);
   float col_id = floor(p.x);
   float h = hash21(vec2(col_id, 456.7));
   float speed = uDigitalRainV2Speed * (0.5 + h);
   float drop = fract(uv.y + t * speed + h);
   float mask = step(0.9, fract(p.x)) * smoothstep(0.2, 0.0, abs(drop - 0.5));
+  mask *= mix(0.7, 1.2, density);
   return palette(h) * mask * uDigitalRainV2Opacity * (1.0 + audio);
 }
 
@@ -1811,10 +1823,23 @@ vec3 bubblePop(vec2 uv, float t, float audio) {
 }
 
 vec3 soundWave3D(vec2 uv, float t, float audio) {
-  float z = 1.0 / (uv.y + 0.01);
-  float wave = getWaveform(uv.x * uSoundWave3DSmoothness) * uSoundWave3DAmplitude;
-  float d = abs(uv.y - 0.5 - wave * 0.2);
-  return palette(wave) * smoothstep(0.02, 0.0, d) * uSoundWave3DOpacity;
+  vec2 p = uv * 2.0 - 1.0;
+  p.x *= uAspect;
+  float depth = clamp(1.0 - uv.y, 0.0, 1.0);
+  float z = mix(0.3, 2.5, depth);
+  float smoothness = max(0.2, uSoundWave3DSmoothness);
+  float phase = t * 0.15 + depth * 2.5;
+  float sampleX = fract((p.x * 0.5 + 0.5) * smoothness + phase);
+  float wave = getWaveform(sampleX) * uSoundWave3DAmplitude;
+  float amp = (0.12 + audio * 0.5) * (0.6 + depth * 0.8);
+  float y = wave * amp;
+  float lineY = (p.y + (depth - 0.5) * 0.35) / z;
+  float width = mix(0.03, 0.008, depth);
+  float d = abs(lineY - y);
+  float line = smoothstep(width, 0.0, d);
+  vec3 col = palette(fract(depth + audio * 0.3 + t * 0.05));
+  col *= (0.6 + depth * 0.7);
+  return col * line * uSoundWave3DOpacity;
 }
 
 vec3 particleVortex(vec2 uv, float t, float audio) {
@@ -1921,12 +1946,15 @@ vec3 visualFeedback(vec2 uv, float t, float audio) {
 }
 
 vec3 myceliumGrowth(vec2 uv, float t, float audio) {
-  vec2 p = uv * 5.0;
-  float n = fbm(p + t * 0.1 * uMyceliumGrowthSpread);
-  float pattern = smoothstep(0.4, 0.5, n);
-  pattern -= smoothstep(0.5, 0.6, n);
-  float decay = exp(-t * uMyceliumGrowthDecay * 0.1);
-  return palette(n + audio) * pattern * decay * uMyceliumGrowthOpacity;
+  vec2 p = uv * mix(3.0, 8.0, clamp(uMyceliumGrowthSpread, 0.0, 1.0));
+  float growthRate = mix(0.03, 0.18, clamp(uMyceliumGrowthDecay, 0.0, 1.0));
+  float n = fbm(p + t * (0.08 + growthRate));
+  float pattern = smoothstep(0.35, 0.55, n) - smoothstep(0.55, 0.75, n);
+  float phase = fract(t * growthRate);
+  float life = smoothstep(0.0, 0.2, phase) * smoothstep(1.0, 0.6, phase);
+  float pulse = 0.6 + 0.4 * sin(t * (0.6 + growthRate * 2.0));
+  float energy = mix(0.7, 1.3, clamp(audio, 0.0, 1.0));
+  return palette(n + audio) * pattern * life * pulse * energy * uMyceliumGrowthOpacity;
 }
 
 // --- EDM Generator Functions ---
@@ -2204,6 +2232,8 @@ void main() {
   float high = 0.0;
   for (float i = 24.0; i < 64.0; i += 1.0) { high += uSpectrum[int(i)]; }
   high /= 40.0;
+  vec2 pixel = 1.0 / max(uResolution, vec2(1.0));
+  float dither = hash21(floor(uv / pixel));
   
   // Apply Motion Template Distortion
   if (uMotionTemplate > 0.5 && uMotionTemplate < 1.5) { // Radial
@@ -2264,8 +2294,17 @@ void main() {
   // Origami (Fold) distortion: coordinate warp
   if (uOrigamiEnabled > 0.5) {
       vec2 centered = effectUv * 2.0 - 1.0;
-      float fold = sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed);
+      float foldPhase = uOrigamiFoldState * 6.28318;
+      float fold = sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed + foldPhase);
       effectUv += normalize(centered + 0.0001) * fold * 0.05 * uOrigamiOpacity;
+  }
+
+  if (uExpressiveMotionEcho > 0.01) {
+      float echoPhase = uTime * (0.6 + uExpressiveMotionEchoWarp);
+      vec2 echoDir = normalize(vec2(0.7, 0.3));
+      float echoAmp = uExpressiveMotionEcho * (1.0 - clamp(uExpressiveMotionEchoDecay, 0.0, 1.0)) * 0.06;
+      vec2 echoOffset = echoDir * sin(echoPhase) * echoAmp;
+      effectUv = clamp(effectUv + echoOffset, 0.0, 1.0);
   }
   
   // Engine Grammar: Inertial Energy Accumulation
@@ -2275,9 +2314,11 @@ void main() {
   float highEnergy = pow(high, 1.0 / uEngineElasticity);
 
   // Apply Mass/Friction simulation (simulated via smoothing)
-  low = mix(low, lowEnergy, 1.0 - uEngineMass);
-  mid = mix(mid, midEnergy, 1.0 - uEngineMass);
-  high = mix(high, highEnergy, 1.0 - uEngineMass);
+  float friction = clamp(uEngineFriction, 0.0, 1.0);
+  float inertia = 1.0 - friction;
+  low = mix(low, lowEnergy, inertia * (1.0 - uEngineMass));
+  mid = mix(mid, midEnergy, inertia * (1.0 - uEngineMass));
+  high = mix(high, highEnergy, inertia * (1.0 - uEngineMass));
 
   low = pow(low, 1.2);
   mid = pow(mid, 1.1);
@@ -2516,7 +2557,8 @@ void main() {
     vec2 centered = effectUv * 2.0 - 1.0;
     float sharp = mix(0.12, 0.02, clamp(uOrigamiFoldSharpness, 0.0, 1.0));
     // High-contrast crease lines
-    float foldField = abs(sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed));
+    float foldPhase = uOrigamiFoldState * 6.28318;
+    float foldField = abs(sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed + foldPhase));
     float crease = smoothstep(sharp, 0.0, foldField);
     
     vec3 creaseCol = palette(0.9) * (0.5 + high * 0.5);
@@ -2705,6 +2747,13 @@ void main() {
     color += vec3(uStrobe * 1.5);
   }
 
+  float energyGate = smoothstep(uExpressiveEnergyThreshold, 1.0, max(uRms, uPeak));
+  float energyAccum = mix(uRms, uPeak, clamp(uExpressiveEnergyAccumulation, 0.0, 1.0));
+  float energyPulse = energyGate * energyAccum;
+  if (uExpressiveEnergyBloom > 0.01 && energyPulse > 0.0) {
+      color += pow(color, vec3(1.6)) * uExpressiveEnergyBloom * energyPulse * 0.4;
+  }
+
   // Opinionated Engine Glow (HDR-style accumulation)
   if (uEffectsEnabled > 0.5) {
       vec3 glow = pow(color, vec3(2.2)) * uBloom * uMaxBloom;
@@ -2720,9 +2769,16 @@ void main() {
 
   if (uEffectsEnabled > 0.5 && uChroma > 0.01) color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
   if (uEffectsEnabled > 0.5 && uBlur > 0.01) color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
+  if (uExpressiveSpectralMix > 0.01) {
+      float smear = uExpressiveSpectralSmear * (uSpectrum[10] * 0.8 + uSpectrum[22] * 0.2);
+      float offset = uExpressiveSpectralOffset * (uSpectrum[30] * 0.6 + uSpectrum[40] * 0.4);
+      vec3 smearColor = palette(fract(uPaletteShift + offset + smear));
+      color = mix(color, mix(color, smearColor, clamp(smear, 0.0, 1.0)), clamp(uExpressiveSpectralMix, 0.0, 1.0));
+  }
   color = shiftPalette(color, uPaletteShift);
   color = applySaturation(color, uSaturation);
   color = applyContrast(color, uContrast);
+  color += (dither - 0.5) * 0.002;
   color = color / (vec3(1.0) + color);
   color = pow(color, vec3(1.0 / 1.35));
   color *= uGlobalColor;

@@ -185,7 +185,6 @@ const mixRoleCore = document.getElementById('mix-role-core') as HTMLInputElement
 const mixRoleSupport = document.getElementById('mix-role-support') as HTMLInputElement;
 const mixRoleAtmosphere = document.getElementById('mix-role-atmosphere') as HTMLInputElement;
 const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
-const perfTogglePlasma = document.getElementById('perf-toggle-plasma') as HTMLInputElement;
 const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement;
 const spectrumHintDismiss = document.getElementById('spectrum-hint-dismiss') as HTMLButtonElement;
 const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
@@ -1828,9 +1827,7 @@ const assignShaderToPlasmaLayer = (shaderId: string | null) => {
 const syncPerformanceToggles = () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
-  const plasmaLayer = scene.layers.find((layer) => layer.id === 'layer-plasma');
   const spectrumLayer = scene.layers.find((layer) => layer.id === 'layer-spectrum');
-  if (plasmaLayer) perfTogglePlasma.checked = plasmaLayer.enabled;
   if (spectrumLayer) perfToggleSpectrum.checked = spectrumLayer.enabled;
 };
 
@@ -5012,6 +5009,9 @@ const applyScene = (sceneId: string) => {
   syncPerformanceToggles();
   renderSceneStrip();
   renderSceneTimeline();
+  if (activeMode === 'mixer') {
+    mixerPanel?.render();
+  }
   void applyPlasmaShaderFromScene(scene);
 };
 
@@ -5350,7 +5350,6 @@ const addGenerator = (id: GeneratorId) => {
       layer.enabled = true;
     }
     if (plasmaToggle) plasmaToggle.checked = true;
-    if (perfTogglePlasma) perfTogglePlasma.checked = true;
     renderLayerList();
     setStatus('Plasma layer enabled.');
   }
@@ -8685,17 +8684,6 @@ perfToggleSpectrum.addEventListener('change', () => {
   }
 });
 
-perfTogglePlasma.addEventListener('change', () => {
-  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
-  const plasmaLayer = scene?.layers.find((layer) => layer.id === 'layer-plasma');
-  if (plasmaLayer) {
-    plasmaLayer.enabled = perfTogglePlasma.checked;
-    recordPlaylistOverride('layer-plasma', { enabled: perfTogglePlasma.checked });
-    renderLayerList();
-    setStatus(`Plasma Layer ${perfTogglePlasma.checked ? 'enabled' : 'disabled'}`);
-  }
-});
-
 spectrumHintDismiss.addEventListener('click', () => {
   localStorage.setItem('visualsynth.spectrumHintDismissed', '1');
   spectrumHint.classList.add('hidden');
@@ -10042,7 +10030,7 @@ const render = (time: number) => {
     lowFreq
   );
   const plasmaEnabled = plasmaLayer?.enabled ?? true;
-  const spectrumEnabled = spectrumLayer?.enabled ?? true;
+  const spectrumEnabled = spectrumLayer?.enabled ?? false;
   const origamiEnabled = origamiLayer?.enabled ?? false;
   const glyphEnabled = glyphLayer?.enabled ?? false;
   const crystalEnabled = crystalLayer?.enabled ?? false;
@@ -10743,190 +10731,10 @@ const render = (time: number) => {
     const activePalette =
       currentProject.palettes.find((palette) => palette.id === currentProject.activePaletteId) ??
       currentProject.palettes[0];
+    const { sdfScene: _ignoredSdfScene, ...outputState } = renderState;
     outputChannel.postMessage({
-      timeMs: renderState.timeMs,
-      rms: renderState.rms,
-      peak: renderState.peak,
-      strobe: renderState.strobe,
-      plasmaEnabled: renderState.plasmaEnabled,
-      spectrumEnabled: renderState.spectrumEnabled,
-      origamiEnabled: renderState.origamiEnabled,
-      glyphEnabled: renderState.glyphEnabled,
-      crystalEnabled: renderState.crystalEnabled,
-      inkEnabled: renderState.inkEnabled,
-      topoEnabled: renderState.topoEnabled,
-      weatherEnabled: renderState.weatherEnabled,
-      portalEnabled: renderState.portalEnabled,
-      mediaEnabled: renderState.mediaEnabled,
-      oscilloEnabled: renderState.oscilloEnabled,
-      spectrum: renderState.spectrum.slice(),
-      contrast: renderState.contrast,
-      saturation: renderState.saturation,
-      paletteShift: renderState.paletteShift,
-      chemistryMode: renderState.chemistryMode,
-      paletteColors: activePalette?.colors ?? DEFAULT_PROJECT.palettes[0].colors,
-      transitionAmount: renderState.transitionAmount,
-      transitionType: renderState.transitionType,
-      motionTemplate: renderState.motionTemplate,
-      engineMass: renderState.engineMass,
-      engineFriction: renderState.engineFriction,
-      engineElasticity: renderState.engineElasticity,
-      engineGrain: renderState.engineGrain,
-      engineVignette: renderState.engineVignette,
-      engineCA: renderState.engineCA,
-      engineSignature: renderState.engineSignature,
-      maxBloom: renderState.maxBloom,
-      forceFeedback: renderState.forceFeedback,
-      plasmaOpacity: renderState.plasmaOpacity,
-      plasmaSpeed: renderState.plasmaSpeed,
-      plasmaScale: renderState.plasmaScale,
-      plasmaComplexity: renderState.plasmaComplexity,
-      plasmaAudioReact: renderState.plasmaAudioReact,
-      spectrumOpacity: renderState.spectrumOpacity,
-      origamiOpacity: renderState.origamiOpacity,
-      origamiSpeed: renderState.origamiSpeed,
-      origamiFoldState: renderState.origamiFoldState,
-      origamiFoldSharpness: renderState.origamiFoldSharpness,
-      glyphOpacity: renderState.glyphOpacity,
-      glyphSpeed: renderState.glyphSpeed,
-      glyphMode: renderState.glyphMode,
-      glyphSeed: renderState.glyphSeed,
-      glyphBeat: renderState.glyphBeat,
-      crystalOpacity: renderState.crystalOpacity,
-      crystalMode: renderState.crystalMode,
-      crystalBrittleness: renderState.crystalBrittleness,
-      crystalScale: renderState.crystalScale,
-      crystalSpeed: renderState.crystalSpeed,
-      inkOpacity: renderState.inkOpacity,
-      inkBrush: renderState.inkBrush,
-      inkPressure: renderState.inkPressure,
-      inkLifespan: renderState.inkLifespan,
-      inkSpeed: renderState.inkSpeed,
-      inkScale: renderState.inkScale,
-      topoOpacity: renderState.topoOpacity,
-      topoQuake: renderState.topoQuake,
-      topoSlide: renderState.topoSlide,
-      topoPlate: renderState.topoPlate,
-      topoTravel: renderState.topoTravel,
-      topoScale: renderState.topoScale,
-      topoElevation: renderState.topoElevation,
-      weatherOpacity: renderState.weatherOpacity,
-      weatherMode: renderState.weatherMode,
-      weatherIntensity: renderState.weatherIntensity,
-      weatherSpeed: renderState.weatherSpeed,
-      portalOpacity: renderState.portalOpacity,
-      portalShift: renderState.portalShift,
-      portalStyle: renderState.portalStyle,
-      portalPositions: renderState.portalPositions,
-      portalRadii: renderState.portalRadii,
-      portalActives: renderState.portalActives,
-      mediaOpacity: renderState.mediaOpacity,
-      mediaBurstPositions: renderState.mediaBurstPositions,
-      mediaBurstRadii: renderState.mediaBurstRadii,
-      mediaBurstTypes: renderState.mediaBurstTypes,
-      mediaBurstActives: renderState.mediaBurstActives,
-      oscilloOpacity: renderState.oscilloOpacity,
-      oscilloMode: renderState.oscilloMode,
-      oscilloFreeze: renderState.oscilloFreeze,
-      oscilloRotate: renderState.oscilloRotate,
-      oscilloData: renderState.oscilloData,
-      modulatorValues: renderState.modulatorValues,
-      midiData: renderState.midiData,
-      plasmaAssetBlendMode: renderState.plasmaAssetBlendMode,
-      plasmaAssetAudioReact: renderState.plasmaAssetAudioReact,
-      spectrumAssetBlendMode: renderState.spectrumAssetBlendMode,
-      spectrumAssetAudioReact: renderState.spectrumAssetAudioReact,
-      mediaAssetBlendMode: renderState.mediaAssetBlendMode,
-      mediaAssetAudioReact: renderState.mediaAssetAudioReact,
-      effectsEnabled: renderState.effectsEnabled,
-      bloom: renderState.bloom,
-      blur: renderState.blur,
-      chroma: renderState.chroma,
-      posterize: renderState.posterize,
-      kaleidoscope: renderState.kaleidoscope,
-      kaleidoscopeRotation: renderState.kaleidoscopeRotation,
-      feedback: renderState.feedback,
-      feedbackZoom: renderState.feedbackZoom,
-      feedbackRotation: renderState.feedbackRotation,
-      persistence: renderState.persistence,
-      trailSpectrum: renderState.trailSpectrum,
-      expressiveEnergyBloom: renderState.expressiveEnergyBloom,
-      expressiveEnergyThreshold: renderState.expressiveEnergyThreshold,
-      expressiveEnergyAccumulation: renderState.expressiveEnergyAccumulation,
-      expressiveRadialGravity: renderState.expressiveRadialGravity,
-      expressiveRadialStrength: renderState.expressiveRadialStrength,
-      expressiveRadialRadius: renderState.expressiveRadialRadius,
-      expressiveRadialFocusX: renderState.expressiveRadialFocusX,
-      expressiveRadialFocusY: renderState.expressiveRadialFocusY,
-      expressiveMotionEcho: renderState.expressiveMotionEcho,
-      expressiveMotionEchoDecay: renderState.expressiveMotionEchoDecay,
-      expressiveMotionEchoWarp: renderState.expressiveMotionEchoWarp,
-      expressiveSpectralSmear: renderState.expressiveSpectralSmear,
-      expressiveSpectralOffset: renderState.expressiveSpectralOffset,
-      expressiveSpectralMix: renderState.expressiveSpectralMix,
-      particlesEnabled: renderState.particlesEnabled,
-      particleDensity: renderState.particleDensity,
-      particleSpeed: renderState.particleSpeed,
-      particleSize: renderState.particleSize,
-      particleGlow: renderState.particleGlow,
-      particleTurbulence: renderState.particleTurbulence,
-      particleAudioLift: renderState.particleAudioLift,
-      sdfEnabled: renderState.sdfEnabled,
-      sdfShape: renderState.sdfShape,
-      sdfScale: renderState.sdfScale,
-      sdfEdge: renderState.sdfEdge,
-      sdfGlow: renderState.sdfGlow,
-      sdfRotation: renderState.sdfRotation,
-      sdfFill: renderState.sdfFill,
-      sdfColor: renderState.sdfColor,
-      gravityPositions: renderState.gravityPositions,
-      gravityStrengths: renderState.gravityStrengths,
-      gravityPolarities: renderState.gravityPolarities,
-      gravityActives: renderState.gravityActives,
-      gravityCollapse: renderState.gravityCollapse,
-      // EDM Generators
-      laserEnabled: renderState.laserEnabled,
-      laserOpacity: renderState.laserOpacity,
-      laserBeamCount: renderState.laserBeamCount,
-      laserBeamWidth: renderState.laserBeamWidth,
-      laserBeamLength: renderState.laserBeamLength,
-      laserRotation: renderState.laserRotation,
-      laserRotationSpeed: renderState.laserRotationSpeed,
-      laserSpread: renderState.laserSpread,
-      laserMode: renderState.laserMode,
-      laserColorShift: renderState.laserColorShift,
-      laserAudioReact: renderState.laserAudioReact,
-      laserGlow: renderState.laserGlow,
-      strobeEnabled: renderState.strobeEnabled,
-      strobeOpacity: renderState.strobeOpacity,
-      strobeRate: renderState.strobeRate,
-      strobeDutyCycle: renderState.strobeDutyCycle,
-      strobeMode: renderState.strobeMode,
-      strobeAudioTrigger: renderState.strobeAudioTrigger,
-      strobeThreshold: renderState.strobeThreshold,
-      strobeFadeOut: renderState.strobeFadeOut,
-      strobePattern: renderState.strobePattern,
-      shapeBurstEnabled: renderState.shapeBurstEnabled,
-      shapeBurstOpacity: renderState.shapeBurstOpacity,
-      shapeBurstShape: renderState.shapeBurstShape,
-      shapeBurstExpandSpeed: renderState.shapeBurstExpandSpeed,
-      shapeBurstStartSize: renderState.shapeBurstStartSize,
-      shapeBurstMaxSize: renderState.shapeBurstMaxSize,
-      shapeBurstThickness: renderState.shapeBurstThickness,
-      shapeBurstFadeMode: renderState.shapeBurstFadeMode,
-      shapeBurstSpawnTimes: renderState.shapeBurstSpawnTimes,
-      shapeBurstActives: renderState.shapeBurstActives,
-      gridTunnelEnabled: renderState.gridTunnelEnabled,
-      gridTunnelOpacity: renderState.gridTunnelOpacity,
-      gridTunnelSpeed: renderState.gridTunnelSpeed,
-      gridTunnelGridSize: renderState.gridTunnelGridSize,
-      gridTunnelLineWidth: renderState.gridTunnelLineWidth,
-      gridTunnelPerspective: renderState.gridTunnelPerspective,
-      gridTunnelHorizonY: renderState.gridTunnelHorizonY,
-      gridTunnelGlow: renderState.gridTunnelGlow,
-      gridTunnelAudioReact: renderState.gridTunnelAudioReact,
-      gridTunnelMode: renderState.gridTunnelMode,
-      roleWeights: renderState.roleWeights
+      ...outputState,
+      paletteColors: activePalette?.colors ?? DEFAULT_PROJECT.palettes[0].colors
     });
   }
 

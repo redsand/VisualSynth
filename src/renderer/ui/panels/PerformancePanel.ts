@@ -38,7 +38,6 @@ export const createPerformancePanel = ({
   const padMapGrid = document.getElementById('pad-map-grid') as HTMLDivElement;
   const padMapBank = document.getElementById('pad-map-bank') as HTMLDivElement;
   const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
-  const perfTogglePlasma = document.getElementById('perf-toggle-plasma') as HTMLInputElement;
   const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
   const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
   const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
@@ -264,9 +263,7 @@ export const createPerformancePanel = ({
   const syncPerformanceToggles = () => {
     const scene = store.getState().project.scenes.find((item) => item.id === store.getState().project.activeSceneId);
     if (!scene) return;
-    const plasmaLayer = scene.layers.find((layer) => layer.id === 'layer-plasma');
     const spectrumLayer = scene.layers.find((layer) => layer.id === 'layer-spectrum');
-    if (plasmaLayer) perfTogglePlasma.checked = plasmaLayer.enabled;
     if (spectrumLayer) perfToggleSpectrum.checked = spectrumLayer.enabled;
   };
 
@@ -336,16 +333,6 @@ export const createPerformancePanel = ({
       spectrumLayer.enabled = perfToggleSpectrum.checked;
       onLayerListChanged();
       setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
-    }
-  });
-
-  perfTogglePlasma.addEventListener('change', () => {
-    const scene = store.getState().project.scenes.find((item) => item.id === store.getState().project.activeSceneId);
-    const plasmaLayer = scene?.layers.find((layer) => layer.id === 'layer-plasma');
-    if (plasmaLayer) {
-      plasmaLayer.enabled = perfTogglePlasma.checked;
-      onLayerListChanged();
-      setStatus(`Plasma Layer ${perfTogglePlasma.checked ? 'enabled' : 'disabled'}`);
     }
   });
 

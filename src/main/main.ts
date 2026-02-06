@@ -155,6 +155,13 @@ const createWindow = () => {
     return { action: 'deny' };
   });
 
+  mainWindow.on('closed', () => {
+    if (outputWindow) {
+      outputWindow.close();
+    }
+    mainWindow = null;
+  });
+
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
@@ -170,6 +177,7 @@ const createOutputWindow = () => {
   outputWindow = new BrowserWindow({
     width,
     height,
+    parent: mainWindow ?? undefined,
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     webPreferences: {
