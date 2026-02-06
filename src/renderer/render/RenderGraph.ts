@@ -972,7 +972,7 @@ export class RenderGraph {
     const project = state.project;
     const activeScene =
       project.scenes.find((scene) => scene.id === project.activeSceneId) ?? project.scenes[0];
-    const shapeBurstLayer = activeScene?.layers.find((layer) => layer.id === 'gen-shape-burst');
+    const shapeBurstLayer = findLayerById(activeScene?.layers, 'gen-shape-burst');
     const shapeBurstEnabled = shapeBurstLayer?.enabled ?? false;
 
     if (!shapeBurstEnabled) {
@@ -1035,7 +1035,7 @@ export class RenderGraph {
     const project = state.project;
     const activeScene =
       project.scenes.find((scene) => scene.id === project.activeSceneId) ?? project.scenes[0];
-    const portalLayer = activeScene?.layers.find((layer) => layer.id === 'layer-portal');
+    const portalLayer = findLayerById(activeScene?.layers, 'layer-portal');
     const portalEnabled = portalLayer?.enabled ?? false;
     const autoSpawn = (typeof portalLayer?.params?.autoSpawn === 'number'
       ? portalLayer?.params?.autoSpawn

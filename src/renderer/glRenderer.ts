@@ -1237,10 +1237,13 @@ vec3 posterize(vec3 color, float amount) {
 }
 
 vec3 palette(float t) {
-  return mix(uPalette[0], uPalette[1], smoothstep(0.0, 0.25, t)) +
-         mix(uPalette[1], uPalette[2], smoothstep(0.25, 0.5, t)) +
-         mix(uPalette[2], uPalette[3], smoothstep(0.5, 0.75, t)) +
-         mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, t));
+  float v = clamp(t, 0.0, 1.0);
+  vec3 col = uPalette[0];
+  col = mix(col, uPalette[1], smoothstep(0.0, 0.25, v));
+  col = mix(col, uPalette[2], smoothstep(0.25, 0.5, v));
+  col = mix(col, uPalette[3], smoothstep(0.5, 0.75, v));
+  col = mix(col, uPalette[4], smoothstep(0.75, 1.0, v));
+  return col;
 }
 
 // --- Rock Generator Functions ---
@@ -1681,10 +1684,24 @@ vec3 asciiStream(vec2 uv, float t, float audio) {
 
 vec3 retroWave(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
-  float grid = technoGrid3D(uv, t, uRetroWaveGridSpeed).b;
-  float sun = smoothstep(uRetroWaveSunSize * 0.4, uRetroWaveSunSize * 0.38, length(p - vec2(0.0, 0.3)));
-  if (p.y < 0.3 && fract(p.y * 20.0) < 0.2) sun = 0.0;
-  return (vec3(1.0, 0.0, 0.5) * sun + vec3(0.0, 0.8, 1.0) * grid) * uRetroWaveOpacity;
+  p.x *= uAspect;
+  
+  // Custom standalone grid for retroWave
+  float z = 1.0 / (abs(p.y + 0.1) + 0.01);
+  vec2 grid_uv = vec2(p.x * z, z + t * uRetroWaveGridSpeed);
+  float gridLine = step(0.95, fract(grid_uv.x * 5.0)) + step(0.95, fract(grid_uv.y * 5.0));
+  float grid = gridLine * smoothstep(0.0, -0.5, p.y); // Only show grid on bottom half
+  
+  float sunDist = length(p - vec2(0.0, 0.3));
+  float sun = smoothstep(uRetroWaveSunSize * 0.5, uRetroWaveSunSize * 0.48, sunDist);
+  
+  // Retro sun stripes
+  if (p.y < 0.3 && fract(p.y * 15.0) < 0.25) sun = 0.0;
+  
+  vec3 sunCol = vec3(1.0, 0.2, 0.5); // Hot Pink
+  vec3 gridCol = vec3(0.0, 0.8, 1.0); // Cyan
+  
+  return (sunCol * sun + gridCol * grid) * uRetroWaveOpacity * (1.0 + audio);
 }
 
 vec3 bubblePop(vec2 uv, float t, float audio) {
@@ -2212,7 +2229,7 @@ void main() {
     vec2 pull = normalize(toFocus + 0.0001) * strength * falloff * 0.12;
     effectUv = clamp(effectUv + pull, 0.0, 1.0);
   }
-  vec3 color = vec3(0.02, 0.04, 0.08);
+  vec3 color = vec3(0.0);
   if (uPlasmaEnabled > 0.5) {
     vec3 plasmaColor = samplePlasma(effectUv, uTime);
     color += plasmaColor * uPlasmaOpacity * uRoleWeights.x;
@@ -2609,17 +2626,6 @@ void main() {
 
   if (uStrobeEnabled > 0.5) {
     color += vec3(uStrobe * 1.5);
-  }
-  if (
-    uPlasmaEnabled > 0.5 ||
-    uSpectrumEnabled > 0.5 ||
-    uInkEnabled > 0.5 ||
-    uTopoEnabled > 0.5 ||
-    uPortalEnabled > 0.5 ||
-    uOscilloEnabled > 0.5 ||
-    uParticlesEnabled > 0.5
-  ) {
-    color += vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
   }
 
   // Opinionated Engine Glow (HDR-style accumulation)

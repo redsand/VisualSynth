@@ -49,6 +49,7 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   const store = createStore(createInitialState());
   const audioEngine = createAudioEngine(store);
   const renderGraph = new RenderGraph(store);
+  (window as any).renderGraph = renderGraph;
 
   // Debug overlay with callback to update render graph flags
   const debugOverlay = createDebugOverlay((flags) => {

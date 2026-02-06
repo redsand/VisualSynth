@@ -83,6 +83,7 @@ const scenarios = {
   ],
   'features': [
     { id: 'audio-response', name: 'Audio Response', preset: 'preset-001-cosmic.json', wait: 5000 },
+    { id: 'shape-burst-verify', name: 'Shape Burst', preset: 'preset-999-shape-burst-verify.json', action: 'burst-star', wait: 2000 },
     { id: 'output-window', name: 'Output Window', mode: 'system', wait: 3000 },
     { id: 'output-fullscreen', name: 'Fullscreen Output', mode: 'system', wait: 3000 },
     { id: 'recording-status', name: 'Recording', mode: 'performance', wait: 3000 },
@@ -297,6 +298,17 @@ async function runScenario(browser, scenario, options) {
     if (preset) {
       await loadPreset(page, preset);
       await sleep(2000);
+    }
+
+    // Trigger action if specified
+    if (scenario.action) {
+      await page.evaluate((action) => {
+        if (window.__visualSynthCaptureApi) {
+          window.__visualSynthCaptureApi.triggerAction(action, 1.0);
+        }
+      }, scenario.action);
+      console.log(`    ✓ Triggered action: ${scenario.action}`);
+      await sleep(500); // Small wait for action to start
     }
 
     // Set mode if specified

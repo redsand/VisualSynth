@@ -2148,6 +2148,26 @@ const ensureProjectModulators = (project: VisualSynthProject) => {
   }
 };
 
+const normalizeLayerId = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const findLayerById = (
+  layers: { id?: string; generatorId?: string }[] | undefined,
+  id: string
+) => {
+  const target = normalizeLayerId(id);
+  return layers?.find((layer) => {
+    const layerId = normalizeLayerId(layer.id ?? '');
+    if (layerId === target) return true;
+    const generatorId = normalizeLayerId(layer.generatorId ?? '');
+    return generatorId === target;
+  });
+};
+
 const resolveExpressiveMacro = (
   intent: SceneIntent | undefined,
   macro: number,
@@ -9635,68 +9655,68 @@ const render = (time: number) => {
   const mediaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-media');
   const oscilloLayer = renderScene?.layers.find((layer) => layer.id === 'layer-oscillo');
   // EDM Generators
-  const laserLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-laser-beam'));
-  const strobeLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-strobe'));
-  const shapeBurstLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-shape-burst'));
-  const gridTunnelLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-grid-tunnel'));
+  const laserLayer = findLayerById(renderScene?.layers, 'gen-laser-beam');
+  const strobeLayer = findLayerById(renderScene?.layers, 'gen-strobe');
+  const shapeBurstLayer = findLayerById(renderScene?.layers, 'gen-shape-burst');
+  const gridTunnelLayer = findLayerById(renderScene?.layers, 'gen-grid-tunnel');
   
   // Rock Generator Layers
-  const lightningLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-lightning'));
-  const analogOscilloLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-analog-oscillo'));
-  const speakerConeLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-speaker-cone'));
-  const glitchScanlineLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-glitch-scanline'));
-  const laserStarfieldLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-laser-starfield'));
-  const pulsingRibbonsLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-pulsing-ribbons'));
-  const electricArcLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-electric-arc'));
-  const pyroBurstLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-pyro-burst'));
-  const geoWireframeLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-geo-wireframe'));
-  const signalNoiseLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-signal-noise'));
+  const lightningLayer = findLayerById(renderScene?.layers, 'gen-lightning');
+  const analogOscilloLayer = findLayerById(renderScene?.layers, 'gen-analog-oscillo');
+  const speakerConeLayer = findLayerById(renderScene?.layers, 'gen-speaker-cone');
+  const glitchScanlineLayer = findLayerById(renderScene?.layers, 'gen-glitch-scanline');
+  const laserStarfieldLayer = findLayerById(renderScene?.layers, 'gen-laser-starfield');
+  const pulsingRibbonsLayer = findLayerById(renderScene?.layers, 'gen-pulsing-ribbons');
+  const electricArcLayer = findLayerById(renderScene?.layers, 'gen-electric-arc');
+  const pyroBurstLayer = findLayerById(renderScene?.layers, 'gen-pyro-burst');
+  const geoWireframeLayer = findLayerById(renderScene?.layers, 'gen-geo-wireframe');
+  const signalNoiseLayer = findLayerById(renderScene?.layers, 'gen-signal-noise');
   
   // Tunnel Generator Layers
-  const wormholeLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-infinite-wormhole'));
-  const ribbonTunnelLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-ribbon-tunnel'));
-  const fractalTunnelLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-fractal-tunnel'));
-  const circuitConduitLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-circuit-conduit'));
+  const wormholeLayer = findLayerById(renderScene?.layers, 'gen-infinite-wormhole');
+  const ribbonTunnelLayer = findLayerById(renderScene?.layers, 'gen-ribbon-tunnel');
+  const fractalTunnelLayer = findLayerById(renderScene?.layers, 'gen-fractal-tunnel');
+  const circuitConduitLayer = findLayerById(renderScene?.layers, 'gen-circuit-conduit');
   
   // Unique Generator Layers
-  const auraPortalLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-aura-portal'));
-  const freqTerrainLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-freq-terrain'));
-  const dataStreamLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-data-stream'));
-  const causticLiquidLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-caustic-liquid'));
-  const shimmerVeilLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-shimmer-veil'));
+  const auraPortalLayer = findLayerById(renderScene?.layers, 'gen-aura-portal');
+  const freqTerrainLayer = findLayerById(renderScene?.layers, 'gen-freq-terrain');
+  const dataStreamLayer = findLayerById(renderScene?.layers, 'gen-data-stream');
+  const causticLiquidLayer = findLayerById(renderScene?.layers, 'gen-caustic-liquid');
+  const shimmerVeilLayer = findLayerById(renderScene?.layers, 'gen-shimmer-veil');
 
   // Showcase Suite Layers
-  const nebulaCloudLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-nebula-cloud'));
-  const circuitBoardLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-circuit-board'));
-  const lorenzLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-lorenz-attractor'));
-  const mandalaLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-mandala-spinner'));
-  const starburstLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-starburst-galaxy'));
-  const rainV2Layer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-digital-rain-v2'));
-  const lavaLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-lava-flow'));
-  const crystalGrowthLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-crystal-growth'));
-  const technoGridLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-techno-grid'));
-  const magneticLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-magnetic-field'));
-  const prismShardsLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-prism-shards'));
-  const neuralNetLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-neural-net'));
-  const auroraChordLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-aurora-chord'));
-  const vhsGlitchLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-vhs-glitch'));
-  const moireLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-moire-pattern'));
-  const hypercubeLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-hypercube'));
-  const fluidSwirlLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-fluid-swirl'));
-  const asciiLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-ascii-stream'));
-  const retroWaveLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-retro-wave'));
-  const bubblePopLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-bubble-pop'));
-  const soundWave3DLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-sound-wave-3d'));
-  const particleVortexLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-particle-vortex'));
-  const glowWormsLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-glow-worms'));
-  const mirrorMazeLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-mirror-maze'));
-  const pulseHeartLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-pulse-heart'));
-  const dataShardsLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-data-shards'));
-  const hexCellLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-hex-cell'));
-  const plasmaBallLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-plasma-ball'));
-  const warpDriveLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-warp-drive'));
-  const myceliumLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-mycelium-growth'));
-  const feedbackLayer = pickTopmostEnabled(getGeneratorLayers(renderScene, 'gen-visual-feedback'));
+  const nebulaCloudLayer = findLayerById(renderScene?.layers, 'gen-nebula-cloud');
+  const circuitBoardLayer = findLayerById(renderScene?.layers, 'gen-circuit-board');
+  const lorenzLayer = findLayerById(renderScene?.layers, 'gen-lorenz-attractor');
+  const mandalaLayer = findLayerById(renderScene?.layers, 'gen-mandala-spinner');
+  const starburstLayer = findLayerById(renderScene?.layers, 'gen-starburst-galaxy');
+  const rainV2Layer = findLayerById(renderScene?.layers, 'gen-digital-rain-v2');
+  const lavaLayer = findLayerById(renderScene?.layers, 'gen-lava-flow');
+  const crystalGrowthLayer = findLayerById(renderScene?.layers, 'gen-crystal-growth');
+  const technoGridLayer = findLayerById(renderScene?.layers, 'gen-techno-grid');
+  const magneticLayer = findLayerById(renderScene?.layers, 'gen-magnetic-field');
+  const prismShardsLayer = findLayerById(renderScene?.layers, 'gen-prism-shards');
+  const neuralNetLayer = findLayerById(renderScene?.layers, 'gen-neural-net');
+  const auroraChordLayer = findLayerById(renderScene?.layers, 'gen-aurora-chord');
+  const vhsGlitchLayer = findLayerById(renderScene?.layers, 'gen-vhs-glitch');
+  const moireLayer = findLayerById(renderScene?.layers, 'gen-moire-pattern');
+  const hypercubeLayer = findLayerById(renderScene?.layers, 'gen-hypercube');
+  const fluidSwirlLayer = findLayerById(renderScene?.layers, 'gen-fluid-swirl');
+  const asciiLayer = findLayerById(renderScene?.layers, 'gen-ascii-stream');
+  const retroWaveLayer = findLayerById(renderScene?.layers, 'gen-retro-wave');
+  const bubblePopLayer = findLayerById(renderScene?.layers, 'gen-bubble-pop');
+  const soundWave3DLayer = findLayerById(renderScene?.layers, 'gen-sound-wave-3d');
+  const particleVortexLayer = findLayerById(renderScene?.layers, 'gen-particle-vortex');
+  const glowWormsLayer = findLayerById(renderScene?.layers, 'gen-glow-worms');
+  const mirrorMazeLayer = findLayerById(renderScene?.layers, 'gen-mirror-maze');
+  const pulseHeartLayer = findLayerById(renderScene?.layers, 'gen-pulse-heart');
+  const dataShardsLayer = findLayerById(renderScene?.layers, 'gen-data-shards');
+  const hexCellLayer = findLayerById(renderScene?.layers, 'gen-hex-cell');
+  const plasmaBallLayer = findLayerById(renderScene?.layers, 'gen-plasma-ball');
+  const warpDriveLayer = findLayerById(renderScene?.layers, 'gen-warp-drive');
+  const myceliumLayer = findLayerById(renderScene?.layers, 'gen-mycelium-growth');
+  const feedbackLayer = findLayerById(renderScene?.layers, 'gen-visual-feedback');
 
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);
@@ -10339,7 +10359,7 @@ const render = (time: number) => {
     asciiStreamEnabled: asciiLayer?.enabled ?? false,
     asciiStreamOpacity: getLayerParamNumber(asciiLayer, 'opacity', 1.0),
     asciiStreamResolution: getLayerParamNumber(asciiLayer, 'resolution', 40.0),
-    asciiStreamContrast: getLayerParamNumber(asciiStreamLayer, 'contrast', 1.0),
+    asciiStreamContrast: getLayerParamNumber(asciiLayer, 'contrast', 1.0),
     retroWaveEnabled: retroWaveLayer?.enabled ?? false,
     retroWaveOpacity: getLayerParamNumber(retroWaveLayer, 'opacity', 1.0),
     retroWaveSunSize: getLayerParamNumber(retroWaveLayer, 'sunSize', 1.0),
@@ -10999,6 +11019,11 @@ const init = async () => {
     },
     setMode: (mode: UiMode) => {
       setMode(mode);
+    },
+    triggerAction: (action: string, velocity: number = 1.0) => {
+      if ((window as any).renderGraph) {
+        (window as any).renderGraph.handlePadAction(action, velocity);
+      }
     }
   };
   console.log('[Init] Capture API exposed');
