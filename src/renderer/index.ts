@@ -3355,11 +3355,21 @@ const renderMappingSources = () => {
 const renderMappingTargets = (filterText = '') => {
   if (!mappingTargetList) return;
   const filter = filterText.trim().toLowerCase();
+  const activeScene =
+    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const availableLayerIds = new Set((activeScene?.layers ?? []).map((layer) => layer.id));
   mappingTargetList.innerHTML = '';
   const targets = modTargetOptions
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
-    .filter((target) => (filter ? target.label.toLowerCase().includes(filter) : true));
+    .filter((target) => {
+      if (target.id.startsWith('layer-')) {
+        const layerId = target.id.split('.')[0];
+        if (!availableLayerIds.has(layerId)) return false;
+      }
+      return filter ? target.label.toLowerCase().includes(filter) : true;
+    });
 
   if (targets.length === 0) {
     const empty = document.createElement('div');

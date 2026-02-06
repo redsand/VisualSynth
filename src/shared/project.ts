@@ -269,6 +269,51 @@ export const COLOR_PALETTES: ColorPalette[] = [
     id: 'grayscale',
     name: 'Grayscale',
     colors: ['#000000', '#404040', '#808080', '#c0c0c0', '#ffffff']
+  },
+  {
+    id: 'citrus-pop',
+    name: 'Citrus Pop',
+    colors: ['#ff6b00', '#ffb100', '#ffe100', '#a6ff00', '#2aff8a']
+  },
+  {
+    id: 'aurora',
+    name: 'Aurora',
+    colors: ['#2a00ff', '#00b3ff', '#00ff9d', '#a6ff00', '#ff4fd8']
+  },
+  {
+    id: 'lagoon',
+    name: 'Lagoon',
+    colors: ['#0057ff', '#00b3ff', '#00f5d4', '#7cff6b', '#ffd166']
+  },
+  {
+    id: 'ember',
+    name: 'Ember',
+    colors: ['#7a0011', '#ff2d00', '#ff6a00', '#ff9f1c', '#ffd000']
+  },
+  {
+    id: 'prism',
+    name: 'Prism',
+    colors: ['#ff2a6d', '#ff8c42', '#f6e05e', '#5ef38c', '#3a86ff']
+  },
+  {
+    id: 'tropical',
+    name: 'Tropical',
+    colors: ['#ff4d6d', '#f8c046', '#2ec4b6', '#00a6fb', '#6a4c93']
+  },
+  {
+    id: 'velvet',
+    name: 'Velvet',
+    colors: ['#3a0ca3', '#7209b7', '#b5179e', '#f72585', '#4cc9f0']
+  },
+  {
+    id: 'voltage',
+    name: 'Voltage',
+    colors: ['#fb5607', '#ffbe0b', '#3a86ff', '#8338ec', '#ff006e']
+  },
+  {
+    id: 'desert-bloom',
+    name: 'Desert Bloom',
+    colors: ['#ff9f1c', '#ff6b6b', '#f9844a', '#90be6d', '#43aa8b']
   }
 ];
 
