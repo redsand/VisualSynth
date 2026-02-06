@@ -68,6 +68,37 @@ export type GeneratorId =
   | 'gen-data-stream'
   | 'gen-caustic-liquid'
   | 'gen-shimmer-veil'
+  | 'gen-nebula-cloud'
+  | 'gen-circuit-board'
+  | 'gen-lorenz-attractor'
+  | 'gen-mandala-spinner'
+  | 'gen-starburst-galaxy'
+  | 'gen-digital-rain-v2'
+  | 'gen-lava-flow'
+  | 'gen-crystal-growth'
+  | 'gen-techno-grid'
+  | 'gen-magnetic-field'
+  | 'gen-prism-shards'
+  | 'gen-neural-net'
+  | 'gen-aurora-chord'
+  | 'gen-vhs-glitch'
+  | 'gen-moire-pattern'
+  | 'gen-hypercube'
+  | 'gen-fluid-swirl'
+  | 'gen-ascii-stream'
+  | 'gen-retro-wave'
+  | 'gen-bubble-pop'
+  | 'gen-sound-wave-3d'
+  | 'gen-particle-vortex'
+  | 'gen-glow-worms'
+  | 'gen-mirror-maze'
+  | 'gen-pulse-heart'
+  | 'gen-data-shards'
+  | 'gen-hex-cell'
+  | 'gen-plasma-ball'
+  | 'gen-warp-drive'
+  | 'gen-visual-feedback'
+  | 'gen-mycelium-growth'
   | 'gen-laser-beam'
   | 'gen-strobe'
   | 'gen-shape-burst'
@@ -159,6 +190,37 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-data-stream', name: 'Generator: Data Stream' },
   { id: 'gen-caustic-liquid', name: 'Generator: Caustic Liquid' },
   { id: 'gen-shimmer-veil', name: 'Generator: Shimmer Veil' },
+  { id: 'gen-nebula-cloud', name: 'Generator: Nebula Cloud' },
+  { id: 'gen-circuit-board', name: 'Generator: Circuit Board' },
+  { id: 'gen-lorenz-attractor', name: 'Generator: Lorenz Attractor' },
+  { id: 'gen-mandala-spinner', name: 'Generator: Mandala Spinner' },
+  { id: 'gen-starburst-galaxy', name: 'Generator: Starburst Galaxy' },
+  { id: 'gen-digital-rain-v2', name: 'Generator: Digital Rain V2' },
+  { id: 'gen-lava-flow', name: 'Generator: Lava Flow' },
+  { id: 'gen-crystal-growth', name: 'Generator: Crystal Growth' },
+  { id: 'gen-techno-grid', name: 'Generator: Techno Grid' },
+  { id: 'gen-magnetic-field', name: 'Generator: Magnetic Field' },
+  { id: 'gen-prism-shards', name: 'Generator: Prism Shards' },
+  { id: 'gen-neural-net', name: 'Generator: Neural Net' },
+  { id: 'gen-aurora-chord', name: 'Generator: Aurora Chord' },
+  { id: 'gen-vhs-glitch', name: 'Generator: VHS Glitch' },
+  { id: 'gen-moire-pattern', name: 'Generator: Moire Pattern' },
+  { id: 'gen-hypercube', name: 'Generator: Hypercube' },
+  { id: 'gen-fluid-swirl', name: 'Generator: Fluid Swirl' },
+  { id: 'gen-ascii-stream', name: 'Generator: ASCII Stream' },
+  { id: 'gen-retro-wave', name: 'Generator: Retro Wave' },
+  { id: 'gen-bubble-pop', name: 'Generator: Bubble Pop' },
+  { id: 'gen-sound-wave-3d', name: 'Generator: Sound Wave 3D' },
+  { id: 'gen-particle-vortex', name: 'Generator: Particle Vortex' },
+  { id: 'gen-glow-worms', name: 'Generator: Glow Worms' },
+  { id: 'gen-mirror-maze', name: 'Generator: Mirror Maze' },
+  { id: 'gen-pulse-heart', name: 'Generator: Pulse Heart' },
+  { id: 'gen-data-shards', name: 'Generator: Data Shards' },
+  { id: 'gen-hex-cell', name: 'Generator: Hex Cell' },
+  { id: 'gen-plasma-ball', name: 'Generator: Plasma Ball' },
+  { id: 'gen-warp-drive', name: 'Generator: Warp Drive' },
+  { id: 'gen-visual-feedback', name: 'Generator: Visual Feedback' },
+  { id: 'gen-mycelium-growth', name: 'Generator: Mycelium Growth' },
   { id: 'gen-laser-beam', name: 'Generator: Laser Beam' },
   { id: 'gen-strobe', name: 'Generator: Strobe Flash' },
   { id: 'gen-shape-burst', name: 'Generator: Shape Burst' },

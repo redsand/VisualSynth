@@ -44,6 +44,12 @@
             "speed": 0.2,
             "scale": 2,
             "opacity": 0.7
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -58,6 +64,12 @@
             "beamCount": 6,
             "mode": 3,
             "colorShift": 0.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         }
       ]
@@ -98,5 +110,24 @@
       "bipolar": false
     }
   ],
-  "macros": []
+  "macros": [],
+  "name": "Stage Fog",
+  "createdAt": "2026-02-05T23:21:07.531Z",
+  "updatedAt": "2026-02-05T23:21:07.531Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

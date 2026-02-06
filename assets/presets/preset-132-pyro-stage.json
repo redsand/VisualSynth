@@ -43,6 +43,12 @@
           "generatorId": "gen-pyro-burst",
           "params": {
             "force": 2.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -56,6 +62,12 @@
           "params": {
             "rate": 4,
             "mode": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         }
       ]
@@ -96,5 +108,24 @@
       "bipolar": false
     }
   ],
-  "macros": []
+  "macros": [],
+  "name": "Pyro Stage",
+  "createdAt": "2026-02-05T23:24:12.009Z",
+  "updatedAt": "2026-02-05T23:24:12.009Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

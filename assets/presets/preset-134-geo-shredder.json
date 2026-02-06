@@ -44,6 +44,12 @@
           "params": {
             "shape": 0,
             "scale": 0.7
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -57,6 +63,12 @@
           "params": {
             "thickness": 0.005,
             "glow": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         }
       ]
@@ -97,5 +109,24 @@
       "bipolar": false
     }
   ],
-  "macros": []
+  "macros": [],
+  "name": "Geo Shredder",
+  "createdAt": "2026-02-05T23:24:12.010Z",
+  "updatedAt": "2026-02-05T23:24:12.010Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

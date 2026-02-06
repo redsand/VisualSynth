@@ -43,6 +43,12 @@
           "generatorId": "gen-circuit-conduit",
           "params": {
             "speed": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -55,6 +61,12 @@
           "generatorId": "gen-signal-noise",
           "params": {
             "amount": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         }
       ]
@@ -95,5 +107,24 @@
     "bpm": 120,
     "source": "manual"
   },
-  "macros": []
+  "macros": [],
+  "name": "Data Conduit",
+  "createdAt": "2026-02-05T23:30:27.261Z",
+  "updatedAt": "2026-02-05T23:30:27.261Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

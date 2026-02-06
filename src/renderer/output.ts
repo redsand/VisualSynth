@@ -6,7 +6,7 @@ let debugVisible = false;
 let renderer: ReturnType<typeof createGLRenderer>;
 
 try {
-  renderer = createGLRenderer(canvas);
+  renderer = createGLRenderer(canvas, {});
 } catch (error) {
   document.body.textContent = 'WebGL2 not supported.';
   throw error;

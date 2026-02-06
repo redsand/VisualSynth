@@ -620,7 +620,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     glow: 0.8
   },
   sdf: {
-    enabled: true,
+    enabled: false,
     shape: 'triangle',
     scale: 0.55,
     edge: 0.06,
@@ -813,126 +813,6 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
           role: 'support',
           enabled: true,
           opacity: 0.75,
-          blendMode: 'add',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-origami',
-          name: 'Origami Fold',
-          role: 'support',
-          enabled: false,
-          opacity: 0.85,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-glyph',
-          name: 'Glyph Language',
-          role: 'support',
-          enabled: false,
-          opacity: 0.8,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-crystal',
-          name: 'Crystal Harmonics',
-          role: 'support',
-          enabled: false,
-          opacity: 0.85,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-inkflow',
-          name: 'Ink Flow',
-          role: 'atmosphere',
-          enabled: false,
-          opacity: 0.85,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-topo',
-          name: 'Topo Terrain',
-          role: 'atmosphere',
-          enabled: false,
-          opacity: 0.85,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-weather',
-          name: 'Audio Weather',
-          role: 'atmosphere',
-          enabled: false,
-          opacity: 0.85,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-portal',
-          name: 'Wormhole Portal',
-          role: 'atmosphere',
-          enabled: false,
-          opacity: 0.85,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 },
-          params: {
-            autoSpawn: 1,
-            style: 0
-          }
-        },
-        {
-          id: 'layer-media',
-          name: 'Media Overlay',
-          role: 'support',
-          enabled: false,
-          opacity: 0.9,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        },
-        {
-          id: 'layer-oscillo',
-          name: 'Sacred Oscilloscope',
-          role: 'support',
-          enabled: false,
-          opacity: 0.85,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
-        }
-      ]
-    },
-    {
-      id: 'scene-2',
-      scene_id: 'scene-2',
-      name: 'Pulse Scene',
-      intent: 'pulse',
-      duration: 0,
-      transition_in: { ...DEFAULT_SCENE_TRANSITION },
-      transition_out: { ...DEFAULT_SCENE_TRANSITION },
-      trigger: { ...DEFAULT_SCENE_TRIGGER },
-      assigned_layers: {
-        core: ['layer-spectrum'],
-        support: ['layer-plasma'],
-        atmosphere: ['layer-origami', 'layer-glyph', 'layer-crystal', 'layer-inkflow', 'layer-topo', 'layer-weather']
-      },
-      layers: [
-        {
-          id: 'layer-plasma',
-          name: 'Shader Plasma',
-          role: 'core',
-          enabled: false,
-          opacity: 0.8,
-          blendMode: 'screen',
-          transform: { x: 0, y: 0, scale: 1.05, rotation: 0.04 }
-        },
-        {
-          id: 'layer-spectrum',
-          name: 'Spectrum Bars',
-          role: 'support',
-          enabled: true,
-          opacity: 0.95,
           blendMode: 'add',
           transform: { x: 0, y: 0, scale: 1, rotation: 0 }
         },

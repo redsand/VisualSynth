@@ -1,0 +1,5336 @@
+{
+  "version": 6,
+  "name": "Ultimate Showcase - 50 Generators",
+  "createdAt": "2026-02-06T01:47:40.271Z",
+  "updatedAt": "2026-02-06T01:47:40.272Z",
+  "activeSceneId": "showcase-0",
+  "scenes": [
+    {
+      "id": "showcase-0",
+      "scene_id": "scene-1",
+      "name": "Neon Overdrive",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-grid-tunnel-1",
+          "name": "Grid Tunnel",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-grid-tunnel",
+          "params": {
+            "mode": 1,
+            "speed": 2,
+            "glow": 0.8,
+            "color": 0,
+            "lineWidth": 0.03
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-lightning-1",
+          "name": "Lightning",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "add",
+          "generatorId": "gen-lightning",
+          "params": {
+            "speed": 1.5,
+            "branches": 3,
+            "thickness": 0.03,
+            "color": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-1",
+      "scene_id": "scene-1",
+      "name": "Guitar Amp",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-oscillo-1",
+          "name": "Amp Oscillo",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-analog-oscillo",
+          "params": {
+            "thickness": 0.02,
+            "glow": 0.8,
+            "color": 1,
+            "mode": 0
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-speaker-1",
+          "name": "Speaker Pulse",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "multiply",
+          "generatorId": "gen-speaker-cone",
+          "params": {
+            "force": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-2",
+      "scene_id": "scene-1",
+      "name": "Drum Solo",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-strobe-1",
+          "name": "Strobe",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-strobe",
+          "params": {
+            "rate": 8,
+            "mode": 0
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-burst-1",
+          "name": "Shape Burst",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-shape-burst",
+          "params": {
+            "shape": 1,
+            "expandSpeed": 3,
+            "thickness": 0.05
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-3",
+      "scene_id": "scene-1",
+      "name": "Vinyl Warp",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-glitch-1",
+          "name": "VHS Glitch",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "screen",
+          "generatorId": "gen-glitch-scanline",
+          "params": {
+            "speed": 0.5,
+            "count": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "overlay",
+          "params": {
+            "opacity": 0.6
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-4",
+      "scene_id": "scene-1",
+      "name": "Stage Fog",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-inkflow",
+          "name": "Fog",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.7,
+          "blendMode": "screen",
+          "params": {
+            "speed": 0.2,
+            "scale": 2,
+            "opacity": 0.7
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-laser-1",
+          "name": "Lasers",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-laser-beam",
+          "params": {
+            "beamCount": 6,
+            "mode": 3,
+            "colorShift": 0.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-5",
+      "scene_id": "scene-1",
+      "name": "Electric Storm",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-lightning-core",
+          "name": "Main Bolt",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-lightning",
+          "params": {
+            "speed": 2,
+            "branches": 4,
+            "thickness": 0.04,
+            "color": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-weather",
+          "name": "Rain",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "screen",
+          "params": {
+            "mode": 0,
+            "intensity": 0.8,
+            "speed": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-6",
+      "scene_id": "scene-1",
+      "name": "Bass Face",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-speaker-core",
+          "name": "Woofer",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-speaker-cone",
+          "params": {
+            "force": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-grid-1",
+          "name": "Grid Floor",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "add",
+          "generatorId": "gen-grid-tunnel",
+          "params": {
+            "mode": 0,
+            "speed": 0.5,
+            "color": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-7",
+      "scene_id": "scene-1",
+      "name": "Retro Highway",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-grid-2",
+          "name": "Highway",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-grid-tunnel",
+          "params": {
+            "mode": 0,
+            "speed": 3,
+            "perspective": 1.5,
+            "glow": 0.7
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Neon Sky",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "add",
+          "params": {
+            "opacity": 0.6
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.1,
+          "chroma": 0.2,
+          "posterize": 0.1,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-8",
+      "scene_id": "scene-1",
+      "name": "Feedback Loop",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-oscillo-2",
+          "name": "Signal",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-analog-oscillo",
+          "params": {
+            "thickness": 0.01,
+            "glow": 0.9,
+            "color": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.8,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-9",
+      "scene_id": "scene-1",
+      "name": "Acid Rock",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-plasma",
+          "name": "Liquid",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "params": {
+            "speed": 0.5,
+            "scale": 2,
+            "complexity": 0.8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-origami",
+          "name": "Fold",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "overlay",
+          "params": {
+            "speed": 0.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.4,
+          "posterize": 0,
+          "kaleidoscope": 0.6,
+          "feedback": 0.1,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-10",
+      "scene_id": "scene-1",
+      "name": "Laser Show",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-starfield-1",
+          "name": "Laser Stars",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-laser-starfield",
+          "params": {
+            "speed": 2,
+            "density": 1.5,
+            "opacity": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-laser-core",
+          "name": "Main Lasers",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "add",
+          "generatorId": "gen-laser-beam",
+          "params": {
+            "beamCount": 8,
+            "mode": 0,
+            "spread": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-11",
+      "scene_id": "scene-1",
+      "name": "Electric Arena",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-arc-1",
+          "name": "Tesla Coil",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-electric-arc",
+          "params": {
+            "radius": 0.6,
+            "chaos": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-lightning-bg",
+          "name": "Background Bolts",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "add",
+          "generatorId": "gen-lightning",
+          "params": {
+            "speed": 1,
+            "branches": 2,
+            "color": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-12",
+      "scene_id": "scene-1",
+      "name": "Pyro Stage",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-pyro-1",
+          "name": "Firework Burst",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-pyro-burst",
+          "params": {
+            "force": 2.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-strobe-hit",
+          "name": "Strobe Hit",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "add",
+          "generatorId": "gen-strobe",
+          "params": {
+            "rate": 4,
+            "mode": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-13",
+      "scene_id": "scene-1",
+      "name": "Cyber Ribbon",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-ribbon-1",
+          "name": "Audio Ribbons",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-pulsing-ribbons",
+          "params": {
+            "count": 5,
+            "width": 0.08
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-glitch-vhs",
+          "name": "VHS Noise",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "screen",
+          "generatorId": "gen-glitch-scanline",
+          "params": {
+            "speed": 0.2,
+            "count": 5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-14",
+      "scene_id": "scene-1",
+      "name": "Geo Shredder",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-geo-1",
+          "name": "Rotating Cube",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-geo-wireframe",
+          "params": {
+            "shape": 0,
+            "scale": 0.7
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-oscillo-shred",
+          "name": "Waveform Overlay",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "add",
+          "generatorId": "gen-analog-oscillo",
+          "params": {
+            "thickness": 0.005,
+            "glow": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-15",
+      "scene_id": "scene-1",
+      "name": "Signal Loss",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-noise-1",
+          "name": "Static",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-signal-noise",
+          "params": {
+            "amount": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-glitch-heavy",
+          "name": "Heavy Glitch",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.8,
+          "blendMode": "screen",
+          "generatorId": "gen-glitch-scanline",
+          "params": {
+            "speed": 3,
+            "count": 10
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-16",
+      "scene_id": "scene-1",
+      "name": "Tesla Rain",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-lightning-rain",
+          "name": "Lightning Storm",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-lightning",
+          "params": {
+            "speed": 3,
+            "branches": 5,
+            "thickness": 0.05,
+            "color": 0
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-weather",
+          "name": "Heavy Weather",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.7,
+          "blendMode": "screen",
+          "params": {
+            "mode": 0,
+            "intensity": 1,
+            "speed": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-17",
+      "scene_id": "scene-1",
+      "name": "Speaker Shred",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-speaker-extreme",
+          "name": "Max Woofer",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-speaker-cone",
+          "params": {
+            "force": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-ribbon-bg",
+          "name": "Back Ribbons",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "add",
+          "generatorId": "gen-pulsing-ribbons",
+          "params": {
+            "count": 2,
+            "width": 0.1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-18",
+      "scene_id": "scene-1",
+      "name": "Prism Star",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-starfield-color",
+          "name": "Colored Stars",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-laser-starfield",
+          "params": {
+            "speed": 0.5,
+            "density": 3
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-geo-tri",
+          "name": "Wireframe Triangle",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.7,
+          "blendMode": "add",
+          "generatorId": "gen-geo-wireframe",
+          "params": {
+            "shape": 1,
+            "scale": 0.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-19",
+      "scene_id": "scene-1",
+      "name": "Analog Static",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-oscillo-raw",
+          "name": "Raw Oscillo",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-analog-oscillo",
+          "params": {
+            "thickness": 0.03,
+            "glow": 0.4,
+            "color": 0
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-noise-subtle",
+          "name": "Light Noise",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.2,
+          "blendMode": "add",
+          "generatorId": "gen-signal-noise",
+          "params": {
+            "amount": 0.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.3,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.15,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-rock-ultra",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-20",
+      "scene_id": "scene-1",
+      "name": "Organic Wormhole",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-wormhole-1",
+          "name": "Main Wormhole",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-infinite-wormhole",
+          "params": {
+            "speed": 1.5,
+            "weave": 0.4,
+            "iter": 5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.6,
+          "blur": 0.02,
+          "chroma": 0.4,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.2,
+          "persistence": 0.4
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-immersion",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-21",
+      "scene_id": "scene-1",
+      "name": "Neon Ribbon Spin",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-ribbon-spin",
+          "name": "Twisting Ribbons",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-ribbon-tunnel",
+          "params": {
+            "speed": 2,
+            "twist": 2.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.6,
+          "blur": 0.02,
+          "chroma": 0.4,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.2,
+          "persistence": 0.4
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-immersion",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-22",
+      "scene_id": "scene-1",
+      "name": "Fractal Deep Dive",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-fractal-1",
+          "name": "Recursive Tunnel",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-fractal-tunnel",
+          "params": {
+            "speed": 1.2,
+            "complexity": 4
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.6,
+          "blur": 0.02,
+          "chroma": 0.4,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.2,
+          "persistence": 0.4
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-immersion",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-23",
+      "scene_id": "scene-1",
+      "name": "Data Conduit",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-conduit-1",
+          "name": "Circuit Path",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-circuit-conduit",
+          "params": {
+            "speed": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-noise-data",
+          "name": "Signal Noise",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.2,
+          "blendMode": "add",
+          "generatorId": "gen-signal-noise",
+          "params": {
+            "amount": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.6,
+          "blur": 0.02,
+          "chroma": 0.4,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.2,
+          "persistence": 0.4
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-immersion",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-24",
+      "scene_id": "scene-1",
+      "name": "Sinister Weave",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-wormhole-dark",
+          "name": "Dark Weaving",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-infinite-wormhole",
+          "params": {
+            "speed": 0.8,
+            "weave": 0.8,
+            "iter": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-lightning-weave",
+          "name": "Electric Sparks",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "add",
+          "generatorId": "gen-lightning",
+          "params": {
+            "speed": 2,
+            "color": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.6,
+          "blur": 0.02,
+          "chroma": 0.4,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.2,
+          "persistence": 0.4
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-immersion",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-25",
+      "scene_id": "scene-1",
+      "name": "Spiral Overload",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-ribbon-heavy",
+          "name": "Max Twist",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-ribbon-tunnel",
+          "params": {
+            "speed": 3,
+            "twist": 5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-oscillo-weave",
+          "name": "Signal Trace",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "add",
+          "generatorId": "gen-analog-oscillo",
+          "params": {
+            "thickness": 0.01,
+            "glow": 0.8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.6,
+          "blur": 0.02,
+          "chroma": 0.4,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.2,
+          "persistence": 0.4
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-immersion",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-26",
+      "scene_id": "scene-1",
+      "name": "Aura of Silence",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-aura-1",
+          "name": "Deep Portal",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-aura-portal",
+          "params": {
+            "color": 0,
+            "opacity": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-unique",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-27",
+      "scene_id": "scene-1",
+      "name": "Spectrum Peaks",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-terrain-1",
+          "name": "Audio Mountains",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-freq-terrain",
+          "params": {
+            "scale": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-star-bg",
+          "name": "Background Stars",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "screen",
+          "generatorId": "gen-laser-starfield",
+          "params": {
+            "speed": 0.2,
+            "density": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-unique",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-28",
+      "scene_id": "scene-1",
+      "name": "Mainframe Flow",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-data-1",
+          "name": "Digital Rain",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-data-stream",
+          "params": {
+            "speed": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-glitch-subtle",
+          "name": "Tracking Error",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "screen",
+          "generatorId": "gen-glitch-scanline",
+          "params": {
+            "speed": 0.5,
+            "count": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-unique",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-29",
+      "scene_id": "scene-1",
+      "name": "Neon Caustics",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-caustic-1",
+          "name": "Liquid Light",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-caustic-liquid",
+          "params": {
+            "speed": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-unique",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-30",
+      "scene_id": "scene-1",
+      "name": "Spectral Curtain",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-veil-1",
+          "name": "Shimmering Veil",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "add",
+          "generatorId": "gen-shimmer-veil",
+          "params": {
+            "complexity": 15
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-unique",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-31",
+      "scene_id": "scene-1",
+      "name": "Cinematic Distortion",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-media",
+          "name": "Looping Video",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-speaker-dist",
+          "name": "Lens Distortion",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.8,
+          "generatorId": "gen-speaker-cone",
+          "params": {
+            "force": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "blendMode": "normal"
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.3,
+          "blur": 0.05,
+          "chroma": 0.1,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.05,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-cinema",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-32",
+      "scene_id": "scene-1",
+      "name": "VHS Memories",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-media",
+          "name": "Raw Tape",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-vhs-glitch",
+          "name": "Tape Damage",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.6,
+          "generatorId": "gen-glitch-scanline",
+          "params": {
+            "speed": 0.2,
+            "count": 3
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "blendMode": "normal"
+        },
+        {
+          "id": "layer-vhs-noise",
+          "name": "Analog Noise",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.2,
+          "generatorId": "gen-signal-noise",
+          "params": {
+            "amount": 0.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "blendMode": "normal"
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.3,
+          "blur": 0.05,
+          "chroma": 0.1,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.05,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-cinema",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-33",
+      "scene_id": "scene-1",
+      "name": "Star-lit Backdrop",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-media",
+          "name": "Video Plane",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.9,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "blendMode": "normal"
+        },
+        {
+          "id": "layer-starfield-bg",
+          "name": "Space Dust",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.5,
+          "generatorId": "gen-laser-starfield",
+          "params": {
+            "speed": 0.1,
+            "density": 1
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "blendMode": "normal"
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.3,
+          "blur": 0.05,
+          "chroma": 0.1,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.05,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-cinema",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-34",
+      "scene_id": "scene-1",
+      "name": "Liquid Canvas",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-media",
+          "name": "Fluid Video",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "blendMode": "normal"
+        },
+        {
+          "id": "layer-caustic-overlay",
+          "name": "Refraction Overlay",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "screen",
+          "generatorId": "gen-caustic-liquid",
+          "params": {
+            "speed": 0.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.3,
+          "blur": 0.05,
+          "chroma": 0.1,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.05,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-cinema",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-35",
+      "scene_id": "scene-1",
+      "name": "Data Overlay",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-media",
+          "name": "Source Material",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "blendMode": "normal"
+        },
+        {
+          "id": "layer-data-lines",
+          "name": "Data Stream",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.7,
+          "blendMode": "screen",
+          "generatorId": "gen-data-stream",
+          "params": {
+            "speed": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.3,
+          "blur": 0.05,
+          "chroma": 0.1,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.05,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-cinema",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-36",
+      "name": "Nebula Cloud",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-nebula-cloud-1",
+          "name": "Nebula Cloud",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-nebula-cloud",
+          "params": {
+            "density": 1.2,
+            "speed": 0.4
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-37",
+      "name": "Circuit Board",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-circuit-board-1",
+          "name": "Circuit Board",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-circuit-board",
+          "params": {
+            "growth": 0.8,
+            "complexity": 6
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-38",
+      "name": "Lorenz Attractor",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-lorenz-attractor-1",
+          "name": "Lorenz Attractor",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-lorenz-attractor",
+          "params": {
+            "speed": 1.5,
+            "chaos": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-39",
+      "name": "Mandala Spinner",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-mandala-spinner-1",
+          "name": "Mandala Spinner",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-mandala-spinner",
+          "params": {
+            "sides": 8,
+            "speed": 0.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-40",
+      "name": "Starburst Galaxy",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-starburst-galaxy-1",
+          "name": "Starburst Galaxy",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-starburst-galaxy",
+          "params": {
+            "force": 1.2,
+            "count": 150
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-41",
+      "name": "Digital Rain V2",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-digital-rain-v2-1",
+          "name": "Digital Rain V2",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-digital-rain-v2",
+          "params": {
+            "speed": 1.2,
+            "density": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-42",
+      "name": "Lava Flow",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-lava-flow-1",
+          "name": "Lava Flow",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-lava-flow",
+          "params": {
+            "heat": 1.5,
+            "viscosity": 0.8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-43",
+      "name": "Crystal Growth",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-crystal-growth-1",
+          "name": "Crystal Growth",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-crystal-growth",
+          "params": {
+            "rate": 0.6,
+            "sharpness": 0.9
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-44",
+      "name": "Techno Grid",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-techno-grid-1",
+          "name": "Techno Grid",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-techno-grid",
+          "params": {
+            "height": 1.5,
+            "speed": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-45",
+      "name": "Magnetic Field",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-magnetic-field-1",
+          "name": "Magnetic Field",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-magnetic-field",
+          "params": {
+            "strength": 1.5,
+            "density": 30
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-46",
+      "name": "Prism Shards",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-prism-shards-1",
+          "name": "Prism Shards",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-prism-shards",
+          "params": {
+            "refraction": 0.8,
+            "count": 8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-47",
+      "name": "Neural Net",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-neural-net-1",
+          "name": "Neural Net",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-neural-net",
+          "params": {
+            "activity": 1.2,
+            "density": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-48",
+      "name": "Aurora Chord",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-aurora-chord-1",
+          "name": "Aurora Chord",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-aurora-chord",
+          "params": {
+            "waviness": 1.5,
+            "colorRange": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-49",
+      "name": "VHS Glitch Pro",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-vhs-glitch-1",
+          "name": "VHS Glitch Pro",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-vhs-glitch",
+          "params": {
+            "jitter": 0.4,
+            "noise": 0.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-50",
+      "name": "Moire Pattern",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-moire-pattern-1",
+          "name": "Moire Pattern",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-moire-pattern",
+          "params": {
+            "scale": 8,
+            "speed": 0.6
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-51",
+      "name": "Hypercube",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-hypercube-1",
+          "name": "Hypercube",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-hypercube",
+          "params": {
+            "projection": 1.5,
+            "speed": 0.8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-52",
+      "name": "Fluid Swirl",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-fluid-swirl-1",
+          "name": "Fluid Swirl",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-fluid-swirl",
+          "params": {
+            "vorticity": 1.5,
+            "colorMix": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-53",
+      "name": "ASCII Stream",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-ascii-stream-1",
+          "name": "ASCII Stream",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-ascii-stream",
+          "params": {
+            "resolution": 50,
+            "contrast": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-54",
+      "name": "Retro Wave",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-retro-wave-1",
+          "name": "Retro Wave",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-retro-wave",
+          "params": {
+            "sunSize": 1.2,
+            "gridSpeed": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-55",
+      "name": "Bubble Pop",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-bubble-pop-1",
+          "name": "Bubble Pop",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-bubble-pop",
+          "params": {
+            "popRate": 1.5,
+            "size": 0.8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-56",
+      "name": "Sound Wave 3D",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-sound-wave-3d-1",
+          "name": "Sound Wave 3D",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-sound-wave-3d",
+          "params": {
+            "amplitude": 1.5,
+            "smoothness": 0.8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-57",
+      "name": "Particle Vortex",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-particle-vortex-1",
+          "name": "Particle Vortex",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-particle-vortex",
+          "params": {
+            "suction": 1.2,
+            "spin": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-58",
+      "name": "Glow Worms",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-glow-worms-1",
+          "name": "Glow Worms",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-glow-worms",
+          "params": {
+            "length": 1.5,
+            "speed": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-59",
+      "name": "Mirror Maze",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-mirror-maze-1",
+          "name": "Mirror Maze",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-mirror-maze",
+          "params": {
+            "recursion": 6,
+            "angle": 0.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-60",
+      "name": "Pulse Heart",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-pulse-heart-1",
+          "name": "Pulse Heart",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-pulse-heart",
+          "params": {
+            "beats": 1.5,
+            "layers": 8
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-61",
+      "name": "Data Shards",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-data-shards-1",
+          "name": "Data Shards",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-data-shards",
+          "params": {
+            "speed": 1.2,
+            "sharpness": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-62",
+      "name": "Hex Cell",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-hex-cell-1",
+          "name": "Hex Cell",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-hex-cell",
+          "params": {
+            "pulse": 1.5,
+            "scale": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-63",
+      "name": "Plasma Ball",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-plasma-ball-1",
+          "name": "Plasma Ball",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-plasma-ball",
+          "params": {
+            "voltage": 1.5,
+            "filaments": 10
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-64",
+      "name": "Warp Drive",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-warp-drive-1",
+          "name": "Warp Drive",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-warp-drive",
+          "params": {
+            "warp": 5,
+            "glow": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-65",
+      "name": "Visual Feedback",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-visual-feedback-1",
+          "name": "Visual Feedback",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-visual-feedback",
+          "params": {
+            "zoom": 1.05,
+            "rotation": 0.05
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    },
+    {
+      "id": "showcase-66",
+      "name": "Mycelium Network",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-mycelium-1",
+          "name": "Mycelium Growth",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-mycelium-growth",
+          "params": {
+            "spread": 1.2,
+            "decay": 0.3
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.4,
+          "blur": 0.05,
+          "chroma": 0.1,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.3
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.4,
+          "speed": 0.2,
+          "size": 0.5,
+          "glow": 0.7,
+          "turbulence": 0.5,
+          "audioLift": 0.5
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0.5,
+          "edge": 0.05,
+          "glow": 0.1,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "activePaletteId": "heat",
+        "activeEngineId": "engine-radial-core",
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [],
+        "macros": [],
+        "modMatrix": []
+      }
+    }
+  ],
+  "activeModeId": "mode-performance",
+  "activeEngineId": "engine-radial-core",
+  "effects": {
+    "enabled": true,
+    "bloom": 0.4,
+    "blur": 0.05,
+    "chroma": 0.2,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.1,
+    "persistence": 0.3
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.5,
+    "speed": 0.3,
+    "size": 0.5,
+    "glow": 0.8
+  },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "visualizer": {
+    "enabled": false,
+    "mode": "off",
+    "opacity": 0.8,
+    "macroEnabled": false,
+    "macroId": 8
+  },
+  "modMatrix": [],
+  "midiMappings": [],
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": [],
+  "colorChemistry": [
+    "analog",
+    "balanced"
+  ],
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  }
+}

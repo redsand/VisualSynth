@@ -181,5 +181,24 @@
       "bipolar": false
     }
   ],
-  "macros": []
+  "macros": [],
+  "name": "SDF Neon Rain",
+  "createdAt": "2026-01-27T18:35:38.955Z",
+  "updatedAt": "2026-02-02T01:09:55.215Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

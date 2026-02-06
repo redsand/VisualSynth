@@ -113,6 +113,40 @@ const getLayerRole = (layer?: { role?: LayerRole; id?: string }): LayerRole => {
   if (layer?.id === 'gen-strobe') return 'core'; // Full screen flash, high impact
   if (layer?.id === 'gen-shape-burst') return 'support'; // Beat-synced shapes
   if (layer?.id === 'gen-grid-tunnel') return 'atmosphere'; // Background grid effect
+  
+  // New 31 Generators Roles
+  if (layer?.id === 'gen-nebula-cloud') return 'atmosphere';
+  if (layer?.id === 'gen-circuit-board') return 'support';
+  if (layer?.id === 'gen-lorenz-attractor') return 'support';
+  if (layer?.id === 'gen-mandala-spinner') return 'support';
+  if (layer?.id === 'gen-starburst-galaxy') return 'support';
+  if (layer?.id === 'gen-digital-rain-v2') return 'atmosphere';
+  if (layer?.id === 'gen-lava-flow') return 'atmosphere';
+  if (layer?.id === 'gen-crystal-growth') return 'atmosphere';
+  if (layer?.id === 'gen-techno-grid') return 'atmosphere';
+  if (layer?.id === 'gen-magnetic-field') return 'atmosphere';
+  if (layer?.id === 'gen-prism-shards') return 'support';
+  if (layer?.id === 'gen-neural-net') return 'atmosphere';
+  if (layer?.id === 'gen-aurora-chord') return 'atmosphere';
+  if (layer?.id === 'gen-vhs-glitch') return 'atmosphere';
+  if (layer?.id === 'gen-moire-pattern') return 'support';
+  if (layer?.id === 'gen-hypercube') return 'core';
+  if (layer?.id === 'gen-fluid-swirl') return 'atmosphere';
+  if (layer?.id === 'gen-ascii-stream') return 'atmosphere';
+  if (layer?.id === 'gen-retro-wave') return 'core';
+  if (layer?.id === 'gen-bubble-pop') return 'support';
+  if (layer?.id === 'gen-sound-wave-3d') return 'support';
+  if (layer?.id === 'gen-particle-vortex') return 'atmosphere';
+  if (layer?.id === 'gen-glow-worms') return 'atmosphere';
+  if (layer?.id === 'gen-mirror-maze') return 'support';
+  if (layer?.id === 'gen-pulse-heart') return 'core';
+  if (layer?.id === 'gen-data-shards') return 'atmosphere';
+  if (layer?.id === 'gen-hex-cell') return 'atmosphere';
+  if (layer?.id === 'gen-plasma-ball') return 'atmosphere';
+  if (layer?.id === 'gen-warp-drive') return 'core';
+  if (layer?.id === 'gen-visual-feedback') return 'support';
+  if (layer?.id === 'gen-mycelium-growth') return 'atmosphere';
+
   return 'support';
 };
 
@@ -1125,13 +1159,13 @@ export class RenderGraph {
       glow: 0.6
     };
     const sdf = state.project.sdf ?? {
-      enabled: true,
+      enabled: false,
       shape: 'circle' as const,
-      scale: 0.45,
-      edge: 0.08,
-      glow: 0.5,
+      scale: 0,
+      edge: 0,
+      glow: 0,
       rotation: 0,
-      fill: 0.35
+      fill: 0
     };
     const expressiveFx = state.project.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
     const expressiveEnabled = expressiveFx.enabled ?? true;
@@ -1356,6 +1390,38 @@ export class RenderGraph {
     const dataStreamLayer = findLayerById(activeScene?.layers, 'gen-data-stream');
     const causticLiquidLayer = findLayerById(activeScene?.layers, 'gen-caustic-liquid');
     const shimmerVeilLayer = findLayerById(activeScene?.layers, 'gen-shimmer-veil');
+    const nebulaCloudLayer = findLayerById(activeScene?.layers, 'gen-nebula-cloud');
+    const circuitBoardLayer = findLayerById(activeScene?.layers, 'gen-circuit-board');
+    const lorenzLayer = findLayerById(activeScene?.layers, 'gen-lorenz-attractor');
+    const mandalaLayer = findLayerById(activeScene?.layers, 'gen-mandala-spinner');
+    const starburstLayer = findLayerById(activeScene?.layers, 'gen-starburst-galaxy');
+    const rainV2Layer = findLayerById(activeScene?.layers, 'gen-digital-rain-v2');
+    const lavaLayer = findLayerById(activeScene?.layers, 'gen-lava-flow');
+    const crystalGrowthLayer = findLayerById(activeScene?.layers, 'gen-crystal-growth');
+    const technoGridLayer = findLayerById(activeScene?.layers, 'gen-techno-grid');
+    const magneticLayer = findLayerById(activeScene?.layers, 'gen-magnetic-field');
+    const prismShardsLayer = findLayerById(activeScene?.layers, 'gen-prism-shards');
+    const neuralNetLayer = findLayerById(activeScene?.layers, 'gen-neural-net');
+    const auroraChordLayer = findLayerById(activeScene?.layers, 'gen-aurora-chord');
+    const vhsGlitchLayer = findLayerById(activeScene?.layers, 'gen-vhs-glitch');
+    const moireLayer = findLayerById(activeScene?.layers, 'gen-moire-pattern');
+    const hypercubeLayer = findLayerById(activeScene?.layers, 'gen-hypercube');
+    const fluidSwirlLayer = findLayerById(activeScene?.layers, 'gen-fluid-swirl');
+    const asciiLayer = findLayerById(activeScene?.layers, 'gen-ascii-stream');
+    const retroWaveLayer = findLayerById(activeScene?.layers, 'gen-retro-wave');
+    const bubblePopLayer = findLayerById(activeScene?.layers, 'gen-bubble-pop');
+    const soundWave3DLayer = findLayerById(activeScene?.layers, 'gen-sound-wave-3d');
+    const particleVortexLayer = findLayerById(activeScene?.layers, 'gen-particle-vortex');
+    const glowWormsLayer = findLayerById(activeScene?.layers, 'gen-glow-worms');
+    const mirrorMazeLayer = findLayerById(activeScene?.layers, 'gen-mirror-maze');
+    const pulseHeartLayer = findLayerById(activeScene?.layers, 'gen-pulse-heart');
+    const dataShardsLayer = findLayerById(activeScene?.layers, 'gen-data-shards');
+    const hexCellLayer = findLayerById(activeScene?.layers, 'gen-hex-cell');
+    const plasmaBallLayer = findLayerById(activeScene?.layers, 'gen-plasma-ball');
+    const warpDriveLayer = findLayerById(activeScene?.layers, 'gen-warp-drive');
+    const feedbackLayer = findLayerById(activeScene?.layers, 'gen-visual-feedback');
+    const myceliumLayer = findLayerById(activeScene?.layers, 'gen-mycelium-growth');
+    
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
     const origamiRole = getLayerRole(origamiLayer);
@@ -1696,7 +1762,7 @@ export class RenderGraph {
       particleGlow: moddedParticles.glow,
       particleTurbulence: moddedParticles.turbulence,
       particleAudioLift: moddedParticles.audioLift,
-      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf')) : sdf.enabled),
+      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf' && l.enabled)) : sdf.enabled),
       sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
       sdfScale: moddedSdf.scale,
       sdfEdge: moddedSdf.edge,
@@ -1824,7 +1890,132 @@ export class RenderGraph {
       causticLiquidSpeed: getLayerParamNumber(causticLiquidLayer, 'speed', 1.0),
       shimmerVeilEnabled: shimmerVeilLayer?.enabled ?? false,
       shimmerVeilOpacity: getLayerParamNumber(shimmerVeilLayer, 'opacity', 1.0),
-      shimmerVeilComplexity: getLayerParamNumber(shimmerVeilLayer, 'complexity', 10.0)
+      shimmerVeilComplexity: getLayerParamNumber(shimmerVeilLayer, 'complexity', 10.0),
+      // --- New 31 Generators Parameters ---
+      nebulaCloudEnabled: nebulaCloudLayer?.enabled ?? false,
+      nebulaCloudOpacity: getLayerParamNumber(nebulaCloudLayer, 'opacity', 1.0),
+      nebulaCloudDensity: getLayerParamNumber(nebulaCloudLayer, 'density', 1.0),
+      nebulaCloudSpeed: getLayerParamNumber(nebulaCloudLayer, 'speed', 0.5),
+      circuitBoardEnabled: circuitBoardLayer?.enabled ?? false,
+      circuitBoardOpacity: getLayerParamNumber(circuitBoardLayer, 'opacity', 1.0),
+      circuitBoardGrowth: getLayerParamNumber(circuitBoardLayer, 'growth', 1.0),
+      circuitBoardComplexity: getLayerParamNumber(circuitBoardLayer, 'complexity', 5.0),
+      lorenzAttractorEnabled: lorenzLayer?.enabled ?? false,
+      lorenzAttractorOpacity: getLayerParamNumber(lorenzLayer, 'opacity', 1.0),
+      lorenzAttractorSpeed: getLayerParamNumber(lorenzLayer, 'speed', 1.0),
+      lorenzAttractorChaos: getLayerParamNumber(lorenzLayer, 'chaos', 1.0),
+      mandalaSpinnerEnabled: mandalaLayer?.enabled ?? false,
+      mandalaSpinnerOpacity: getLayerParamNumber(mandalaLayer, 'opacity', 1.0),
+      mandalaSpinnerSides: getLayerParamNumber(mandalaLayer, 'sides', 6.0),
+      mandalaSpinnerSpeed: getLayerParamNumber(mandalaLayer, 'speed', 1.0),
+      starburstGalaxyEnabled: starburstLayer?.enabled ?? false,
+      starburstGalaxyOpacity: getLayerParamNumber(starburstLayer, 'opacity', 1.0),
+      starburstGalaxyForce: getLayerParamNumber(starburstLayer, 'force', 1.0),
+      starburstGalaxyCount: getLayerParamNumber(starburstLayer, 'count', 100.0),
+      digitalRainV2Enabled: rainV2Layer?.enabled ?? false,
+      digitalRainV2Opacity: getLayerParamNumber(rainV2Layer, 'opacity', 1.0),
+      digitalRainV2Speed: getLayerParamNumber(rainV2Layer, 'speed', 1.0),
+      digitalRainV2Density: getLayerParamNumber(rainV2Layer, 'density', 1.0),
+      lavaFlowEnabled: lavaLayer?.enabled ?? false,
+      lavaFlowOpacity: getLayerParamNumber(lavaLayer, 'opacity', 1.0),
+      lavaFlowHeat: getLayerParamNumber(lavaLayer, 'heat', 1.0),
+      lavaFlowViscosity: getLayerParamNumber(lavaLayer, 'viscosity', 1.0),
+      crystalGrowthEnabled: crystalGrowthLayer?.enabled ?? false,
+      crystalGrowthOpacity: getLayerParamNumber(crystalGrowthLayer, 'opacity', 1.0),
+      crystalGrowthRate: getLayerParamNumber(crystalGrowthLayer, 'rate', 0.5),
+      crystalGrowthSharpness: getLayerParamNumber(crystalGrowthLayer, 'sharpness', 0.8),
+      technoGridEnabled: technoGridLayer?.enabled ?? false,
+      technoGridOpacity: getLayerParamNumber(technoGridLayer, 'opacity', 1.0),
+      technoGridHeight: getLayerParamNumber(technoGridLayer, 'height', 1.0),
+      technoGridSpeed: getLayerParamNumber(technoGridLayer, 'speed', 1.0),
+      magneticFieldEnabled: magneticLayer?.enabled ?? false,
+      magneticFieldOpacity: getLayerParamNumber(magneticLayer, 'opacity', 1.0),
+      magneticFieldStrength: getLayerParamNumber(magneticLayer, 'strength', 1.0),
+      magneticFieldDensity: getLayerParamNumber(magneticLayer, 'density', 20.0),
+      prismShardsEnabled: prismShardsLayer?.enabled ?? false,
+      prismShardsOpacity: getLayerParamNumber(prismShardsLayer, 'opacity', 1.0),
+      prismShardsRefraction: getLayerParamNumber(prismShardsLayer, 'refraction', 0.5),
+      prismShardsCount: getLayerParamNumber(prismShardsLayer, 'count', 5.0),
+      neuralNetEnabled: neuralNetLayer?.enabled ?? false,
+      neuralNetOpacity: getLayerParamNumber(neuralNetLayer, 'opacity', 1.0),
+      neuralNetActivity: getLayerParamNumber(neuralNetLayer, 'activity', 1.0),
+      neuralNetDensity: getLayerParamNumber(neuralNetLayer, 'density', 1.0),
+      auroraChordEnabled: auroraChordLayer?.enabled ?? false,
+      auroraChordOpacity: getLayerParamNumber(auroraChordLayer, 'opacity', 1.0),
+      auroraChordWaviness: getLayerParamNumber(auroraChordLayer, 'waviness', 1.0),
+      auroraChordColorRange: getLayerParamNumber(auroraChordLayer, 'colorRange', 1.0),
+      vhsGlitchEnabled: vhsGlitchLayer?.enabled ?? false,
+      vhsGlitchOpacity: getLayerParamNumber(vhsGlitchLayer, 'opacity', 1.0),
+      vhsGlitchJitter: getLayerParamNumber(vhsGlitchLayer, 'jitter', 0.2),
+      vhsGlitchNoise: getLayerParamNumber(vhsGlitchLayer, 'noise', 0.3),
+      moirePatternEnabled: moireLayer?.enabled ?? false,
+      moirePatternOpacity: getLayerParamNumber(moireLayer, 'opacity', 1.0),
+      moirePatternScale: getLayerParamNumber(moireLayer, 'scale', 5.0),
+      moirePatternSpeed: getLayerParamNumber(moireLayer, 'speed', 1.0),
+      hypercubeEnabled: hypercubeLayer?.enabled ?? false,
+      hypercubeOpacity: getLayerParamNumber(hypercubeLayer, 'opacity', 1.0),
+      hypercubeProjection: getLayerParamNumber(hypercubeLayer, 'projection', 1.0),
+      hypercubeSpeed: getLayerParamNumber(hypercubeLayer, 'speed', 1.0),
+      fluidSwirlEnabled: fluidSwirlLayer?.enabled ?? false,
+      fluidSwirlOpacity: getLayerParamNumber(fluidSwirlLayer, 'opacity', 1.0),
+      fluidSwirlVorticity: getLayerParamNumber(fluidSwirlLayer, 'vorticity', 1.0),
+      fluidSwirlColorMix: getLayerParamNumber(fluidSwirlLayer, 'colorMix', 1.0),
+      asciiStreamEnabled: asciiLayer?.enabled ?? false,
+      asciiStreamOpacity: getLayerParamNumber(asciiLayer, 'opacity', 1.0),
+      asciiStreamResolution: getLayerParamNumber(asciiLayer, 'resolution', 40.0),
+      asciiStreamContrast: getLayerParamNumber(asciiLayer, 'contrast', 1.0),
+      retroWaveEnabled: retroWaveLayer?.enabled ?? false,
+      retroWaveOpacity: getLayerParamNumber(retroWaveLayer, 'opacity', 1.0),
+      retroWaveSunSize: getLayerParamNumber(retroWaveLayer, 'sunSize', 1.0),
+      retroWaveGridSpeed: getLayerParamNumber(retroWaveLayer, 'gridSpeed', 1.0),
+      bubblePopEnabled: bubblePopLayer?.enabled ?? false,
+      bubblePopOpacity: getLayerParamNumber(bubblePopLayer, 'opacity', 1.0),
+      bubblePopPopRate: getLayerParamNumber(bubblePopLayer, 'popRate', 1.0),
+      bubblePopSize: getLayerParamNumber(bubblePopLayer, 'size', 0.5),
+      soundWave3DEnabled: soundWave3DLayer?.enabled ?? false,
+      soundWave3DOpacity: getLayerParamNumber(soundWave3DLayer, 'opacity', 1.0),
+      soundWave3DAmplitude: getLayerParamNumber(soundWave3DLayer, 'amplitude', 1.0),
+      soundWave3DSmoothness: getLayerParamNumber(soundWave3DLayer, 'smoothness', 1.0),
+      particleVortexEnabled: particleVortexLayer?.enabled ?? false,
+      particleVortexOpacity: getLayerParamNumber(particleVortexLayer, 'opacity', 1.0),
+      particleVortexSuction: getLayerParamNumber(particleVortexLayer, 'suction', 1.0),
+      particleVortexSpin: getLayerParamNumber(particleVortexLayer, 'spin', 1.0),
+      glowWormsEnabled: glowWormsLayer?.enabled ?? false,
+      glowWormsOpacity: getLayerParamNumber(glowWormsLayer, 'opacity', 1.0),
+      glowWormsLength: getLayerParamNumber(glowWormsLayer, 'length', 1.0),
+      glowWormsSpeed: getLayerParamNumber(glowWormsLayer, 'speed', 1.0),
+      mirrorMazeEnabled: mirrorMazeLayer?.enabled ?? false,
+      mirrorMazeOpacity: getLayerParamNumber(mirrorMazeLayer, 'opacity', 1.0),
+      mirrorMazeRecursion: getLayerParamNumber(mirrorMazeLayer, 'recursion', 4.0),
+      mirrorMazeAngle: getLayerParamNumber(mirrorMazeLayer, 'angle', 0.78),
+      pulseHeartEnabled: pulseHeartLayer?.enabled ?? false,
+      pulseHeartOpacity: getLayerParamNumber(pulseHeartLayer, 'opacity', 1.0),
+      pulseHeartBeats: getLayerParamNumber(pulseHeartLayer, 'beats', 1.0),
+      pulseHeartLayers: getLayerParamNumber(pulseHeartLayer, 'layers', 5.0),
+      dataShardsEnabled: dataShardsLayer?.enabled ?? false,
+      dataShardsOpacity: getLayerParamNumber(dataShardsLayer, 'opacity', 1.0),
+      dataShardsSpeed: getLayerParamNumber(dataShardsLayer, 'speed', 1.0),
+      dataShardsSharpness: getLayerParamNumber(dataShardsLayer, 'sharpness', 1.0),
+      hexCellEnabled: hexCellLayer?.enabled ?? false,
+      hexCellOpacity: getLayerParamNumber(hexCellLayer, 'opacity', 1.0),
+      hexCellPulse: getLayerParamNumber(hexCellLayer, 'pulse', 1.0),
+      hexCellScale: getLayerParamNumber(hexCellLayer, 'scale', 1.0),
+      plasmaBallEnabled: plasmaBallLayer?.enabled ?? false,
+      plasmaBallOpacity: getLayerParamNumber(plasmaBallLayer, 'opacity', 1.0),
+      plasmaBallVoltage: getLayerParamNumber(plasmaBallLayer, 'voltage', 1.0),
+      plasmaBallFilaments: getLayerParamNumber(plasmaBallLayer, 'filaments', 5.0),
+      warpDriveEnabled: warpDriveLayer?.enabled ?? false,
+      warpDriveOpacity: getLayerParamNumber(warpDriveLayer, 'opacity', 1.0),
+      warpDriveWarp: getLayerParamNumber(warpDriveLayer, 'warp', 1.0),
+      warpDriveGlow: getLayerParamNumber(warpDriveLayer, 'glow', 1.0),
+      visualFeedbackEnabled: feedbackLayer?.enabled ?? false,
+      visualFeedbackOpacity: getLayerParamNumber(feedbackLayer, 'opacity', 1.0),
+      visualFeedbackZoom: getLayerParamNumber(feedbackLayer, 'zoom', 1.01),
+      visualFeedbackRotation: getLayerParamNumber(feedbackLayer, 'rotation', 0.01),
+      myceliumGrowthEnabled: myceliumLayer?.enabled ?? false,
+      myceliumGrowthOpacity: getLayerParamNumber(myceliumLayer, 'opacity', 1.0),
+      myceliumGrowthSpread: getLayerParamNumber(myceliumLayer, 'spread', 1.0),
+      myceliumGrowthDecay: getLayerParamNumber(myceliumLayer, 'decay', 0.5)
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);

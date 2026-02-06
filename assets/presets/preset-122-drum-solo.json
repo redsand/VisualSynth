@@ -44,6 +44,12 @@
           "params": {
             "rate": 8,
             "mode": 0
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -58,6 +64,12 @@
             "shape": 1,
             "expandSpeed": 3,
             "thickness": 0.05
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         }
       ]
@@ -98,5 +110,24 @@
       "bipolar": false
     }
   ],
-  "macros": []
+  "macros": [],
+  "name": "Drum Solo",
+  "createdAt": "2026-02-05T23:21:07.530Z",
+  "updatedAt": "2026-02-05T23:21:07.530Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

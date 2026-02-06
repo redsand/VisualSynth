@@ -162,5 +162,24 @@
       "targets": [],
       "description": "Controls: Shader Plasma brightness"
     }
-  ]
+  ],
+  "name": "VisualSynth DNA - Feedback Tunnel",
+  "createdAt": "2026-01-26T09:05:12.102Z",
+  "updatedAt": "2026-02-02T01:09:55.217Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

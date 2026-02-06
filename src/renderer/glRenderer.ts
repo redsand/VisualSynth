@@ -267,6 +267,126 @@ export interface RenderState {
   shimmerVeilEnabled: boolean;
   shimmerVeilOpacity: number;
   shimmerVeilComplexity: number;
+  nebulaCloudEnabled: boolean;
+  nebulaCloudOpacity: number;
+  nebulaCloudDensity: number;
+  nebulaCloudSpeed: number;
+  circuitBoardEnabled: boolean;
+  circuitBoardOpacity: number;
+  circuitBoardGrowth: number;
+  circuitBoardComplexity: number;
+  lorenzAttractorEnabled: boolean;
+  lorenzAttractorOpacity: number;
+  lorenzAttractorSpeed: number;
+  lorenzAttractorChaos: number;
+  mandalaSpinnerEnabled: boolean;
+  mandalaSpinnerOpacity: number;
+  mandalaSpinnerSides: number;
+  mandalaSpinnerSpeed: number;
+  starburstGalaxyEnabled: boolean;
+  starburstGalaxyOpacity: number;
+  starburstGalaxyForce: number;
+  starburstGalaxyCount: number;
+  digitalRainV2Enabled: boolean;
+  digitalRainV2Opacity: number;
+  digitalRainV2Speed: number;
+  digitalRainV2Density: number;
+  lavaFlowEnabled: boolean;
+  lavaFlowOpacity: number;
+  lavaFlowHeat: number;
+  lavaFlowViscosity: number;
+  crystalGrowthEnabled: boolean;
+  crystalGrowthOpacity: number;
+  crystalGrowthRate: number;
+  crystalGrowthSharpness: number;
+  technoGridEnabled: boolean;
+  technoGridOpacity: number;
+  technoGridHeight: number;
+  technoGridSpeed: number;
+  magneticFieldEnabled: boolean;
+  magneticFieldOpacity: number;
+  magneticFieldStrength: number;
+  magneticFieldDensity: number;
+  prismShardsEnabled: boolean;
+  prismShardsOpacity: number;
+  prismShardsRefraction: number;
+  prismShardsCount: number;
+  neuralNetEnabled: boolean;
+  neuralNetOpacity: number;
+  neuralNetActivity: number;
+  neuralNetDensity: number;
+  auroraChordEnabled: boolean;
+  auroraChordOpacity: number;
+  auroraChordWaviness: number;
+  auroraChordColorRange: number;
+  vhsGlitchEnabled: boolean;
+  vhsGlitchOpacity: number;
+  vhsGlitchJitter: number;
+  vhsGlitchNoise: number;
+  moirePatternEnabled: boolean;
+  moirePatternOpacity: number;
+  moirePatternScale: number;
+  moirePatternSpeed: number;
+  hypercubeEnabled: boolean;
+  hypercubeOpacity: number;
+  hypercubeProjection: number;
+  hypercubeSpeed: number;
+  fluidSwirlEnabled: boolean;
+  fluidSwirlOpacity: number;
+  fluidSwirlVorticity: number;
+  fluidSwirlColorMix: number;
+  asciiStreamEnabled: boolean;
+  asciiStreamOpacity: number;
+  asciiStreamResolution: number;
+  asciiStreamContrast: number;
+  retroWaveEnabled: boolean;
+  retroWaveOpacity: number;
+  retroWaveSunSize: number;
+  retroWaveGridSpeed: number;
+  bubblePopEnabled: boolean;
+  bubblePopOpacity: number;
+  bubblePopPopRate: number;
+  bubblePopSize: number;
+  soundWave3DEnabled: boolean;
+  soundWave3DOpacity: number;
+  soundWave3DAmplitude: number;
+  soundWave3DSmoothness: number;
+  particleVortexEnabled: boolean;
+  particleVortexOpacity: number;
+  particleVortexSuction: number;
+  particleVortexSpin: number;
+  glowWormsEnabled: boolean;
+  glowWormsOpacity: number;
+  glowWormsLength: number;
+  glowWormsSpeed: number;
+  mirrorMazeEnabled: boolean;
+  mirrorMazeOpacity: number;
+  mirrorMazeRecursion: number;
+  mirrorMazeAngle: number;
+  pulseHeartEnabled: boolean;
+  pulseHeartOpacity: number;
+  pulseHeartBeats: number;
+  pulseHeartLayers: number;
+  dataShardsEnabled: boolean;
+  dataShardsOpacity: number;
+  dataShardsSpeed: number;
+  dataShardsSharpness: number;
+  hexCellEnabled: boolean;
+  hexCellOpacity: number;
+  hexCellPulse: number;
+  hexCellScale: number;
+  plasmaBallEnabled: boolean;
+  plasmaBallOpacity: number;
+  plasmaBallVoltage: number;
+  plasmaBallFilaments: number;
+  warpDriveEnabled: boolean;
+  warpDriveOpacity: number;
+  warpDriveWarp: number;
+  warpDriveGlow: number;
+  visualFeedbackEnabled: boolean;
+  visualFeedbackOpacity: number;
+  visualFeedbackZoom: number;
+  visualFeedbackRotation: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -281,12 +401,17 @@ export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
   return false;
 };
 
-export const createGLRenderer = (canvas: HTMLCanvasElement) => {
+export interface RendererOptions {
+  onError?: (error: string, type: 'vertex' | 'fragment' | 'link') => void;
+}
+
+export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOptions = {}) => {
   const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
   if (!gl) {
     throw new Error('WebGL2 required');
   }
 
+  let lastShaderError: string | null = null;
   let customPlasmaSource: string | null = null;
 
   const vertexShaderSrc = `#version 300 es
@@ -579,6 +704,132 @@ uniform float uShimmerVeilEnabled;
 uniform float uShimmerVeilOpacity;
 uniform float uShimmerVeilComplexity;
 
+// --- New 31 Generators ---
+uniform float uNebulaCloudEnabled;
+uniform float uNebulaCloudOpacity;
+uniform float uNebulaCloudDensity;
+uniform float uNebulaCloudSpeed;
+uniform float uCircuitBoardEnabled;
+uniform float uCircuitBoardOpacity;
+uniform float uCircuitBoardGrowth;
+uniform float uCircuitBoardComplexity;
+uniform float uLorenzAttractorEnabled;
+uniform float uLorenzAttractorOpacity;
+uniform float uLorenzAttractorSpeed;
+uniform float uLorenzAttractorChaos;
+uniform float uMandalaSpinnerEnabled;
+uniform float uMandalaSpinnerOpacity;
+uniform float uMandalaSpinnerSides;
+uniform float uMandalaSpinnerSpeed;
+uniform float uStarburstGalaxyEnabled;
+uniform float uStarburstGalaxyOpacity;
+uniform float uStarburstGalaxyForce;
+uniform float uStarburstGalaxyCount;
+uniform float uDigitalRainV2Enabled;
+uniform float uDigitalRainV2Opacity;
+uniform float uDigitalRainV2Speed;
+uniform float uDigitalRainV2Density;
+uniform float uLavaFlowEnabled;
+uniform float uLavaFlowOpacity;
+uniform float uLavaFlowHeat;
+uniform float uLavaFlowViscosity;
+uniform float uCrystalGrowthEnabled;
+uniform float uCrystalGrowthOpacity;
+uniform float uCrystalGrowthRate;
+uniform float uCrystalGrowthSharpness;
+uniform float uTechnoGridEnabled;
+uniform float uTechnoGridOpacity;
+uniform float uTechnoGridHeight;
+uniform float uTechnoGridSpeed;
+uniform float uMagneticFieldEnabled;
+uniform float uMagneticFieldOpacity;
+uniform float uMagneticFieldStrength;
+uniform float uMagneticFieldDensity;
+uniform float uPrismShardsEnabled;
+uniform float uPrismShardsOpacity;
+uniform float uPrismShardsRefraction;
+uniform float uPrismShardsCount;
+uniform float uNeuralNetEnabled;
+uniform float uNeuralNetOpacity;
+uniform float uNeuralNetActivity;
+uniform float uNeuralNetDensity;
+uniform float uAuroraChordEnabled;
+uniform float uAuroraChordOpacity;
+uniform float uAuroraChordWaviness;
+uniform float uAuroraChordColorRange;
+uniform float uVhsGlitchEnabled;
+uniform float uVhsGlitchOpacity;
+uniform float uVhsGlitchJitter;
+uniform float uVhsGlitchNoise;
+uniform float uMoirePatternEnabled;
+uniform float uMoirePatternOpacity;
+uniform float uMoirePatternScale;
+uniform float uMoirePatternSpeed;
+uniform float uHypercubeEnabled;
+uniform float uHypercubeOpacity;
+uniform float uHypercubeProjection;
+uniform float uHypercubeSpeed;
+uniform float uFluidSwirlEnabled;
+uniform float uFluidSwirlOpacity;
+uniform float uFluidSwirlVorticity;
+uniform float uFluidSwirlColorMix;
+uniform float uAsciiStreamEnabled;
+uniform float uAsciiStreamOpacity;
+uniform float uAsciiStreamResolution;
+uniform float uAsciiStreamContrast;
+uniform float uRetroWaveEnabled;
+uniform float uRetroWaveOpacity;
+uniform float uRetroWaveSunSize;
+uniform float uRetroWaveGridSpeed;
+uniform float uBubblePopEnabled;
+uniform float uBubblePopOpacity;
+uniform float uBubblePopPopRate;
+uniform float uBubblePopSize;
+uniform float uSoundWave3DEnabled;
+uniform float uSoundWave3DOpacity;
+uniform float uSoundWave3DAmplitude;
+uniform float uSoundWave3DSmoothness;
+uniform float uParticleVortexEnabled;
+uniform float uParticleVortexOpacity;
+uniform float uParticleVortexSuction;
+uniform float uParticleVortexSpin;
+uniform float uGlowWormsEnabled;
+uniform float uGlowWormsOpacity;
+uniform float uGlowWormsLength;
+uniform float uGlowWormsSpeed;
+uniform float uMirrorMazeEnabled;
+uniform float uMirrorMazeOpacity;
+uniform float uMirrorMazeRecursion;
+uniform float uMirrorMazeAngle;
+uniform float uPulseHeartEnabled;
+uniform float uPulseHeartOpacity;
+uniform float uPulseHeartBeats;
+uniform float uPulseHeartLayers;
+uniform float uDataShardsEnabled;
+uniform float uDataShardsOpacity;
+uniform float uDataShardsSpeed;
+uniform float uDataShardsSharpness;
+uniform float uHexCellEnabled;
+uniform float uHexCellOpacity;
+uniform float uHexCellPulse;
+uniform float uHexCellScale;
+uniform float uPlasmaBallEnabled;
+uniform float uPlasmaBallOpacity;
+uniform float uPlasmaBallVoltage;
+uniform float uPlasmaBallFilaments;
+uniform float uWarpDriveEnabled;
+uniform float uWarpDriveOpacity;
+uniform float uWarpDriveWarp;
+uniform float uWarpDriveGlow;
+uniform float uVisualFeedbackEnabled;
+uniform float uVisualFeedbackOpacity;
+uniform float uVisualFeedbackZoom;
+uniform float uVisualFeedbackRotation;
+uniform float uMyceliumGrowthEnabled;
+uniform float uMyceliumGrowthOpacity;
+uniform float uMyceliumGrowthSpread;
+uniform float uMyceliumGrowthDecay;
+
 // --- Advanced SDF Injections ---
 uniform float uAdvancedSdfEnabled;
 uniform vec3 uSdfLightDir;
@@ -619,7 +870,7 @@ vec3 getSdfColor(float id) {
 float calcSdfShadow(vec3 ro, vec3 rd, float k) {
   float res = 1.0;
   float t = 0.01;
-  for(int i = 0; i < 16; i++) {
+  for (float i = 0.0; i < 16.0; i += 1.0) {
     float h = advancedSdfMap(ro + rd * t).x;
     res = min(res, k * h / t);
     t += clamp(h, 0.01, 0.2);
@@ -631,8 +882,8 @@ float calcSdfShadow(vec3 ro, vec3 rd, float k) {
 float calcSdfAO(vec3 p, vec3 n) {
   float occ = 0.0;
   float sca = 1.0;
-  for(int i = 0; i < 5; i++) {
-    float hr = 0.01 + 0.12 * float(i) / 4.0;
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    float hr = 0.01 + 0.12 * i / 4.0;
     float d = advancedSdfMap(p + n * hr).x;
     occ += (hr - d) * sca;
     sca *= 0.95;
@@ -710,7 +961,7 @@ float fbm(vec2 p) {
   float a = 0.5;
   vec2 shift = vec2(100.0);
   mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
-  for (int i = 0; i < 6; ++i) {
+  for (float i = 0.0; i < 6.0; i += 1.0) {
     v += a * noise(p);
     p = rot * p * 2.0 + shift;
     a *= 0.5;
@@ -825,7 +1076,7 @@ float plasmaDefault(vec2 uv, float t) {
   vec2 p = uv * uPlasmaScale;
   float audio = (uRms * 0.5 + uPeak * 0.5) * uPlasmaAudioReact;
   
-  for (float i = 1.0; i < 9.0; i++) {
+  for (float i = 1.0; i < 9.0; i += 1.0) {
       if (i > uPlasmaComplexity) break;
       v += sin(p.x * i + t * uPlasmaSpeed * (1.0 + i * 0.1) + audio * i);
       v += sin(p.y * i - t * uPlasmaSpeed * (1.1 + i * 0.15) + audio * 0.5);
@@ -1003,8 +1254,8 @@ float lightningBolt(vec2 uv, float t, float audio) {
   float branches = uLightningBranches; 
   float thickness = uLightningThickness; 
   
-  for (float i = 0.0; i < 3.0; i++) {
-    if (i >= branches) break;
+  for (float i = 0.0; i < 3.0; i += 1.0) {
+    if (i >= uLightningBranches) break;
     float t2 = t * uLightningSpeed * (1.0 + i * 0.5) + i * 135.2;
     vec2 seed = vec2(t2 * 0.5, t2 * 0.2);
     
@@ -1062,7 +1313,7 @@ vec3 laserStarfield(vec2 uv, float t, float audio) {
   p.x *= uAspect;
   vec3 col = vec3(0.0);
   float layers = 3.0;
-  for(float i=0.0; i<layers; i++) {
+  for (float i = 0.0; i < layers; i += 1.0) {
     float depth = fract(t * uLaserStarfieldSpeed * 0.1 + i/layers);
     float scale = mix(20.0, 0.1, depth);
     float fade = depth * smoothstep(1.0, 0.8, depth);
@@ -1080,7 +1331,7 @@ vec3 laserStarfield(vec2 uv, float t, float audio) {
 
 vec3 pulsingRibbons(vec2 uv, float t, float audio) {
   vec3 col = vec3(0.0);
-  for(float i=0.0; i<uPulsingRibbonsCount; i++) {
+  for (float i = 0.0; i < uPulsingRibbonsCount; i += 1.0) {
     float offset = i * 0.2;
     float wave = sin(uv.x * 5.0 + t * 2.0 + offset) * 0.2;
     wave += sin(uv.x * 10.0 - t * 1.5) * 0.1;
@@ -1140,7 +1391,7 @@ vec3 infiniteWormhole(vec2 uv, float t, float audio) {
   float uv_z = z + t * uWormholeSpeed;
   
   float col = 0.0;
-  for(float i=0.0; i<uWormholeIter; i++) {
+  for (float i = 0.0; i < uWormholeIter; i += 1.0) {
     float shift = i * 0.5;
     col += smoothstep(0.1, 0.0, abs(sin(a * 3.0 + uv_z + shift) * 0.5));
   }
@@ -1170,7 +1421,7 @@ vec3 fractalTunnel(vec2 uv, float t, float audio) {
   float col = 0.0;
   float z = t * uFractalTunnelSpeed;
   
-  for(int i=0; i<4; i++) {
+  for (float i = 0.0; i < 4.0; i += 1.0) {
     p = abs(p) / dot(p,p) - 0.5;
     p = rotate2d(p, z * 0.1);
     col += exp(-length(p) * (5.0 - uFractalTunnelComplexity));
@@ -1216,7 +1467,7 @@ vec3 dataStream(vec2 uv, float t, float audio) {
 
 vec3 causticLiquid(vec2 uv, float t, float audio) {
   vec2 p = uv * 5.0;
-  for(int i=0; i<3; i++) {
+  for (float i = 0.0; i < 3.0; i += 1.0) {
     p += sin(p.yx * 1.5 + t * uCausticLiquidSpeed) * 0.5;
   }
   float c = sin(p.x + p.y) * 0.5 + 0.5;
@@ -1226,6 +1477,343 @@ vec3 causticLiquid(vec2 uv, float t, float audio) {
 vec3 shimmerVeil(vec2 uv, float t, float audio) {
   float v = sin(uv.x * 10.0 + t) * sin(uv.y * uShimmerVeilComplexity + t * 0.5);
   return vec3(0.8, 0.9, 1.0) * smoothstep(0.1, 0.0, abs(v)) * uShimmerVeilOpacity * (1.0 + audio);
+}
+
+// --- New 31 Generators Helper Functions ---
+vec3 nebulaCloud(vec2 uv, float t, float audio) {
+  vec2 p = uv * uNebulaCloudDensity;
+  float n = fbm(p + t * uNebulaCloudSpeed);
+  float n2 = fbm(p * 2.0 - t * uNebulaCloudSpeed * 0.5);
+  vec3 col = palette(n + n2 + audio * 0.2);
+  return col * pow(n, 3.0) * uNebulaCloudOpacity;
+}
+
+vec3 circuitBoard(vec2 uv, float t, float audio) {
+  vec2 p = uv * uCircuitBoardComplexity;
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+  float h = hash21(id);
+  float growth = fract(t * uCircuitBoardGrowth + h);
+  float line = smoothstep(0.1, 0.0, abs(f.x - 0.5)) * step(f.y, growth);
+  float node = smoothstep(0.2, 0.0, length(f - 0.5)) * step(0.9, h);
+  return vec3(0.2, 0.6, 1.0) * (line + node * (1.0 + audio)) * uCircuitBoardOpacity;
+}
+
+vec3 lorenzAttractor(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float d = 10000000000.0;
+  vec3 curr = vec3(0.1, 0.0, 0.0);
+  float dt = 0.01 * uLorenzAttractorSpeed;
+  for (float i = 0.0; i < 20.0; i += 1.0) {
+    vec3 next;
+    next.x = curr.x + dt * 10.0 * (curr.y - curr.x);
+    next.y = curr.y + dt * (curr.x * (28.0 - curr.z) - curr.y);
+    next.z = curr.z + dt * (curr.x * curr.y - (8.0/3.0) * curr.z);
+    curr = next;
+    d = min(d, length(p - curr.xy * 0.05 * uLorenzAttractorChaos));
+  }
+  return palette(t * 0.1) * smoothstep(0.05, 0.0, d) * uLorenzAttractorOpacity;
+}
+
+vec3 mandalaSpinner(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  p.x *= uAspect;
+  float r = length(p);
+  float a = atan(p.y, p.x) + t * uMandalaSpinnerSpeed;
+  float sides = uMandalaSpinnerSides;
+  a = mod(a, 6.28/sides) - 3.14/sides;
+  p = vec2(cos(a), sin(a)) * r;
+  float mask = smoothstep(0.02, 0.0, abs(p.y - sin(p.x * 10.0 + t) * 0.1));
+  return palette(r + audio) * mask * uMandalaSpinnerOpacity;
+}
+
+vec3 starburstGalaxy(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  p.x *= uAspect;
+  vec3 col = vec3(0.0);
+  for (float i = 0.0; i < 10.0; i += 1.0) { // Sample limited stars for performance
+    float h = hash21(vec2(i, 123.4));
+    float burst = fract(t * uStarburstGalaxyForce + h);
+    vec2 dir = vec2(cos(h * 6.28), sin(h * 6.28));
+    vec2 pos = dir * burst * 1.5;
+    float star = smoothstep(0.05, 0.0, length(p - pos));
+    col += palette(h) * star * (1.0 - burst);
+  }
+  return col * uStarburstGalaxyOpacity * (1.0 + audio);
+}
+
+vec3 digitalRainV2(vec2 uv, float t, float audio) {
+  vec2 p = uv * vec2(30.0, 1.0);
+  float col_id = floor(p.x);
+  float h = hash21(vec2(col_id, 456.7));
+  float speed = uDigitalRainV2Speed * (0.5 + h);
+  float drop = fract(uv.y + t * speed + h);
+  float mask = step(0.9, fract(p.x)) * smoothstep(0.2, 0.0, abs(drop - 0.5));
+  return vec3(0.0, 1.0, 0.2) * mask * uDigitalRainV2Opacity * (1.0 + audio);
+}
+
+vec3 lavaFlow(vec2 uv, float t, float audio) {
+  vec2 p = uv * 3.0;
+  float n = fbm(p + vec2(t * 0.2 * uLavaFlowViscosity));
+  float heat = smoothstep(0.4, 0.6, n * uLavaFlowHeat);
+  return vec3(1.0, 0.3, 0.0) * heat * uLavaFlowOpacity * (1.0 + audio * 0.5);
+}
+
+vec3 crystalGrowth(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float d = 10000000000.0;
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    p = abs(p) - 0.5;
+    p = rotate2d(p, t * uCrystalGrowthRate * 0.1);
+    d = min(d, abs(p.x));
+  }
+  float edge = smoothstep(0.01 * uCrystalGrowthSharpness, 0.0, d);
+  return palette(audio) * edge * uCrystalGrowthOpacity;
+}
+
+vec3 technoGrid3D(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  float z = 1.0 / (abs(p.y) + 0.01);
+  vec2 grid_uv = vec2(p.x * z, z + t * uTechnoGridSpeed);
+  float grid = step(0.95, fract(grid_uv.x * 5.0)) + step(0.95, fract(grid_uv.y * 5.0));
+  float towers = step(0.98, hash21(floor(grid_uv * 5.0))) * z * uTechnoGridHeight * 0.1;
+  return vec3(0.0, 0.5, 1.0) * (grid + towers) * uTechnoGridOpacity * (1.0 + audio);
+}
+
+vec3 magneticField(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  vec3 col = vec3(0.0);
+  float lines = uMagneticFieldDensity;
+  for (float i = 0.0; i < 20.0; i += 1.0) {
+    if (i >= float(lines)) break;
+    float h = i / lines;
+    vec2 force = vec2(sin(t + h * 6.28), cos(t * 0.5 + h * 6.28)) * uMagneticFieldStrength;
+    float d = abs(length(p - force) - 0.5);
+    col += palette(h) * smoothstep(0.02, 0.0, d);
+  }
+  return col * uMagneticFieldOpacity * (1.0 + audio);
+}
+
+vec3 prismShards(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  vec3 col = vec3(0.0);
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    if (i >= float(uPrismShardsCount)) break;
+    vec2 pos = vec2(hash21(vec2(i, 1.1)), hash21(vec2(i, 2.2)));
+    float dist = length(p - pos);
+    float refract_val = uPrismShardsRefraction * sin(t + i);
+    col += palette(dist + refract_val) * smoothstep(0.1, 0.0, dist);
+  }
+  return col * uPrismShardsOpacity * (1.0 + audio);
+}
+
+vec3 neuralNet(vec2 uv, float t, float audio) {
+  vec2 p = uv * 10.0 * uNeuralNetDensity;
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+  float col = 0.0;
+  for (float y = -1.0; y <= 1.0; y += 1.0) {
+    for (float x = -1.0; x <= 1.0; x += 1.0) {
+      vec2 neighbor = vec2(x, y);
+      float h = hash21(id + neighbor);
+      vec2 pt = neighbor + sin(t * uNeuralNetActivity + h * 6.28) * 0.5;
+      float d = length(f - pt);
+      col += smoothstep(0.1, 0.0, d);
+    }
+  }
+  return vec3(0.5, 0.8, 1.0) * col * uNeuralNetOpacity * (1.0 + audio);
+}
+
+vec3 auroraChord(vec2 uv, float t, float audio) {
+  float v = 0.0;
+  for (float i = 0.0; i < 3.0; i += 1.0) {
+    float shift = i * uAuroraChordColorRange;
+    v += sin(uv.x * 5.0 + t + shift) * sin(uv.y * 2.0 - t * 0.5);
+  }
+  return palette(v * 0.2 + t * 0.1) * abs(v) * uAuroraChordOpacity * uAuroraChordWaviness;
+}
+
+vec3 vhsGlitch(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  p.x += (hash21(vec2(t, floor(uv.y * 10.0))) - 0.5) * uVhsGlitchJitter * 0.1;
+  float noise = hash21(uv + t) * uVhsGlitchNoise;
+  vec3 col = vec3(noise);
+  if (abs(uv.y - fract(t)) < 0.01) col.r = 1.0;
+  return col * uVhsGlitchOpacity * (1.0 + audio);
+}
+
+vec3 moirePattern(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * uMoirePatternScale;
+  float v1 = sin(p.x * 10.0 + t * uMoirePatternSpeed);
+  vec2 p2 = rotate2d(p, t * 0.2);
+  float v2 = sin(p2.x * 10.0);
+  float moire = v1 * v2;
+  return vec3(moire) * uMoirePatternOpacity * (1.0 + audio);
+}
+
+vec3 hypercube(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float rot = t * uHypercubeSpeed;
+  p = rotate2d(p, rot);
+  float box = max(abs(p.x), abs(p.y));
+  float inner = max(abs(p.x), abs(p.y)) * uHypercubeProjection;
+  float mask = smoothstep(0.5, 0.48, box) - smoothstep(0.4, 0.38, box);
+  mask += (smoothstep(0.3, 0.28, inner) - smoothstep(0.2, 0.18, inner));
+  return palette(rot) * mask * uHypercubeOpacity * (1.0 + audio);
+}
+
+vec3 fluidSwirl(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  for (float i = 0.0; i < 3.0; i += 1.0) {
+    p += sin(p.yx * 4.0 + t) * 0.1 * uFluidSwirlVorticity;
+  }
+  float swirl = length(p - uv);
+  return palette(swirl * uFluidSwirlColorMix) * swirl * 10.0 * uFluidSwirlOpacity;
+}
+
+vec3 asciiStream(vec2 uv, float t, float audio) {
+  vec2 p = floor(uv * uAsciiStreamResolution) / uAsciiStreamResolution;
+  float h = hash21(p + floor(t * 10.0));
+  float bright = (sin(uv.x * 10.0) + sin(uv.y * 10.0)) * 0.5 + 0.5;
+  float mask = step(0.5, fract(h * 10.0));
+  return vec3(0.0, 1.0, 0.0) * mask * bright * uAsciiStreamContrast * uAsciiStreamOpacity;
+}
+
+vec3 retroWave(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  float grid = technoGrid3D(uv, t, uRetroWaveGridSpeed).b;
+  float sun = smoothstep(uRetroWaveSunSize * 0.4, uRetroWaveSunSize * 0.38, length(p - vec2(0.0, 0.3)));
+  if (p.y < 0.3 && fract(p.y * 20.0) < 0.2) sun = 0.0;
+  return (vec3(1.0, 0.0, 0.5) * sun + vec3(0.0, 0.8, 1.0) * grid) * uRetroWaveOpacity;
+}
+
+vec3 bubblePop(vec2 uv, float t, float audio) {
+  vec2 p = uv * 5.0;
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+  float h = hash21(id);
+  float size = fract(t * uBubblePopPopRate + h) * uBubblePopSize;
+  float bubble = smoothstep(size, size - 0.02, length(f - 0.5));
+  return palette(h) * bubble * uBubblePopOpacity * (1.0 + audio);
+}
+
+vec3 soundWave3D(vec2 uv, float t, float audio) {
+  float z = 1.0 / (uv.y + 0.01);
+  float wave = getWaveform(uv.x * uSoundWave3DSmoothness) * uSoundWave3DAmplitude;
+  float d = abs(uv.y - 0.5 - wave * 0.2);
+  return palette(wave) * smoothstep(0.02, 0.0, d) * uSoundWave3DOpacity;
+}
+
+vec3 particleVortex(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float r = length(p);
+  float a = atan(p.y, p.x) + t * uParticleVortexSpin + r * uParticleVortexSuction;
+  vec2 pv = vec2(cos(a), sin(a)) * r;
+  float dots = step(0.99, hash21(floor(pv * 20.0)));
+  return palette(r) * dots * uParticleVortexOpacity * (1.0 + audio);
+}
+
+vec3 glowWorms(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float worm = 0.0;
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    vec2 pos = vec2(sin(t * uGlowWormsSpeed + i), cos(t * 0.7 * uGlowWormsSpeed + i)) * 0.4 + 0.5;
+    float d = length(p - pos);
+    worm += exp(-d * (10.0 / uGlowWormsLength));
+  }
+  return palette(audio) * worm * uGlowWormsOpacity;
+}
+
+vec3 mirrorMaze(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  for (float i = 0.0; i < 8.0; i += 1.0) {
+    if (i >= float(uMirrorMazeRecursion)) break;
+    p = abs(p) - 0.2;
+    p = rotate2d(p, uMirrorMazeAngle);
+  }
+  float d = length(p);
+  return palette(d + t) * smoothstep(0.1, 0.0, d) * uMirrorMazeOpacity;
+}
+
+vec3 pulseHeart(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float r = length(p);
+  float pulse = sin(t * 5.0 * uPulseHeartBeats) * 0.1 + 0.5;
+  float heart = 0.0;
+  for (float i = 0.0; i < 10.0; i += 1.0) {
+    if (i >= float(uPulseHeartLayers)) break;
+    float radius = pulse * (i / uPulseHeartLayers);
+    heart += smoothstep(radius, radius - 0.02, r) - smoothstep(radius - 0.04, radius - 0.06, r);
+  }
+  return vec3(1.0, 0.1, 0.2) * heart * uPulseHeartOpacity * (1.0 + audio);
+}
+
+vec3 dataShards(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  vec3 col = vec3(0.0);
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    float h = hash21(vec2(i, 88.8));
+    vec2 dir = vec2(cos(t * uDataShardsSpeed + h * 6.28), sin(t * uDataShardsSpeed + h * 6.28));
+    float shard = smoothstep(0.1 * uDataShardsSharpness, 0.0, abs(dot(p, dir) - h));
+    col += palette(h) * shard;
+  }
+  return col * uDataShardsOpacity * (1.0 + audio);
+}
+
+vec3 hexCell(vec2 uv, float t, float audio) {
+  vec2 p = uv * 10.0 * uHexCellScale;
+  vec2 r = vec2(1.0, 1.73);
+  vec2 h = r * 0.5;
+  vec2 a = mod(p, r) - h;
+  vec2 b = mod(p - h, r) - h;
+  vec2 gv = dot(a, a) < dot(b, b) ? a : b;
+  float d = length(gv);
+  float pulse = sin(t * uHexCellPulse) * 0.1 + 0.4;
+  float hex = smoothstep(pulse, pulse - 0.05, d);
+  return palette(d) * hex * uHexCellOpacity * (1.0 + audio);
+}
+
+vec3 plasmaBall(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float col = 0.0;
+  for (float i = 0.0; i < 20.0; i += 1.0) {
+    if (i >= float(uPlasmaBallFilaments)) break;
+    float h = i * 123.4;
+    vec2 target = vec2(sin(t + h), cos(t * 0.5 + h)) * 0.8;
+    float line = smoothstep(0.02, 0.0, abs(length(p - target * sin(t)) - 0.1));
+    col += line;
+  }
+  return vec3(0.6, 0.2, 1.0) * col * uPlasmaBallVoltage * uPlasmaBallOpacity;
+}
+
+vec3 warpDrive(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float a = atan(p.y, p.x);
+  float r = length(p);
+  float streaks = step(0.95, hash21(vec2(floor(a * 20.0), 1.0)));
+  float star = streaks * smoothstep(1.0, 0.0, fract(r - t * uWarpDriveWarp));
+  return vec3(0.8, 0.9, 1.0) * star * uWarpDriveGlow * uWarpDriveOpacity * (1.0 + audio);
+}
+
+vec3 visualFeedback(vec2 uv, float t, float audio) {
+  // This is a pseudo-feedback since we can't easily sample the backbuffer here     
+  // We simulate it with recursive coordinate warping
+  vec2 p = uv;
+  float f = 0.0;
+  for (float i = 0.0; i < 4.0; i += 1.0) {
+    p = (p - 0.5) * uVisualFeedbackZoom + 0.5;
+    p = rotate2d(p - 0.5, uVisualFeedbackRotation) + 0.5;
+    f += fbm(p * 5.0 + t);
+  }  return palette(f * 0.2) * f * 0.5 * uVisualFeedbackOpacity;
+}
+
+vec3 myceliumGrowth(vec2 uv, float t, float audio) {
+  vec2 p = uv * 5.0;
+  float n = fbm(p + t * 0.1 * uMyceliumGrowthSpread);
+  float pattern = smoothstep(0.4, 0.5, n);
+  pattern -= smoothstep(0.5, 0.6, n);
+  float decay = exp(-t * uMyceliumGrowthDecay * 0.1);
+  return palette(n + audio) * pattern * decay * uMyceliumGrowthOpacity;
 }
 
 // --- EDM Generator Functions ---
@@ -1246,7 +1834,7 @@ vec3 laserBeam(vec2 uv, float t, float audio) {
   vec3 color = vec3(0.0);
   float beamCount = (uLaserMode > 3.5) ? 1.0 : uLaserBeamCount;
 
-  for (float i = 0.0; i < 16.0; i++) {
+  for (float i = 0.0; i < 16.0; i += 1.0) {
     if (i >= beamCount) break;
 
     float angle;
@@ -1360,10 +1948,10 @@ vec3 shapeBurst(vec2 uv, float t) {
   centered.x *= uAspect;
   vec3 color = vec3(0.0);
 
-  for (int i = 0; i < 8; i++) {
-    if (uBurstActives[i] < 0.5) continue;
+  for (float i = 0.0; i < 8.0; i += 1.0) {
+    if (uBurstActives[int(i)] < 0.5) continue;
 
-    float age = t - uBurstSpawnTimes[i];
+    float age = t - uBurstSpawnTimes[int(i)];
     if (age < 0.0) continue;
 
     float size = uShapeBurstStartSize + age * uShapeBurstExpandSpeed;
@@ -1494,13 +2082,13 @@ ${plasmaSource ?? ''}
 void main() {
   vec2 uv = vUv;
   float low = 0.0;
-  for (int i = 0; i < 8; i += 1) { low += uSpectrum[i]; }
+  for (float i = 0.0; i < 8.0; i += 1.0) { low += uSpectrum[int(i)]; }
   low /= 8.0;
   float mid = 0.0;
-  for (int i = 8; i < 24; i += 1) { mid += uSpectrum[i]; }
+  for (float i = 8.0; i < 24.0; i += 1.0) { mid += uSpectrum[int(i)]; }
   mid /= 16.0;
   float high = 0.0;
-  for (int i = 24; i < 64; i += 1) { high += uSpectrum[i]; }
+  for (float i = 24.0; i < 64.0; i += 1.0) { high += uSpectrum[int(i)]; }
   high /= 40.0;
   
   // Apply Motion Template Distortion
@@ -1673,28 +2261,27 @@ void main() {
     color = applyBlendMode(color, assetColor, uMediaAssetBlend, alpha);
   }
   if (uMediaEnabled > 0.5) {
-    for (int i = 0; i < 8; i += 1) {
-      float activeAmt = uMediaBurstActive[i];
-      if (activeAmt <= 0.01) continue;
-      vec2 delta = effectUv - uMediaBurstPos[i];
-      float r = uMediaBurstRadius[i];
-      float w = 0.01 + activeAmt * 0.015;
-      float type = uMediaBurstType[i];
-      float shape = 0.0;
-      if (type < 0.5) {
-        float dist = length(delta);
-        shape = smoothstep(r + w, r, dist) * smoothstep(r, r - w * 2.2, dist);
-      } else if (type < 1.5) {
-        float t = sdEquilateralTriangle(delta, r);
-        shape = smoothstep(w, 0.0, abs(t));
-      } else {
-        float line = smoothstep(w, 0.0, abs(delta.y)) * smoothstep(r, r - w * 6.0, abs(delta.x));
-        shape = line;
-      }
-      vec3 burstColor = palette(fract(float(i) * 0.17 + uPaletteShift * 0.2));
-      color += burstColor * shape * activeAmt * uMediaOpacity * uRoleWeights.y;
-    }
-  }
+      for (float i = 0.0; i < 8.0; i += 1.0) {
+        float activeAmt = uMediaBurstActive[int(i)];
+        if (activeAmt <= 0.01) continue;
+        vec2 delta = effectUv - uMediaBurstPos[int(i)];
+        float r = uMediaBurstRadius[int(i)];
+        float w = 0.01 + activeAmt * 0.015;
+        float type = uMediaBurstType[int(i)];
+        float shape = 0.0;
+        if (type < 0.5) {
+          float dist = length(delta);
+          shape = smoothstep(r + w, r, dist) * smoothstep(r, r - w * 2.2, dist);
+        } else if (type < 1.5) {
+          float t = sdEquilateralTriangle(delta, r);
+          shape = smoothstep(w, 0.0, abs(t));
+        } else {
+          float line = smoothstep(w, 0.0, abs(delta.y)) * smoothstep(r, r - w * 6.0, abs(delta.x));
+          shape = line;
+        }
+        vec3 burstColor = palette(fract(i * 0.17 + uPaletteShift * 0.2));
+        color += burstColor * shape * activeAmt * uMediaOpacity * uRoleWeights.y;
+      }  }
   if (uGlyphEnabled > 0.5) {
     vec2 grid = vec2(18.0, 10.0);
     vec2 cell = floor(effectUv * grid);
@@ -1790,8 +2377,8 @@ void main() {
   if (uOscilloEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     float rot = uOscilloRotate * 0.6 + uTime * 0.12 * (1.0 - uOscilloFreeze), minDist = 10.0, arcGlow = 0.0;
-    for (int i = 0; i < 64; i += 1) {
-      float t = float(i) / 63.0, rad = 0.28 + oscilloSample(t) * 0.22 + uRms * 0.12;
+    for (float i = 0.0; i < 64.0; i += 1.0) {
+      float t = i / 63.0, rad = 0.28 + oscilloSample(t) * 0.22 + uRms * 0.12;
       vec2 p = rotate2d(vec2(cos(t * 6.28318 * (1.0 + floor(uOscilloMode) * 0.35)), sin(t * 6.28318 * (1.0 + floor(uOscilloMode) * 0.35))) * rad, rot);
       minDist = min(minDist, length(centered - p));
       arcGlow += smoothstep(0.08, 0.0, abs(length(centered) - (rad + 0.06 * sin(t * 12.0 + uTime * 0.3)))) * 0.2;
@@ -1833,7 +2420,7 @@ void main() {
       vec3 ro = uCameraPos;
       vec3 rd = getRayDirection(uv, ro, uCameraTarget, uCameraFov);
       float t = 0.0; vec2 res = vec2(0.0); bool hit = false;
-      for (int i = 0; i < 64; i++) {
+      for (float i = 0.0; i < 64.0; i += 1.0) {
         vec3 p = ro + rd * t; res = advancedSdfMap(p); 
         if (res.x < 0.001) { hit = true; break; }
         if (t > 10.0) break;
@@ -1889,11 +2476,11 @@ void main() {
     if (uAnalogOscilloColor > 0.5 && uAnalogOscilloColor < 1.5) oscCol = vec3(1.0, 0.2, 0.1); // Red
     else if (uAnalogOscilloColor > 1.5) oscCol = vec3(0.2, 1.0, 0.2); // Green
     
-    color += oscCol * oscVal * uRoleWeights.core;
+    color += oscCol * oscVal * uRoleWeights.x;
   }
   
   if (uGlitchScanlineEnabled > 0.5) {
-    color += glitchScanline(effectUv, uTime, low) * uRoleWeights.atmosphere;
+    color += glitchScanline(effectUv, uTime, low) * uRoleWeights.z;
   }
   
   // Speaker cone distortion applied to future layers if I were processing texture, 
@@ -1904,56 +2491,90 @@ void main() {
      vec2 distorted = speakerCone(effectUv, low);
      float dist = length(distorted - 0.5);
      float ring = smoothstep(0.02, 0.0, abs(dist - 0.4)) * uSpeakerConeOpacity;
-     color += vec3(0.2, 0.0, 0.0) * ring * uRoleWeights.atmosphere;
+     color += vec3(0.2, 0.0, 0.0) * ring * uRoleWeights.z;
   }
 
   if (uLaserStarfieldEnabled > 0.5) {
-    color += laserStarfield(effectUv, uTime, high) * uRoleWeights.core;
+    color += laserStarfield(effectUv, uTime, high) * uRoleWeights.x;
   }
   if (uPulsingRibbonsEnabled > 0.5) {
-    color += pulsingRibbons(effectUv, uTime, mid) * uRoleWeights.support;
+    color += pulsingRibbons(effectUv, uTime, mid) * uRoleWeights.y;
   }
   if (uElectricArcEnabled > 0.5) {
-    color += electricArc(effectUv, uTime, mid) * uRoleWeights.atmosphere;
+    color += electricArc(effectUv, uTime, mid) * uRoleWeights.z;
   }
   if (uPyroBurstEnabled > 0.5) {
-    color += pyroBurst(effectUv, uTime, uPeak) * uRoleWeights.support;
+    color += pyroBurst(effectUv, uTime, uPeak) * uRoleWeights.y;
   }
   if (uGeoWireframeEnabled > 0.5) {
-    color += geoWireframe(effectUv, uTime, low) * uRoleWeights.core;
+    color += geoWireframe(effectUv, uTime, low) * uRoleWeights.x;
   }
   if (uSignalNoiseEnabled > 0.5) {
-    color += signalNoise(effectUv, uTime) * uRoleWeights.atmosphere;
+    color += signalNoise(effectUv, uTime) * uRoleWeights.z;
   }
 
   if (uWormholeEnabled > 0.5) {
-    color += infiniteWormhole(effectUv, uTime, low) * uRoleWeights.core;
+    color += infiniteWormhole(effectUv, uTime, low) * uRoleWeights.x;
   }
   if (uRibbonTunnelEnabled > 0.5) {
-    color += ribbonTunnel(effectUv, uTime, mid) * uRoleWeights.support;
+    color += ribbonTunnel(effectUv, uTime, mid) * uRoleWeights.y;
   }
   if (uFractalTunnelEnabled > 0.5) {
-    color += fractalTunnel(effectUv, uTime, low) * uRoleWeights.core;
+    color += fractalTunnel(effectUv, uTime, low) * uRoleWeights.x;
   }
   if (uCircuitConduitEnabled > 0.5) {
-    color += circuitConduit(effectUv, uTime, low) * uRoleWeights.atmosphere;
+    color += circuitConduit(effectUv, uTime, low) * uRoleWeights.z;
   }
 
   if (uAuraPortalEnabled > 0.5) {
-    color += auraPortal(effectUv, uTime, low) * uRoleWeights.core;
+    color += auraPortal(effectUv, uTime, low) * uRoleWeights.x;
   }
   if (uFreqTerrainEnabled > 0.5) {
-    color += frequencyTerrain(effectUv, uTime, mid) * uRoleWeights.support;
+    color += frequencyTerrain(effectUv, uTime, mid) * uRoleWeights.y;
   }
   if (uDataStreamEnabled > 0.5) {
-    color += dataStream(effectUv, uTime, low) * uRoleWeights.atmosphere;
+    color += dataStream(effectUv, uTime, low) * uRoleWeights.z;
   }
   if (uCausticLiquidEnabled > 0.5) {
-    color += causticLiquid(effectUv, uTime, mid) * uRoleWeights.core;
+    color += causticLiquid(effectUv, uTime, mid) * uRoleWeights.x;
   }
   if (uShimmerVeilEnabled > 0.5) {
-    color += shimmerVeil(effectUv, uTime, high) * uRoleWeights.support;
+    color += shimmerVeil(effectUv, uTime, high) * uRoleWeights.y;
   }
+
+  // --- New 31 Generators Accumulation ---
+  if (uNebulaCloudEnabled > 0.5) color += nebulaCloud(effectUv, uTime, high) * uRoleWeights.z;
+  if (uCircuitBoardEnabled > 0.5) color += circuitBoard(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uLorenzAttractorEnabled > 0.5) color += lorenzAttractor(effectUv, uTime, low) * uRoleWeights.y;
+  if (uMandalaSpinnerEnabled > 0.5) color += mandalaSpinner(effectUv, uTime, mid) * uRoleWeights.y;
+  if (uStarburstGalaxyEnabled > 0.5) color += starburstGalaxy(effectUv, uTime, high) * uRoleWeights.y;
+  if (uDigitalRainV2Enabled > 0.5) color += digitalRainV2(effectUv, uTime, low) * uRoleWeights.z;
+  if (uLavaFlowEnabled > 0.5) color += lavaFlow(effectUv, uTime, low) * uRoleWeights.z;
+  if (uCrystalGrowthEnabled > 0.5) color += crystalGrowth(effectUv, uTime, high) * uRoleWeights.z;
+  if (uTechnoGridEnabled > 0.5) color += technoGrid3D(effectUv, uTime, low) * uRoleWeights.z;
+  if (uMagneticFieldEnabled > 0.5) color += magneticField(effectUv, uTime, high) * uRoleWeights.z;
+  if (uPrismShardsEnabled > 0.5) color += prismShards(effectUv, uTime, high) * uRoleWeights.y;
+  if (uNeuralNetEnabled > 0.5) color += neuralNet(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uAuroraChordEnabled > 0.5) color += auroraChord(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uVhsGlitchEnabled > 0.5) color += vhsGlitch(effectUv, uTime, low) * uRoleWeights.z;
+  if (uMoirePatternEnabled > 0.5) color += moirePattern(effectUv, uTime, high) * uRoleWeights.y;
+  if (uHypercubeEnabled > 0.5) color += hypercube(effectUv, uTime, mid) * uRoleWeights.x;
+  if (uFluidSwirlEnabled > 0.5) color += fluidSwirl(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uAsciiStreamEnabled > 0.5) color += asciiStream(effectUv, uTime, high) * uRoleWeights.z;
+  if (uRetroWaveEnabled > 0.5) color += retroWave(effectUv, uTime, low) * uRoleWeights.x;
+  if (uBubblePopEnabled > 0.5) color += bubblePop(effectUv, uTime, uPeak) * uRoleWeights.y;
+  if (uSoundWave3DEnabled > 0.5) color += soundWave3D(effectUv, uTime, mid) * uRoleWeights.y;
+  if (uParticleVortexEnabled > 0.5) color += particleVortex(effectUv, uTime, low) * uRoleWeights.z;
+  if (uGlowWormsEnabled > 0.5) color += glowWorms(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uMirrorMazeEnabled > 0.5) color += mirrorMaze(effectUv, uTime, high) * uRoleWeights.y;
+  if (uPulseHeartEnabled > 0.5) color += pulseHeart(effectUv, uTime, low) * uRoleWeights.x;
+  if (uDataShardsEnabled > 0.5) color += dataShards(effectUv, uTime, high) * uRoleWeights.z;
+  if (uHexCellEnabled > 0.5) color += hexCell(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uPlasmaBallEnabled > 0.5) color += plasmaBall(effectUv, uTime, uPeak) * uRoleWeights.z;
+  if (uWarpDriveEnabled > 0.5) color += warpDrive(effectUv, uTime, high) * uRoleWeights.x;
+  if (uVisualFeedbackEnabled > 0.5) color += visualFeedback(effectUv, uTime, mid) * uRoleWeights.y;
+  if (uMyceliumGrowthEnabled > 0.5) color += myceliumGrowth(effectUv, uTime, mid) * uRoleWeights.z;
+  // --- End New 31 Generators ---
 
   // --- EDM Generators ---
   // Laser Beam Generator
@@ -2105,8 +2726,14 @@ void main() {
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      const log = gl.getShaderInfoLog(shader);
+      const log = gl.getShaderInfoLog(shader) || 'Unknown error';
+      lastShaderError = log;
       console.error('Shader compile error:', log);
+      
+      if (options.onError) {
+        options.onError(log, type === gl.VERTEX_SHADER ? 'vertex' : 'fragment');
+      }
+
       const hasCustom = source.includes('customPlasma');
       if (hasCustom || source.length < 4000) {
         const numbered = source
@@ -2133,7 +2760,14 @@ void main() {
     gl.attachShader(prog, fs);
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      console.error('Program link error:', gl.getProgramInfoLog(prog));
+      const log = gl.getProgramInfoLog(prog) || 'Unknown link error';
+      lastShaderError = log;
+      console.error('Program link error:', log);
+      
+      if (options.onError) {
+        options.onError(log, 'link');
+      }
+
       gl.deleteProgram(prog);
       return null;
     }
@@ -2438,6 +3072,132 @@ void main() {
     gl.uniform1f(getLocation('uShimmerVeilEnabled'), state.shimmerVeilEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uShimmerVeilOpacity'), state.shimmerVeilOpacity ?? 1.0);
     gl.uniform1f(getLocation('uShimmerVeilComplexity'), state.shimmerVeilComplexity ?? 10.0);
+
+    // --- New 31 Generators Uniform Bindings ---
+    gl.uniform1f(getLocation('uNebulaCloudEnabled'), state.nebulaCloudEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uNebulaCloudOpacity'), state.nebulaCloudOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uNebulaCloudDensity'), state.nebulaCloudDensity ?? 1.0);
+    gl.uniform1f(getLocation('uNebulaCloudSpeed'), state.nebulaCloudSpeed ?? 0.5);
+    gl.uniform1f(getLocation('uCircuitBoardEnabled'), state.circuitBoardEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCircuitBoardOpacity'), state.circuitBoardOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCircuitBoardGrowth'), state.circuitBoardGrowth ?? 1.0);
+    gl.uniform1f(getLocation('uCircuitBoardComplexity'), state.circuitBoardComplexity ?? 5.0);
+    gl.uniform1f(getLocation('uLorenzAttractorEnabled'), state.lorenzAttractorEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uLorenzAttractorOpacity'), state.lorenzAttractorOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uLorenzAttractorSpeed'), state.lorenzAttractorSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uLorenzAttractorChaos'), state.lorenzAttractorChaos ?? 1.0);
+    gl.uniform1f(getLocation('uMandalaSpinnerEnabled'), state.mandalaSpinnerEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMandalaSpinnerOpacity'), state.mandalaSpinnerOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uMandalaSpinnerSides'), state.mandalaSpinnerSides ?? 6.0);
+    gl.uniform1f(getLocation('uMandalaSpinnerSpeed'), state.mandalaSpinnerSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uStarburstGalaxyEnabled'), state.starburstGalaxyEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uStarburstGalaxyOpacity'), state.starburstGalaxyOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uStarburstGalaxyForce'), state.starburstGalaxyForce ?? 1.0);
+    gl.uniform1f(getLocation('uStarburstGalaxyCount'), state.starburstGalaxyCount ?? 100.0);
+    gl.uniform1f(getLocation('uDigitalRainV2Enabled'), state.digitalRainV2Enabled ? 1 : 0);
+    gl.uniform1f(getLocation('uDigitalRainV2Opacity'), state.digitalRainV2Opacity ?? 1.0);
+    gl.uniform1f(getLocation('uDigitalRainV2Speed'), state.digitalRainV2Speed ?? 1.0);
+    gl.uniform1f(getLocation('uDigitalRainV2Density'), state.digitalRainV2Density ?? 1.0);
+    gl.uniform1f(getLocation('uLavaFlowEnabled'), state.lavaFlowEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uLavaFlowOpacity'), state.lavaFlowOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uLavaFlowHeat'), state.lavaFlowHeat ?? 1.0);
+    gl.uniform1f(getLocation('uLavaFlowViscosity'), state.lavaFlowViscosity ?? 1.0);
+    gl.uniform1f(getLocation('uCrystalGrowthEnabled'), state.crystalGrowthEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCrystalGrowthOpacity'), state.crystalGrowthOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCrystalGrowthRate'), state.crystalGrowthRate ?? 0.5);
+    gl.uniform1f(getLocation('uCrystalGrowthSharpness'), state.crystalGrowthSharpness ?? 0.8);
+    gl.uniform1f(getLocation('uTechnoGridEnabled'), state.technoGridEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uTechnoGridOpacity'), state.technoGridOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uTechnoGridHeight'), state.technoGridHeight ?? 1.0);
+    gl.uniform1f(getLocation('uTechnoGridSpeed'), state.technoGridSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uMagneticFieldEnabled'), state.magneticFieldEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMagneticFieldOpacity'), state.magneticFieldOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uMagneticFieldStrength'), state.magneticFieldStrength ?? 1.0);
+    gl.uniform1f(getLocation('uMagneticFieldDensity'), state.magneticFieldDensity ?? 20.0);
+    gl.uniform1f(getLocation('uPrismShardsEnabled'), state.prismShardsEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPrismShardsOpacity'), state.prismShardsOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPrismShardsRefraction'), state.prismShardsRefraction ?? 0.5);
+    gl.uniform1f(getLocation('uPrismShardsCount'), state.prismShardsCount ?? 5.0);
+    gl.uniform1f(getLocation('uNeuralNetEnabled'), state.neuralNetEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uNeuralNetOpacity'), state.neuralNetOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uNeuralNetActivity'), state.neuralNetActivity ?? 1.0);
+    gl.uniform1f(getLocation('uNeuralNetDensity'), state.neuralNetDensity ?? 1.0);
+    gl.uniform1f(getLocation('uAuroraChordEnabled'), state.auroraChordEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAuroraChordOpacity'), state.auroraChordOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uAuroraChordWaviness'), state.auroraChordWaviness ?? 1.0);
+    gl.uniform1f(getLocation('uAuroraChordColorRange'), state.auroraChordColorRange ?? 1.0);
+    gl.uniform1f(getLocation('uVhsGlitchEnabled'), state.vhsGlitchEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uVhsGlitchOpacity'), state.vhsGlitchOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uVhsGlitchJitter'), state.vhsGlitchJitter ?? 0.2);
+    gl.uniform1f(getLocation('uVhsGlitchNoise'), state.vhsGlitchNoise ?? 0.3);
+    gl.uniform1f(getLocation('uMoirePatternEnabled'), state.moirePatternEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMoirePatternOpacity'), state.moirePatternOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uMoirePatternScale'), state.moirePatternScale ?? 5.0);
+    gl.uniform1f(getLocation('uMoirePatternSpeed'), state.moirePatternSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uHypercubeEnabled'), state.hypercubeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uHypercubeOpacity'), state.hypercubeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uHypercubeProjection'), state.hypercubeProjection ?? 1.0);
+    gl.uniform1f(getLocation('uHypercubeSpeed'), state.hypercubeSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uFluidSwirlEnabled'), state.fluidSwirlEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uFluidSwirlOpacity'), state.fluidSwirlOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uFluidSwirlVorticity'), state.fluidSwirlVorticity ?? 1.0);
+    gl.uniform1f(getLocation('uFluidSwirlColorMix'), state.fluidSwirlColorMix ?? 1.0);
+    gl.uniform1f(getLocation('uAsciiStreamEnabled'), state.asciiStreamEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAsciiStreamOpacity'), state.asciiStreamOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uAsciiStreamResolution'), state.asciiStreamResolution ?? 40.0);
+    gl.uniform1f(getLocation('uAsciiStreamContrast'), state.asciiStreamContrast ?? 1.0);
+    gl.uniform1f(getLocation('uRetroWaveEnabled'), state.retroWaveEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uRetroWaveOpacity'), state.retroWaveOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uRetroWaveSunSize'), state.retroWaveSunSize ?? 1.0);
+    gl.uniform1f(getLocation('uRetroWaveGridSpeed'), state.retroWaveGridSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uBubblePopEnabled'), state.bubblePopEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uBubblePopOpacity'), state.bubblePopOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uBubblePopPopRate'), state.bubblePopPopRate ?? 1.0);
+    gl.uniform1f(getLocation('uBubblePopSize'), state.bubblePopSize ?? 0.5);
+    gl.uniform1f(getLocation('uSoundWave3DEnabled'), state.soundWave3DEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uSoundWave3DOpacity'), state.soundWave3DOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uSoundWave3DAmplitude'), state.soundWave3DAmplitude ?? 1.0);
+    gl.uniform1f(getLocation('uSoundWave3DSmoothness'), state.soundWave3DSmoothness ?? 1.0);
+    gl.uniform1f(getLocation('uParticleVortexEnabled'), state.particleVortexEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uParticleVortexOpacity'), state.particleVortexOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uParticleVortexSuction'), state.particleVortexSuction ?? 1.0);
+    gl.uniform1f(getLocation('uParticleVortexSpin'), state.particleVortexSpin ?? 1.0);
+    gl.uniform1f(getLocation('uGlowWormsEnabled'), state.glowWormsEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGlowWormsOpacity'), state.glowWormsOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uGlowWormsLength'), state.glowWormsLength ?? 1.0);
+    gl.uniform1f(getLocation('uGlowWormsSpeed'), state.glowWormsSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uMirrorMazeEnabled'), state.mirrorMazeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMirrorMazeOpacity'), state.mirrorMazeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uMirrorMazeRecursion'), state.mirrorMazeRecursion ?? 4.0);
+    gl.uniform1f(getLocation('uMirrorMazeAngle'), state.mirrorMazeAngle ?? 0.78);
+    gl.uniform1f(getLocation('uPulseHeartEnabled'), state.pulseHeartEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPulseHeartOpacity'), state.pulseHeartOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPulseHeartBeats'), state.pulseHeartBeats ?? 1.0);
+    gl.uniform1f(getLocation('uPulseHeartLayers'), state.pulseHeartLayers ?? 5.0);
+    gl.uniform1f(getLocation('uDataShardsEnabled'), state.dataShardsEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uDataShardsOpacity'), state.dataShardsOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uDataShardsSpeed'), state.dataShardsSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uDataShardsSharpness'), state.dataShardsSharpness ?? 1.0);
+    gl.uniform1f(getLocation('uHexCellEnabled'), state.hexCellEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uHexCellOpacity'), state.hexCellOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uHexCellPulse'), state.hexCellPulse ?? 1.0);
+    gl.uniform1f(getLocation('uHexCellScale'), state.hexCellScale ?? 1.0);
+    gl.uniform1f(getLocation('uPlasmaBallEnabled'), state.plasmaBallEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPlasmaBallOpacity'), state.plasmaBallOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPlasmaBallVoltage'), state.plasmaBallVoltage ?? 1.0);
+    gl.uniform1f(getLocation('uPlasmaBallFilaments'), state.plasmaBallFilaments ?? 5.0);
+    gl.uniform1f(getLocation('uWarpDriveEnabled'), state.warpDriveEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uWarpDriveOpacity'), state.warpDriveOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uWarpDriveWarp'), state.warpDriveWarp ?? 1.0);
+    gl.uniform1f(getLocation('uWarpDriveGlow'), state.warpDriveGlow ?? 1.0);
+    gl.uniform1f(getLocation('uVisualFeedbackEnabled'), state.visualFeedbackEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uVisualFeedbackOpacity'), state.visualFeedbackOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uVisualFeedbackZoom'), state.visualFeedbackZoom ?? 1.01);
+    gl.uniform1f(getLocation('uVisualFeedbackRotation'), state.visualFeedbackRotation ?? 0.01);
+    gl.uniform1f(getLocation('uMyceliumGrowthEnabled'), state.myceliumGrowthEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMyceliumGrowthOpacity'), state.myceliumGrowthOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uMyceliumGrowthSpread'), state.myceliumGrowthSpread ?? 1.0);
+    gl.uniform1f(getLocation('uMyceliumGrowthDecay'), state.myceliumGrowthDecay ?? 0.5);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
     const pLoc = gl.getAttribLocation(prog, 'position');
@@ -2751,5 +3511,7 @@ void main() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   };
 
-  return { render, setLayerAsset, setPalette, setPlasmaShaderSource };
+  const getLastShaderError = () => lastShaderError;
+
+  return { render, setLayerAsset, setPalette, setPlasmaShaderSource, getLastShaderError };
 };

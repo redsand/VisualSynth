@@ -36,7 +36,7 @@ export const createRenderer = ({
 
   let renderer: ReturnType<typeof createGLRenderer>;
   try {
-    renderer = createGLRenderer(canvas);
+    renderer = createGLRenderer(canvas, {});
   } catch (error) {
     actions.setWebglInitError(store, error instanceof Error ? error.message : String(error));
     actions.addSafeModeReason(store, 'Renderer init failed');

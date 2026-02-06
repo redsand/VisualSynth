@@ -287,8 +287,23 @@ export const createOutputManagerPanel = ({ store }: OutputManagerPanelDeps): Out
 
   const refresh = async () => {
     try {
+      // Get update functions from container
+      const updateSpoutStatus = (container as any)._updateSpoutStatus;
+      const updateNdiStatus = (container as any)._updateNdiStatus;
+
+      // Check if visualSynth API is available at all
+      if (!window.visualSynth) {
+        spoutAvailable = false;
+        ndiAvailable = false;
+        if (updateSpoutStatus) updateSpoutStatus();
+        if (updateNdiStatus) updateNdiStatus();
+        return;
+      }
+
       // Check Spout availability
-      spoutAvailable = await window.visualSynth.spoutIsAvailable();
+      spoutAvailable = typeof window.visualSynth.spoutIsAvailable === 'function' 
+        ? await window.visualSynth.spoutIsAvailable() 
+        : false;
       if (spoutAvailable) {
         const status = await window.visualSynth.spoutGetStatus();
         spoutEnabled = status.enabled;
@@ -297,7 +312,9 @@ export const createOutputManagerPanel = ({ store }: OutputManagerPanelDeps): Out
       }
 
       // Check NDI availability
-      ndiAvailable = await window.visualSynth.ndiIsAvailable();
+      ndiAvailable = typeof window.visualSynth.ndiIsAvailable === 'function'
+        ? await window.visualSynth.ndiIsAvailable()
+        : false;
       if (ndiAvailable) {
         const status = await window.visualSynth.ndiGetStatus();
         ndiEnabled = status.enabled;
@@ -305,8 +322,6 @@ export const createOutputManagerPanel = ({ store }: OutputManagerPanelDeps): Out
       }
 
       // Update UI
-      const updateSpoutStatus = (container as any)._updateSpoutStatus;
-      const updateNdiStatus = (container as any)._updateNdiStatus;
       if (updateSpoutStatus) updateSpoutStatus();
       if (updateNdiStatus) updateNdiStatus();
     } catch (error) {

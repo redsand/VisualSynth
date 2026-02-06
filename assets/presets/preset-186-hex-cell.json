@@ -1,0 +1,103 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Hex Cell",
+    "createdAt": "2026-02-06T01:44:33.613Z",
+    "updatedAt": "2026-02-06T01:44:33.613Z",
+    "category": "Showcase",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Techno",
+    "activeEngineId": "engine-radial-core"
+  },
+  "name": "Hex Cell",
+  "createdAt": "2026-02-06T01:44:33.613Z",
+  "updatedAt": "2026-02-06T01:44:33.613Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "intent": "chaos",
+      "layers": [
+        {
+          "id": "layer-gen-hex-cell-1",
+          "name": "Hex Cell",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-hex-cell",
+          "params": {
+            "pulse": 1.5,
+            "scale": 1.2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.5,
+    "blur": 0.05,
+    "chroma": 0.2,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.1,
+    "persistence": 0.2
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.5,
+    "speed": 0.3,
+    "size": 0.5,
+    "glow": 0.8
+  },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "visualizer": {
+    "enabled": false,
+    "mode": "off",
+    "opacity": 0.8,
+    "macroEnabled": false,
+    "macroId": 8
+  },
+  "modMatrix": [],
+  "midiMappings": [],
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": [],
+  "activeModeId": "mode-performance",
+  "activeEngineId": "engine-radial-core",
+  "colorChemistry": [
+    "analog",
+    "balanced"
+  ],
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 124,
+    "source": "manual"
+  }
+}

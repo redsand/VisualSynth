@@ -43,6 +43,12 @@
           "generatorId": "gen-data-stream",
           "params": {
             "speed": 1.5
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         },
         {
@@ -56,6 +62,12 @@
           "params": {
             "speed": 0.5,
             "count": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         }
       ]
@@ -96,5 +108,24 @@
     "bpm": 120,
     "source": "manual"
   },
-  "macros": []
+  "macros": [],
+  "name": "Mainframe Flow",
+  "createdAt": "2026-02-05T23:34:56.108Z",
+  "updatedAt": "2026-02-05T23:34:56.108Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
 }

@@ -1,0 +1,103 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Mycelium Network",
+    "createdAt": "2026-02-06T01:47:21.675Z",
+    "updatedAt": "2026-02-06T01:47:21.676Z",
+    "category": "Showcase",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Organic",
+    "activeEngineId": "engine-radial-core"
+  },
+  "name": "Mycelium Network",
+  "createdAt": "2026-02-06T01:47:21.676Z",
+  "updatedAt": "2026-02-06T01:47:21.676Z",
+  "activeSceneId": "scene-1",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "layers": [
+        {
+          "id": "layer-mycelium-1",
+          "name": "Mycelium Growth",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "generatorId": "gen-mycelium-growth",
+          "params": {
+            "spread": 1.2,
+            "decay": 0.3
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.4,
+    "blur": 0.05,
+    "chroma": 0.1,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0.1,
+    "persistence": 0.3
+  },
+  "particles": {
+    "enabled": true,
+    "density": 0.4,
+    "speed": 0.2,
+    "size": 0.5,
+    "glow": 0.7
+  },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
+  "visualizer": {
+    "enabled": false,
+    "mode": "off",
+    "opacity": 0.8,
+    "macroEnabled": false,
+    "macroId": 8
+  },
+  "modMatrix": [],
+  "midiMappings": [],
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": [],
+  "activeModeId": "mode-performance",
+  "activeEngineId": "engine-radial-core",
+  "colorChemistry": [
+    "analog",
+    "balanced"
+  ],
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  }
+}
