@@ -7,6 +7,71 @@ let debugVisible = false;
 let renderer: ReturnType<typeof createGLRenderer>;
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
+const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
+
+const renderTextToCanvas = (
+  text: string,
+  font: string,
+  color: string,
+  width = 512,
+  height = 128
+): HTMLCanvasElement => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = 'transparent';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const metrics = ctx.measureText(text);
+  const textWidth = metrics.width;
+  const neededWidth = Math.max(width, Math.ceil(textWidth * 1.2));
+  if (neededWidth > width) {
+    canvas.width = neededWidth;
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+  }
+
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+
+  return canvas;
+};
+
+const textCanvasCache = new Map<string, HTMLCanvasElement>();
+
+const getTextCanvas = (asset: AssetItem): HTMLCanvasElement | null => {
+  if (asset.kind !== 'text' || !asset.options?.text) return null;
+  const font = asset.options.font || '48px Arial';
+  const color = asset.options.fontColor || '#ffffff';
+  const cacheKey = `${asset.id}-${asset.options.text}-${font}-${color}`;
+  if (textCanvasCache.has(cacheKey)) {
+    return textCanvasCache.get(cacheKey)!;
+  }
+  const canvas = renderTextToCanvas(asset.options.text, font, color);
+  textCanvasCache.set(cacheKey, canvas);
+  return canvas;
+};
 
 try {
   renderer = createGLRenderer(canvas, {});
@@ -826,13 +891,15 @@ channel.onmessage = (event) => {
     (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
       const asset = data.layerAssets?.[layerId] ?? null;
       const nextId = asset?.id ?? null;
-      if (layerAssetIds[layerId] === nextId) return;
+      const assetKey =
+        asset?.kind === 'text'
+          ? `${asset.id}-${asset.options?.text ?? ''}-${asset.options?.font ?? ''}-${asset.options?.fontColor ?? ''}`
+          : asset?.id ?? null;
+      if (layerAssetIds[layerId] === nextId && layerAssetKeys[layerId] === assetKey) return;
       layerAssetIds[layerId] = nextId;
-      if (asset?.kind === 'text') {
-        renderer.setLayerAsset(layerId, null);
-        return;
-      }
-      renderer.setLayerAsset(layerId, asset);
+      layerAssetKeys[layerId] = assetKey;
+      const textCanvas = asset?.kind === 'text' ? getTextCanvas(asset) ?? undefined : undefined;
+      renderer.setLayerAsset(layerId, asset, undefined, textCanvas);
     });
   }
 };

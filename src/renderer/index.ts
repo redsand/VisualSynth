@@ -384,7 +384,8 @@ const assetImportVideoButton = document.getElementById('asset-import-video') as 
 const assetLiveWebcamButton = document.getElementById('asset-live-webcam') as HTMLButtonElement | null;
 const assetLiveScreenButton = document.getElementById('asset-live-screen') as HTMLButtonElement | null;
 const assetTextInput = document.getElementById('asset-text-input') as HTMLInputElement | null;
-const assetFontInput = document.getElementById('asset-font-input') as HTMLInputElement | null;
+const assetFontSelect = document.getElementById('asset-font-select') as HTMLSelectElement | null;
+const assetFontSizeInput = document.getElementById('asset-font-size') as HTMLInputElement | null;
 const assetTextAddButton = document.getElementById('asset-text-add') as HTMLButtonElement | null;
 const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement;
 const assetList = document.getElementById('asset-list') as HTMLDivElement;
@@ -475,6 +476,7 @@ let activeMode: UiMode = 'performance';
 let sceneStripView: 'cards' | 'list' =
   (localStorage.getItem('vs.sceneStrip.view') as 'cards' | 'list' | null) ?? 'cards';
 let selectedSceneId: string | null = null;
+let previewSceneId: string | null = null;
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
 const outputChannel = new BroadcastChannel('visualsynth-output');
@@ -2077,6 +2079,12 @@ const ensureProjectMacros = (project: VisualSynthProject) => {
 const ensureProjectPalettes = (project: VisualSynthProject) => {
   if (!project.palettes || project.palettes.length === 0) {
     project.palettes = cloneValue(DEFAULT_PROJECT.palettes);
+  } else {
+    const existingIds = new Set(project.palettes.map((palette) => palette.id));
+    const missing = DEFAULT_PROJECT.palettes.filter((palette) => !existingIds.has(palette.id));
+    if (missing.length > 0) {
+      project.palettes = [...project.palettes, ...cloneValue(missing)];
+    }
   }
   if (!project.activePaletteId) {
     project.activePaletteId = project.palettes[0]?.id ?? DEFAULT_PROJECT.activePaletteId;
@@ -2599,8 +2607,10 @@ const renderSceneTimeline = () => {
     track: sceneTimelineTrack,
     status: sceneTimelineStatus,
     onSelect: (sceneId, sceneName) => {
-      applyScene(sceneId);
-      setStatus(`Scene switched: ${sceneName}`);
+      selectedSceneId = sceneId;
+      previewSceneId = sceneId;
+      renderSceneStrip();
+      setStatus(`Scene preview: ${sceneName}`);
     },
     onRemove: (sceneId, sceneName) => {
       removeScene(sceneId);
@@ -3829,7 +3839,9 @@ const renderAssets = () => {
       actions.appendChild(liveBadge);
     }
     const remove = document.createElement('button');
+    remove.className = 'asset-remove-btn';
     remove.textContent = '✕';
+    remove.title = 'Remove asset';
     remove.addEventListener('click', () => {
       stopLiveAssetStream(asset.id);
       unassignAssetFromLayers(asset.id);
@@ -4163,10 +4175,8 @@ const createTextAsset = () => {
     return;
   }
 
-  const fontSpec = assetFontInput?.value?.trim() || '48px Arial';
-  const fontMatch = fontSpec.match(/(\d+)px\s+(.+)/i);
-  const fontSize = fontMatch ? parseInt(fontMatch[1], 10) : 48;
-  const fontFamily = fontMatch ? fontMatch[2] : fontSpec || 'Arial';
+  const fontFamily = assetFontSelect?.value?.trim() || 'Arial';
+  const fontSize = Number(assetFontSizeInput?.value) || 48;
   const font = `${fontSize}px ${fontFamily}`;
 
   const tags = normalizeAssetTags(assetTagsInput.value);
@@ -5057,6 +5067,7 @@ const applyScene = (sceneId: string) => {
   }
 
   currentProject = { ...currentProject, activeSceneId: sceneId };
+  previewSceneId = sceneId;
   if (scene.look) {
     currentProject = {
       ...currentProject,
@@ -9297,6 +9308,16 @@ const updateTransportUI = () => {
 
 const initShortcuts = () => {
   window.addEventListener('keydown', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
     if (event.ctrlKey && event.key.toLowerCase() === 's') {
       event.preventDefault();
       void saveButton.click();
@@ -9801,51 +9822,56 @@ const render = (time: number) => {
   } else {
     trailSpectrum = new Float32Array(audioState.spectrum);
   }
-  const renderScene =
-    blendSnapshot?.scene ??
+  const activeScene =
     currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
-  const getGeneratorLayers = (scene: typeof renderScene | undefined, generatorId: string) =>
-    scene?.layers.filter((layer) => layer.generatorId === generatorId) ?? [];
-  const pickTopmostEnabled = (layers: typeof renderScene extends undefined ? never : typeof renderScene.layers) => {
-    for (let i = layers.length - 1; i >= 0; i -= 1) {
-      if (layers[i]?.enabled) return layers[i];
-    }
-    return layers[0] ?? null;
-  };
-  const plasmaLayer = findLayerById(renderScene?.layers, 'layer-plasma');
-  const spectrumLayer = findLayerById(renderScene?.layers, 'layer-spectrum');
-  const origamiLayer = findLayerById(renderScene?.layers, 'layer-origami');
-  const glyphLayer = findLayerById(renderScene?.layers, 'layer-glyph');
-  const crystalLayer = findLayerById(renderScene?.layers, 'layer-crystal');
-  const inkLayer = findLayerById(renderScene?.layers, 'layer-inkflow');
-  const topoLayer = findLayerById(renderScene?.layers, 'layer-topo');
-  const weatherLayer = findLayerById(renderScene?.layers, 'layer-weather');
-  const portalLayer = findLayerById(renderScene?.layers, 'layer-portal');
-  const mediaLayer = findLayerById(renderScene?.layers, 'layer-media');
-  const oscilloLayer = findLayerById(renderScene?.layers, 'layer-oscillo');
-  // EDM Generators
-  const laserLayer = findLayerById(renderScene?.layers, 'gen-laser-beam');
-  const strobeLayer = findLayerById(renderScene?.layers, 'gen-strobe');
-  const shapeBurstLayer = findLayerById(renderScene?.layers, 'gen-shape-burst');
-  const gridTunnelLayer = findLayerById(renderScene?.layers, 'gen-grid-tunnel');
-  
-  // Rock Generator Layers
-  const lightningLayer = findLayerById(renderScene?.layers, 'gen-lightning');
-  const analogOscilloLayer = findLayerById(renderScene?.layers, 'gen-analog-oscillo');
-  const speakerConeLayer = findLayerById(renderScene?.layers, 'gen-speaker-cone');
-  const glitchScanlineLayer = findLayerById(renderScene?.layers, 'gen-glitch-scanline');
-  const laserStarfieldLayer = findLayerById(renderScene?.layers, 'gen-laser-starfield');
-  const pulsingRibbonsLayer = findLayerById(renderScene?.layers, 'gen-pulsing-ribbons');
-  const electricArcLayer = findLayerById(renderScene?.layers, 'gen-electric-arc');
-  const pyroBurstLayer = findLayerById(renderScene?.layers, 'gen-pyro-burst');
-  const geoWireframeLayer = findLayerById(renderScene?.layers, 'gen-geo-wireframe');
-  const signalNoiseLayer = findLayerById(renderScene?.layers, 'gen-signal-noise');
-  
-  // Tunnel Generator Layers
-  const wormholeLayer = findLayerById(renderScene?.layers, 'gen-infinite-wormhole');
-  const ribbonTunnelLayer = findLayerById(renderScene?.layers, 'gen-ribbon-tunnel');
-  const fractalTunnelLayer = findLayerById(renderScene?.layers, 'gen-fractal-tunnel');
-  const circuitConduitLayer = findLayerById(renderScene?.layers, 'gen-circuit-conduit');
+  const previewScene = previewSceneId
+    ? currentProject.scenes.find((scene) => scene.id === previewSceneId) ?? activeScene
+    : blendSnapshot?.scene ?? activeScene;
+  const outputScene = blendSnapshot?.scene ?? activeScene;
+
+  const buildRenderStateForScene = (renderScene: typeof activeScene | undefined) => {
+    const getGeneratorLayers = (scene: typeof renderScene | undefined, generatorId: string) =>
+      scene?.layers.filter((layer) => layer.generatorId === generatorId) ?? [];
+    const pickTopmostEnabled = (layers: typeof renderScene extends undefined ? never : typeof renderScene.layers) => {
+      for (let i = layers.length - 1; i >= 0; i -= 1) {
+        if (layers[i]?.enabled) return layers[i];
+      }
+      return layers[0] ?? null;
+    };
+    const plasmaLayer = findLayerById(renderScene?.layers, 'layer-plasma');
+    const spectrumLayer = findLayerById(renderScene?.layers, 'layer-spectrum');
+    const origamiLayer = findLayerById(renderScene?.layers, 'layer-origami');
+    const glyphLayer = findLayerById(renderScene?.layers, 'layer-glyph');
+    const crystalLayer = findLayerById(renderScene?.layers, 'layer-crystal');
+    const inkLayer = findLayerById(renderScene?.layers, 'layer-inkflow');
+    const topoLayer = findLayerById(renderScene?.layers, 'layer-topo');
+    const weatherLayer = findLayerById(renderScene?.layers, 'layer-weather');
+    const portalLayer = findLayerById(renderScene?.layers, 'layer-portal');
+    const mediaLayer = findLayerById(renderScene?.layers, 'layer-media');
+    const oscilloLayer = findLayerById(renderScene?.layers, 'layer-oscillo');
+    // EDM Generators
+    const laserLayer = findLayerById(renderScene?.layers, 'gen-laser-beam');
+    const strobeLayer = findLayerById(renderScene?.layers, 'gen-strobe');
+    const shapeBurstLayer = findLayerById(renderScene?.layers, 'gen-shape-burst');
+    const gridTunnelLayer = findLayerById(renderScene?.layers, 'gen-grid-tunnel');
+    
+    // Rock Generator Layers
+    const lightningLayer = findLayerById(renderScene?.layers, 'gen-lightning');
+    const analogOscilloLayer = findLayerById(renderScene?.layers, 'gen-analog-oscillo');
+    const speakerConeLayer = findLayerById(renderScene?.layers, 'gen-speaker-cone');
+    const glitchScanlineLayer = findLayerById(renderScene?.layers, 'gen-glitch-scanline');
+    const laserStarfieldLayer = findLayerById(renderScene?.layers, 'gen-laser-starfield');
+    const pulsingRibbonsLayer = findLayerById(renderScene?.layers, 'gen-pulsing-ribbons');
+    const electricArcLayer = findLayerById(renderScene?.layers, 'gen-electric-arc');
+    const pyroBurstLayer = findLayerById(renderScene?.layers, 'gen-pyro-burst');
+    const geoWireframeLayer = findLayerById(renderScene?.layers, 'gen-geo-wireframe');
+    const signalNoiseLayer = findLayerById(renderScene?.layers, 'gen-signal-noise');
+    
+    // Tunnel Generator Layers
+    const wormholeLayer = findLayerById(renderScene?.layers, 'gen-infinite-wormhole');
+    const ribbonTunnelLayer = findLayerById(renderScene?.layers, 'gen-ribbon-tunnel');
+    const fractalTunnelLayer = findLayerById(renderScene?.layers, 'gen-fractal-tunnel');
+    const circuitConduitLayer = findLayerById(renderScene?.layers, 'gen-circuit-conduit');
   
   // Unique Generator Layers
   const auraPortalLayer = findLayerById(renderScene?.layers, 'gen-aura-portal');
@@ -10715,6 +10741,19 @@ const render = (time: number) => {
     gravityActives,
     gravityCollapse
   };
+    return {
+      renderState,
+      layers: { plasmaLayer, spectrumLayer, mediaLayer },
+      laserLayer
+    };
+  };
+
+  const previewData = buildRenderStateForScene(previewScene);
+  const outputData =
+    outputOpen && outputScene?.id && outputScene?.id !== previewScene?.id
+      ? buildRenderStateForScene(outputScene)
+      : previewData;
+  const renderState = previewData.renderState;
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
   updateSceneTimelineProgress(blendSnapshot);
@@ -10724,8 +10763,8 @@ const render = (time: number) => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // Debug Overlay Update - Shows layer/FX execution status
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const debugActiveScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
-  const laserIdRaw = laserLayer?.id ?? '';
+  const debugActiveScene = outputScene ?? currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+  const laserIdRaw = outputData.laserLayer?.id ?? '';
   const laserIdBytes = laserIdRaw
     ? Array.from(laserIdRaw).map((ch) => ch.charCodeAt(0)).join(' ')
     : '';
@@ -10800,14 +10839,14 @@ const render = (time: number) => {
       masterBusFrameId: Math.floor(time),
       uniformsUpdatedFrameId: Math.floor(time),
       laser: {
-        enabled: laserEnabled,
-        opacity: laserOpacity,
-        beamCount: laserBeamCount,
-        beamWidth: laserBeamWidth,
-        beamLength: laserBeamLength,
-        glow: laserGlow,
-        present: Boolean(laserLayer),
-        enabledInScene: laserLayer?.enabled ?? false,
+        enabled: outputData.renderState.laserEnabled,
+        opacity: outputData.renderState.laserOpacity,
+        beamCount: outputData.renderState.laserBeamCount,
+        beamWidth: outputData.renderState.laserBeamWidth,
+        beamLength: outputData.renderState.laserBeamLength,
+        glow: outputData.renderState.laserGlow,
+        present: Boolean(outputData.laserLayer),
+        enabledInScene: outputData.laserLayer?.enabled ?? false,
         idRaw: laserIdRaw,
         idBytes: laserIdBytes,
         matchTarget: 'gen-laser-beam',
@@ -10841,14 +10880,14 @@ const render = (time: number) => {
             currentProject.assets.find((item) => item.id === layer.assetId) ?? null
           )
         : null;
-    const { sdfScene: _ignoredSdfScene, ...outputState } = renderState;
+    const { sdfScene: _ignoredSdfScene, ...outputState } = outputData.renderState;
     outputChannel.postMessage({
       ...outputState,
       paletteColors: activePalette?.colors ?? DEFAULT_PROJECT.palettes[0].colors,
       layerAssets: {
-        'layer-plasma': resolveLayerAsset(plasmaLayer),
-        'layer-spectrum': resolveLayerAsset(spectrumLayer),
-        'layer-media': resolveLayerAsset(mediaLayer)
+        'layer-plasma': resolveLayerAsset(outputData.layers.plasmaLayer),
+        'layer-spectrum': resolveLayerAsset(outputData.layers.spectrumLayer),
+        'layer-media': resolveLayerAsset(outputData.layers.mediaLayer)
       }
     });
   }

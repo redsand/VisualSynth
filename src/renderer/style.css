@@ -2196,6 +2196,21 @@ body[data-mode='matrix'] .safe-mode {
   background: #3d6a52 !important;
 }
 
+.asset-remove-btn {
+  background: #4a1f1f;
+  color: #ff6b6b;
+  border: 1px solid #6a2a2a;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.asset-remove-btn:hover {
+  background: #6a2a2a;
+}
+
 .asset-live-badge {
   display: inline-block;
   background: #2d3d5a;

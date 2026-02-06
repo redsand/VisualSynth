@@ -1037,7 +1037,19 @@
               </div>
               <div class="scene-row">
                 <input id="asset-text-input" type="text" placeholder="Caption / lyrics" />
-                <input id="asset-font-input" type="text" placeholder="Font (e.g. 48px Arial)" />
+                <select id="asset-font-select">
+                  <option value="Arial" selected>Arial</option>
+                  <option value="Segoe UI">Segoe UI</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet MS</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Consolas">Consolas</option>
+                  <option value="Impact">Impact</option>
+                </select>
+                <input id="asset-font-size" type="number" min="8" max="200" step="1" value="48" />
                 <button id="asset-text-add">Add Text Layer</button>
               </div>
               <div class="scene-row">
