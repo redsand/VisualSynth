@@ -170,8 +170,8 @@ const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputE
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
 const visualModeSelect = document.getElementById('visual-mode-select') as HTMLSelectElement;
-const engineSelect = document.getElementById('engine-select') as HTMLSelectElement;
-const engineDescription = document.getElementById('engine-description') as HTMLDivElement;
+const engineSelect = document.getElementById('engine-select') as HTMLSelectElement | null;
+const engineDescription = document.getElementById('engine-description') as HTMLDivElement | null;
 const healthFps = document.getElementById('health-fps') as HTMLSpanElement;
 const healthLatency = document.getElementById('health-latency') as HTMLSpanElement;
 const healthWatchdog = document.getElementById('health-watchdog') as HTMLSpanElement;
@@ -8751,9 +8751,11 @@ visualModeSelect.addEventListener('change', () => {
   applyVisualMode(visualModeSelect.value);
 });
 
-engineSelect.addEventListener('change', () => {
-  applyVisualEngine(engineSelect.value as any);
-});
+if (engineSelect) {
+  engineSelect.addEventListener('change', () => {
+    applyVisualEngine(engineSelect.value as any);
+  });
+}
 
 [mixRoleCore, mixRoleSupport, mixRoleAtmosphere].forEach((slider) => {
   slider.addEventListener('input', () => {

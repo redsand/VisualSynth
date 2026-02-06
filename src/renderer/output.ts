@@ -80,6 +80,26 @@ try {
   throw error;
 }
 
+const requestExitFullscreen = async () => {
+  const api = (window as any).visualSynth;
+  if (!api?.getOutputConfig || !api?.setOutputConfig) return;
+  try {
+    const config = await api.getOutputConfig();
+    if (config?.fullscreen) {
+      await api.setOutputConfig({ fullscreen: false });
+    }
+  } catch {
+    // Ignore output fullscreen errors.
+  }
+};
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    void requestExitFullscreen();
+  }
+});
+
 const state: RenderState = {
   timeMs: 0,
   rms: 0,
