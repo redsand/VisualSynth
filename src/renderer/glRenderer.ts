@@ -1310,6 +1310,20 @@ vec2 speakerCone(vec2 uv, float bass) {
   return uv - centered * push;
 }
 
+vec3 speakerPulse(vec2 uv, float bass) {
+  vec2 centered = uv - 0.5;
+  float dist = length(centered);
+  float drive = clamp(bass * uSpeakerConeForce, 0.0, 2.0);
+  float ringRadius = 0.28 + drive * 0.06;
+  float ringWidth = 0.02 + drive * 0.01;
+  float ring = smoothstep(ringRadius + ringWidth, ringRadius, dist) -
+    smoothstep(ringRadius + ringWidth * 2.0, ringRadius + ringWidth, dist);
+  float glow = exp(-abs(dist - ringRadius) * 40.0) * (0.3 + drive * 0.4);
+  float cone = smoothstep(0.55, 0.0, dist) * (0.25 + drive * 0.35);
+  vec3 col = mix(palette(0.25 + drive * 0.1), palette(0.85), 0.35 + drive * 0.2);
+  return col * (ring + glow + cone) * uSpeakerConeOpacity;
+}
+
 vec3 glitchScanline(vec2 uv, float t, float audio) {
   float speed = uGlitchScanlineSpeed;
   float scan = sin(uv.y * 100.0 * uGlitchScanlineCount + t * speed) * 0.5 + 0.5;
@@ -2623,6 +2637,10 @@ void main() {
     float oscVal = analogOscillo(effectUv, uTime, mid);
     vec3 oscCol = palette(uAnalogOscilloColor < 0.5 ? 0.1 : (uAnalogOscilloColor < 1.5 ? 0.4 : 0.7));
     color += oscCol * oscVal * uRoleWeights.x;
+  }
+
+  if (uSpeakerConeEnabled > 0.5) {
+    color += speakerPulse(effectUv, low) * uRoleWeights.y;
   }
   
   if (uGlitchScanlineEnabled > 0.5) {

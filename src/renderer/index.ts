@@ -9114,12 +9114,15 @@ const updateShapeBursts = (time: number, dt: number) => {
   const spawnRate =
     typeof shapeBurstLayer?.params?.spawnRate === 'number' ? shapeBurstLayer.params.spawnRate : 1;
 
-  const peak = audioState.peak;
-  const threshold = 0.5;
+  const peak = Math.max(audioState.peak, audioState.rms ?? 0);
+  const threshold = 0.35;
   const timeSinceLastSpawn = time - lastShapeBurstSpawn;
   const minInterval = 200 / spawnRate;
 
-  if (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) {
+  const shouldSpawn =
+    (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) ||
+    (!audioTrigger && timeSinceLastSpawn > minInterval);
+  if (shouldSpawn) {
     const slotIndex = shapeBurstSlotIndex;
     shapeBurstSlots[slotIndex] = {
       active: true,

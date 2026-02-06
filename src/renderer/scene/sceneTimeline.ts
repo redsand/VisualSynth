@@ -14,7 +14,8 @@ export const renderSceneTimelineItems = ({
   track,
   status,
   onSelect,
-  onRemove
+  onRemove,
+  onContextMenu
 }: SceneTimelineOptions) => {
   track.innerHTML = '';
   if (project.scenes.length === 0) {
