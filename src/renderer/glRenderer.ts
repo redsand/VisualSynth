@@ -1349,7 +1349,7 @@ vec3 electricArc(vec2 uv, float t, float audio) {
   float arc = abs(d - uElectricArcRadius);
   float noise = fbm(p * uElectricArcChaos + t * 2.0);
   float val = smoothstep(0.05, 0.0, arc + noise * 0.1);
-  return vec3(0.6, 0.8, 1.0) * val * uElectricArcOpacity * (1.0 + audio);
+  return palette(fract(t * 0.1 + noise)) * val * uElectricArcOpacity * (1.0 + audio);
 }
 
 vec3 pyroBurst(vec2 uv, float t, float peak) {
@@ -1358,7 +1358,7 @@ vec3 pyroBurst(vec2 uv, float t, float peak) {
   float d = length(p);
   float angle = atan(p.y, p.x);
   float burst = smoothstep(0.1, 0.0, abs(sin(angle * 10.0 + t * 10.0))) * smoothstep(uPyroBurstForce * peak, 0.0, d);
-  return vec3(1.0, 0.5, 0.2) * burst * uPyroBurstOpacity;
+  return palette(fract(t * 0.5 + d)) * burst * uPyroBurstOpacity;
 }
 
 vec3 geoWireframe(vec2 uv, float t, float audio) {
@@ -1368,13 +1368,13 @@ vec3 geoWireframe(vec2 uv, float t, float audio) {
   if(uGeoWireframeShape < 0.5) shape = abs(sdBox(p, vec2(uGeoWireframeScale))) - 0.01;
   else shape = abs(sdEquilateralTriangle(p, uGeoWireframeScale)) - 0.01;
   float val = smoothstep(0.02, 0.0, shape);
-  return palette(0.8) * val * uGeoWireframeOpacity * (1.0 + audio * 0.5);
+  return palette(fract(t * 0.1)) * val * uGeoWireframeOpacity * (1.0 + audio * 0.5);
 }
 
 vec3 signalNoise(vec2 uv, float t) {
   float n = hash21(uv + t);
   float line = step(0.99, hash21(vec2(t, uv.y)));
-  return vec3(n * 0.2 + line) * uSignalNoiseOpacity * uSignalNoiseAmount;
+  return palette(n) * (n * 0.2 + line) * uSignalNoiseOpacity * uSignalNoiseAmount;
 }
 
 vec3 infiniteWormhole(vec2 uv, float t, float audio) {
@@ -1440,14 +1440,14 @@ vec3 circuitConduit(vec2 uv, float t, float audio) {
   float grid = step(0.95, fract(tu.x * 4.0)) + step(0.95, fract(tu.y * 10.0));
   float pulses = step(0.98, fract(tu.y * 2.0 - t * 5.0));
   
-  return vec3(0.2, 0.5, 1.0) * (grid + pulses * 2.0) * uCircuitConduitOpacity * (1.0 + audio);
+  return palette(fract(z * 0.1)) * (grid + pulses * 2.0) * uCircuitConduitOpacity * (1.0 + audio);
 }
 
 vec3 auraPortal(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
   float d = length(p);
   float aura = exp(-d * 3.0) * (1.0 + audio);
-  vec3 col = uAuraPortalColor < 0.5 ? vec3(0.1, 0.4, 1.0) : vec3(1.0, 0.2, 0.5);
+  vec3 col = palette(uAuraPortalColor < 0.5 ? 0.2 : 0.8);
   return col * aura * uAuraPortalOpacity;
 }
 
@@ -1463,21 +1463,25 @@ vec3 dataStream(vec2 uv, float t, float audio) {
   vec2 gv = fract(uv * vec2(20.0, 1.0) + vec2(0.0, t * uDataStreamSpeed));
   float line = step(0.98, gv.x);
   float bits = step(0.9, hash21(floor(uv * vec2(20.0, 10.0) + vec2(0.0, t * 5.0))));
-  return vec3(0.0, 1.0, 0.4) * (line + bits) * uDataStreamOpacity * (1.0 + audio);
+  return palette(fract(uv.x * 0.1 + t * 0.05)) * (line + bits) * uDataStreamOpacity * (1.0 + audio);
 }
 
 vec3 causticLiquid(vec2 uv, float t, float audio) {
-  vec2 p = uv * 5.0;
-  for (float i = 0.0; i < 3.0; i += 1.0) {
-    p += sin(p.yx * 1.5 + t * uCausticLiquidSpeed) * 0.5;
+  vec2 p = uv * 8.0;
+  float swirl = 0.0;
+  for (float i = 1.0; i < 5.0; i += 1.0) {
+    p.x += 0.3 / i * sin(i * 3.0 * p.y + t * uCausticLiquidSpeed + 0.3 * i) + 0.5;
+    p.y += 0.3 / i * sin(i * 3.0 * p.x + t * uCausticLiquidSpeed + 0.3 * i) + 0.5;
+    swirl += length(p) * 0.05;
   }
-  float c = sin(p.x + p.y) * 0.5 + 0.5;
-  return palette(c) * c * uCausticLiquidOpacity * (1.0 + audio);
+  float c = sin(p.x + p.y + swirl) * 0.5 + 0.5;
+  return palette(c) * smoothstep(0.0, 1.0, c) * uCausticLiquidOpacity * (1.0 + audio);
 }
 
 vec3 shimmerVeil(vec2 uv, float t, float audio) {
   float v = sin(uv.x * 10.0 + t) * sin(uv.y * uShimmerVeilComplexity + t * 0.5);
-  return vec3(0.8, 0.9, 1.0) * smoothstep(0.1, 0.0, abs(v)) * uShimmerVeilOpacity * (1.0 + audio);
+  float pattern = smoothstep(0.1, 0.0, abs(v));
+  return palette(fract(t * 0.1)) * pattern * uShimmerVeilOpacity * (1.0 + audio);
 }
 
 // --- New 31 Generators Helper Functions ---
@@ -1497,7 +1501,7 @@ vec3 circuitBoard(vec2 uv, float t, float audio) {
   float growth = fract(t * uCircuitBoardGrowth + h);
   float line = smoothstep(0.1, 0.0, abs(f.x - 0.5)) * step(f.y, growth);
   float node = smoothstep(0.2, 0.0, length(f - 0.5)) * step(0.9, h);
-  return vec3(0.2, 0.6, 1.0) * (line + node * (1.0 + audio)) * uCircuitBoardOpacity;
+  return palette(h) * (line + node * (1.0 + audio)) * uCircuitBoardOpacity;
 }
 
 vec3 lorenzAttractor(vec2 uv, float t, float audio) {
@@ -1550,14 +1554,14 @@ vec3 digitalRainV2(vec2 uv, float t, float audio) {
   float speed = uDigitalRainV2Speed * (0.5 + h);
   float drop = fract(uv.y + t * speed + h);
   float mask = step(0.9, fract(p.x)) * smoothstep(0.2, 0.0, abs(drop - 0.5));
-  return vec3(0.0, 1.0, 0.2) * mask * uDigitalRainV2Opacity * (1.0 + audio);
+  return palette(h) * mask * uDigitalRainV2Opacity * (1.0 + audio);
 }
 
 vec3 lavaFlow(vec2 uv, float t, float audio) {
   vec2 p = uv * 3.0;
   float n = fbm(p + vec2(t * 0.2 * uLavaFlowViscosity));
-  float heat = smoothstep(0.4, 0.6, n * uLavaFlowHeat);
-  return vec3(1.0, 0.3, 0.0) * heat * uLavaFlowOpacity * (1.0 + audio * 0.5);
+  float heat = clamp(n * uLavaFlowHeat + audio * 0.2, 0.0, 1.0);
+  return palette(heat) * heat * uLavaFlowOpacity;
 }
 
 vec3 crystalGrowth(vec2 uv, float t, float audio) {
@@ -1578,7 +1582,7 @@ vec3 technoGrid3D(vec2 uv, float t, float audio) {
   vec2 grid_uv = vec2(p.x * z, z + t * uTechnoGridSpeed);
   float grid = step(0.95, fract(grid_uv.x * 5.0)) + step(0.95, fract(grid_uv.y * 5.0));
   float towers = step(0.98, hash21(floor(grid_uv * 5.0))) * z * uTechnoGridHeight * 0.1;
-  return vec3(0.0, 0.5, 1.0) * (grid + towers) * uTechnoGridOpacity * (1.0 + audio);
+  return palette(fract(z * 0.1 + t * 0.05)) * (grid + towers) * uTechnoGridOpacity * (1.0 + audio);
 }
 
 vec3 magneticField(vec2 uv, float t, float audio) {
@@ -1622,7 +1626,7 @@ vec3 neuralNet(vec2 uv, float t, float audio) {
       col += smoothstep(0.1, 0.0, d);
     }
   }
-  return vec3(0.5, 0.8, 1.0) * col * uNeuralNetOpacity * (1.0 + audio);
+  return palette(fract(t * 0.1)) * col * uNeuralNetOpacity * (1.0 + audio);
 }
 
 vec3 auroraChord(vec2 uv, float t, float audio) {
@@ -1649,7 +1653,7 @@ vec3 moirePattern(vec2 uv, float t, float audio) {
   vec2 p2 = rotate2d(p, t * 0.2);
   float v2 = sin(p2.x * 10.0);
   float moire = v1 * v2;
-  return vec3(moire) * uMoirePatternOpacity * (1.0 + audio);
+  return palette(moire * 0.5 + 0.5) * uMoirePatternOpacity * (1.0 + audio);
 }
 
 vec3 hypercube(vec2 uv, float t, float audio) {
@@ -1677,7 +1681,7 @@ vec3 asciiStream(vec2 uv, float t, float audio) {
   float h = hash21(p + floor(t * 10.0));
   float bright = (sin(uv.x * 10.0) + sin(uv.y * 10.0)) * 0.5 + 0.5;
   float mask = step(0.5, fract(h * 10.0));
-  return vec3(0.0, 1.0, 0.0) * mask * bright * uAsciiStreamContrast * uAsciiStreamOpacity;
+  return palette(h) * mask * bright * uAsciiStreamContrast * uAsciiStreamOpacity;
 }
 
 vec3 retroWave(vec2 uv, float t, float audio) {
@@ -1696,8 +1700,8 @@ vec3 retroWave(vec2 uv, float t, float audio) {
   // Retro sun stripes
   if (p.y < 0.3 && fract(p.y * 15.0) < 0.25) sun = 0.0;
   
-  vec3 sunCol = vec3(1.0, 0.2, 0.5); // Hot Pink
-  vec3 gridCol = vec3(0.0, 0.8, 1.0); // Cyan
+  vec3 sunCol = palette(0.9); 
+  vec3 gridCol = palette(0.2); 
   
   return (sunCol * sun + gridCol * grid) * uRetroWaveOpacity * (1.0 + audio);
 }
@@ -1760,7 +1764,7 @@ vec3 pulseHeart(vec2 uv, float t, float audio) {
     float radius = pulse * (i / uPulseHeartLayers);
     heart += smoothstep(radius, radius - 0.02, r) - smoothstep(radius - 0.04, radius - 0.06, r);
   }
-  return vec3(1.0, 0.1, 0.2) * heart * uPulseHeartOpacity * (1.0 + audio);
+  return palette(fract(pulse * 0.2 + audio)) * heart * uPulseHeartOpacity * (1.0 + audio);
 }
 
 vec3 dataShards(vec2 uv, float t, float audio) {
@@ -1798,7 +1802,7 @@ vec3 plasmaBall(vec2 uv, float t, float audio) {
     float line = smoothstep(0.02, 0.0, abs(length(p - target * sin(t)) - 0.1));
     col += line;
   }
-  return vec3(0.6, 0.2, 1.0) * col * uPlasmaBallVoltage * uPlasmaBallOpacity;
+  return palette(fract(t * 0.1 + audio)) * col * uPlasmaBallVoltage * uPlasmaBallOpacity;
 }
 
 vec3 warpDrive(vec2 uv, float t, float audio) {
@@ -1807,7 +1811,7 @@ vec3 warpDrive(vec2 uv, float t, float audio) {
   float r = length(p);
   float streaks = step(0.95, hash21(vec2(floor(a * 20.0), 1.0)));
   float star = streaks * smoothstep(1.0, 0.0, fract(r - t * uWarpDriveWarp));
-  return vec3(0.8, 0.9, 1.0) * star * uWarpDriveGlow * uWarpDriveOpacity * (1.0 + audio);
+  return palette(fract(a * 0.1 + t * 0.05)) * star * uWarpDriveGlow * uWarpDriveOpacity * (1.0 + audio);
 }
 
 vec3 visualFeedback(vec2 uv, float t, float audio) {
@@ -1916,20 +1920,21 @@ vec3 strobeFlash(vec2 uv, float t, float audio, float peak) {
   float beatPhase = fract(t * uStrobeRate * 0.5);
   float flash = step(beatPhase, uStrobeDutyCycle);
 
-  // Audio trigger override
-  if (uStrobeAudioTrigger > 0.5 && peak > uStrobeThreshold) {
+  // Audio trigger override: Force flash to 1.0 immediately on peak
+  bool isHit = uStrobeAudioTrigger > 0.5 && peak > uStrobeThreshold;
+  if (isHit) {
     flash = 1.0;
   }
 
-  // Fade decay
-  float fadeT = beatPhase / max(uStrobeDutyCycle, 0.01);
+  // Fade decay: only apply decay to the beat-synced flash OR the audio hit
+  float fadeT = isHit ? 0.0 : beatPhase / max(uStrobeDutyCycle, 0.01);
   flash *= exp(-fadeT * (1.0 / max(uStrobeFadeOut, 0.01)));
 
-  vec3 color = vec3(0.85, 0.9, 1.0); // Soft cool white (prevents retina burn)
+  vec3 color = palette(1.0); // Use top of palette for white-ish flashes
 
-  // Mode 0: White
+  // Mode 0: White (mapped to palette peak)
   if (uStrobeMode < 0.5) {
-    color = vec3(0.85, 0.9, 1.0);
+    color = palette(1.0);
   }
   // Mode 1: Color (use palette)
   else if (uStrobeMode < 1.5) {
@@ -2157,6 +2162,18 @@ void main() {
 
   vec2 effectUv = kaleidoscope(uv, uKaleidoscope);
   
+  // Speaker Cone (Woofer) distortion: apply before sampling any generators
+  if (uSpeakerConeEnabled > 0.5) {
+      effectUv = speakerCone(effectUv, low);
+  }
+
+  // Origami (Fold) distortion: coordinate warp
+  if (uOrigamiEnabled > 0.5) {
+      vec2 centered = effectUv * 2.0 - 1.0;
+      float fold = sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed);
+      effectUv += normalize(centered + 0.0001) * fold * 0.05 * uOrigamiOpacity;
+  }
+  
   // Engine Grammar: Inertial Energy Accumulation
   // We use Time to simulate a decaying energy state that "charges" on audio peaks
   float lowEnergy = pow(low, 2.0 / uEngineElasticity);
@@ -2314,7 +2331,7 @@ void main() {
     if (uGlyphMode > 2.5) { local.y += (mod(cell.y, 4.0) - 1.5) * 0.06; local.x += sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.8) * 0.06; }
     float dist = glyphShape(local, seed, band, complexity);
     float stroke = smoothstep(0.04, 0.0, dist);
-    vec3 glyphColor = bandIndex < 2 ? vec3(0.65, 0.8, 0.95) : bandIndex < 4 ? vec3(0.95, 0.75, 0.6) : bandIndex < 6 ? vec3(0.7, 0.9, 0.78) : vec3(0.82, 0.72, 0.95);
+    vec3 glyphColor = palette(fract(bandIndex * 0.15 + uTime * 0.05));
     glyphColor *= 0.55 + complexity * 0.75;
     color += glyphColor * stroke * uGlyphOpacity * uRoleWeights.y;
   }
@@ -2326,7 +2343,7 @@ void main() {
     float cell = crystalField(centered, uTime * 0.02 * timeScale + uCrystalMode * 2.0, mix(4.0, 10.0, bassStability) * (uCrystalScale > 0.01 ? uCrystalScale : 1.0));
     float shard = smoothstep(0.22, 0.02, cell);
     float growth = mix(0.35, 0.9, alignment) + mid * 0.2;
-    vec3 base = vec3(0.55, 0.75, 0.95), core = vec3(0.25, 0.5, 0.9), caustic = vec3(0.9, 0.95, 1.0);
+    vec3 base = palette(0.1), core = palette(0.5), caustic = palette(0.9);
     vec3 crystal = mix(base, core, (1.0 - cell) * (0.6 + bassStability * 0.6));
     crystal += caustic * smoothstep(0.1, 0.0, cell - high * 0.05) * clamp(uPeak - uRms, 0.0, 1.0) * (0.6 + high);
     crystal *= growth + (uCrystalMode < 0.5 ? 0.15 : uCrystalMode < 1.5 ? 0.35 : uCrystalMode < 2.5 ? 0.7 : 0.05);
@@ -2341,7 +2358,7 @@ void main() {
     if (uGlyphBeat > 0.1) flow = vec2(flow.y, -flow.x);
     vec2 inkUv = effectUv + flow * 0.08;
     float stroke = smoothstep(0.6, 0.0, abs(sin((inkUv.x + inkUv.y) * 18.0 * uInkScale + uTime * 0.6 * uInkSpeed))) * (0.4 + uInkPressure * 0.8);
-    vec3 inkColor = uInkBrush < 0.5 ? vec3(0.12, 0.08, 0.06) : uInkBrush < 1.5 ? vec3(0.2, 0.15, 0.1) : vec3(0.1, 0.85, 0.95);
+    vec3 inkColor = palette(uInkBrush < 0.5 ? 0.1 : uInkBrush < 1.5 ? 0.4 : 0.7);
     if (uInkBrush > 0.5 && uInkBrush < 1.5) stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
     color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity * uRoleWeights.z;
   }
@@ -2354,7 +2371,7 @@ void main() {
     terrain += uTopoQuake * 0.6 * sin(flow.x * 6.0 + uTime * 1.4);
     terrain -= uTopoSlide * 0.5 * smoothstep(0.2, 0.9, terrain);
     float mask = smoothstep(0.12, 0.02, abs(sin(terrain * mix(6.0, 18.0, high))) * mix(0.2, 1.0, mid));
-    color += mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity * uRoleWeights.z;
+    color += mix(palette(0.2), palette(0.6), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity * uRoleWeights.z;
   }
   if (uWeatherEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -2363,13 +2380,13 @@ void main() {
     flow += vec2(-centered.y, centered.x) * (0.2 + (uWeatherMode > 2.5 ? 1.0 : 0.0) * 0.6) * (0.4 + pressure);
     vec2 wUv = effectUv + flow * (0.08 + mid * 1.1 * 0.15);
     float cloud = smoothstep(0.1, 0.7, (sin(wUv.x * 3.2 + uTime * 0.1 * uWeatherSpeed) + cos(wUv.y * 2.6 - uTime * 0.08 * uWeatherSpeed)) * 0.35 + pressure);
-    vec3 cCol = mix(vec3(0.6, 0.65, 0.7), vec3(0.85, 0.88, 0.9), cloud);
-    if (uWeatherMode < 0.5) cCol = mix(cCol, vec3(0.45, 0.55, 0.65), 1.0);
-    else if (uWeatherMode < 2.5) cCol = mix(cCol, vec3(0.7, 0.75, 0.8), 1.0);
+    vec3 cCol = mix(palette(0.1), palette(0.3), cloud);
+    if (uWeatherMode < 0.5) cCol = mix(cCol, palette(0.2), 1.0);
+    else if (uWeatherMode < 2.5) cCol = mix(cCol, palette(0.4), 1.0);
     float pHigh = high * 1.2 + uWeatherIntensity * 0.2;
     float rain = smoothstep(0.6, 0.0, abs(sin((wUv.x + uTime * 0.4 * uWeatherSpeed) * 30.0)) * pHigh) * (uWeatherMode < 0.5 || uWeatherMode > 2.5 ? 1.0 : 0.0);
     float snow = smoothstep(0.65, 0.0, abs(sin((wUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * pHigh) * (uWeatherMode > 0.5 && uWeatherMode < 1.5 ? 1.0 : 0.0);
-    color += (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity * uRoleWeights.z;
+    color += (cCol * cloud + palette(0.6) * rain + palette(0.9) * snow + palette(1.0) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity * uRoleWeights.z;
   }
   if (uPortalEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -2384,10 +2401,10 @@ void main() {
       warp += normalize(delta + 0.0001) * (rad - dist) * mix(0.06, 0.12, step(1.5, style));
     }
     effectUv = clamp(effectUv + warp * mix(0.45, 0.6, step(0.5, style)), 0.0, 1.0);
-    vec3 baseCol = vec3(0.2, 0.6, 0.9);
-    if (style > 0.5 && style < 1.5) baseCol = vec3(0.7, 0.35, 0.95);
-    if (style >= 1.5) baseCol = vec3(0.2, 0.9, 0.55);
-    color += (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity * uRoleWeights.z;
+    vec3 baseCol = palette(0.2);
+    if (style > 0.5 && style < 1.5) baseCol = palette(0.5);
+    if (style >= 1.5) baseCol = palette(0.8);
+    color += (baseCol + palette(0.9) * uPortalShift) * ringGlow * uPortalOpacity * uRoleWeights.z;
   }
   if (uOscilloEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
@@ -2398,36 +2415,20 @@ void main() {
       minDist = min(minDist, length(centered - p));
       arcGlow += smoothstep(0.08, 0.0, abs(length(centered) - (rad + 0.06 * sin(t * 12.0 + uTime * 0.3)))) * 0.2;
     }
-    color += (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity * uRoleWeights.y;
+    color += (mix(palette(0.1), palette(0.3), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(palette(0.2), palette(0.4), uSpectrum[8]) * (0.2 + uPeak * 0.6) + palette(0.6) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity * uRoleWeights.y;
   }
-  if (gravityLens > 0.0 || gravityRing > 0.0) color += (vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high)) * uRoleWeights.z;
+  if (gravityLens > 0.0 || gravityRing > 0.0) color += (palette(0.1) * gravityLens + palette(0.4) * gravityRing * (0.4 + high)) * uRoleWeights.z;
   if (uOrigamiEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     float sharp = mix(0.12, 0.02, clamp(uOrigamiFoldSharpness, 0.0, 1.0));
-    float foldField = ( (1.0 - smoothstep(0.0, sharp, min(abs(sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed)), abs(sin((centered.x * -0.4 + centered.y * 0.9) * mix(2.5, 7.5, low) + 1.7))))) * (0.6 + low) + (1.0 - smoothstep(0.0, sharp * 0.8, abs(sin(centered.x * mix(6.0, 18.0, mid))) * abs(sin(centered.y * mix(6.0, 18.0, mid))))) * (0.4 + mid) ) * (0.6 + uOrigamiFoldSharpness) + sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed) * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed) * high * 0.3;
-    float displacement = (foldField + (step(1.5, uOrigamiFoldState) * (1.0 - step(2.5, uOrigamiFoldState)) - step(2.5, uOrigamiFoldState)) * smoothstep(0.9, 0.0, length(centered)) * (0.4 + low)) * (uOrigamiFoldState < 0.5 ? 1.0 : (uOrigamiFoldState < 1.5 ? -1.0 : (uOrigamiFoldState < 2.5 ? 1.0 : -1.0)));
-    vec3 normal = normalize(vec3(-dFdx(displacement), -dFdy(displacement), 1.0));
-    float diff = clamp(dot(normal, normalize(vec3(-0.4, 0.6, 0.9))), 0.0, 1.0);
-    float grain = hash21(effectUv * 420.0) * 0.12 + hash21(effectUv * 1200.0) * 0.06;
-    vec3 origamiCol = clamp(
-      vec3(0.78, 0.74, 0.7) * (0.55 + diff * 0.35)
-        + smoothstep(0.2, 0.75, foldField) * vec3(0.12, 0.1, 0.08)
-        + vec3(sin((effectUv.y + grain) * 900.0) * 0.03 + grain) * 0.12
-        - smoothstep(0.7, 0.98, abs(sin(centered.x * mix(18.0, 60.0, high) + uTime * uOrigamiSpeed)
-            * sin(centered.y * mix(18.0, 60.0, high) - uTime * 0.8 * uOrigamiSpeed)))
-          * high * (0.5 + grain) * vec3(0.18, 0.12, 0.08),
-      0.0,
-      1.0
-    );
-    origamiCol = mix(origamiCol, origamiCol * 0.72, 0.35);
-    color = applyBlendMode(
-      color,
-      origamiCol,
-      4.0,
-      clamp(uOrigamiOpacity, 0.0, 1.0) * 0.8 * uRoleWeights.y
-    );
+    // High-contrast crease lines
+    float foldField = abs(sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed));
+    float crease = smoothstep(sharp, 0.0, foldField);
+    
+    vec3 creaseCol = palette(0.9) * (0.5 + high * 0.5);
+    color += creaseCol * crease * uOrigamiOpacity * uRoleWeights.y;
   }
-  if (uParticlesEnabled > 0.5) color += vec3(0.2, 0.7, 1.0) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8) * uRoleWeights.z;
+  if (uParticlesEnabled > 0.5) color += palette(0.5) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8) * uRoleWeights.z;
   if (uSdfEnabled > 0.5) {
     vec2 centered = effectUv * 2.0 - 1.0;
     if (uAdvancedSdfEnabled > 0.5) {
@@ -2478,19 +2479,13 @@ void main() {
   // --- Rock Generators ---
   if (uLightningEnabled > 0.5) {
     float lightningVal = lightningBolt(effectUv, uTime, high);
-    vec3 lightningCol = vec3(0.8, 0.9, 1.0); // Default blue-white
-    if (uLightningColor > 0.5 && uLightningColor < 1.5) lightningCol = vec3(1.0, 0.8, 0.2); // Yellow
-    else if (uLightningColor > 1.5) lightningCol = vec3(0.8, 0.2, 1.0); // Purple
-    
+    vec3 lightningCol = palette(uLightningColor < 0.5 ? 0.2 : (uLightningColor < 1.5 ? 0.5 : 0.8));
     color += lightningCol * lightningVal * uRoleWeights.y;
   }
   
   if (uAnalogOscilloEnabled > 0.5) {
     float oscVal = analogOscillo(effectUv, uTime, mid);
-    vec3 oscCol = vec3(1.0);
-    if (uAnalogOscilloColor > 0.5 && uAnalogOscilloColor < 1.5) oscCol = vec3(1.0, 0.2, 0.1); // Red
-    else if (uAnalogOscilloColor > 1.5) oscCol = vec3(0.2, 1.0, 0.2); // Green
-    
+    vec3 oscCol = palette(uAnalogOscilloColor < 0.5 ? 0.1 : (uAnalogOscilloColor < 1.5 ? 0.4 : 0.7));
     color += oscCol * oscVal * uRoleWeights.x;
   }
   
@@ -2498,17 +2493,6 @@ void main() {
     color += glitchScanline(effectUv, uTime, low) * uRoleWeights.z;
   }
   
-  // Speaker cone distortion applied to future layers if I were processing texture, 
-  // but here I'll just modulate color slightly to show it exists or maybe rely on it being used earlier?
-  // Actually, I should have applied it to effectUv earlier.
-  // For now, let's just make it affect the background slightly if enabled.
-  if (uSpeakerConeEnabled > 0.5) {
-     vec2 distorted = speakerCone(effectUv, low);
-     float dist = length(distorted - 0.5);
-     float ring = smoothstep(0.02, 0.0, abs(dist - 0.4)) * uSpeakerConeOpacity;
-     color += vec3(0.2, 0.0, 0.0) * ring * uRoleWeights.z;
-  }
-
   if (uLaserStarfieldEnabled > 0.5) {
     color += laserStarfield(effectUv, uTime, high) * uRoleWeights.x;
   }

@@ -34,7 +34,7 @@ import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
-import { buildLegacyTarget, getLayerType, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
+import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
 import { lfoValueForShape } from '../shared/lfoUtils';
 import { reorderLayers, cloneLayerConfig, ensureLayerWithDefaults } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
@@ -884,13 +884,10 @@ const applyVisualEngine = (engineId: EngineId) => {
   (currentProject as any).engineGrammar = engine.grammar;
   (currentProject as any).engineFinish = engine.finish;
 
-  // 1. Reset Scenes to Engine Defaults
-  const firstScene = currentProject.scenes[0];
-  if (firstScene) {
-    firstScene.layers = engine.baseLayers.map(l => cloneLayerConfig(l));
-    currentProject.scenes = [firstScene];
-    currentProject.activeSceneId = firstScene.id;
-  }
+  // 1. NON-DESTRUCTIVE: Update active scene to use engine base layers ONLY if it's currently empty or specifically requested?
+  // User said "once i change the visual engine option, it appears i cant select a scene anymore"
+  // This was because we were doing currentProject.scenes = [firstScene] which deleted all others.
+  // We will stop doing that. We only update the active engine ID and engine-level constraints.
 
   // 2. Set Curated Palette
   applyPaletteSelection(engine.curatedPalette.id);
@@ -928,6 +925,7 @@ const applyVisualEngine = (engineId: EngineId) => {
   initMacros();
   renderLayerList();
   renderModMatrix();
+  renderSceneStrip(); // Ensure UI reflects preserved scenes
 };
 
 const applyVisualMode = (
@@ -2827,6 +2825,46 @@ const renderLayerList = () => {
         assetControl.appendChild(styleSelect);
       }
 
+      // Modern Generator Parameter Editing (Generic)
+      if (layer.generatorId) {
+          const genType = getLayerType(layer.generatorId);
+          const params = PARAMETER_REGISTRY[genType]?.params ?? [];
+          if (params.length > 0) {
+              const paramsContainer = document.createElement('div');
+              paramsContainer.className = 'layer-params-grid';
+              params.forEach(param => {
+                  const paramRow = document.createElement('div');
+                  paramRow.className = 'param-row';
+                  
+                  const pLabel = document.createElement('label');
+                  pLabel.textContent = param.name;
+                  pLabel.className = 'param-label';
+                  
+                  const pInput = document.createElement('input');
+                  pInput.type = 'range';
+                  pInput.min = String(param.min ?? 0);
+                  pInput.max = String(param.max ?? 1);
+                  pInput.step = String(param.step ?? 0.01);
+                  pInput.value = String(layer.params?.[param.id] ?? param.defaultValue);
+                  pInput.className = 'param-slider';
+                  
+                  pInput.dataset.learnTarget = `${layer.id}.${param.id}`;
+                  pInput.dataset.learnLabel = `${layer.name} ${param.name}`;
+                  
+                  pInput.addEventListener('input', () => {
+                      if (!layer.params) layer.params = {};
+                      layer.params[param.id] = Number(pInput.value);
+                      recordPlaylistOverride(layer.id, { params: { [param.id]: Number(pInput.value) } });
+                  });
+                  
+                  paramRow.appendChild(pLabel);
+                  paramRow.appendChild(pInput);
+                  paramsContainer.appendChild(paramRow);
+              });
+              assetControl.appendChild(paramsContainer);
+          }
+      }
+
       row.appendChild(assetControl);
       targetList.appendChild(row);
     };
@@ -2872,11 +2910,63 @@ const renderLayerList = () => {
     vizText.textContent = 'Visualizer Overlay';
     vizLabel.appendChild(vizToggle);
     vizLabel.appendChild(vizText);
+    
     const vizControls = document.createElement('div');
     vizControls.className = 'layer-controls';
     visualizerRow.appendChild(vizLabel);
     visualizerRow.appendChild(vizControls);
     targetList.appendChild(visualizerRow);
+
+    // Editing Box for Visualizer
+    const vizAssetControl = document.createElement('div');
+    vizAssetControl.className = 'layer-asset-control';
+    
+    // Mode Select
+    const modeRow = document.createElement('div');
+    modeRow.className = 'layer-opacity-row';
+    const modeLabel = document.createElement('span');
+    modeLabel.className = 'layer-opacity-label';
+    modeLabel.textContent = 'Mode';
+    const modeSelect = document.createElement('select');
+    modeSelect.className = 'layer-asset-select';
+    ['off', 'spectrum', 'waveform', 'oscilloscope'].forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m.toUpperCase();
+        modeSelect.appendChild(opt);
+    });
+    modeSelect.value = currentProject.visualizer.mode;
+    modeSelect.addEventListener('change', () => {
+        currentProject.visualizer.mode = modeSelect.value as any;
+        setVisualizerMode(modeSelect.value as any);
+        visualizerModeSelect.value = modeSelect.value;
+    });
+    modeRow.appendChild(modeLabel);
+    modeRow.appendChild(modeSelect);
+    vizAssetControl.appendChild(modeRow);
+
+    // Opacity Slider
+    const opacityRow = document.createElement('div');
+    opacityRow.className = 'layer-opacity-row';
+    const opacityLabel = document.createElement('span');
+    opacityLabel.className = 'layer-opacity-label';
+    opacityLabel.textContent = 'Opacity';
+    const opacityInput = document.createElement('input');
+    opacityInput.type = 'range';
+    opacityInput.min = '0';
+    opacityInput.max = '1';
+    opacityInput.step = '0.01';
+    opacityInput.value = String(currentProject.visualizer.opacity);
+    opacityInput.className = 'layer-opacity';
+    opacityInput.addEventListener('input', () => {
+        currentProject.visualizer.opacity = Number(opacityInput.value);
+        visualizerOpacityInput.value = opacityInput.value;
+    });
+    opacityRow.appendChild(opacityLabel);
+    opacityRow.appendChild(opacityInput);
+    vizAssetControl.appendChild(opacityRow);
+
+    targetList.appendChild(vizAssetControl);
   };
 
   createVisualizerRow(layerList);
@@ -9643,17 +9733,17 @@ const render = (time: number) => {
     }
     return layers[0] ?? null;
   };
-  const plasmaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-plasma');
-  const spectrumLayer = renderScene?.layers.find((layer) => layer.id === 'layer-spectrum');
-  const origamiLayer = renderScene?.layers.find((layer) => layer.id === 'layer-origami');
-  const glyphLayer = renderScene?.layers.find((layer) => layer.id === 'layer-glyph');
-  const crystalLayer = renderScene?.layers.find((layer) => layer.id === 'layer-crystal');
-  const inkLayer = renderScene?.layers.find((layer) => layer.id === 'layer-inkflow');
-  const topoLayer = renderScene?.layers.find((layer) => layer.id === 'layer-topo');
-  const weatherLayer = renderScene?.layers.find((layer) => layer.id === 'layer-weather');
-  const portalLayer = renderScene?.layers.find((layer) => layer.id === 'layer-portal');
-  const mediaLayer = renderScene?.layers.find((layer) => layer.id === 'layer-media');
-  const oscilloLayer = renderScene?.layers.find((layer) => layer.id === 'layer-oscillo');
+  const plasmaLayer = findLayerById(renderScene?.layers, 'layer-plasma');
+  const spectrumLayer = findLayerById(renderScene?.layers, 'layer-spectrum');
+  const origamiLayer = findLayerById(renderScene?.layers, 'layer-origami');
+  const glyphLayer = findLayerById(renderScene?.layers, 'layer-glyph');
+  const crystalLayer = findLayerById(renderScene?.layers, 'layer-crystal');
+  const inkLayer = findLayerById(renderScene?.layers, 'layer-inkflow');
+  const topoLayer = findLayerById(renderScene?.layers, 'layer-topo');
+  const weatherLayer = findLayerById(renderScene?.layers, 'layer-weather');
+  const portalLayer = findLayerById(renderScene?.layers, 'layer-portal');
+  const mediaLayer = findLayerById(renderScene?.layers, 'layer-media');
+  const oscilloLayer = findLayerById(renderScene?.layers, 'layer-oscillo');
   // EDM Generators
   const laserLayer = findLayerById(renderScene?.layers, 'gen-laser-beam');
   const strobeLayer = findLayerById(renderScene?.layers, 'gen-strobe');

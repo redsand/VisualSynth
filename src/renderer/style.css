@@ -994,6 +994,32 @@ body[data-mode='matrix'] .safe-mode {
   flex-direction: column;
 }
 
+.layer-params-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.param-label {
+  font-size: 10px;
+  color: #8da7c1;
+  text-transform: uppercase;
+}
+
+.param-slider {
+  width: 100%;
+}
+
 .layer-asset-select {
   background: #162235;
   color: #e4f4ff;

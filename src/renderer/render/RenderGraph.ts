@@ -1613,8 +1613,8 @@ export class RenderGraph {
     const moddedPersistence = getFxVal(trailsLayer, 'fx-trails.persistence', effects.persistence);
 
     const hasActiveScene = Boolean(activeScene);
-    const plasmaEnabled = plasmaLayer?.enabled ?? (hasActiveScene ? false : true);
-    const spectrumEnabled = spectrumLayer?.enabled ?? (hasActiveScene ? false : true);
+    const plasmaEnabled = plasmaLayer?.enabled ?? true;
+    const spectrumEnabled = spectrumLayer?.enabled ?? true;
     const origamiEnabled = origamiLayer?.enabled ?? false;
     const glyphEnabled = glyphLayer?.enabled ?? false;
     const crystalEnabled = crystalLayer?.enabled ?? false;
@@ -1762,7 +1762,7 @@ export class RenderGraph {
       particleGlow: moddedParticles.glow,
       particleTurbulence: moddedParticles.turbulence,
       particleAudioLift: moddedParticles.audioLift,
-      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf' && l.enabled)) : sdf.enabled),
+      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf' && l.enabled && l.opacity > 0.01)) : (sdf.enabled && (sdf.fill > 0.01 || sdf.glow > 0.01))),
       sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
       sdfScale: moddedSdf.scale,
       sdfEdge: moddedSdf.edge,
