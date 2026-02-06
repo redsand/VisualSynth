@@ -6,6 +6,7 @@ export interface SceneTimelineOptions {
   status?: HTMLElement | null;
   onSelect: (sceneId: string, sceneName: string) => void;
   onRemove: (sceneId: string, sceneName: string) => void;
+  onContextMenu?: (sceneId: string, sceneName: string, event: MouseEvent) => void;
 }
 
 export const renderSceneTimelineItems = ({
@@ -59,6 +60,11 @@ export const renderSceneTimelineItems = ({
     item.appendChild(progress);
     item.appendChild(remove);
     item.addEventListener('click', () => onSelect(scene.id, scene.name));
+    item.addEventListener('contextmenu', (event) => {
+      if (!onContextMenu) return;
+      event.preventDefault();
+      onContextMenu(scene.id, scene.name, event);
+    });
     item.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();

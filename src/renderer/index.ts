@@ -29,7 +29,7 @@ import { createSdfPanel } from './ui/panels/SdfPanel';
 import { createOutputManagerPanel, injectOutputManagerStyles } from './ui/panels/OutputManagerPanel';
 import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './panels/ModulationPanel';
-import { getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
+import { getBeatMs, getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
@@ -2518,6 +2518,80 @@ const renderSceneStrip = () => {
   });
 };
 
+let sceneTimelineMenu: HTMLDivElement | null = null;
+let sceneTimelineMenuCleanup: (() => void) | null = null;
+
+const closeSceneTimelineMenu = () => {
+  sceneTimelineMenuCleanup?.();
+  sceneTimelineMenuCleanup = null;
+  if (sceneTimelineMenu) {
+    sceneTimelineMenu.remove();
+    sceneTimelineMenu = null;
+  }
+};
+
+const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName: string) => {
+  closeSceneTimelineMenu();
+  const menu = document.createElement('div');
+  menu.style.position = 'fixed';
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  menu.style.background = '#141a24';
+  menu.style.border = '1px solid #2a3344';
+  menu.style.borderRadius = '6px';
+  menu.style.padding = '6px';
+  menu.style.boxShadow = '0 6px 18px rgba(0,0,0,0.45)';
+  menu.style.zIndex = '9999';
+  menu.style.minWidth = '180px';
+
+  const queueBtn = document.createElement('button');
+  queueBtn.type = 'button';
+  queueBtn.textContent = 'Queue in 4 beats';
+  queueBtn.style.display = 'block';
+  queueBtn.style.width = '100%';
+  queueBtn.style.textAlign = 'left';
+  queueBtn.style.background = 'transparent';
+  queueBtn.style.color = '#e6eef8';
+  queueBtn.style.border = '0';
+  queueBtn.style.padding = '8px 10px';
+  queueBtn.style.cursor = 'pointer';
+  queueBtn.onmouseenter = () => { queueBtn.style.background = '#1f2633'; };
+  queueBtn.onmouseleave = () => { queueBtn.style.background = 'transparent'; };
+  queueBtn.onclick = () => {
+    const bpm = getActiveBpm();
+    const now = performance.now();
+    const beatMs = getBeatMs(bpm);
+    const nextBeat = getNextQuantizedTimeMs(now, bpm, 'quarter');
+    const scheduledTimeMs = nextBeat + beatMs * 3;
+    pendingSceneSwitch = { targetSceneId: sceneId, scheduledTimeMs };
+    setStatus(`Queued scene switch to ${sceneName} (4 beats)`);
+    closeSceneTimelineMenu();
+  };
+
+  menu.appendChild(queueBtn);
+  document.body.appendChild(menu);
+
+  const rect = menu.getBoundingClientRect();
+  const clampX = Math.min(x, window.innerWidth - rect.width - 6);
+  const clampY = Math.min(y, window.innerHeight - rect.height - 6);
+  menu.style.left = `${Math.max(6, clampX)}px`;
+  menu.style.top = `${Math.max(6, clampY)}px`;
+
+  const onDocClick = (event: MouseEvent) => {
+    if (!menu.contains(event.target as Node)) closeSceneTimelineMenu();
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') closeSceneTimelineMenu();
+  };
+  document.addEventListener('mousedown', onDocClick, true);
+  document.addEventListener('keydown', onKey);
+  sceneTimelineMenuCleanup = () => {
+    document.removeEventListener('mousedown', onDocClick, true);
+    document.removeEventListener('keydown', onKey);
+  };
+  sceneTimelineMenu = menu;
+};
+
 const renderSceneTimeline = () => {
   if (!sceneTimelineTrack) return;
   renderSceneTimelineItems({
@@ -2530,6 +2604,10 @@ const renderSceneTimeline = () => {
     },
     onRemove: (sceneId, sceneName) => {
       removeScene(sceneId);
+      closeSceneTimelineMenu();
+    },
+    onContextMenu: (sceneId, sceneName, event) => {
+      showSceneTimelineMenu(event.clientX, event.clientY, sceneId, sceneName);
     }
   });
 };
