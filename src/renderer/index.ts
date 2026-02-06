@@ -10822,10 +10822,34 @@ const render = (time: number) => {
     const activePalette =
       currentProject.palettes.find((palette) => palette.id === currentProject.activePaletteId) ??
       currentProject.palettes[0];
+    const serializeAssetForOutput = (asset: AssetItem | null) =>
+      asset
+        ? {
+            id: asset.id,
+            name: asset.name,
+            kind: asset.kind,
+            path: asset.path,
+            width: asset.width,
+            height: asset.height,
+            internalSource: asset.internalSource,
+            options: asset.options
+          }
+        : null;
+    const resolveLayerAsset = (layer?: LayerConfig | null) =>
+      layer?.assetId
+        ? serializeAssetForOutput(
+            currentProject.assets.find((item) => item.id === layer.assetId) ?? null
+          )
+        : null;
     const { sdfScene: _ignoredSdfScene, ...outputState } = renderState;
     outputChannel.postMessage({
       ...outputState,
-      paletteColors: activePalette?.colors ?? DEFAULT_PROJECT.palettes[0].colors
+      paletteColors: activePalette?.colors ?? DEFAULT_PROJECT.palettes[0].colors,
+      layerAssets: {
+        'layer-plasma': resolveLayerAsset(plasmaLayer),
+        'layer-spectrum': resolveLayerAsset(spectrumLayer),
+        'layer-media': resolveLayerAsset(mediaLayer)
+      }
     });
   }
 

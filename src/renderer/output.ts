@@ -1,9 +1,12 @@
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
+import type { AssetItem } from '../shared/project';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
 const debugOverlay = document.getElementById('output-debug') as HTMLDivElement | null;
 let debugVisible = false;
 let renderer: ReturnType<typeof createGLRenderer>;
+type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
+const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 
 try {
   renderer = createGLRenderer(canvas, {});
@@ -405,7 +408,10 @@ let messageCount = 0;
 channel.onmessage = (event) => {
   lastMessageAt = performance.now();
   messageCount += 1;
-  const data = event.data as Partial<RenderState> & { spectrum?: Float32Array };
+  const data = event.data as Partial<RenderState> & {
+    spectrum?: Float32Array;
+    layerAssets?: Partial<Record<AssetLayerId, AssetItem | null>>;
+  };
   if (typeof data.timeMs === 'number') state.timeMs = data.timeMs;
   if (typeof data.rms === 'number') state.rms = data.rms;
   if (typeof data.peak === 'number') state.peak = data.peak;
@@ -815,6 +821,19 @@ channel.onmessage = (event) => {
     if (colors.length >= 5) {
       renderer.setPalette(colors.slice(0, 5) as [string, string, string, string, string]);
     }
+  }
+  if (data.layerAssets) {
+    (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
+      const asset = data.layerAssets?.[layerId] ?? null;
+      const nextId = asset?.id ?? null;
+      if (layerAssetIds[layerId] === nextId) return;
+      layerAssetIds[layerId] = nextId;
+      if (asset?.kind === 'text') {
+        renderer.setLayerAsset(layerId, null);
+        return;
+      }
+      renderer.setLayerAsset(layerId, asset);
+    });
   }
 };
 
