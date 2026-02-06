@@ -1238,12 +1238,10 @@ vec3 posterize(vec3 color, float amount) {
 
 vec3 palette(float t) {
   float v = clamp(t, 0.0, 1.0);
-  vec3 col = uPalette[0];
-  col = mix(col, uPalette[1], smoothstep(0.0, 0.25, v));
-  col = mix(col, uPalette[2], smoothstep(0.25, 0.5, v));
-  col = mix(col, uPalette[3], smoothstep(0.5, 0.75, v));
-  col = mix(col, uPalette[4], smoothstep(0.75, 1.0, v));
-  return col;
+  if (v <= 0.25) return mix(uPalette[0], uPalette[1], v * 4.0);
+  if (v <= 0.50) return mix(uPalette[1], uPalette[2], (v - 0.25) * 4.0);
+  if (v <= 0.75) return mix(uPalette[2], uPalette[3], (v - 0.50) * 4.0);
+  return mix(uPalette[3], uPalette[4], (v - 0.75) * 4.0);
 }
 
 // --- Rock Generator Functions ---
@@ -2624,6 +2622,7 @@ void main() {
   }
   // --- End EDM Generators ---
 
+  // Strobe addition logic: only add if enabled
   if (uStrobeEnabled > 0.5) {
     color += vec3(uStrobe * 1.5);
   }
@@ -2675,16 +2674,22 @@ void main() {
   if (uEngineSignature > 0.5) {
       if (uEngineSignature < 1.5) { // Radial Core: Energy Halo
           float halo = 1.0 - smoothstep(0.3, 0.5, length(uv - 0.5));
-          color += color * halo * 0.15 * low;
+          if (any(greaterThan(color, vec3(0.001)))) {
+              color += color * halo * 0.15 * low;
+          }
       } else if (uEngineSignature < 2.5) { // Particle Flow: Organic Grit
           float grit = fbm(uv * 20.0 + uTime * 0.05);
-          color = mix(color, color * (0.8 + grit * 0.4), 0.2);
+          if (any(greaterThan(color, vec3(0.001)))) {
+              color = mix(color, color * (0.8 + grit * 0.4), 0.2);
+          }
       } else if (uEngineSignature < 3.5) { // Kaleido Pulse: Digital Interference
           float line = step(0.98, fract(uv.y * 100.0 + uTime * 2.0));
-          color += vec3(line) * 0.05 * high;
+          if (any(greaterThan(color, vec3(0.001)))) {
+              color += vec3(line) * 0.05 * high;
+          }
       } else if (uEngineSignature > 3.5) { // Vapor Grid: Retro Scanlines
           float scan = sin(uv.y * 400.0) * 0.04;
-          color -= scan;
+          color *= (1.0 - scan * low);
       }
   }
 
