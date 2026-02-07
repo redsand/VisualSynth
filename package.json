@@ -53,7 +53,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "resources/UndertowFX.ico",
+      "icon": "resources/visualsynth_logo.ico",
       "publisherName": "Redsand Networks"
     },
     "nsis": {
@@ -62,9 +62,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "installerIcon": "resources/UndertowFX.ico",
-      "uninstallerIcon": "resources/UndertowFX.ico",
-      "installerHeaderIcon": "resources/UndertowFX.ico",
+      "installerIcon": "resources/visualsynth_logo.ico",
+      "uninstallerIcon": "resources/visualsynth_logo.ico",
+      "installerHeaderIcon": "resources/visualsynth_logo.ico",
       "shortcutName": "VisualSynth",
       "uninstallDisplayName": "VisualSynth",
       "deleteAppDataOnUninstall": false,
