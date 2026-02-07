@@ -1,10 +1,9 @@
 !include "nsDialogs.nsh"
 !include "LogicLib.nsh"
+!pragma warning disable 6001
 
 Var RemoveUserData
 Var UserDataCheckbox
-
-StrCpy $RemoveUserData ${BST_UNCHECKED}
 
 !macro VS_CustomUninstall
   nsDialogs::Create 1018
