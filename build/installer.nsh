@@ -4,7 +4,9 @@
 Var RemoveUserData
 Var UserDataCheckbox
 
-!macro customUnInstall
+StrCpy $RemoveUserData ${BST_UNCHECKED}
+
+!macro VS_CustomUninstall
   nsDialogs::Create 1018
   Pop $0
   ${If} $0 == error
@@ -15,11 +17,12 @@ Var UserDataCheckbox
   Pop $UserDataCheckbox
   nsDialogs::Show
   ${NSD_GetState} $UserDataCheckbox $RemoveUserData
-!macroend
-
-!macro customRemoveFiles
   ${If} $RemoveUserData == ${BST_CHECKED}
     RMDir /r "$APPDATA\VisualSynth"
     RMDir /r "$LOCALAPPDATA\VisualSynth"
   ${EndIf}
+!macroend
+
+!macro customUnInstall
+  !insertmacro VS_CustomUninstall
 !macroend
