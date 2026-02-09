@@ -10,7 +10,8 @@
     "dev": "concurrently -k \"tsc -w -p tsconfig.main.json\" \"node scripts/build-renderer.js --watch\" \"wait-on dist/main/main/main.js && electron .\"",
     "prepare:assets": "node scripts/prepare-assets.js",
     "build": "npm run prepare:assets && tsc -p tsconfig.main.json && node scripts/build-renderer.js",
-    "dist": "npm run build && electron-builder",
+    "verify:packaging": "node scripts/verify-packaging.js",
+    "dist": "npm run verify:packaging && npm run build && electron-builder",
     "test": "vitest run",
     "screenshots:generate": "node scripts/generate-visual-screenshots.js",
     "screenshots:all": "node scripts/generate-visual-screenshots.js --all",
@@ -27,8 +28,8 @@
     "productName": "VisualSynth",
     "artifactName": "${productName}-Setup-${version}.${ext}",
     "files": [
-      "dist/**/*",
-      "assets/**/*",
+      "dist/main/**/*",
+      "dist/renderer/**/*",
       "package.json"
     ],
     "extraResources": [
@@ -39,10 +40,15 @@
       {
         "from": "assets/templates",
         "to": "templates"
+      },
+      {
+        "from": "showcase-performance.project.json",
+        "to": "projects/showcase-performance.project.json"
       }
     ],
     "directories": {
-      "buildResources": "build"
+      "buildResources": "build",
+      "output": "release"
     },
     "asar": true,
     "asarUnpack": [

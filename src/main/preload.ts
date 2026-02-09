@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('visualSynth', {
   saveExchange: (payload: string, defaultName: string) =>
     ipcRenderer.invoke('exchange:save', payload, defaultName),
   openProject: () => ipcRenderer.invoke('project:open'),
+  loadShowcaseProject: () => ipcRenderer.invoke('project:load-showcase'),
   getRecovery: () => ipcRenderer.invoke('project:recovery'),
   openExchange: () => ipcRenderer.invoke('exchange:open'),
   listPresets: () => ipcRenderer.invoke('presets:list'),

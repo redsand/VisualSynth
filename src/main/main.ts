@@ -297,6 +297,23 @@ ipcMain.handle('project:open', async () => {
   return { canceled: false, filePath, project: parsed.data };
 });
 
+ipcMain.handle('project:load-showcase', async () => {
+  const showcasePath = app.isPackaged
+    ? path.join(process.resourcesPath, 'projects', 'showcase-performance.project.json')
+    : path.join(app.getAppPath(), 'showcase-performance.project.json');
+
+  if (!fs.existsSync(showcasePath)) {
+    return { found: false, error: 'Showcase project not found.' };
+  }
+
+  try {
+    const payload = fs.readFileSync(showcasePath, 'utf-8');
+    return { found: true, payload };
+  } catch (error) {
+    return { found: false, error: (error as Error).message };
+  }
+});
+
 ipcMain.handle('exchange:open', async () => {
   if (!mainWindow) return { canceled: true };
   const result = await dialog.showOpenDialog(mainWindow, {

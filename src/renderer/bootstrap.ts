@@ -265,6 +265,28 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
     }
   } else {
     console.log('[Bootstrap] No recovery project found');
+    const firstLaunchKey = 'visualsynth.firstLaunchComplete';
+    const isFirstLaunch = localStorage.getItem(firstLaunchKey) !== '1';
+    if (isFirstLaunch) {
+      localStorage.setItem(firstLaunchKey, '1');
+      try {
+        const showcase = await window.visualSynth.loadShowcaseProject();
+        if (showcase.found && showcase.payload) {
+          const parsed = projectSchema.safeParse(JSON.parse(showcase.payload));
+          if (parsed.success) {
+            await projectIO.applyProject(parsed.data);
+            setStatus('Showcase project loaded.');
+            console.log('[Bootstrap] Showcase project applied');
+          } else {
+            console.warn('[Bootstrap] Showcase project invalid:', parsed.error);
+          }
+        } else if (showcase.error) {
+          console.warn('[Bootstrap] Showcase project missing:', showcase.error);
+        }
+      } catch (error) {
+        console.error('[Bootstrap] Showcase project load failed:', error);
+      }
+    }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
