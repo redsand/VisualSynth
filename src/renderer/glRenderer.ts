@@ -3,11 +3,15 @@ import type { AssetItem } from '../shared/project';
 import type { AssetTextureSampling } from '../shared/assets';
 import { buildSdfShader } from './sdf/compile/glslBuilder';
 
-export interface RenderState {
+export interface RenderTelemetryState {
   timeMs: number;
   rms: number;
   peak: number;
   strobe: number;
+  spectrum: Float32Array;
+}
+
+export interface RenderLayerEnabledState {
   plasmaEnabled: boolean;
   spectrumEnabled: boolean;
   origamiEnabled: boolean;
@@ -19,16 +23,59 @@ export interface RenderState {
   portalEnabled: boolean;
   mediaEnabled: boolean;
   oscilloEnabled: boolean;
-  spectrum: Float32Array;
+}
+
+export interface RenderColorPipelineState {
   contrast: number;
   saturation: number;
   paletteShift: number;
+}
+
+export interface RenderTransitionState {
+  transitionAmount: number;
+  transitionType: number; // 0: none, 1: fade, 2: warp, 3: glitch, 4: dissolve
+  chemistryMode: number; // 0: analog, 1: triadic, 2: complementary, 3: monochromatic
+  motionTemplate: number;
+}
+
+export interface RenderPostFxState {
+  effectsEnabled: boolean;
+  bloom: number;
+  blur: number;
+  chroma: number;
+  posterize: number;
+  kaleidoscope: number;
+  kaleidoscopeRotation: number;
+  feedback: number;
+  persistence: number;
+  feedbackZoom: number;
+  feedbackRotation: number;
+}
+
+export interface RenderSdfState {
+  sdfEnabled: boolean;
+  sdfShape: number;
+  sdfScale: number;
+  sdfEdge: number;
+  sdfGlow: number;
+  sdfRotation: number;
+  sdfFill: number;
+  sdfColor?: [number, number, number];
+  sdfScene?: any; // Config for Advanced mode
+}
+
+export interface RenderState
+  extends RenderTelemetryState,
+    RenderLayerEnabledState,
+    RenderColorPipelineState,
+    RenderTransitionState,
+    RenderPostFxState,
+    RenderSdfState {
   plasmaOpacity: number;
   plasmaSpeed: number;
   plasmaScale: number;
   plasmaComplexity: number;
   plasmaAudioReact: number;
-  spectrumEnabled: boolean;
   origamiOpacity: number;
   origamiFoldState: number;
   origamiFoldSharpness: number;
@@ -83,15 +130,6 @@ export interface RenderState {
   spectrumAssetAudioReact: number;
   mediaAssetBlendMode: number;
   mediaAssetAudioReact: number;
-  effectsEnabled: boolean;
-  bloom: number;
-  blur: number;
-  chroma: number;
-  posterize: number;
-  kaleidoscope: number;
-  kaleidoscopeRotation: number;
-  feedback: number;
-  persistence: number;
   trailSpectrum: Float32Array;
   expressiveEnergyBloom: number;
   expressiveEnergyThreshold: number;
@@ -114,19 +152,8 @@ export interface RenderState {
   particleGlow: number;
   particleTurbulence: number;
   particleAudioLift: number;
-  sdfEnabled: boolean;
-  sdfShape: number;
-  sdfScale: number;
-  sdfEdge: number;
-  sdfGlow: number;
-  sdfRotation: number;
-  sdfFill: number;
-  sdfColor?: [number, number, number];
   globalColor?: [number, number, number];
   hasInternalAsset?: boolean;
-  sdfScene?: any; // Config for Advanced mode
-  feedbackZoom: number;
-  feedbackRotation: number;
   gravityPositions: Float32Array;
   gravityStrengths: Float32Array;
   gravityPolarities: Float32Array;
@@ -139,10 +166,6 @@ export interface RenderState {
     support: number;
     atmosphere: number;
   };
-  transitionAmount: number;
-  transitionType: number; // 0: none, 1: fade, 2: warp, 3: glitch, 4: dissolve
-  chemistryMode: number; // 0: analog, 1: triadic, 2: complementary, 3: monochromatic
-  motionTemplate: number;
   engineMass: number;
   engineFriction: number;
   engineElasticity: number;
