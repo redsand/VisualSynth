@@ -1,0 +1,120 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Tetrahedra",
+    "author": "Mdgeorge",
+    "source": "Mdgeorge - Tetrahedra.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:43.036Z",
+    "updatedAt": "2026-03-04T16:57:43.036Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1.98,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1.98,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1,
+            "rotation": 0,
+            "warp": 0,
+            "decay": 1,
+            "gamma": 1.98,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \n        ret = 0;\n    \n  fragColor = ret;\n}",
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \n        float f = 1.618; // golden ratio\n        float g = 0.618; // 1/f, or f - 1\n\n        vec4 corners[20] =\n            { vec4(+1,+1,+1,1) // tetrahedron 1\n            , vec4(+1,-1,-1,1)\n            , vec4(-1,+1,-1,1)\n            , vec4(-1,-1,+1,1)\n\n            , vec4(-1,-1,-1,1) // tetrahedron 2\n            , vec4( 0,+f,-g,1)\n            , vec4(-g, 0,+f,1)\n            , vec4(+f,-g, 0,1)\n\n            , vec4(-1,+1,+1,1) // tetrahedron 3\n            , vec4( 0,-f,+g,1)\n            , vec4(-g, 0,-f,1)\n            , vec4(+f,+g, 0,1)\n\n            , vec4(+1,-1,+1,1) // tetrahedron 4\n            , vec4( 0,+f,+g,1)\n            , vec4(+g, 0,-f,1)\n            , vec4(-f,-g, 0,1)\n\n            , vec4(+1,+1,-1,1) // tetrahedron 5\n            , vec4( 0,-f,-g,1)\n            , vec4(+g, 0,+f,1)\n            , vec4(-f,+g, 0,1)\n        };\n\n        vec2 uv2 = (vUv - vec2(.5,.5))*uAspect.wz*4; // normalized into [-1,1]\n\n        float depth = 10;\n\n        ret = vec3(0.9,0.95,1);\n        for (int tet = 0; tet < 5; tet++) {\n            for (int face = 0; face < 4; face++) {\n                vec4 v0 = corners[(4*tet) + ((face + 0)%4)];\n                vec4 v1 = corners[(4*tet) + ((face + 1)%4)];\n                vec4 v2 = corners[(4*tet) + ((face + 2)%4)];\n                vec4 v3 = corners[(4*tet) + ((face + 3)%4)];\n                vec4 i = intersection(uv2,\n                    multiply(v0, rot_f1),\n                    multiply(v1, rot_f1),\n                    multiply(v2, rot_f1)\n                );\n\n                vec3 bary = vec3(i.xy, 1 - i.x - i.y);\n                if (bary.x < 0 || bary.x > 1 || bary.y < 0 || bary.y > 1 || bary.z < 0 || bary.z > 1) {\n\n                }\n                else if (bary.x > .08 && bary.y > .08 && bary.z > .08) {\n\n                }\n                else if (i.z > depth) {\n\n                }\n                else {\n                    depth = i.z;\n\n                    ret = v3.xyz/4 + 0.5*bary;\n                }\n            }\n        }\n    \n  fragColor = ret;\n}",
+    "perFrameCode": [],
+    "perFrameInitCode": [],
+    "perPixelCode": [],
+    "originalParameters": {
+      "fShader": 0,
+      "fDecay": 1,
+      "fGammaAdj": 1.98,
+      "warp": 0,
+      "zoom": 1,
+      "wave_a": 0
+    }
+  }
+}

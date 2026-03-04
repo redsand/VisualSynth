@@ -1180,9 +1180,9 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
         id: 'threshold',
         name: 'Threshold',
         type: 'number',
-        min: 0.3,
+        min: 0.1,
         max: 0.9,
-        default: 0.6,
+        default: 0.3,
         description: 'Peak detection threshold',
         modulatable: true,
         midiMappable: true,
@@ -1469,6 +1469,353 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
         sinceVersion: '1.0.0'
       }
     ]
+  },
+  {
+    id: 'cellular-growth',
+    name: 'Cellular Growth',
+    description: 'Biologically-inspired cellular automaton with organic expansion',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'rate', name: 'Growth Rate', type: 'number', min: 0.1, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Cell Density', type: 'number', min: 0.1, max: 3, default: 0.8, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'bio-luminescent-forest',
+    name: 'Bio-Luminescent Forest',
+    description: 'Glowing organic forest with pulsing light patterns',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'pulse', name: 'Pulse Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Tree Density', type: 'number', min: 0.1, max: 2, default: 0.7, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'crystalline',
+    name: 'Crystalline',
+    description: 'Dynamic crystal formation with light refraction',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'rotation', name: 'Rotation Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'refraction', name: 'Refraction Index', type: 'number', min: 0.1, max: 2, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'audio-dna',
+    name: 'Audio DNA',
+    description: 'Audio-reactive double helix visualization',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'rotation', name: 'Rotation Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'segments', name: 'DNA Segments', type: 'number', min: 5, max: 50, default: 20, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'liquid-metal',
+    name: 'Liquid Metal',
+    description: 'Fluid metallic surfaces with reflective properties',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'flow', name: 'Flow Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'shimmer', name: 'Metallic Shimmer', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'neon-cityscape',
+    name: 'Neon Cityscape',
+    description: 'Cyberpunk city skyline with neon lights',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'City Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Building Density', type: 'number', min: 0.1, max: 2, default: 0.6, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'cosmic-nebula',
+    name: 'Cosmic Nebula',
+    description: 'Deep space nebula with star formations',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'expansion', name: 'Nebula Expansion', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'turbulence', name: 'Gas Turbulence', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'sonic-rain',
+    name: 'Sonic Rain',
+    description: 'Audio-reactive falling particles with color gradients',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Fall Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Particle Density', type: 'number', min: 0.1, max: 2, default: 0.8, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'morphing-geometry',
+    name: 'Morphing Geometry',
+    description: 'Shapeshifting geometric forms',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Morph Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'complexity', name: 'Shape Complexity', type: 'number', min: 0, max: 1, default: 0.7, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'urban-rhythm',
+    name: 'Urban Rhythm',
+    description: 'Beat-synchronized urban visualization',
+    sinceVersion: '1.5.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'bpm', name: 'BPM Factor', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'intensity', name: 'Beat Intensity', type: 'number', min: 0, max: 2, default: 0.6, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'crimson-veil',
+    name: 'Crimson Veil',
+    description: 'Dark crimson flowing fabric effect',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'flow', name: 'Flow', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'darkness', name: 'Darkness', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'victorian-crypt',
+    name: 'Victorian Crypt',
+    description: 'Gothic cathedral arches and vaulted ceilings',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'complexity', name: 'Complexity', type: 'number', min: 0, max: 5, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'decay', name: 'Decay', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'spectral-apparition',
+    name: 'Spectral Apparition',
+    description: 'Ghostly figures drifting',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'fade', name: 'Fade', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'gothic-cobwebs',
+    name: 'Gothic Cobwebs',
+    description: 'Spider webs with dew drops',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'decay', name: 'Decay', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'blood-moon-rise',
+    name: 'Blood Moon Rise',
+    description: 'Eerie red moon rising over dark landscape',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'eclipse', name: 'Eclipse', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'glow', name: 'Glow', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'candlelight-vigil',
+    name: 'Candlelight Vigil',
+    description: 'Flickering candles in darkness',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'flicker', name: 'Flicker', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'decay', name: 'Decay', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'gargoyles-awake',
+    name: 'Gargoyles Awake',
+    description: 'Stone gargoyles with animated shadows',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'animation', name: 'Animation', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'shadow', name: 'Shadow', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'crypt-shadows',
+    name: 'Crypt Shadows',
+    description: 'Dark shadows in catacombs',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'depth', name: 'Depth', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'movement', name: 'Movement', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'gothic-rose',
+    name: 'Gothic Rose',
+    description: 'Dark wilted roses with falling petals',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'decay', name: 'Decay', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'thorns', name: 'Thorns', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'eternal-darkness',
+    name: 'Eternal Darkness',
+    description: 'Pure black void with subtle gothic elements',
+    sinceVersion: '1.6.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'void', name: 'Void', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'traces', name: 'Traces', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'pixel-dust',
+    name: 'Pixel Dust',
+    description: 'Floating pixel particles with 8-bit aesthetic',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'pixelSize', name: 'Pixel Size', type: 'number', min: 0.005, max: 0.1, default: 0.02, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'retro-starfield',
+    name: 'Retro Starfield',
+    description: 'Classic scrolling space background',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'size', name: 'Star Size', type: 'number', min: 0.005, max: 0.05, default: 0.01, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: '8bit-grid',
+    name: '8-Bit Grid',
+    description: 'Pixelated grid pattern with game-style movement',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'pixelSize', name: 'Pixel Size', type: 'number', min: 0.005, max: 0.1, default: 0.02, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'arcade-invaders',
+    name: 'Arcade Invaders',
+    description: 'Retro alien invasion patterns',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'animation', name: 'Animation', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'power-up-pulse',
+    name: 'Power-Up Pulse',
+    description: 'Glowing power-up orbs with retro colors',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'intensity', name: 'Intensity', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'dungeon-tiles',
+    name: 'Dungeon Tiles',
+    description: 'Retro RPG dungeon floor pattern',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'pattern', name: 'Pattern', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'animation', name: 'Animation', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'chiptune-wave',
+    name: 'Chiptune Wave',
+    description: 'Audio-reactive 8-bit wave visualization',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'bits', name: 'Bits', type: 'number', min: 1, max: 8, default: 4, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'score-counter',
+    name: 'Score Counter',
+    description: 'Retro game score display elements',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'digits', name: 'Digits', type: 'number', min: 3, max: 10, default: 6, modulatable: true, midiMappable: true },
+      { id: 'animation', name: 'Animation', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'pixel-rain',
+    name: 'Pixel Rain',
+    description: 'Falling pixels like Matrix but game-style',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'boss-health',
+    name: 'Boss Health',
+    description: 'Retro boss health bar visualization',
+    sinceVersion: '1.7.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'value', name: 'Health Value', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'bars', name: 'Health Bars', type: 'number', min: 1, max: 5, default: 3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'milkwave',
+    name: 'Milkwave Import',
+    description: 'Imported Milkwave/MilkDrop preset with custom shader',
+    sinceVersion: '1.4.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'zoom', name: 'Zoom', type: 'number', min: 0.5, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'rotation', name: 'Rotation', type: 'number', min: -3.14, max: 3.14, default: 0, modulatable: true, midiMappable: true },
+      { id: 'warp', name: 'Warp', type: 'number', min: 0, max: 1, default: 0.01, modulatable: true, midiMappable: true },
+      { id: 'decay', name: 'Decay', type: 'number', min: 0.8, max: 1, default: 0.95, modulatable: true, midiMappable: true },
+      { id: 'gamma', name: 'Gamma', type: 'number', min: 0.5, max: 2, default: 1.0, modulatable: true, midiMappable: true },
+      { id: 'bassSensitivity', name: 'Bass Sensitivity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'midSensitivity', name: 'Mid Sensitivity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'trebSensitivity', name: 'Treble Sensitivity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
   }
 ];
 
@@ -1542,7 +1889,38 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-plasma-ball': 'plasma-ball',
     'gen-warp-drive': 'warp-drive',
     'gen-visual-feedback': 'visual-feedback',
-    'gen-mycelium-growth': 'mycelium-growth'
+    'gen-mycelium-growth': 'mycelium-growth',
+    'gen-cellular-growth': 'cellular-growth',
+    'gen-bio-luminescent-forest': 'bio-luminescent-forest',
+    'gen-crystalline': 'crystalline',
+    'gen-audio-dna': 'audio-dna',
+    'gen-liquid-metal': 'liquid-metal',
+    'gen-neon-cityscape': 'neon-cityscape',
+    'gen-cosmic-nebula': 'cosmic-nebula',
+    'gen-sonic-rain': 'sonic-rain',
+    'gen-morphing-geometry': 'morphing-geometry',
+    'gen-urban-rhythm': 'urban-rhythm',
+    'gen-crimson-veil': 'crimson-veil',
+    'gen-victorian-crypt': 'victorian-crypt',
+    'gen-spectral-apparition': 'spectral-apparition',
+    'gen-gothic-cobwebs': 'gothic-cobwebs',
+    'gen-blood-moon-rise': 'blood-moon-rise',
+    'gen-candlelight-vigil': 'candlelight-vigil',
+    'gen-gargoyles-awake': 'gargoyles-awake',
+    'gen-crypt-shadows': 'crypt-shadows',
+    'gen-gothic-rose': 'gothic-rose',
+    'gen-eternal-darkness': 'eternal-darkness',
+    'gen-pixel-dust': 'pixel-dust',
+    'gen-retro-starfield': 'retro-starfield',
+    'gen-8bit-grid': '8bit-grid',
+    'gen-arcade-invaders': 'arcade-invaders',
+    'gen-power-up-pulse': 'power-up-pulse',
+    'gen-dungeon-tiles': 'dungeon-tiles',
+    'gen-chiptune-wave': 'chiptune-wave',
+    'gen-score-counter': 'score-counter',
+    'gen-pixel-rain': 'pixel-rain',
+    'gen-boss-health': 'boss-health',
+    'gen-milkwave': 'milkwave'
   };
 
   const type = idMapping[layerId] || layerId;
@@ -1693,7 +2071,38 @@ export const buildLegacyTarget = (layerType: string, param: string): string => {
     'topo': 'layer-topo',
     'weather': 'layer-weather',
     'portal': 'layer-portal',
-    'oscillo': 'layer-oscillo'
+    'oscillo': 'layer-oscillo',
+    'cellular-growth': 'layer-cellular-growth',
+    'bio-luminescent-forest': 'layer-bio-luminescent-forest',
+    'crystalline': 'layer-crystalline',
+    'audio-dna': 'layer-audio-dna',
+    'liquid-metal': 'layer-liquid-metal',
+    'neon-cityscape': 'layer-neon-cityscape',
+    'cosmic-nebula': 'layer-cosmic-nebula',
+    'sonic-rain': 'layer-sonic-rain',
+    'morphing-geometry': 'layer-morphing-geometry',
+    'urban-rhythm': 'layer-urban-rhythm',
+    'crimson-veil': 'layer-crimson-veil',
+    'victorian-crypt': 'layer-victorian-crypt',
+    'spectral-apparition': 'layer-spectral-apparition',
+    'gothic-cobwebs': 'layer-gothic-cobwebs',
+    'blood-moon-rise': 'layer-blood-moon-rise',
+    'candlelight-vigil': 'layer-candlelight-vigil',
+    'gargoyles-awake': 'layer-gargoyles-awake',
+    'crypt-shadows': 'layer-crypt-shadows',
+    'gothic-rose': 'layer-gothic-rose',
+    'eternal-darkness': 'layer-eternal-darkness',
+    'pixel-dust': 'layer-pixel-dust',
+    'retro-starfield': 'layer-retro-starfield',
+    '8bit-grid': 'layer-8bit-grid',
+    'arcade-invaders': 'layer-arcade-invaders',
+    'power-up-pulse': 'layer-power-up-pulse',
+    'dungeon-tiles': 'layer-dungeon-tiles',
+    'chiptune-wave': 'layer-chiptune-wave',
+    'score-counter': 'layer-score-counter',
+    'pixel-rain': 'layer-pixel-rain',
+    'boss-health': 'layer-boss-health',
+    'milkwave': 'layer-milkwave'
   };
 
   const layerId = reverseMapping[layerType] || `layer-${layerType}`;

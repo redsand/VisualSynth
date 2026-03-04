@@ -1,5 +1,25 @@
 export type GeneratorId =
   | 'layer-plasma'
+  | 'gen-cellular-growth'
+  | 'gen-bioluminescent-forest'
+  | 'gen-crystalline-structures'
+  | 'gen-audio-dna-helix'
+  | 'gen-liquid-metal'
+  | 'gen-neon-cityscape'
+  | 'gen-cosmic-aurora'
+  | 'gen-sonic-rain'
+  | 'gen-morphing-geometry'
+  | 'gen-urban-rhythm'
+  | 'gen-crimson-veil'
+  | 'gen-victorian-crypt'
+  | 'gen-spectral-apparition'
+  | 'gen-gothic-cobwebs'
+  | 'gen-blood-moon-rise'
+  | 'gen-candlelight-vigil'
+  | 'gen-gargoyles-awake'
+  | 'gen-crypt-shadows'
+  | 'gen-gothic-rose'
+  | 'gen-eternal-darkness'
   | 'layer-spectrum'
   | 'layer-origami'
   | 'layer-glyph'
@@ -103,6 +123,37 @@ export type GeneratorId =
   | 'gen-strobe'
   | 'gen-shape-burst'
   | 'gen-grid-tunnel'
+  | 'gen-cellular-growth'
+  | 'gen-bio-luminescent-forest'
+  | 'gen-crystalline'
+  | 'gen-audio-dna'
+  | 'gen-liquid-metal'
+  | 'gen-neon-cityscape'
+  | 'gen-cosmic-nebula'
+  | 'gen-sonic-rain'
+  | 'gen-morphing-geometry'
+  | 'gen-urban-rhythm'
+  | 'gen-crimson-veil'
+  | 'gen-victorian-crypt'
+  | 'gen-spectral-apparition'
+  | 'gen-gothic-cobwebs'
+  | 'gen-blood-moon-rise'
+  | 'gen-candlelight-vigil'
+  | 'gen-gargoyles-awake'
+  | 'gen-crypt-shadows'
+  | 'gen-gothic-rose'
+  | 'gen-eternal-darkness'
+  | 'gen-pixel-dust'
+  | 'gen-retro-starfield'
+  | 'gen-8bit-grid'
+  | 'gen-arcade-invaders'
+  | 'gen-power-up-pulse'
+  | 'gen-dungeon-tiles'
+  | 'gen-chiptune-wave'
+  | 'gen-score-counter'
+  | 'gen-pixel-rain'
+  | 'gen-boss-health'
+  | 'gen-milkwave'
   | 'viz-off'
   | 'viz-spectrum'
   | 'viz-waveform'
@@ -235,7 +286,38 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'fx-chroma', name: 'Effect: Chromatic Aberration' },
   { id: 'fx-posterize', name: 'Effect: Posterize' },
   { id: 'fx-blur', name: 'Effect: Blur' },
-  { id: 'fx-trails', name: 'Effect: Trails' }
+  { id: 'fx-trails', name: 'Effect: Trails' },
+  { id: 'gen-cellular-growth', name: 'Generator: Cellular Growth' },
+  { id: 'gen-bio-luminescent-forest', name: 'Generator: Bio-Luminescent Forest' },
+  { id: 'gen-crystalline', name: 'Generator: Crystalline' },
+  { id: 'gen-audio-dna', name: 'Generator: Audio DNA' },
+  { id: 'gen-liquid-metal', name: 'Generator: Liquid Metal' },
+  { id: 'gen-neon-cityscape', name: 'Generator: Neon Cityscape' },
+  { id: 'gen-cosmic-nebula', name: 'Generator: Cosmic Nebula' },
+  { id: 'gen-sonic-rain', name: 'Generator: Sonic Rain' },
+  { id: 'gen-morphing-geometry', name: 'Generator: Morphing Geometry' },
+  { id: 'gen-urban-rhythm', name: 'Generator: Urban Rhythm' },
+  { id: 'gen-crimson-veil', name: 'Generator: Crimson Veil' },
+  { id: 'gen-victorian-crypt', name: 'Generator: Victorian Crypt' },
+  { id: 'gen-spectral-apparition', name: 'Generator: Spectral Apparition' },
+  { id: 'gen-gothic-cobwebs', name: 'Generator: Gothic Cobwebs' },
+  { id: 'gen-blood-moon-rise', name: 'Generator: Blood Moon Rise' },
+  { id: 'gen-candlelight-vigil', name: 'Generator: Candlelight Vigil' },
+  { id: 'gen-gargoyles-awake', name: 'Generator: Gargoyles Awake' },
+  { id: 'gen-crypt-shadows', name: 'Generator: Crypt Shadows' },
+  { id: 'gen-gothic-rose', name: 'Generator: Gothic Rose' },
+  { id: 'gen-eternal-darkness', name: 'Generator: Eternal Darkness' },
+  { id: 'gen-pixel-dust', name: 'Generator: Pixel Dust' },
+  { id: 'gen-retro-starfield', name: 'Generator: Retro Starfield' },
+  { id: 'gen-8bit-grid', name: 'Generator: 8-Bit Grid' },
+  { id: 'gen-arcade-invaders', name: 'Generator: Arcade Invaders' },
+  { id: 'gen-power-up-pulse', name: 'Generator: Power-Up Pulse' },
+  { id: 'gen-dungeon-tiles', name: 'Generator: Dungeon Tiles' },
+  { id: 'gen-chiptune-wave', name: 'Generator: Chiptune Wave' },
+  { id: 'gen-score-counter', name: 'Generator: Score Counter' },
+  { id: 'gen-pixel-rain', name: 'Generator: Pixel Rain' },
+  { id: 'gen-boss-health', name: 'Generator: Boss Health' },
+  { id: 'gen-milkwave', name: 'Generator: Milkwave Import' }
 ];
 
 export const updateRecents = (recents: GeneratorId[], next: GeneratorId, limit = 5) => {

@@ -11,7 +11,19 @@
     },
     "presetType": "scene",
     "intendedMusicStyle": "Techno",
-    "activeEngineId": "engine-radial-core"
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-performance",
+    "visualIntentTags": [
+      "visual",
+      "immersive"
+    ],
+    "colorChemistry": [
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
   },
   "name": "Bubble Pop",
   "createdAt": "2026-02-06T01:44:33.611Z",

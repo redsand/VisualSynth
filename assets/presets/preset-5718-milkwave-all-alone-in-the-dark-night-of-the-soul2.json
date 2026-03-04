@@ -1,0 +1,227 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "all alone in the dark night of the soul2",
+    "author": "Unknown",
+    "source": "all alone in the dark night of the soul2.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:44.395Z",
+    "updatedAt": "2026-03-04T16:57:44.395Z",
+    "category": "Goth Generators",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 0.99951,
+            "rotation": 0,
+            "warp": 0.01,
+            "decay": 1,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "decay=.30;",
+      "",
+      "meanmid = 0.01*(meanmid*99+mid);",
+      "middiff = (mid - meanmid)*15;",
+      "mi = min(above(middiff,0)*middiff*.005,.11);",
+      "",
+      "mi_prg = mi_prg+mi;",
+      "gam = abs(gam-above(mi_prg,.5));",
+      "mi_prg= if(above(mi_prg,.5),0,mi_prg);",
+      "miprg=miprg+mi;",
+      "q1=gam;",
+      "monitor =mi_prg;",
+      "",
+      "",
+      "//Thanks to krash for beat detection (modified)",
+      "volume = 0.3*bass+mid;",
+      "beatrate = equal(beatrate,0) + (1-equal(beatrate,0))*(below(volume,0.01) + (1-below(volume,0.01))*beatrate);",
+      "lastbeat = lastbeat + equal(lastbeat,0)*time;",
+      "meanbass_att = 0.1*(meanbass_att*9 + bass_att);",
+      "runmeanbass =(runmeanbass*2 + bass_att)/3;",
+      "peakbass_att = max(bass_att,peakbass_att);",
+      "beat = above(volume,0.8)*above(bass_att,runmeanbass*1.1)*below(peakbass_att - bass_att, 0.05*peakbass_att)*above(time - lastbeat, 0.1 + 0.5*(beatrate - 0.1));",
+      "beatrate = max(if(beat,if(below(time-lastbeat,2*beatrate),0.1*(beatrate*9 + time - lastbeat),beatrate),beatrate),0.1);",
+      "peakbass_att = beat*bass_att + (1-beat)*peakbass_att*(above(time - lastbeat, 2*beatrate)*0.95 + (1-above(time - lastbeat, 2*beatrate))*0.995);",
+      "lastbeat = beat*time + (1-beat)*lastbeat;",
+      "peakbass_att = max(peakbass_att,1.1*meanbass_att);",
+      "",
+      "echo_zoom =pow(1/(1.8+1.5*sin(miprg)),.5);",
+      "monitor=echo_zoom;",
+      "//oldecho = echo_zoom;"
+    ],
+    "perFrameInitCode": [
+      "q1=acos(-1)*2;"
+    ],
+    "perPixelCode": [
+      "",
+      "",
+      "",
+      "DY =dy-.004*below(y,1)*(rad+.1)*bass;//*(1-below(y,.50)*above(y,.479));",
+      "//zoom=zoom+above(y,.49)*.1;",
+      "sx = sy-below(y,1)*.001;",
+      "dx=dx+.01*bass*(1-q1*2);//sin(bass*.2);",
+      "rot=rot+.051*below(y,1);//*(1-below(y,.49)*above(y,.47));",
+      "cx=int(x*16)/16;",
+      "cy=int(y*16)/16;"
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 1,
+      "fDecay": 1,
+      "fVideoEchoZoom": 1,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": true,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": true,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 0,
+      "fWaveScale": 0.01,
+      "fWaveSmoothing": 0,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.71,
+      "fModWaveAlphaEnd": 0,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 1.331,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 0.99951,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.01,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0,
+      "wave_g": 0,
+      "wave_b": 0,
+      "wave_x": 1,
+      "wave_y": 1,
+      "ob_size": 0.5,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.5,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0.02,
+      "mv_dy": -0.02,
+      "mv_l": 0.15,
+      "mv_r": 0.49,
+      "mv_g": 0.48,
+      "mv_b": 0.3,
+      "mv_a": 0,
+      "b1n": false,
+      "b2n": false,
+      "b3n": false,
+      "b1x": false,
+      "b2x": false,
+      "b3x": false,
+      "b1ed": false
+    }
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Garden Sprinkler",
+    "author": "Krash",
+    "source": "Krash - Garden Sprinkler.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:42.925Z",
+    "updatedAt": "2026-03-04T16:57:42.925Z",
+    "category": "Imported",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1.199999,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1.199999,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 0.9999,
+            "rotation": 0,
+            "warp": 1.749001,
+            "decay": 0.9,
+            "gamma": 1.199999,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "wave_r = wave_r + 0.350*( 0.60*sin(0.900*time) + 0.40*sin(0.950*time) );",
+      "wave_g = wave_g + 0.350*( 0.60*sin(0.900*time) + 0.40*sin(0.950*time) );",
+      "",
+      "warp = 0;",
+      "//dx = -0.0005;",
+      "//dy = -0.0005;"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "angval = 0.3/sqrt((3.14*tan(ang*-0.5-time*3))+4);",
+      "zoom = if( above( rad,0.05 ), if( above( rad/7.8, angval ), if( below( (rad-0.05)/7.8, angval), 0.95, 1.1 ), if( above( rad/2.8, angval ), if( below( (rad-0.05)/2.8, angval), 0.95, 1.1 ), if( above( rad/1, angval ), if( below( (rad-0.05)/1, angval), 0.95, 1.1 ), 1.1 ) ) ), 1.1 );",
+      "rot = 0.02*zoom-0.05*rad;"
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 1.199999,
+      "fDecay": 0.9,
+      "fVideoEchoZoom": 1.216077,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": false,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": false,
+      "bDarkenCenter": true,
+      "bMotionVectorsOn": false,
+      "bRedBlueStereo": false,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 7.888676,
+      "fWaveScale": 0.911592,
+      "fWaveSmoothing": 0.9,
+      "fWaveParam": -0.6,
+      "fModWaveAlphaStart": 1.01,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 1.001828,
+      "fWarpScale": 0.998166,
+      "fZoomExponent": 0.150971,
+      "fShader": 0,
+      "zoom": 0.9999,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 1.749001,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0.6,
+      "wave_g": 0.6,
+      "wave_b": 1,
+      "wave_x": 0.5,
+      "wave_y": 0.5
+    }
+  }
+}

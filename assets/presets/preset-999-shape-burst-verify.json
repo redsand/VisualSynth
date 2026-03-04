@@ -22,16 +22,69 @@
             "spawnRate": 2,
             "audioTrigger": true
           },
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
         }
       ]
     }
   ],
-  "effects": { "enabled": false, "bloom": 0, "blur": 0, "chroma": 0, "posterize": 0, "kaleidoscope": 0, "feedback": 0, "persistence": 0 },
-  "particles": { "enabled": false, "density": 0, "speed": 0, "size": 0, "glow": 0 },
-  "sdf": { "enabled": false, "shape": "circle", "scale": 0, "edge": 0, "glow": 0, "rotation": 0, "fill": 0 },
+  "effects": {
+    "enabled": false,
+    "bloom": 0,
+    "blur": 0,
+    "chroma": 0,
+    "posterize": 0,
+    "kaleidoscope": 0,
+    "feedback": 0,
+    "persistence": 0
+  },
+  "particles": {
+    "enabled": false,
+    "density": 0,
+    "speed": 0,
+    "size": 0,
+    "glow": 0
+  },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0,
+    "edge": 0,
+    "glow": 0,
+    "rotation": 0,
+    "fill": 0
+  },
   "modMatrix": [],
   "midiMappings": [],
   "createdAt": "2026-02-06T00:00:00.000Z",
-  "updatedAt": "2026-02-06T00:00:00.000Z"
+  "updatedAt": "2026-02-06T00:00:00.000Z",
+  "metadata": {
+    "version": 6,
+    "name": "Shape Burst Verification",
+    "createdAt": "2026-02-06T00:00:00.000Z",
+    "updatedAt": "2026-02-06T00:00:00.000Z",
+    "category": "Test",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Electronic",
+    "activeModeId": "mode-performance",
+    "activeEngineId": "engine-radial-core",
+    "visualIntentTags": [
+      "visual",
+      "immersive"
+    ],
+    "colorChemistry": [
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  }
 }

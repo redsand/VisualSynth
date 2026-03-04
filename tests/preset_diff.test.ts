@@ -32,8 +32,8 @@ const analyzePreset = (presetName: string) => {
 
 describe('Preset Difference Lab', () => {
   it('detects missing render parameters for Plasma presets', () => {
-    const p1 = analyzePreset('preset-13-visualsynth-dna-plasma.json');
-    const p2 = analyzePreset('preset-70-nebula-tunnel.json');
+    const p1 = analyzePreset('preset-024-visualsynth-dna-plasma.json');
+    const p2 = analyzePreset('preset-092-cosmic-wormhole.json');
 
     console.log('Preset 13 (Plasma DNA):', p1);
     console.log('Preset 70 (Nebula):', p2);

@@ -24,6 +24,7 @@ describe('effects defaults', () => {
     expect(parsed.data.effects.feedback).toBeDefined();
     expect(parsed.data.effects.persistence).toBeDefined();
     expect(parsed.data.particles.enabled).toBe(true);
-    expect(parsed.data.sdf.shape).toBe('triangle');
+    // Schema defaults to 'circle' when sdf is not provided
+    expect(parsed.data.sdf.shape).toBe('circle');
   });
 });

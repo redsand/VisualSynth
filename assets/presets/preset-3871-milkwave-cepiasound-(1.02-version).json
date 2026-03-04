@@ -1,0 +1,164 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Cepiasound (1.02 Version)",
+    "author": "Geiss",
+    "source": "Geiss - Cepiasound (1.02 Version).milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:42.046Z",
+    "updatedAt": "2026-03-04T16:57:42.046Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.065,
+            "rotation": 0,
+            "warp": 0.28,
+            "decay": 0.98,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "wave_g = wave_g + 0.100*( 0.90*sin(0.583*time) + 0.10*sin(1.006*time) );",
+      "wave_b = wave_b + 0.100*( 0.90*sin(0.993*time) + 0.10*sin(0.933*time) );",
+      "zoom = zoom + 0.013*( 0.60*sin(0.339*time) + 0.40*sin(0.276*time) );",
+      "rot = rot + 0.040*( 0.60*sin(0.381*time) + 0.40*sin(0.579*time) );",
+      "cx = cx + 0.003*( 0.60*sin(0.471*time) + 0.40*sin(0.297*time) );",
+      "cy = cy + 0.003*( 0.60*sin(0.379*time) + 0.40*sin(0.351*time) );",
+      "dx = dx + 0.003*( 0.60*sin(0.234*time) + 0.40*sin(0.277*time) );"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "zoom=zoom+max(bass-1,0)*0.25*sin(rad*15);"
+    ],
+    "originalParameters": {
+      "fGammaAdj": 1,
+      "fVideoEchoZoom": 2,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "fDecay": 0.98,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": false,
+      "bModWaveAlphaByVolume": true,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bMotionVectorsOn": false,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "fWaveAlpha": 7.9,
+      "fWaveScale": 0.35319,
+      "fWaveSmoothing": 0.9,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 1.05,
+      "fModWaveAlphaEnd": 1.39,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 1,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 1.065,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.28,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 1,
+      "wave_g": 0.6,
+      "wave_b": 0.2,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "fRating": 3
+    }
+  }
+}

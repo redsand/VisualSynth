@@ -123,6 +123,7 @@ declare global {
 }
 
 const audioSelect = document.getElementById('audio-device') as HTMLSelectElement;
+const requestMicPermissionButton = document.getElementById('request-mic-permission') as HTMLButtonElement;
 const midiSelect = document.getElementById('midi-device') as HTMLSelectElement;
 const toggleMidiButton = document.getElementById('toggle-midi') as HTMLButtonElement;
 const saveButton = document.getElementById('btn-save') as HTMLButtonElement;
@@ -4210,8 +4211,17 @@ const createTextAsset = () => {
   if (assetTextInput) assetTextInput.value = '';
   assetTagsInput.value = '';
   renderAssets();
+
+  // Automatically assign text to the media layer in the current scene
+  const mediaLayer = activeScene?.layers.find((l) => l.id === 'layer-media');
+  if (mediaLayer) {
+    mediaLayer.assetId = asset.id;
+    mediaLayer.enabled = true;
+    void assignAssetToLayer(mediaLayer, asset.id, true);
+  }
+
   renderLayerList();
-  setStatus(`Text layer created: ${asset.name}`);
+  setStatus(`Text layer created: ${asset.name} (assigned to Media layer)`);
 };
 
 const getSavedWebcamId = () => {
@@ -6335,6 +6345,119 @@ const addGenerator = (id: GeneratorId) => {
     applyEffectControls();
     setStatus('Trails enabled.');
   }
+  if (id === 'gen-crystal-growth') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-crystal-growth', 'Crystal Growth Generator', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Crystal Growth added.');
+  }
+  if (id === 'gen-prism-shards') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-prism-shards', 'Prism Shards Generator', { blendMode: 'add' });
+      renderLayerList();
+    }
+    setStatus('Generator: Prism Shards added.');
+  }
+  if (id === 'gen-neural-net') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-neural-net', 'Neural Net Generator', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Neural Net added.');
+  }
+  if (id === 'gen-hypercube') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-hypercube', 'Hypercube Generator', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Hypercube added.');
+  }
+  // New Unique Generators
+  if (id === 'gen-cellular-growth') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-cellular-growth', 'Cellular Growth', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Cellular Growth added.');
+  }
+  if (id === 'gen-bio-luminescent-forest') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-bio-luminescent-forest', 'Bio-Luminescent Forest', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Bio-Luminescent Forest added.');
+  }
+  if (id === 'gen-crystalline') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-crystalline', 'Crystalline', { blendMode: 'add' });
+      renderLayerList();
+    }
+    setStatus('Generator: Crystalline added.');
+  }
+  if (id === 'gen-audio-dna') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-audio-dna', 'Audio DNA', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Audio DNA added.');
+  }
+  if (id === 'gen-liquid-metal') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-liquid-metal', 'Liquid Metal', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Liquid Metal added.');
+  }
+  if (id === 'gen-neon-cityscape') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-neon-cityscape', 'Neon Cityscape', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Neon Cityscape added.');
+  }
+  if (id === 'gen-cosmic-nebula') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-cosmic-nebula', 'Cosmic Nebula', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Cosmic Nebula added.');
+  }
+  if (id === 'gen-sonic-rain') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-sonic-rain', 'Sonic Rain', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Sonic Rain added.');
+  }
+  if (id === 'gen-morphing-geometry') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-morphing-geometry', 'Morphing Geometry', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Morphing Geometry added.');
+  }
+  if (id === 'gen-urban-rhythm') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-urban-rhythm', 'Urban Rhythm', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Urban Rhythm added.');
+  }
   generatorRecentsState = updateRecents(generatorRecentsState, id);
   saveGeneratorLibrary();
   refreshGeneratorUI();
@@ -7854,7 +7977,30 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
 const initAudioDevices = async () => {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const inputs = devices.filter((device) => device.kind === 'audioinput');
+
+  // If device labels are empty, permissions haven't been granted yet
+  const needsPermission = inputs.length > 0 && inputs.every(device => !device.label);
+
+  if (needsPermission) {
+    // Show helpful message
+    requestMicPermissionButton.style.display = 'block';
+    requestMicPermissionButton.style.background = '#ff6b35';
+    requestMicPermissionButton.style.fontWeight = 'bold';
+    audioSelect.innerHTML = '<option>Click "Grant Microphone Permission" button</option>';
+    return;
+  }
+
+  // Reset button styling
+  requestMicPermissionButton.style.display = '';
+  requestMicPermissionButton.style.background = '';
+  requestMicPermissionButton.style.fontWeight = '';
+
   audioSelect.innerHTML = '';
+  if (inputs.length === 0) {
+    audioSelect.innerHTML = '<option>No microphone found</option>';
+    return;
+  }
+
   inputs.forEach((device, index) => {
     const option = document.createElement('option');
     option.value = device.deviceId;
@@ -7868,6 +8014,9 @@ const setupAudio = async (deviceId?: string) => {
     mediaStream.getTracks().forEach((track) => track.stop());
   }
   audioContext?.close();
+
+  // Remove any existing audio-related safe mode reasons
+  safeModeReasons = safeModeReasons.filter(reason => !reason.toLowerCase().includes('audio'));
 
   try {
     audioContext = new AudioContext({ latencyHint: 'interactive' });
@@ -7885,12 +8034,31 @@ const setupAudio = async (deviceId?: string) => {
     outputLatencyLabel.textContent = outputLatency
       ? `Output Latency: ${Math.round(outputLatency * 1000)}ms`
       : 'Output Latency: --';
+
+    // Clear safe mode if audio is working
+    updateSafeModeBanner();
+    if (safeModeReasons.length === 0) {
+      setStatus('Audio input connected.');
+    }
   } catch (error) {
     analyser = null;
     audioContext = null;
-    safeModeReasons.push('Audio input unavailable');
+
+    // Provide helpful error message for desktop app
+    let errorMsg = 'AUDIO INPUT UNAVAILABLE';
+    if (error instanceof Error) {
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMsg = 'MICROPHONE BLOCKED - Click "Grant Microphone Permission" button in System settings';
+      } else if (error.name === 'NotFoundError') {
+        errorMsg = 'NO MICROPHONE FOUND - Connect a microphone';
+      } else if (error.name === 'NotReadableError') {
+        errorMsg = 'MICROPHONE IN USE - Close other apps (Discord, OBS, etc.)';
+      }
+    }
+
+    safeModeReasons.push(errorMsg);
     updateSafeModeBanner();
-    setStatus('Audio input unavailable. Safe mode enabled.');
+    setStatus(`Safe mode: ${errorMsg}`);
   }
 };
 
@@ -8775,6 +8943,60 @@ audioSelect.addEventListener('change', async () => {
   await setupAudio(audioSelect.value);
 });
 
+requestMicPermissionButton.addEventListener('click', async () => {
+  try {
+    // Request microphone permission explicitly
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Refresh the device list
+    await initAudioDevices();
+    // Setup audio with the selected device
+    await setupAudio(audioSelect.value || undefined);
+    setStatus('Microphone permission granted. Audio input connected.');
+  } catch (error) {
+    let errorMsg = 'Failed to get microphone permission.';
+    let detailedMsg = '';
+
+    if (error instanceof Error) {
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMsg = 'Microphone permission denied by Windows.';
+        detailedMsg = 'To enable microphone access:\n\n' +
+                      '1. Open Windows Settings (Win + I)\n' +
+                      '2. Go to Privacy & Security → Microphone\n' +
+                      '3. Turn ON "Microphone access"\n' +
+                      '4. Turn ON "Let apps access your microphone"\n' +
+                      '5. Restart VisualSynth\n\n' +
+                      'Click OK to open Windows Settings now.';
+      } else if (error.name === 'NotFoundError') {
+        errorMsg = 'No microphone found.';
+        detailedMsg = 'Please connect a microphone and try again.';
+      } else if (error.name === 'NotReadableError') {
+        errorMsg = 'Microphone is in use by another application.';
+        detailedMsg = 'Close other applications using the microphone (Discord, OBS, etc.) and try again.';
+      } else {
+        detailedMsg = `Error: ${error.message}`;
+      }
+    }
+
+    setStatus(errorMsg);
+
+    // Show detailed message
+    if (detailedMsg) {
+      const shouldOpenSettings = error instanceof Error &&
+        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
+
+      if (shouldOpenSettings) {
+        const result = confirm(detailedMsg);
+        if (result) {
+          // Open Windows Settings for microphone
+          window.open('ms-settings:privacy-microphone');
+        }
+      } else {
+        alert(detailedMsg);
+      }
+    }
+  }
+});
+
 perfToggleSpectrum.addEventListener('change', () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
@@ -9129,7 +9351,7 @@ const updateShapeBursts = (time: number, dt: number) => {
     typeof shapeBurstLayer?.params?.spawnRate === 'number' ? shapeBurstLayer.params.spawnRate : 1;
 
   const peak = Math.max(audioState.peak, audioState.rms ?? 0);
-  const threshold = 0.35;
+  const threshold = 0.15; // Lowered from 0.35 to make it more sensitive
   const timeSinceLastSpawn = time - lastShapeBurstSpawn;
   const minInterval = 200 / spawnRate;
 
@@ -9901,6 +10123,18 @@ const render = (time: number) => {
   const moireLayer = findLayerById(renderScene?.layers, 'gen-moire-pattern');
   const hypercubeLayer = findLayerById(renderScene?.layers, 'gen-hypercube');
   const fluidSwirlLayer = findLayerById(renderScene?.layers, 'gen-fluid-swirl');
+
+  // New Unique Generator Layers
+  const cellularGrowthLayer = findLayerById(renderScene?.layers, 'gen-cellular-growth');
+  const bioLuminescentForestLayer = findLayerById(renderScene?.layers, 'gen-bio-luminescent-forest');
+  const crystallineLayer = findLayerById(renderScene?.layers, 'gen-crystalline');
+  const audioDnaLayer = findLayerById(renderScene?.layers, 'gen-audio-dna');
+  const liquidMetalLayer = findLayerById(renderScene?.layers, 'gen-liquid-metal');
+  const neonCityscapeLayer = findLayerById(renderScene?.layers, 'gen-neon-cityscape');
+  const cosmicNebulaLayer = findLayerById(renderScene?.layers, 'gen-cosmic-nebula');
+  const sonicRainLayer = findLayerById(renderScene?.layers, 'gen-sonic-rain');
+  const morphingGeometryLayer = findLayerById(renderScene?.layers, 'gen-morphing-geometry');
+  const urbanRhythmLayer = findLayerById(renderScene?.layers, 'gen-urban-rhythm');
   const asciiLayer = findLayerById(renderScene?.layers, 'gen-ascii-stream');
   const retroWaveLayer = findLayerById(renderScene?.layers, 'gen-retro-wave');
   const bubblePopLayer = findLayerById(renderScene?.layers, 'gen-bubble-pop');
@@ -10554,6 +10788,47 @@ const render = (time: number) => {
     fluidSwirlOpacity: getLayerParamNumber(fluidSwirlLayer, 'opacity', 1.0),
     fluidSwirlVorticity: getLayerParamNumber(fluidSwirlLayer, 'vorticity', 1.0),
     fluidSwirlColorMix: getLayerParamNumber(fluidSwirlLayer, 'colorMix', 1.0),
+    // New Unique Generator Parameters
+    cellularGrowthEnabled: cellularGrowthLayer?.enabled ?? false,
+    cellularGrowthOpacity: getLayerParamNumber(cellularGrowthLayer, 'opacity', 1.0),
+    cellularGrowthRate: getLayerParamNumber(cellularGrowthLayer, 'rate', 1.0),
+    cellularGrowthDensity: getLayerParamNumber(cellularGrowthLayer, 'density', 0.8),
+    bioLuminescentForestEnabled: bioLuminescentForestLayer?.enabled ?? false,
+    bioLuminescentForestOpacity: getLayerParamNumber(bioLuminescentForestLayer, 'opacity', 1.0),
+    bioLuminescentForestPulse: getLayerParamNumber(bioLuminescentForestLayer, 'pulse', 1.0),
+    bioLuminescentForestDensity: getLayerParamNumber(bioLuminescentForestLayer, 'density', 0.7),
+    crystallineEnabled: crystallineLayer?.enabled ?? false,
+    crystallineOpacity: getLayerParamNumber(crystallineLayer, 'opacity', 1.0),
+    crystallineRotation: getLayerParamNumber(crystallineLayer, 'rotation', 1.0),
+    crystallineRefraction: getLayerParamNumber(crystallineLayer, 'refraction', 0.5),
+    audioDnaEnabled: audioDnaLayer?.enabled ?? false,
+    audioDnaOpacity: getLayerParamNumber(audioDnaLayer, 'opacity', 1.0),
+    audioDnaRotation: getLayerParamNumber(audioDnaLayer, 'rotation', 1.0),
+    audioDnaSegments: getLayerParamNumber(audioDnaLayer, 'segments', 20.0),
+    liquidMetalEnabled: liquidMetalLayer?.enabled ?? false,
+    liquidMetalOpacity: getLayerParamNumber(liquidMetalLayer, 'opacity', 1.0),
+    liquidMetalFlow: getLayerParamNumber(liquidMetalLayer, 'flow', 1.0),
+    liquidMetalShimmer: getLayerParamNumber(liquidMetalLayer, 'shimmer', 0.5),
+    neonCityscapeEnabled: neonCityscapeLayer?.enabled ?? false,
+    neonCityscapeOpacity: getLayerParamNumber(neonCityscapeLayer, 'opacity', 1.0),
+    neonCityscapeSpeed: getLayerParamNumber(neonCityscapeLayer, 'speed', 1.0),
+    neonCityscapeDensity: getLayerParamNumber(neonCityscapeLayer, 'density', 0.6),
+    cosmicNebulaEnabled: cosmicNebulaLayer?.enabled ?? false,
+    cosmicNebulaOpacity: getLayerParamNumber(cosmicNebulaLayer, 'opacity', 1.0),
+    cosmicNebulaExpansion: getLayerParamNumber(cosmicNebulaLayer, 'expansion', 1.0),
+    cosmicNebulaTurbulence: getLayerParamNumber(cosmicNebulaLayer, 'turbulence', 0.5),
+    sonicRainEnabled: sonicRainLayer?.enabled ?? false,
+    sonicRainOpacity: getLayerParamNumber(sonicRainLayer, 'opacity', 1.0),
+    sonicRainSpeed: getLayerParamNumber(sonicRainLayer, 'speed', 1.0),
+    sonicRainDensity: getLayerParamNumber(sonicRainLayer, 'density', 0.8),
+    morphingGeometryEnabled: morphingGeometryLayer?.enabled ?? false,
+    morphingGeometryOpacity: getLayerParamNumber(morphingGeometryLayer, 'opacity', 1.0),
+    morphingGeometrySpeed: getLayerParamNumber(morphingGeometryLayer, 'speed', 1.0),
+    morphingGeometryComplexity: getLayerParamNumber(morphingGeometryLayer, 'complexity', 0.7),
+    urbanRhythmEnabled: urbanRhythmLayer?.enabled ?? false,
+    urbanRhythmOpacity: getLayerParamNumber(urbanRhythmLayer, 'opacity', 1.0),
+    urbanRhythmBpm: getLayerParamNumber(urbanRhythmLayer, 'bpm', 1.0),
+    urbanRhythmIntensity: getLayerParamNumber(urbanRhythmLayer, 'intensity', 0.6),
     asciiStreamEnabled: asciiLayer?.enabled ?? false,
     asciiStreamOpacity: getLayerParamNumber(asciiLayer, 'opacity', 1.0),
     asciiStreamResolution: getLayerParamNumber(asciiLayer, 'resolution', 40.0),
@@ -10898,7 +11173,32 @@ const render = (time: number) => {
   requestAnimationFrame(render);
 };
 
+// Loading progress tracking
+const updateLoadingProgress = (progress: number, status: string) => {
+  const progressBar = document.getElementById('loading-progress-bar');
+  const statusText = document.getElementById('loading-status');
+
+  if (progressBar) {
+    progressBar.style.width = `${progress}%`;
+  }
+  if (statusText) {
+    statusText.textContent = status;
+  }
+};
+
+const hideLoadingSplash = () => {
+  const splash = document.getElementById('loading-splash');
+  if (splash) {
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
+    }, 500);
+  }
+};
+
 const init = async () => {
+  updateLoadingProgress(0, 'Initializing application...');
+
   // Safety fallback for non-Electron environments (e.g. browser tests, puppeteer)
   if (!window.visualSynth) {
     console.warn('[Init] window.visualSynth not found, providing mock API');
@@ -10916,6 +11216,7 @@ const init = async () => {
     };
   }
 
+  updateLoadingProgress(5, 'Setting up interface...');
   initPads();
   initShortcuts();
   initSceneStrip();
@@ -10935,23 +11236,29 @@ const init = async () => {
   loadShaderDraft();
   syncVisualizerFromProject();
   setCaptureStatus('Idle');
+
+  updateLoadingProgress(10, 'Loading presets...');
   console.log('[Init] Starting initPresets...');
   await initPresets();
   console.log('[Init] initPresets completed');
 
+  updateLoadingProgress(20, 'Loading templates...');
   console.log('[Init] Starting initTemplates...');
   await initTemplates();
   console.log('[Init] initTemplates completed');
   initEngineSelect();
 
+  updateLoadingProgress(30, 'Configuring outputs...');
   console.log('[Init] Starting initOutputConfig...');
   await initOutputConfig();
   console.log('[Init] initOutputConfig completed');
 
+  updateLoadingProgress(40, 'Setting up output manager...');
   console.log('[Init] Starting initOutputManagerPanel...');
   await initOutputManagerPanel();
   console.log('[Init] initOutputManagerPanel completed');
 
+  updateLoadingProgress(50, 'Initializing playlist...');
   console.log('[Init] Starting initPlaylistManager...');
   initPlaylistManager();
   console.log('[Init] initPlaylistManager completed');
@@ -10959,14 +11266,17 @@ const init = async () => {
   refreshSceneSelect();
   applyScene(currentProject.activeSceneId);
 
+  updateLoadingProgress(60, 'Connecting to network...');
   console.log('[Init] Starting initBpmNetworking...');
   await initBpmNetworking();
   console.log('[Init] initBpmNetworking completed');
 
+  updateLoadingProgress(65, 'Loading generators...');
   console.log('[Init] Starting loadGeneratorLibrary...');
   loadGeneratorLibrary();
   console.log('[Init] loadGeneratorLibrary completed');
 
+  updateLoadingProgress(70, 'Building user interface...');
   refreshGeneratorUI();
   initStylePresets();
   initPalettes();
@@ -10999,14 +11309,17 @@ const init = async () => {
   renderDiffSections();
   bpmRangeSelect.dispatchEvent(new Event('change'));
 
+  updateLoadingProgress(80, 'Initializing audio devices...');
   console.log('[Init] Starting initAudioDevices...');
   try {
     await initAudioDevices();
     console.log('[Init] initAudioDevices completed');
 
+    updateLoadingProgress(85, 'Setting up audio...');
     await setupAudio();
     console.log('[Init] setupAudio completed');
 
+    updateLoadingProgress(90, 'Connecting MIDI...');
     await setupMIDI();
     console.log('[Init] setupMIDI completed');
   } catch (e) {
@@ -11014,6 +11327,7 @@ const init = async () => {
   }
 
   // Check if recovery API is available
+  updateLoadingProgress(92, 'Checking recovery session...');
   if (window.visualSynth && window.visualSynth.getRecovery) {
     console.log('[Init] Starting recovery check...');
     const recovery = await window.visualSynth.getRecovery();
@@ -11030,6 +11344,7 @@ const init = async () => {
     console.log('[Init] Recovery API not available - skipping');
   }
 
+  updateLoadingProgress(95, 'Finalizing setup...');
   console.log('[Init] Starting final setup...');
   syncTempoInputs(Number(tempoInput.value));
   console.log('[Init] syncTempoInputs completed');
@@ -11049,12 +11364,19 @@ const init = async () => {
   updateTransportUI();
   console.log('[Init] updateTransportUI completed');
 
+  updateLoadingProgress(98, 'Starting render engine...');
   requestAnimationFrame(render);
   console.log('[Init] requestAnimationFrame completed');
 
+  updateLoadingProgress(100, 'Ready!');
   console.log('VisualSynth init completed - render loop started');
   (window as any).__visualSynthInitialized = true;
   console.log('[Init] Initialized flag set');
+
+  // Hide splash screen after a brief moment
+  setTimeout(() => {
+    hideLoadingSplash();
+  }, 300);
 
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {

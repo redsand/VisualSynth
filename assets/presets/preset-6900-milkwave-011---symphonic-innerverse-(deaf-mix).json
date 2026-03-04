@@ -1,0 +1,230 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "011 - Symphonic innerverse (deaf mix)",
+    "author": "yin",
+    "source": "yin - 011 - Symphonic innerverse (deaf mix).milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:46.456Z",
+    "updatedAt": "2026-03-04T16:57:46.456Z",
+    "category": "Imported",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 2.26,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 2.26,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.003861,
+            "rotation": 0,
+            "warp": 0,
+            "decay": 0.98,
+            "gamma": 2.26,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "q1=.01; //general speed;",
+      "q2=.5;   // main twirl's x",
+      "q3=.5;   // main twirl's y",
+      "q4=4;    // # of children twirls per twirl",
+      "q5=.008;   // main twirl's speed;",
+      "q6=q5/0.03;    // main twirl's range;",
+      "q7=bass_att+mid_att+treb_att; //volume",
+      "q8=10;   // max # of children twirls per axis",
+      "InvertInterval = 1200;    // invert colors every ...#frames",
+      "InvertDuration = 600;",
+      "zoomexp=1.2;",
+      "zoom=zoom+bass/70;",
+      "wave_x=q2;",
+      "wave_y=q3;",
+      "bInvert = if( below( (frame+InvertInterval)%InvertInterval,InvertDuration),1,0);",
+      "wave_r=sin(q1*time*25 + .167)/2+.5;",
+      "wave_g=sin(q1*time*50 + .333)/2+.5;",
+      "wave_b=sin(q1*time*75+ .667)/2+.5;",
+      "wave_r=wave_r+bInvert*(1-2*wave_r);",
+      "wave_g=wave_g+bInvert*(1-2*wave_g);",
+      "wave_b=wave_b+bInvert*(1-2*wave_b);",
+      "wave_mystery=-0.1+2*sin(3*abs(cos(time))*time);",
+      "rot = rot +(q7/4)*.04*pow((sin(time/2 + .6)),11);",
+      "decay=min(1,.975+.035*bass_att/3);",
+      "monitor = decay;"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "// center twirl",
+      "twirlX=q2;",
+      "twirlY=1-q3;",
+      "Distance = sqrt(sqr(x-q2)+sqr(y-q3));",
+      "RelAngle=atan2(x-twirlX,y-twirlY);",
+      "TwirlMult = sin(time*50*q1)*q5/(Distance+q6);",
+      "dx = dx+TwirlMult*sin(RelAngle+1.5);",
+      "dy=dy+TwirlMult*cos(RelAngle+1.5);",
+      "zoom = zoom + .0001*log(Distance);",
+      "",
+      "// mini twirls",
+      "NumSwirlsX=q8-(abs(x-.5)*2*q8)%1;",
+      "NumSwirlsY =q8-(abs(y-.5)*2*q8)%1;",
+      "blockX=(x*10*NumSwirlsX)%NumSwirlsX;",
+      "blockY=(y*10*NumSwirlsY)%NumSwirlsY;",
+      "CenX= .1*blockX+(1/NumSwirlsX)*.5;",
+      "CenY= .1*blockY+(1/NumSwirlsY)*.5;",
+      "CurX=1-x-CenX;",
+      "CurY=1-y-CenY;",
+      "CurDist = sqrt( sqr(CurX)+sqr(CurY) );",
+      "CurAngle=atan2(CurX,CurY);",
+      "TwirlDir=if( above( (blockX+blockY)%4,2 ) , 1, -1 );",
+      "CurMult = (q7/5)*sin(time/2 + 1.566)/(pow(CurDist,33)+100);",
+      "dx=dx+CurMult*sin(CurAngle +rad/5+ 1.5);",
+      "dy=dy+CurMult*cos(CurAngle+rad/5+1.5);",
+      "zoom = zoom -2*abs(CurMult);",
+      ""
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 2.26,
+      "fDecay": 0.98,
+      "fVideoEchoZoom": 2,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": true,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": true,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 1,
+      "fWaveScale": 0.499227,
+      "fWaveSmoothing": 0,
+      "fWaveParam": -0.52,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 0.01,
+      "fWarpScale": 0.01,
+      "fZoomExponent": 1,
+      "fShader": 1,
+      "zoom": 1.003861,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0.65,
+      "wave_g": 0.65,
+      "wave_b": 0.65,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0.9,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0
+    }
+  }
+}

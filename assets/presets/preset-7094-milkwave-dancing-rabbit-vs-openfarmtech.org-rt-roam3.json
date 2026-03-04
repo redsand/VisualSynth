@@ -1,0 +1,231 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "dancing rabbit vs openfarmtech.org rt roam3",
+    "author": "zhugulore",
+    "source": "zhugulore - dancing rabbit vs openfarmtech.org rt roam3.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:46.708Z",
+    "updatedAt": "2026-03-04T16:57:46.708Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 2,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 2,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.023,
+            "rotation": 0,
+            "warp": 0.00054,
+            "decay": 0.98,
+            "gamma": 2,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \n\n/*\nvUv *=2 ;\nvec2 m = floor(fract(vUv*0.5)*2);\nvUv = fract(vUv)*(1-m) + (m)*fract(1-vUv);\n*/\nvec2 trans=1+.3*vec2(roam_sin.x,roam_cos.y);\nvec2 move=vec2(.12*uTime+.18*roam_sin.x, .12*uTime+.18*roam_cos.y);\n/*\ntrans *=2 ;\nm = floor(fract(trans*0.5)*2);\ntrans = fract(trans)*(1-m) + (m)*fract(1-trans);\n\nmove *=2 ;\nm = floor(fract(move*0.5)*2);\nmove = fract(move)*(1-m) + (m)*fract(1-move);\n*/\n\nvec3 uv_sphere;\nuv_sphere.xy = vUv*trans+move;\nuv_sphere.xy = fract( uv_sphere.xy  ) * 2.0;\nuv_sphere.xy = 1.0 - abs( uv_sphere.xy - 1.0 );\nuv_sphere = textureBias( sampler_rand00, vec4(uv_sphere.xy,0.0,-0.5) );\nret = uv_sphere;\n\nret= uv_sphere;//texture(sampler_prayerwheel,vUv*trans+move);\nret.x*=sin(vAngle*8+.31*uTime)*.3;\nret.y*=.5+sin(vAngle*4+.21*uTime)*.3;\nret.z*=.5+sin(vRadius*2+.4*uTime)*.3;\n\n  fragColor = ret;\n}",
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \n\n//You can change the speed and direction of rotation by changing this variable\nfloat rot=.5;\n\n//This variable defines the center of rotation (cx, cy)\nvec2 cxy=vec2(.5,.5);\n\nvec2 xymod=vUv-cxy;\nvec2 xy1=0;\n\n//Rotate xy plane\nxy1.x=sin(uTime*rot)*xymod.x-cos(uTime*rot)*xymod.y;\nxy1.y=cos(uTime*rot)*xymod.x+sin(uTime*rot)*xymod.y;\n\nvec2 rt=(xy1);\nvec2 mod=rt-.5;\n\nvUv=mod;\n\n//Modify this value to change the amount of warping,\nfloat warp=1;\n\n//and this one to change the scale.(x and y)\nvec2 warp_scale=vec2(10,10);\n\nvec2 warp_spd=uTime;\n//change these values to modify the speed of warping horizontally and vertically\nwarp_spd.x*=1.1;\nwarp_spd.y*=1.53;\n\n//warp code\nvec2 warp_uv=vUv-.5;\nwarp_uv.x+=.1*warp*(sin(warp_uv.y*warp+warp_spd.x)*cos(warp_uv.y*warp_scale.x));\nwarp_uv.y+=.1*warp*(sin(warp_uv.x*warp+warp_spd.y)*cos(warp_uv.x*warp_scale.y));\n\nvUv=warp_uv+.5;\n\nret=GetPixel(vUv);\n\nret-=roam_sin.wyx*roam_cos.zwx;\n\n  fragColor = ret;\n}",
+    "perFrameCode": [
+      "wave_r = 0.85 + 0.35*sin(0.437*time+1) + 0.55*sin(0.197*time+4);",
+      "wave_g = 0.85 + 0.35*sin(0.544*time+2) + 0.55*sin(0.143*time+5);",
+      "wave_b = 0.85 + 0.35*sin(0.751*time+3) + 0.55*sin(0.117*time+6);",
+      "wave_r = sqrt(wave_r);",
+      "wave_g = sqrt(wave_g);",
+      "wave_b = sqrt(wave_b);",
+      "rot = rot + 0.010*( 0.60*sin(0.381*time) + 0.40*sin(0.579*time) );",
+      "cx = cx + 0.210*( 0.60*sin(0.374*time) + 0.40*sin(0.294*time) );",
+      "cy = cy + 0.210*( 0.60*sin(0.393*time) + 0.40*sin(0.223*time) );",
+      "dx = dx + 0.003*( 0.60*sin(0.234*time) + 0.40*sin(0.277*time) );",
+      "dy = dy + 0.003*( 0.60*sin(0.284*time) + 0.40*sin(0.247*time) );",
+      "decay = decay - 0.01*equal(frame%6,0);",
+      "dx = dx + dx_residual;",
+      "dy = dy + dy_residual;",
+      "bass_thresh = above(bass_att,bass_thresh)*2 + (1-above(bass_att,bass_thresh))*((bass_thresh-1.3)*0.96+1.3);",
+      "dx_residual = equal(bass_thresh,2.13)*0.016*sin(time*7) + (1-equal(bass_thresh,2.13))*dx_residual;",
+      "dy_residual = equal(bass_thresh,2.13)*0.012*sin(time*9) + (1-equal(bass_thresh,2.13))*dy_residual;",
+      "wave_x = wave_x - dx_residual*7;",
+      "wave_y = wave_y - dy_residual*7;",
+      "wave_mystery = time*0.03;"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [],
+    "originalParameters": {
+      "fRating": 4,
+      "fGammaAdj": 2,
+      "fDecay": 0.98,
+      "fVideoEchoZoom": 1,
+      "fVideoEchoAlpha": 0.5,
+      "nVideoEchoOrientation": true,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": true,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": true,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 0,
+      "fWaveScale": 1.229,
+      "fWaveSmoothing": 0,
+      "fWaveParam": 0.2,
+      "fModWaveAlphaStart": 0.71,
+      "fModWaveAlphaEnd": 1.3,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 3.138,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 1.023,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.00054,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0,
+      "wave_g": 0,
+      "wave_b": 0,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0.01,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.01,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 1.85,
+      "mv_r": 0.5,
+      "mv_g": 0.5,
+      "mv_b": 0.5,
+      "mv_a": 0,
+      "b1n": false,
+      "b2n": false,
+      "b3n": false,
+      "b1x": false,
+      "b2x": false,
+      "b3x": false,
+      "b1ed": false,
+      "wave_0_init1": "t1 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init2": "t2 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init3": "t3 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init4": "t4 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init5": "t5 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init6": "t6 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init7": "t7 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init8": "t8 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_0_init9": "",
+      "wave_1_init1": "t1 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init2": "t2 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init3": "t3 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init4": "t4 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init5": "t5 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init6": "t6 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init7": "t7 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init8": "t8 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_1_init9": "",
+      "wave_2_init1": "t1 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init2": "t2 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init3": "t3 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init4": "t4 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init5": "t5 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init6": "t6 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init7": "t7 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init8": "t8 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_2_init9": ""
+    }
+  }
+}

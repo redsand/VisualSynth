@@ -1,0 +1,234 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "glowsticks v2 05 and proton lights (+Krash's beat code) _Phat_remix03 madhatter_v5",
+    "author": "Eo.S.",
+    "source": "Eo.S. - glowsticks v2 05 and proton lights (+Krash's beat code) _Phat_remix03 madhatter_v5.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:41.447Z",
+    "updatedAt": "2026-03-04T16:57:41.447Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1.21,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1.21,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1,
+            "rotation": 0,
+            "warp": 0.033004,
+            "decay": 0.96,
+            "gamma": 1.21,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "zoom=1;",
+      "//krash's beat detection code",
+      "volume = 0.3*(bass+mid+att);",
+      "beatrate = equal(beatrate,0) + (1-equal(beatrate,0))*(below(volume,0.01) + (1-below(volume,0.01))*beatrate);",
+      "lastbeat = lastbeat + equal(lastbeat,0)*time;",
+      "meanbass_att = 0.1*(meanbass_att*9 + bass_att);",
+      "peakbass_att = max(bass_att,peakbass_att);",
+      "beatrate = max(if(beat,if(below(time-lastbeat,2*beatrate),0.1*(beatrate*9 + time - lastbeat),beatrate),beatrate),0.1);",
+      "peakbass_att = beat*bass_att + (1-beat)*peakbass_att*(above(time - lastbeat, 2*beatrate)*0.95 + (1-above(time - lastbeat, 2*beatrate))*0.995);",
+      "lastbeat = beat*time + (1-beat)*lastbeat;",
+      "peakbass_att = max(peakbass_att,1.1*meanbass_att);",
+      "beat = above(volume,0.8)*below(peakbass_att - bass_att, 0.05*peakbass_att)*above(time - lastbeat, 0.1 + 0.5*(beatrate - 0.1));",
+      "beatcounter = beatcounter + beat;",
+      "mode = if(beat*equal(beatcounter%2,0),1-mode,mode);",
+      "flip = 2*mode-1;",
+      "monitor=flip;",
+      "q8=flip;",
+      "",
+      "",
+      "decay=1;",
+      "zoom=1.002;",
+      "",
+      "vol=(bass_att+mid_att+treb_att)*0.25;",
+      "vol=vol*vol;",
+      "mtime=mtime+vol*0.1*flip;",
+      "",
+      "q1=mtime*0.1;",
+      "",
+      "warp=0.0;",
+      "",
+      "cx=sin(mtime*0.2)*0.4 + 0.5;",
+      "cy=sin(mtime*0.33);",
+      "cys=sign(cy);",
+      "cy=cy*cy*cys;",
+      "cy=cy*0.4+0.5;",
+      ""
+    ],
+    "perFrameInitCode": [
+      "mv_x=64;mv_y=48;",
+      "nut=0;",
+      "stp=0;stq=0;",
+      "rtp=0;rtq=0;",
+      "wvr=0;",
+      "decay=0;",
+      "dcsp=0;",
+      "warp=0",
+      ""
+    ],
+    "perPixelCode": [
+      "//tm=time+(sin(time)*rad);",
+      "//var=tan(time)*treb*treb;",
+      "var=-2*treb*treb*0.75;",
+      "",
+      "rdd=max( abs(x-0.5) , abs(y-0.5) )*4;",
+      "zm=1+(rdd/40)+(var/40);",
+      "",
+      "sx=-zm;",
+      "sy=zm;",
+      "//rot=((rad/100)*var)*sin(time);"
+    ],
+    "originalParameters": {
+      "fRating": 0,
+      "fGammaAdj": 1.21,
+      "fDecay": 0.96,
+      "fVideoEchoZoom": 0.996628,
+      "fVideoEchoAlpha": 0.5,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": true,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": true,
+      "fWaveAlpha": 0,
+      "fWaveScale": 0.011726,
+      "fWaveSmoothing": 0.9,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 0.037492,
+      "fWarpScale": 0.014889,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 1,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.033004,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0.5,
+      "wave_g": 0.4,
+      "wave_b": 0.3,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0.005,
+      "ob_r": 1,
+      "ob_g": 1,
+      "ob_b": 1,
+      "ob_a": 1,
+      "ib_size": 0,
+      "ib_r": 1,
+      "ib_g": 1,
+      "ib_b": 0,
+      "ib_a": 0.2,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 5,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 1
+    }
+  }
+}

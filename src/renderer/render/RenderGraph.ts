@@ -1480,9 +1480,9 @@ export class RenderGraph {
         glow: Math.min(1, moddedSdf.glow * ROLE_SETTINGS.core.bloomBoost)
       };
     }
-    
+
     // Effect layers
-    const feedbackLayer = activeScene?.layers.find((layer) => layer.id === 'fx-feedback');
+    const fxFeedbackLayer = activeScene?.layers.find((layer) => layer.id === 'fx-feedback');
     const chromaLayer = activeScene?.layers.find((layer) => layer.id === 'fx-chroma');
     const bloomLayer = activeScene?.layers.find((layer) => layer.id === 'fx-bloom');
     const blurLayer = activeScene?.layers.find((layer) => layer.id === 'fx-blur');

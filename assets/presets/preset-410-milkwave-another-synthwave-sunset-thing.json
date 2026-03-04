@@ -1,0 +1,113 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "another synthwave sunset thing",
+    "author": "stduhpf + IkeC",
+    "source": "stduhpf + IkeC - another synthwave sunset thing.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:52:48.464Z",
+    "updatedAt": "2026-03-04T16:52:48.464Z",
+    "category": "Atmosphere & Terrain",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1,
+            "rotation": 0,
+            "warp": 0.01,
+            "decay": 0.95,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \nvec4 fragColor = 0;\n// CONV: Center on screen, then try some uAspect correction\nvUv = (vUv*2) - 1;\nvUv *= uAspect.xy;\n// CONV: Adjust this to flip the output (±vUv.x, ±vUv.y)\nvUv = vec2(vUv.x, -vUv.y);\nvec2 fragCoord  = vUv;\n\n\n#ifdef AA\nfor(float x = 0.;x<1.;x+=1./float(AA)){\nfor(float y = 0.;y<1.;y+=1./float(AA)){\n#else\nconst float AA=1.,x=0.,y=0.;\n#endif\n\n//vUv = (2.*(fragCoord+vec2(x,y))-vUv.xy)/vUv.y;\n\nconst float shutter_speed = .25; // for motion blur\n\n//float dt = fract(texture(iChannel0,float(AA)*(fragCoord+vec2(x,y))/vUv.xy).r+uTime)*shutter_speed;\n\nfloat dt = fract(hash21(float(AA)*(fragCoord+vec2(x,y)))+uTime)*shutter_speed;\n\njTime = uTime;\n\nfloat fx = sin(uTime*0.3)*0.3;\n#ifdef bass_smooth\nfloat fy = 0.7+0.2*bass_smooth;\n#else\nfloat fy = sin(uTime*0.3)*0.3+1.1;\n#endif\nfloat fz = (-20000.+jTime*speed);\nvec3 ro = vec3(fx,fy,fz);\n\n#ifdef stereo\nro+=stereo*vec3(.2*(float(vUv.x>0.)-.5),0.,0.);\nconst float de = .9;\nvUv.x=vUv.x+.5*(vUv.x>0.?-de:de);\nvUv*=2.;\n#endif\nfloat dis = 1.2;\nvec3 rd = normalize(vec3(vUv,dis));\n//vec3 rd = normalize(vec3(vUv,sqrt(1.-dot(vUv,vUv))));\n\nvec2 i = intersect(ro,rd);\nfloat d = i.x;\nfloat sunheight = .16;\nfloat f1 = sunheight+.05*0.35*cos(jTime*0.1);\nvec3 ld = normalize(vec3(0,f1,0.7));\nvec3 fog = d>0.?exp2(-d*vec3(.14,.1,.28)):vec3(0,0,0);\nvec3 sky = gsky(rd,ld,d<0.);\n\nvec3 p = ro+d*rd;\nvec3 n = normalize(grad(p));\n\nfloat diff = dot(n,ld)+.1*n.y;\nvec3 col = vec3(.1,.11,.18)*diff;\n\nvec3 rfd = reflect(rd,n);\nvec3 rfcol = gsky(rfd,ld,true);\n\n// floor\n//col = mix(col,rfcol,.05+.95*pow(max(1.+dot(rd,n),0.),5.));\n\nfloat shiny = 0.88;\ncol = mix(col,rfcol,.05+.95*pow(max(1.+dot(rd,n),shiny),5.));\n\n#ifdef VAPORWAVE\ncol = mix(col,vec3(.4,.5,1.),smoothstep(.05,.0,i.y));\ncol = mix(sky,col,fog);\ncol = sqrt(col);\n#else\ncol = mix(col,vec3(.8,.1,.92),smoothstep(.05,0,i.y));\ncol = mix(sky,col,fog);\n//no gamma for that old cg look\n#endif\n\nif(d<0.) d=1e6;\nd=min(d,10.);\n\nfragColor += vec4(clamp(col,0,1),d<0. ? 0 : 0.1+exp2(-d));\n\n#ifdef AA\nfragColor/=float(AA*AA);\n}}\n#endif\nret = fragColor;\n\n  fragColor = ret;\n}",
+    "perFrameCode": [],
+    "perFrameInitCode": [],
+    "perPixelCode": [],
+    "originalParameters": {}
+  }
+}

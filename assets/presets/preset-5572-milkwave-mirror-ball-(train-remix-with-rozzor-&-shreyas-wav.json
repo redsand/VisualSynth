@@ -1,0 +1,200 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Mirror Ball (Train Remix with Rozzor & Shreyas Waves)",
+    "author": "Zylot",
+    "source": "Zylot - Mirror Ball (Train Remix with Rozzor & Shreyas Waves).milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:44.187Z",
+    "updatedAt": "2026-03-04T16:57:44.187Z",
+    "category": "Atmosphere & Terrain",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 0.999525,
+            "rotation": 0,
+            "warp": 0.01,
+            "decay": 0.985,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "wave_mystery = if(above((time*4)%2,0),1,0);",
+      "zoom = .997;",
+      "wave_r = bass*.5;",
+      "wave_g = treb*.5;",
+      "wave_b = mid*.5;",
+      "ib_a = bass_att*.3;"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "zoom = if(below(rad,.4),.1*(-rad + bass_att*.3),zoom);"
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 1,
+      "fDecay": 0.985,
+      "fVideoEchoZoom": 0.999609,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": false,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 0.8,
+      "fWaveScale": 0.6401,
+      "fWaveSmoothing": 0.27,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 5.99579,
+      "fWarpScale": 1.331,
+      "fZoomExponent": 1.01,
+      "fShader": 0,
+      "zoom": 0.999525,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.01,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0.5,
+      "wave_g": 0.5,
+      "wave_b": 0.5,
+      "wave_x": 0.5,
+      "wave_y": 1,
+      "ob_size": 0.3,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.01,
+      "ib_r": 0,
+      "ib_g": 0,
+      "ib_b": 0,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 3.95,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0,
+      "wave_0_init1": "t7=acos(-1)*2;",
+      "wave_1_init1": "t3 = acos(-1)*128;",
+      "wave_1_init2": "t4 = 4/3;",
+      "shape_0_init1": "dir = 2;",
+      "shape_0_init2": "rotator = .255;",
+      "shape_0_init3": "mover = 0;",
+      "shape_1_init1": "dir = 1;",
+      "shape_1_init2": "rotator = .26;",
+      "shape_1_init3": "mover = 0;",
+      "shape_2_init1": "dir = 3;",
+      "shape_2_init2": "mover = 0;",
+      "shape_2_init3": "rotator = .255",
+      "shape_3_init1": "dir = 4;",
+      "shape_3_init2": "mover = 0;",
+      "shape_3_init3": "rotator = .255;"
+    }
+  }
+}

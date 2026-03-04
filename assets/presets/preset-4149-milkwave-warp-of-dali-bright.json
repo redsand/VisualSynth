@@ -1,0 +1,170 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Warp Of Dali Bright",
+    "author": "Geiss",
+    "source": "Geiss - Warp Of Dali Bright.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:42.383Z",
+    "updatedAt": "2026-03-04T16:57:42.383Z",
+    "category": "Abstract",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 2,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 2,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.046,
+            "rotation": 0.02,
+            "warp": 0.969,
+            "decay": 0.98,
+            "gamma": 2,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "wave_r = wave_r + 0.400*( 0.60*sin(0.933*time) + 0.40*sin(1.045*time) );",
+      "wave_g = wave_g + 0.400*( 0.60*sin(0.900*time) + 0.40*sin(0.956*time) );",
+      "wave_b = wave_b + 0.400*( 0.60*sin(0.910*time) + 0.40*sin(0.920*time) );",
+      "zoom = zoom + 0.010*( 0.60*sin(0.339*time) + 0.40*sin(0.276*time) );",
+      "rot = rot + 0.050*( 0.60*sin(0.381*time) + 0.40*sin(0.579*time) );",
+      "cx = cx + 0.030*( 0.60*sin(0.374*time) + 0.40*sin(0.294*time) );",
+      "cy = cy + 0.030*( 0.60*sin(0.393*time) + 0.40*sin(0.223*time) );",
+      "decay=decay-0.02*pow(0.5+0.5*sin(time*0.9),3.2);"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "sx=sx-0.04*sin((y*2-1)*6+(x*2-1)*7+time*1.59);",
+      "sy=sy-0.04*sin((x*2-1)*8-(y*2-1)*5+time*1.43);"
+    ],
+    "originalParameters": {
+      "fGammaAdj": 2,
+      "fDecay": 0.98,
+      "fVideoEchoZoom": 2,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bMotionVectorsOn": false,
+      "bRedBlueStereo": false,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 2.7,
+      "fWaveScale": 1.053,
+      "fWaveSmoothing": 0.8,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 2.853,
+      "fZoomExponent": 3.6,
+      "fShader": 0,
+      "zoom": 1.046,
+      "rot": 0.02,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.969,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0.6,
+      "wave_g": 0.6,
+      "wave_b": 0.6,
+      "wave_x": 0.5,
+      "wave_y": 0.47
+    }
+  }
+}

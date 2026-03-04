@@ -1,0 +1,213 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Teenage Dreams",
+    "author": "Idiot",
+    "source": "Idiot - Teenage Dreams.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:42.623Z",
+    "updatedAt": "2026-03-04T16:57:42.623Z",
+    "category": "Imported",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 0.999514,
+            "rotation": 0,
+            "warp": 0.01,
+            "decay": 0.94,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "bass_counter = equal(bass_thresh,2)*1+bass_counter;",
+      "treb_counter=equal(treb_thresh,2)*1+treb_counter;",
+      "mid_counter=equal(mid_thresh,2)*1+mid_counter;",
+      "vol_counter=equal(vol_thresh,2)*1+vol_counter;",
+      "bass_cycler = bass_counter%8;",
+      "treb_cycler=treb_counter%8;",
+      "mid_cycler=mid_counter%8;",
+      "q1=sin(Bass-2&timE*.43);",
+      "q2=sin(bass_att-2&time*.23);",
+      "q3=sin(treb-2&time*.43);",
+      "q4=sin(mid-2&time*.23);",
+      "q5=sin(mid_att-2&time*.54);",
+      "q6=frame%40-bass*sin(time*.53-q3);",
+      "q7=frame%20-treb*sin(time*.65-q2);",
+      "q8=frame%30-mid*sin(time*.43-q1);",
+      "wave_r=.3+.4*sin(above(q6,wave_b));",
+      "wave_b=.2+.7*sin(Above(q7,wave_g));",
+      "wave_G=.4+.5*sin(above(q8,wave_r));",
+      "wave_x=.5-.2*Sin(time*.64);",
+      "wave_y=.5+.2*sin(time*.76);",
+      "wave_mystery=wave_myster-.5*sin(Time*.65);",
+      "decay=decay-.03*sin(frame/40%3);"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "rad_cycle=rad*rad*x*60*rad*sin(q6);",
+      "d=.03*(sin(rad*3.14*sin(q3)))+1;",
+      "r=d-.03*(sin(ang*3.14*sin(q2)));",
+      "radx=below(0.3-rad+x,0.3+rad-x);",
+      "rady=below(0.3-rad+y,0.3+rad-y);",
+      "snare=below(0,x-rad-.3*sin(q4)-x-y*d*r)*sin(q1-d+r-q3);",
+      "x2=above(x,rad);",
+      "y2=above(y,rad);",
+      "zoom=zoom+.2*sin(above(q6,q7)/q8)*(radx*rady-d*sin(q2)-r*sin(q3)+.1*sin(rad*3.14*sin(Q1))",
+      "+rad-x*radx-y*rady)*x2*y2-.03*sin(q4)+.02;",
+      "dx=dx+.01*sin(Q4)*sin(x2-rad+radx*sin(q2-q7))*radx;",
+      "dy=dy+.01*sin(q2)*sin(y2-rad+rady*sin(q3-q6))*rady;",
+      "rot=rot-.03*sin(radx*rady-x2*sin(q3-x1+rad*300))-.03*d*r-.02*sin(q3-q1)-sin(ang*d/2/2/2/2/2*sin(q3));"
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 1,
+      "fDecay": 0.94,
+      "fVideoEchoZoom": 1.006596,
+      "fVideoEchoAlpha": 0.5,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": false,
+      "bWaveThick": true,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 4.099998,
+      "fWaveScale": 0.863577,
+      "fWaveSmoothing": 0.63,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.71,
+      "fModWaveAlphaEnd": 1.3,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 1.331,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 0.999514,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.01,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 1,
+      "wave_g": 0.2,
+      "wave_b": 1,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0.5,
+      "ob_r": 0.01,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.26,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 5,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 0,
+      "mv_a": 0
+    }
+  }
+}

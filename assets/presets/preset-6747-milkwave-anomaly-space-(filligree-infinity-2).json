@@ -1,0 +1,240 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "anomaly space (filligree infinity 2)",
+    "author": "stahlregen",
+    "source": "stahlregen - anomaly space (filligree infinity 2).milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:46.197Z",
+    "updatedAt": "2026-03-04T16:57:46.197Z",
+    "category": "Space",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 0.34421,
+            "rotation": 0,
+            "warp": 0.01105,
+            "decay": 0.995,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "mv_r = .5-.5*sin(time*2.83);",
+      "mv_b = .5-.5*cos(time*2.63);",
+      "mv_g = .5+.5*sin(time*2.95);",
+      "",
+      "//ib_r = ob_g;",
+      "//ib_g = ob_b;",
+      "//ib_b = ob_r;",
+      "wave_mystery = rand(100)*.01;",
+      "",
+      "",
+      "count = count+1;",
+      "bc = bc+bass;",
+      "tc = tc+treb;",
+      "mc = mc+mid;",
+      "bb = .5*bd+.5*bass_att;",
+      "bt = .5*bt+.5*treb_att;",
+      "mt = .5*mt+.5*mid_att;",
+      "bimp = if(above(3*bass,bass+treb+mid),1,0);",
+      "timp = if(above(3*treb,bass+treb+mid),1,0);",
+      "mimp = if(above(3*mid,bass+treb+mid),1,0);",
+      "is_beat = if(above(bb*.9,bc/count),1*bimp,if(above(bt*.9,tc/count),1*timp,if(above(mt*.9,mc/count),1*mimp,0)));",
+      "is_beat = if(above(reha,0),0,is_beat);",
+      "reha = if(is_beat,fps*.25,if(below(reha,1),0,reha-1));",
+      "",
+      "",
+      "xrand = if(is_beat,.25+rand(500)/1000,xrand);",
+      "xpos = xpos+bass_att*(xrand-xpos)/40;",
+      "",
+      "yrand = if(is_beat,.3+rand(400)/1000,yrand);",
+      "ypos = ypos+bass_att*(yrand-ypos)/40;",
+      "",
+      "dx = 2* xpos/ypos;",
+      "dy = 2*ypos/xpos;",
+      "",
+      "monitor = xrand/yrand;",
+      "",
+      "q1 = xpos;",
+      "q2 = ypos;"
+    ],
+    "perFrameInitCode": [
+      "xpos = .5;",
+      "ypos = .5;"
+    ],
+    "perPixelCode": [
+      "ceny = q1;",
+      "cenx = q2;",
+      "brad = 2*sqrt( pow((x-cenx),2) + pow ((y-ceny),2));",
+      "",
+      "",
+      "box = below(x,cenx+.15)*above(x,cenx-.15)*above(y,ceny-.15)*below(y,ceny+.15);",
+      "",
+      "c = 1001; // sharpness",
+      "",
+      "sx = 0.85-1.8*(1-box)*(1-brad+brad*sigmoid(-brad+.45,c))+.33*(1-box)*(1-brad+brad*sigmoid(brad*1.5-1,c));",
+      "sy = 0.85-1.8*(1-box)*(1-brad+brad*sigmoid(-brad+.45,c))+.33*(1-box)*(1-brad+brad*sigmoid(brad*1.5-1,c));",
+      "",
+      "cy = ceny;",
+      "cx = cenx;"
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 1,
+      "fDecay": 0.995,
+      "fVideoEchoZoom": 2,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": true,
+      "bWaveThick": true,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": true,
+      "bDarken": true,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 0,
+      "fWaveScale": 12.032,
+      "fWaveSmoothing": 0,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 0.051,
+      "fWarpScale": 3.749,
+      "fZoomExponent": 1.1066,
+      "fShader": 0,
+      "zoom": 0.34421,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.01105,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 1,
+      "wave_g": 1,
+      "wave_b": 1,
+      "wave_x": 0.5,
+      "wave_y": 0.7,
+      "ob_size": 0,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0.5,
+      "ib_size": 0.075,
+      "ib_r": 0,
+      "ib_g": 0,
+      "ib_b": 0,
+      "ib_a": 0.69,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 5,
+      "mv_r": 0.2,
+      "mv_g": 0.2,
+      "mv_b": 0.2,
+      "mv_a": 0.1,
+      "b1n": false,
+      "b2n": false,
+      "b3n": false,
+      "b1x": false,
+      "b2x": false,
+      "b3x": false,
+      "b1ed": false
+    }
+  }
+}

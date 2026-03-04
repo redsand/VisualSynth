@@ -5,13 +5,24 @@ import { DEFAULT_PROJECT } from '../src/shared/project';
 
 const makeProject = () => {
   const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
-  project.scenes = project.scenes.slice(0, 2).map((scene, index) => ({
-    ...scene,
-    id: `scene-${index + 1}`,
-    scene_id: `scene-${index + 1}`,
-    name: `Scene ${index + 1}`,
-    duration: 0
-  }));
+  // Create 2 scenes from the default single scene
+  const baseScene = project.scenes[0];
+  project.scenes = [
+    {
+      ...baseScene,
+      id: 'scene-1',
+      scene_id: 'scene-1',
+      name: 'Scene 1',
+      duration: 0
+    },
+    {
+      ...baseScene,
+      id: 'scene-2',
+      scene_id: 'scene-2',
+      name: 'Scene 2',
+      duration: 0
+    }
+  ];
   project.activeSceneId = 'scene-1';
   return project;
 };

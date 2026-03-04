@@ -87,7 +87,7 @@ describe('render-state preset snapshots', () => {
   });
 
   it('produces a stable render-state snapshot for Cosmic Plasma', () => {
-    const project = applyPresetToProject('preset-01-cosmic.json');
+    const project = applyPresetToProject('preset-001-cosmic.json');
     store.update((state: any) => {
       state.project = project;
     });
@@ -96,7 +96,7 @@ describe('render-state preset snapshots', () => {
   });
 
   it('produces a stable render-state snapshot for Glyph Matrix', () => {
-    const project = applyPresetToProject('preset-107-glyph-matrix.json');
+    const project = applyPresetToProject('preset-013-glyph-matrix.json');
     store.update((state: any) => {
       state.project = project;
     });

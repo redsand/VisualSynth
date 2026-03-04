@@ -17,7 +17,7 @@ describe('RenderGraph Feedback Preset', () => {
   });
 
   it('should correctly modulate feedback for Cosmic Wormhole', () => {
-    const presetPath = path.resolve(__dirname, '../assets/presets/preset-69-cosmic-wormhole.json');
+    const presetPath = path.resolve(__dirname, '../assets/presets/preset-092-cosmic-wormhole.json');
     const presetData = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
 
     // Handle v3 presets by migrating them to v2 format

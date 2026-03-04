@@ -1,0 +1,231 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Luckless",
+    "author": "Unchained & Rovastar",
+    "source": "Unchained & Rovastar - Luckless.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:55:30.245Z",
+    "updatedAt": "2026-03-04T16:55:30.245Z",
+    "category": "Imported",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 0.619082,
+            "rotation": 0.0019,
+            "warp": 0.01,
+            "decay": 1,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "warp=0;",
+      "old_bass_flop=bass_flop;",
+      "old_treb_flop=treb_flop;",
+      "old_mid_flop=mid_flop;",
+      "chaos=.9+.1*sin(pulse);",
+      "entropy=if(equal(pulse,-20),1+bass_flop+treb_flop+mid_flop+int(rand(2)),entropy);",
+      "bass_thresh = above(bass_att,bass_thresh)*2 + (1-above(bass_att,bass_thresh))*((bass_thresh-1.6)*chaos+1.6);",
+      "bass_flop=abs(bass_flop-equal(bass_thresh,2));",
+      "treb_thresh=above(treb_att,treb_thresh)*2 + (1-above(treb_att,treb_thresh))*((treb_thresh-1.6)*chaos+1.6);",
+      "treb_flop=abs(treb_flop-equal(treb_thresh,2));",
+      "mid_thresh=above(mid_att,mid_thresh)*2 + (1-above(mid_att,mid_thresh))*((mid_thresh-1.6)*chaos+1.6);",
+      "mid_flop=abs(mid_flop-equal(mid_thresh,2));",
+      "bass_changed=bnot(equal(old_bass_flop,bass_flop));",
+      "mid_changed=bnot(equal(old_mid_flop,mid_flop));",
+      "treb_changed=bnot(equal(old_treb_flop,treb_flop));",
+      "bass_residual = bass_changed*sin(pulse*3) + bnot(bass_changed)*bass_residual;",
+      "treb_residual = treb_changed*sin(pulse*3) + bnot(treb_changed)*treb_residual;",
+      "mid_residual = mid_changed*sin(pulse*3) + bnot(mid_changed)*mid_residual;",
+      "pulse=if(above(abs(pulse),20),-20,pulse+(bass_thresh+mid_thresh+treb_thresh)*.018);",
+      "q1=mid_residual;",
+      "q2=bass_residual;",
+      "q3=treb_residual;",
+      "q4=sin(pulse);",
+      "q5=cos(pulse*(.5+.1*entropy));",
+      "q6=sin(pulse*(.5+pow(.25,entropy)));",
+      "q7=above(q1,0)+above(q2,0)+above(q3,0)+above(q3,0)*treb_flop+above(q2,0)*bass_flop+above(q1,0)*mid_flop;",
+      "q8=entropy;",
+      "ob_r=.4+.4*sin(time*2.157+q6);",
+      "ob_b=.8+.2*sin(time*1.689+q5);",
+      "ob_g=.6+.4*sin(time*.413+q4);",
+      "ib_r=.5+.5*cos(time*1.2+q1*.1);",
+      "ib_b=.4+.4*cos(time*2.811+q2*.1);",
+      "ib_g=.4+.4*cos(time*1.666+q3*.1);",
+      "ib_size=.1+.05*q2;",
+      "ob_size=.03+.02*sin(time*2.321+q2*.2);",
+      "ob_a=.6+.4*q3;",
+      "ib_a=.9+.1*sin(q2*.3+q4+q1*.5);",
+      "mv_r=mv_r+.5*sin(q4+time*.678);",
+      "mv_b=mv_b+.5*sin(q4+time*.789);",
+      "mv_g=mv_g+.5*sin(q5+time*.456);",
+      "mv_a=.2+.2*sin(time*1.178+q5*1.14);",
+      "rot=0;",
+      "wave_r=.6+.4*sin(q1+time*2.183);",
+      "wave_b=.6+.4*sin(q2+time*1.211);",
+      "wave_g=.6+.4*sin(q3+time*1.541);",
+      "wave_mystery=wave_mystery+.5*sin(time*2.18+q6);",
+      "wave_x=wave_x+.3*sin(time*.811)+.005*(frame%3);",
+      "wave_y=wave_y+.3*sin(time*.788)+.005*(frame%3);",
+      "wave_a=3+sin(time*1.414)+q3;",
+      "wave_mode=q7;",
+      "zoom=zoom+.1*sin(time*.8);"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "rot = rot + if(below(sin(ang+sin(rad+.5*q4)*5), q6), -rot, 0.5*sin((rad+.5*q1)*4*q5));",
+      "zoom=zoom+rot*q3;"
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 1,
+      "fDecay": 1,
+      "fVideoEchoZoom": 0.9994,
+      "fVideoEchoAlpha": 0.5,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": true,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": false,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": true,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 1.059269,
+      "fWaveScale": 0.653093,
+      "fWaveSmoothing": 0.27,
+      "fWaveParam": -0.38,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 5.99579,
+      "fWarpScale": 1.331,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 0.619082,
+      "rot": 0.0019,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.01,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 1,
+      "wave_g": 1,
+      "wave_b": 1,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0.005,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 1,
+      "ib_size": 0.01,
+      "ib_r": 0.5,
+      "ib_g": 0.9,
+      "ib_b": 0.5,
+      "ib_a": 1,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0.85,
+      "mv_r": 0.4999,
+      "mv_g": 0.4999,
+      "mv_b": 0.4999,
+      "mv_a": 1
+    }
+  }
+}

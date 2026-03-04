@@ -1,0 +1,250 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "dark tides (eo.s+phat_whisps of doom mix)",
+    "author": "shifter",
+    "source": "shifter - dark tides (eo.s+phat_whisps of doom mix).milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:52:48.451Z",
+    "updatedAt": "2026-03-04T16:52:48.451Z",
+    "category": "Goth Generators",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1.35,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1.35,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 0.99951,
+            "rotation": 0,
+            "warp": 0.72142,
+            "decay": 1,
+            "gamma": 1.35,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "bl = 3.8;",
+      "ul = 7.9;",
+      "rate = 11.9;",
+      "cha = .01;",
+      "",
+      "gv = if(above(gv,bl),  if(below(gv,ul),  if(above(fps,rate),gv + cha,gv - cha),  ul-.1),bl+.1);",
+      "",
+      "",
+      "",
+      "monitor = gv;",
+      "",
+      "wave_a = 0;",
+      "",
+      "tic = min(time - tin,1);",
+      "tin = time;",
+      "",
+      "ra = 10;",
+      "",
+      "",
+      "treb_avg = tic*(treb_avg*(1/tic - ra) + ra*treb);",
+      "mid_avg = tic*(mid_avg*(1/tic - ra) + ra*mid);",
+      "bass_avg = tic*(bass_avg*(1/tic - ra) + ra*bass);",
+      "",
+      "rb = 1;",
+      "vav = tic*(vav*(1/tic - rb) + rb*(bass+treb+mid)*.33333);",
+      "q1 = treb_avg;",
+      "q2 = mid_avg;",
+      "q3 = bass_avg;",
+      "",
+      "db = bass - bass_avg;",
+      "",
+      "it = (it + tic)*below(it,1);",
+      "",
+      "rb = .5*(1/tic);",
+      "bvb = tic*(bass*rb + (1/tic-rb)*bvb);",
+      "bd = bass - bvb;",
+      "",
+      "vm = vm - tic + swi;",
+      "swi = above(bd - vm,0);",
+      "",
+      "q4 = 1-swi;",
+      "",
+      "cm = if(above(iter,30) + equal(time,0),int(rand(3)) + 1,cm);",
+      "iter = (iter + tic)*(1-above(iter,30));",
+      "q5 = if(equal(cm,0),3,cm);",
+      "",
+      "cma = if(above(itar,5) + equal(time,0),int(vav*5),cma);",
+      "itar = (itar + tic)*(1-above(itar,5));",
+      "",
+      "q6 = int(vav*5);",
+      "",
+      "",
+      "decay=0.97;",
+      "zoom=1.01;",
+      "sx=1;sy=1;"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "warp = bass;"
+    ],
+    "originalParameters": {
+      "fRating": 2,
+      "fGammaAdj": 1.35,
+      "fDecay": 1,
+      "fVideoEchoZoom": 2.144,
+      "fVideoEchoAlpha": 0.31,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": true,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": false,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 0.001,
+      "fWaveScale": 1.286,
+      "fWaveSmoothing": 0.63,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.71,
+      "fModWaveAlphaEnd": 1.3,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 1.331,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 0.99951,
+      "rot": 0,
+      "cx": -1,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.72142,
+      "sx": 1,
+      "sy": 0.9803,
+      "wave_r": 0.65,
+      "wave_g": 0.65,
+      "wave_b": 0.65,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0.5,
+      "ob_r": 1,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.5,
+      "ib_r": 1,
+      "ib_g": 0,
+      "ib_b": 0,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0,
+      "b1n": false,
+      "b2n": false,
+      "b3n": false,
+      "b1x": false,
+      "b2x": false,
+      "b3x": false,
+      "b1ed": false,
+      "wave_3_init1": "t1 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init2": "t2 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init3": "t3 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init4": "t4 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init5": "t5 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init6": "t6 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init7": "t7 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init8": "t8 = 1 + (int(rand(101))*.01 - int(rand(101))*.01)*.3;",
+      "wave_3_init9": ""
+    }
+  }
+}

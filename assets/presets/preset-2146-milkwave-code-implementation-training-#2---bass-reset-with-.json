@@ -1,0 +1,203 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "code implementation training #2 - bass reset with delay code",
+    "author": "Se7enSlasher",
+    "source": "Se7enSlasher - code implementation training #2 - bass reset with delay code.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:56:58.793Z",
+    "updatedAt": "2026-03-04T16:56:58.793Z",
+    "category": "Atmosphere & Terrain",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 2,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 2,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.0003,
+            "rotation": 0,
+            "warp": 0.27001,
+            "decay": 0.98,
+            "gamma": 2,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "timepeak = if(equal(time%0.1, 0),timepeak=timepeak+0.01, timepeak); //the timepeak variable increases using the time variable in sync",
+      "",
+      "",
+      "/////////////TRIGGER OPTION////////////////",
+      "",
+      "//Simple Bass Trigger//",
+      "//timepeak = if(above(bass, 2),timepeak=0, timepeak); //reset the timepeak vaariable if the beat is below 2 (trigger algorithm) (commented this because not necessary)",
+      "",
+      "//Bass Trigger with Delay//",
+      "bassdelay = timepeak>0.5; //declared the another variable with the simple condition",
+      "beatdelaytrigger = if(bassdelay, if(above(bass, 2), timepeak=0, timepeak), bleh); //another simple declaration, if the beat triggered with the delay above 0.5, it actually resets the timepeak variable to 0.",
+      "",
+      "",
+      "monitor = timepeak;",
+      "q1=timepeak; //we carry this variable to custom shapes, waves etc.",
+      "",
+      "//for preset testing",
+      "decay=0;",
+      "wave_a=0;"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [],
+    "originalParameters": {
+      "fRating": 4,
+      "fGammaAdj": 2,
+      "fDecay": 0.98,
+      "fVideoEchoZoom": 2,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": false,
+      "bWaveDots": false,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 4,
+      "fWaveScale": 1.692,
+      "fWaveSmoothing": 0.5,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 0.55,
+      "fWarpScale": 0.039,
+      "fZoomExponent": 1,
+      "fShader": 0,
+      "zoom": 1.0003,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.11,
+      "dx": 0,
+      "dy": -0.001,
+      "warp": 0.27001,
+      "sx": 1.00199,
+      "sy": 1.00499,
+      "wave_r": 0,
+      "wave_g": 0.57,
+      "wave_b": 1,
+      "wave_x": 0.65,
+      "wave_y": 0.5,
+      "ob_size": 0.01,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.01,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0.9,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0,
+      "b1n": false,
+      "b2n": false,
+      "b3n": false,
+      "b1x": false,
+      "b2x": false,
+      "b3x": false,
+      "b1ed": false
+    }
+  }
+}

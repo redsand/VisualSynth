@@ -11,7 +11,7 @@ import { DEFAULT_PROJECT, DEFAULT_SCENE_TRANSITION, SceneConfig, SceneTransition
 import { projectSchema } from './projectSchema';
 import { ENGINE_REGISTRY, EngineId } from './engines';
 
-export const APP_VERSION = '0.9.0';
+export const APP_VERSION = '1.4.0';
 
 export interface PresetCompatibility {
   /** Minimum app version this preset works with */
@@ -56,6 +56,12 @@ export interface PresetMetadataV6 extends PresetMetadata {
   visualIntentTags: string[];
   colorChemistry: string[];
   defaultTransition: SceneTransition;
+  /** Original shader author (e.g., "Geiss", "Rovastar") */
+  author?: string;
+  /** Original preset name from source system */
+  source?: string;
+  /** Source system (e.g., "Milkwave", "MilkDrop", "VisualSynth") */
+  importedFrom?: string;
 }
 
 /**
@@ -225,7 +231,10 @@ export const presetV6Schema = z.object({
     defaultTransition: z.object({
       durationMs: z.number(),
       curve: z.enum(['linear', 'easeInOut'])
-    })
+    }),
+    author: z.string().optional(),
+    source: z.string().optional(),
+    importedFrom: z.string().optional()
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),

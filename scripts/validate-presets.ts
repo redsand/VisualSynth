@@ -1,89 +1,51 @@
+/**
+ * Validate all presets and report errors
+ */
+
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { migratePreset, validatePreset } from '../src/shared/presetMigration';
+import { presetV6Schema } from '../src/shared/presetMigration';
 
-type PresetReport = {
-  file: string;
-  version?: number;
-  migratedVersion?: number;
-  migrationErrors: string[];
-  validationErrors: string[];
-  validationWarnings: string[];
-};
+const presetsDir = path.resolve(__dirname, '../assets/presets');
 
-const presetsDir = path.join(process.cwd(), 'assets', 'presets');
-const files = fs
-  .readdirSync(presetsDir)
-  .filter((file) => file.endsWith('.json'))
-  .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+const files = fs.readdirSync(presetsDir).filter(f => f.endsWith('.json'));
 
-const reports: PresetReport[] = [];
+let valid = 0;
+let invalid = 0;
+const errors: string[] = [];
 
 for (const file of files) {
-  const fullPath = path.join(presetsDir, file);
-  let raw: string;
+  const filePath = path.join(presetsDir, file);
   try {
-    raw = fs.readFileSync(fullPath, 'utf8');
-  } catch (err: any) {
-    reports.push({
-      file,
-      migrationErrors: [`Read failed: ${err?.message ?? String(err)}`],
-      validationErrors: [],
-      validationWarnings: []
-    });
-    continue;
-  }
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(content);
+    const version = data.version || 2;
 
-  let preset: any;
-  try {
-    preset = JSON.parse(raw);
-  } catch (err: any) {
-    reports.push({
-      file,
-      migrationErrors: [`JSON parse failed: ${err?.message ?? String(err)}`],
-      validationErrors: [],
-      validationWarnings: []
-    });
-    continue;
-  }
-
-  const migration = migratePreset(preset);
-  const migrated = migration.preset;
-  const validation = validatePreset(migrated);
-
-  if (!migration.success || !validation.valid || validation.warnings.length > 0) {
-    reports.push({
-      file,
-      version: preset?.version,
-      migratedVersion: migrated?.version,
-      migrationErrors: migration.errors,
-      validationErrors: validation.errors,
-      validationWarnings: validation.warnings
-    });
+    if (version === 6) {
+      const result = presetV6Schema.safeParse(data);
+      if (!result.success) {
+        invalid++;
+        const errorSummary = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
+        errors.push(`${file}: ${errorSummary}`);
+      } else {
+        valid++;
+      }
+    } else {
+      valid++; // Skip non-v6 presets
+    }
+  } catch (err) {
+    invalid++;
+    errors.push(`${file}: Parse error - ${err}`);
   }
 }
 
-const failures = reports.filter(
-  (report) => report.migrationErrors.length > 0 || report.validationErrors.length > 0
-);
+console.log(`Valid presets: ${valid}`);
+console.log(`Invalid presets: ${invalid}`);
 
-console.log(`Presets scanned: ${files.length}`);
-console.log(`Presets with errors: ${failures.length}`);
-console.log(`Presets with warnings: ${reports.filter((r) => r.validationWarnings.length > 0).length}`);
-
-if (reports.length > 0) {
-  console.log('');
-  for (const report of reports) {
-    console.log(`- ${report.file} (v${report.version ?? 'unknown'} -> v${report.migratedVersion ?? 'unknown'})`);
-    if (report.migrationErrors.length > 0) {
-      console.log(`  migration errors: ${report.migrationErrors.join(' | ')}`);
-    }
-    if (report.validationErrors.length > 0) {
-      console.log(`  validation errors: ${report.validationErrors.join(' | ')}`);
-    }
-    if (report.validationWarnings.length > 0) {
-      console.log(`  validation warnings: ${report.validationWarnings.join(' | ')}`);
-    }
+if (errors.length > 0) {
+  console.log('\nErrors:');
+  errors.slice(0, 20).forEach(e => console.log(`  - ${e}`));
+  if (errors.length > 20) {
+    console.log(`  ... and ${errors.length - 20} more errors`);
   }
 }

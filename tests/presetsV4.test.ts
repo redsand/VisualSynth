@@ -102,9 +102,8 @@ describe('Preset V4 System', () => {
     // unless we update the project schema.
     // For now, we verify that the loader doesn't crash.
     const { project } = applyPresetV4(sampleV4Preset, DEFAULT_PROJECT);
-    expect(project.name).toBe('Untitled VisualSynth Project'); // Name usually comes from project or default
-    // Wait, does applyPresetV4 update project name? 
-    // It creates a new project from DEFAULT_PROJECT, and sets scenes.
-    // It does NOT seem to copy preset.metadata.name to project.name.
+    expect(project.name).toBe('Performance Template'); // Name comes from DEFAULT_PROJECT
+    // applyPresetV4 creates a new project from DEFAULT_PROJECT, and sets scenes.
+    // It does NOT copy preset.metadata.name to project.name.
   });
 });

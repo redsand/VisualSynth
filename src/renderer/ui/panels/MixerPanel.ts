@@ -21,6 +21,10 @@ export const createMixerPanel = ({
   const container = document.getElementById('mixer-panel-anchor') as HTMLDivElement;
   let soloedLayerId: string | null = null;
 
+  // Color Palette elements
+  const paletteSelect = document.getElementById('palette-select') as HTMLSelectElement | null;
+  const chemistrySelect = document.getElementById('chemistry-select') as HTMLSelectElement | null;
+
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'core': return '⚛';
@@ -216,8 +220,71 @@ export const createMixerPanel = ({
 
         envSection.appendChild(row);
     }
-    
+
     container.appendChild(envSection);
+
+    // Color Palette Section
+    const paletteSection = document.createElement('div');
+    paletteSection.className = 'mixer-palette-panel';
+    paletteSection.innerHTML = '<h3>Color Palette</h3>';
+
+    const paletteLabel = document.createElement('label');
+    paletteLabel.className = 'scene-label';
+    paletteLabel.textContent = 'Palette';
+
+    const mixerPaletteSelect = document.createElement('select');
+    mixerPaletteSelect.id = 'mixer-palette-select';
+    mixerPaletteSelect.className = 'scene-select';
+
+    // Get palette options from the global palette select if available
+    if (paletteSelect) {
+      Array.from(paletteSelect.options).forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.textContent;
+        mixerPaletteSelect.appendChild(option);
+      });
+    }
+
+    // Set current value
+    const currentPalette = store.getState().project.activePaletteId ?? 0;
+    mixerPaletteSelect.value = String(currentPalette);
+
+    // Handle palette change
+    mixerPaletteSelect.addEventListener('change', () => {
+      actions.setPalette(store, Number(mixerPaletteSelect.value));
+      setStatus(`Palette changed.`);
+    });
+
+    paletteLabel.appendChild(mixerPaletteSelect);
+
+    // Preview bar
+    const palettePreview = document.createElement('div');
+    palettePreview.className = 'mixer-palette-preview';
+    palettePreview.id = 'mixer-palette-preview';
+
+    // Sync preview with current palette
+    const updatePalettePreview = () => {
+      const paletteId = Number(mixerPaletteSelect.value);
+      const palette = store.getState().project.palettes[paletteId];
+      if (palette) {
+        palettePreview.innerHTML = '';
+        palette.colors.forEach(color => {
+          const colorBar = document.createElement('div');
+          colorBar.className = 'mixer-palette-color';
+          colorBar.style.backgroundColor = color;
+          palettePreview.appendChild(colorBar);
+        });
+      }
+    };
+    updatePalettePreview();
+
+    // Update preview when palette changes
+    mixerPaletteSelect.addEventListener('change', updatePalettePreview);
+
+    paletteSection.appendChild(paletteLabel);
+    paletteSection.appendChild(palettePreview);
+    container.appendChild(paletteSection);
   };
 
   const updateMeters = (rms: number, peak: number, bands: number[]) => {

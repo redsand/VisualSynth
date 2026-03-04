@@ -1,0 +1,236 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "orthoganal light",
+    "author": "shifter",
+    "source": "shifter - orthoganal light.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:57:46.083Z",
+    "updatedAt": "2026-03-04T16:57:46.083Z",
+    "category": "Imported",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 3.38,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 3.38,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.000495,
+            "rotation": 0,
+            "warp": 0.01,
+            "decay": 1,
+            "gamma": 3.38,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": null,
+    "comp": null,
+    "perFrameCode": [
+      "warp = 0;",
+      "",
+      "tic = min(time-tin,.1);",
+      "tin = time;",
+      "",
+      "vol = (bass_att + treb_att + mid_att)*.333333;",
+      "",
+      "ra = 1/tic*.25;",
+      "",
+      "treb_avg = tic*(treb_avg*(1/tic - ra) + ra*treb);",
+      "mid_avg = tic*(mid_avg*(1/tic - ra) + ra*mid);",
+      "bass_avg = tic*(bass_avg*(1/tic - ra) + ra*bass);",
+      "vav = tic*(vav*(1/tic - ra) + ra*(bass+treb+mid)*.33333);",
+      "",
+      "tt = tt + tic*treb;",
+      "mt = mt + tic*mid;",
+      "bt = bt + tic*bass;",
+      "vt = vt + tic*vav;",
+      "",
+      "q1 = tt*4;",
+      "q2 = mt*4;",
+      "q3 = bt*4;",
+      "",
+      "st = .5;",
+      "q4 = treb_avg*treb_avg*st;",
+      "q5 = mid_avg*mid_avg*st;",
+      "q6 = bass_avg*bass_avg*st;",
+      "q4 = treb_avg*st;",
+      "q5 = mid_avg*st;",
+      "q6 = bass_avg*st;",
+      "",
+      "",
+      "//ob_r = .5 + .5*sin(time);",
+      "//ob_g = .5 + .5*sin(time + 1.0472);",
+      "//ob_b = .5 + .5*sin(time + 2.0944);"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "ti = time*.3;",
+      "",
+      "mx = x - .5 + .5*sin(ti*1.1278);",
+      "my = y - .5 + .5*sin(ti*.9454);",
+      "mod = (1-2*above(-mx,my))*(1-2*above(mx,my));",
+      "dx = .5*(1-mod)*mx*sin(mx*6.2832*4 - sign(mx)*q1)*q4*(1-2*above(-mx,my));",
+      "dy = .5*(mod+1)*my*sin(my*6.2832*4 - sign(my)*q1)*q4*(1-2*above(-mx,my));",
+      "",
+      "mx = x - .5 + .5*sin(ti*1.3488);",
+      "my = y - .5 + .5*sin(ti*.7366);",
+      "mod = (1-2*above(-mx,my))*(1-2*above(mx,my));",
+      "dx = dx + .5*(1-mod)*mx*sin(mx*6.2832*4 - sign(mx)*q2)*q5*(1-2*above(-mx,my));",
+      "dy = dy + .5*(mod+1)*my*sin(my*6.2832*4 - sign(my)*q2)*q5*(1-2*above(-mx,my));",
+      "",
+      "mx = x - .5 + .5*sin(ti*1.3544);",
+      "my = y - .5 + .5*sin(ti*.9021);",
+      "mod = (1-2*above(-mx,my))*(1-2*above(mx,my));",
+      "dx = dx + .5*(1-mod)*mx*sin(mx*6.2832*4 - sign(mx)*q3)*q6*(1-2*above(-mx,my));",
+      "dy = dy + .5*(mod+1)*my*sin(my*6.2832*4 - sign(my)*q3)*q6*(1-2*above(-mx,my));"
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 3.38,
+      "fDecay": 1,
+      "fVideoEchoZoom": 1.047468,
+      "fVideoEchoAlpha": 0.5,
+      "nVideoEchoOrientation": false,
+      "nEchoWrap_x": false,
+      "nEchoWrap_y": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": true,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": false,
+      "nWrapMode_x": true,
+      "nWrapMode_y": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": true,
+      "bDarken": true,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 0,
+      "fWaveScale": 1.285751,
+      "fWaveSmoothing": 0.63,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.71,
+      "fModWaveAlphaEnd": 1.3,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 1.331,
+      "fZoomExponent": 1,
+      "fShader": 1,
+      "zoom": 1.000495,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 0.01,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0.65,
+      "wave_g": 0.65,
+      "wave_b": 0.65,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0.002,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 1,
+      "ib_size": 0.26,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0.9,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0
+    }
+  }
+}

@@ -387,6 +387,129 @@ export interface RenderState {
   visualFeedbackOpacity: number;
   visualFeedbackZoom: number;
   visualFeedbackRotation: number;
+  // New Unique Generator Parameters
+  cellularGrowthEnabled: boolean;
+  cellularGrowthOpacity: number;
+  cellularGrowthRate: number;
+  cellularGrowthDensity: number;
+  bioLuminescentForestEnabled: boolean;
+  bioLuminescentForestOpacity: number;
+  bioLuminescentForestPulse: number;
+  bioLuminescentForestDensity: number;
+  crystallineEnabled: boolean;
+  crystallineOpacity: number;
+  crystallineRotation: number;
+  crystallineRefraction: number;
+  audioDnaEnabled: boolean;
+  audioDnaOpacity: number;
+  audioDnaRotation: number;
+  audioDnaSegments: number;
+  liquidMetalEnabled: boolean;
+  liquidMetalOpacity: number;
+  liquidMetalFlow: number;
+  liquidMetalShimmer: number;
+  neonCityscapeEnabled: boolean;
+  neonCityscapeOpacity: number;
+  neonCityscapeSpeed: number;
+  neonCityscapeDensity: number;
+  cosmicNebulaEnabled: boolean;
+  cosmicNebulaOpacity: number;
+  cosmicNebulaExpansion: number;
+  cosmicNebulaTurbulence: number;
+  sonicRainEnabled: boolean;
+  sonicRainOpacity: number;
+  sonicRainSpeed: number;
+  sonicRainDensity: number;
+  morphingGeometryEnabled: boolean;
+  morphingGeometryOpacity: number;
+  morphingGeometrySpeed: number;
+  morphingGeometryComplexity: number;
+  urbanRhythmEnabled: boolean;
+  urbanRhythmOpacity: number;
+  urbanRhythmBpm: number;
+  urbanRhythmIntensity: number;
+  // Goth/Generator Parameters
+  crimsonVeilEnabled: boolean;
+  crimsonVeilOpacity: number;
+  crimsonVeilFlow: number;
+  crimsonVeilDarkness: number;
+  victorianCryptEnabled: boolean;
+  victorianCryptOpacity: number;
+  victorianCryptComplexity: number;
+  victorianCryptDecay: number;
+  spectralApparitionEnabled: boolean;
+  spectralApparitionOpacity: number;
+  spectralApparitionDensity: number;
+  spectralApparitionFade: number;
+  gothicCobwebsEnabled: boolean;
+  gothicCobwebsOpacity: number;
+  gothicCobwebsDensity: number;
+  gothicCobwebsDecay: number;
+  bloodMoonRiseEnabled: boolean;
+  bloodMoonRiseOpacity: number;
+  bloodMoonRiseEclipse: number;
+  bloodMoonRiseGlow: number;
+  candlelightVigilEnabled: boolean;
+  candlelightVigilOpacity: number;
+  candlelightVigilFlicker: number;
+  candlelightVigilDecay: number;
+  gargoylesAwakeEnabled: boolean;
+  gargoylesAwakeOpacity: number;
+  gargoylesAwakeAnimation: number;
+  gargoylesAwakeShadow: number;
+  cryptShadowsEnabled: boolean;
+  cryptShadowsOpacity: number;
+  cryptShadowsDepth: number;
+  cryptShadowsMovement: number;
+  gothicRoseEnabled: boolean;
+  gothicRoseOpacity: number;
+  gothicRoseDecay: number;
+  gothicRoseThorns: number;
+  eternalDarknessEnabled: boolean;
+  eternalDarknessOpacity: number;
+  eternalDarknessVoid: number;
+  eternalDarknessTraces: number;
+  // Retro Game Generator Parameters
+  pixelDustEnabled: boolean;
+  pixelDustOpacity: number;
+  pixelDustDensity: number;
+  pixelDustPixelSize: number;
+  retroStarfieldEnabled: boolean;
+  retroStarfieldOpacity: number;
+  retroStarfieldSpeed: number;
+  retroStarfieldSize: number;
+  eightBitGridEnabled: boolean;
+  eightBitGridOpacity: number;
+  eightBitGridSpeed: number;
+  eightBitGridPixelSize: number;
+  arcadeInvadersEnabled: boolean;
+  arcadeInvadersOpacity: number;
+  arcadeInvadersDensity: number;
+  arcadeInvadersAnimation: number;
+  powerUpPulseEnabled: boolean;
+  powerUpPulseOpacity: number;
+  powerUpPulseIntensity: number;
+  powerUpPulseSpeed: number;
+  dungeonTilesEnabled: boolean;
+  dungeonTilesOpacity: number;
+  dungeonTilesPattern: number;
+  dungeonTilesAnimation: number;
+  chiptuneWaveEnabled: boolean;
+  chiptuneWaveOpacity: number;
+  chiptuneWaveBits: number;
+  chiptuneWaveSpeed: number;
+  scoreCounterEnabled: boolean;
+  scoreCounterOpacity: number;
+  scoreCounterDigits: number;
+  scoreCounterAnimation: number;
+  pixelRainEnabled: boolean;
+  pixelRainOpacity: number;
+  pixelRainDensity: number;
+  pixelRainSpeed: number;
+  bossHealthEnabled: boolean;
+  bossHealthOpacity: number;
+  bossHealthValue: number;
+  bossHealthBars: number;
 }
 
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
@@ -1313,11 +1436,12 @@ vec2 speakerCone(vec2 uv, float bass) {
 vec3 speakerPulse(vec2 uv, float bass) {
   vec2 centered = uv - 0.5;
   float dist = length(centered);
-  float drive = clamp(bass * uSpeakerConeForce, 0.0, 2.0);
+  // Add baseline visibility (0.3) plus audio reactivity
+  float drive = clamp(0.3 + bass * uSpeakerConeForce * 1.5, 0.3, 2.0);
   float ringRadius = 0.28 + drive * 0.06;
-  float ringWidth = 0.02 + drive * 0.01;
+  float ringWidth = 0.008 + drive * 0.005;
   float ring = smoothstep(ringRadius + ringWidth, ringRadius, dist) -
-    smoothstep(ringRadius + ringWidth * 2.0, ringRadius + ringWidth, dist);
+    smoothstep(ringRadius + ringWidth * 1.5, ringRadius + ringWidth, dist);
   float glow = exp(-abs(dist - ringRadius) * 40.0) * (0.3 + drive * 0.4);
   float cone = smoothstep(0.55, 0.0, dist) * (0.25 + drive * 0.35);
   vec3 col = mix(palette(0.25 + drive * 0.1), palette(0.85), 0.35 + drive * 0.2);
@@ -1687,13 +1811,15 @@ vec3 lavaFlow(vec2 uv, float t, float audio) {
 vec3 crystalGrowth(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
   float d = 10000000000.0;
-  for (float i = 0.0; i < 5.0; i += 1.0) {
-    p = abs(p) - 0.5;
-    p = rotate2d(p, t * uCrystalGrowthRate * 0.1);
-    d = min(d, abs(p.x));
+  for (float i = 0.0; i < 8.0; i += 1.0) {
+    p = abs(p) - 0.3;
+    p = rotate2d(p, t * uCrystalGrowthRate * 0.15);
+    d = min(d, length(p) * 0.5);
   }
-  float edge = smoothstep(0.01 * uCrystalGrowthSharpness, 0.0, d);
-  return palette(audio) * edge * uCrystalGrowthOpacity;
+  // Make the edge much more visible with multiple glow layers
+  float edge = smoothstep(0.05 * uCrystalGrowthSharpness, 0.0, d);
+  float glow = smoothstep(0.15 * uCrystalGrowthSharpness, 0.0, d) * 0.5;
+  return (palette(audio) * edge + palette(audio + 0.3) * glow) * uCrystalGrowthOpacity * (1.0 + audio * 0.5);
 }
 
 vec3 technoGrid3D(vec2 uv, float t, float audio) {
@@ -1722,31 +1848,44 @@ vec3 magneticField(vec2 uv, float t, float audio) {
 vec3 prismShards(vec2 uv, float t, float audio) {
   vec2 p = uv;
   vec3 col = vec3(0.0);
-  for (float i = 0.0; i < 5.0; i += 1.0) {
+  for (float i = 0.0; i < 8.0; i += 1.0) {
     if (i >= float(uPrismShardsCount)) break;
-    vec2 pos = vec2(hash21(vec2(i, 1.1)), hash21(vec2(i, 2.2)));
+    // Position shards in a more visible pattern
+    float angle = i * 6.28 / float(uPrismShardsCount);
+    vec2 pos = 0.5 + vec2(cos(angle), sin(angle)) * 0.3 * (0.5 + 0.5 * sin(t * 0.3));
     float dist = length(p - pos);
-    float refract_val = uPrismShardsRefraction * sin(t + i);
-    col += palette(dist + refract_val) * smoothstep(0.1, 0.0, dist);
+    float refract_val = uPrismShardsRefraction * sin(t * 2.0 + i);
+    float size = 0.15 + 0.1 * sin(t + i);
+    float edge = smoothstep(size, 0.0, dist);
+    float glow = smoothstep(size * 2.5, 0.0, dist) * 0.4;
+    col += (palette(dist + refract_val) * edge + palette(dist + refract_val + 0.2) * glow);
   }
-  return col * uPrismShardsOpacity * (1.0 + audio);
+  return col * uPrismShardsOpacity * (1.0 + audio * 0.5);
 }
 
 vec3 neuralNet(vec2 uv, float t, float audio) {
-  vec2 p = uv * 10.0 * uNeuralNetDensity;
+  vec2 p = uv * 6.0 * uNeuralNetDensity;
   vec2 id = floor(p);
   vec2 f = fract(p);
   float col = 0.0;
+  // Create visible neural nodes
+  float node = smoothstep(0.15, 0.0, length(f - 0.5));
+  // Create connections to neighbors
   for (float y = -1.0; y <= 1.0; y += 1.0) {
     for (float x = -1.0; x <= 1.0; x += 1.0) {
+      if (x == 0.0 && y == 0.0) continue;
       vec2 neighbor = vec2(x, y);
       float h = hash21(id + neighbor);
-      vec2 pt = neighbor + sin(t * uNeuralNetActivity + h * 6.28) * 0.5;
-      float d = length(f - pt);
-      col += smoothstep(0.1, 0.0, d);
+      float connectionStrength = 0.5 + 0.5 * sin(t * uNeuralNetActivity + h * 6.28);
+      if (connectionStrength > 0.3) {
+        vec2 pt = neighbor * 0.5;
+        vec2 mid = (f + pt) * 0.5;
+        float d = abs(cross(vec2(pt - f), mid - f)) / length(pt - f);
+        col += smoothstep(0.05, 0.0, d) * connectionStrength * 0.3;
+      }
     }
   }
-  return palette(fract(t * 0.1)) * col * uNeuralNetOpacity * (1.0 + audio);
+  return palette(audio + t * 0.05) * (node * 2.0 + col) * uNeuralNetOpacity * (1.0 + audio * 0.3);
 }
 
 vec3 auroraChord(vec2 uv, float t, float audio) {
@@ -1769,11 +1908,24 @@ vec3 vhsGlitch(vec2 uv, float t, float audio) {
 
 vec3 moirePattern(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * uMoirePatternScale;
-  float v1 = sin(p.x * 10.0 + t * uMoirePatternSpeed);
-  vec2 p2 = rotate2d(p, t * 0.2);
-  float v2 = sin(p2.x * 10.0);
+
+  // First grating - grid pattern
+  float freq1 = 10.0;
+  float v1 = sin(p.x * freq1 + t * uMoirePatternSpeed) * sin(p.y * freq1);
+
+  // Second grating - rotated grid with slightly different frequency
+  vec2 p2 = rotate2d(p, t * 0.3 * uMoirePatternSpeed);
+  float freq2 = 10.5; // Slightly different frequency for more pronounced moire
+  float v2 = sin(p2.x * freq2) * sin(p2.y * freq2);
+
+  // Moire interference pattern
   float moire = v1 * v2;
-  return palette(moire * 0.5 + 0.5) * uMoirePatternOpacity * (1.0 + audio);
+
+  // Enhance contrast
+  moire = moire * 0.5 + 0.5; // Map to 0-1
+  moire = pow(moire, 0.7); // Increase contrast
+
+  return palette(moire) * uMoirePatternOpacity * (1.0 + audio * 0.3);
 }
 
 vec3 hypercube(vec2 uv, float t, float audio) {
@@ -1782,9 +1934,16 @@ vec3 hypercube(vec2 uv, float t, float audio) {
   p = rotate2d(p, rot);
   float box = max(abs(p.x), abs(p.y));
   float inner = max(abs(p.x), abs(p.y)) * uHypercubeProjection;
-  float mask = smoothstep(0.5, 0.48, box) - smoothstep(0.4, 0.38, box);
-  mask += (smoothstep(0.3, 0.28, inner) - smoothstep(0.2, 0.18, inner));
-  return palette(rot) * mask * uHypercubeOpacity * (1.0 + audio);
+  // Make the outer box much more visible
+  float mask = smoothstep(0.6, 0.4, box) * smoothstep(0.3, 0.5, box);
+  // Add inner box with glow
+  float innerMask = smoothstep(0.35, 0.2, inner) * smoothstep(0.1, 0.25, inner);
+  mask += innerMask * 0.5;
+  // Add glowing corners
+  float cornerDist = max(abs(p.x) - 0.4, abs(p.y) - 0.4);
+  float corners = smoothstep(0.1, 0.0, cornerDist);
+  mask += corners * 0.3;
+  return palette(rot + audio * 0.2) * mask * uHypercubeOpacity * (1.0 + audio * 0.5);
 }
 
 vec3 fluidSwirl(vec2 uv, float t, float audio) {
@@ -1861,19 +2020,75 @@ vec3 particleVortex(vec2 uv, float t, float audio) {
   float r = length(p);
   float a = atan(p.y, p.x) + t * uParticleVortexSpin + r * uParticleVortexSuction;
   vec2 pv = vec2(cos(a), sin(a)) * r;
-  float dots = step(0.99, hash21(floor(pv * 20.0)));
-  return palette(r) * dots * uParticleVortexOpacity * (1.0 + audio);
+
+  // Create more visible particles with different sizes
+  float particles = 0.0;
+  for (float i = 0.0; i < 3.0; i += 1.0) {
+    float scale = 15.0 + i * 5.0;
+    float h = hash21(floor(pv * scale) + i * 10.0);
+    float threshold = 0.92 + i * 0.02;
+    if (h > threshold) {
+      vec2 gridPos = floor(pv * scale);
+      vec2 cellCenter = (gridPos + 0.5) / scale;
+      float d = length(pv - cellCenter);
+      float size = 0.08 + 0.05 * i;
+      float glow = smoothstep(size * 1.5, 0.0, d) * 0.5;
+      float core = smoothstep(size, 0.0, d);
+      particles += core + glow;
+    }
+  }
+
+  // Add spiral trail effect
+  float trail = 0.0;
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    float trailAngle = a - i * 0.3;
+    vec2 trailPos = vec2(cos(trailAngle), sin(trailAngle)) * r * (1.0 - i * 0.1);
+    float trailD = length(p - trailPos);
+    trail += smoothstep(0.1 - i * 0.015, 0.0, trailD) * (0.3 - i * 0.05);
+  }
+
+  return (palette(r + audio * 0.2) * particles + palette(r + 0.3) * trail) * uParticleVortexOpacity * (1.0 + audio * 0.5);
 }
 
 vec3 glowWorms(vec2 uv, float t, float audio) {
   vec2 p = uv;
-  float worm = 0.0;
-  for (float i = 0.0; i < 5.0; i += 1.0) {
-    vec2 pos = vec2(sin(t * uGlowWormsSpeed + i), cos(t * 0.7 * uGlowWormsSpeed + i)) * 0.4 + 0.5;
-    float d = length(p - pos);
-    worm += exp(-d * (10.0 / uGlowWormsLength));
+  vec3 col = vec3(0.0);
+
+  // Create more visible glow worms with trails
+  for (float i = 0.0; i < 8.0; i += 1.0) {
+    // Different movement patterns for each worm
+    float speedMult = 0.5 + i * 0.15;
+    float phase = i * 0.7;
+    float radius = 0.25 + 0.15 * sin(t * 0.2 + i);
+
+    vec2 center = vec2(0.5) + vec2(
+      sin(t * uGlowWormsSpeed * speedMult + phase),
+      cos(t * uGlowWormsSpeed * speedMult * 0.7 + phase)
+    ) * radius;
+
+    // Main glow - brighter and more visible
+    float d = length(p - center);
+    float glow = exp(-d * (15.0 / uGlowWormsLength));
+    col += palette(audio + i * 0.1) * glow * 1.5;
+
+    // Trail effect - creates a glowing path
+    for (float j = 1.0; j <= 10.0; j += 1.0) {
+      float trailPhase = phase - j * 0.1;
+      vec2 trailPos = vec2(0.5) + vec2(
+        sin(t * uGlowWormsSpeed * speedMult + trailPhase),
+        cos(t * uGlowWormsSpeed * speedMult * 0.7 + trailPhase)
+      ) * radius;
+      float trailD = length(p - trailPos);
+      float trailGlow = exp(-trailD * (12.0 / uGlowWormsLength)) * (0.5 - j * 0.04);
+      col += palette(audio + i * 0.1 + j * 0.05) * trailGlow;
+    }
+
+    // Core bright spot
+    float core = smoothstep(0.08 / uGlowWormsLength, 0.0, d);
+    col += vec3(1.0, 0.9, 0.8) * core * 2.0;
   }
-  return palette(audio) * worm * uGlowWormsOpacity;
+
+  return col * uGlowWormsOpacity * (1.0 + audio * 0.4);
 }
 
 vec3 mirrorMaze(vec2 uv, float t, float audio) {
@@ -1969,6 +2184,1523 @@ vec3 myceliumGrowth(vec2 uv, float t, float audio) {
   float pulse = 0.6 + 0.4 * sin(t * (0.6 + growthRate * 2.0));
   float energy = mix(0.7, 1.3, clamp(audio, 0.0, 1.0));
   return palette(n + audio) * pattern * life * pulse * energy * uMyceliumGrowthOpacity;
+}
+
+// --- New Unique Generator Functions ---
+vec3 cellularGrowth(vec2 uv, float t, float audio) {
+  vec2 p = uv * uCellularGrowthDensity * 8.0;
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+
+  float col = 0.0;
+  // Game of Life-like cellular pattern
+  float h = hash21(id);
+  float alive = h > 0.5 ? 1.0 : 0.0;
+
+  // Check neighbors
+  float neighbors = 0.0;
+  for (float y = -1.0; y <= 1.0; y += 1.0) {
+    for (float x = -1.0; x <= 1.0; x += 1.0) {
+      if (x == 0.0 && y == 0.0) continue;
+      float nh = hash21(id + vec2(x, y));
+      neighbors += nh > 0.5 ? 1.0 : 0.0;
+    }
+  }
+
+  // Cellular automaton rules
+  float newState = (alive > 0.5 && (neighbors == 2.0 || neighbors == 3.0)) ? 1.0 : (alive <= 0.5 && neighbors == 3.0) ? 1.0 : 0.0;
+
+  // Animate with audio
+  float pulse = sin(t * uCellularGrowthRate + id.x * 0.5 + id.y * 0.5) * 0.5 + 0.5;
+  newState = mix(newState, pulse, audio * 0.5);
+
+  float d = smoothstep(0.2, 0.0, length(f - 0.5));
+  col += newState * d;
+  col += d * 0.3 * (0.5 + 0.5 * sin(t * uCellularGrowthRate + neighbors));
+
+  return palette(fract(id.x * 0.1 + id.y * 0.1 + t * 0.1)) * col * uCellularGrowthOpacity * (1.0 + audio);
+}
+
+vec3 bioLuminescentForest(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  vec3 col = vec3(0.0);
+
+  // Create forest of glowing elements
+  for (float i = 0.0; i < 15.0; i += 1.0) {
+    float h = hash21(vec2(i, 0.0));
+    vec2 treePos = vec2(h, hash21(vec2(0.0, i)));
+    treePos = treePos * uBioLuminescentForestDensity * 0.8 + 0.1;
+
+    float dist = length(p - treePos);
+    float treeSize = 0.02 + h * 0.03;
+
+    // Pulsing glow
+    float pulse = sin(t * uBioLuminescentForestPulse + i * 0.5) * 0.5 + 0.5;
+    pulse *= (1.0 + audio);
+
+    // Main glow
+    float glow = smoothstep(treeSize * (1.5 - pulse * 0.5), 0.0, dist);
+    float core = smoothstep(treeSize * 0.5, 0.0, dist);
+
+    // Color based on position and audio
+    vec3 treeColor = palette(h + audio * 0.3 + i * 0.1);
+
+    col += treeColor * (core * 0.8 + glow * 0.4);
+  }
+
+  // Add ambient forest glow
+  float forestGlow = fbm(p * 3.0 + t * 0.1) * 0.3;
+  col += palette(forestGlow) * forestGlow * 0.2;
+
+  return col * uBioLuminescentForestOpacity * (1.0 + audio * 0.5);
+}
+
+vec3 crystalline(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  p = rotate2d(p, t * uCrystallineRotation);
+
+  vec3 col = vec3(0.0);
+  float facets = 0.0;
+
+  // Crystal facets
+  for (float i = 0.0; i < 8.0; i += 1.0) {
+    float angle = i * 6.28 / 8.0;
+    vec2 normal = vec2(cos(angle), sin(angle));
+    float d = dot(p, normal);
+
+    // Refraction effect
+    float refract = d + uCrystallineRefraction * sin(t * 2.0 + i);
+    float facet = smoothstep(0.02, 0.0, abs(refract));
+
+    facets += facet;
+
+    // Add rainbow refraction
+    float refractColor = palette(refract * 0.5 + t * 0.1 + i * 0.05);
+    col += refractColor * facet * 0.3;
+  }
+
+  // Core glow
+  float core = smoothstep(0.1, 0.0, length(p));
+  col += palette(audio + t * 0.05) * core * 0.5;
+
+  // Edge glow
+  float edge = smoothstep(0.5, 0.45, max(abs(p.x), abs(p.y)));
+  col += palette(edge + t * 0.1) * edge * 0.4;
+
+  return col * uCrystallineOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 audioDna(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  p = rotate2d(p, t * uAudioDnaRotation);
+
+  vec3 col = vec3(0.0);
+
+  // Double helix structure
+  for (float helix = 0.0; helix < 2.0; helix += 1.0) {
+    float phase = helix * 3.14159;
+    float helixOffset = phase + t * 0.5;
+
+    for (float i = 0.0; i < uAudioDnaSegments; i += 1.0) {
+      float z = (i / uAudioDnaSegments) * 2.0 - 1.0;
+      float radius = 0.2 + audio * 0.1;
+
+      // Helical position
+      float helixAngle = z * 5.0 + helixOffset;
+      vec2 helixPos = vec2(cos(helixAngle), sin(helixAngle)) * radius;
+
+      // Project to 2D
+      vec2 projPos = helixPos;
+      projPos.y += z * 0.5;
+
+      float dist = length(p - projPos);
+
+      // Audio-reactive base pairs
+      float pairSize = 0.03 + audio * 0.02;
+      if (helix > 0.5) {
+        pairSize *= (0.5 + 0.5 * sin(z * 10.0 + t * 2.0));
+      }
+
+      float basePair = smoothstep(pairSize, 0.0, dist);
+      float glow = smoothstep(pairSize * 2.5, 0.0, dist) * 0.4;
+
+      float hue = (i / uAudioDnaSegments) + helix * 0.5 + t * 0.05;
+      vec3 bpColor = palette(hue);
+
+      col += bpColor * (basePair + glow);
+    }
+  }
+
+  // Add connecting backbone
+  float backbone = smoothstep(0.02, 0.0, abs(p.x)) * smoothstep(1.0, 0.8, abs(p.y));
+  col += palette(audio + t * 0.1) * backbone * 0.3;
+
+  return col * uAudioDnaOpacity * (1.0 + audio * 0.5);
+}
+
+vec3 liquidMetal(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+
+  // Fluid distortion
+  float flow = uLiquidMetalFlow;
+  p.x += sin(p.y * 3.0 + t * flow) * 0.1;
+  p.y += cos(p.x * 2.5 + t * flow * 0.7) * 0.1;
+
+  // Metallic waves
+  vec3 col = vec3(0.0);
+  for (float i = 0.0; i < 3.0; i += 1.0) {
+    float phase = i * 2.0;
+    float wave = sin(p.x * 10.0 + phase + t * flow) * sin(p.y * 8.0 - t * flow * 0.5);
+    wave += sin(p.x * 5.0 + phase * 1.5 - t * flow * 0.3) * sin(p.y * 6.0 + t * flow);
+
+    // Metallic sheen
+    float sheen = abs(wave);
+    sheen = pow(sheen, 3.0 + uLiquidMetalShimmer * 2.0);
+
+    vec3 waveColor = palette(sheen + audio * 0.2 + phase * 0.1);
+    col += waveColor * sheen * (0.4 - i * 0.1);
+  }
+
+  // Add reflections
+  float reflect = smoothstep(0.5, 0.45, p.y) - smoothstep(0.5, 0.55, p.y);
+  reflect *= (0.5 + 0.5 * sin(p.x * 20.0 + t * flow * 2.0));
+  col += vec3(0.8, 0.9, 1.0) * reflect * 0.3;
+
+  return col * uLiquidMetalOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 neonCityscape(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+
+  vec3 col = vec3(0.0);
+
+  // Building silhouettes
+  float buildings = 0.0;
+  for (float i = 0.0; i < 10.0; i += 1.0) {
+    float x = (i + 0.5) / 10.0;
+    float h = hash21(vec2(i, 0.0)) * uNeonCityscapeDensity;
+    float building = smoothstep(0.02, 0.0, abs(p.x - x)) * step(p.y, h * 0.5);
+    buildings += building;
+  }
+
+  // Neon lights on buildings
+  for (float i = 0.0; i < 15.0; i += 1.0) {
+    float h = hash21(vec2(i, 1.0));
+    vec2 lightPos = vec2(h, hash21(vec2(2.0, i)) * 0.5 * uNeonCityscapeDensity);
+    lightPos.x += sin(t * uNeonCityscapeSpeed + i * 0.5) * 0.02;
+
+    float dist = length(p - lightPos);
+    float lightSize = 0.01 + 0.01 * sin(t * 2.0 + i);
+
+    // Neon glow with audio reactivity
+    float pulse = 0.5 + 0.5 * sin(t * 3.0 + i * 2.0);
+    pulse *= (1.0 + audio * 0.5);
+
+    float neon = smoothstep(lightSize, 0.0, dist) * pulse;
+    float neonGlow = smoothstep(lightSize * 3.0, 0.0, dist) * 0.3 * pulse;
+
+    vec3 neonColor = palette(h + i * 0.07 + audio * 0.2);
+    col += neonColor * (neon + neonGlow);
+  }
+
+  // Add silhouette
+  col += vec3(0.1, 0.05, 0.05) * buildings * 0.5;
+
+  return col * uNeonCityscapeOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 cosmicNebula(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+
+  // Nebula clouds using FBM
+  float expansion = uCosmicNebulaExpansion;
+  float turbulence = uCosmicNebulaTurbulence;
+
+  vec3 col = vec3(0.0);
+
+  for (float i = 0.0; i < 4.0; i += 1.0) {
+    vec2 offset = vec2(sin(i * 1.5 + t * 0.1), cos(i * 1.2 + t * 0.15)) * expansion * 0.2;
+    float scale = 2.0 + i * 1.5;
+    float noise = fbm((p + offset) * scale + t * 0.05 * (i + 1.0));
+
+    // Add audio-reactive turbulence
+    noise += fbm((p + offset) * scale * (1.0 + turbulence) + t * 0.1 + audio) * turbulence;
+
+    float cloud = smoothstep(0.3, 0.5, noise) * smoothstep(0.7, 0.5, noise);
+
+    vec3 cloudColor = palette(noise * 0.3 + i * 0.15 + t * 0.02);
+    col += cloudColor * cloud * (0.3 - i * 0.05);
+  }
+
+  // Stars
+  float stars = 0.0;
+  for (float i = 0.0; i < 50.0; i += 1.0) {
+    vec2 starPos = vec2(hash21(vec2(i, 3.0)), hash21(vec2(4.0, i)));
+    float starSize = hash21(vec2(5.0, i)) * 0.002 + 0.001;
+    float dist = length(p - starPos);
+    stars += smoothstep(starSize, 0.0, dist) * (0.5 + 0.5 * sin(t * 2.0 + i * 3.0));
+  }
+
+  col += vec3(1.0) * stars;
+
+  return col * uCosmicNebulaOpacity * (1.0 + audio * 0.2);
+}
+
+vec3 sonicRain(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+
+  vec3 col = vec3(0.0);
+
+  // Audio-reactive rain
+  float speed = uSonicRainSpeed;
+  float density = uSonicRainDensity;
+
+  for (float i = 0.0; i < 20.0; i += 1.0) {
+    float x = (i + hash21(vec2(i, 0.0))) / 20.0;
+    float phase = t * speed + i * 0.5;
+
+    // Rain drop position with audio influence
+    float y = fract(phase + hash21(vec2(i, 1.0)));
+    y = pow(y, 1.0 + audio * 0.5);
+
+    float dist = length(p - vec2(x, y));
+    float dropSize = 0.005 + audio * 0.003;
+
+    // Rain drop
+    float drop = smoothstep(dropSize, 0.0, dist);
+    float trail = smoothstep(dropSize * 3.0, 0.0, dist) * 0.4 * (1.0 - y);
+
+    // Color based on position and audio
+    float hue = (i / 20.0) + audio * 0.3 + t * 0.05;
+    vec3 dropColor = palette(hue);
+
+    col += dropColor * (drop + trail);
+  }
+
+  // Add sonic ripple effect on strong beats
+  float ripple = 0.0;
+  if (audio > 0.7) {
+    float rippleStrength = (audio - 0.7) / 0.3;
+    float ripplePhase = t * 2.0;
+    float r = length(p - 0.5);
+    ripple = smoothstep(0.3, 0.25, abs(r - fract(ripplePhase) * 0.4)) * rippleStrength;
+    col += vec3(0.8, 0.9, 1.0) * ripple * 0.5;
+  }
+
+  return col * uSonicRainOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 morphingGeometry(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  float speed = uMorphingGeometrySpeed;
+  float complexity = uMorphingGeometryComplexity;
+
+  vec3 col = vec3(0.0);
+
+  // Morph between different geometric shapes
+  float morphPhase = t * speed;
+  int currentShape = int(mod(morphPhase, 4.0));
+  float blend = fract(morphPhase);
+
+  for (float i = 0.0; i < 4.0; i += 1.0) {
+    float shapeDist = 100000.0;
+
+    // Circle
+    if (i == 0.0) {
+      shapeDist = length(p);
+    }
+    // Square
+    else if (i == 1.0) {
+      shapeDist = max(abs(p.x), abs(p.y));
+    }
+    // Triangle
+    else if (i == 2.0) {
+      vec2 tp = p;
+      tp.y += 0.2;
+      float d1 = abs(-tp.x - tp.y * 0.577) / 1.155;
+      float d2 = abs(tp.x - tp.y * 0.577) / 1.155;
+      float d3 = abs(tp.y + 0.346);
+      shapeDist = max(d1, max(d2, d3));
+    }
+    // Hexagon
+    else {
+      float angle = atan(p.y, p.x) + 3.14159 / 6.0;
+      float r = length(p) * cos(fract(angle / 6.28318) * 6.28318 - 3.14159 / 6.0);
+      shapeDist = r;
+    }
+
+    // Add complexity with audio
+    shapeDist += sin(shapeDist * (10.0 + complexity * 5.0) + t * 2.0 + i) * audio * 0.05;
+
+    // Edge glow
+    float edge = smoothstep(0.02, 0.0, abs(shapeDist - 0.5 - complexity * 0.1));
+    float glow = smoothstep(0.1, 0.0, abs(shapeDist - 0.5 - complexity * 0.1)) * 0.3;
+
+    // Weight based on morph position
+    float weight = 1.0 - abs(i - morphPhase);
+    weight = pow(clamp(weight, 0.0, 1.0), 2.0);
+
+    vec3 shapeColor = palette(i * 0.25 + t * 0.02);
+    col += shapeColor * (edge + glow) * weight;
+  }
+
+  return col * uMorphingGeometryOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 urbanRhythm(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float bpm = uUrbanRhythmBpm;
+  float intensity = uUrbanRhythmIntensity;
+
+  vec3 col = vec3(0.0);
+
+  // Beat detection simulation
+  float beat = sin(t * bpm * 0.5) * 0.5 + 0.5;
+  beat = smoothstep(0.3, 0.7, beat) * intensity;
+
+  // Urban elements - grid of lights
+  float gridSize = 6.0;
+  vec2 grid = floor(p * gridSize);
+  vec2 cell = fract(p * gridSize);
+
+  for (float i = 0.0; i < 4.0; i += 1.0) {
+    float h = hash21(grid + i);
+    float light = step(0.7, h);
+
+    // Beat-reactive flickering
+    float flicker = sin(t * bpm + grid.x * 2.0 + grid.y * 3.0 + i * 4.0);
+    flicker = smoothstep(0.3, 0.7, flicker) * beat;
+
+    float lightPos = h;
+    vec2 lightCenter = vec2(0.5 + (lightPos - 0.5) * 0.6, 0.5 + (hash21(grid + vec2(0.0, i)) - 0.5) * 0.4);
+    float dist = length(p - lightCenter);
+
+    float lightSize = 0.03 + flicker * 0.02;
+    float lightGlow = smoothstep(lightSize, 0.0, dist);
+    float lightHalo = smoothstep(lightSize * 3.0, 0.0, dist) * 0.3;
+
+    vec3 lightColor = palette(h + beat * 0.3 + i * 0.1);
+    col += lightColor * (lightGlow + lightHalo);
+  }
+
+  // Add beat pulse circles
+  for (float i = 0.0; i < 3.0; i += 1.0) {
+    float pulsePhase = t * bpm * 0.3 + i * 2.0;
+    float pulseRing = smoothstep(0.05, 0.04, abs(length(p - 0.5) - fract(pulsePhase) * 0.4));
+    col += palette(audio + i * 0.2 + t * 0.05) * pulseRing * beat * 0.5;
+  }
+
+  return col * uUrbanRhythmOpacity * (1.0 + audio * 0.4);
+}
+
+// --- Goth Generator Functions ---
+vec3 crimsonVeil(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float flow = uCrimsonVeilFlow;
+  float darkness = uCrimsonVeilDarkness;
+
+  vec3 col = vec3(0.0);
+
+  // Flowing crimson fabric effect
+  for (float i = 0.0; i < 4.0; i += 1.0) {
+    float layerOffset = i * 0.25;
+    float wavePhase = t * flow * 0.3 + layerOffset;
+
+    // Fabric wave pattern
+    float wave1 = sin(p.x * 8.0 + wavePhase) * 0.5 + 0.5;
+    float wave2 = sin(p.y * 6.0 + wavePhase * 1.3) * 0.5 + 0.5;
+    float fabric = wave1 * wave2;
+
+    // Darken with audio
+    float darkFactor = 1.0 - darkness * (0.5 + audio * 0.5);
+
+    // Crimson color with variations
+    vec3 crimson = vec3(0.8, 0.1, 0.2);
+    crimson = mix(crimson, vec3(0.3, 0.0, 0.05), fabric * darkFactor);
+
+    // Add blood-like dripping effect
+    float drip = sin(p.y * 10.0 + t * flow * 0.5 + p.x * 5.0);
+    drip = smoothstep(0.7, 0.9, drip) * (0.3 + audio * 0.2);
+
+    // Layer with depth
+    float alpha = smoothstep(0.3, 0.7, fabric) * (1.0 - i * 0.2);
+    col += crimson * alpha + vec3(0.6, 0.05, 0.1) * drip * alpha;
+  }
+
+  // Add subtle texture
+  float noise = hash21(floor(p * 50.0));
+  col *= 0.9 + noise * 0.2;
+
+  return col * uCrimsonVeilOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 victorianCrypt(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float complexity = uVictorianCryptComplexity;
+  float decay = uVictorianCryptDecay;
+
+  vec3 col = vec3(0.0);
+
+  // Gothic arch pattern
+  float arches = 0.0;
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    if (i >= complexity) break;
+
+    float archSize = 0.3 + i * 0.15;
+    float archX = sin(t * 0.2 + i * 0.5) * 0.2;
+    float archY = cos(t * 0.15 + i * 0.7) * 0.1;
+
+    // Pointed gothic arch
+    vec2 archCenter = vec2(archX, archY + 0.5);
+    float dx = p.x - archCenter.x;
+    float dy = p.y - archCenter.y;
+
+    // Arch shape
+    float arch = smoothstep(archSize, archSize - 0.02, abs(dx) + abs(dy) * 0.5);
+    float archTop = smoothstep(archSize * 0.3, archSize * 0.3 - 0.01, length(p - archCenter));
+
+    // Combine arch elements
+    float archShape = min(arch, archTop);
+
+    // Dark stone color with decay
+    vec3 stone = vec3(0.2, 0.15, 0.2);
+    stone = mix(stone, vec3(0.05, 0.05, 0.08), decay * 0.7);
+
+    // Audio-reactive glow
+    float glow = smoothstep(archSize * 0.8, 0.0, length(p - archCenter)) * audio * 0.3;
+    col += stone * archShape + vec3(0.3, 0.1, 0.2) * glow * (1.0 - decay * 0.5);
+  }
+
+  // Add vaulted ceiling pattern
+  float vault = 0.0;
+  for (float i = 0.0; i < 3.0; i++) {
+    float vaultAngle = t * 0.1 + i * 1.0;
+    float vaultLine = smoothstep(0.02, 0.0, abs(p.y - 0.5 - sin(p.x * 3.0 + vaultAngle) * 0.1));
+    vault += vaultLine * (0.3 + i * 0.1);
+  }
+  col += vec3(0.15, 0.1, 0.15) * vault * (1.0 - decay * 0.3);
+
+  return col * uVictorianCryptOpacity * (1.0 + audio * 0.2);
+}
+
+vec3 spectralApparition(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float density = uSpectralApparitionDensity;
+  float fade = uSpectralApparitionFade;
+
+  vec3 col = vec3(0.0);
+
+  // Ghostly figures
+  for (float i = 0.0; i < density * 8.0; i++) {
+    float ghostX = sin(t * 0.3 + i * 1.5) * 0.4 + hash21(vec2(i, 0.0)) * 0.2;
+    float ghostY = 0.5 + cos(t * 0.2 + i * 1.3) * 0.3;
+
+    // Drifting movement
+    vec2 ghostPos = vec2(ghostX, ghostY);
+    float drift = sin(t * 0.1 + i * 0.7) * 0.05;
+
+    // Ghostly form - tall vertical gradient
+    float ghostHeight = 0.4 + i * 0.05;
+    float ghostWidth = 0.08 + sin(t + i) * 0.02;
+
+    float distX = smoothstep(ghostWidth, 0.0, abs(p.x - ghostPos.x - drift));
+    float distY = smoothstep(ghostHeight, 0.0, abs(p.y - ghostPos.y));
+
+    // Fade at bottom
+    float bottomFade = smoothstep(-ghostHeight * 0.5, 0.0, p.y - ghostPos.y);
+
+    // Ethereal color
+    vec3 ghostColor = vec3(0.7, 0.7, 0.9);
+    ghostColor = mix(ghostColor, vec3(0.4, 0.4, 0.6), fade * 0.5);
+
+    // Audio-reactive intensity
+    float intensity = 1.0 + audio * 0.5;
+
+    // Add flicker
+    float flicker = 0.8 + sin(t * 5.0 + i * 2.0) * 0.2;
+
+    col += ghostColor * distX * distY * bottomFade * flicker * intensity * 0.3;
+  }
+
+  // Add spectral mist
+  float mist = 0.0;
+  for (float i = 0.0; i < 3.0; i++) {
+    float mistX = sin(t * 0.2 + i * 1.7) * 0.5;
+    float mistY = 0.5 + cos(t * 0.15 + i * 1.9) * 0.4;
+    mist += smoothstep(0.3, 0.0, length(p - vec2(mistX, mistY))) * 0.2;
+  }
+  col += vec3(0.6, 0.6, 0.8) * mist * (1.0 - fade * 0.5);
+
+  return col * uSpectralApparitionOpacity * (1.0 + audio * 0.4);
+}
+
+vec3 gothicCobwebs(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float density = uGothicCobwebsDensity;
+  float decay = uGothicCobwebsDecay;
+
+  vec3 col = vec3(0.0);
+
+  // Radial cobweb pattern
+  float webs = 0.0;
+  vec2 center = vec2(0.5);
+  float toCenter = length(p - center);
+  float angle = atan(p.y - center.y, p.x - center.x);
+
+  for (float i = 0.0; i < density * 6.0; i++) {
+    float spokeAngle = (i / (density * 6.0)) * 6.28318 + t * 0.05;
+
+    // Web spokes
+    float spokeAngleDiff = mod(abs(angle - spokeAngle), 6.28318);
+    float spokeAngleDiff2 = min(spokeAngleDiff, 6.28318 - spokeAngleDiff);
+    float spoke = smoothstep(0.03, 0.0, spokeAngleDiff2) * smoothstep(0.4, 0.45, toCenter) * smoothstep(0.0, 0.05, toCenter);
+
+    // Web rings
+    float ringPhase = (i + 1.0) * 0.07;
+    float ring = smoothstep(0.003, 0.0, abs(toCenter - ringPhase - sin(t * 0.1 + i * 0.3) * 0.01));
+
+    // Dew drops on webs
+    float dropX = cos(spokeAngle) * ringPhase;
+    float dropY = sin(spokeAngle) * ringPhase;
+    float drop = smoothstep(0.015, 0.0, length(p - center - vec2(dropX, dropY)));
+
+    // Web color
+    vec3 webColor = vec3(0.85, 0.85, 0.9);
+    webColor = mix(webColor, vec3(0.3, 0.25, 0.35), decay * 0.6);
+
+    // Dew drop glow
+    vec3 dewColor = vec3(0.9, 0.95, 1.0);
+
+    webs += spoke * 0.5 + ring * 0.5 + drop * 0.8;
+
+    // Add to color
+    col += webColor * (spoke + ring) * 0.2;
+    col += dewColor * drop * 0.3;
+  }
+
+  // Add subtle dust particles
+  float dust = 0.0;
+  for (float i = 0.0; i < 20.0; i++) {
+    float dustX = hash21(vec2(i, 0.0));
+    float dustY = hash21(vec2(0.0, i));
+    vec2 dustPos = vec2(dustX, dustY);
+    dust += smoothstep(0.005, 0.0, length(p - dustPos));
+  }
+  col += vec3(0.7, 0.7, 0.8) * dust * 0.1 * (1.0 - decay * 0.8);
+
+  // Audio-reactive vibration
+  float vibration = sin(angle * 20.0 + t * 10.0) * audio * 0.02;
+  webs += smoothstep(0.01, 0.0, abs(vibration));
+
+  return col * uGothicCobwebsOpacity * (1.0 + audio * 0.2);
+}
+
+vec3 bloodMoonRise(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float eclipse = uBloodMoonRiseEclipse;
+  float glow = uBloodMoonRiseGlow;
+
+  vec3 col = vec3(0.0);
+
+  // Moon position (rising)
+  float moonY = 0.3 + sin(t * 0.1) * 0.1;
+  vec2 moonCenter = vec2(0.5, moonY);
+  float toMoon = length(p - moonCenter);
+
+  // Blood moon
+  float moon = smoothstep(0.12, 0.11, toMoon) - smoothstep(0.12, 0.125, toMoon);
+
+  // Eclipse effect
+  float eclipseShadow = smoothstep(0.12 - eclipse * 0.08, 0.13 - eclipse * 0.08, toMoon - sin(angle(p - moonCenter) * 3.0) * 0.02 * eclipse);
+
+  // Blood color
+  vec3 bloodMoon = vec3(0.8, 0.1, 0.15);
+  bloodMoon = mix(bloodMoon, vec3(0.3, 0.0, 0.05), eclipse * 0.7);
+
+  // Crater texture
+  float craters = 0.0;
+  for (float i = 0.0; i < 8.0; i++) {
+    float craterX = cos(i * 0.785) * 0.05;
+    float craterY = sin(i * 0.785) * 0.05;
+    float crater = smoothstep(0.015, 0.01, length(p - moonCenter - vec2(craterX, craterY)));
+    craters += crater * 0.3;
+  }
+
+  // Moon glow
+  float moonGlow = smoothstep(0.15, 0.0, toMoon) * glow;
+  vec3 glowColor = vec3(0.7, 0.2, 0.3);
+
+  // Audio-reactive pulse
+  float pulse = 1.0 + audio * 0.3;
+  float pulseGlow = smoothstep(0.15 + audio * 0.03, 0.0, toMoon) * 0.5;
+
+  // Dark landscape silhouette
+  float landscape = 0.0;
+  for (float i = 0.0; i < 10.0; i++) {
+    float spikeX = i * 0.1 + 0.05;
+    float spikeHeight = 0.15 + hash21(vec2(i, 0.0)) * 0.1 + sin(t * 0.05 + i * 0.5) * 0.02;
+    float spike = smoothstep(0.02, 0.0, abs(p.x - spikeX)) * smoothstep(0.0, 0.05, p.y - spikeHeight);
+    landscape += spike;
+  }
+
+  col += bloodMoon * moon * (1.0 - craters * 0.5);
+  col += glowColor * moonGlow * pulse;
+  col += glowColor * pulseGlow;
+  col += vec3(0.05, 0.05, 0.08) * landscape;
+
+  return col * uBloodMoonRiseOpacity * (1.0 + audio * 0.2);
+}
+
+vec3 candlelightVigil(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float flicker = uCandlelightVigilFlicker;
+  float decay = uCandlelightVigilDecay;
+
+  vec3 col = vec3(0.0);
+
+  // Multiple candles
+  for (float i = 0.0; i < 5.0; i++) {
+    float candleX = -0.4 + i * 0.2;
+    vec2 candlePos = vec2(candleX, 0.4 + sin(t * 0.05 + i * 0.5) * 0.05);
+
+    // Flame flicker
+    float flameFlicker = 1.0 + sin(t * (8.0 + i * 2.0) + i) * flicker * 0.3 + audio * 0.5;
+    float flameX = candlePos.x + sin(t * 3.0 + i) * 0.01 * flicker;
+    float flameY = candlePos.y + 0.05 + cos(t * 4.0 + i * 0.5) * 0.01 * flicker;
+
+    // Flame shape
+    vec2 toFlame = p - vec2(flameX, flameY);
+    float flameDist = length(toFlame);
+    float flame = smoothstep(0.04 * flameFlicker, 0.0, flameDist) * smoothstep(0.0, 0.02, toFlame.y + 0.02);
+
+    // Flame color gradient
+    vec3 flameBase = vec3(1.0, 0.6, 0.1);
+    vec3 flameTip = vec3(1.0, 0.9, 0.4);
+    vec3 flameColor = mix(flameBase, flameTip, smoothstep(0.0, 0.04, flameDist));
+
+    // Flame glow
+    float flameGlow = smoothstep(0.08, 0.0, flameDist) * 0.5;
+
+    // Candle body
+    float candle = smoothstep(0.015, 0.01, abs(p.x - candlePos.x)) * smoothstep(candlePos.y + 0.15, candlePos.y, p.y);
+    vec3 candleColor = vec3(0.9, 0.85, 0.7);
+    candleColor = mix(candleColor, vec3(0.3, 0.25, 0.2), decay * 0.7);
+
+    // Wax drip
+    float dripX = candlePos.x + sin(t * 0.5 + i * 2.0) * 0.005;
+    float drip = smoothstep(0.005, 0.0, abs(p.x - dripX)) * smoothstep(candlePos.y - 0.1, candlePos.y - 0.08, p.y);
+
+    col += flameColor * flame;
+    col += flameColor * flameGlow;
+    col += candleColor * candle;
+    col += candleColor * drip * 0.5;
+  }
+
+  // Dark atmosphere
+  float darkness = 1.0 - decay * 0.8;
+  col *= darkness;
+
+  // Subtle smoke
+  float smoke = 0.0;
+  for (float i = 0.0; i < 3.0; i++) {
+    float smokeX = -0.4 + i * 0.2 + sin(t * 0.3 + i * 0.7) * 0.05;
+    float smokeY = 0.5 + t * 0.1 + i * 0.2;
+    smoke += smoothstep(0.1, 0.0, length(p - vec2(smokeX, smokeY))) * 0.1;
+  }
+  col += vec3(0.2, 0.15, 0.1) * smoke * (1.0 - decay * 0.6);
+
+  return col * uCandlelightVigilOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 gargoylesAwake(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float animation = uGargoylesAwakeAnimation;
+  float shadow = uGargoylesAwakeShadow;
+
+  vec3 col = vec3(0.0);
+
+  // Gargoyle silhouettes
+  for (float i = 0.0; i < 4.0; i++) {
+    float gargoyleX = -0.3 + i * 0.2;
+    float gargoyleY = 0.6 + sin(t * 0.08 + i * 0.5) * 0.02 * animation;
+    vec2 gargoylePos = vec2(gargoyleX, gargoyleY);
+
+    // Gargoyle body - rough stone shape
+    float body = 0.0;
+    for (float j = 0.0; j < 6.0; j++) {
+      float angle = j * 0.628 + sin(t * 0.1 * animation + i + j) * 0.1;
+      float radius = 0.08 + sin(j * 0.8 + i) * 0.02;
+      float offsetX = cos(angle) * radius;
+      float offsetY = sin(angle) * radius * 0.6;
+      body += smoothstep(0.03, 0.01, length(p - gargoylePos - vec2(offsetX, offsetY)));
+    }
+
+    // Wings
+    float wingAngle = -0.5 + sin(t * 0.2 * animation + i) * 0.3;
+    float wingL = smoothstep(0.02, 0.01, length(p - gargoylePos - vec2(cos(wingAngle) * 0.12, sin(wingAngle) * 0.05)));
+    float wingR = smoothstep(0.02, 0.01, length(p - gargoylePos - vec2(cos(-wingAngle) * 0.12, sin(-wingAngle) * 0.05)));
+
+    // Eyes
+    float eyeX = gargoylePos.x + 0.02 * sin(t * 0.5 * animation);
+    float eyeY = gargoylePos.y - 0.02;
+    float eye = smoothstep(0.008, 0.005, length(p - vec2(eyeX, eyeY)));
+
+    // Stone color
+    vec3 stoneColor = vec3(0.15, 0.12, 0.15);
+    vec3 eyeColor = vec3(0.8, 0.1, 0.2);
+
+    // Shadow
+    float shadowDist = smoothstep(0.15, 0.0, length(p - gargoylePos - vec2(0.0, 0.1)));
+    vec3 shadowColor = vec3(0.0, 0.0, 0.0) * shadowDist * shadow;
+
+    col += stoneColor * (body + wingL + wingR);
+    col += eyeColor * eye * (0.3 + audio * 0.7) * animation;
+    col += shadowColor;
+  }
+
+  // Background texture
+  float texture = hash21(floor(p * 30.0)) * 0.05;
+  col += vec3(0.05, 0.05, 0.08) + texture;
+
+  return col * uGargoylesAwakeOpacity * (1.0 + audio * 0.4);
+}
+
+vec3 cryptShadows(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float depth = uCryptShadowsDepth;
+  float movement = uCryptShadowsMovement;
+
+  vec3 col = vec3(0.0);
+
+  // Deep darkness
+  col += vec3(0.02, 0.02, 0.04);
+
+  // Moving shadows
+  for (float i = 0.0; i < depth * 5.0; i++) {
+    float shadowX = hash21(vec2(i, 0.0));
+    float shadowY = hash21(vec2(0.0, i));
+    float shadowSpeed = 0.1 + i * 0.05;
+
+    vec2 shadowPos = vec2(
+      shadowX + sin(t * shadowSpeed * movement) * 0.2,
+      shadowY + cos(t * shadowSpeed * movement * 0.7) * 0.15
+    );
+
+    // Shadow entity
+    float shadowSize = 0.1 + i * 0.02;
+    float shadowDist = length(p - shadowPos);
+
+    // Shadow shape
+    float shadowShape = smoothstep(shadowSize, 0.0, shadowDist);
+
+    // Shadow wisps
+    float wisp = 0.0;
+    for (float j = 0.0; j < 3.0; j++) {
+      float wispAngle = j * 2.094 + t * 0.5;
+      float wispX = cos(wispAngle) * shadowSize * 0.5;
+      float wispY = sin(wispAngle) * shadowSize * 0.5;
+      wisp += smoothstep(0.03, 0.0, length(p - shadowPos - vec2(wispX, wispY)));
+    }
+
+    // Dark shadow color
+    vec3 shadowColor = vec3(0.0, 0.0, 0.0);
+
+    // Audio-reactive shadow intensity
+    float shadowIntensity = 0.5 + audio * 0.5;
+
+    col += shadowColor * shadowShape * shadowIntensity * 0.3;
+    col += shadowColor * wisp * shadowIntensity * 0.2;
+  }
+
+  // Crypt pillars
+  for (float i = 0.0; i < 6.0; i++) {
+    float pillarX = 0.1 + i * 0.15;
+    float pillar = smoothstep(0.03, 0.0, abs(p.x - pillarX)) * smoothstep(0.0, 0.8, p.y);
+
+    // Pillar texture
+    float pillarTexture = sin(p.y * 20.0 + i) * 0.02;
+
+    vec3 pillarColor = vec3(0.03, 0.03, 0.05) + pillarTexture;
+    col += pillarColor * pillar;
+  }
+
+  // Subtle light beams
+  for (float i = 0.0; i < 2.0; i++) {
+    float beamAngle = 0.5 + sin(t * 0.1 + i * 1.5) * 0.3;
+    float beamWidth = 0.05 + audio * 0.03;
+    float beam = smoothstep(beamWidth, 0.0, abs(p.x - 0.5 - sin(p.y * 0.5 + t * 0.05 + i) * 0.1));
+
+    vec3 beamColor = vec3(0.1, 0.08, 0.12) * (0.3 + audio * 0.3);
+    col += beamColor * beam * (1.0 - depth * 0.5);
+  }
+
+  return col * uCryptShadowsOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 gothicRose(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float decay = uGothicRoseDecay;
+  float thorns = uGothicRoseThorns;
+
+  vec3 col = vec3(0.0);
+
+  // Multiple roses
+  for (float i = 0.0; i < 4.0; i++) {
+    float roseX = -0.3 + i * 0.2 + sin(t * 0.1 + i * 0.5) * 0.05;
+    float roseY = 0.5 + cos(t * 0.08 + i * 0.7) * 0.05;
+    vec2 rosePos = vec2(roseX, roseY);
+
+    // Rose petals
+    float rose = 0.0;
+    for (float j = 0.0; j < 8.0; j++) {
+      float petalAngle = (j / 8.0) * 6.28318 + t * 0.05 * (1.0 - decay);
+      float petalSize = 0.05 + j * 0.005;
+      float petalX = cos(petalAngle) * petalSize;
+      float petalY = sin(petalAngle) * petalSize * 0.7;
+
+      float petal = smoothstep(0.02, 0.01, length(p - rosePos - vec2(petalX, petalY)));
+      rose += petal;
+    }
+
+    // Rose center
+    float center = smoothstep(0.015, 0.01, length(p - rosePos));
+
+    // Dark rose color
+    vec3 roseColor = vec3(0.3, 0.05, 0.1);
+    roseColor = mix(roseColor, vec3(0.1, 0.02, 0.05), decay * 0.8);
+
+    // Center color
+    vec3 centerColor = vec3(0.4, 0.1, 0.15);
+
+    // Thorns
+    float thornCount = thorns * 3.0;
+    for (float j = 0.0; j < thornCount; j++) {
+      float thornAngle = (j / thornCount) * 6.28318 + t * 0.1;
+      float thornDist = 0.08;
+      float thornX = rosePos.x + cos(thornAngle) * thornDist;
+      float thornY = rosePos.y + sin(thornAngle) * thornDist;
+      float thorn = smoothstep(0.005, 0.002, length(p - vec2(thornX, thornY)));
+
+      col += vec3(0.15, 0.1, 0.12) * thorn;
+    }
+
+    // Falling petals
+    float fallingPetals = 0.0;
+    for (float j = 0.0; j < decay * 5.0; j++) {
+      float petalFallX = roseX + sin(t * 0.3 + j * 0.8) * 0.1;
+      float petalFallY = roseY + 0.2 + fract(t * 0.2 + j * 0.5) * 0.5;
+      float petalFall = smoothstep(0.015, 0.01, length(p - vec2(petalFallX, petalFallY)));
+      fallingPetals += petalFall;
+    }
+
+    col += roseColor * rose;
+    col += centerColor * center * 0.5;
+    col += roseColor * fallingPetals * 0.3;
+  }
+
+  // Vine texture
+  float vine = 0.0;
+  for (float i = 0.0; i < 10.0; i++) {
+    float vineY = i * 0.1;
+    float vineX = sin(vineY * 10.0 + t * 0.05) * 0.1;
+    vine += smoothstep(0.008, 0.004, abs(p.x - vineX - 0.5)) * smoothstep(0.05, 0.0, abs(p.y - vineY));
+  }
+  col += vec3(0.1, 0.08, 0.1) * vine;
+
+  return col * uGothicRoseOpacity * (1.0 + audio * 0.2);
+}
+
+vec3 eternalDarkness(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float voidParam = uEternalDarknessVoid;
+  float traces = uEternalDarknessTraces;
+
+  vec3 col = vec3(0.0);
+
+  // Pure black void
+  col += vec3(0.0, 0.0, 0.0) * voidParam;
+
+  // Subtle traces of gothic elements
+  for (float i = 0.0; i < traces * 5.0; i++) {
+    float traceX = hash21(vec2(i, 0.0));
+    float traceY = hash21(vec2(0.0, i));
+    vec2 tracePos = vec2(traceX, traceY);
+
+    // Faint gothic symbols
+    float symbolSize = 0.02 + i * 0.003;
+    float symbol = smoothstep(symbolSize, 0.0, length(p - tracePos));
+
+    // Very dark color
+    vec3 traceColor = vec3(0.02, 0.015, 0.02);
+
+    // Audio-reactive visibility
+    float visibility = 0.1 + audio * 0.9;
+
+    col += traceColor * symbol * visibility * 0.2;
+  }
+
+  // Subtle fog
+  float fog = 0.0;
+  for (float i = 0.0; i < 3.0; i++) {
+    float fogX = sin(t * 0.05 + i * 1.3) * 0.5;
+    float fogY = 0.5 + cos(t * 0.03 + i * 1.7) * 0.4;
+    fog += smoothstep(0.3, 0.0, length(p - vec2(fogX, fogY))) * 0.05;
+  }
+  col += vec3(0.01, 0.01, 0.02) * fog * (1.0 - voidParam * 0.8);
+
+  // Occasional flash of gothic element
+  float flash = smoothstep(0.995, 1.0, sin(t * 0.5 + audio * 2.0));
+  vec2 flashPos = vec2(0.5, 0.5);
+  float flashElement = smoothstep(0.1, 0.0, length(p - flashPos)) * flash;
+  col += vec3(0.1, 0.05, 0.1) * flashElement * (1.0 - voidParam * 0.5);
+
+  return col * uEternalDarknessOpacity * (1.0 + audio * 0.1);
+}
+
+// --- Retro Game Generator Functions ---
+vec3 pixelDust(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float density = uPixelDustDensity;
+  float pixelSize = uPixelDustPixelSize;
+
+  vec3 col = vec3(0.0);
+
+  // Pixel quantization
+  vec2 pixelatedUV = floor(p / pixelSize) * pixelSize;
+
+  // Floating pixel particles
+  for (float i = 0.0; i < density * 30.0; i++) {
+    float pixelX = hash21(vec2(i, 0.0));
+    float pixelY = hash21(vec2(0.0, i));
+    vec2 pixelPos = vec2(pixelX, pixelY);
+
+    // Drifting movement
+    float driftX = sin(t * 0.3 + i * 0.7) * 0.1;
+    float driftY = cos(t * 0.2 + i * 0.9) * 0.08;
+    pixelPos += vec2(driftX, driftY);
+
+    // Pixelate position
+    vec2 pixelatedPos = floor(pixelPos / pixelSize) * pixelSize;
+
+    // Pixel brightness
+    float brightness = hash21(vec2(i, t * 0.5));
+
+    // 8-bit color palette
+    vec3 pixelColor;
+    float colorIndex = hash21(vec2(i, 0.0));
+    if (colorIndex < 0.2) pixelColor = vec3(1.0, 0.2, 0.2);
+    else if (colorIndex < 0.4) pixelColor = vec3(0.2, 1.0, 0.2);
+    else if (colorIndex < 0.6) pixelColor = vec3(0.2, 0.2, 1.0);
+    else if (colorIndex < 0.8) pixelColor = vec3(1.0, 1.0, 0.2);
+    else pixelColor = vec3(1.0, 1.0, 1.0);
+
+    // Pixel shape
+    float pixel = smoothstep(pixelSize, 0.0, length(pixelatedUV - pixelatedPos));
+
+    // Audio-reactive intensity
+    float intensity = 0.3 + audio * 0.7 + brightness * 0.2;
+
+    col += pixelColor * pixel * intensity * 0.3;
+  }
+
+  // Add scanline effect
+  float scanline = sin(p.y * 50.0) * 0.05;
+  col *= 1.0 + scanline;
+
+  return col * uPixelDustOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 retroStarfield(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float speed = uRetroStarfieldSpeed;
+  float starSize = uRetroStarfieldSize;
+
+  vec3 col = vec3(0.0, 0.0, 0.05);
+
+  // Multiple layers of stars
+  for (float layer = 0.0; layer < 3.0; layer++) {
+    float layerSpeed = speed * (layer + 1.0) * 0.1;
+    float layerDepth = 1.0 - layer * 0.3;
+
+    for (float i = 0.0; i < 50.0; i++) {
+      float starX = hash21(vec2(i, layer));
+      float starY = hash21(vec2(layer, i));
+
+      // Horizontal scrolling
+      starX = fract(starX - t * layerSpeed * 0.5);
+
+      vec2 starPos = vec2(starX, starY);
+
+      // Pixelate star position
+      vec2 pixelatedPos = floor(starPos / starSize) * starSize;
+
+      // Star brightness
+      float brightness = 0.5 + 0.5 * sin(t * 2.0 + i + layer);
+
+      // Star color (retro palette)
+      vec3 starColor;
+      float colorIndex = hash21(vec2(i, layer));
+      if (colorIndex < 0.33) starColor = vec3(1.0, 1.0, 1.0);
+      else if (colorIndex < 0.66) starColor = vec3(1.0, 0.8, 0.6);
+      else starColor = vec3(0.8, 0.8, 1.0);
+
+      // Star shape (pixel)
+      float star = smoothstep(starSize, 0.0, length(p - pixelatedPos));
+
+      // Audio-reactive brightness
+      float audioBoost = audio * 0.5;
+
+      col += starColor * star * brightness * layerDepth * (1.0 + audioBoost) * 0.3;
+    }
+  }
+
+  // Add scanlines
+  float scanline = sin(p.y * 40.0) * 0.03;
+  col *= 1.0 - scanline;
+
+  return col * uRetroStarfieldOpacity * (1.0 + audio * 0.2);
+}
+
+vec3 eightBitGrid(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float gridSpeed = u8BitGridSpeed;
+  float pixelSize = u8BitGridPixelSize;
+
+  vec3 col = vec3(0.0);
+
+  // Pixelate UV
+  vec2 pixelatedUV = floor(p / pixelSize) * pixelSize;
+
+  // Grid pattern
+  vec2 gridUV = pixelatedUV;
+  float gridSize = 0.1;
+  vec2 grid = floor(gridUV / gridSize);
+  vec2 cell = fract(gridUV / gridSize);
+
+  // Grid lines
+  float gridLine = step(0.9, cell.x) + step(0.9, cell.y);
+
+  // Animated grid cells
+  float cellPattern = hash21(grid);
+  float cellAnimation = sin(t * gridSpeed + grid.x + grid.y) * 0.5 + 0.5;
+
+  // Retro color palette
+  vec3 gridColor;
+  float colorIndex = hash21(grid);
+  if (colorIndex < 0.2) gridColor = vec3(1.0, 0.0, 0.0);
+  else if (colorIndex < 0.4) gridColor = vec3(0.0, 1.0, 0.0);
+  else if (colorIndex < 0.6) gridColor = vec3(0.0, 0.0, 1.0);
+  else if (colorIndex < 0.8) gridColor = vec3(1.0, 1.0, 0.0);
+  else gridColor = vec3(1.0, 1.0, 1.0);
+
+  // Cell fill
+  float cellFill = cellPattern * cellAnimation;
+
+  // Audio-reactive intensity
+  float audioIntensity = audio * 0.7;
+
+  // Grid line color
+  vec3 lineColor = vec3(0.3, 0.3, 0.3);
+
+  col += gridColor * cellFill * 0.3;
+  col += lineColor * gridLine * 0.5;
+  col += gridColor * gridLine * (0.3 + audioIntensity);
+
+  // Pixel effect
+  col = floor(col * 4.0) / 4.0;
+
+  return col * u8BitGridOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 arcadeInvaders(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float density = uArcadeInvadersDensity;
+  float animation = uArcadeInvadersAnimation;
+
+  vec3 col = vec3(0.0);
+
+  // Invader grid
+  float gridSize = 0.15;
+  vec2 grid = floor(p / gridSize);
+  vec2 cell = fract(p / gridSize);
+
+  // Invader movement
+  float moveX = sin(t * 0.5 * animation) * 0.1;
+  float moveY = floor(t * 0.3 * animation) * gridSize * 0.1;
+
+  // Create invaders
+  for (float i = 0.0; i < density * 10.0; i++) {
+    float invaderX = fract(hash21(vec2(i, 0.0)) + moveX);
+    float invaderY = fract(hash21(vec2(0.0, i)) - moveY);
+
+    vec2 invaderPos = vec2(invaderX, invaderY);
+    vec2 invaderGrid = floor(p / gridSize) - floor(invaderPos / gridSize);
+
+    // Invader sprite (simple 5x5 pattern)
+    float invader = 0.0;
+    float invaderCenterX = 0.5;
+    float invaderCenterY = 0.5;
+    vec2 localUV = (cell - vec2(invaderCenterX, invaderCenterY)) * 10.0;
+
+    // Simple invader shape
+    float body = smoothstep(0.3, 0.0, abs(localUV.x)) * smoothstep(0.4, 0.0, abs(localUV.y));
+    float arms = smoothstep(0.2, 0.0, abs(abs(localUV.x) - 0.8)) * smoothstep(0.2, 0.0, abs(localUV.y - 0.6));
+    float legs = smoothstep(0.15, 0.0, abs(abs(localUV.x) - 0.5)) * smoothstep(0.2, 0.0, abs(localUV.y + 0.7));
+
+    float invaderShape = max(body, max(arms, legs));
+
+    // Invader color
+    vec3 invaderColor;
+    float colorIndex = hash21(vec2(i, t));
+    if (colorIndex < 0.5) invaderColor = vec3(0.0, 1.0, 0.0);
+    else invaderColor = vec3(1.0, 0.0, 0.0);
+
+    // Animation
+    float wave = sin(t * 3.0 + i) * 0.1;
+
+    // Audio-reactive intensity
+    float audioBoost = audio * 0.5;
+
+    col += invaderColor * invaderShape * (1.0 + wave + audioBoost) * 0.3;
+  }
+
+  // Background grid
+  float bgGrid = step(0.95, fract(p.x / gridSize)) + step(0.95, fract(p.y / gridSize));
+  col += vec3(0.1, 0.1, 0.15) * bgGrid;
+
+  return col * uArcadeInvadersOpacity * (1.0 + audio * 0.4);
+}
+
+vec3 powerUpPulse(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float intensity = uPowerUpPulseIntensity;
+  float speed = uPowerUpPulseSpeed;
+
+  vec3 col = vec3(0.0);
+
+  // Power-up orbs
+  for (float i = 0.0; i < 5.0; i++) {
+    float orbX = 0.2 + i * 0.15;
+    float orbY = 0.5 + sin(t * speed + i * 0.8) * 0.2;
+
+    vec2 orbPos = vec2(orbX, orbY);
+    float toOrb = length(p - orbPos);
+
+    // Orb size with pulse
+    float orbSize = 0.05 + sin(t * 3.0 + i) * 0.01 * intensity;
+
+    // Orb glow
+    float orbGlow = smoothstep(orbSize * 2.0, 0.0, toOrb);
+    float orbCore = smoothstep(orbSize, 0.0, toOrb);
+
+    // Power-up colors
+    vec3 orbColor;
+    float colorIndex = i / 5.0;
+    if (colorIndex < 0.2) orbColor = vec3(1.0, 0.0, 0.0);
+    else if (colorIndex < 0.4) orbColor = vec3(1.0, 1.0, 0.0);
+    else if (colorIndex < 0.6) orbColor = vec3(0.0, 1.0, 0.0);
+    else if (colorIndex < 0.8) orbColor = vec3(0.0, 0.5, 1.0);
+    else orbColor = vec3(1.0, 0.0, 1.0);
+
+    // Audio-reactive pulse
+    float audioPulse = sin(t * 5.0 + i + audio * 3.0) * 0.5 + 0.5;
+
+    col += orbColor * orbGlow * intensity * 0.3;
+    col += orbColor * orbCore * (0.5 + audioPulse * 0.5);
+
+    // Sparkle effect
+    float sparkle = smoothstep(0.005, 0.0, length(p - orbPos - vec2(sin(t * 10.0 + i) * 0.02, cos(t * 10.0 + i * 1.5) * 0.02)));
+    col += vec3(1.0, 1.0, 1.0) * sparkle * 0.5;
+  }
+
+  // Background gradient
+  float bgGradient = smoothstep(0.0, 1.0, p.y);
+  col += vec3(0.05, 0.02, 0.08) * bgGradient;
+
+  return col * uPowerUpPulseOpacity * (1.0 + audio * 0.4);
+}
+
+vec3 dungeonTiles(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float pattern = uDungeonTilesPattern;
+  float animation = uDungeonTilesAnimation;
+
+  vec3 col = vec3(0.0);
+
+  // Tile grid
+  float tileSize = 0.08;
+  vec2 tile = floor(p / tileSize);
+  vec2 cell = fract(p / tileSize);
+
+  // Dungeon floor pattern
+  float tileType = hash21(tile);
+  float floorPattern = mod(tile.x + tile.y, 2.0);
+
+  // Tile colors
+  vec3 floorColor1 = vec3(0.15, 0.1, 0.1);
+  vec3 floorColor2 = vec3(0.2, 0.15, 0.15);
+  vec3 wallColor = vec3(0.1, 0.08, 0.08);
+
+  // Tile texture
+  float texture = hash21(floor(cell * 5.0)) * 0.1;
+
+  // Animated tiles
+  float tileAnim = sin(t * animation + tile.x + tile.y) * 0.5 + 0.5;
+
+  // Floor tiles
+  vec3 tileColor = mix(floorColor1, floorColor2, floorPattern);
+
+  // Wall tiles
+  if (tileType > pattern) {
+    tileColor = wallColor;
+    // Wall texture
+    tileColor += vec3(0.02, 0.02, 0.02) * texture;
+  }
+
+  // Torch effect (animated light)
+  for (float i = 0.0; i < 3.0; i++) {
+    float torchX = 0.2 + i * 0.3;
+    float torchY = 0.5 + sin(t * 0.5 + i) * 0.1;
+    vec2 torchPos = vec2(torchX, torchY);
+
+    float torchDist = length(p - torchPos);
+    float torchGlow = smoothstep(0.15, 0.0, torchDist);
+
+    // Torch flicker
+    float flicker = sin(t * 8.0 + i * 2.0) * 0.3 + 0.7;
+
+    // Audio-reactive torch
+    float audioBoost = audio * 0.5;
+
+    vec3 torchColor = vec3(1.0, 0.8, 0.4) * flicker * (1.0 + audioBoost);
+    tileColor += torchColor * torchGlow * 0.3;
+  }
+
+  col += tileColor;
+
+  // Pixel effect
+  col = floor(col * 8.0) / 8.0;
+
+  return col * uDungeonTilesOpacity * (1.0 + audio * 0.2);
+}
+
+vec3 chiptuneWave(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float bits = uChiptuneWaveBits;
+  float speed = uChiptuneWaveSpeed;
+
+  vec3 col = vec3(0.0);
+
+  // Multiple audio-reactive waves
+  for (float i = 0.0; i < bits; i++) {
+    float waveY = 0.5 + sin(p.x * (5.0 + i * 2.0) + t * speed * (1.0 + i * 0.2)) * 0.1;
+
+    // Audio modulation
+    float audioMod = audio * 0.2;
+    waveY += sin(p.x * (3.0 + i) + t * speed * 0.5) * audioMod;
+
+    // Wave thickness
+    float waveThickness = 0.02 + sin(t * 2.0 + i) * 0.01;
+
+    // Wave line
+    float wave = smoothstep(waveThickness, 0.0, abs(p.y - waveY));
+
+    // 8-bit color palette
+    vec3 waveColor;
+    float colorIndex = i / bits;
+    if (colorIndex < 0.25) waveColor = vec3(1.0, 0.0, 0.0);
+    else if (colorIndex < 0.5) waveColor = vec3(1.0, 1.0, 0.0);
+    else if (colorIndex < 0.75) waveColor = vec3(0.0, 1.0, 1.0);
+    else waveColor = vec3(1.0, 0.0, 1.0);
+
+    // Wave intensity
+    float intensity = 0.5 + audio * 0.5;
+
+    col += waveColor * wave * intensity * 0.4;
+  }
+
+  // Background grid
+  float bgGrid = step(0.95, fract(p.x * 10.0)) + step(0.95, fract(p.y * 10.0));
+  col += vec3(0.05, 0.05, 0.1) * bgGrid;
+
+  // Pixel effect
+  col = floor(col * 4.0) / 4.0;
+
+  return col * uChiptuneWaveOpacity * (1.0 + audio * 0.5);
+}
+
+vec3 scoreCounter(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float digits = uScoreCounterDigits;
+  float animation = uScoreCounterAnimation;
+
+  vec3 col = vec3(0.0, 0.0, 0.02);
+
+  // Score display
+  float score = fract(t * animation * 0.1) * 1000000.0;
+
+  // Digit positions
+  float digitWidth = 0.05;
+  float startX = 0.2;
+
+  for (float i = 0.0; i < digits; i++) {
+    float digitX = startX + i * digitWidth;
+    float digitY = 0.5;
+
+    vec2 digitPos = vec2(digitX, digitY);
+    vec2 digitUV = (p - digitPos) / digitWidth;
+
+    // Digit value
+    float digitValue = floor(score / pow(10.0, digits - 1.0 - i)) % 10.0;
+
+    // 7-segment display simulation
+    float segments = 0.0;
+
+    // Segments (simplified)
+    if (digitValue != 1.0 && digitValue != 4.0) segments += smoothstep(0.1, 0.0, abs(digitUV.y - 0.3)) * smoothstep(0.6, 0.0, abs(digitUV.x));
+    if (digitValue != 5.0 && digitValue != 6.0) segments += smoothstep(0.1, 0.0, abs(digitUV.y - 0.3)) * smoothstep(0.6, 0.0, abs(digitUV.x - 1.0));
+    if (digitValue != 2.0) segments += smoothstep(0.1, 0.0, abs(digitUV.y)) * smoothstep(0.6, 0.0, abs(digitUV.x - 0.5));
+    if (digitValue != 1.0 && digitValue != 2.0 && digitValue != 3.0 && digitValue != 7.0) segments += smoothstep(0.6, 0.0, abs(digitUV.y - 0.15)) * smoothstep(0.1, 0.0, abs(digitUV.x - 0.5));
+    if (digitValue != 0.0 && digitValue != 6.0 && digitValue != 8.0) segments += smoothstep(0.6, 0.0, abs(digitUV.y - 0.45)) * smoothstep(0.1, 0.0, abs(digitUV.x - 0.5));
+    if (digitValue != 1.0 && digitValue != 3.0 && digitValue != 4.0 && digitValue != 5.0 && digitValue != 7.0 && digitValue != 9.0) segments += smoothstep(0.6, 0.0, abs(digitUV.y - 0.15)) * smoothstep(0.1, 0.0, abs(digitUV.x));
+    if (digitValue != 0.0 && digitValue != 2.0 && digitValue != 6.0 && digitValue != 8.0) segments += smoothstep(0.6, 0.0, abs(digitUV.y - 0.45)) * smoothstep(0.1, 0.0, abs(digitUV.x - 1.0));
+
+    // Digit color
+    vec3 digitColor = vec3(1.0, 1.0, 1.0);
+
+    // Audio-reactive glow
+    float audioGlow = audio * 0.3;
+
+    col += digitColor * segments * (1.0 + audioGlow) * 0.5;
+  }
+
+  // Score label
+  float labelY = 0.6;
+  vec3 labelColor = vec3(1.0, 1.0, 0.0);
+  float label = smoothstep(0.15, 0.0, abs(p.y - labelY)) * smoothstep(0.2, 0.0, abs(p.x - 0.5));
+  col += labelColor * label * 0.3;
+
+  return col * uScoreCounterOpacity * (1.0 + audio * 0.3);
+}
+
+vec3 pixelRain(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float density = uPixelRainDensity;
+  float speed = uPixelRainSpeed;
+
+  vec3 col = vec3(0.0, 0.0, 0.02);
+
+  // Falling pixels
+  for (float i = 0.0; i < density * 20.0; i++) {
+    float pixelX = hash21(vec2(i, 0.0));
+    float pixelY = fract(hash21(vec2(0.0, i)) + t * speed * (0.5 + hash21(vec2(i, t))));
+
+    vec2 pixelPos = vec2(pixelX, pixelY);
+
+    // Pixel size
+    float pixelSize = 0.02;
+
+    // Pixel quantization
+    vec2 pixelatedPos = floor(pixelPos / pixelSize) * pixelSize;
+    vec2 pixelatedUV = floor(p / pixelSize) * pixelSize;
+
+    // Trail effect
+    float trail = smoothstep(0.0, 0.2, pixelY) * smoothstep(0.4, 0.2, pixelY);
+
+    // Pixel brightness
+    float brightness = hash21(vec2(i, t * 0.5));
+
+    // Pixel color (Matrix-style but game-colored)
+    vec3 pixelColor;
+    float colorIndex = hash21(vec2(i, 0.0));
+    if (colorIndex < 0.33) pixelColor = vec3(0.0, 1.0, 0.0);
+    else if (colorIndex < 0.66) pixelColor = vec3(0.0, 0.8, 0.5);
+    else pixelColor = vec3(0.0, 0.5, 1.0);
+
+    // Audio-reactive intensity
+    float audioIntensity = audio * 0.5;
+
+    // Pixel shape
+    float pixel = smoothstep(pixelSize, 0.0, length(pixelatedUV - pixelatedPos));
+
+    col += pixelColor * pixel * brightness * trail * (1.0 + audioIntensity) * 0.3;
+  }
+
+  // Scanlines
+  float scanline = sin(p.y * 30.0) * 0.03;
+  col *= 1.0 - scanline;
+
+  return col * uPixelRainOpacity * (1.0 + audio * 0.4);
+}
+
+vec3 bossHealth(vec2 uv, float t, float audio) {
+  vec2 p = uv;
+  float healthValue = uBossHealthValue;
+  float bars = uBossHealthBars;
+
+  vec3 col = vec3(0.0, 0.0, 0.02);
+
+  // Boss name
+  vec3 bossColor = vec3(1.0, 0.0, 0.0);
+  float bossName = smoothstep(0.1, 0.0, abs(p.y - 0.8)) * smoothstep(0.3, 0.0, abs(p.x - 0.5));
+  col += bossColor * bossName * 0.5;
+
+  // Health bars
+  float barWidth = 0.6;
+  float barHeight = 0.04;
+  float barSpacing = 0.05;
+  float startY = 0.65;
+
+  for (float i = 0.0; i < bars; i++) {
+    float barY = startY - i * barSpacing;
+
+    // Background bar
+    float bgBar = smoothstep(barHeight, 0.0, abs(p.y - barY)) * smoothstep(barWidth / 2.0 + 0.02, 0.0, abs(p.x - 0.5));
+    col += vec3(0.2, 0.1, 0.1) * bgBar;
+
+    // Health bar fill
+    float healthFill = healthValue * (1.0 - i * 0.1);
+    float currentBarWidth = barWidth * healthFill;
+
+    // Bar color based on health
+    vec3 barColor;
+    if (healthFill > 0.6) barColor = vec3(0.0, 1.0, 0.0);
+    else if (healthFill > 0.3) barColor = vec3(1.0, 1.0, 0.0);
+    else barColor = vec3(1.0, 0.0, 0.0);
+
+    // Audio-reactive pulse
+    float pulse = sin(t * 3.0 + i + audio * 2.0) * 0.5 + 0.5;
+
+    // Health bar
+    float healthBar = smoothstep(barHeight, 0.0, abs(p.y - barY)) * smoothstep(currentBarWidth / 2.0 + 0.02, 0.0, abs(p.x - 0.5));
+    col += barColor * healthBar * (1.0 + pulse * 0.2);
+
+    // Health segments
+    float segments = 10.0;
+    for (float j = 0.0; j < segments; j++) {
+      float segX = -currentBarWidth / 2.0 + j * (currentBarWidth / segments);
+      float segWidth = currentBarWidth / segments - 0.01;
+
+      if (j / segments < healthFill) {
+        float segment = smoothstep(barHeight, 0.0, abs(p.y - barY)) * smoothstep(segWidth, 0.0, abs(p.x - 0.5 - segX));
+        col += barColor * segment * 0.5;
+      }
+    }
+  }
+
+  // HP label
+  float hpY = startY + barSpacing;
+  vec3 hpColor = vec3(1.0, 1.0, 1.0);
+  float hpLabel = smoothstep(0.02, 0.0, abs(p.y - hpY)) * smoothstep(0.2, 0.0, abs(p.x - 0.35));
+  col += hpColor * hpLabel * 0.3;
+
+  // Health number
+  float healthNumberY = startY + barSpacing;
+  vec3 numberColor = vec3(1.0, 0.0, 0.0);
+  float number = smoothstep(0.02, 0.0, abs(p.y - healthNumberY)) * smoothstep(0.15, 0.0, abs(p.x - 0.65));
+  col += numberColor * number * 0.5;
+
+  return col * uBossHealthOpacity * (1.0 + audio * 0.3);
 }
 
 // --- EDM Generator Functions ---
@@ -2727,6 +4459,37 @@ void main() {
   if (uWarpDriveEnabled > 0.5) color += warpDrive(effectUv, uTime, high) * uRoleWeights.x;
   if (uVisualFeedbackEnabled > 0.5) color += visualFeedback(effectUv, uTime, mid) * uRoleWeights.y;
   if (uMyceliumGrowthEnabled > 0.5) color += myceliumGrowth(effectUv, uTime, mid) * uRoleWeights.z;
+  // --- New Unique Generators ---
+  if (uCellularGrowthEnabled > 0.5) color += cellularGrowth(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uBioLuminescentForestEnabled > 0.5) color += bioLuminescentForest(effectUv, uTime, high) * uRoleWeights.y;
+  if (uCrystallineEnabled > 0.5) color += crystalline(effectUv, uTime, mid) * uRoleWeights.x;
+  if (uAudioDnaEnabled > 0.5) color += audioDna(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uLiquidMetalEnabled > 0.5) color += liquidMetal(effectUv, uTime, mid) * uRoleWeights.y;
+  if (uNeonCityscapeEnabled > 0.5) color += neonCityscape(effectUv, uTime, low) * uRoleWeights.x;
+  if (uCosmicNebulaEnabled > 0.5) color += cosmicNebula(effectUv, uTime, high) * uRoleWeights.z;
+  if (uSonicRainEnabled > 0.5) color += sonicRain(effectUv, uTime, high) * uRoleWeights.y;
+  if (uMorphingGeometryEnabled > 0.5) color += morphingGeometry(effectUv, uTime, mid) * uRoleWeights.x;
+  if (uUrbanRhythmEnabled > 0.5) color += urbanRhythm(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uCrimsonVeilEnabled > 0.5) color += crimsonVeil(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uVictorianCryptEnabled > 0.5) color += victorianCrypt(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uSpectralApparitionEnabled > 0.5) color += spectralApparition(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uGothicCobwebsEnabled > 0.5) color += gothicCobwebs(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uBloodMoonRiseEnabled > 0.5) color += bloodMoonRise(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uCandlelightVigilEnabled > 0.5) color += candlelightVigil(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uGargoylesAwakeEnabled > 0.5) color += gargoylesAwake(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uCryptShadowsEnabled > 0.5) color += cryptShadows(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uGothicRoseEnabled > 0.5) color += gothicRose(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uEternalDarknessEnabled > 0.5) color += eternalDarkness(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uPixelDustEnabled > 0.5) color += pixelDust(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uRetroStarfieldEnabled > 0.5) color += retroStarfield(effectUv, uTime, mid) * uRoleWeights.z;
+  if (u8BitGridEnabled > 0.5) color += eightBitGrid(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uArcadeInvadersEnabled > 0.5) color += arcadeInvaders(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uPowerUpPulseEnabled > 0.5) color += powerUpPulse(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uDungeonTilesEnabled > 0.5) color += dungeonTiles(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uChiptuneWaveEnabled > 0.5) color += chiptuneWave(effectUv, uTime, high) * uRoleWeights.y;
+  if (uScoreCounterEnabled > 0.5) color += scoreCounter(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uPixelRainEnabled > 0.5) color += pixelRain(effectUv, uTime, mid) * uRoleWeights.z;
+  if (uBossHealthEnabled > 0.5) color += bossHealth(effectUv, uTime, mid) * uRoleWeights.z;
   // --- End New 31 Generators ---
 
   // --- EDM Generators ---
@@ -3364,6 +5127,127 @@ void main() {
     gl.uniform1f(getLocation('uVisualFeedbackOpacity'), state.visualFeedbackOpacity ?? 1.0);
     gl.uniform1f(getLocation('uVisualFeedbackZoom'), state.visualFeedbackZoom ?? 1.01);
     gl.uniform1f(getLocation('uVisualFeedbackRotation'), state.visualFeedbackRotation ?? 0.01);
+    // New Unique Generator Uniforms
+    gl.uniform1f(getLocation('uCellularGrowthEnabled'), state.cellularGrowthEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCellularGrowthOpacity'), state.cellularGrowthOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCellularGrowthRate'), state.cellularGrowthRate ?? 1.0);
+    gl.uniform1f(getLocation('uCellularGrowthDensity'), state.cellularGrowthDensity ?? 0.8);
+    gl.uniform1f(getLocation('uBioLuminescentForestEnabled'), state.bioLuminescentForestEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uBioLuminescentForestOpacity'), state.bioLuminescentForestOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uBioLuminescentForestPulse'), state.bioLuminescentForestPulse ?? 1.0);
+    gl.uniform1f(getLocation('uBioLuminescentForestDensity'), state.bioLuminescentForestDensity ?? 0.7);
+    gl.uniform1f(getLocation('uCrystallineEnabled'), state.crystallineEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCrystallineOpacity'), state.crystallineOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCrystallineRotation'), state.crystallineRotation ?? 1.0);
+    gl.uniform1f(getLocation('uCrystallineRefraction'), state.crystallineRefraction ?? 0.5);
+    gl.uniform1f(getLocation('uAudioDnaEnabled'), state.audioDnaEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAudioDnaOpacity'), state.audioDnaOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uAudioDnaRotation'), state.audioDnaRotation ?? 1.0);
+    gl.uniform1f(getLocation('uAudioDnaSegments'), state.audioDnaSegments ?? 20.0);
+    gl.uniform1f(getLocation('uLiquidMetalEnabled'), state.liquidMetalEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uLiquidMetalOpacity'), state.liquidMetalOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uLiquidMetalFlow'), state.liquidMetalFlow ?? 1.0);
+    gl.uniform1f(getLocation('uLiquidMetalShimmer'), state.liquidMetalShimmer ?? 0.5);
+    gl.uniform1f(getLocation('uNeonCityscapeEnabled'), state.neonCityscapeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uNeonCityscapeOpacity'), state.neonCityscapeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uNeonCityscapeSpeed'), state.neonCityscapeSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uNeonCityscapeDensity'), state.neonCityscapeDensity ?? 0.6);
+    gl.uniform1f(getLocation('uCosmicNebulaEnabled'), state.cosmicNebulaEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCosmicNebulaOpacity'), state.cosmicNebulaOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCosmicNebulaExpansion'), state.cosmicNebulaExpansion ?? 1.0);
+    gl.uniform1f(getLocation('uCosmicNebulaTurbulence'), state.cosmicNebulaTurbulence ?? 0.5);
+    gl.uniform1f(getLocation('uSonicRainEnabled'), state.sonicRainEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uSonicRainOpacity'), state.sonicRainOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uSonicRainSpeed'), state.sonicRainSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uSonicRainDensity'), state.sonicRainDensity ?? 0.8);
+    gl.uniform1f(getLocation('uMorphingGeometryEnabled'), state.morphingGeometryEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMorphingGeometryOpacity'), state.morphingGeometryOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uMorphingGeometrySpeed'), state.morphingGeometrySpeed ?? 1.0);
+    gl.uniform1f(getLocation('uMorphingGeometryComplexity'), state.morphingGeometryComplexity ?? 0.7);
+    gl.uniform1f(getLocation('uUrbanRhythmEnabled'), state.urbanRhythmEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uUrbanRhythmOpacity'), state.urbanRhythmOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uUrbanRhythmBpm'), state.urbanRhythmBpm ?? 1.0);
+    gl.uniform1f(getLocation('uUrbanRhythmIntensity'), state.urbanRhythmIntensity ?? 0.6);
+    gl.uniform1f(getLocation('uCrimsonVeilEnabled'), state.crimsonVeilEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCrimsonVeilOpacity'), state.crimsonVeilOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCrimsonVeilFlow'), state.crimsonVeilFlow ?? 1.0);
+    gl.uniform1f(getLocation('uCrimsonVeilDarkness'), state.crimsonVeilDarkness ?? 0.5);
+    gl.uniform1f(getLocation('uVictorianCryptEnabled'), state.victorianCryptEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uVictorianCryptOpacity'), state.victorianCryptOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uVictorianCryptComplexity'), state.victorianCryptComplexity ?? 0.5);
+    gl.uniform1f(getLocation('uVictorianCryptDecay'), state.victorianCryptDecay ?? 0.5);
+    gl.uniform1f(getLocation('uSpectralApparitionEnabled'), state.spectralApparitionEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uSpectralApparitionOpacity'), state.spectralApparitionOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uSpectralApparitionDensity'), state.spectralApparitionDensity ?? 0.5);
+    gl.uniform1f(getLocation('uSpectralApparitionFade'), state.spectralApparitionFade ?? 0.5);
+    gl.uniform1f(getLocation('uGothicCobwebsEnabled'), state.gothicCobwebsEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGothicCobwebsOpacity'), state.gothicCobwebsOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uGothicCobwebsDensity'), state.gothicCobwebsDensity ?? 0.5);
+    gl.uniform1f(getLocation('uGothicCobwebsDecay'), state.gothicCobwebsDecay ?? 0.5);
+    gl.uniform1f(getLocation('uBloodMoonRiseEnabled'), state.bloodMoonRiseEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uBloodMoonRiseOpacity'), state.bloodMoonRiseOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uBloodMoonRiseEclipse'), state.bloodMoonRiseEclipse ?? 0.5);
+    gl.uniform1f(getLocation('uBloodMoonRiseGlow'), state.bloodMoonRiseGlow ?? 0.5);
+    gl.uniform1f(getLocation('uCandlelightVigilEnabled'), state.candlelightVigilEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCandlelightVigilOpacity'), state.candlelightVigilOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCandlelightVigilFlicker'), state.candlelightVigilFlicker ?? 0.5);
+    gl.uniform1f(getLocation('uCandlelightVigilDecay'), state.candlelightVigilDecay ?? 0.5);
+    gl.uniform1f(getLocation('uGargoylesAwakeEnabled'), state.gargoylesAwakeEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGargoylesAwakeOpacity'), state.gargoylesAwakeOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uGargoylesAwakeAnimation'), state.gargoylesAwakeAnimation ?? 0.5);
+    gl.uniform1f(getLocation('uGargoylesAwakeShadow'), state.gargoylesAwakeShadow ?? 0.5);
+    gl.uniform1f(getLocation('uCryptShadowsEnabled'), state.cryptShadowsEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uCryptShadowsOpacity'), state.cryptShadowsOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uCryptShadowsDepth'), state.cryptShadowsDepth ?? 0.5);
+    gl.uniform1f(getLocation('uCryptShadowsMovement'), state.cryptShadowsMovement ?? 0.5);
+    gl.uniform1f(getLocation('uGothicRoseEnabled'), state.gothicRoseEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uGothicRoseOpacity'), state.gothicRoseOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uGothicRoseDecay'), state.gothicRoseDecay ?? 0.5);
+    gl.uniform1f(getLocation('uGothicRoseThorns'), state.gothicRoseThorns ?? 0.5);
+    gl.uniform1f(getLocation('uEternalDarknessEnabled'), state.eternalDarknessEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uEternalDarknessOpacity'), state.eternalDarknessOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uEternalDarknessVoid'), state.eternalDarknessVoid ?? 0.5);
+    gl.uniform1f(getLocation('uEternalDarknessTraces'), state.eternalDarknessTraces ?? 0.5);
+    gl.uniform1f(getLocation('uPixelDustEnabled'), state.pixelDustEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPixelDustOpacity'), state.pixelDustOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPixelDustDensity'), state.pixelDustDensity ?? 0.5);
+    gl.uniform1f(getLocation('uPixelDustPixelSize'), state.pixelDustPixelSize ?? 0.02);
+    gl.uniform1f(getLocation('uRetroStarfieldEnabled'), state.retroStarfieldEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uRetroStarfieldOpacity'), state.retroStarfieldOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uRetroStarfieldSpeed'), state.retroStarfieldSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uRetroStarfieldSize'), state.retroStarfieldSize ?? 0.01);
+    gl.uniform1f(getLocation('u8BitGridEnabled'), state.eightBitGridEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('u8BitGridOpacity'), state.eightBitGridOpacity ?? 1.0);
+    gl.uniform1f(getLocation('u8BitGridSpeed'), state.eightBitGridSpeed ?? 1.0);
+    gl.uniform1f(getLocation('u8BitGridPixelSize'), state.eightBitGridPixelSize ?? 0.02);
+    gl.uniform1f(getLocation('uArcadeInvadersEnabled'), state.arcadeInvadersEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uArcadeInvadersOpacity'), state.arcadeInvadersOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uArcadeInvadersDensity'), state.arcadeInvadersDensity ?? 0.5);
+    gl.uniform1f(getLocation('uArcadeInvadersAnimation'), state.arcadeInvadersAnimation ?? 0.5);
+    gl.uniform1f(getLocation('uPowerUpPulseEnabled'), state.powerUpPulseEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPowerUpPulseOpacity'), state.powerUpPulseOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPowerUpPulseIntensity'), state.powerUpPulseIntensity ?? 0.5);
+    gl.uniform1f(getLocation('uPowerUpPulseSpeed'), state.powerUpPulseSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uDungeonTilesEnabled'), state.dungeonTilesEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uDungeonTilesOpacity'), state.dungeonTilesOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uDungeonTilesPattern'), state.dungeonTilesPattern ?? 0.5);
+    gl.uniform1f(getLocation('uDungeonTilesAnimation'), state.dungeonTilesAnimation ?? 0.5);
+    gl.uniform1f(getLocation('uChiptuneWaveEnabled'), state.chiptuneWaveEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uChiptuneWaveOpacity'), state.chiptuneWaveOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uChiptuneWaveBits'), state.chiptuneWaveBits ?? 4.0);
+    gl.uniform1f(getLocation('uChiptuneWaveSpeed'), state.chiptuneWaveSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uScoreCounterEnabled'), state.scoreCounterEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uScoreCounterOpacity'), state.scoreCounterOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uScoreCounterDigits'), state.scoreCounterDigits ?? 6.0);
+    gl.uniform1f(getLocation('uScoreCounterAnimation'), state.scoreCounterAnimation ?? 1.0);
+    gl.uniform1f(getLocation('uPixelRainEnabled'), state.pixelRainEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uPixelRainOpacity'), state.pixelRainOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uPixelRainDensity'), state.pixelRainDensity ?? 0.5);
+    gl.uniform1f(getLocation('uPixelRainSpeed'), state.pixelRainSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uBossHealthEnabled'), state.bossHealthEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uBossHealthOpacity'), state.bossHealthOpacity ?? 1.0);
+    gl.uniform1f(getLocation('uBossHealthValue'), state.bossHealthValue ?? 0.5);
+    gl.uniform1f(getLocation('uBossHealthBars'), state.bossHealthBars ?? 3.0);
     gl.uniform1f(getLocation('uMyceliumGrowthEnabled'), state.myceliumGrowthEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uMyceliumGrowthOpacity'), state.myceliumGrowthOpacity ?? 1.0);
     gl.uniform1f(getLocation('uMyceliumGrowthSpread'), state.myceliumGrowthSpread ?? 1.0);

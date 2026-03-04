@@ -11,6 +11,18 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <!-- Loading Splash Screen -->
+    <div id="loading-splash" class="loading-splash">
+      <div class="loading-content">
+        <img src="visualsynth_logo-transparent.png" alt="VisualSynth" class="loading-logo" />
+        <div class="loading-title">VisualSynth</div>
+        <div class="loading-progress-container">
+          <div id="loading-progress-bar" class="loading-progress-bar"></div>
+        </div>
+        <div id="loading-status" class="loading-status">Initializing...</div>
+      </div>
+    </div>
+
     <div id="app">
       <header class="top-bar">
         <div class="top-controls">
@@ -588,6 +600,7 @@
                 Audio Input
                 <select id="audio-device"></select>
               </label>
+              <button id="request-mic-permission" type="button">Grant Microphone Permission</button>
               <label class="scene-label">
                 MIDI Input
                 <select id="midi-device"></select>

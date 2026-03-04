@@ -1,0 +1,228 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "MilkDrop2077.R069",
+    "author": "Unknown",
+    "source": "MilkDrop2077.R069.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-04T16:56:19.244Z",
+    "updatedAt": "2026-03-04T16:56:19.244Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.01,
+            "rotation": 0,
+            "warp": 0.01,
+            "decay": 1,
+            "gamma": 1,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \n    // GROW EFFECT - bright pixels spread radially outward.\n    // BE CAREFUL - this can really thrash the texture cache! (SLOW)\n    float grad_rad = 3;  //TWEAK\n    float str = 2.3;      //TWEAK\n    vec3 d = vec3(uTexSize.zw, 0) * grad_rad;\n    vec4 lums = 0;\n    lums.x = lum( MyGet(vUv + uTexSize.zw*d.xz) );\n    lums.y = lum( MyGet(vUv - uTexSize.zw*d.xz) );\n    lums.z = lum( MyGet(vUv + uTexSize.zw*d.zy) );\n    lums.w = lum( MyGet(vUv - uTexSize.zw*d.zy) );\n    vec2 grad = vec2(lums.x-lums.y, lums.z-lums.w)*str*1000/grad_rad;\n    grad = (clamp01(grad*0.5+0.5)*2-1)*1.4;\n    // sample previous uFrame\n    ret = texture( sampler_fc_main, vUv + grad*uTexSize.zw ).xyz;\n\n    // darken (decay) over uTime\n    ret *= 0.95; //or try: ret -= 0.004;\n\n  fragColor = ret;\n}",
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \nvec2 uv2=vUv;\nuv2.x=1-uv2.x;\nvec2 uv3=vUv;\nuv3.y=1-uv3.y;\n\n    vec2 d = uTexSize.zw*4;\n    float1 dx = ( GetBlur1(vUv+vec2(1,0)*d)-GetBlur1(vUv-vec2(1,0)*d) ).y;\n    float1 dy = ( GetBlur1(vUv+vec2(0,1)*d)-GetBlur1(vUv-vec2(0,1)*d) ).y;\n    vec2 uv_y = vUv-vec2(dx,dy)*0.4;\n\n    vec2 d2 = uTexSize.zw*4;\n    float1 dx2 = ( GetBlur1(uv2+vec2(1,0)*d2)-GetBlur1(uv2-vec2(1,0)*d2) ).y;\n    float1 dy2 = ( GetBlur1(uv2+vec2(0,1)*d2)-GetBlur1(uv2-vec2(0,1)*d2) ).y;\n    vec2 uv2_y = uv2-vec2(dx2,dy)*0.36;\n\n    vec2 d3 = uTexSize.zw*4;\n    float1 dx3 = ( GetBlur1(uv3+vec2(1,0)*d3)-GetBlur1(uv3-vec2(1,0)*d3) ).y;\n    float1 dy3 = ( GetBlur1(uv3+vec2(2,1)*d3)-GetBlur1(uv3-vec2(0,1)*d3) ).y;\n    vec2 uv3_y = uv3-vec2(dx3,dy3)*1.36;\n\nret = mix(vec3(2,1.1,1.8)*texture(sampler_fc_main, uv_y).x,\n           mix(vec3(1.8,0.4,2.5),vec3(2.8,2.4,0),GetPixel(vUv).z),\n           GetBlur1(vUv).y*0.5);\nret = mix( ret, vec3(1.4,1,2.3), GetPixel(uv_y).z);\n\nvec3 ret2= mix(vec3(2,0.5,2.7)*texture(sampler_fc_main, uv2_y).x,\n           mix(vec3(0,2.5,1),vec3(2.9,0.3,2.8),GetPixel(uv2).z),\n           GetBlur1(uv2).y*1.5);\nret2= mix( ret2, vec3(0.2,2.2,2.8), GetPixel(uv_y).z);\n\nvec3 ret3= mix(vec3(2.9,0.9,0.5)*texture(sampler_fc_main, uv3_y).x,\n           mix(vec3(2.1,0.9,2.5),vec3(1.9,0.5,1.9),GetPixel(uv3).z),\n           GetBlur1(uv3).y*1.54);\nret3= mix( ret3, vec3(1.7,0.5,1.6), GetPixel(uv3_y).z);\n\nret+=ret-ret3;\n\n  fragColor = ret;\n}",
+    "perFrameCode": [
+      "q1=sin(.5*time);",
+      "q2=sin(.2*time);",
+      "q3=sin(0.34*time);",
+      "q4=abs(sin(40*time));",
+      "",
+      "bt=bt+bass/fps;",
+      "bt=bt*above(100,bt);",
+      "q5=sin(bt);",
+      "q6=bt;",
+      "",
+      "q11=int(rand(200)); q11=q11*equal(q11,1);",
+      "q12=int(rand(100)); q12=q12*equal(q12,1);",
+      "q13=int(rand(150)); q13=q13*equal(q13,1);",
+      "",
+      "rot=rot-0.048*sin(bass_att*0.08)*sin(0.37*time);",
+      "",
+      "dy=.002*sin(time*.623)+.002*cos(time*.31);",
+      "dx=.002*cos(time*.442)+.002*sin(time*.52);"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "//zoom=10.1242-0.038*above(rad,0.12);",
+      "//zoom=zoom+0.042*above(rad,0.131);",
+      "//zoom=zoom-.05*above(rad,.2);",
+      "//zoom=zoom+.05*above(rad,.21);",
+      "//zoom=zoom-0.039*above(rad,0.33);",
+      "//zoom=zoom+.05*above(rad,.31);",
+      "//zoom=zoom-0.059*above(rad,0.34);",
+      "//zoom=zoom+.05*above(rad,.41);",
+      "//zoom=zoom-.05*above(rad,.49);",
+      "//zoom=zoom+.05*above(rad,.50);",
+      "//zoom=zoom-.05*above(rad,.6);",
+      "//zoom=zoom+.05*above(rad,.61);",
+      "//zoom=zoom-0.055*above(rad,0.61);",
+      "//zoom=zoom+0.047*above(rad,0.575);",
+      "//zoom=zoom-0.049*above(rad,0.8);",
+      "//zoom=zoom+.05*above(rad,.805);",
+      "//zoom=zoom-.05*above(rad,.9);",
+      "//zoom=zoom+0.051*above(rad,1.046);",
+      "",
+      "",
+      "zoom=zoom+.15*x*.05*sin(rad*time*2);",
+      "zoom=zoom+0.142*(1-x)*0.058*sin(rad*time*2);"
+    ],
+    "originalParameters": {
+      "fRating": 4,
+      "fGammaAdj": 1,
+      "fDecay": 1,
+      "fVideoEchoZoom": 1.007,
+      "fVideoEchoAlpha": 0,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": true,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": false,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 4.1,
+      "fWaveScale": 1.286,
+      "fWaveSmoothing": 0.63,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.703,
+      "fModWaveAlphaEnd": 1.3,
+      "fWarpAnimSpeed": 2.472,
+      "fWarpScale": 3.209,
+      "fZoomExponent": 1.0018,
+      "fShader": 0,
+      "zoom": 1.01,
+      "rot": 0,
+      "cx": 0.465,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0.00001,
+      "warp": 0.01,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 0,
+      "wave_g": 0,
+      "wave_b": 0,
+      "wave_x": 0.5,
+      "wave_y": 0.52,
+      "ob_size": 0,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 1,
+      "ib_size": 0,
+      "ib_r": 0,
+      "ib_g": 0,
+      "ib_b": 0,
+      "ib_a": 1,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0.9,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0,
+      "b1n": false,
+      "b2n": false,
+      "b3n": false,
+      "b1x": false,
+      "b2x": false,
+      "b3x": false,
+      "b1ed": false,
+      "wave_0_init1": "f2=0;",
+      "wave_0_init2": "pp=100;",
+      "wave_0_init3": "pt=100;"
+    }
+  }
+}

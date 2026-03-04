@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -202,6 +202,25 @@ const createOutputWindow = () => {
 };
 
 app.whenReady().then(() => {
+  // Set up permission handler for media devices (microphone/camera)
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    // Always allow microphone and camera access
+    if (permission === 'media') {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
+  // Handle permission check requests
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    // Always allow microphone and camera access
+    if (permission === 'media') {
+      return true;
+    }
+    return false;
+  });
+
   createWindow();
 
   // Register output integration handlers (Spout/NDI)
