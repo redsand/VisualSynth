@@ -5,7 +5,14 @@ import { setStatus } from '../state/events';
 import type { RenderGraph } from './RenderGraph';
 import type { AudioEngine } from '../audio/AudioEngine';
 import type { DebugOverlay } from './debugOverlay';
-import { getBeatsUntil } from '../../shared/quantization';
+import {
+  nextFrameDropScore,
+  resolveFrameCadence,
+  resolveLatencyDiagnostics,
+  resolveSceneSwitch,
+  tickFpsTracker
+} from './renderLoopHelpers';
+import { buildRendererOutputPayload } from './outputPayload';
 
 export interface RendererDeps {
   store: Store;
@@ -56,8 +63,7 @@ export const createRenderer = ({
   }
 
   let lastTime = performance.now();
-  let fpsAccumulator = 0;
-  let frameCount = 0;
+  let fpsTracker = { fpsAccumulatorMs: 0, frameCount: 0 };
 
   const drawVisualizer = () => {
     const ctx = visualizerCanvas.getContext('2d');
@@ -116,39 +122,41 @@ export const createRenderer = ({
   const renderLoop = (time: number) => {
     const delta = time - lastTime;
     lastTime = time;
-    fpsAccumulator += delta;
-    frameCount += 1;
-    if (fpsAccumulator > 1000) {
-      const fps = Math.round((frameCount / fpsAccumulator) * 1000);
+    const fpsTick = tickFpsTracker(fpsTracker, delta);
+    fpsTracker = fpsTick.tracker;
+    if (fpsTick.fps !== null) {
       store.update((state) => {
-        state.diagnostics.fps = fps;
+        state.diagnostics.fps = fpsTick.fps;
       }, false);
-      fpsAccumulator = 0;
-      frameCount = 0;
     }
 
     store.update((state) => {
       state.diagnostics.lastRenderTimeMs = time;
     }, false);
 
-    if (delta > 24) {
-      store.update((state) => {
-        state.diagnostics.frameDropScore = Math.min(1, state.diagnostics.frameDropScore + 0.02);
-      }, false);
-    } else {
-      store.update((state) => {
-        state.diagnostics.frameDropScore = Math.max(0, state.diagnostics.frameDropScore - 0.01);
-      }, false);
-    }
+    store.update((state) => {
+      state.diagnostics.frameDropScore = nextFrameDropScore(state.diagnostics.frameDropScore, delta);
+    }, false);
 
     const state = store.getState();
-    if (time - state.diagnostics.lastWatchdogUpdate > 1000) {
+    const cadence = resolveFrameCadence({
+      timeMs: time,
+      lastWatchdogUpdateAt: state.diagnostics.lastWatchdogUpdate,
+      lastAutosaveAt: state.diagnostics.lastAutosaveAt,
+      outputOpen: state.outputOpen,
+      lastBroadcastAt: lastOutputBroadcast,
+      isPlaying: state.transport.isPlaying,
+      transportTimeMs: state.transport.timeMs,
+      deltaMs: delta
+    });
+
+    if (cadence.shouldUpdateWatchdog) {
       store.update((current) => {
         current.diagnostics.lastWatchdogUpdate = time;
       }, false);
     }
 
-    if (time - state.diagnostics.lastAutosaveAt > 120000) {
+    if (cadence.shouldAutosave) {
       store.update((current) => {
         current.diagnostics.lastAutosaveAt = time;
       }, false);
@@ -158,43 +166,28 @@ export const createRenderer = ({
 
     audioEngine.update(delta);
 
-    const audioContext = audioEngine.getContext();
-    if (audioContext) {
-      store.update((current) => {
-        current.diagnostics.latencyMs = Math.round(audioContext.baseLatency * 1000);
-        current.diagnostics.outputLatencyMs = audioContext.outputLatency
-          ? Math.round(audioContext.outputLatency * 1000)
-          : null;
-      }, false);
-    } else {
-      store.update((current) => {
-        current.diagnostics.latencyMs = null;
-        current.diagnostics.outputLatencyMs = null;
-      }, false);
-    }
+    const latency = resolveLatencyDiagnostics(audioEngine.getContext());
+    store.update((current) => {
+      current.diagnostics.latencyMs = latency.latencyMs;
+      current.diagnostics.outputLatencyMs = latency.outputLatencyMs;
+    }, false);
 
-    if (state.transport.isPlaying) {
-      actions.setTransportTime(store, state.transport.timeMs + delta);
+    if (cadence.nextTransportTime !== null) {
+      actions.setTransportTime(store, cadence.nextTransportTime);
     }
 
     const pending = state.pendingSceneSwitch;
-    if (!state.transport.isPlaying) {
-      actions.setQuantizeHud(store, null);
-    } else if (pending) {
-      const bpm = audioEngine.getActiveBpm();
-      const beatsLeft = getBeatsUntil(time, pending.scheduledTimeMs, bpm);
-      if (time >= pending.scheduledTimeMs) {
-        actions.setPendingSceneSwitch(store, null);
-        actions.setQuantizeHud(store, null);
-        onSceneApplied(pending.targetSceneId);
-      } else {
-        actions.setQuantizeHud(
-          store,
-          `Switching in ${beatsLeft} beat${beatsLeft === 1 ? '' : 's'}`
-        );
-      }
-    } else {
-      actions.setQuantizeHud(store, null);
+    const sceneSwitch = resolveSceneSwitch(
+      state.transport.isPlaying,
+      pending,
+      time,
+      audioEngine.getActiveBpm()
+    );
+
+    actions.setQuantizeHud(store, sceneSwitch.quantizeHudMessage);
+    if (sceneSwitch.shouldApplyScene && pending) {
+      actions.setPendingSceneSwitch(store, null);
+      onSceneApplied(pending.targetSceneId);
     }
 
     resizeCanvasToDisplaySize(canvas);
@@ -211,391 +204,9 @@ export const createRenderer = ({
     const debugState = renderGraph.getDebugState();
     debugOverlay.update(debugState, store.getState().diagnostics.fps);
 
-    const outputOpen = store.getState().outputOpen;
-    if (outputOpen && time - lastOutputBroadcast > 33) {
+    if (cadence.shouldBroadcastOutput) {
       lastOutputBroadcast = time;
-      outputChannel.postMessage({
-        timeMs: renderState.timeMs,
-        rms: renderState.rms,
-        peak: renderState.peak,
-        strobe: renderState.strobe,
-        plasmaEnabled: renderState.plasmaEnabled,
-        spectrumEnabled: renderState.spectrumEnabled,
-        origamiEnabled: renderState.origamiEnabled,
-        glyphEnabled: renderState.glyphEnabled,
-        crystalEnabled: renderState.crystalEnabled,
-        inkEnabled: renderState.inkEnabled,
-        topoEnabled: renderState.topoEnabled,
-        weatherEnabled: renderState.weatherEnabled,
-        portalEnabled: renderState.portalEnabled,
-        mediaEnabled: renderState.mediaEnabled,
-        oscilloEnabled: renderState.oscilloEnabled,
-        spectrum: renderState.spectrum.slice(),
-        contrast: renderState.contrast,
-        saturation: renderState.saturation,
-        paletteShift: renderState.paletteShift,
-        chemistryMode: renderState.chemistryMode,
-        transitionAmount: renderState.transitionAmount,
-        transitionType: renderState.transitionType,
-        motionTemplate: renderState.motionTemplate,
-        engineMass: renderState.engineMass,
-        engineFriction: renderState.engineFriction,
-        engineElasticity: renderState.engineElasticity,
-        engineGrain: renderState.engineGrain,
-        engineVignette: renderState.engineVignette,
-        engineCA: renderState.engineCA,
-        engineSignature: renderState.engineSignature,
-        maxBloom: renderState.maxBloom,
-        forceFeedback: renderState.forceFeedback,
-        plasmaOpacity: renderState.plasmaOpacity,
-        plasmaSpeed: renderState.plasmaSpeed,
-        plasmaScale: renderState.plasmaScale,
-        plasmaComplexity: renderState.plasmaComplexity,
-        plasmaAudioReact: renderState.plasmaAudioReact,
-        spectrumOpacity: renderState.spectrumOpacity,
-        origamiOpacity: renderState.origamiOpacity,
-        origamiSpeed: renderState.origamiSpeed,
-        origamiFoldState: renderState.origamiFoldState,
-        origamiFoldSharpness: renderState.origamiFoldSharpness,
-        glyphOpacity: renderState.glyphOpacity,
-        glyphSpeed: renderState.glyphSpeed,
-        glyphMode: renderState.glyphMode,
-        glyphSeed: renderState.glyphSeed,
-        glyphBeat: renderState.glyphBeat,
-        crystalOpacity: renderState.crystalOpacity,
-        crystalMode: renderState.crystalMode,
-        crystalBrittleness: renderState.crystalBrittleness,
-        crystalScale: renderState.crystalScale,
-        crystalSpeed: renderState.crystalSpeed,
-        inkOpacity: renderState.inkOpacity,
-        inkBrush: renderState.inkBrush,
-        inkPressure: renderState.inkPressure,
-        inkLifespan: renderState.inkLifespan,
-        inkSpeed: renderState.inkSpeed,
-        inkScale: renderState.inkScale,
-        topoOpacity: renderState.topoOpacity,
-        topoQuake: renderState.topoQuake,
-        topoSlide: renderState.topoSlide,
-        topoPlate: renderState.topoPlate,
-        topoTravel: renderState.topoTravel,
-        topoScale: renderState.topoScale,
-        topoElevation: renderState.topoElevation,
-        weatherOpacity: renderState.weatherOpacity,
-        weatherMode: renderState.weatherMode,
-        weatherIntensity: renderState.weatherIntensity,
-        weatherSpeed: renderState.weatherSpeed,
-        portalOpacity: renderState.portalOpacity,
-        portalShift: renderState.portalShift,
-        portalStyle: renderState.portalStyle,
-        portalPositions: renderState.portalPositions,
-        portalRadii: renderState.portalRadii,
-        portalActives: renderState.portalActives,
-        mediaOpacity: renderState.mediaOpacity,
-        mediaBurstPositions: renderState.mediaBurstPositions,
-        mediaBurstRadii: renderState.mediaBurstRadii,
-        mediaBurstTypes: renderState.mediaBurstTypes,
-        mediaBurstActives: renderState.mediaBurstActives,
-        oscilloOpacity: renderState.oscilloOpacity,
-        oscilloMode: renderState.oscilloMode,
-        oscilloFreeze: renderState.oscilloFreeze,
-        oscilloRotate: renderState.oscilloRotate,
-        oscilloData: renderState.oscilloData,
-        modulatorValues: renderState.modulatorValues,
-        midiData: renderState.midiData,
-        plasmaAssetBlendMode: renderState.plasmaAssetBlendMode,
-        plasmaAssetAudioReact: renderState.plasmaAssetAudioReact,
-        spectrumAssetBlendMode: renderState.spectrumAssetBlendMode,
-        spectrumAssetAudioReact: renderState.spectrumAssetAudioReact,
-        mediaAssetBlendMode: renderState.mediaAssetBlendMode,
-        mediaAssetAudioReact: renderState.mediaAssetAudioReact,
-        roleWeights: renderState.roleWeights,
-        effectsEnabled: renderState.effectsEnabled,
-        bloom: renderState.bloom,
-        blur: renderState.blur,
-        chroma: renderState.chroma,
-        posterize: renderState.posterize,
-        kaleidoscope: renderState.kaleidoscope,
-        kaleidoscopeRotation: renderState.kaleidoscopeRotation,
-        feedback: renderState.feedback,
-        feedbackZoom: renderState.feedbackZoom,
-        feedbackRotation: renderState.feedbackRotation,
-        persistence: renderState.persistence,
-        trailSpectrum: renderState.trailSpectrum,
-        expressiveEnergyBloom: renderState.expressiveEnergyBloom,
-        expressiveEnergyThreshold: renderState.expressiveEnergyThreshold,
-        expressiveEnergyAccumulation: renderState.expressiveEnergyAccumulation,
-        expressiveRadialGravity: renderState.expressiveRadialGravity,
-        expressiveRadialStrength: renderState.expressiveRadialStrength,
-        expressiveRadialRadius: renderState.expressiveRadialRadius,
-        expressiveRadialFocusX: renderState.expressiveRadialFocusX,
-        expressiveRadialFocusY: renderState.expressiveRadialFocusY,
-        expressiveMotionEcho: renderState.expressiveMotionEcho,
-        expressiveMotionEchoDecay: renderState.expressiveMotionEchoDecay,
-        expressiveMotionEchoWarp: renderState.expressiveMotionEchoWarp,
-        expressiveSpectralSmear: renderState.expressiveSpectralSmear,
-        expressiveSpectralOffset: renderState.expressiveSpectralOffset,
-        expressiveSpectralMix: renderState.expressiveSpectralMix,
-        particlesEnabled: renderState.particlesEnabled,
-        particleDensity: renderState.particleDensity,
-        particleSpeed: renderState.particleSpeed,
-        particleSize: renderState.particleSize,
-        particleGlow: renderState.particleGlow,
-        particleTurbulence: renderState.particleTurbulence,
-        particleAudioLift: renderState.particleAudioLift,
-        sdfEnabled: renderState.sdfEnabled,
-        sdfShape: renderState.sdfShape,
-        sdfScale: renderState.sdfScale,
-        sdfEdge: renderState.sdfEdge,
-        sdfGlow: renderState.sdfGlow,
-        sdfRotation: renderState.sdfRotation,
-        sdfFill: renderState.sdfFill,
-        sdfColor: renderState.sdfColor,
-        gravityPositions: renderState.gravityPositions,
-        gravityStrengths: renderState.gravityStrengths,
-        gravityPolarities: renderState.gravityPolarities,
-        gravityActives: renderState.gravityActives,
-        gravityCollapse: renderState.gravityCollapse,
-        // EDM Generators
-        laserEnabled: renderState.laserEnabled,
-        laserOpacity: renderState.laserOpacity,
-        laserBeamCount: renderState.laserBeamCount,
-        laserBeamWidth: renderState.laserBeamWidth,
-        laserBeamLength: renderState.laserBeamLength,
-        laserRotation: renderState.laserRotation,
-        laserRotationSpeed: renderState.laserRotationSpeed,
-        laserSpread: renderState.laserSpread,
-        laserMode: renderState.laserMode,
-        laserColorShift: renderState.laserColorShift,
-        laserAudioReact: renderState.laserAudioReact,
-        laserGlow: renderState.laserGlow,
-        strobeEnabled: renderState.strobeEnabled,
-        strobeOpacity: renderState.strobeOpacity,
-        strobeRate: renderState.strobeRate,
-        strobeDutyCycle: renderState.strobeDutyCycle,
-        strobeMode: renderState.strobeMode,
-        strobeAudioTrigger: renderState.strobeAudioTrigger,
-        strobeThreshold: renderState.strobeThreshold,
-        strobeFadeOut: renderState.strobeFadeOut,
-        strobePattern: renderState.strobePattern,
-        shapeBurstEnabled: renderState.shapeBurstEnabled,
-        shapeBurstOpacity: renderState.shapeBurstOpacity,
-        shapeBurstShape: renderState.shapeBurstShape,
-        shapeBurstExpandSpeed: renderState.shapeBurstExpandSpeed,
-        shapeBurstStartSize: renderState.shapeBurstStartSize,
-        shapeBurstMaxSize: renderState.shapeBurstMaxSize,
-        shapeBurstThickness: renderState.shapeBurstThickness,
-        shapeBurstFadeMode: renderState.shapeBurstFadeMode,
-        shapeBurstSpawnTimes: renderState.shapeBurstSpawnTimes,
-        shapeBurstActives: renderState.shapeBurstActives,
-        gridTunnelEnabled: renderState.gridTunnelEnabled,
-        gridTunnelOpacity: renderState.gridTunnelOpacity,
-        gridTunnelSpeed: renderState.gridTunnelSpeed,
-        gridTunnelGridSize: renderState.gridTunnelGridSize,
-        gridTunnelLineWidth: renderState.gridTunnelLineWidth,
-        gridTunnelPerspective: renderState.gridTunnelPerspective,
-        gridTunnelHorizonY: renderState.gridTunnelHorizonY,
-        gridTunnelGlow: renderState.gridTunnelGlow,
-        gridTunnelAudioReact: renderState.gridTunnelAudioReact,
-        gridTunnelMode: renderState.gridTunnelMode,
-        // Rock Generators
-        lightningEnabled: renderState.lightningEnabled,
-        lightningOpacity: renderState.lightningOpacity,
-        lightningSpeed: renderState.lightningSpeed,
-        lightningBranches: renderState.lightningBranches,
-        lightningThickness: renderState.lightningThickness,
-        lightningColor: renderState.lightningColor,
-        analogOscilloEnabled: renderState.analogOscilloEnabled,
-        analogOscilloOpacity: renderState.analogOscilloOpacity,
-        analogOscilloThickness: renderState.analogOscilloThickness,
-        analogOscilloGlow: renderState.analogOscilloGlow,
-        analogOscilloColor: renderState.analogOscilloColor,
-        analogOscilloMode: renderState.analogOscilloMode,
-        speakerConeEnabled: renderState.speakerConeEnabled,
-        speakerConeOpacity: renderState.speakerConeOpacity,
-        speakerConeForce: renderState.speakerConeForce,
-        glitchScanlineEnabled: renderState.glitchScanlineEnabled,
-        glitchScanlineOpacity: renderState.glitchScanlineOpacity,
-        glitchScanlineSpeed: renderState.glitchScanlineSpeed,
-        glitchScanlineCount: renderState.glitchScanlineCount,
-        laserStarfieldEnabled: renderState.laserStarfieldEnabled,
-        laserStarfieldOpacity: renderState.laserStarfieldOpacity,
-        laserStarfieldSpeed: renderState.laserStarfieldSpeed,
-        laserStarfieldDensity: renderState.laserStarfieldDensity,
-        pulsingRibbonsEnabled: renderState.pulsingRibbonsEnabled,
-        pulsingRibbonsOpacity: renderState.pulsingRibbonsOpacity,
-        pulsingRibbonsCount: renderState.pulsingRibbonsCount,
-        pulsingRibbonsWidth: renderState.pulsingRibbonsWidth,
-        electricArcEnabled: renderState.electricArcEnabled,
-        electricArcOpacity: renderState.electricArcOpacity,
-        electricArcRadius: renderState.electricArcRadius,
-        electricArcChaos: renderState.electricArcChaos,
-        pyroBurstEnabled: renderState.pyroBurstEnabled,
-        pyroBurstOpacity: renderState.pyroBurstOpacity,
-        pyroBurstForce: renderState.pyroBurstForce,
-        geoWireframeEnabled: renderState.geoWireframeEnabled,
-        geoWireframeOpacity: renderState.geoWireframeOpacity,
-        geoWireframeShape: renderState.geoWireframeShape,
-        geoWireframeScale: renderState.geoWireframeScale,
-        signalNoiseEnabled: renderState.signalNoiseEnabled,
-        signalNoiseOpacity: renderState.signalNoiseOpacity,
-        signalNoiseAmount: renderState.signalNoiseAmount,
-        wormholeEnabled: renderState.wormholeEnabled,
-        wormholeOpacity: renderState.wormholeOpacity,
-        wormholeSpeed: renderState.wormholeSpeed,
-        wormholeWeave: renderState.wormholeWeave,
-        wormholeIter: renderState.wormholeIter,
-        ribbonTunnelEnabled: renderState.ribbonTunnelEnabled,
-        ribbonTunnelOpacity: renderState.ribbonTunnelOpacity,
-        ribbonTunnelSpeed: renderState.ribbonTunnelSpeed,
-        ribbonTunnelTwist: renderState.ribbonTunnelTwist,
-        fractalTunnelEnabled: renderState.fractalTunnelEnabled,
-        fractalTunnelOpacity: renderState.fractalTunnelOpacity,
-        fractalTunnelSpeed: renderState.fractalTunnelSpeed,
-        fractalTunnelComplexity: renderState.fractalTunnelComplexity,
-        circuitConduitEnabled: renderState.circuitConduitEnabled,
-        circuitConduitOpacity: renderState.circuitConduitOpacity,
-        circuitConduitSpeed: renderState.circuitConduitSpeed,
-        auraPortalEnabled: renderState.auraPortalEnabled,
-        auraPortalOpacity: renderState.auraPortalOpacity,
-        auraPortalColor: renderState.auraPortalColor,
-        freqTerrainEnabled: renderState.freqTerrainEnabled,
-        freqTerrainOpacity: renderState.freqTerrainOpacity,
-        freqTerrainScale: renderState.freqTerrainScale,
-        dataStreamEnabled: renderState.dataStreamEnabled,
-        dataStreamOpacity: renderState.dataStreamOpacity,
-        dataStreamSpeed: renderState.dataStreamSpeed,
-        causticLiquidEnabled: renderState.causticLiquidEnabled,
-        causticLiquidOpacity: renderState.causticLiquidOpacity,
-        causticLiquidSpeed: renderState.causticLiquidSpeed,
-        shimmerVeilEnabled: renderState.shimmerVeilEnabled,
-        shimmerVeilOpacity: renderState.shimmerVeilOpacity,
-        shimmerVeilComplexity: renderState.shimmerVeilComplexity,
-        // New 31 Generators
-        nebulaCloudEnabled: renderState.nebulaCloudEnabled,
-        nebulaCloudOpacity: renderState.nebulaCloudOpacity,
-        nebulaCloudDensity: renderState.nebulaCloudDensity,
-        nebulaCloudSpeed: renderState.nebulaCloudSpeed,
-        circuitBoardEnabled: renderState.circuitBoardEnabled,
-        circuitBoardOpacity: renderState.circuitBoardOpacity,
-        circuitBoardGrowth: renderState.circuitBoardGrowth,
-        circuitBoardComplexity: renderState.circuitBoardComplexity,
-        lorenzAttractorEnabled: renderState.lorenzAttractorEnabled,
-        lorenzAttractorOpacity: renderState.lorenzAttractorOpacity,
-        lorenzAttractorSpeed: renderState.lorenzAttractorSpeed,
-        lorenzAttractorChaos: renderState.lorenzAttractorChaos,
-        mandalaSpinnerEnabled: renderState.mandalaSpinnerEnabled,
-        mandalaSpinnerOpacity: renderState.mandalaSpinnerOpacity,
-        mandalaSpinnerSides: renderState.mandalaSpinnerSides,
-        mandalaSpinnerSpeed: renderState.mandalaSpinnerSpeed,
-        starburstGalaxyEnabled: renderState.starburstGalaxyEnabled,
-        starburstGalaxyOpacity: renderState.starburstGalaxyOpacity,
-        starburstGalaxyForce: renderState.starburstGalaxyForce,
-        starburstGalaxyCount: renderState.starburstGalaxyCount,
-        digitalRainV2Enabled: renderState.digitalRainV2Enabled,
-        digitalRainV2Opacity: renderState.digitalRainV2Opacity,
-        digitalRainV2Speed: renderState.digitalRainV2Speed,
-        digitalRainV2Density: renderState.digitalRainV2Density,
-        lavaFlowEnabled: renderState.lavaFlowEnabled,
-        lavaFlowOpacity: renderState.lavaFlowOpacity,
-        lavaFlowHeat: renderState.lavaFlowHeat,
-        lavaFlowViscosity: renderState.lavaFlowViscosity,
-        crystalGrowthEnabled: renderState.crystalGrowthEnabled,
-        crystalGrowthOpacity: renderState.crystalGrowthOpacity,
-        crystalGrowthRate: renderState.crystalGrowthRate,
-        crystalGrowthSharpness: renderState.crystalGrowthSharpness,
-        technoGridEnabled: renderState.technoGridEnabled,
-        technoGridOpacity: renderState.technoGridOpacity,
-        technoGridHeight: renderState.technoGridHeight,
-        technoGridSpeed: renderState.technoGridSpeed,
-        magneticFieldEnabled: renderState.magneticFieldEnabled,
-        magneticFieldOpacity: renderState.magneticFieldOpacity,
-        magneticFieldStrength: renderState.magneticFieldStrength,
-        magneticFieldDensity: renderState.magneticFieldDensity,
-        prismShardsEnabled: renderState.prismShardsEnabled,
-        prismShardsOpacity: renderState.prismShardsOpacity,
-        prismShardsRefraction: renderState.prismShardsRefraction,
-        prismShardsCount: renderState.prismShardsCount,
-        neuralNetEnabled: renderState.neuralNetEnabled,
-        neuralNetOpacity: renderState.neuralNetOpacity,
-        neuralNetActivity: renderState.neuralNetActivity,
-        neuralNetDensity: renderState.neuralNetDensity,
-        auroraChordEnabled: renderState.auroraChordEnabled,
-        auroraChordOpacity: renderState.auroraChordOpacity,
-        auroraChordWaviness: renderState.auroraChordWaviness,
-        auroraChordColorRange: renderState.auroraChordColorRange,
-        vhsGlitchEnabled: renderState.vhsGlitchEnabled,
-        vhsGlitchOpacity: renderState.vhsGlitchOpacity,
-        vhsGlitchJitter: renderState.vhsGlitchJitter,
-        vhsGlitchNoise: renderState.vhsGlitchNoise,
-        moirePatternEnabled: renderState.moirePatternEnabled,
-        moirePatternOpacity: renderState.moirePatternOpacity,
-        moirePatternScale: renderState.moirePatternScale,
-        moirePatternSpeed: renderState.moirePatternSpeed,
-        hypercubeEnabled: renderState.hypercubeEnabled,
-        hypercubeOpacity: renderState.hypercubeOpacity,
-        hypercubeProjection: renderState.hypercubeProjection,
-        hypercubeSpeed: renderState.hypercubeSpeed,
-        fluidSwirlEnabled: renderState.fluidSwirlEnabled,
-        fluidSwirlOpacity: renderState.fluidSwirlOpacity,
-        fluidSwirlVorticity: renderState.fluidSwirlVorticity,
-        fluidSwirlColorMix: renderState.fluidSwirlColorMix,
-        asciiStreamEnabled: renderState.asciiStreamEnabled,
-        asciiStreamOpacity: renderState.asciiStreamOpacity,
-        asciiStreamResolution: renderState.asciiStreamResolution,
-        asciiStreamContrast: renderState.asciiStreamContrast,
-        retroWaveEnabled: renderState.retroWaveEnabled,
-        retroWaveOpacity: renderState.retroWaveOpacity,
-        retroWaveSunSize: renderState.retroWaveSunSize,
-        retroWaveGridSpeed: renderState.retroWaveGridSpeed,
-        bubblePopEnabled: renderState.bubblePopEnabled,
-        bubblePopOpacity: renderState.bubblePopOpacity,
-        bubblePopPopRate: renderState.bubblePopPopRate,
-        bubblePopSize: renderState.bubblePopSize,
-        soundWave3DEnabled: renderState.soundWave3DEnabled,
-        soundWave3DOpacity: renderState.soundWave3DOpacity,
-        soundWave3DAmplitude: renderState.soundWave3DAmplitude,
-        soundWave3DSmoothness: renderState.soundWave3DSmoothness,
-        particleVortexEnabled: renderState.particleVortexEnabled,
-        particleVortexOpacity: renderState.particleVortexOpacity,
-        particleVortexSuction: renderState.particleVortexSuction,
-        particleVortexSpin: renderState.particleVortexSpin,
-        glowWormsEnabled: renderState.glowWormsEnabled,
-        glowWormsOpacity: renderState.glowWormsOpacity,
-        glowWormsLength: renderState.glowWormsLength,
-        glowWormsSpeed: renderState.glowWormsSpeed,
-        mirrorMazeEnabled: renderState.mirrorMazeEnabled,
-        mirrorMazeOpacity: renderState.mirrorMazeOpacity,
-        mirrorMazeRecursion: renderState.mirrorMazeRecursion,
-        mirrorMazeAngle: renderState.mirrorMazeAngle,
-        pulseHeartEnabled: renderState.pulseHeartEnabled,
-        pulseHeartOpacity: renderState.pulseHeartOpacity,
-        pulseHeartBeats: renderState.pulseHeartBeats,
-        pulseHeartLayers: renderState.pulseHeartLayers,
-        dataShardsEnabled: renderState.dataShardsEnabled,
-        dataShardsOpacity: renderState.dataShardsOpacity,
-        dataShardsSpeed: renderState.dataShardsSpeed,
-        dataShardsSharpness: renderState.dataShardsSharpness,
-        hexCellEnabled: renderState.hexCellEnabled,
-        hexCellOpacity: renderState.hexCellOpacity,
-        hexCellPulse: renderState.hexCellPulse,
-        hexCellScale: renderState.hexCellScale,
-        plasmaBallEnabled: renderState.plasmaBallEnabled,
-        plasmaBallOpacity: renderState.plasmaBallOpacity,
-        plasmaBallVoltage: renderState.plasmaBallVoltage,
-        plasmaBallFilaments: renderState.plasmaBallFilaments,
-        warpDriveEnabled: renderState.warpDriveEnabled,
-        warpDriveOpacity: renderState.warpDriveOpacity,
-        warpDriveWarp: renderState.warpDriveWarp,
-        warpDriveGlow: renderState.warpDriveGlow,
-        visualFeedbackEnabled: renderState.visualFeedbackEnabled,
-        visualFeedbackOpacity: renderState.visualFeedbackOpacity,
-        visualFeedbackZoom: renderState.visualFeedbackZoom,
-        visualFeedbackRotation: renderState.visualFeedbackRotation,
-        myceliumGrowthEnabled: (renderState as any).myceliumGrowthEnabled,
-        myceliumGrowthOpacity: (renderState as any).myceliumGrowthOpacity,
-        myceliumGrowthSpread: (renderState as any).myceliumGrowthSpread,
-        myceliumGrowthDecay: (renderState as any).myceliumGrowthDecay
-      });
+      outputChannel.postMessage(buildRendererOutputPayload(renderState));
     }
 
     requestAnimationFrame(renderLoop);
