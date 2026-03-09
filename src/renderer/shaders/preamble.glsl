@@ -55,18 +55,13 @@ uniform float uEngineSignature;
 
 /* @@GENERATOR_UNIFORMS */
 
-// SDF uniforms injected above via @@GENERATOR_UNIFORMS
-uniform vec3 uCameraPos;
-uniform vec3 uCameraTarget;
-uniform float uCameraFov;
-
 float sdfSceneMap(vec3 p) {
   return 10.0; // Placeholder for simple mode, overridden in advanced
 }
 
 vec2 advancedSdfMap(vec3 p) {
   // Default returns distance and material (0.0 for no material)
-  return vec2(/* @@SDF_MAP_BODY */10.0, 0.0);
+  return vec2(/* @@SDF_MAP_BODY */, 0.0);
 }
 
 vec3 calcSdfNormal(vec3 p) {
@@ -273,9 +268,9 @@ float sdArc(vec2 p, vec2 c, float r, float w) {
   float l = length(p);
   if (l > r) return l - r;
   float a = atan(p.y, p.x);
-  float half = w * 0.5;
-  if (abs(a) > half) {
-    vec2 q = vec2(cos(half), sin(half)) * r;
+  float halfW = w * 0.5;
+  if (abs(a) > halfW) {
+    vec2 q = vec2(cos(halfW), sin(halfW)) * r;
     return distance(p, sign(p.y) * q);
   }
   return r - l;

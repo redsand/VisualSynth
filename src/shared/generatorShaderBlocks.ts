@@ -72,9 +72,7 @@ vec3 samplePlasma(vec2 uv, float t) {
   {
     id: 'layer-spectrum',
     uniforms: `uniform float uSpectrumEnabled;
-uniform float uSpectrum[64];
 uniform float uSpectrumOpacity;
-uniform float uTrailSpectrum[64];
 uniform float uSpectrumAssetEnabled;
 uniform sampler2D uSpectrumAsset;
 uniform float uSpectrumAssetBlend;
@@ -3617,8 +3615,7 @@ uniform float uSdfShadowsEnabled;
 
   {
     id: 'gen-sdf-scene',
-    uniforms: `uniform float uAdvancedSdfEnabled;
-`,
+    uniforms: ``,
     functions: ``,
     mainCall: `  if (uAdvancedSdfEnabled > 0.5) color += vec3(0.0); // Advanced SDF handled by gen-sdf block
 `,
