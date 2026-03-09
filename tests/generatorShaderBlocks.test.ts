@@ -14,9 +14,7 @@ describe('GeneratorShaderBlocks registry', () => {
       console.warn('Missing generator shader blocks for:', missing);
     }
 
-    // For now, we'll allow many missing generators as the extraction is still in progress
-    // We have 88 blocks extracted out of 146 total generators
-    expect(missing.length).toBeLessThan(60); // Allow missing during transition
+    expect(missing.length).toBe(0);
   });
 
   it('every block has non-empty uniforms, functions, and mainCall', () => {
