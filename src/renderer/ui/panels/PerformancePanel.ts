@@ -1,5 +1,5 @@
 import type { Store } from '../../state/store';
-import { OUTPUT_BASE_HEIGHT, OUTPUT_BASE_WIDTH } from '../../shared/project';
+import { OUTPUT_BASE_HEIGHT, OUTPUT_BASE_WIDTH } from '../../../shared/project';
 import { actions } from '../../state/actions';
 import { setStatus } from '../../state/events';
 
@@ -107,7 +107,26 @@ export const createPerformancePanel = ({
     'macro-5',
     'macro-6',
     'macro-7',
-    'macro-8'
+    'macro-8',
+    'toggle-lightning',
+    'toggle-analog-oscillo',
+    'toggle-speaker-cone',
+    'toggle-glitch-scanline',
+    'toggle-laser-starfield',
+    'toggle-pulsing-ribbons',
+    'toggle-electric-arc',
+    'toggle-pyro-burst',
+    'toggle-geo-wireframe',
+    'toggle-signal-noise',
+    'toggle-infinite-wormhole',
+    'toggle-ribbon-tunnel',
+    'toggle-fractal-tunnel',
+    'toggle-circuit-conduit',
+    'toggle-aura-portal',
+    'toggle-freq-terrain',
+    'toggle-data-stream',
+    'toggle-caustic-liquid',
+    'toggle-shimmer-veil'
   ] as const;
 
   const padActionLabels: Record<(typeof padActionCycle)[number], string> = {
@@ -160,7 +179,26 @@ export const createPerformancePanel = ({
     'macro-5': 'Macro 5',
     'macro-6': 'Macro 6',
     'macro-7': 'Macro 7',
-    'macro-8': 'Macro 8'
+    'macro-8': 'Macro 8',
+    'toggle-lightning': 'Lightning',
+    'toggle-analog-oscillo': 'Analog Oscillo',
+    'toggle-speaker-cone': 'Speaker Cone',
+    'toggle-glitch-scanline': 'Glitch Scanline',
+    'toggle-laser-starfield': 'Laser Starfield',
+    'toggle-pulsing-ribbons': 'Pulsing Ribbons',
+    'toggle-electric-arc': 'Electric Arc',
+    'toggle-pyro-burst': 'Pyro Burst',
+    'toggle-geo-wireframe': 'Geo Wireframe',
+    'toggle-signal-noise': 'Signal Noise',
+    'toggle-infinite-wormhole': 'Infinite Wormhole',
+    'toggle-ribbon-tunnel': 'Ribbon Tunnel',
+    'toggle-fractal-tunnel': 'Fractal Tunnel',
+    'toggle-circuit-conduit': 'Circuit Conduit',
+    'toggle-aura-portal': 'Aura Portal',
+    'toggle-freq-terrain': 'Freq Terrain',
+    'toggle-data-stream': 'Data Stream',
+    'toggle-caustic-liquid': 'Caustic Liquid',
+    'toggle-shimmer-veil': 'Shimmer Veil'
   };
 
   const syncTempoInputs = (value: number) => {

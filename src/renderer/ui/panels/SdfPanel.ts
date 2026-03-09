@@ -595,7 +595,7 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
         const layer = scene?.layers.find(l => l.id === layerId);
         if (layer && layer.sdfScene) {
             // Remove existing connection for this slot
-            layer.sdfScene.connections = layer.sdfScene.connections.filter(c => !(c.to === toId && c.slot === slot));
+            layer.sdfScene.connections = layer.sdfScene.connections.filter((c: { to: string; slot: number }) => !(c.to === toId && c.slot === slot));
             if (fromId) {
                 layer.sdfScene.connections.push({ from: fromId, to: toId, slot });
             }

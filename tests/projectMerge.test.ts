@@ -26,7 +26,8 @@ describe('mergeProjectSections', () => {
       padMappings: false,
       timelineMarkers: false,
       assets: false,
-      plugins: false
+      plugins: false,
+      expressiveFx: false
     });
     expect(merged.name).toBe(DEFAULT_PROJECT.name);
     expect(merged.output.scale).toBe(DEFAULT_PROJECT.output.scale);
@@ -55,7 +56,8 @@ describe('mergeProjectSections', () => {
       padMappings: false,
       timelineMarkers: false,
       assets: false,
-      plugins: false
+      plugins: false,
+      expressiveFx: false
     });
     expect(merged.name).toBe('Incoming');
     expect(merged.macros[0].name).toBe('Changed');

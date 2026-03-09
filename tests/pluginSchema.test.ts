@@ -278,9 +278,37 @@ describe('shader validation', () => {
       parameters: [],
       gpuCostTier: 'moderate' as const,
       preferredResolution: 'full' as const,
-      capabilities: {},
-      sandbox: {},
-      assetAccess: {},
+      capabilities: {
+        requiresWebGL2: true,
+        requiresFloatTextures: false,
+        requiresComputeShaders: false,
+        canAccessAudio: false,
+        canAccessMidi: false,
+        canAccessNetwork: false,
+        canAccessFileSystem: false,
+        supportsHotReload: false,
+        supportsDeterministicMode: true,
+        supportsResolutionScaling: true
+      },
+      sandbox: {
+        maxTextureMemoryMB: 256,
+        maxUniformBufferSizeKB: 64,
+        maxShaderInstructionCount: 10000,
+        maxLoopIterations: 1000,
+        timeoutMs: 100,
+        maxFramebuffers: 4,
+        maxTextures: 8,
+        maxUniforms: 64,
+        isolatedContext: true,
+        crashIsolation: true
+      },
+      assetAccess: {
+        allowedAssetTypes: ['texture' as const],
+        maxAssetSizeMB: 64,
+        canCreateAssets: false,
+        canModifyAssets: false,
+        canDeleteAssets: false
+      },
       dependencies: [],
       optionalDependencies: []
     };

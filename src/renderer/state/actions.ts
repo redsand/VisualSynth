@@ -181,7 +181,7 @@ export const actions = {
       state.midi.lastLatencyMs = latencyMs;
     }, false);
   },
-  ensureLayer: (store: Store, layerId: string) => {
+  ensureLayer: (store: Store, layerId: string): LayerConfig | null => {
     let ensured: LayerConfig | null = null;
     store.update((state) => {
       const scene = state.project.scenes.find((item) => item.id === state.project.activeSceneId);

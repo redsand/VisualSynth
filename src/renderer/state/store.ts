@@ -65,6 +65,7 @@ export interface PadState {
   states: boolean[];
   activeBank: number;
   activeMapBank: number;
+  config?: Record<number, { action?: string }>;
 }
 
 export interface ModulatorState {

@@ -44,13 +44,13 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 describe('PlaylistManager Integration', () => {
   let manager: PlaylistManager;
-  let presetLoaderMock: ReturnType<typeof vi.fn>;
+  let presetLoaderMock: (path: string, name: string, crossfadeSeconds: number) => Promise<void>;
   let macroTriggerMock: ReturnType<typeof vi.fn>;
   let eventLog: PlaylistEvent[];
 
   beforeEach(() => {
     manager = new PlaylistManager();
-    presetLoaderMock = vi.fn().mockResolvedValue(undefined);
+    presetLoaderMock = vi.fn().mockResolvedValue(undefined) as unknown as (path: string, name: string, crossfadeSeconds: number) => Promise<void>;
     macroTriggerMock = vi.fn();
     eventLog = [];
 

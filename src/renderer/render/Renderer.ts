@@ -60,7 +60,14 @@ export const createRenderer = ({
         ctx.font = '16px Segoe UI, sans-serif';
         ctx.fillText('Safe mode: WebGL2 unavailable', 24, 32);
       },
-      setLayerAsset: async () => undefined
+      setLayerAsset: async () => undefined,
+      setPalette: () => {},
+      setPlasmaShaderSource: (_source: string | null) => ({ ok: false }),
+      getLastShaderError: () => null,
+      getGeneratorDiagnostics: () => [],
+      getMissingUniforms: () => [],
+      recompileForGenerators: () => false,
+      precompileVariant: () => {}
     };
   }
 
@@ -127,8 +134,9 @@ export const createRenderer = ({
     const fpsTick = tickFpsTracker(fpsTracker, delta);
     fpsTracker = fpsTick.tracker;
     if (fpsTick.fps !== null) {
+      const fps = fpsTick.fps;
       store.update((state) => {
-        state.diagnostics.fps = fpsTick.fps;
+        state.diagnostics.fps = fps;
       }, false);
     }
 

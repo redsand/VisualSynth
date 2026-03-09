@@ -29,6 +29,7 @@ import {
   DEFAULT_CLIP_SCHEDULER,
   DEFAULT_BPM_SMOOTHER
 } from '../src/shared/transport';
+import type { AutomationLane } from '../src/shared/transport';
 
 describe('beat position', () => {
   it('creates beat position from total beats', () => {
@@ -261,11 +262,11 @@ describe('automation lanes', () => {
   });
 
   it('removes automation points', () => {
-    let lane = {
+    let lane: AutomationLane = {
       id: 'lane-1',
       parameterId: 'intensity',
       parameterName: 'Intensity',
-      points: [{ beat: 5, value: 0.5, curve: 'linear' as const }],
+      points: [{ beat: 5, value: 0.5, curve: 'linear' }],
       enabled: true,
       recording: false,
       minValue: 0,
@@ -277,13 +278,13 @@ describe('automation lanes', () => {
   });
 
   it('clears all points', () => {
-    let lane = {
+    let lane: AutomationLane = {
       id: 'lane-1',
       parameterId: 'intensity',
       parameterName: 'Intensity',
       points: [
-        { beat: 0, value: 0, curve: 'linear' as const },
-        { beat: 10, value: 1, curve: 'linear' as const }
+        { beat: 0, value: 0, curve: 'linear' },
+        { beat: 10, value: 1, curve: 'linear' }
       ],
       enabled: true,
       recording: false,

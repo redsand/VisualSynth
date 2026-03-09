@@ -119,7 +119,7 @@ describe('preset library', () => {
 
           expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
 
-          const sceneIds = convertedProject.scenes.map(s => s.id);
+          const sceneIds = convertedProject.scenes.map((s: { id: string }) => s.id);
           expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
         } else {
           const project = validatedData;
@@ -127,7 +127,7 @@ describe('preset library', () => {
           // Structural Integrity
           expect(project.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
 
-          const sceneIds = project.scenes.map(s => s.id);
+          const sceneIds = project.scenes.map((s: { id: string }) => s.id);
           expect(sceneIds, `${file} has activeSceneId "${project.activeSceneId}" which does not exist`).toContain(project.activeSceneId);
 
           // Functional Deserialization (smoke test)

@@ -12,7 +12,7 @@ describe('E2E scene timeline smoke', () => {
   maybe('shows timeline items in rendered app', async () => {
     const puppeteer = await import('puppeteer');
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: ['--disable-gpu', '--no-sandbox']
     });
     const page = await browser.newPage();

@@ -23,13 +23,13 @@ import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 import { collectActiveGeneratorIds, collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { createDebugOverlay } from './render/debugOverlay';
-import { createLayerPanel } from './panels/LayerPanel';
+import { createLayerPanel } from './ui/panels/LayerPanel';
 import { createMixerPanel } from './ui/panels/MixerPanel';
 import { createModeDashboard } from './ui/panels/ModeDashboard';
 import { createSdfPanel } from './ui/panels/SdfPanel';
 import { createOutputManagerPanel, injectOutputManagerStyles } from './ui/panels/OutputManagerPanel';
 import { registerSdfNodes } from './sdf/nodes';
-import { createModulationPanel } from './panels/ModulationPanel';
+import { createModulationPanel } from './ui/panels/ModulationPanel';
 import { getBeatMs, getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
@@ -43,7 +43,7 @@ import { pluginManifestSchema } from '../shared/pluginSchema';
 import { mergeProjectSections, MergeOptions } from '../shared/projectMerge';
 import { toFileUrl } from '../shared/fileUrl';
 import { createAssetItem, normalizeAssetTags } from '../shared/assets';
-import type { AssetImportResult } from '../shared/assets';
+import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
@@ -99,7 +99,9 @@ declare global {
       ) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
       importAsset: (
         kind: 'texture' | 'shader' | 'video'
-      ) => Promise<{ canceled: boolean; filePath?: string }>;
+      ) => Promise<AssetImportResult>;
+      checkAssetPaths: (paths: string[]) => Promise<Record<string, boolean>>;
+      relinkAsset: (assetId: string, kind: string) => Promise<AssetImportResult & { assetId?: string }>;
       importPlugin: () => Promise<{ canceled: boolean; filePath?: string; payload?: string }>;
       openAssetFolder: (filePath: string) => Promise<{ opened: boolean }>;
       // Spout/NDI output integration
@@ -796,7 +798,26 @@ const padActionCycle = [
   'macro-5',
   'macro-6',
   'macro-7',
-  'macro-8'
+  'macro-8',
+  'toggle-lightning',
+  'toggle-analog-oscillo',
+  'toggle-speaker-cone',
+  'toggle-glitch-scanline',
+  'toggle-laser-starfield',
+  'toggle-pulsing-ribbons',
+  'toggle-electric-arc',
+  'toggle-pyro-burst',
+  'toggle-geo-wireframe',
+  'toggle-signal-noise',
+  'toggle-infinite-wormhole',
+  'toggle-ribbon-tunnel',
+  'toggle-fractal-tunnel',
+  'toggle-circuit-conduit',
+  'toggle-aura-portal',
+  'toggle-freq-terrain',
+  'toggle-data-stream',
+  'toggle-caustic-liquid',
+  'toggle-shimmer-veil'
 ] as const;
 
 const padActionLabels: Record<(typeof padActionCycle)[number], string> = {
@@ -849,7 +870,26 @@ const padActionLabels: Record<(typeof padActionCycle)[number], string> = {
   'macro-5': 'Macro 5',
   'macro-6': 'Macro 6',
   'macro-7': 'Macro 7',
-  'macro-8': 'Macro 8'
+  'macro-8': 'Macro 8',
+  'toggle-lightning': 'Lightning',
+  'toggle-analog-oscillo': 'Analog Oscillo',
+  'toggle-speaker-cone': 'Speaker Cone',
+  'toggle-glitch-scanline': 'Glitch Scanline',
+  'toggle-laser-starfield': 'Laser Starfield',
+  'toggle-pulsing-ribbons': 'Pulsing Ribbons',
+  'toggle-electric-arc': 'Electric Arc',
+  'toggle-pyro-burst': 'Pyro Burst',
+  'toggle-geo-wireframe': 'Geo Wireframe',
+  'toggle-signal-noise': 'Signal Noise',
+  'toggle-infinite-wormhole': 'Infinite Wormhole',
+  'toggle-ribbon-tunnel': 'Ribbon Tunnel',
+  'toggle-fractal-tunnel': 'Fractal Tunnel',
+  'toggle-circuit-conduit': 'Circuit Conduit',
+  'toggle-aura-portal': 'Aura Portal',
+  'toggle-freq-terrain': 'Freq Terrain',
+  'toggle-data-stream': 'Data Stream',
+  'toggle-caustic-liquid': 'Caustic Liquid',
+  'toggle-shimmer-veil': 'Shimmer Veil'
 };
 
 const setStatus = (message: string) => {
@@ -1128,7 +1168,7 @@ const syncTempoInputs = (value: number) => {
 const loadPlaylist = () => {
   try {
     const stored = localStorage.getItem('vs.preset.playlist');
-    playlist = stored ? (JSON.parse(stored) as { name: string; path: string }[]) : [];
+    playlist = stored ? (JSON.parse(stored) as { name: string; path: string; duration?: number; crossfade?: number }[]).map((item) => ({ duration: 0, crossfade: 0, ...item })) : [];
   } catch {
     playlist = [];
   }
@@ -2916,7 +2956,7 @@ const renderLayerList = () => {
       // Modern Generator Parameter Editing (Generic)
       if (layer.generatorId) {
           const genType = getLayerType(layer.generatorId);
-          const params = PARAMETER_REGISTRY[genType]?.params ?? [];
+          const params = genType?.params ?? [];
           if (params.length > 0) {
               const paramsContainer = document.createElement('div');
               paramsContainer.className = 'layer-params-grid';
@@ -2932,8 +2972,8 @@ const renderLayerList = () => {
                   pInput.type = 'range';
                   pInput.min = String(param.min ?? 0);
                   pInput.max = String(param.max ?? 1);
-                  pInput.step = String(param.step ?? 0.01);
-                  pInput.value = String(layer.params?.[param.id] ?? param.defaultValue);
+                  pInput.step = String(0.01);
+                  pInput.value = String(layer.params?.[param.id] ?? param.default);
                   pInput.className = 'param-slider';
                   
                   pInput.dataset.learnTarget = `${layer.id}.${param.id}`;
@@ -4082,7 +4122,7 @@ const importVideoAsset = async () => {
     height: result.height ?? videoMeta.height,
     colorSpace: result.colorSpace
   };
-  const options = buildVideoOptions();
+  const options = buildVideoOptions() ?? {};
   if (videoMeta.duration) {
     options.duration = videoMeta.duration;
   }
@@ -4214,7 +4254,7 @@ const createTextAsset = () => {
   renderAssets();
 
   // Automatically assign text to the media layer in the current scene
-  const mediaLayer = activeScene?.layers.find((l) => l.id === 'layer-media');
+  const mediaLayer = getActiveScene()?.layers.find((l: LayerConfig) => l.id === 'layer-media');
   if (mediaLayer) {
     mediaLayer.assetId = asset.id;
     mediaLayer.enabled = true;
@@ -4438,7 +4478,7 @@ const importPlugin = async () => {
         name: manifest.name,
         version: manifest.version,
         author: manifest.author,
-        kind: manifest.kind,
+        kind: manifest.kind as 'generator' | 'effect',
         entry: manifest.entry,
         enabled: true,
         addedAt: new Date().toISOString()
@@ -4489,7 +4529,7 @@ const renderDiffSections = () => {
     checkbox.type = 'checkbox';
     checkbox.dataset.diffKey = section.key;
     const baseValue = serializeSection(section.get(base));
-    const incomingValue = serializeSection(section.get(diffIncomingProject));
+    const incomingValue = serializeSection(section.get(diffIncomingProject!));
     const changed = baseValue !== incomingValue;
     checkbox.checked = changed;
     const label = document.createElement('span');
@@ -5441,10 +5481,10 @@ const ensureGeneratorLayer = (
     layer = {
       id: layerId,
       name,
-      role: options?.role ?? getDefaultRoleForLayerId(layerId),
+      role: (options?.role ?? getDefaultRoleForLayerId(layerId)) as LayerConfig['role'],
       enabled: true,
       opacity: options?.opacity ?? 1,
-      blendMode: options?.blendMode ?? 'screen',
+      blendMode: (options?.blendMode ?? 'screen') as LayerConfig['blendMode'],
       transform: { x: 0, y: 0, scale: 1, rotation: 0 },
       params: buildDefaultParamsForLayerId(layerId)
     };
@@ -7445,9 +7485,10 @@ const ensureAdvancedSdfLayer = () => {
     layer = {
       id: 'gen-sdf-scene',
       name: 'SDF Scene (Advanced)',
+      role: 'support' as LayerConfig['role'],
       enabled: true,
       opacity: 1,
-      blendMode: 'normal',
+      blendMode: 'normal' as LayerConfig['blendMode'],
       transform: { x: 0, y: 0, scale: 1, rotation: 0 },
       sdfScene: {
         nodes: [],
@@ -8370,7 +8411,7 @@ const updateAudioAnalysis = () => {
 const setupMIDI = async () => {
   try {
     midiAccess = await navigator.requestMIDIAccess();
-    const inputs = Array.from(midiAccess.inputs.values());
+    const inputs = Array.from((midiAccess.inputs as unknown as Map<string, MIDIInput>).values());
     midiSelect.innerHTML = '';
     inputs.forEach((input, index) => {
       const option = document.createElement('option');
@@ -8386,10 +8427,10 @@ const setupMIDI = async () => {
 const startMidiInput = async () => {
   if (midiAccess) {
     const inputId = midiSelect.value;
-    const input = Array.from(midiAccess.inputs.values()).find((item) => item.id === inputId);
+    const input = Array.from((midiAccess.inputs as unknown as Map<string, MIDIInput>).values()).find((item) => item.id === inputId);
     if (!input) return;
-    input.onmidimessage = (event) =>
-      handleMidiMessage(Array.from(event.data), event.timeStamp ?? performance.now());
+    (input as MIDIInput).onmidimessage = (event: MIDIMessageEvent) =>
+      handleMidiMessage(Array.from((event as MIDIMessageEvent).data ?? []), event.timeStamp ?? performance.now());
     setStatus(`MIDI connected: ${input.name ?? 'Unknown'}`);
   } else {
     const ports = await window.visualSynth.listNodeMidi();
@@ -8937,7 +8978,7 @@ diffApplyButton?.addEventListener('click', () => {
 
 exportSceneButton.addEventListener('click', async () => {
   try {
-    const payload = createSceneExchange(currentProject, currentProject.activeSceneId);
+    const payload = createSceneExchange(currentProject, currentProject.activeSceneId) as Extract<ExchangePayload, { kind: 'scene' }>;
     const result = await window.visualSynth.saveExchange(
       JSON.stringify(payload, null, 2),
       `visualsynth-scene-${payload.scene.id}.json`
@@ -9825,7 +9866,14 @@ try {
       ctx.font = '16px Segoe UI, sans-serif';
       ctx.fillText('Safe mode: WebGL2 unavailable', 24, 32);
     },
-    setLayerAsset: async () => undefined
+    setLayerAsset: async () => undefined,
+    setPalette: () => {},
+    setPlasmaShaderSource: (_source: string | null) => ({ ok: false }),
+    getLastShaderError: () => null,
+    getGeneratorDiagnostics: () => [],
+    getMissingUniforms: () => [],
+    recompileForGenerators: () => false,
+    precompileVariant: () => {}
   };
 }
 
@@ -10049,7 +10097,7 @@ const render = (time: number) => {
 
   updateAudioAnalysis();
   if (activeMode === 'mixer') {
-    mixerPanel?.updateMeters(audioState.rms, audioState.peak, audioState.bands);
+    mixerPanel?.updateMeters(audioState.rms, audioState.peak, Array.from(audioState.bands));
   }
   if (activeMode === 'performance') {
     const updateMeter = (id: string, val: number) => {
@@ -10243,7 +10291,8 @@ const render = (time: number) => {
   const buildRenderStateForScene = (renderScene: typeof activeScene | undefined) => {
     const getGeneratorLayers = (scene: typeof renderScene | undefined, generatorId: string) =>
       scene?.layers.filter((layer) => layer.generatorId === generatorId) ?? [];
-    const pickTopmostEnabled = (layers: typeof renderScene extends undefined ? never : typeof renderScene.layers) => {
+    type SceneLayers = NonNullable<typeof renderScene>['layers'];
+    const pickTopmostEnabled = (layers: SceneLayers) => {
       for (let i = layers.length - 1; i >= 0; i -= 1) {
         if (layers[i]?.enabled) return layers[i];
       }
@@ -11415,7 +11464,8 @@ const render = (time: number) => {
         idBytes: laserIdBytes,
         matchTarget: 'gen-laser-beam',
         matchNormalized: laserIdRaw
-      }
+      },
+      generators: []
     },
     currentFps
   );

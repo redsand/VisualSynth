@@ -156,7 +156,7 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
       const controlLabel = document.createElement('div');
       controlLabel.textContent = `${mapping.message.toUpperCase()} ${mapping.control}`;
       const targetLabel = document.createElement('div');
-      targetLabel.textContent = mapping.label || mapping.target;
+      targetLabel.textContent = mapping.target;
       const removeButton = document.createElement('button');
       removeButton.textContent = '✕';
       removeButton.addEventListener('click', () => {
@@ -181,7 +181,12 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
     project.modMatrix.push({
       source: 'audio.rms',
       target: 'layer-plasma.opacity',
-      amount: 0.5
+      amount: 0.5,
+      curve: 'linear',
+      smoothing: 0,
+      bipolar: false,
+      min: 0,
+      max: 1
     });
     renderModMatrix();
     setStatus('Modulation connection added.');

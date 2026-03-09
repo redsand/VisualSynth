@@ -34,7 +34,7 @@ describe('EDM Features E2E', () => {
 
     const puppeteer = await import('puppeteer');
     browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: ['--disable-gpu', '--no-sandbox', '--disable-setuid-sandbox']
     });
     page = await browser.newPage();

@@ -36,10 +36,6 @@ class MockWebGL2RenderingContext {
     this.canvas = canvas;
   }
 
-  get canvas() {
-    return this._canvas;
-  }
-
   getParameter(_pname: number): any {
     // Return mock values for common parameters
     return null;

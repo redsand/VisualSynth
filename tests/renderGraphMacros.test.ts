@@ -14,7 +14,7 @@ describe('render graph macros', () => {
         id: 'macro-1',
         name: 'Macro 1',
         value: 1.0,
-        targets: [{ target: { type: 'plasma', param: 'scale' }, amount: 0.5 }]
+        targets: [{ target: 'layer-plasma.scale', amount: 0.5 }]
       }
     ];
     const store = createStore(state);
