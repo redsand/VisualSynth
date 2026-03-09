@@ -2162,9 +2162,9 @@ const normalizeLayerId = (value: string) =>
     .replace(/^-+|-+$/g, '');
 
 const findLayerById = (
-  layers: { id?: string; generatorId?: string }[] | undefined,
+  layers: LayerConfig[] | undefined,
   id: string
-) => {
+): LayerConfig | undefined => {
   const target = normalizeLayerId(id);
   return layers?.find((layer) => {
     const layerId = normalizeLayerId(layer.id ?? '');

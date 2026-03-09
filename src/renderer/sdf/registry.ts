@@ -9,7 +9,8 @@ import type {
   SdfNodeDefinition,
   SdfNodeCategory,
   SdfCoordSpace,
-  SdfNodeRegistry
+  SdfNodeRegistry,
+  SdfNodeInstance
 } from './api';
 
 // ============================================================================

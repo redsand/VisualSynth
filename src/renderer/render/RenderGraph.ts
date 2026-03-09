@@ -1,6 +1,6 @@
 import { applyModMatrix } from '../../shared/modMatrix';
 import { buildLegacyTarget } from '../../shared/parameterRegistry';
-import { DEFAULT_PROJECT } from '../../shared/project';
+import { DEFAULT_PROJECT, LayerConfig } from '../../shared/project';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
@@ -180,17 +180,18 @@ const normalizeLayerId = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+type AnyLayer = { id?: string; generatorId?: string } & Record<string, unknown>;
 const findLayerById = (
-  layers: { id?: string; generatorId?: string }[] | undefined,
+  layers: AnyLayer[] | LayerConfig[] | undefined,
   id: string
-) => {
+): LayerConfig | undefined => {
   const target = normalizeLayerId(id);
-  return layers?.find((layer) => {
-    const layerId = normalizeLayerId(layer.id ?? '');
+  return (layers as AnyLayer[] | undefined)?.find((layer) => {
+    const layerId = normalizeLayerId((layer.id as string | undefined) ?? '');
     if (layerId === target) return true;
-    const generatorId = normalizeLayerId(layer.generatorId ?? '');
+    const generatorId = normalizeLayerId((layer.generatorId as string | undefined) ?? '');
     return generatorId === target;
-  });
+  }) as LayerConfig | undefined;
 };
 
 export class RenderGraph {
@@ -265,7 +266,9 @@ export class RenderGraph {
       present: false,
       enabledInScene: false,
       idRaw: '',
-      idBytes: ''
+      idBytes: '',
+      matchTarget: '',
+      matchNormalized: ''
     },
     generators: [],
     activeSceneId: ''
@@ -340,7 +343,7 @@ export class RenderGraph {
 
     this.macroState = {
       activeMacro: macro,
-      startTime: runtime.time,
+      startTime: runtime.time ?? 0,
       startBeat: runtime.beatCount ?? 0,
       progress: 0,
       isRunning: macro.durationBeats > 0
@@ -770,12 +773,12 @@ export class RenderGraph {
     // Burst SDF manual triggers
     if (action === 'burst-ring') {
       const state = this.store.getState();
-      burstSdfManager.triggerManual(0, state.runtime.time);
+      burstSdfManager.triggerManual(0, state.runtime.time ?? 0);
       return;
     }
     if (action === 'burst-star') {
       const state = this.store.getState();
-      burstSdfManager.triggerManual(1, state.runtime.time);
+      burstSdfManager.triggerManual(1, state.runtime.time ?? 0);
       return;
     }
     if (action === 'burst-toggle') {
@@ -1432,7 +1435,37 @@ export class RenderGraph {
     const warpDriveLayer = findLayerById(activeScene?.layers, 'gen-warp-drive');
     const feedbackLayer = findLayerById(activeScene?.layers, 'gen-visual-feedback');
     const myceliumLayer = findLayerById(activeScene?.layers, 'gen-mycelium-growth');
-    
+    const cellularGrowthLayer = findLayerById(activeScene?.layers, 'gen-cellular-growth');
+    const bioLuminescentLayer = findLayerById(activeScene?.layers, 'gen-bio-luminescent-forest');
+    const crystallineLayer = findLayerById(activeScene?.layers, 'gen-crystalline');
+    const audioDnaLayer = findLayerById(activeScene?.layers, 'gen-audio-dna');
+    const liquidMetalLayer = findLayerById(activeScene?.layers, 'gen-liquid-metal');
+    const neonCityscapeLayer = findLayerById(activeScene?.layers, 'gen-neon-cityscape');
+    const cosmicNebulaLayer = findLayerById(activeScene?.layers, 'gen-cosmic-nebula');
+    const sonicRainLayer = findLayerById(activeScene?.layers, 'gen-sonic-rain');
+    const morphingGeometryLayer = findLayerById(activeScene?.layers, 'gen-morphing-geometry');
+    const urbanRhythmLayer = findLayerById(activeScene?.layers, 'gen-urban-rhythm');
+    const crimsonVeilLayer = findLayerById(activeScene?.layers, 'gen-crimson-veil');
+    const victorianCryptLayer = findLayerById(activeScene?.layers, 'gen-victorian-crypt');
+    const spectralApparitionLayer = findLayerById(activeScene?.layers, 'gen-spectral-apparition');
+    const gothicCobwebsLayer = findLayerById(activeScene?.layers, 'gen-gothic-cobwebs');
+    const bloodMoonRiseLayer = findLayerById(activeScene?.layers, 'gen-blood-moon-rise');
+    const candlelightVigilLayer = findLayerById(activeScene?.layers, 'gen-candlelight-vigil');
+    const gargoylesAwakeLayer = findLayerById(activeScene?.layers, 'gen-gargoyles-awake');
+    const cryptShadowsLayer = findLayerById(activeScene?.layers, 'gen-crypt-shadows');
+    const gothicRoseLayer = findLayerById(activeScene?.layers, 'gen-gothic-rose');
+    const eternalDarknessLayer = findLayerById(activeScene?.layers, 'gen-eternal-darkness');
+    const pixelDustLayer = findLayerById(activeScene?.layers, 'gen-pixel-dust');
+    const retroStarfieldLayer = findLayerById(activeScene?.layers, 'gen-retro-starfield');
+    const eightBitGridLayer = findLayerById(activeScene?.layers, 'gen-eight-bit-grid');
+    const arcadeInvadersLayer = findLayerById(activeScene?.layers, 'gen-arcade-invaders');
+    const powerUpPulseLayer = findLayerById(activeScene?.layers, 'gen-power-up-pulse');
+    const dungeonTilesLayer = findLayerById(activeScene?.layers, 'gen-dungeon-tiles');
+    const chiptuneWaveLayer = findLayerById(activeScene?.layers, 'gen-chiptune-wave');
+    const scoreCounterLayer = findLayerById(activeScene?.layers, 'gen-score-counter');
+    const pixelRainLayer = findLayerById(activeScene?.layers, 'gen-pixel-rain');
+    const bossHealthLayer = findLayerById(activeScene?.layers, 'gen-boss-health');
+
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
     const origamiRole = getLayerRole(origamiLayer);
@@ -2026,7 +2059,130 @@ export class RenderGraph {
       myceliumGrowthEnabled: myceliumLayer?.enabled ?? false,
       myceliumGrowthOpacity: getLayerParamNumber(myceliumLayer, 'opacity', 1.0),
       myceliumGrowthSpread: getLayerParamNumber(myceliumLayer, 'spread', 1.0),
-      myceliumGrowthDecay: getLayerParamNumber(myceliumLayer, 'decay', 0.5)
+      myceliumGrowthDecay: getLayerParamNumber(myceliumLayer, 'decay', 0.5),
+      // New Unique Generators
+      cellularGrowthEnabled: cellularGrowthLayer?.enabled ?? false,
+      cellularGrowthOpacity: getLayerParamNumber(cellularGrowthLayer, 'opacity', 1.0),
+      cellularGrowthRate: getLayerParamNumber(cellularGrowthLayer, 'rate', 0.5),
+      cellularGrowthDensity: getLayerParamNumber(cellularGrowthLayer, 'density', 0.8),
+      bioLuminescentForestEnabled: bioLuminescentLayer?.enabled ?? false,
+      bioLuminescentForestOpacity: getLayerParamNumber(bioLuminescentLayer, 'opacity', 1.0),
+      bioLuminescentForestPulse: getLayerParamNumber(bioLuminescentLayer, 'pulse', 1.0),
+      bioLuminescentForestDensity: getLayerParamNumber(bioLuminescentLayer, 'density', 1.0),
+      crystallineEnabled: crystallineLayer?.enabled ?? false,
+      crystallineOpacity: getLayerParamNumber(crystallineLayer, 'opacity', 1.0),
+      crystallineRotation: getLayerParamNumber(crystallineLayer, 'rotation', 0),
+      crystallineRefraction: getLayerParamNumber(crystallineLayer, 'refraction', 1.0),
+      audioDnaEnabled: audioDnaLayer?.enabled ?? false,
+      audioDnaOpacity: getLayerParamNumber(audioDnaLayer, 'opacity', 1.0),
+      audioDnaRotation: getLayerParamNumber(audioDnaLayer, 'rotation', 0),
+      audioDnaSegments: getLayerParamNumber(audioDnaLayer, 'segments', 8.0),
+      liquidMetalEnabled: liquidMetalLayer?.enabled ?? false,
+      liquidMetalOpacity: getLayerParamNumber(liquidMetalLayer, 'opacity', 1.0),
+      liquidMetalFlow: getLayerParamNumber(liquidMetalLayer, 'flow', 1.0),
+      liquidMetalShimmer: getLayerParamNumber(liquidMetalLayer, 'shimmer', 1.0),
+      neonCityscapeEnabled: neonCityscapeLayer?.enabled ?? false,
+      neonCityscapeOpacity: getLayerParamNumber(neonCityscapeLayer, 'opacity', 1.0),
+      neonCityscapeSpeed: getLayerParamNumber(neonCityscapeLayer, 'speed', 1.0),
+      neonCityscapeDensity: getLayerParamNumber(neonCityscapeLayer, 'density', 1.0),
+      cosmicNebulaEnabled: cosmicNebulaLayer?.enabled ?? false,
+      cosmicNebulaOpacity: getLayerParamNumber(cosmicNebulaLayer, 'opacity', 1.0),
+      cosmicNebulaExpansion: getLayerParamNumber(cosmicNebulaLayer, 'expansion', 1.0),
+      cosmicNebulaTurbulence: getLayerParamNumber(cosmicNebulaLayer, 'turbulence', 1.0),
+      sonicRainEnabled: sonicRainLayer?.enabled ?? false,
+      sonicRainOpacity: getLayerParamNumber(sonicRainLayer, 'opacity', 1.0),
+      sonicRainSpeed: getLayerParamNumber(sonicRainLayer, 'speed', 1.0),
+      sonicRainDensity: getLayerParamNumber(sonicRainLayer, 'density', 1.0),
+      morphingGeometryEnabled: morphingGeometryLayer?.enabled ?? false,
+      morphingGeometryOpacity: getLayerParamNumber(morphingGeometryLayer, 'opacity', 1.0),
+      morphingGeometrySpeed: getLayerParamNumber(morphingGeometryLayer, 'speed', 1.0),
+      morphingGeometryComplexity: getLayerParamNumber(morphingGeometryLayer, 'complexity', 3.0),
+      urbanRhythmEnabled: urbanRhythmLayer?.enabled ?? false,
+      urbanRhythmOpacity: getLayerParamNumber(urbanRhythmLayer, 'opacity', 1.0),
+      urbanRhythmBpm: getLayerParamNumber(urbanRhythmLayer, 'bpm', 120.0),
+      urbanRhythmIntensity: getLayerParamNumber(urbanRhythmLayer, 'intensity', 1.0),
+      // Goth Generators
+      crimsonVeilEnabled: crimsonVeilLayer?.enabled ?? false,
+      crimsonVeilOpacity: getLayerParamNumber(crimsonVeilLayer, 'opacity', 1.0),
+      crimsonVeilFlow: getLayerParamNumber(crimsonVeilLayer, 'flow', 1.0),
+      crimsonVeilDarkness: getLayerParamNumber(crimsonVeilLayer, 'darkness', 1.0),
+      victorianCryptEnabled: victorianCryptLayer?.enabled ?? false,
+      victorianCryptOpacity: getLayerParamNumber(victorianCryptLayer, 'opacity', 1.0),
+      victorianCryptComplexity: getLayerParamNumber(victorianCryptLayer, 'complexity', 3.0),
+      victorianCryptDecay: getLayerParamNumber(victorianCryptLayer, 'decay', 1.0),
+      spectralApparitionEnabled: spectralApparitionLayer?.enabled ?? false,
+      spectralApparitionOpacity: getLayerParamNumber(spectralApparitionLayer, 'opacity', 1.0),
+      spectralApparitionDensity: getLayerParamNumber(spectralApparitionLayer, 'density', 1.0),
+      spectralApparitionFade: getLayerParamNumber(spectralApparitionLayer, 'fade', 1.0),
+      gothicCobwebsEnabled: gothicCobwebsLayer?.enabled ?? false,
+      gothicCobwebsOpacity: getLayerParamNumber(gothicCobwebsLayer, 'opacity', 1.0),
+      gothicCobwebsDensity: getLayerParamNumber(gothicCobwebsLayer, 'density', 1.0),
+      gothicCobwebsDecay: getLayerParamNumber(gothicCobwebsLayer, 'decay', 1.0),
+      bloodMoonRiseEnabled: bloodMoonRiseLayer?.enabled ?? false,
+      bloodMoonRiseOpacity: getLayerParamNumber(bloodMoonRiseLayer, 'opacity', 1.0),
+      bloodMoonRiseEclipse: getLayerParamNumber(bloodMoonRiseLayer, 'eclipse', 0),
+      bloodMoonRiseGlow: getLayerParamNumber(bloodMoonRiseLayer, 'glow', 0.5),
+      candlelightVigilEnabled: candlelightVigilLayer?.enabled ?? false,
+      candlelightVigilOpacity: getLayerParamNumber(candlelightVigilLayer, 'opacity', 1.0),
+      candlelightVigilFlicker: getLayerParamNumber(candlelightVigilLayer, 'flicker', 1.0),
+      candlelightVigilDecay: getLayerParamNumber(candlelightVigilLayer, 'decay', 1.0),
+      gargoylesAwakeEnabled: gargoylesAwakeLayer?.enabled ?? false,
+      gargoylesAwakeOpacity: getLayerParamNumber(gargoylesAwakeLayer, 'opacity', 1.0),
+      gargoylesAwakeAnimation: getLayerParamNumber(gargoylesAwakeLayer, 'animation', 1.0),
+      gargoylesAwakeShadow: getLayerParamNumber(gargoylesAwakeLayer, 'shadow', 1.0),
+      cryptShadowsEnabled: cryptShadowsLayer?.enabled ?? false,
+      cryptShadowsOpacity: getLayerParamNumber(cryptShadowsLayer, 'opacity', 1.0),
+      cryptShadowsDepth: getLayerParamNumber(cryptShadowsLayer, 'depth', 1.0),
+      cryptShadowsMovement: getLayerParamNumber(cryptShadowsLayer, 'movement', 1.0),
+      gothicRoseEnabled: gothicRoseLayer?.enabled ?? false,
+      gothicRoseOpacity: getLayerParamNumber(gothicRoseLayer, 'opacity', 1.0),
+      gothicRoseDecay: getLayerParamNumber(gothicRoseLayer, 'decay', 1.0),
+      gothicRoseThorns: getLayerParamNumber(gothicRoseLayer, 'thorns', 1.0),
+      eternalDarknessEnabled: eternalDarknessLayer?.enabled ?? false,
+      eternalDarknessOpacity: getLayerParamNumber(eternalDarknessLayer, 'opacity', 1.0),
+      eternalDarknessVoid: getLayerParamNumber(eternalDarknessLayer, 'void', 1.0),
+      eternalDarknessTraces: getLayerParamNumber(eternalDarknessLayer, 'traces', 1.0),
+      // Retro Game Generators
+      pixelDustEnabled: pixelDustLayer?.enabled ?? false,
+      pixelDustOpacity: getLayerParamNumber(pixelDustLayer, 'opacity', 1.0),
+      pixelDustDensity: getLayerParamNumber(pixelDustLayer, 'density', 1.0),
+      pixelDustPixelSize: getLayerParamNumber(pixelDustLayer, 'pixelSize', 4.0),
+      retroStarfieldEnabled: retroStarfieldLayer?.enabled ?? false,
+      retroStarfieldOpacity: getLayerParamNumber(retroStarfieldLayer, 'opacity', 1.0),
+      retroStarfieldSpeed: getLayerParamNumber(retroStarfieldLayer, 'speed', 1.0),
+      retroStarfieldSize: getLayerParamNumber(retroStarfieldLayer, 'size', 2.0),
+      eightBitGridEnabled: eightBitGridLayer?.enabled ?? false,
+      eightBitGridOpacity: getLayerParamNumber(eightBitGridLayer, 'opacity', 1.0),
+      eightBitGridSpeed: getLayerParamNumber(eightBitGridLayer, 'speed', 1.0),
+      eightBitGridPixelSize: getLayerParamNumber(eightBitGridLayer, 'pixelSize', 8.0),
+      arcadeInvadersEnabled: arcadeInvadersLayer?.enabled ?? false,
+      arcadeInvadersOpacity: getLayerParamNumber(arcadeInvadersLayer, 'opacity', 1.0),
+      arcadeInvadersDensity: getLayerParamNumber(arcadeInvadersLayer, 'density', 1.0),
+      arcadeInvadersAnimation: getLayerParamNumber(arcadeInvadersLayer, 'animation', 1.0),
+      powerUpPulseEnabled: powerUpPulseLayer?.enabled ?? false,
+      powerUpPulseOpacity: getLayerParamNumber(powerUpPulseLayer, 'opacity', 1.0),
+      powerUpPulseIntensity: getLayerParamNumber(powerUpPulseLayer, 'intensity', 1.0),
+      powerUpPulseSpeed: getLayerParamNumber(powerUpPulseLayer, 'speed', 1.0),
+      dungeonTilesEnabled: dungeonTilesLayer?.enabled ?? false,
+      dungeonTilesOpacity: getLayerParamNumber(dungeonTilesLayer, 'opacity', 1.0),
+      dungeonTilesPattern: getLayerParamNumber(dungeonTilesLayer, 'pattern', 0),
+      dungeonTilesAnimation: getLayerParamNumber(dungeonTilesLayer, 'animation', 1.0),
+      chiptuneWaveEnabled: chiptuneWaveLayer?.enabled ?? false,
+      chiptuneWaveOpacity: getLayerParamNumber(chiptuneWaveLayer, 'opacity', 1.0),
+      chiptuneWaveBits: getLayerParamNumber(chiptuneWaveLayer, 'bits', 8.0),
+      chiptuneWaveSpeed: getLayerParamNumber(chiptuneWaveLayer, 'speed', 1.0),
+      scoreCounterEnabled: scoreCounterLayer?.enabled ?? false,
+      scoreCounterOpacity: getLayerParamNumber(scoreCounterLayer, 'opacity', 1.0),
+      scoreCounterDigits: getLayerParamNumber(scoreCounterLayer, 'digits', 6.0),
+      scoreCounterAnimation: getLayerParamNumber(scoreCounterLayer, 'animation', 1.0),
+      pixelRainEnabled: pixelRainLayer?.enabled ?? false,
+      pixelRainOpacity: getLayerParamNumber(pixelRainLayer, 'opacity', 1.0),
+      pixelRainDensity: getLayerParamNumber(pixelRainLayer, 'density', 1.0),
+      pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
+      bossHealthEnabled: bossHealthLayer?.enabled ?? false,
+      bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
+      bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 1.0),
+      bossHealthBars: getLayerParamNumber(bossHealthLayer, 'bars', 1.0)
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);
@@ -2035,7 +2191,9 @@ export class RenderGraph {
 
   private updateDebug(
     activeScene: {
+      id?: string;
       name: string;
+      look?: { activePaletteId?: string };
       layers: {
         id: string;
         generatorId?: string;

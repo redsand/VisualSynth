@@ -477,7 +477,26 @@ export type PadAction =
   | 'macro-5'
   | 'macro-6'
   | 'macro-7'
-  | 'macro-8';
+  | 'macro-8'
+  | 'toggle-lightning'
+  | 'toggle-analog-oscillo'
+  | 'toggle-speaker-cone'
+  | 'toggle-glitch-scanline'
+  | 'toggle-laser-starfield'
+  | 'toggle-pulsing-ribbons'
+  | 'toggle-electric-arc'
+  | 'toggle-pyro-burst'
+  | 'toggle-geo-wireframe'
+  | 'toggle-signal-noise'
+  | 'toggle-infinite-wormhole'
+  | 'toggle-ribbon-tunnel'
+  | 'toggle-fractal-tunnel'
+  | 'toggle-circuit-conduit'
+  | 'toggle-aura-portal'
+  | 'toggle-freq-terrain'
+  | 'toggle-data-stream'
+  | 'toggle-caustic-liquid'
+  | 'toggle-shimmer-veil';
 
 export interface VisualSynthProject {
   version: number;

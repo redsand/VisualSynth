@@ -95,12 +95,13 @@ export const createFxPanel = ({ store, armFxDelta }: FxPanelDeps): FxPanelApi =>
   const applyExpressiveControls = () => {
     actions.mutateProject(store, (project) => {
       project.expressiveFx = {
+        enabled: project.expressiveFx.enabled,
         energyBloom: {
           enabled: expressiveEnergyEnabled.checked,
           macro: Number(expressiveEnergyMacro.value),
           intentBinding: {
             enabled: expressiveEnergyIntentEnabled.checked,
-            intent: expressiveEnergyIntent.value as typeof project.scenes[number]['intent'],
+            intent: expressiveEnergyIntent.value as import('../../../shared/project').SceneIntent,
             amount: Number(expressiveEnergyIntentAmount.value)
           },
           expert: {
@@ -113,7 +114,7 @@ export const createFxPanel = ({ store, armFxDelta }: FxPanelDeps): FxPanelApi =>
           macro: Number(expressiveRadialMacro.value),
           intentBinding: {
             enabled: expressiveRadialIntentEnabled.checked,
-            intent: expressiveRadialIntent.value as typeof project.scenes[number]['intent'],
+            intent: expressiveRadialIntent.value as import('../../../shared/project').SceneIntent,
             amount: Number(expressiveRadialIntentAmount.value)
           },
           expert: {
@@ -128,7 +129,7 @@ export const createFxPanel = ({ store, armFxDelta }: FxPanelDeps): FxPanelApi =>
           macro: Number(expressiveEchoMacro.value),
           intentBinding: {
             enabled: expressiveEchoIntentEnabled.checked,
-            intent: expressiveEchoIntent.value as typeof project.scenes[number]['intent'],
+            intent: expressiveEchoIntent.value as import('../../../shared/project').SceneIntent,
             amount: Number(expressiveEchoIntentAmount.value)
           },
           expert: {
@@ -141,7 +142,7 @@ export const createFxPanel = ({ store, armFxDelta }: FxPanelDeps): FxPanelApi =>
           macro: Number(expressiveSmearMacro.value),
           intentBinding: {
             enabled: expressiveSmearIntentEnabled.checked,
-            intent: expressiveSmearIntent.value as typeof project.scenes[number]['intent'],
+            intent: expressiveSmearIntent.value as import('../../../shared/project').SceneIntent,
             amount: Number(expressiveSmearIntentAmount.value)
           },
           expert: {

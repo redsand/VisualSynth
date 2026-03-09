@@ -31,7 +31,7 @@ export const createMidiEngine = (store: Store, callbacks: MidiEngineCallbacks): 
   const initDevices = async (select: HTMLSelectElement) => {
     try {
       midiAccess = await navigator.requestMIDIAccess();
-      const inputs = Array.from(midiAccess.inputs.values());
+      const inputs = Array.from((midiAccess.inputs as unknown as Map<string, MIDIInput>).values());
       select.innerHTML = '';
       inputs.forEach((input, index) => {
         const option = document.createElement('option');
@@ -75,7 +75,7 @@ export const createMidiEngine = (store: Store, callbacks: MidiEngineCallbacks): 
         }
         if (mapping.message === 'cc' && messageType === 0xb0) {
           if (mapping.control !== data1) return;
-          callbacks.onMidiTarget(mapping.target, data2);
+          callbacks.onMidiTarget(mapping.target, data2, false);
         }
         if (mapping.message === 'aftertouch' && messageType === 0xd0) {
           callbacks.onMidiTarget(mapping.target, data1 / 127, false);
@@ -97,9 +97,9 @@ export const createMidiEngine = (store: Store, callbacks: MidiEngineCallbacks): 
   const startInput = async (select: HTMLSelectElement) => {
     if (midiAccess) {
       const inputId = select.value;
-      const input = Array.from(midiAccess.inputs.values()).find((item) => item.id === inputId);
+      const input = Array.from((midiAccess.inputs as unknown as Map<string, MIDIInput>).values()).find((item) => item.id === inputId);
       if (!input) return;
-      input.onmidimessage = (event) => handleMessage(Array.from(event.data), event.timeStamp ?? performance.now());
+      input.onmidimessage = (event) => handleMessage(Array.from(event.data ?? []), event.timeStamp ?? performance.now());
       setStatus(`MIDI connected: ${input.name ?? 'Unknown'}`);
     } else {
       const ports = await window.visualSynth.listNodeMidi();

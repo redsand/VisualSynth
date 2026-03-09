@@ -11,6 +11,9 @@ export interface AudioState {
 }
 
 export interface RuntimeState {
+  time?: number;
+  beatCount?: number;
+  bpm?: number;
   strobeIntensity: number;
   strobeDecay: number;
   origamiFoldState: number;

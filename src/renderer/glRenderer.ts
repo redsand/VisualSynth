@@ -730,6 +730,24 @@ vec3 blendDifference(vec3 base, vec3 blend) {
   return abs(base - blend);
 }
 
+vec3 applyBlendMode(vec3 base, vec3 blend, float mode, float opacity) {
+  vec3 result;
+  if (mode < 0.5) {
+    result = blend;
+  } else if (mode < 1.5) {
+    result = blendAdd(base, blend);
+  } else if (mode < 2.5) {
+    result = blendMultiply(base, blend);
+  } else if (mode < 3.5) {
+    result = blendScreen(base, blend);
+  } else if (mode < 4.5) {
+    result = blendOverlay(base, blend);
+  } else {
+    result = blendDifference(base, blend);
+  }
+  return mix(base, result, opacity);
+}
+
 float sdSegment(vec2 p, vec2 a, vec2 b) {
   vec2 pa = p - a;
   vec2 ba = b - a;
@@ -846,54 +864,6 @@ float sdArc(vec2 p, vec2 c, float r, float w) {
   return r - l;
 }
 
-float plasmaDefault(vec2 uv, float t) {
-  float v = 0.0;
-  vec2 p = uv * uPlasmaScale;
-  float audio = (uRms * 0.5 + uPeak * 0.5) * uPlasmaAudioReact;
-
-  for (float i = 1.0; i < 9.0; i += 1.0) {
-      if (i > uPlasmaComplexity) break;
-      v += sin(p.x * i + t * uPlasmaSpeed * (1.0 + i * 0.1) + audio * i);
-      v += sin(p.y * i - t * uPlasmaSpeed * (1.1 + i * 0.15) + audio * 0.5);
-      p += vec2(sin(t * 0.1), cos(t * 0.1)) * 0.5;
-  }
-
-  return v / uPlasmaComplexity * 0.5 + 0.5;
-}
-
-vec3 samplePlasma(vec2 uv, float t) {
-#ifdef HAS_CUSTOM_PLASMA
-  return customPlasma(uv, t);
-#else
-  float p = plasmaDefault(uv, t);
-  return palette(p);
-#endif
-}
-
-float particleField(vec2 uv, float t, float density, float speed, float size) {
-  float grid = mix(18.0, 90.0, density);
-  float audio = (uRms * 0.4 + uPeak * 0.6) * uParticleAudioLift;
-  vec2 drift = vec2(t * 0.02 * (0.2 + speed), t * 0.015 * (0.2 + speed));
-
-  // Add turbulence
-  vec2 turb = vec2(
-      sin(uv.y * 4.0 + t * 0.5),
-      cos(uv.x * 4.0 + t * 0.5)
-  ) * uParticleTurbulence * 0.5;
-
-  vec2 gv = uv * grid + drift + turb;
-  vec2 cell = floor(gv);
-  vec2 f = fract(gv);
-  float rnd = hash21(cell);
-  vec2 pos = vec2(hash21(cell + 1.3), hash21(cell + 9.1));
-  pos = 0.2 + 0.6 * pos;
-
-  float twinkle = 0.4 + 0.6 * sin(t * (1.5 + rnd * 2.5) + rnd * 6.2831) + audio;
-  float radius = mix(0.05, 0.015, density) * mix(1.4, 0.6, size);
-  float d = distance(f, pos);
-  float spark = smoothstep(radius, 0.0, d);
-  return spark * twinkle;
-}
 `;
 
   // Shader main template containing the main function with generator call placeholders

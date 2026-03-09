@@ -69,6 +69,7 @@ export const createProjectIO = ({
       return;
     }
     project.expressiveFx = {
+      enabled: current.enabled ?? fallback.enabled,
       energyBloom: {
         ...fallback.energyBloom,
         ...current.energyBloom,

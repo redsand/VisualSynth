@@ -1,8 +1,8 @@
-import { removeLayer } from '../../shared/layers';
-import type { AssetItem, LayerConfig } from '../../shared/project';
+import { removeLayer as removeLayerFromScene } from '../../../shared/layers';
+import type { AssetItem, LayerConfig } from '../../../shared/project';
 import type { Store } from '../../state/store';
 import { actions } from '../../state/actions';
-import { GENERATORS, GeneratorId, toggleFavorite, updateRecents } from '../../shared/generatorLibrary';
+import { GENERATORS, GeneratorId, toggleFavorite, updateRecents } from '../../../shared/generatorLibrary';
 import { assetService } from '../assetService';
 import { setStatus } from '../../state/events';
 
@@ -278,7 +278,7 @@ export const createLayerPanel = ({
   const removeLayer = (sceneId: string, layerId: string) => {
     const scene = store.getState().project.scenes.find((item) => item.id === sceneId);
     if (!scene) return;
-    scene.layers = removeLayer(scene, layerId);
+    scene.layers = removeLayerFromScene(scene, layerId);
     let coreAssigned = false;
     scene.layers.forEach((layer) => {
       if (layer.role === 'core') {

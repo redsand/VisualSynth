@@ -3523,7 +3523,27 @@ uniform float uParticleGlow;
 uniform float uParticleTurbulence;
 uniform float uParticleAudioLift;
 `,
-    functions: ``,
+    functions: `float particleField(vec2 uv, float t, float density, float speed, float size) {
+  float grid = mix(18.0, 90.0, density);
+  float audio = (uRms * 0.4 + uPeak * 0.6) * uParticleAudioLift;
+  vec2 drift = vec2(t * 0.02 * (0.2 + speed), t * 0.015 * (0.2 + speed));
+  vec2 turb = vec2(
+      sin(uv.y * 4.0 + t * 0.5),
+      cos(uv.x * 4.0 + t * 0.5)
+  ) * uParticleTurbulence * 0.5;
+  vec2 gv = uv * grid + drift + turb;
+  vec2 cell = floor(gv);
+  vec2 f = fract(gv);
+  float rnd = hash21(cell);
+  vec2 pos = vec2(hash21(cell + 1.3), hash21(cell + 9.1));
+  pos = 0.2 + 0.6 * pos;
+  float twinkle = 0.4 + 0.6 * sin(t * (1.5 + rnd * 2.5) + rnd * 6.2831) + audio;
+  float radius = mix(0.05, 0.015, density) * mix(1.4, 0.6, size);
+  float d = distance(f, pos);
+  float spark = smoothstep(radius, 0.0, d);
+  return spark * twinkle;
+}
+`,
     mainCall: `  if (uParticlesEnabled > 0.5) color += palette(0.5) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8) * uRoleWeights.z;
 `,
   },
@@ -3612,7 +3632,27 @@ uniform float uWormholeSpeed;
 uniform float uWormholeWeave;
 uniform float uWormholeIter;
 `,
-    functions: ``,
+    functions: `vec3 infiniteWormhole(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  p.x *= uAspect;
+  float r = length(p);
+  float a = atan(p.y, p.x);
+  float iter = max(2.0, uWormholeIter);
+  float speed = uWormholeSpeed;
+  float weave = uWormholeWeave;
+  float depth = 1.0 / (r + 0.05);
+  vec3 col = vec3(0.0);
+  for (float i = 1.0; i <= 6.0; i += 1.0) {
+    if (i > iter) break;
+    float phase = depth * i * 0.4 - t * speed * (0.3 + i * 0.07);
+    float twist = a + depth * weave * i * 0.3 + t * speed * 0.2;
+    float ring = smoothstep(0.04, 0.0, abs(fract(phase) - 0.5) - 0.44);
+    col += palette(fract(i * 0.17 + twist * 0.1 + t * 0.05 + audio * 0.3)) * ring * (0.6 + audio * 0.6);
+  }
+  float vignette = smoothstep(1.2, 0.1, r);
+  return col * vignette * uWormholeOpacity;
+}
+`,
     mainCall: `  if (uWormholeEnabled > 0.5) {
     color += infiniteWormhole(effectUv, uTime, low) * uRoleWeights.x;
   }

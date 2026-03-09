@@ -302,6 +302,7 @@ const spectralSmearSchema = z.object({
 });
 
 const expressiveFxSchema = z.object({
+  enabled: z.boolean().default(true),
   energyBloom: energyBloomSchema,
   radialGravity: radialGravitySchema,
   motionEcho: motionEchoSchema,

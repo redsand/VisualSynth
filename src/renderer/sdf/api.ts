@@ -169,8 +169,6 @@ export interface SdfNodeInstance {
   enabled: boolean;
   /** Position in node list (for ordering) */
   order: number;
-  /** Custom label (optional) */
-  label?: string;
 }
 
 // ============================================================================
@@ -586,14 +584,14 @@ export const createModTarget = (
   parameterId: string,
   minRange = 0,
   maxRange = 1,
-  options?: Partial<Omit<SdfModTarget, 'parameterId'>>
+  options?: boolean | Partial<Omit<SdfModTarget, 'parameterId'>>
 ): SdfModTarget => ({
   parameterId,
   minRange,
   maxRange,
   bipolar: false,
   curve: 'linear',
-  ...options
+  ...(typeof options === 'boolean' ? { bipolar: options } : options)
 });
 
 export const createNodeInstance = (
