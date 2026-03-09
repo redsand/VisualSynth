@@ -384,7 +384,7 @@ export const createLayerPanel = ({
       onPerformanceToggleSync();
     };
 
-    const setEffects = (patch: Partial<typeof store.getState().project.effects>) => {
+    const setEffects = (patch: Partial<ReturnType<typeof store.getState>['project']['effects']>) => {
       actions.mutateProject(store, (project) => {
         project.effects = {
           ...project.effects,
@@ -394,7 +394,7 @@ export const createLayerPanel = ({
       });
     };
 
-    const setParticles = (patch: Partial<typeof store.getState().project.particles>) => {
+    const setParticles = (patch: Partial<ReturnType<typeof store.getState>['project']['particles']>) => {
       actions.mutateProject(store, (project) => {
         project.particles = { ...project.particles, ...patch };
       });

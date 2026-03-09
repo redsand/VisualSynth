@@ -21,6 +21,7 @@ import { SceneManager, captureSceneSnapshot } from './scene/SceneManager';
 import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
+import { collectActiveGeneratorIds, collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './panels/LayerPanel';
 import { createMixerPanel } from './ui/panels/MixerPanel';
@@ -5111,6 +5112,11 @@ const applyScene = (sceneId: string) => {
   }
   sceneManager.markSceneActivated(transportTimeMs);
   paletteApplyToggle.checked = Boolean(scene.look?.activePaletteId);
+
+  // Recompile shaders for this scene's generators (cache hit if precompiled at load time)
+  const activeIds = collectSceneGeneratorIds(scene);
+  renderer.recompileForGenerators(activeIds);
+  console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${activeIds.size} active generators`);
   sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
     sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
@@ -6458,6 +6464,166 @@ const addGenerator = (id: GeneratorId) => {
     }
     setStatus('Generator: Urban Rhythm added.');
   }
+  if (id === 'gen-crimson-veil') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-crimson-veil', 'Crimson Veil', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Crimson Veil added.');
+  }
+  if (id === 'gen-victorian-crypt') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-victorian-crypt', 'Victorian Crypt', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Victorian Crypt added.');
+  }
+  if (id === 'gen-spectral-apparition') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-spectral-apparition', 'Spectral Apparition', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Spectral Apparition added.');
+  }
+  if (id === 'gen-gothic-cobwebs') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-gothic-cobwebs', 'Gothic Cobwebs', { blendMode: 'multiply' });
+      renderLayerList();
+    }
+    setStatus('Generator: Gothic Cobwebs added.');
+  }
+  if (id === 'gen-blood-moon-rise') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-blood-moon-rise', 'Blood Moon Rise', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Blood Moon Rise added.');
+  }
+  if (id === 'gen-candlelight-vigil') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-candlelight-vigil', 'Candlelight Vigil', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Candlelight Vigil added.');
+  }
+  if (id === 'gen-gargoyles-awake') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-gargoyles-awake', 'Gargoyles Awake', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Gargoyles Awake added.');
+  }
+  if (id === 'gen-crypt-shadows') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-crypt-shadows', 'Crypt Shadows', { blendMode: 'multiply' });
+      renderLayerList();
+    }
+    setStatus('Generator: Crypt Shadows added.');
+  }
+  if (id === 'gen-gothic-rose') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-gothic-rose', 'Gothic Rose', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Gothic Rose added.');
+  }
+  if (id === 'gen-eternal-darkness') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-eternal-darkness', 'Eternal Darkness', { blendMode: 'multiply' });
+      renderLayerList();
+    }
+    setStatus('Generator: Eternal Darkness added.');
+  }
+  if (id === 'gen-pixel-dust') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-pixel-dust', 'Pixel Dust', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Pixel Dust added.');
+  }
+  if (id === 'gen-retro-starfield') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-retro-starfield', 'Retro Starfield', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Retro Starfield added.');
+  }
+  if (id === 'gen-8bit-grid') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-8bit-grid', '8-Bit Grid', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: 8-Bit Grid added.');
+  }
+  if (id === 'gen-arcade-invaders') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-arcade-invaders', 'Arcade Invaders', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Arcade Invaders added.');
+  }
+  if (id === 'gen-power-up-pulse') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-power-up-pulse', 'Power-Up Pulse', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Power-Up Pulse added.');
+  }
+  if (id === 'gen-dungeon-tiles') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-dungeon-tiles', 'Dungeon Tiles', { blendMode: 'multiply' });
+      renderLayerList();
+    }
+    setStatus('Generator: Dungeon Tiles added.');
+  }
+  if (id === 'gen-chiptune-wave') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-chiptune-wave', 'Chiptune Wave', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Chiptune Wave added.');
+  }
+  if (id === 'gen-score-counter') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-score-counter', 'Score Counter', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Score Counter added.');
+  }
+  if (id === 'gen-pixel-rain') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-pixel-rain', 'Pixel Rain', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Pixel Rain added.');
+  }
+  if (id === 'gen-boss-health') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureGeneratorLayer(scene, 'gen-boss-health', 'Boss Health', { blendMode: 'screen' });
+      renderLayerList();
+    }
+    setStatus('Generator: Boss Health added.');
+  }
   generatorRecentsState = updateRecents(generatorRecentsState, id);
   saveGeneratorLibrary();
   refreshGeneratorUI();
@@ -6969,6 +7135,9 @@ const applyPaletteSelection = (paletteId: string) => {
   currentProject.activePaletteId = palette.id;
   renderPalettePreview(palette.colors);
   renderer?.setPalette?.(palette.colors);
+  // Sync mixer palette select if it exists
+  const mixerSelect = document.getElementById('mixer-palette-select') as HTMLSelectElement | null;
+  if (mixerSelect && mixerSelect.value !== palette.id) mixerSelect.value = palette.id;
 
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (paletteApplyToggle.checked && scene) {
@@ -8397,6 +8566,22 @@ const applyProject = async (project: VisualSynthProject) => {
   initEngineSelect();
   refreshSceneSelect();
   applyScene(currentProject.activeSceneId);
+
+  // Recompile shaders for all project generators (covers active scene)
+  const activeIds = collectActiveGeneratorIds(currentProject);
+  renderer.recompileForGenerators(activeIds);
+  console.log(`[Project] Applied project "${currentProject.name}", recompiled shaders for ${activeIds.size} active generators`);
+
+  // Precompile per-scene variants in idle time for zero-stall scene switching
+  const scenesToPrecompile = [...currentProject.scenes];
+  const precompileNext = (index: number) => {
+    if (index >= scenesToPrecompile.length) return;
+    const ids = collectSceneGeneratorIds(scenesToPrecompile[index]);
+    renderer.precompileVariant(ids);
+    setTimeout(() => precompileNext(index + 1), 0);
+  };
+  setTimeout(() => precompileNext(0), 200);
+
   outputConfig = { ...DEFAULT_OUTPUT_CONFIG, ...currentProject.output };
   await syncOutputConfig(outputConfig);
   await setOutputEnabled(outputConfig.enabled);
@@ -9232,7 +9417,8 @@ const initPresets = async () => {
     presetSelect.appendChild(option);
   });
   refreshPresetCategories();
-  renderPresetBrowser();
+  // Defer browser render to avoid blocking the loading sequence with 100+ DOM nodes
+  setTimeout(() => renderPresetBrowser(), 0);
   const hasPresets = presets.length > 0;
   presetPrevButton.disabled = !hasPresets;
   presetNextButton.disabled = !hasPresets;
@@ -10149,6 +10335,26 @@ const render = (time: number) => {
   const warpDriveLayer = findLayerById(renderScene?.layers, 'gen-warp-drive');
   const myceliumLayer = findLayerById(renderScene?.layers, 'gen-mycelium-growth');
   const feedbackLayer = findLayerById(renderScene?.layers, 'gen-visual-feedback');
+  const crimsonVeilLayer = findLayerById(renderScene?.layers, 'gen-crimson-veil');
+  const victorianCryptLayer = findLayerById(renderScene?.layers, 'gen-victorian-crypt');
+  const spectralApparitionLayer = findLayerById(renderScene?.layers, 'gen-spectral-apparition');
+  const gothicCobwebsLayer = findLayerById(renderScene?.layers, 'gen-gothic-cobwebs');
+  const bloodMoonRiseLayer = findLayerById(renderScene?.layers, 'gen-blood-moon-rise');
+  const candlelightVigilLayer = findLayerById(renderScene?.layers, 'gen-candlelight-vigil');
+  const gargoylesAwakeLayer = findLayerById(renderScene?.layers, 'gen-gargoyles-awake');
+  const cryptShadowsLayer = findLayerById(renderScene?.layers, 'gen-crypt-shadows');
+  const gothicRoseLayer = findLayerById(renderScene?.layers, 'gen-gothic-rose');
+  const eternalDarknessLayer = findLayerById(renderScene?.layers, 'gen-eternal-darkness');
+  const pixelDustLayer = findLayerById(renderScene?.layers, 'gen-pixel-dust');
+  const retroStarfieldLayer = findLayerById(renderScene?.layers, 'gen-retro-starfield');
+  const eightBitGridLayer = findLayerById(renderScene?.layers, 'gen-8bit-grid');
+  const arcadeInvadersLayer = findLayerById(renderScene?.layers, 'gen-arcade-invaders');
+  const powerUpPulseLayer = findLayerById(renderScene?.layers, 'gen-power-up-pulse');
+  const dungeonTilesLayer = findLayerById(renderScene?.layers, 'gen-dungeon-tiles');
+  const chiptuneWaveLayer = findLayerById(renderScene?.layers, 'gen-chiptune-wave');
+  const scoreCounterLayer = findLayerById(renderScene?.layers, 'gen-score-counter');
+  const pixelRainLayer = findLayerById(renderScene?.layers, 'gen-pixel-rain');
+  const bossHealthLayer = findLayerById(renderScene?.layers, 'gen-boss-health');
 
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);
@@ -10885,6 +11091,86 @@ const render = (time: number) => {
     myceliumGrowthOpacity: getLayerParamNumber(myceliumLayer, 'opacity', 1.0),
     myceliumGrowthSpread: getLayerParamNumber(myceliumLayer, 'spread', 1.0),
     myceliumGrowthDecay: getLayerParamNumber(myceliumLayer, 'decay', 0.5),
+    crimsonVeilEnabled: crimsonVeilLayer?.enabled ?? false,
+    crimsonVeilOpacity: getLayerParamNumber(crimsonVeilLayer, 'opacity', 1.0),
+    crimsonVeilFlow: getLayerParamNumber(crimsonVeilLayer, 'flow', 1.0),
+    crimsonVeilDarkness: getLayerParamNumber(crimsonVeilLayer, 'darkness', 0.5),
+    victorianCryptEnabled: victorianCryptLayer?.enabled ?? false,
+    victorianCryptOpacity: getLayerParamNumber(victorianCryptLayer, 'opacity', 1.0),
+    victorianCryptComplexity: getLayerParamNumber(victorianCryptLayer, 'complexity', 0.5),
+    victorianCryptDecay: getLayerParamNumber(victorianCryptLayer, 'decay', 0.5),
+    spectralApparitionEnabled: spectralApparitionLayer?.enabled ?? false,
+    spectralApparitionOpacity: getLayerParamNumber(spectralApparitionLayer, 'opacity', 1.0),
+    spectralApparitionDensity: getLayerParamNumber(spectralApparitionLayer, 'density', 0.5),
+    spectralApparitionFade: getLayerParamNumber(spectralApparitionLayer, 'fade', 0.5),
+    gothicCobwebsEnabled: gothicCobwebsLayer?.enabled ?? false,
+    gothicCobwebsOpacity: getLayerParamNumber(gothicCobwebsLayer, 'opacity', 1.0),
+    gothicCobwebsDensity: getLayerParamNumber(gothicCobwebsLayer, 'density', 0.5),
+    gothicCobwebsDecay: getLayerParamNumber(gothicCobwebsLayer, 'decay', 0.5),
+    bloodMoonRiseEnabled: bloodMoonRiseLayer?.enabled ?? false,
+    bloodMoonRiseOpacity: getLayerParamNumber(bloodMoonRiseLayer, 'opacity', 1.0),
+    bloodMoonRiseEclipse: getLayerParamNumber(bloodMoonRiseLayer, 'eclipse', 0.5),
+    bloodMoonRiseGlow: getLayerParamNumber(bloodMoonRiseLayer, 'glow', 0.5),
+    candlelightVigilEnabled: candlelightVigilLayer?.enabled ?? false,
+    candlelightVigilOpacity: getLayerParamNumber(candlelightVigilLayer, 'opacity', 1.0),
+    candlelightVigilFlicker: getLayerParamNumber(candlelightVigilLayer, 'flicker', 0.5),
+    candlelightVigilDecay: getLayerParamNumber(candlelightVigilLayer, 'decay', 0.5),
+    gargoylesAwakeEnabled: gargoylesAwakeLayer?.enabled ?? false,
+    gargoylesAwakeOpacity: getLayerParamNumber(gargoylesAwakeLayer, 'opacity', 1.0),
+    gargoylesAwakeAnimation: getLayerParamNumber(gargoylesAwakeLayer, 'animation', 0.5),
+    gargoylesAwakeShadow: getLayerParamNumber(gargoylesAwakeLayer, 'shadow', 0.5),
+    cryptShadowsEnabled: cryptShadowsLayer?.enabled ?? false,
+    cryptShadowsOpacity: getLayerParamNumber(cryptShadowsLayer, 'opacity', 1.0),
+    cryptShadowsDepth: getLayerParamNumber(cryptShadowsLayer, 'depth', 0.5),
+    cryptShadowsMovement: getLayerParamNumber(cryptShadowsLayer, 'movement', 0.5),
+    gothicRoseEnabled: gothicRoseLayer?.enabled ?? false,
+    gothicRoseOpacity: getLayerParamNumber(gothicRoseLayer, 'opacity', 1.0),
+    gothicRoseDecay: getLayerParamNumber(gothicRoseLayer, 'decay', 0.5),
+    gothicRoseThorns: getLayerParamNumber(gothicRoseLayer, 'thorns', 0.5),
+    eternalDarknessEnabled: eternalDarknessLayer?.enabled ?? false,
+    eternalDarknessOpacity: getLayerParamNumber(eternalDarknessLayer, 'opacity', 1.0),
+    eternalDarknessVoid: getLayerParamNumber(eternalDarknessLayer, 'void', 0.5),
+    eternalDarknessTraces: getLayerParamNumber(eternalDarknessLayer, 'traces', 0.5),
+    pixelDustEnabled: pixelDustLayer?.enabled ?? false,
+    pixelDustOpacity: getLayerParamNumber(pixelDustLayer, 'opacity', 1.0),
+    pixelDustDensity: getLayerParamNumber(pixelDustLayer, 'density', 0.5),
+    pixelDustPixelSize: getLayerParamNumber(pixelDustLayer, 'pixelSize', 0.02),
+    retroStarfieldEnabled: retroStarfieldLayer?.enabled ?? false,
+    retroStarfieldOpacity: getLayerParamNumber(retroStarfieldLayer, 'opacity', 1.0),
+    retroStarfieldSpeed: getLayerParamNumber(retroStarfieldLayer, 'speed', 1.0),
+    retroStarfieldSize: getLayerParamNumber(retroStarfieldLayer, 'size', 0.01),
+    eightBitGridEnabled: eightBitGridLayer?.enabled ?? false,
+    eightBitGridOpacity: getLayerParamNumber(eightBitGridLayer, 'opacity', 1.0),
+    eightBitGridSpeed: getLayerParamNumber(eightBitGridLayer, 'speed', 1.0),
+    eightBitGridPixelSize: getLayerParamNumber(eightBitGridLayer, 'pixelSize', 0.02),
+    arcadeInvadersEnabled: arcadeInvadersLayer?.enabled ?? false,
+    arcadeInvadersOpacity: getLayerParamNumber(arcadeInvadersLayer, 'opacity', 1.0),
+    arcadeInvadersDensity: getLayerParamNumber(arcadeInvadersLayer, 'density', 0.5),
+    arcadeInvadersAnimation: getLayerParamNumber(arcadeInvadersLayer, 'animation', 0.5),
+    powerUpPulseEnabled: powerUpPulseLayer?.enabled ?? false,
+    powerUpPulseOpacity: getLayerParamNumber(powerUpPulseLayer, 'opacity', 1.0),
+    powerUpPulseIntensity: getLayerParamNumber(powerUpPulseLayer, 'intensity', 0.5),
+    powerUpPulseSpeed: getLayerParamNumber(powerUpPulseLayer, 'speed', 1.0),
+    dungeonTilesEnabled: dungeonTilesLayer?.enabled ?? false,
+    dungeonTilesOpacity: getLayerParamNumber(dungeonTilesLayer, 'opacity', 1.0),
+    dungeonTilesPattern: getLayerParamNumber(dungeonTilesLayer, 'pattern', 0.5),
+    dungeonTilesAnimation: getLayerParamNumber(dungeonTilesLayer, 'animation', 0.5),
+    chiptuneWaveEnabled: chiptuneWaveLayer?.enabled ?? false,
+    chiptuneWaveOpacity: getLayerParamNumber(chiptuneWaveLayer, 'opacity', 1.0),
+    chiptuneWaveBits: getLayerParamNumber(chiptuneWaveLayer, 'bits', 4.0),
+    chiptuneWaveSpeed: getLayerParamNumber(chiptuneWaveLayer, 'speed', 1.0),
+    scoreCounterEnabled: scoreCounterLayer?.enabled ?? false,
+    scoreCounterOpacity: getLayerParamNumber(scoreCounterLayer, 'opacity', 1.0),
+    scoreCounterDigits: getLayerParamNumber(scoreCounterLayer, 'digits', 6.0),
+    scoreCounterAnimation: getLayerParamNumber(scoreCounterLayer, 'animation', 1.0),
+    pixelRainEnabled: pixelRainLayer?.enabled ?? false,
+    pixelRainOpacity: getLayerParamNumber(pixelRainLayer, 'opacity', 1.0),
+    pixelRainDensity: getLayerParamNumber(pixelRainLayer, 'density', 0.5),
+    pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
+    bossHealthEnabled: bossHealthLayer?.enabled ?? false,
+    bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
+    bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 0.5),
+    bossHealthBars: getLayerParamNumber(bossHealthLayer, 'bars', 3.0),
     spectrum: audioState.spectrum,
     contrast: moddedStyle.contrast,
     saturation: moddedStyle.saturation,
@@ -11292,7 +11578,17 @@ const init = async () => {
     onLayerListChanged: () => {
       renderLayerList();
       syncPerformanceToggles();
-    }
+    },
+    onPaletteChange: (paletteId: string) => {
+      paletteSelect.value = paletteId;
+      applyPaletteSelection(paletteId);
+    },
+    onChemistryChange: (chemistry: string) => {
+      currentProject.colorChemistry = [chemistry];
+      chemistrySelect.value = chemistry;
+      setStatus(`Color Chemistry set to: ${chemistry}`);
+    },
+    getProjectData: () => currentProject as any,
   });
   modeDashboard = createModeDashboard({
     store: { getState: () => ({ project: currentProject }) } as any,
@@ -11365,7 +11661,10 @@ const init = async () => {
   console.log('[Init] updateTransportUI completed');
 
   updateLoadingProgress(98, 'Starting render engine...');
-  requestAnimationFrame(render);
+  if (!(window as any).__renderLoopStarted) {
+    (window as any).__renderLoopStarted = true;
+    requestAnimationFrame(render);
+  }
   console.log('[Init] requestAnimationFrame completed');
 
   updateLoadingProgress(100, 'Ready!');
@@ -11405,5 +11704,9 @@ const init = async () => {
   };
   console.log('[Init] Capture API exposed');
 };
+
+// Start the render loop immediately so the canvas is live while init() awaits async work
+(window as any).__renderLoopStarted = true;
+requestAnimationFrame(render);
 
 void init();

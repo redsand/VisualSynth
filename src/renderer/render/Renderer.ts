@@ -26,6 +26,8 @@ export interface RendererDeps {
 export interface Renderer {
   start: () => void;
   setLayerAsset: ReturnType<typeof createGLRenderer>['setLayerAsset'];
+  recompileForGenerators: (activeIds: Set<string>) => boolean;
+  precompileVariant: (ids: Set<string>) => void;
 }
 
 export const createRenderer = ({
@@ -216,6 +218,10 @@ export const createRenderer = ({
     start: () => {
       requestAnimationFrame(renderLoop);
     },
-    setLayerAsset: renderer.setLayerAsset
+    setLayerAsset: renderer.setLayerAsset,
+    recompileForGenerators: (activeIds: Set<string>) =>
+      renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds) : false,
+    precompileVariant: (ids: Set<string>) =>
+      renderer.precompileVariant ? renderer.precompileVariant(ids) : undefined
   };
 };

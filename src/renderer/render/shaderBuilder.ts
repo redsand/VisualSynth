@@ -1,0 +1,73 @@
+import type { GeneratorShaderBlock } from '../../shared/generatorShaderBlocks';
+
+export type { GeneratorShaderBlock };
+
+export interface ShaderParts {
+  /**
+   * Static preamble: version directive, precision, non-generator uniforms, utility functions.
+   * Must contain the placeholder comment "/* @@GENERATOR_UNIFORMS *\/" where generator
+   * uniform declarations will be injected.
+   * Must contain the placeholder comment "/* @@GENERATOR_FUNCTIONS *\/" where generator
+   * function bodies will be injected (if absent, functions are appended after preamble).
+   */
+  preamble: string;
+  /**
+   * The main() function body template.
+   * Must contain the placeholder comment "/* @@GENERATOR_CALLS *\/" where conditional
+   * generator invocations will be injected.
+   */
+  mainTemplate: string;
+}
+
+/**
+ * Builds a complete fragment shader source string containing only the specified generators.
+ * Pure function — no side effects, no WebGL calls.
+ */
+export const buildFragmentShader = (
+  parts: ShaderParts,
+  blocks: GeneratorShaderBlock[],
+  activeIds: Set<string>,
+  sdfUniforms = '',
+  sdfFunctions = '',
+  sdfMapBody = '10.0',
+  plasmaSource: string | null = null
+): string => {
+  const activeBlocks = blocks.filter(b => activeIds.has(b.id));
+
+  const generatorUniforms = activeBlocks.map(b => b.uniforms).join('');
+  const generatorFunctions = activeBlocks.map(b => b.functions).join('');
+  const generatorCalls = activeBlocks.map(b => b.mainCall).join('');
+
+  const allFunctions = generatorFunctions + sdfFunctions;
+
+  const preambleWithUniforms = parts.preamble
+    .replace('/* @@GENERATOR_UNIFORMS */', generatorUniforms + sdfUniforms);
+
+  // If preamble has a functions placeholder, inject there; otherwise prepend to main
+  const hasFunctionsPlaceholder = preambleWithUniforms.includes('/* @@GENERATOR_FUNCTIONS */');
+  const preambleWithFunctions = hasFunctionsPlaceholder
+    ? preambleWithUniforms.replace('/* @@GENERATOR_FUNCTIONS */', allFunctions)
+    : preambleWithUniforms;
+
+  const functionPrefix = hasFunctionsPlaceholder ? '' : allFunctions;
+
+  const preamble = preambleWithFunctions
+    .replace('/* @@SDF_MAP_BODY */', sdfMapBody);
+
+  const main = parts.mainTemplate
+    .replace('/* @@PLASMA_DEFINE */', plasmaSource ? '#define HAS_CUSTOM_PLASMA' : '')
+    .replace('/* @@PLASMA_SOURCE */', plasmaSource ?? '')
+    .replace('/* @@GENERATOR_CALLS */', generatorCalls);
+
+  return preamble + functionPrefix + main;
+};
+
+/**
+ * Produces a canonical, order-independent cache key for a compiled shader variant.
+ */
+export const shaderCacheKey = (
+  activeIds: Set<string>,
+  sdfMapBody: string,
+  plasmaSource: string | null
+): string =>
+  [...activeIds].sort().join(',') + '|' + sdfMapBody + '|' + (plasmaSource ?? '');

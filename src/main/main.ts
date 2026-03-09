@@ -516,37 +516,39 @@ ipcMain.handle('presets:list', async () => {
     console.error('[Presets] Directory not found:', presetDir);
     return [];
   }
-    return fs
-      .readdirSync(presetDir)
-      .filter((file) => file.endsWith('.json'))
-      .map((file) => {
-        const presetPath = path.join(presetDir, file);
-        try {
-          const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
-          // Handle both v2 (data.name) and v3 (data.metadata.name) formats
-          const usesMetadata = data.version === 3 || data.version === 4 || data.version === 5 || data.version === 6;
-          const presetName =
-            usesMetadata && data.metadata?.name
-              ? data.metadata.name
-              : typeof data.name === 'string' && data.name.length > 0
-                ? data.name
-                : file;
-          const presetCategory =
-            usesMetadata && data.metadata?.category
-              ? data.metadata.category
-              : typeof data.category === 'string'
-                ? data.category
-                : 'General';
-        return {
-          name: presetName,
-          category: presetCategory,
-          path: presetPath
-        };
+
+  const files = fs.readdirSync(presetDir).filter((file) => file.endsWith('.json'));
+
+  // Read all preset files in parallel to avoid blocking the main process
+  const results = await Promise.all(
+    files.map(async (file) => {
+      const presetPath = path.join(presetDir, file);
+      try {
+        const content = await fs.promises.readFile(presetPath, 'utf-8');
+        const data = JSON.parse(content);
+        // Handle both v2 (data.name) and v3 (data.metadata.name) formats
+        const usesMetadata = data.version === 3 || data.version === 4 || data.version === 5 || data.version === 6;
+        const presetName =
+          usesMetadata && data.metadata?.name
+            ? data.metadata.name
+            : typeof data.name === 'string' && data.name.length > 0
+              ? data.name
+              : file;
+        const presetCategory =
+          usesMetadata && data.metadata?.category
+            ? data.metadata.category
+            : typeof data.category === 'string'
+              ? data.category
+              : 'General';
+        return { name: presetName, category: presetCategory, path: presetPath };
       } catch (error) {
         console.error(`[Presets] Failed to read/parse ${file}:`, error);
         return { name: `ERR: ${(error as Error).message.substring(0, 30)}`, category: 'General', path: presetPath };
       }
-    });
+    })
+  );
+
+  return results;
 });
 
 ipcMain.handle('presets:load', async (_event, presetPath: string) => {

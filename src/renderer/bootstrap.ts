@@ -28,6 +28,7 @@ import { createProjectIO } from './persistence/projectIO';
 import { DEFAULT_OUTPUT_CONFIG, OUTPUT_BASE_WIDTH, OUTPUT_BASE_HEIGHT } from '../shared/project';
 import type { VisualSynthProject } from '../shared/project';
 import { projectSchema } from '../shared/projectSchema';
+import { collectActiveGeneratorIds, collectSceneGeneratorIds } from '../shared/shaderUtils';
 
 export interface BootstrapResult {
   store: Store;
@@ -148,7 +149,10 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
     onProjectApplied: () => {
       // Re-initialize modulators when project changes
       audioEngine.initModulators();
-      console.log('[Bootstrap] Project applied, modulators reinitialized');
+      // Recompile shaders for active generators
+      const activeIds = collectActiveGeneratorIds(store.getState().project);
+      renderer.recompileForGenerators(activeIds);
+      console.log(`[Bootstrap] Project applied, modulators reinitialized, shaders recompiled for ${activeIds.size} generators`);
     }
   });
 
@@ -295,6 +299,17 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   console.log('[Bootstrap] Phase 6: Starting render loop...');
 
   renderer.start();
+
+  // Phase 4: Precompile shader variants for each scene in idle time
+  // so scene switching never triggers an on-demand compile stall.
+  const scenesToPrecompile = [...store.getState().project.scenes];
+  const precompileNext = (index: number) => {
+    if (index >= scenesToPrecompile.length) return;
+    const ids = collectSceneGeneratorIds(scenesToPrecompile[index]);
+    renderer.precompileVariant(ids);
+    setTimeout(() => precompileNext(index + 1), 0);
+  };
+  setTimeout(() => precompileNext(0), 500);
 
   console.log('[Bootstrap] ✓ Initialization complete');
   setStatus('VisualSynth ready.');

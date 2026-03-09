@@ -1,12 +1,12 @@
 import { reorderLayers } from '../../../shared/layers';
-import type { LayerConfig } from '../../../shared/project';
 import type { Store } from '../../state/store';
-import { actions } from '../../state/actions';
-import { setStatus } from '../../state/events';
 
 export interface MixerPanelDeps {
   store: Store;
   onLayerListChanged: () => void;
+  onPaletteChange: (paletteId: string) => void;
+  onChemistryChange: (chemistry: string) => void;
+  getProjectData: () => { palettes: any[]; activePaletteId: string; colorChemistry?: string[]; scenes: any[]; activeSceneId: string };
 }
 
 export interface MixerPanelApi {
@@ -16,14 +16,13 @@ export interface MixerPanelApi {
 
 export const createMixerPanel = ({
   store,
-  onLayerListChanged
+  onLayerListChanged,
+  onPaletteChange,
+  onChemistryChange,
+  getProjectData
 }: MixerPanelDeps): MixerPanelApi => {
   const container = document.getElementById('mixer-panel-anchor') as HTMLDivElement;
   let soloedLayerId: string | null = null;
-
-  // Color Palette elements
-  const paletteSelect = document.getElementById('palette-select') as HTMLSelectElement | null;
-  const chemistrySelect = document.getElementById('chemistry-select') as HTMLSelectElement | null;
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -223,67 +222,99 @@ export const createMixerPanel = ({
 
     container.appendChild(envSection);
 
-    // Color Palette Section
+    // Color Palette Section — mirrors the design tab exactly
+    const paletteProject = getProjectData();
     const paletteSection = document.createElement('div');
-    paletteSection.className = 'mixer-palette-panel';
+    paletteSection.className = 'panel-block';
     paletteSection.innerHTML = '<h3>Color Palette</h3>';
 
+    // Palette select
     const paletteLabel = document.createElement('label');
     paletteLabel.className = 'scene-label';
     paletteLabel.textContent = 'Palette';
 
     const mixerPaletteSelect = document.createElement('select');
     mixerPaletteSelect.id = 'mixer-palette-select';
-    mixerPaletteSelect.className = 'scene-select';
 
-    // Get palette options from the global palette select if available
-    if (paletteSelect) {
-      Array.from(paletteSelect.options).forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.textContent;
-        mixerPaletteSelect.appendChild(option);
-      });
-    }
-
-    // Set current value
-    const currentPalette = store.getState().project.activePaletteId ?? 0;
-    mixerPaletteSelect.value = String(currentPalette);
-
-    // Handle palette change
-    mixerPaletteSelect.addEventListener('change', () => {
-      actions.setPalette(store, Number(mixerPaletteSelect.value));
-      setStatus(`Palette changed.`);
+    const sortedPalettes = [...paletteProject.palettes].sort((a: any, b: any) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+    sortedPalettes.forEach((palette: any) => {
+      const option = document.createElement('option');
+      option.value = palette.id;
+      option.textContent = palette.name;
+      mixerPaletteSelect.appendChild(option);
     });
-
+    mixerPaletteSelect.value = paletteProject.activePaletteId ?? sortedPalettes[0]?.id ?? '';
     paletteLabel.appendChild(mixerPaletteSelect);
 
-    // Preview bar
+    // Chemistry select
+    const chemistryLabel = document.createElement('label');
+    chemistryLabel.className = 'scene-label';
+    chemistryLabel.textContent = 'Chemistry';
+
+    const mixerChemistrySelect = document.createElement('select');
+    mixerChemistrySelect.id = 'mixer-chemistry-select';
+    [
+      { value: 'analog', label: 'Analog (Smooth)' },
+      { value: 'triadic', label: 'Triadic (Balanced)' },
+      { value: 'complementary', label: 'Complementary (Contrast)' },
+      { value: 'monochromatic', label: 'Monochromatic (Single)' },
+    ].forEach(({ value, label }) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      mixerChemistrySelect.appendChild(opt);
+    });
+    const chemistry = paletteProject.colorChemistry ?? [];
+    if (chemistry.includes('triadic')) mixerChemistrySelect.value = 'triadic';
+    else if (chemistry.includes('complementary')) mixerChemistrySelect.value = 'complementary';
+    else if (chemistry.includes('monochromatic')) mixerChemistrySelect.value = 'monochromatic';
+    else mixerChemistrySelect.value = 'analog';
+    chemistryLabel.appendChild(mixerChemistrySelect);
+
+    // Palette preview
     const palettePreview = document.createElement('div');
-    palettePreview.className = 'mixer-palette-preview';
+    palettePreview.className = 'palette-preview';
     palettePreview.id = 'mixer-palette-preview';
 
-    // Sync preview with current palette
-    const updatePalettePreview = () => {
-      const paletteId = Number(mixerPaletteSelect.value);
-      const palette = store.getState().project.palettes[paletteId];
-      if (palette) {
-        palettePreview.innerHTML = '';
-        palette.colors.forEach(color => {
-          const colorBar = document.createElement('div');
-          colorBar.className = 'mixer-palette-color';
-          colorBar.style.backgroundColor = color;
-          palettePreview.appendChild(colorBar);
-        });
-      }
+    const renderPreview = (paletteId: string) => {
+      const palette = paletteProject.palettes.find((p: any) => p.id === paletteId);
+      if (!palette) return;
+      palettePreview.innerHTML = '';
+      palette.colors.forEach((color: string) => {
+        const swatch = document.createElement('div');
+        swatch.className = 'palette-swatch';
+        swatch.style.background = color;
+        palettePreview.appendChild(swatch);
+      });
     };
-    updatePalettePreview();
+    renderPreview(mixerPaletteSelect.value);
 
-    // Update preview when palette changes
-    mixerPaletteSelect.addEventListener('change', updatePalettePreview);
+    // Apply to scene label
+    const applyLabel = document.createElement('label');
+    applyLabel.className = 'scene-label scene-label-inline';
+    const applyToggle = document.createElement('input');
+    applyToggle.type = 'checkbox';
+    applyToggle.id = 'mixer-palette-apply-scene';
+    const activeScene = paletteProject.scenes.find((s: any) => s.id === paletteProject.activeSceneId);
+    applyToggle.checked = Boolean(activeScene?.look?.activePaletteId);
+    applyLabel.appendChild(applyToggle);
+    applyLabel.appendChild(document.createTextNode(' Apply to Scene Look'));
+
+    // Wire events
+    mixerPaletteSelect.onchange = () => {
+      renderPreview(mixerPaletteSelect.value);
+      onPaletteChange(mixerPaletteSelect.value);
+    };
+    mixerChemistrySelect.onchange = () => {
+      onChemistryChange(mixerChemistrySelect.value);
+    };
 
     paletteSection.appendChild(paletteLabel);
+    paletteSection.appendChild(chemistryLabel);
     paletteSection.appendChild(palettePreview);
+    paletteSection.appendChild(applyLabel);
     container.appendChild(paletteSection);
   };
 
