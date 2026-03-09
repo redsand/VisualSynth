@@ -1020,10 +1020,10 @@ channel.onmessage = (event) => {
   if (typeof data.visualFeedbackOpacity === 'number') state.visualFeedbackOpacity = data.visualFeedbackOpacity;
   if (typeof data.visualFeedbackZoom === 'number') state.visualFeedbackZoom = data.visualFeedbackZoom;
   if (typeof data.visualFeedbackRotation === 'number') state.visualFeedbackRotation = data.visualFeedbackRotation;
-  if (typeof (data as any).myceliumGrowthEnabled === 'boolean') (state as any).myceliumGrowthEnabled = (data as any).myceliumGrowthEnabled;
-  if (typeof (data as any).myceliumGrowthOpacity === 'number') (state as any).myceliumGrowthOpacity = (data as any).myceliumGrowthOpacity;
-  if (typeof (data as any).myceliumGrowthSpread === 'number') (state as any).myceliumGrowthSpread = (data as any).myceliumGrowthSpread;
-  if (typeof (data as any).myceliumGrowthDecay === 'number') (state as any).myceliumGrowthDecay = (data as any).myceliumGrowthDecay;
+  if (typeof data.myceliumGrowthEnabled === 'boolean') state.myceliumGrowthEnabled = data.myceliumGrowthEnabled;
+  if (typeof data.myceliumGrowthOpacity === 'number') state.myceliumGrowthOpacity = data.myceliumGrowthOpacity;
+  if (typeof data.myceliumGrowthSpread === 'number') state.myceliumGrowthSpread = data.myceliumGrowthSpread;
+  if (typeof data.myceliumGrowthDecay === 'number') state.myceliumGrowthDecay = data.myceliumGrowthDecay;
   if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
     const colors = (data as any).paletteColors as string[];
     if (colors.length >= 5) {

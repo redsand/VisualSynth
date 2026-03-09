@@ -1,18 +1,11 @@
 import type { RenderState } from '../glRenderer';
 
-type OutputExtendedRenderState = RenderState & {
-  myceliumGrowthEnabled?: boolean;
-  myceliumGrowthOpacity?: number;
-  myceliumGrowthSpread?: number;
-  myceliumGrowthDecay?: number;
-};
-
 type ExcludedOutputField = 'sdfScene' | 'debugTint';
 
-export type RendererOutputPayload = Omit<OutputExtendedRenderState, ExcludedOutputField>;
+export type RendererOutputPayload = Omit<RenderState, ExcludedOutputField>;
 
 export const buildRendererOutputPayload = (
-  renderState: OutputExtendedRenderState
+  renderState: RenderState
 ): RendererOutputPayload => {
   const {
     spectrum,
