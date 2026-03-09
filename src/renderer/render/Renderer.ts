@@ -1,4 +1,5 @@
 import { createGLRenderer, resizeCanvasToDisplaySize, RenderState } from '../glRenderer';
+import type { CustomShaderBlock } from '../../shared/customShaderBlock';
 import type { Store } from '../state/store';
 import { actions } from '../state/actions';
 import { setStatus } from '../state/events';
@@ -26,8 +27,9 @@ export interface RendererDeps {
 export interface Renderer {
   start: () => void;
   setLayerAsset: ReturnType<typeof createGLRenderer>['setLayerAsset'];
-  recompileForGenerators: (activeIds: Set<string>) => boolean;
+  recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) => boolean;
   precompileVariant: (ids: Set<string>) => void;
+  setCustomShaderBlocks: (blocks: CustomShaderBlock[]) => void;
 }
 
 export const createRenderer = ({
@@ -67,7 +69,8 @@ export const createRenderer = ({
       getGeneratorDiagnostics: () => [],
       getMissingUniforms: () => [],
       recompileForGenerators: () => false,
-      precompileVariant: () => {}
+      precompileVariant: () => {},
+      setCustomShaderBlocks: () => {}
     };
   }
 
@@ -227,9 +230,11 @@ export const createRenderer = ({
       requestAnimationFrame(renderLoop);
     },
     setLayerAsset: renderer.setLayerAsset,
-    recompileForGenerators: (activeIds: Set<string>) =>
-      renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds) : false,
+    recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) =>
+      renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds, customBlocks) : false,
     precompileVariant: (ids: Set<string>) =>
-      renderer.precompileVariant ? renderer.precompileVariant(ids) : undefined
+      renderer.precompileVariant ? renderer.precompileVariant(ids) : undefined,
+    setCustomShaderBlocks: (blocks: CustomShaderBlock[]) =>
+      renderer.setCustomShaderBlocks ? renderer.setCustomShaderBlocks(blocks) : undefined
   };
 };

@@ -5,6 +5,7 @@ import { actions } from '../../state/actions';
 import { GENERATORS, GeneratorId, toggleFavorite, updateRecents } from '../../../shared/generatorLibrary';
 import { assetService } from '../assetService';
 import { setStatus } from '../../state/events';
+import type { CustomShaderBlock } from '../../../shared/customShaderBlock';
 
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum';
 
@@ -132,6 +133,52 @@ export const createLayerPanel = ({
     return select;
   };
 
+  const buildCustomParamsPanel = (layer: LayerConfig, block: CustomShaderBlock): HTMLDivElement => {
+    const panel = document.createElement('div');
+    panel.className = 'custom-params-panel';
+
+    Object.entries(block.params).forEach(([key, def]) => {
+      const row = document.createElement('div');
+      row.className = 'custom-param-row';
+
+      const label = document.createElement('label');
+      label.className = 'custom-param-label';
+      label.textContent = def.label ?? key;
+
+      const currentVal = layer.params?.[key] ?? def.default;
+      const isFloat = def.type === 'float';
+
+      if (isFloat) {
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = String(def.min ?? 0);
+        slider.max = String(def.max ?? 1);
+        slider.step = '0.01';
+        slider.value = String(currentVal as number);
+        slider.className = 'custom-param-slider';
+        slider.addEventListener('input', () => {
+          if (!layer.params) layer.params = {};
+          layer.params[key] = parseFloat(slider.value);
+        });
+        row.appendChild(label);
+        row.appendChild(slider);
+      } else {
+        // vec2/vec3: render as readonly display for now
+        const display = document.createElement('span');
+        display.className = 'custom-param-display';
+        display.textContent = Array.isArray(currentVal)
+          ? `[${(currentVal as number[]).map(v => v.toFixed(2)).join(', ')}]`
+          : String(currentVal);
+        row.appendChild(label);
+        row.appendChild(display);
+      }
+
+      panel.appendChild(row);
+    });
+
+    return panel;
+  };
+
   const renderLayerList = () => {
     layerList.innerHTML = '';
     const scene = store.getState().project.scenes.find((item) => item.id === store.getState().project.activeSceneId);
@@ -230,6 +277,17 @@ export const createLayerPanel = ({
       }
 
       row.appendChild(assetControl);
+
+      // Find custom shader block for this layer (if any)
+      const customBlock = layer.generatorId
+        ? (store.getState().project.customShaderBlocks ?? []).find(b => b.id === layer.generatorId)
+        : undefined;
+
+      if (customBlock && Object.keys(customBlock.params).length > 0) {
+        const paramsPanel = buildCustomParamsPanel(layer, customBlock);
+        row.appendChild(paramsPanel);
+      }
+
       layerList.appendChild(row);
       syncLayerAsset(layer);
     });

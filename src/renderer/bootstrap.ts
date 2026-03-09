@@ -151,7 +151,7 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
       audioEngine.initModulators();
       // Recompile shaders for active generators
       const activeIds = collectActiveGeneratorIds(store.getState().project);
-      renderer.recompileForGenerators(activeIds);
+      renderer.recompileForGenerators(activeIds, store.getState().project.customShaderBlocks ?? []);
       console.log(`[Bootstrap] Project applied, modulators reinitialized, shaders recompiled for ${activeIds.size} generators`);
     }
   });

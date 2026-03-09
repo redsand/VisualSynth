@@ -29,6 +29,7 @@ const build = () => {
     platform: 'browser',
     target: ['chrome120'],
     external: ['@novnc/novnc', '@novnc/novnc/*'],
+    loader: { '.glsl': 'text' },
     define: {
       'process.env.NODE_ENV': watch ? '"development"' : '"production"'
     }
@@ -47,6 +48,7 @@ const run = async () => {
       platform: 'browser',
       target: ['chrome120'],
       external: ['@novnc/novnc', '@novnc/novnc/*'],
+      loader: { '.glsl': 'text' },
       define: {
         'process.env.NODE_ENV': '"development"'
       }

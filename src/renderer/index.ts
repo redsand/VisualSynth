@@ -5155,7 +5155,8 @@ const applyScene = (sceneId: string) => {
 
   // Recompile shaders for this scene's generators (cache hit if precompiled at load time)
   const activeIds = collectSceneGeneratorIds(scene);
-  renderer.recompileForGenerators(activeIds);
+  renderer.setCustomShaderBlocks(currentProject.customShaderBlocks ?? []);
+  renderer.recompileForGenerators(activeIds, currentProject.customShaderBlocks ?? []);
   console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${activeIds.size} active generators`);
   sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
@@ -8610,7 +8611,8 @@ const applyProject = async (project: VisualSynthProject) => {
 
   // Recompile shaders for all project generators (covers active scene)
   const activeIds = collectActiveGeneratorIds(currentProject);
-  renderer.recompileForGenerators(activeIds);
+  renderer.setCustomShaderBlocks(currentProject.customShaderBlocks ?? []);
+  renderer.recompileForGenerators(activeIds, currentProject.customShaderBlocks ?? []);
   console.log(`[Project] Applied project "${currentProject.name}", recompiled shaders for ${activeIds.size} active generators`);
 
   // Precompile per-scene variants in idle time for zero-stall scene switching
@@ -9873,7 +9875,8 @@ try {
     getGeneratorDiagnostics: () => [],
     getMissingUniforms: () => [],
     recompileForGenerators: () => false,
-    precompileVariant: () => {}
+    precompileVariant: () => {},
+    setCustomShaderBlocks: () => {}
   };
 }
 

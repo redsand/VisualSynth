@@ -514,6 +514,24 @@ const defaultPadMappings = (() => {
   return mappings;
 })();
 
+const customShaderParamDefSchema = z.object({
+  uniform: z.string(),
+  type: z.enum(['float', 'vec2', 'vec3']),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  default: z.union([z.number(), z.array(z.number())]),
+  label: z.string().optional(),
+});
+
+const customShaderBlockSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  uniforms: z.string(),
+  functions: z.string().optional(),
+  mainCall: z.string(),
+  params: z.record(customShaderParamDefSchema).default({}),
+});
+
 export const projectSchema = z.object({
   version: z.number(),
   name: z.string(),
@@ -716,7 +734,8 @@ export const projectSchema = z.object({
   tempoSync: z.object({
     bpm: z.number().default(120),
     source: z.enum(['manual', 'auto', 'network']).default('manual')
-  }).default({ bpm: 120, source: 'manual' })
+  }).default({ bpm: 120, source: 'manual' }),
+  customShaderBlocks: z.array(customShaderBlockSchema).default([])
 });
 
 export type ProjectSchema = z.infer<typeof projectSchema>;

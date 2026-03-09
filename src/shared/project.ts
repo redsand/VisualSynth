@@ -1,3 +1,5 @@
+import type { CustomShaderBlock } from './customShaderBlock';
+
 export type LayerBlendMode = 'normal' | 'add' | 'multiply' | 'screen' | 'overlay' | 'difference';
 
 export const OUTPUT_BASE_WIDTH = 1280;
@@ -540,6 +542,7 @@ export interface VisualSynthProject {
     bpm: number;
     source: 'manual' | 'auto' | 'network';
   };
+  customShaderBlocks?: CustomShaderBlock[];
 }
 
 export interface EffectConfig {
@@ -975,5 +978,6 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   activeEngineId: 'engine-radial-core',
   colorChemistry: ['analog', 'balanced'],
   roleWeights: { core: 1, support: 1, atmosphere: 1 },
-  tempoSync: { bpm: 120, source: 'manual' }
+  tempoSync: { bpm: 120, source: 'manual' },
+  customShaderBlocks: []
 };

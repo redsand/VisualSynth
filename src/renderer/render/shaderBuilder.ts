@@ -1,6 +1,23 @@
 import type { GeneratorShaderBlock } from '../../shared/generatorShaderBlocks';
+import type { CustomShaderBlock } from '../../shared/customShaderBlock';
 
 export type { GeneratorShaderBlock };
+
+/**
+ * Merges custom shader blocks with the built-in registry.
+ * Custom blocks with the same id override the corresponding built-in block.
+ * Custom blocks with new ids are appended to the end.
+ */
+export const mergeShaderBlocks = (
+  builtIn: GeneratorShaderBlock[],
+  custom: CustomShaderBlock[]
+): GeneratorShaderBlock[] => {
+  if (!custom.length) return builtIn;
+  const overrides = new Map(custom.map(b => [b.id, b as GeneratorShaderBlock]));
+  const merged = builtIn.map(b => overrides.get(b.id) ?? b);
+  custom.filter(b => !builtIn.some(bi => bi.id === b.id)).forEach(b => merged.push(b as GeneratorShaderBlock));
+  return merged;
+};
 
 export interface ShaderParts {
   /**
@@ -68,6 +85,7 @@ export const buildFragmentShader = (
 export const shaderCacheKey = (
   activeIds: Set<string>,
   sdfMapBody: string,
-  plasmaSource: string | null
+  plasmaSource: string | null,
+  customHash = ''
 ): string =>
-  [...activeIds].sort().join(',') + '|' + sdfMapBody + '|' + (plasmaSource ?? '');
+  [...activeIds].sort().join(',') + '|' + sdfMapBody + '|' + (plasmaSource ?? '') + '|' + customHash;
