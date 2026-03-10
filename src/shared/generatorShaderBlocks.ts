@@ -73,6 +73,7 @@ vec3 samplePlasma(vec2 uv, float t) {
     id: 'layer-spectrum',
     uniforms: `uniform float uSpectrumEnabled;
 uniform float uSpectrumOpacity;
+uniform float uPersistence;
 uniform float uSpectrumAssetEnabled;
 uniform sampler2D uSpectrumAsset;
 uniform float uSpectrumAssetBlend;
@@ -221,6 +222,7 @@ uniform float uInkScale;
 uniform float uInkPressure;
 uniform float uInkLifespan;
 uniform float uInkBrush;
+uniform float uGlyphBeat;
 `,
     functions: ``,
     mainCall: `  if (uInkEnabled > 0.5) {
@@ -271,6 +273,7 @@ uniform float uWeatherOpacity;
 uniform float uWeatherSpeed;
 uniform float uWeatherMode;
 uniform float uWeatherIntensity;
+uniform float uGlyphBeat;
 `,
     functions: ``,
     mainCall: `  if (uWeatherEnabled > 0.5) {
@@ -447,6 +450,11 @@ uniform float uLightningColor;
   {
     id: 'gen-analog-oscillo',
     uniforms: `uniform float uAnalogOscilloEnabled;
+uniform float uAnalogOscilloOpacity;
+uniform float uAnalogOscilloMode;
+uniform float uAnalogOscilloThickness;
+uniform float uAnalogOscilloGlow;
+uniform float uAnalogOscilloColor;
 `,
     functions: `float analogOscillo(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -482,6 +490,8 @@ uniform float uLightningColor;
   {
     id: 'gen-speaker-cone',
     uniforms: `uniform float uSpeakerConeEnabled;
+uniform float uSpeakerConeOpacity;
+uniform float uSpeakerConeForce;
 `,
     functions: `vec3 speakerPulse(vec2 uv, float bass) {
   vec2 centered = uv - 0.5;
@@ -506,6 +516,9 @@ uniform float uLightningColor;
   {
     id: 'gen-glitch-scanline',
     uniforms: `uniform float uGlitchScanlineEnabled;
+uniform float uGlitchScanlineSpeed;
+uniform float uGlitchScanlineCount;
+uniform float uGlitchScanlineOpacity;
 `,
     functions: `vec3 glitchScanline(vec2 uv, float t, float audio) {
   float speed = uGlitchScanlineSpeed;
@@ -542,6 +555,9 @@ uniform float uLightningColor;
   {
     id: 'gen-laser-starfield',
     uniforms: `uniform float uLaserStarfieldEnabled;
+uniform float uLaserStarfieldSpeed;
+uniform float uLaserStarfieldDensity;
+uniform float uLaserStarfieldOpacity;
 `,
     functions: `vec3 laserStarfield(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -572,6 +588,9 @@ uniform float uLightningColor;
   {
     id: 'gen-pulsing-ribbons',
     uniforms: `uniform float uPulsingRibbonsEnabled;
+uniform float uPulsingRibbonsCount;
+uniform float uPulsingRibbonsWidth;
+uniform float uPulsingRibbonsOpacity;
 `,
     functions: `vec3 pulsingRibbons(vec2 uv, float t, float audio) {
   vec3 col = vec3(0.0);
@@ -594,6 +613,9 @@ uniform float uLightningColor;
   {
     id: 'gen-electric-arc',
     uniforms: `uniform float uElectricArcEnabled;
+uniform float uElectricArcRadius;
+uniform float uElectricArcChaos;
+uniform float uElectricArcOpacity;
 `,
     functions: `vec3 electricArc(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -612,6 +634,8 @@ uniform float uLightningColor;
   {
     id: 'gen-pyro-burst',
     uniforms: `uniform float uPyroBurstEnabled;
+uniform float uPyroBurstForce;
+uniform float uPyroBurstOpacity;
 `,
     functions: `vec3 pyroBurst(vec2 uv, float t, float peak) {
   vec2 p = uv - 0.5;
@@ -630,6 +654,9 @@ uniform float uLightningColor;
   {
     id: 'gen-geo-wireframe',
     uniforms: `uniform float uGeoWireframeEnabled;
+uniform float uGeoWireframeShape;
+uniform float uGeoWireframeScale;
+uniform float uGeoWireframeOpacity;
 `,
     functions: `vec3 geoWireframe(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -649,6 +676,8 @@ uniform float uLightningColor;
   {
     id: 'gen-signal-noise',
     uniforms: `uniform float uSignalNoiseEnabled;
+uniform float uSignalNoiseOpacity;
+uniform float uSignalNoiseAmount;
 `,
     functions: `vec3 signalNoise(vec2 uv, float t) {
   float n = hash21(uv * 200.0 + t * 10.0);
@@ -673,6 +702,9 @@ uniform float uLightningColor;
   {
     id: 'gen-ribbon-tunnel',
     uniforms: `uniform float uRibbonTunnelEnabled;
+uniform float uRibbonTunnelTwist;
+uniform float uRibbonTunnelSpeed;
+uniform float uRibbonTunnelOpacity;
 `,
     functions: `vec3 ribbonTunnel(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -707,6 +739,9 @@ uniform float uLightningColor;
   {
     id: 'gen-fractal-tunnel',
     uniforms: `uniform float uFractalTunnelEnabled;
+uniform float uFractalTunnelSpeed;
+uniform float uFractalTunnelComplexity;
+uniform float uFractalTunnelOpacity;
 `,
     functions: `vec3 fractalTunnel(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -741,6 +776,8 @@ uniform float uLightningColor;
   {
     id: 'gen-circuit-conduit',
     uniforms: `uniform float uCircuitConduitEnabled;
+uniform float uCircuitConduitSpeed;
+uniform float uCircuitConduitOpacity;
 `,
     functions: `vec3 circuitConduit(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -762,6 +799,8 @@ uniform float uLightningColor;
   {
     id: 'gen-aura-portal',
     uniforms: `uniform float uAuraPortalEnabled;
+uniform float uAuraPortalColor;
+uniform float uAuraPortalOpacity;
 `,
     functions: `vec3 auraPortal(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -796,6 +835,8 @@ uniform float uLightningColor;
   {
     id: 'gen-freq-terrain',
     uniforms: `uniform float uFreqTerrainEnabled;
+uniform float uFreqTerrainScale;
+uniform float uFreqTerrainOpacity;
 `,
     functions: `vec3 frequencyTerrain(vec2 uv, float t, float audio) {
   vec3 col = vec3(0.0);
@@ -835,6 +876,8 @@ uniform float uLightningColor;
   {
     id: 'gen-data-stream',
     uniforms: `uniform float uDataStreamEnabled;
+uniform float uDataStreamSpeed;
+uniform float uDataStreamOpacity;
 `,
     functions: `vec3 dataStream(vec2 uv, float t, float audio) {
   vec2 gv = fract(uv * vec2(20.0, 1.0) + vec2(0.0, t * uDataStreamSpeed));
@@ -851,6 +894,8 @@ uniform float uLightningColor;
   {
     id: 'gen-caustic-liquid',
     uniforms: `uniform float uCausticLiquidEnabled;
+uniform float uCausticLiquidSpeed;
+uniform float uCausticLiquidOpacity;
 `,
     functions: `vec3 causticLiquid(vec2 uv, float t, float audio) {
   vec2 p = uv * 8.0;
@@ -872,6 +917,8 @@ uniform float uLightningColor;
   {
     id: 'gen-shimmer-veil',
     uniforms: `uniform float uShimmerVeilEnabled;
+uniform float uShimmerVeilComplexity;
+uniform float uShimmerVeilOpacity;
 `,
     functions: `vec3 shimmerVeil(vec2 uv, float t, float audio) {
   float v = sin(uv.x * 10.0 + t) * sin(uv.y * uShimmerVeilComplexity + t * 0.5);
@@ -887,6 +934,9 @@ uniform float uLightningColor;
   {
     id: 'gen-nebula-cloud',
     uniforms: `uniform float uNebulaCloudEnabled;
+uniform float uNebulaCloudDensity;
+uniform float uNebulaCloudSpeed;
+uniform float uNebulaCloudOpacity;
 `,
     functions: `vec3 nebulaCloud(vec2 uv, float t, float audio) {
   vec2 p = uv * uNebulaCloudDensity;
@@ -902,6 +952,9 @@ uniform float uLightningColor;
   {
     id: 'gen-circuit-board',
     uniforms: `uniform float uCircuitBoardEnabled;
+uniform float uCircuitBoardComplexity;
+uniform float uCircuitBoardGrowth;
+uniform float uCircuitBoardOpacity;
 `,
     functions: `vec3 circuitBoard(vec2 uv, float t, float audio) {
   vec2 p = uv * uCircuitBoardComplexity;
@@ -920,6 +973,9 @@ uniform float uLightningColor;
   {
     id: 'gen-lorenz-attractor',
     uniforms: `uniform float uLorenzAttractorEnabled;
+uniform float uLorenzAttractorSpeed;
+uniform float uLorenzAttractorChaos;
+uniform float uLorenzAttractorOpacity;
 `,
     functions: `vec3 lorenzAttractor(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -943,6 +999,9 @@ uniform float uLightningColor;
   {
     id: 'gen-mandala-spinner',
     uniforms: `uniform float uMandalaSpinnerEnabled;
+uniform float uMandalaSpinnerSpeed;
+uniform float uMandalaSpinnerSides;
+uniform float uMandalaSpinnerOpacity;
 `,
     functions: `vec3 mandalaSpinner(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -962,6 +1021,9 @@ uniform float uLightningColor;
   {
     id: 'gen-starburst-galaxy',
     uniforms: `uniform float uStarburstGalaxyEnabled;
+uniform float uStarburstGalaxyCount;
+uniform float uStarburstGalaxyForce;
+uniform float uStarburstGalaxyOpacity;
 `,
     functions: `vec3 starburstGalaxy(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -991,6 +1053,9 @@ uniform float uLightningColor;
   {
     id: 'gen-digital-rain-v2',
     uniforms: `uniform float uDigitalRainV2Enabled;
+uniform float uDigitalRainV2Density;
+uniform float uDigitalRainV2Speed;
+uniform float uDigitalRainV2Opacity;
 `,
     functions: `vec3 digitalRainV2(vec2 uv, float t, float audio) {
   float density = clamp(uDigitalRainV2Density, 0.0, 1.0);
@@ -1011,6 +1076,9 @@ uniform float uLightningColor;
   {
     id: 'gen-lava-flow',
     uniforms: `uniform float uLavaFlowEnabled;
+uniform float uLavaFlowViscosity;
+uniform float uLavaFlowHeat;
+uniform float uLavaFlowOpacity;
 `,
     functions: `vec3 lavaFlow(vec2 uv, float t, float audio) {
   vec2 p = uv * 3.0;
@@ -1025,6 +1093,9 @@ uniform float uLightningColor;
   {
     id: 'gen-crystal-growth',
     uniforms: `uniform float uCrystalGrowthEnabled;
+uniform float uCrystalGrowthRate;
+uniform float uCrystalGrowthSharpness;
+uniform float uCrystalGrowthOpacity;
 `,
     functions: `vec3 crystalGrowth(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1046,6 +1117,9 @@ uniform float uLightningColor;
   {
     id: 'gen-techno-grid',
     uniforms: `uniform float uTechnoGridEnabled;
+uniform float uTechnoGridSpeed;
+uniform float uTechnoGridHeight;
+uniform float uTechnoGridOpacity;
 `,
     functions: `vec3 technoGrid3D(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -1062,6 +1136,9 @@ uniform float uLightningColor;
   {
     id: 'gen-magnetic-field',
     uniforms: `uniform float uMagneticFieldEnabled;
+uniform float uMagneticFieldDensity;
+uniform float uMagneticFieldStrength;
+uniform float uMagneticFieldOpacity;
 `,
     functions: `vec3 magneticField(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1083,6 +1160,9 @@ uniform float uLightningColor;
   {
     id: 'gen-prism-shards',
     uniforms: `uniform float uPrismShardsEnabled;
+uniform float uPrismShardsCount;
+uniform float uPrismShardsRefraction;
+uniform float uPrismShardsOpacity;
 `,
     functions: `vec3 prismShards(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -1108,6 +1188,9 @@ uniform float uLightningColor;
   {
     id: 'gen-neural-net',
     uniforms: `uniform float uNeuralNetEnabled;
+uniform float uNeuralNetDensity;
+uniform float uNeuralNetActivity;
+uniform float uNeuralNetOpacity;
 `,
     functions: `vec3 neuralNet(vec2 uv, float t, float audio) {
   vec2 p = uv * 6.0 * uNeuralNetDensity;
@@ -1141,6 +1224,9 @@ uniform float uLightningColor;
   {
     id: 'gen-aurora-chord',
     uniforms: `uniform float uAuroraChordEnabled;
+uniform float uAuroraChordColorRange;
+uniform float uAuroraChordWaviness;
+uniform float uAuroraChordOpacity;
 `,
     functions: `vec3 auroraChord(vec2 uv, float t, float audio) {
   float v = 0.0;
@@ -1157,6 +1243,9 @@ uniform float uLightningColor;
   {
     id: 'gen-vhs-glitch',
     uniforms: `uniform float uVhsGlitchEnabled;
+uniform float uVhsGlitchJitter;
+uniform float uVhsGlitchNoise;
+uniform float uVhsGlitchOpacity;
 `,
     functions: `vec3 vhsGlitch(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -1173,6 +1262,9 @@ uniform float uLightningColor;
   {
     id: 'gen-moire-pattern',
     uniforms: `uniform float uMoirePatternEnabled;
+uniform float uMoirePatternScale;
+uniform float uMoirePatternSpeed;
+uniform float uMoirePatternOpacity;
 `,
     functions: `vec3 moirePattern(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * uMoirePatternScale;
@@ -1202,6 +1294,9 @@ uniform float uLightningColor;
   {
     id: 'gen-hypercube',
     uniforms: `uniform float uHypercubeEnabled;
+uniform float uHypercubeSpeed;
+uniform float uHypercubeProjection;
+uniform float uHypercubeOpacity;
 `,
     functions: `vec3 hypercube(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1227,6 +1322,9 @@ uniform float uLightningColor;
   {
     id: 'gen-fluid-swirl',
     uniforms: `uniform float uFluidSwirlEnabled;
+uniform float uFluidSwirlVorticity;
+uniform float uFluidSwirlColorMix;
+uniform float uFluidSwirlOpacity;
 `,
     functions: `vec3 fluidSwirl(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -1243,6 +1341,9 @@ uniform float uLightningColor;
   {
     id: 'gen-ascii-stream',
     uniforms: `uniform float uAsciiStreamEnabled;
+uniform float uAsciiStreamResolution;
+uniform float uAsciiStreamContrast;
+uniform float uAsciiStreamOpacity;
 `,
     functions: `vec3 asciiStream(vec2 uv, float t, float audio) {
   vec2 p = floor(uv * uAsciiStreamResolution) / uAsciiStreamResolution;
@@ -1258,6 +1359,9 @@ uniform float uLightningColor;
   {
     id: 'gen-retro-wave',
     uniforms: `uniform float uRetroWaveEnabled;
+uniform float uRetroWaveGridSpeed;
+uniform float uRetroWaveSunSize;
+uniform float uRetroWaveOpacity;
 `,
     functions: `vec3 retroWave(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -1287,6 +1391,9 @@ uniform float uLightningColor;
   {
     id: 'gen-bubble-pop',
     uniforms: `uniform float uBubblePopEnabled;
+uniform float uBubblePopPopRate;
+uniform float uBubblePopSize;
+uniform float uBubblePopOpacity;
 `,
     functions: `vec3 bubblePop(vec2 uv, float t, float audio) {
   vec2 p = uv * 5.0;
@@ -1304,6 +1411,9 @@ uniform float uLightningColor;
   {
     id: 'gen-sound-wave-3d',
     uniforms: `uniform float uSoundWave3DEnabled;
+uniform float uSoundWave3DSmoothness;
+uniform float uSoundWave3DAmplitude;
+uniform float uSoundWave3DOpacity;
 `,
     functions: `vec3 soundWave3D(vec2 uv, float t, float audio) {
   vec2 p = uv * 2.0 - 1.0;
@@ -1331,6 +1441,9 @@ uniform float uLightningColor;
   {
     id: 'gen-particle-vortex',
     uniforms: `uniform float uParticleVortexEnabled;
+uniform float uParticleVortexSpin;
+uniform float uParticleVortexSuction;
+uniform float uParticleVortexOpacity;
 `,
     functions: `vec3 particleVortex(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1373,6 +1486,9 @@ uniform float uLightningColor;
   {
     id: 'gen-glow-worms',
     uniforms: `uniform float uGlowWormsEnabled;
+uniform float uGlowWormsSpeed;
+uniform float uGlowWormsLength;
+uniform float uGlowWormsOpacity;
 `,
     functions: `vec3 glowWorms(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -1421,6 +1537,9 @@ uniform float uLightningColor;
   {
     id: 'gen-mirror-maze',
     uniforms: `uniform float uMirrorMazeEnabled;
+uniform float uMirrorMazeRecursion;
+uniform float uMirrorMazeAngle;
+uniform float uMirrorMazeOpacity;
 `,
     functions: `vec3 mirrorMaze(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1439,6 +1558,9 @@ uniform float uLightningColor;
   {
     id: 'gen-pulse-heart',
     uniforms: `uniform float uPulseHeartEnabled;
+uniform float uPulseHeartBeats;
+uniform float uPulseHeartLayers;
+uniform float uPulseHeartOpacity;
 `,
     functions: `vec3 pulseHeart(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1459,6 +1581,9 @@ uniform float uLightningColor;
   {
     id: 'gen-data-shards',
     uniforms: `uniform float uDataShardsEnabled;
+uniform float uDataShardsSpeed;
+uniform float uDataShardsSharpness;
+uniform float uDataShardsOpacity;
 `,
     functions: `vec3 dataShards(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1478,6 +1603,9 @@ uniform float uLightningColor;
   {
     id: 'gen-hex-cell',
     uniforms: `uniform float uHexCellEnabled;
+uniform float uHexCellScale;
+uniform float uHexCellPulse;
+uniform float uHexCellOpacity;
 `,
     functions: `vec3 hexCell(vec2 uv, float t, float audio) {
   vec2 p = uv * 10.0 * uHexCellScale;
@@ -1498,6 +1626,9 @@ uniform float uLightningColor;
   {
     id: 'gen-plasma-ball',
     uniforms: `uniform float uPlasmaBallEnabled;
+uniform float uPlasmaBallFilaments;
+uniform float uPlasmaBallVoltage;
+uniform float uPlasmaBallOpacity;
 `,
     functions: `vec3 plasmaBall(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1518,6 +1649,9 @@ uniform float uLightningColor;
   {
     id: 'gen-warp-drive',
     uniforms: `uniform float uWarpDriveEnabled;
+uniform float uWarpDriveWarp;
+uniform float uWarpDriveGlow;
+uniform float uWarpDriveOpacity;
 `,
     functions: `vec3 warpDrive(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1534,6 +1668,9 @@ uniform float uLightningColor;
   {
     id: 'gen-visual-feedback',
     uniforms: `uniform float uVisualFeedbackEnabled;
+uniform float uVisualFeedbackZoom;
+uniform float uVisualFeedbackRotation;
+uniform float uVisualFeedbackOpacity;
 `,
     functions: `vec3 visualFeedback(vec2 uv, float t, float audio) {
   // This is a pseudo-feedback since we can't easily sample the backbuffer here     
@@ -1553,6 +1690,9 @@ uniform float uLightningColor;
   {
     id: 'gen-mycelium-growth',
     uniforms: `uniform float uMyceliumGrowthEnabled;
+uniform float uMyceliumGrowthSpread;
+uniform float uMyceliumGrowthDecay;
+uniform float uMyceliumGrowthOpacity;
 `,
     functions: `vec3 myceliumGrowth(vec2 uv, float t, float audio) {
   vec2 p = uv * mix(3.0, 8.0, clamp(uMyceliumGrowthSpread, 0.0, 1.0));
@@ -1572,6 +1712,17 @@ uniform float uLightningColor;
   {
     id: 'gen-laser-beam',
     uniforms: `uniform float uLaserEnabled;
+uniform float uLaserOpacity;
+uniform float uLaserMode;
+uniform float uLaserBeamCount;
+uniform float uLaserBeamLength;
+uniform float uLaserBeamWidth;
+uniform float uLaserRotation;
+uniform float uLaserRotationSpeed;
+uniform float uLaserSpread;
+uniform float uLaserGlow;
+uniform float uLaserColorShift;
+uniform float uLaserAudioReact;
 `,
     functions: `vec3 laserBeam(vec2 uv, float t, float audio) {
   vec2 centered = uv - 0.5;
@@ -1651,6 +1802,14 @@ uniform float uLightningColor;
   {
     id: 'gen-strobe',
     uniforms: `uniform float uStrobeEnabled;
+uniform float uStrobeOpacity;
+uniform float uStrobeRate;
+uniform float uStrobeDutyCycle;
+uniform float uStrobeAudioTrigger;
+uniform float uStrobeThreshold;
+uniform float uStrobeFadeOut;
+uniform float uStrobeMode;
+uniform float uStrobePattern;
 `,
     functions: `vec3 strobeFlash(vec2 uv, float t, float audio, float peak) {
   float beatPhase = fract(t * uStrobeRate * 0.5);
@@ -1707,6 +1866,15 @@ uniform float uLightningColor;
   {
     id: 'gen-shape-burst',
     uniforms: `uniform float uShapeBurstEnabled;
+uniform float uShapeBurstOpacity;
+uniform float uBurstActives[8];
+uniform float uBurstSpawnTimes[8];
+uniform float uShapeBurstStartSize;
+uniform float uShapeBurstExpandSpeed;
+uniform float uShapeBurstMaxSize;
+uniform float uShapeBurstFadeMode;
+uniform float uShapeBurstShape;
+uniform float uShapeBurstThickness;
 `,
     functions: `vec3 shapeBurst(vec2 uv, float t) {
   vec2 centered = uv - 0.5;
@@ -1772,6 +1940,15 @@ uniform float uLightningColor;
   {
     id: 'gen-grid-tunnel',
     uniforms: `uniform float uGridTunnelEnabled;
+uniform float uGridTunnelOpacity;
+uniform float uGridTunnelSpeed;
+uniform float uGridTunnelAudioReact;
+uniform float uGridTunnelMode;
+uniform float uGridTunnelHorizonY;
+uniform float uGridTunnelPerspective;
+uniform float uGridTunnelGridSize;
+uniform float uGridTunnelLineWidth;
+uniform float uGridTunnelGlow;
 `,
     functions: `vec3 gridTunnel(vec2 uv, float t, float audio) {
   float speed = uGridTunnelSpeed * (1.0 + audio * uGridTunnelAudioReact);
@@ -1858,6 +2035,9 @@ uniform float uLightningColor;
   {
     id: 'gen-cellular-growth',
     uniforms: `uniform float uCellularGrowthEnabled;
+uniform float uCellularGrowthDensity;
+uniform float uCellularGrowthRate;
+uniform float uCellularGrowthOpacity;
 `,
     functions: `vec3 cellularGrowth(vec2 uv, float t, float audio) {
   vec2 p = uv * uCellularGrowthDensity * 8.0;
@@ -1899,6 +2079,9 @@ uniform float uLightningColor;
   {
     id: 'gen-bio-luminescent-forest',
     uniforms: `uniform float uBioLuminescentForestEnabled;
+uniform float uBioLuminescentForestDensity;
+uniform float uBioLuminescentForestPulse;
+uniform float uBioLuminescentForestOpacity;
 `,
     functions: `vec3 bioLuminescentForest(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -1940,6 +2123,9 @@ uniform float uLightningColor;
   {
     id: 'gen-crystalline',
     uniforms: `uniform float uCrystallineEnabled;
+uniform float uCrystallineRotation;
+uniform float uCrystallineRefraction;
+uniform float uCrystallineOpacity;
 `,
     functions: `vec3 crystalline(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -1982,6 +2168,9 @@ uniform float uLightningColor;
   {
     id: 'gen-audio-dna',
     uniforms: `uniform float uAudioDnaEnabled;
+uniform float uAudioDnaRotation;
+uniform float uAudioDnaSegments;
+uniform float uAudioDnaOpacity;
 `,
     functions: `vec3 audioDna(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -2037,6 +2226,9 @@ uniform float uLightningColor;
   {
     id: 'gen-liquid-metal',
     uniforms: `uniform float uLiquidMetalEnabled;
+uniform float uLiquidMetalFlow;
+uniform float uLiquidMetalShimmer;
+uniform float uLiquidMetalOpacity;
 `,
     functions: `vec3 liquidMetal(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2075,6 +2267,9 @@ uniform float uLightningColor;
   {
     id: 'gen-neon-cityscape',
     uniforms: `uniform float uNeonCityscapeEnabled;
+uniform float uNeonCityscapeDensity;
+uniform float uNeonCityscapeSpeed;
+uniform float uNeonCityscapeOpacity;
 `,
     functions: `vec3 neonCityscape(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2122,6 +2317,9 @@ uniform float uLightningColor;
   {
     id: 'gen-cosmic-nebula',
     uniforms: `uniform float uCosmicNebulaEnabled;
+uniform float uCosmicNebulaExpansion;
+uniform float uCosmicNebulaTurbulence;
+uniform float uCosmicNebulaOpacity;
 `,
     functions: `vec3 cosmicNebula(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2166,6 +2364,9 @@ uniform float uLightningColor;
   {
     id: 'gen-sonic-rain',
     uniforms: `uniform float uSonicRainEnabled;
+uniform float uSonicRainSpeed;
+uniform float uSonicRainDensity;
+uniform float uSonicRainOpacity;
 `,
     functions: `vec3 sonicRain(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2219,6 +2420,9 @@ uniform float uLightningColor;
   {
     id: 'gen-morphing-geometry',
     uniforms: `uniform float uMorphingGeometryEnabled;
+uniform float uMorphingGeometrySpeed;
+uniform float uMorphingGeometryComplexity;
+uniform float uMorphingGeometryOpacity;
 `,
     functions: `vec3 morphingGeometry(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
@@ -2283,6 +2487,9 @@ uniform float uLightningColor;
   {
     id: 'gen-urban-rhythm',
     uniforms: `uniform float uUrbanRhythmEnabled;
+uniform float uUrbanRhythmBpm;
+uniform float uUrbanRhythmIntensity;
+uniform float uUrbanRhythmOpacity;
 `,
     functions: `vec3 urbanRhythm(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2336,6 +2543,9 @@ uniform float uLightningColor;
   {
     id: 'gen-crimson-veil',
     uniforms: `uniform float uCrimsonVeilEnabled;
+uniform float uCrimsonVeilFlow;
+uniform float uCrimsonVeilDarkness;
+uniform float uCrimsonVeilOpacity;
 `,
     functions: `vec3 crimsonVeil(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2383,6 +2593,9 @@ uniform float uLightningColor;
   {
     id: 'gen-victorian-crypt',
     uniforms: `uniform float uVictorianCryptEnabled;
+uniform float uVictorianCryptComplexity;
+uniform float uVictorianCryptDecay;
+uniform float uVictorianCryptOpacity;
 `,
     functions: `vec3 victorianCrypt(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2439,6 +2652,9 @@ uniform float uLightningColor;
   {
     id: 'gen-spectral-apparition',
     uniforms: `uniform float uSpectralApparitionEnabled;
+uniform float uSpectralApparitionDensity;
+uniform float uSpectralApparitionFade;
+uniform float uSpectralApparitionOpacity;
 `,
     functions: `vec3 spectralApparition(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2497,6 +2713,9 @@ uniform float uLightningColor;
   {
     id: 'gen-gothic-cobwebs',
     uniforms: `uniform float uGothicCobwebsEnabled;
+uniform float uGothicCobwebsDensity;
+uniform float uGothicCobwebsDecay;
+uniform float uGothicCobwebsOpacity;
 `,
     functions: `vec3 gothicCobwebs(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2565,6 +2784,9 @@ uniform float uLightningColor;
   {
     id: 'gen-blood-moon-rise',
     uniforms: `uniform float uBloodMoonRiseEnabled;
+uniform float uBloodMoonRiseEclipse;
+uniform float uBloodMoonRiseGlow;
+uniform float uBloodMoonRiseOpacity;
 `,
     functions: `vec3 bloodMoonRise(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2629,6 +2851,9 @@ uniform float uLightningColor;
   {
     id: 'gen-candlelight-vigil',
     uniforms: `uniform float uCandlelightVigilEnabled;
+uniform float uCandlelightVigilFlicker;
+uniform float uCandlelightVigilDecay;
+uniform float uCandlelightVigilOpacity;
 `,
     functions: `vec3 candlelightVigil(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2697,6 +2922,9 @@ uniform float uLightningColor;
   {
     id: 'gen-gargoyles-awake',
     uniforms: `uniform float uGargoylesAwakeEnabled;
+uniform float uGargoylesAwakeAnimation;
+uniform float uGargoylesAwakeShadow;
+uniform float uGargoylesAwakeOpacity;
 `,
     functions: `vec3 gargoylesAwake(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2757,6 +2985,9 @@ uniform float uLightningColor;
   {
     id: 'gen-crypt-shadows',
     uniforms: `uniform float uCryptShadowsEnabled;
+uniform float uCryptShadowsDepth;
+uniform float uCryptShadowsMovement;
+uniform float uCryptShadowsOpacity;
 `,
     functions: `vec3 cryptShadows(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2836,6 +3067,9 @@ uniform float uLightningColor;
   {
     id: 'gen-gothic-rose',
     uniforms: `uniform float uGothicRoseEnabled;
+uniform float uGothicRoseDecay;
+uniform float uGothicRoseThorns;
+uniform float uGothicRoseOpacity;
 `,
     functions: `vec3 gothicRose(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2916,6 +3150,9 @@ uniform float uLightningColor;
   {
     id: 'gen-eternal-darkness',
     uniforms: `uniform float uEternalDarknessEnabled;
+uniform float uEternalDarknessVoid;
+uniform float uEternalDarknessTraces;
+uniform float uEternalDarknessOpacity;
 `,
     functions: `vec3 eternalDarkness(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -2970,6 +3207,9 @@ uniform float uLightningColor;
   {
     id: 'gen-pixel-dust',
     uniforms: `uniform float uPixelDustEnabled;
+uniform float uPixelDustDensity;
+uniform float uPixelDustPixelSize;
+uniform float uPixelDustOpacity;
 `,
     functions: `vec3 pixelDust(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -3029,6 +3269,9 @@ uniform float uLightningColor;
   {
     id: 'gen-retro-starfield',
     uniforms: `uniform float uRetroStarfieldEnabled;
+uniform float uRetroStarfieldSpeed;
+uniform float uRetroStarfieldSize;
+uniform float uRetroStarfieldOpacity;
 `,
     functions: `vec3 retroStarfield(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -3148,6 +3391,9 @@ uniform float u8BitGridPixelSize;
   {
     id: 'gen-arcade-invaders',
     uniforms: `uniform float uArcadeInvadersEnabled;
+uniform float uArcadeInvadersDensity;
+uniform float uArcadeInvadersAnimation;
+uniform float uArcadeInvadersOpacity;
 `,
     functions: `vec3 arcadeInvaders(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -3214,6 +3460,9 @@ uniform float u8BitGridPixelSize;
   {
     id: 'gen-power-up-pulse',
     uniforms: `uniform float uPowerUpPulseEnabled;
+uniform float uPowerUpPulseIntensity;
+uniform float uPowerUpPulseSpeed;
+uniform float uPowerUpPulseOpacity;
 `,
     functions: `vec3 powerUpPulse(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -3270,6 +3519,9 @@ uniform float u8BitGridPixelSize;
   {
     id: 'gen-dungeon-tiles',
     uniforms: `uniform float uDungeonTilesEnabled;
+uniform float uDungeonTilesPattern;
+uniform float uDungeonTilesAnimation;
+uniform float uDungeonTilesOpacity;
 `,
     functions: `vec3 dungeonTiles(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -3342,6 +3594,9 @@ uniform float u8BitGridPixelSize;
   {
     id: 'gen-chiptune-wave',
     uniforms: `uniform float uChiptuneWaveEnabled;
+uniform float uChiptuneWaveBits;
+uniform float uChiptuneWaveSpeed;
+uniform float uChiptuneWaveOpacity;
 `,
     functions: `vec3 chiptuneWave(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -3394,6 +3649,9 @@ uniform float u8BitGridPixelSize;
   {
     id: 'gen-score-counter',
     uniforms: `uniform float uScoreCounterEnabled;
+uniform float uScoreCounterDigits;
+uniform float uScoreCounterAnimation;
+uniform float uScoreCounterOpacity;
 `,
     functions: `vec3 scoreCounter(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -3455,6 +3713,9 @@ uniform float u8BitGridPixelSize;
   {
     id: 'gen-pixel-rain',
     uniforms: `uniform float uPixelRainEnabled;
+uniform float uPixelRainDensity;
+uniform float uPixelRainSpeed;
+uniform float uPixelRainOpacity;
 `,
     functions: `vec3 pixelRain(vec2 uv, float t, float audio) {
   vec2 p = uv;
@@ -4062,7 +4323,7 @@ uniform float uTypographyRevealOpacity;
   vec2 local = fract(p * gridSize);
   float rnd = hash21(cell + floor(t * 0.5));
   float rnd2 = hash21(cell + 13.7);
-  float active = step(0.3, rnd);
+  float activeVal = step(0.3, rnd);
   float charPhase = fract(t * 0.25 + rnd2);
   float charType = floor(hash21(cell + charPhase) * 6.0);
   float stroke = 0.0;
@@ -4072,7 +4333,7 @@ uniform float uTypographyRevealOpacity;
   else if (charType < 3.0) stroke = smoothstep(0.04, 0.0, abs(lp.x)) * step(-0.3, lp.y) * step(lp.y, 0.3);
   else if (charType < 4.0) stroke = smoothstep(0.04, 0.0, abs(lp.y)) * step(-0.3, lp.x) * step(lp.x, 0.3);
   else stroke = smoothstep(0.06, 0.0, sdBox(lp, vec2(0.28, 0.28)));
-  stroke *= active * (0.5 + audio * 0.7);
+  stroke *= activeVal * (0.5 + audio * 0.7);
   float band = floor(cell.x / gridSize.x * 8.0);
   int bIdx = int(clamp(band, 0.0, 7.0));
   float amp = uSpectrum[bIdx * 8];
@@ -4095,7 +4356,7 @@ uniform float uVariantTypographyRevealGlowOpacity;
   vec2 cell = floor(p * gridSize);
   vec2 local = fract(p * gridSize) - 0.5;
   float rnd = hash21(cell + floor(t * 0.3));
-  float active = step(0.25, rnd);
+  float activeVal = step(0.25, rnd);
   float charType = floor(hash21(cell + 5.7) * 4.0);
   float d;
   if (charType < 1.0) d = sdCircle(local, 0.3);
@@ -4103,10 +4364,10 @@ uniform float uVariantTypographyRevealGlowOpacity;
   else if (charType < 3.0) d = sdEquilateralTriangle(local, 0.3);
   else d = sdHexagon(local, 0.28);
   float outline = smoothstep(0.04, 0.0, abs(d));
-  float glow = exp(-abs(d) * 8.0) * 0.3 * active;
+  float glow = exp(-abs(d) * 8.0) * 0.3 * activeVal;
   float amp = uSpectrum[int(clamp(cell.x / gridSize.x * 64.0, 0.0, 63.0))];
   vec3 c = palette(hash21(cell) + t * 0.03 + amp * 0.2);
-  return c * (outline + glow) * active * (0.5 + audio * 0.8);
+  return c * (outline + glow) * activeVal * (0.5 + audio * 0.8);
 }
 `,
     mainCall: `  if (uVariantTypographyRevealGlowEnabled > 0.5) color += variantTypographyRevealGlow(effectUv, uTime, mid) * uVariantTypographyRevealGlowOpacity * uRoleWeights.z;
@@ -4633,6 +4894,9 @@ uniform float uMilkwaveOpacity;
   {
     id: 'gen-boss-health',
     uniforms: `uniform float uBossHealthEnabled;
+uniform float uBossHealthValue;
+uniform float uBossHealthBars;
+uniform float uBossHealthOpacity;
 `,
     functions: `vec3 bossHealth(vec2 uv, float t, float audio) {
   vec2 p = uv;

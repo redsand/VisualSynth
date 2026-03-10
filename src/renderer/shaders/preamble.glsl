@@ -275,3 +275,18 @@ float sdArc(vec2 p, vec2 c, float r, float w) {
   }
   return r - l;
 }
+
+float getWaveform(float t) {
+  return texture(uWaveformTex, vec2(clamp(t, 0.0, 1.0), 0.5)).r * 2.0 - 1.0;
+}
+
+vec3 hueRotate(vec3 col, float angle) {
+  float c = cos(angle);
+  float s = sin(angle);
+  mat3 m = mat3(
+    0.299 + 0.701*c - 0.168*s, 0.587 - 0.587*c + 0.330*s, 0.114 - 0.114*c - 0.497*s,
+    0.299 - 0.299*c + 0.328*s, 0.587 + 0.413*c + 0.035*s, 0.114 - 0.114*c - 0.292*s,
+    0.299 - 0.300*c - 0.900*s, 0.587 - 0.588*c + 1.050*s, 0.114 + 0.886*c + 0.203*s
+  );
+  return clamp(m * col, 0.0, 1.0);
+}
