@@ -79,4 +79,30 @@ describe('collectActiveGeneratorIds', () => {
     const result = collectActiveGeneratorIds(project);
     expect(result).toBeInstanceOf(Set);
   });
+
+  it('collects generatorId when layer.id is a UUID and generatorId is the generator type', () => {
+    // This is the real-world LayerConfig shape: id is a UUID, generatorId is the generator type
+    const generatorType = validGeneratorIds[0];
+    const project: VisualSynthProject = {
+      ...makeProject([]),
+      scenes: [{
+        id: 'scene-1',
+        name: 'Scene 1',
+        layers: [{
+          id: 'xxxxxxxx-uuid-0000-0000-000000000001',
+          name: 'My Layer',
+          enabled: true,
+          role: 'support' as const,
+          opacity: 1,
+          blendMode: 'normal' as const,
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+          generatorId: generatorType,
+        }],
+      }],
+    } as unknown as VisualSynthProject;
+    const result = collectActiveGeneratorIds(project);
+    expect(result.has(generatorType)).toBe(true);
+    // UUID should NOT be treated as a generator id
+    expect(result.has('xxxxxxxx-uuid-0000-0000-000000000001')).toBe(false);
+  });
 });

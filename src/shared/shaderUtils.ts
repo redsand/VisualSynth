@@ -12,8 +12,9 @@ export const collectActiveGeneratorIds = (project: VisualSynthProject): Set<stri
   const result = new Set<string>();
   for (const scene of project.scenes) {
     for (const layer of scene.layers) {
-      if (GENERATOR_ID_SET.has(layer.id)) {
-        result.add(layer.id);
+      const gid = layer.generatorId ?? layer.id;
+      if (GENERATOR_ID_SET.has(gid)) {
+        result.add(gid);
       }
     }
   }
@@ -27,7 +28,8 @@ export const collectActiveGeneratorIds = (project: VisualSynthProject): Set<stri
 export const collectSceneGeneratorIds = (scene: SceneConfig): Set<string> => {
   const result = new Set<string>();
   for (const layer of scene.layers) {
-    if (GENERATOR_ID_SET.has(layer.id)) result.add(layer.id);
+    const gid = layer.generatorId ?? layer.id;
+    if (GENERATOR_ID_SET.has(gid)) result.add(gid);
   }
   return result;
 };

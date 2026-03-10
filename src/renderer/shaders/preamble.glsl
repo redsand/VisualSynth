@@ -52,6 +52,7 @@ uniform float uEngineGrain;
 uniform float uEngineVignette;
 uniform float uEngineCA;
 uniform float uEngineSignature;
+uniform float uEffectsEnabled;
 
 // Post-FX & feedback uniforms (always needed by mainTemplate)
 uniform sampler2D uPreviousFrame;

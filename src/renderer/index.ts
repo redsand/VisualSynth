@@ -5304,11 +5304,11 @@ const addSceneFromPreset = async (presetPath: string) => {
     }),
     look
   };
-  addSceneToProject(newScene, false);
+  addSceneToProject(newScene, true);
   selectedSceneId = newScene.id;
   renderSceneStrip();
   renderSceneTimeline();
-  setStatus(`Scene added from preset: ${newScene.name} (preview ready)`);
+  setStatus(`Scene added from preset: ${newScene.name}`);
   logPresetDebug(
     traceId,
     'Preset scene added',

@@ -234,11 +234,24 @@ void main() {
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
+  // Preamble uniforms that are always declared but may be dead-code-eliminated
+  // by the GLSL compiler when no active generator references them. Missing warnings
+  // for these are expected and should be suppressed.
+  const PREAMBLE_ONLY_UNIFORMS = new Set([
+    'uGravityPos[0]', 'uGravityStrength[0]', 'uGravityPolarity[0]',
+    'uGravityActive[0]', 'uGravityCollapse',
+    'uEffectsEnabled', 'uGlobalColor',
+    'uEngineMass', 'uEngineFriction', 'uEngineElasticity',
+    'uMaxBloom', 'uForceFeedback',
+    'uExpressiveMotionEchoWarp', 'uExpressiveSpectralOffset',
+    'uPalette[0]',
+  ]);
+
   const updateStandardUniforms = (prog: WebGLProgram, state: RenderState) => {
     gl.useProgram(prog);
     const getLocation = (name: string) => {
       const loc = gl.getUniformLocation(prog, name);
-      if (!loc && !missingUniforms.has(name)) {
+      if (!loc && !missingUniforms.has(name) && !PREAMBLE_ONLY_UNIFORMS.has(name)) {
         missingUniforms.add(name);
         console.warn(`[VisualSynth] Uniform not found in shader: "${name}"`);
       }
