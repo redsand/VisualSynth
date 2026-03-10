@@ -17,14 +17,9 @@ describe('GeneratorShaderBlocks registry', () => {
     expect(missing.length).toBe(0);
   });
 
-  it('every block has non-empty uniforms, functions, and mainCall', () => {
+  it('every block has a mainCall', () => {
     for (const block of GENERATOR_SHADER_BLOCKS) {
-      expect(block.uniforms, `Block ${block.id} has uniforms`).toBeTruthy();
       expect(block.mainCall, `Block ${block.id} has mainCall`).toBeTruthy();
-
-      // Uniforms should contain at least the enabled uniform
-      expect(block.uniforms).toContain('uniform float');
-      expect(block.uniforms).toContain('Enabled');
 
       // Functions are optional (some generators like spectrum don't need them)
       // If functions exist, they should contain a function definition
@@ -39,8 +34,11 @@ describe('GeneratorShaderBlocks registry', () => {
     }
   });
 
-  it('every uniforms block declares at least one uXxxEnabled uniform', () => {
+  it('every uniforms block that is non-empty declares at least one uXxxEnabled uniform', () => {
+    // Some blocks (e.g. gen-strobe) have empty uniforms because their uniforms
+    // are declared globally in the preamble. Only check blocks with non-empty uniforms.
     for (const block of GENERATOR_SHADER_BLOCKS) {
+      if (!block.uniforms.trim()) continue;
       const enabledMatches = block.uniforms.match(/uniform float u\w+Enabled;/g);
       expect(enabledMatches, `Block ${block.id} has at least one enabled uniform`).toBeTruthy();
       expect(enabledMatches!.length).toBeGreaterThanOrEqual(1);

@@ -73,7 +73,6 @@ vec3 samplePlasma(vec2 uv, float t) {
     id: 'layer-spectrum',
     uniforms: `uniform float uSpectrumEnabled;
 uniform float uSpectrumOpacity;
-uniform float uPersistence;
 uniform float uSpectrumAssetEnabled;
 uniform sampler2D uSpectrumAsset;
 uniform float uSpectrumAssetBlend;
@@ -135,7 +134,6 @@ uniform float uGlyphOpacity;
 uniform float uGlyphSpeed;
 uniform float uGlyphMode;
 uniform float uGlyphSeed;
-uniform float uGlyphBeat;
 `,
     functions: `float glyphShape(vec2 p, float seed, float band, float complexity) {
   float s = fract(seed * 0.1234);
@@ -222,7 +220,6 @@ uniform float uInkScale;
 uniform float uInkPressure;
 uniform float uInkLifespan;
 uniform float uInkBrush;
-uniform float uGlyphBeat;
 `,
     functions: ``,
     mainCall: `  if (uInkEnabled > 0.5) {
@@ -273,7 +270,6 @@ uniform float uWeatherOpacity;
 uniform float uWeatherSpeed;
 uniform float uWeatherMode;
 uniform float uWeatherIntensity;
-uniform float uGlyphBeat;
 `,
     functions: ``,
     mainCall: `  if (uWeatherEnabled > 0.5) {
@@ -1801,16 +1797,7 @@ uniform float uLaserAudioReact;
 
   {
     id: 'gen-strobe',
-    uniforms: `uniform float uStrobeEnabled;
-uniform float uStrobeOpacity;
-uniform float uStrobeRate;
-uniform float uStrobeDutyCycle;
-uniform float uStrobeAudioTrigger;
-uniform float uStrobeThreshold;
-uniform float uStrobeFadeOut;
-uniform float uStrobeMode;
-uniform float uStrobePattern;
-`,
+    uniforms: ``,
     functions: `vec3 strobeFlash(vec2 uv, float t, float audio, float peak) {
   float beatPhase = fract(t * uStrobeRate * 0.5);
   float flash = step(beatPhase, uStrobeDutyCycle);
@@ -3876,9 +3863,10 @@ uniform float uSdfShadowsEnabled;
 
   {
     id: 'gen-sdf-scene',
-    uniforms: ``,
+    uniforms: `uniform float uSdfSceneEnabled;
+`,
     functions: ``,
-    mainCall: `  if (uAdvancedSdfEnabled > 0.5) color += vec3(0.0); // Advanced SDF handled by gen-sdf block
+    mainCall: `  if (uSdfSceneEnabled > 0.5) color += vec3(0.0); // Advanced SDF rendering handled by gen-sdf block
 `,
   },
 

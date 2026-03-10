@@ -53,6 +53,39 @@ uniform float uEngineVignette;
 uniform float uEngineCA;
 uniform float uEngineSignature;
 
+// Post-FX & feedback uniforms (always needed by mainTemplate)
+uniform sampler2D uPreviousFrame;
+uniform float uKaleidoscope;
+uniform float uKaleidoscopeRotation;
+uniform float uFeedback;
+uniform float uFeedbackRotation;
+uniform float uFeedbackZoom;
+uniform float uPosterize;
+uniform float uChroma;
+uniform float uBlur;
+uniform float uBloom;
+uniform float uPersistence;
+uniform float uGlyphBeat;
+
+// Strobe uniforms (used in mainTemplate post-processing)
+uniform float uStrobeEnabled;
+uniform float uStrobeRate;
+uniform float uStrobeDutyCycle;
+uniform float uStrobeThreshold;
+uniform float uStrobeAudioTrigger;
+uniform float uStrobeOpacity;
+uniform float uStrobeFadeOut;
+uniform float uStrobeMode;
+uniform float uStrobePattern;
+
+// VHS scanline uniforms (used in mainTemplate post-processing)
+uniform float uVhsScanlineEnabled;
+uniform float uVhsScanlineMode;
+uniform float uVhsScanlineFrequency;
+uniform float uVhsScanlineSpeed;
+uniform float uVhsScanlineIntensity;
+uniform float uVhsScanlineWarp;
+
 /* @@GENERATOR_UNIFORMS */
 
 float sdfSceneMap(vec3 p) {
