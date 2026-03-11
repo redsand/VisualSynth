@@ -2,16 +2,24 @@
 
 ## Current State
 
-Production builds now default to [`src/renderer/bootstrap.ts`](../src/renderer/bootstrap.ts) through [`scripts/build-renderer.js`](../scripts/build-renderer.js), with explicit fallback override to `index.ts` via `--entry=index` or `VS_RENDERER_ENTRY=index`.
+Production builds now default to [`src/renderer/index.ts`](../src/renderer/index.ts) through [`scripts/build-renderer.js`](../scripts/build-renderer.js), with explicit override to `bootstrap.ts` via `--entry=bootstrap`.
 
-The repository also contains an alternate runtime path built around:
-- [`src/renderer/bootstrap.ts`](../src/renderer/bootstrap.ts)
-- [`src/renderer/render/Renderer.ts`](../src/renderer/render/Renderer.ts)
-- store-driven services under [`src/renderer/state`](../src/renderer/state)
+The codebase has two browser-side renderer entry architectures:
+- `index.ts`: **default shipped entrypoint** with full UI initialization (tabs, presets, scene strip, panels, etc.)
+- `bootstrap.ts`: minimal entrypoint for debugging/headless scenarios (missing most UI initialization)
 
-That means the codebase currently has two browser-side renderer entry architectures:
-- `bootstrap.ts`: shipped modular entrypoint that composes services and a store-driven renderer
-- `index.ts`: fallback monolithic entrypoint with direct DOM ownership and render loop
+## Why index.ts is the Default
+
+The `bootstrap.ts` entrypoint was found to be missing critical UI initialization required for the release candidate:
+- Tab/mode switching (performance, mixer, mapping, design, system)
+- Preset loading and display
+- Scene strip and timeline interactions
+- Panel collapse, drag-and-drop, shortcuts
+- Loading splash screen dismissal
+
+The `index.ts` entrypoint includes all of this and is the complete application.
+
+For release safety, the renderer build no longer accepts environment-variable entry overrides. Switching to `bootstrap.ts` now requires an explicit CLI opt-in.
 
 ## Concrete Drift Risks
 

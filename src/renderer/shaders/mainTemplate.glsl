@@ -170,7 +170,12 @@ void main() {
     color = mix(color, texture(uPreviousFrame, smearUv).rgb, uExpressiveSpectralSmear);
   }
 
-  color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
+  // Only apply audio-reactive overlay if there's actual visual content
+  // (base color length is ~0.09, so threshold slightly above that means generators ran)
+  float colorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
+  if (colorEnergy > 0.15) {
+    color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
+  }
 
   if (uEffectsEnabled > 0.5) {
     color += pow(color, vec3(2.0)) * uBloom;

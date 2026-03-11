@@ -1,8 +1,15 @@
 /**
- * Bootstrap: Orchestrates application initialization in correct order.
+ * Bootstrap: Minimal entrypoint for basic renderer initialization.
  *
- * NOTE: This module is the default browser entrypoint for production builds.
- * Keep behavior aligned with src/renderer/index.ts while fallback support remains.
+ * NOTE: This module is a minimal/fallback entrypoint. The default entrypoint
+ * is now src/renderer/index.ts which includes full UI initialization.
+ *
+ * Use this entrypoint only for:
+ * - Debugging minimal renderer startup
+ * - Headless testing scenarios
+ * - Custom builds that don't need full UI
+ *
+ * To build with this entrypoint: node scripts/build-renderer.js --entry=bootstrap
  *
  * CRITICAL: The initialization order MUST be preserved to prevent:
  * - Layer toggle null references (renderLayerList must run before render loop)
@@ -301,6 +308,15 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
 
   console.log('[Bootstrap] ✓ Initialization complete');
   setStatus('VisualSynth ready.');
+
+  // Hide loading splash screen
+  const splash = document.getElementById('loading-splash');
+  if (splash) {
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
+    }, 500);
+  }
 
   (window as any).__visualSynthCaptureApi = {
     applyProject: async (project: VisualSynthProject, options: { skipRecovery?: boolean } = {}) => {

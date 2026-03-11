@@ -4,8 +4,8 @@ const path = require('path');
 
 const watch = process.argv.includes('--watch');
 const entryArg = process.argv.find((arg) => arg.startsWith('--entry='));
-const requestedEntry = entryArg ? entryArg.split('=')[1] : process.env.VS_RENDERER_ENTRY;
-const rendererEntry = requestedEntry === 'index' ? 'index' : 'bootstrap';
+const requestedEntry = entryArg ? entryArg.split('=')[1] : null;
+const rendererEntry = requestedEntry === 'bootstrap' ? 'bootstrap' : 'index';
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'dist/renderer');
 const srcDir = path.join(root, 'src/renderer');

@@ -7,3 +7,6 @@ out
 .DS_Store
 build/icon.ico
 .rev
+.worktrees/
+release/
+docs/visual-regression-*/

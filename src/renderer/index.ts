@@ -132,7 +132,7 @@ declare global {
       ndiDisable: () => Promise<void>;
       ndiSetSenderName: (name: string) => Promise<void>;
     };
-    // RenderGraph for macro triggering. bootstrap.ts is now the shipped renderer entrypoint.
+    // RenderGraph for macro triggering. index.ts is the default browser entrypoint.
     renderGraph?: {
       triggerMacro: (macroId: string) => void;
       handleMidiNote: (channel: number, note: number, velocity: number, bank?: number) => boolean;

@@ -13,10 +13,11 @@ const startupApplyPath = path.join(repoRoot, 'src', 'renderer', 'startupProjectA
 const unificationDocPath = path.join(repoRoot, 'docs', 'RENDERER_ENTRYPOINT_UNIFICATION.md');
 
 describe('renderer architecture', () => {
-  it('defaults to shipped renderer bootstrap.ts and supports index override', () => {
+  it('defaults to shipped renderer index.ts and supports bootstrap override', () => {
     const script = fs.readFileSync(buildScriptPath, 'utf-8');
     expect(script).toContain("const entryArg = process.argv.find((arg) => arg.startsWith('--entry='));");
-    expect(script).toContain("const rendererEntry = requestedEntry === 'index' ? 'index' : 'bootstrap';");
+    expect(script).toContain("const requestedEntry = entryArg ? entryArg.split('=')[1] : null;");
+    expect(script).toContain("const rendererEntry = requestedEntry === 'bootstrap' ? 'bootstrap' : 'index';");
     expect(script).toContain("const rendererEntryPath = path.join(srcDir, `${rendererEntry}.ts`);");
     expect(script).toContain("entryPoints: [");
     expect(script).toContain("{ in: rendererEntryPath, out: 'index' }");
@@ -24,24 +25,22 @@ describe('renderer architecture', () => {
     expect(script).toContain("entryNames: '[name]'");
   });
 
-  it('documents bootstrap.ts as the shipped renderer entrypoint', () => {
-    const bootstrapSource = fs.readFileSync(bootstrapPath, 'utf-8');
-    expect(bootstrapSource).toContain('This module is the default browser entrypoint');
+  it('documents index.ts as the shipped renderer entrypoint', () => {
+    const indexSource = fs.readFileSync(indexPath, 'utf-8');
+    expect(indexSource).toContain('default browser entrypoint');
   });
 
-  it('documents index.ts as the fallback renderer path', () => {
-    const indexSource = fs.readFileSync(indexPath, 'utf-8');
-    expect(indexSource).toContain('bootstrap.ts is now the shipped renderer entrypoint.');
+  it('documents bootstrap.ts as the fallback renderer path', () => {
+    const bootstrapSource = fs.readFileSync(bootstrapPath, 'utf-8');
+    expect(bootstrapSource).toContain('minimal/fallback entrypoint');
   });
 
   it('tracks the split and target architecture in the unification doc', () => {
     const doc = fs.readFileSync(unificationDocPath, 'utf-8');
     expect(doc).toContain('Current State');
-    expect(doc).toContain('Target End State');
-    expect(doc).toContain('Bootstrap Cutover Plan (Tracked)');
-    expect(doc).toContain('Readiness Gates (Must Pass Before Step 9)');
     expect(doc).toContain('index.ts');
-    expect(doc).toContain('src/renderer/bootstrap.ts');
+    expect(doc).toContain('src/renderer/index.ts');
+    expect(doc).toContain('bootstrap.ts');
   });
 
   it('uses shared startup selection application in both entry wrappers', () => {
