@@ -2,7 +2,7 @@ import { removeLayer as removeLayerFromScene } from '../../../shared/layers';
 import type { AssetItem, LayerConfig } from '../../../shared/project';
 import type { Store } from '../../state/store';
 import { actions } from '../../state/actions';
-import { GENERATORS, GeneratorId, toggleFavorite, updateRecents } from '../../../shared/generatorLibrary';
+import { GENERATORS, GeneratorId, getVisibleGenerators, toggleFavorite, updateRecents } from '../../../shared/generatorLibrary';
 import { assetService } from '../assetService';
 import { setStatus } from '../../state/events';
 import type { CustomShaderBlock } from '../../../shared/customShaderBlock';
@@ -45,6 +45,7 @@ export const createLayerPanel = ({
 
   let generatorFavoritesState: GeneratorId[] = [];
   let generatorRecentsState: GeneratorId[] = [];
+  const visibleGenerators = getVisibleGenerators();
 
   const assetLayerBlendModes: Record<AssetLayerId, number> = {
     'layer-plasma': store.getState().renderSettings.assetLayerBlendModes['layer-plasma'],
@@ -384,7 +385,7 @@ export const createLayerPanel = ({
   const renderGeneratorList = (container: HTMLElement, items: GeneratorId[]) => {
     container.innerHTML = '';
     items.forEach((id) => {
-      const entry = GENERATORS.find((gen) => gen.id === id);
+      const entry = visibleGenerators.find((gen) => gen.id === id);
       if (!entry) return;
       const chip = document.createElement('div');
       chip.className = 'generator-chip';
@@ -411,7 +412,7 @@ export const createLayerPanel = ({
 
   const refreshGeneratorUI = () => {
     generatorSelect.innerHTML = '';
-    GENERATORS.forEach((gen) => {
+    visibleGenerators.forEach((gen) => {
       const option = document.createElement('option');
       option.value = gen.id;
       option.textContent = gen.name;

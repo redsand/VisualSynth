@@ -3,6 +3,7 @@ import type { CustomShaderBlock } from '../../shared/customShaderBlock';
 import type { Store } from '../state/store';
 import { actions } from '../state/actions';
 import { setStatus } from '../state/events';
+import { createSafeModeRenderer } from '../safeModeRenderer';
 import type { RenderGraph } from './RenderGraph';
 import type { AudioEngine } from '../audio/AudioEngine';
 import type { DebugOverlay } from './debugOverlay';
@@ -13,7 +14,7 @@ import {
   resolveSceneSwitch,
   tickFpsTracker
 } from './renderLoopHelpers';
-import { buildRendererOutputPayload } from './outputPayload';
+import { buildRendererOutputBroadcastPayload } from './outputPayload';
 
 export interface RendererDeps {
   store: Store;
@@ -27,6 +28,9 @@ export interface RendererDeps {
 export interface Renderer {
   start: () => void;
   setLayerAsset: ReturnType<typeof createGLRenderer>['setLayerAsset'];
+  getLastShaderError: () => string | null;
+  getGeneratorDiagnostics: ReturnType<typeof createGLRenderer>['getGeneratorDiagnostics'];
+  getMissingUniforms: ReturnType<typeof createGLRenderer>['getMissingUniforms'];
   recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) => boolean;
   precompileVariant: (ids: Set<string>) => void;
   setCustomShaderBlocks: (blocks: CustomShaderBlock[]) => void;
@@ -52,26 +56,7 @@ export const createRenderer = ({
     actions.setWebglInitError(store, error instanceof Error ? error.message : String(error));
     actions.addSafeModeReason(store, 'Renderer init failed');
     setStatus('Renderer init failed. Safe mode enabled.');
-    renderer = {
-      render: () => {
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.fillStyle = '#0b111b';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#ffd0d0';
-        ctx.font = '16px Segoe UI, sans-serif';
-        ctx.fillText('Safe mode: WebGL2 unavailable', 24, 32);
-      },
-      setLayerAsset: async () => undefined,
-      setPalette: () => {},
-      setPlasmaShaderSource: (_source: string | null) => ({ ok: false }),
-      getLastShaderError: () => null,
-      getGeneratorDiagnostics: () => [],
-      getMissingUniforms: () => [],
-      recompileForGenerators: () => false,
-      precompileVariant: () => {},
-      setCustomShaderBlocks: () => {}
-    };
+    renderer = createSafeModeRenderer(canvas);
   }
 
   let lastTime = performance.now();
@@ -219,7 +204,17 @@ export const createRenderer = ({
 
     if (cadence.shouldBroadcastOutput) {
       lastOutputBroadcast = time;
-      outputChannel.postMessage(buildRendererOutputPayload(renderState));
+      const outputState = store.getState();
+      const outputScene = outputState.project.scenes.find(
+        (scene) => scene.id === outputState.project.activeSceneId
+      );
+      outputChannel.postMessage(
+        buildRendererOutputBroadcastPayload({
+          renderState,
+          project: outputState.project,
+          scene: outputScene
+        })
+      );
     }
 
     requestAnimationFrame(renderLoop);
@@ -230,6 +225,9 @@ export const createRenderer = ({
       requestAnimationFrame(renderLoop);
     },
     setLayerAsset: renderer.setLayerAsset,
+    getLastShaderError: renderer.getLastShaderError,
+    getGeneratorDiagnostics: renderer.getGeneratorDiagnostics,
+    getMissingUniforms: renderer.getMissingUniforms,
     recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) =>
       renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds, customBlocks) : false,
     precompileVariant: (ids: Set<string>) =>

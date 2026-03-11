@@ -6,6 +6,7 @@ import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
 import { EDM_DROP_COLLECTION, getEdmPreset } from '../sdf/presets/edmPresets';
+import { registerSdfNodes, sdfRegistry } from '../sdf/nodes';
 import {
   SceneMacro,
   MacroExecutionState,
@@ -159,7 +160,16 @@ const getLayerRole = (layer?: { role?: LayerRole; id?: string }): LayerRole => {
   return 'support';
 };
 
-const applyRoleOpacity = (opacity: number, role: LayerRole, lowFreq: number) => {
+const isLegacyNeutralProject = (project: VisualSynthProject) =>
+  !project.activeEngineId && !project.activeModeId;
+
+const applyRoleOpacity = (
+  opacity: number,
+  role: LayerRole,
+  lowFreq: number,
+  legacyNeutral: boolean
+) => {
+  if (legacyNeutral) return opacity;
   const settings = ROLE_SETTINGS[role];
   if (settings.lowFreqOnly) {
     return opacity * (0.35 + lowFreq * 0.65);
@@ -167,7 +177,8 @@ const applyRoleOpacity = (opacity: number, role: LayerRole, lowFreq: number) => 
   return opacity * settings.opacityBoost;
 };
 
-const getRoleAudioScale = (role: LayerRole, lowFreq: number) => {
+const getRoleAudioScale = (role: LayerRole, lowFreq: number, legacyNeutral: boolean) => {
+  if (legacyNeutral) return 1;
   const settings = ROLE_SETTINGS[role];
   const lowFreqScale = settings.lowFreqOnly ? 0.3 + lowFreq * 0.7 : 1;
   return settings.audioScale * lowFreqScale;
@@ -301,13 +312,16 @@ export class RenderGraph {
   private initBurstSdfPresets() {
     if (this.burstSdfInitialized) return;
 
+    if (!sdfRegistry.has('ring') || !sdfRegistry.has('star')) {
+      registerSdfNodes();
+    }
+
     // Load the EDM drop collection presets by default
     for (const config of EDM_DROP_COLLECTION) {
       burstSdfManager.addBurst(config);
     }
 
     this.burstSdfInitialized = true;
-    console.log('[RenderGraph] EDM burst SDF presets initialized');
   }
 
   /**
@@ -1252,6 +1266,7 @@ export class RenderGraph {
       : 0;
     const engineGrammar = (state.project as any).engineGrammar ?? {};
     const engineFinish = (state.project as any).engineFinish ?? {};
+    const hasActiveEngine = Boolean(engine);
     const engineSignature = (() => {
       if (engineId === 'engine-radial-core') return 1;
       if (engineId === 'engine-particle-flow') return 2;
@@ -1340,6 +1355,7 @@ export class RenderGraph {
     );
 
     const activeScene = state.project.scenes.find((scene) => scene.id === state.project.activeSceneId);
+    const legacyNeutral = isLegacyNeutralProject(state.project);
     const activeIntent = activeScene?.intent ?? 'ambient';
     const resolveExpressiveMacro = (
       macro: number,
@@ -1457,13 +1473,19 @@ export class RenderGraph {
     const eternalDarknessLayer = findLayerById(activeScene?.layers, 'gen-eternal-darkness');
     const pixelDustLayer = findLayerById(activeScene?.layers, 'gen-pixel-dust');
     const retroStarfieldLayer = findLayerById(activeScene?.layers, 'gen-retro-starfield');
-    const eightBitGridLayer = findLayerById(activeScene?.layers, 'gen-eight-bit-grid');
+    const eightBitGridLayer =
+      findLayerById(activeScene?.layers, 'gen-8bit-grid') ??
+      findLayerById(activeScene?.layers, 'gen-eight-bit-grid');
     const arcadeInvadersLayer = findLayerById(activeScene?.layers, 'gen-arcade-invaders');
     const powerUpPulseLayer = findLayerById(activeScene?.layers, 'gen-power-up-pulse');
     const dungeonTilesLayer = findLayerById(activeScene?.layers, 'gen-dungeon-tiles');
     const chiptuneWaveLayer = findLayerById(activeScene?.layers, 'gen-chiptune-wave');
     const scoreCounterLayer = findLayerById(activeScene?.layers, 'gen-score-counter');
     const pixelRainLayer = findLayerById(activeScene?.layers, 'gen-pixel-rain');
+    const milkwaveLayer =
+      findLayerById(activeScene?.layers, 'gen-milkwave') ??
+      findLayerById(activeScene?.layers, 'layer-milkwave') ??
+      findLayerById(activeScene?.layers, 'layer-milkwave-effects');
     const bossHealthLayer = findLayerById(activeScene?.layers, 'gen-boss-health');
 
     const plasmaRole = getLayerRole(plasmaLayer);
@@ -1568,57 +1590,68 @@ export class RenderGraph {
     const moddedPlasmaOpacity = applyRoleOpacity(
       modValue('layer-plasma.opacity', layerOpacity(plasmaLayer, 'layer-plasma.opacity', 1)),
       plasmaRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedSpectrumOpacity = applyRoleOpacity(
       modValue('layer-spectrum.opacity', layerOpacity(spectrumLayer, 'layer-spectrum.opacity', 1)),
       spectrumRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedOrigamiOpacity = applyRoleOpacity(
       modValue('layer-origami.opacity', layerOpacity(origamiLayer, 'layer-origami.opacity', 0)),
       origamiRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedGlyphOpacity = applyRoleOpacity(
       modValue('layer-glyph.opacity', layerOpacity(glyphLayer, 'layer-glyph.opacity', 0)),
       glyphRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedCrystalOpacity = applyRoleOpacity(
       modValue('layer-crystal.opacity', layerOpacity(crystalLayer, 'layer-crystal.opacity', 0)),
       crystalRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedInkOpacity = applyRoleOpacity(
       modValue('layer-inkflow.opacity', layerOpacity(inkLayer, 'layer-inkflow.opacity', 0)),
       inkRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedTopoOpacity = applyRoleOpacity(
       modValue('layer-topo.opacity', layerOpacity(topoLayer, 'layer-topo.opacity', 0)),
       topoRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedWeatherOpacity = applyRoleOpacity(
       modValue('layer-weather.opacity', layerOpacity(weatherLayer, 'layer-weather.opacity', 0)),
       weatherRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedPortalOpacity = applyRoleOpacity(
       modValue('layer-portal.opacity', layerOpacity(portalLayer, 'layer-portal.opacity', 0)),
       portalRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedMediaOpacity = applyRoleOpacity(
       modValue('layer-media.opacity', layerOpacity(mediaLayer, 'layer-media.opacity', 0)),
       mediaRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const moddedOscilloOpacity = applyRoleOpacity(
       modValue('layer-oscillo.opacity', layerOpacity(oscilloLayer, 'layer-oscillo.opacity', 0)),
       oscilloRole,
-      lowFreq
+      lowFreq,
+      legacyNeutral
     );
     const portalStyle = Math.max(
       0,
@@ -1644,7 +1677,7 @@ export class RenderGraph {
       return base + macroVal(macroTarget);
     };
 
-    const moddedFeedback = getFxVal(feedbackLayer, 'fx-feedback.amount', effects.feedback);
+    const moddedFeedback = getFxVal(fxFeedbackLayer, 'fx-feedback.amount', effects.feedback);
     const moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
     const moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
     
@@ -1658,7 +1691,7 @@ export class RenderGraph {
 
     const hasActiveScene = Boolean(activeScene);
     const plasmaEnabled = plasmaLayer?.enabled ?? true;
-    const spectrumEnabled = spectrumLayer?.enabled ?? true;
+    const spectrumEnabled = spectrumLayer?.enabled ?? false;
     const origamiEnabled = origamiLayer?.enabled ?? false;
     const glyphEnabled = glyphLayer?.enabled ?? false;
     const crystalEnabled = crystalLayer?.enabled ?? false;
@@ -1699,7 +1732,7 @@ export class RenderGraph {
       plasmaScale: moddedPlasmaScale,
       plasmaComplexity: moddedPlasmaComplexity,
       plasmaAudioReact:
-        state.renderSettings.assetLayerAudioReact['layer-plasma'] * getRoleAudioScale(plasmaRole, lowFreq),
+        state.renderSettings.assetLayerAudioReact['layer-plasma'] * getRoleAudioScale(plasmaRole, lowFreq, legacyNeutral),
       spectrumOpacity: moddedSpectrumOpacity,
       origamiOpacity: moddedOrigamiOpacity,
       origamiFoldState: runtime.origamiFoldState,
@@ -1752,13 +1785,13 @@ export class RenderGraph {
       midiData: new Float32Array(256),
       plasmaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-plasma'],
       plasmaAssetAudioReact:
-        state.renderSettings.assetLayerAudioReact['layer-plasma'] * getRoleAudioScale(plasmaRole, lowFreq),
+        state.renderSettings.assetLayerAudioReact['layer-plasma'] * getRoleAudioScale(plasmaRole, lowFreq, legacyNeutral),
       spectrumAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-spectrum'],
       spectrumAssetAudioReact:
-        state.renderSettings.assetLayerAudioReact['layer-spectrum'] * getRoleAudioScale(spectrumRole, lowFreq),
+        state.renderSettings.assetLayerAudioReact['layer-spectrum'] * getRoleAudioScale(spectrumRole, lowFreq, legacyNeutral),
       mediaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-media'],
       mediaAssetAudioReact:
-        state.renderSettings.assetLayerAudioReact['layer-media'] * getRoleAudioScale(mediaRole, lowFreq),
+        state.renderSettings.assetLayerAudioReact['layer-media'] * getRoleAudioScale(mediaRole, lowFreq, legacyNeutral),
       roleWeights,
       transitionAmount,
       transitionType,
@@ -1766,9 +1799,9 @@ export class RenderGraph {
       engineMass: engineGrammar.mass ?? 0.5,
       engineFriction: engineGrammar.friction ?? 0.95,
       engineElasticity: engineGrammar.elasticity ?? 1.0,
-      engineGrain: engineFinish.grain ?? 0.2,
-      engineVignette: engineFinish.vignette ?? 1.0,
-      engineCA: engineFinish.ca ?? 0.3,
+      engineGrain: engineFinish.grain ?? (hasActiveEngine ? 0.2 : 0),
+      engineVignette: engineFinish.vignette ?? (hasActiveEngine ? 1.0 : 0),
+      engineCA: engineFinish.ca ?? (hasActiveEngine ? 0.3 : 0),
       engineSignature,
       maxBloom,
       forceFeedback,
@@ -2105,71 +2138,71 @@ export class RenderGraph {
       crimsonVeilEnabled: crimsonVeilLayer?.enabled ?? false,
       crimsonVeilOpacity: getLayerParamNumber(crimsonVeilLayer, 'opacity', 1.0),
       crimsonVeilFlow: getLayerParamNumber(crimsonVeilLayer, 'flow', 1.0),
-      crimsonVeilDarkness: getLayerParamNumber(crimsonVeilLayer, 'darkness', 1.0),
+      crimsonVeilDarkness: getLayerParamNumber(crimsonVeilLayer, 'darkness', 0.5),
       victorianCryptEnabled: victorianCryptLayer?.enabled ?? false,
       victorianCryptOpacity: getLayerParamNumber(victorianCryptLayer, 'opacity', 1.0),
-      victorianCryptComplexity: getLayerParamNumber(victorianCryptLayer, 'complexity', 3.0),
-      victorianCryptDecay: getLayerParamNumber(victorianCryptLayer, 'decay', 1.0),
+      victorianCryptComplexity: getLayerParamNumber(victorianCryptLayer, 'complexity', 0.5),
+      victorianCryptDecay: getLayerParamNumber(victorianCryptLayer, 'decay', 0.5),
       spectralApparitionEnabled: spectralApparitionLayer?.enabled ?? false,
       spectralApparitionOpacity: getLayerParamNumber(spectralApparitionLayer, 'opacity', 1.0),
-      spectralApparitionDensity: getLayerParamNumber(spectralApparitionLayer, 'density', 1.0),
-      spectralApparitionFade: getLayerParamNumber(spectralApparitionLayer, 'fade', 1.0),
+      spectralApparitionDensity: getLayerParamNumber(spectralApparitionLayer, 'density', 0.5),
+      spectralApparitionFade: getLayerParamNumber(spectralApparitionLayer, 'fade', 0.5),
       gothicCobwebsEnabled: gothicCobwebsLayer?.enabled ?? false,
       gothicCobwebsOpacity: getLayerParamNumber(gothicCobwebsLayer, 'opacity', 1.0),
-      gothicCobwebsDensity: getLayerParamNumber(gothicCobwebsLayer, 'density', 1.0),
-      gothicCobwebsDecay: getLayerParamNumber(gothicCobwebsLayer, 'decay', 1.0),
+      gothicCobwebsDensity: getLayerParamNumber(gothicCobwebsLayer, 'density', 0.5),
+      gothicCobwebsDecay: getLayerParamNumber(gothicCobwebsLayer, 'decay', 0.5),
       bloodMoonRiseEnabled: bloodMoonRiseLayer?.enabled ?? false,
       bloodMoonRiseOpacity: getLayerParamNumber(bloodMoonRiseLayer, 'opacity', 1.0),
-      bloodMoonRiseEclipse: getLayerParamNumber(bloodMoonRiseLayer, 'eclipse', 0),
+      bloodMoonRiseEclipse: getLayerParamNumber(bloodMoonRiseLayer, 'eclipse', 0.5),
       bloodMoonRiseGlow: getLayerParamNumber(bloodMoonRiseLayer, 'glow', 0.5),
       candlelightVigilEnabled: candlelightVigilLayer?.enabled ?? false,
       candlelightVigilOpacity: getLayerParamNumber(candlelightVigilLayer, 'opacity', 1.0),
-      candlelightVigilFlicker: getLayerParamNumber(candlelightVigilLayer, 'flicker', 1.0),
-      candlelightVigilDecay: getLayerParamNumber(candlelightVigilLayer, 'decay', 1.0),
+      candlelightVigilFlicker: getLayerParamNumber(candlelightVigilLayer, 'flicker', 0.5),
+      candlelightVigilDecay: getLayerParamNumber(candlelightVigilLayer, 'decay', 0.5),
       gargoylesAwakeEnabled: gargoylesAwakeLayer?.enabled ?? false,
       gargoylesAwakeOpacity: getLayerParamNumber(gargoylesAwakeLayer, 'opacity', 1.0),
-      gargoylesAwakeAnimation: getLayerParamNumber(gargoylesAwakeLayer, 'animation', 1.0),
-      gargoylesAwakeShadow: getLayerParamNumber(gargoylesAwakeLayer, 'shadow', 1.0),
+      gargoylesAwakeAnimation: getLayerParamNumber(gargoylesAwakeLayer, 'animation', 0.5),
+      gargoylesAwakeShadow: getLayerParamNumber(gargoylesAwakeLayer, 'shadow', 0.5),
       cryptShadowsEnabled: cryptShadowsLayer?.enabled ?? false,
       cryptShadowsOpacity: getLayerParamNumber(cryptShadowsLayer, 'opacity', 1.0),
-      cryptShadowsDepth: getLayerParamNumber(cryptShadowsLayer, 'depth', 1.0),
-      cryptShadowsMovement: getLayerParamNumber(cryptShadowsLayer, 'movement', 1.0),
+      cryptShadowsDepth: getLayerParamNumber(cryptShadowsLayer, 'depth', 0.5),
+      cryptShadowsMovement: getLayerParamNumber(cryptShadowsLayer, 'movement', 0.5),
       gothicRoseEnabled: gothicRoseLayer?.enabled ?? false,
       gothicRoseOpacity: getLayerParamNumber(gothicRoseLayer, 'opacity', 1.0),
-      gothicRoseDecay: getLayerParamNumber(gothicRoseLayer, 'decay', 1.0),
-      gothicRoseThorns: getLayerParamNumber(gothicRoseLayer, 'thorns', 1.0),
+      gothicRoseDecay: getLayerParamNumber(gothicRoseLayer, 'decay', 0.5),
+      gothicRoseThorns: getLayerParamNumber(gothicRoseLayer, 'thorns', 0.5),
       eternalDarknessEnabled: eternalDarknessLayer?.enabled ?? false,
       eternalDarknessOpacity: getLayerParamNumber(eternalDarknessLayer, 'opacity', 1.0),
-      eternalDarknessVoid: getLayerParamNumber(eternalDarknessLayer, 'void', 1.0),
-      eternalDarknessTraces: getLayerParamNumber(eternalDarknessLayer, 'traces', 1.0),
+      eternalDarknessVoid: getLayerParamNumber(eternalDarknessLayer, 'void', 0.5),
+      eternalDarknessTraces: getLayerParamNumber(eternalDarknessLayer, 'traces', 0.5),
       // Retro Game Generators
       pixelDustEnabled: pixelDustLayer?.enabled ?? false,
       pixelDustOpacity: getLayerParamNumber(pixelDustLayer, 'opacity', 1.0),
-      pixelDustDensity: getLayerParamNumber(pixelDustLayer, 'density', 1.0),
-      pixelDustPixelSize: getLayerParamNumber(pixelDustLayer, 'pixelSize', 4.0),
+      pixelDustDensity: getLayerParamNumber(pixelDustLayer, 'density', 0.5),
+      pixelDustPixelSize: getLayerParamNumber(pixelDustLayer, 'pixelSize', 0.02),
       retroStarfieldEnabled: retroStarfieldLayer?.enabled ?? false,
       retroStarfieldOpacity: getLayerParamNumber(retroStarfieldLayer, 'opacity', 1.0),
       retroStarfieldSpeed: getLayerParamNumber(retroStarfieldLayer, 'speed', 1.0),
-      retroStarfieldSize: getLayerParamNumber(retroStarfieldLayer, 'size', 2.0),
+      retroStarfieldSize: getLayerParamNumber(retroStarfieldLayer, 'size', 0.01),
       eightBitGridEnabled: eightBitGridLayer?.enabled ?? false,
       eightBitGridOpacity: getLayerParamNumber(eightBitGridLayer, 'opacity', 1.0),
       eightBitGridSpeed: getLayerParamNumber(eightBitGridLayer, 'speed', 1.0),
-      eightBitGridPixelSize: getLayerParamNumber(eightBitGridLayer, 'pixelSize', 8.0),
+      eightBitGridPixelSize: getLayerParamNumber(eightBitGridLayer, 'pixelSize', 0.02),
       arcadeInvadersEnabled: arcadeInvadersLayer?.enabled ?? false,
       arcadeInvadersOpacity: getLayerParamNumber(arcadeInvadersLayer, 'opacity', 1.0),
-      arcadeInvadersDensity: getLayerParamNumber(arcadeInvadersLayer, 'density', 1.0),
-      arcadeInvadersAnimation: getLayerParamNumber(arcadeInvadersLayer, 'animation', 1.0),
+      arcadeInvadersDensity: getLayerParamNumber(arcadeInvadersLayer, 'density', 0.5),
+      arcadeInvadersAnimation: getLayerParamNumber(arcadeInvadersLayer, 'animation', 0.5),
       powerUpPulseEnabled: powerUpPulseLayer?.enabled ?? false,
       powerUpPulseOpacity: getLayerParamNumber(powerUpPulseLayer, 'opacity', 1.0),
-      powerUpPulseIntensity: getLayerParamNumber(powerUpPulseLayer, 'intensity', 1.0),
+      powerUpPulseIntensity: getLayerParamNumber(powerUpPulseLayer, 'intensity', 0.5),
       powerUpPulseSpeed: getLayerParamNumber(powerUpPulseLayer, 'speed', 1.0),
       dungeonTilesEnabled: dungeonTilesLayer?.enabled ?? false,
       dungeonTilesOpacity: getLayerParamNumber(dungeonTilesLayer, 'opacity', 1.0),
-      dungeonTilesPattern: getLayerParamNumber(dungeonTilesLayer, 'pattern', 0),
+      dungeonTilesPattern: getLayerParamNumber(dungeonTilesLayer, 'pattern', 0.5),
       dungeonTilesAnimation: getLayerParamNumber(dungeonTilesLayer, 'animation', 1.0),
       chiptuneWaveEnabled: chiptuneWaveLayer?.enabled ?? false,
       chiptuneWaveOpacity: getLayerParamNumber(chiptuneWaveLayer, 'opacity', 1.0),
-      chiptuneWaveBits: getLayerParamNumber(chiptuneWaveLayer, 'bits', 8.0),
+      chiptuneWaveBits: getLayerParamNumber(chiptuneWaveLayer, 'bits', 4.0),
       chiptuneWaveSpeed: getLayerParamNumber(chiptuneWaveLayer, 'speed', 1.0),
       scoreCounterEnabled: scoreCounterLayer?.enabled ?? false,
       scoreCounterOpacity: getLayerParamNumber(scoreCounterLayer, 'opacity', 1.0),
@@ -2179,10 +2212,12 @@ export class RenderGraph {
       pixelRainOpacity: getLayerParamNumber(pixelRainLayer, 'opacity', 1.0),
       pixelRainDensity: getLayerParamNumber(pixelRainLayer, 'density', 1.0),
       pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
+      milkwaveEnabled: milkwaveLayer?.enabled ?? false,
+      milkwaveOpacity: getLayerParamNumber(milkwaveLayer, 'opacity', milkwaveLayer?.opacity ?? 1.0),
       bossHealthEnabled: bossHealthLayer?.enabled ?? false,
       bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
-      bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 1.0),
-      bossHealthBars: getLayerParamNumber(bossHealthLayer, 'bars', 1.0)
+      bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 0.5),
+      bossHealthBars: getLayerParamNumber(bossHealthLayer, 'bars', 3.0)
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);
@@ -2300,6 +2335,7 @@ export class RenderGraph {
       ['plasmaBall', 'gen-plasma-ball', renderState.plasmaBallEnabled, renderState.plasmaBallOpacity ?? 0],
       ['warpDrive', 'gen-warp-drive', renderState.warpDriveEnabled, renderState.warpDriveOpacity ?? 0],
       ['visualFeedback', 'gen-visual-feedback', renderState.visualFeedbackEnabled, renderState.visualFeedbackOpacity ?? 0],
+      ['milkwave', 'gen-milkwave', renderState.milkwaveEnabled, renderState.milkwaveOpacity ?? 0],
     ];
     this.debugState.generators = genLookups.map(([id, genId, enabled, opacity]) => ({
       id,

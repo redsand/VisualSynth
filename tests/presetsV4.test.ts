@@ -98,12 +98,9 @@ describe('Preset V4 System', () => {
   });
 
   it('correctly maps metadata to project where applicable', () => {
-    // Current VisualSynthProject doesn't have musicStyle/tags, so we can't test that mapping
-    // unless we update the project schema.
-    // For now, we verify that the loader doesn't crash.
     const { project } = applyPresetV4(sampleV4Preset, DEFAULT_PROJECT);
-    expect(project.name).toBe('Performance Template'); // Name comes from DEFAULT_PROJECT
-    // applyPresetV4 creates a new project from DEFAULT_PROJECT, and sets scenes.
-    // It does NOT copy preset.metadata.name to project.name.
+    expect(project.name).toBe('Test V4 Performance');
+    expect(project.activeEngineId).toBe('');
+    expect(project.activeModeId).toBe('');
   });
 });

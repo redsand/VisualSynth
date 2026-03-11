@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectActiveGeneratorIds } from '../src/shared/shaderUtils';
+import { collectActiveGeneratorIds, collectSceneGeneratorIds } from '../src/shared/shaderUtils';
 import { GENERATORS } from '../src/shared/generatorLibrary';
 import type { VisualSynthProject } from '../src/shared/project';
 
@@ -104,5 +104,59 @@ describe('collectActiveGeneratorIds', () => {
     expect(result.has(generatorType)).toBe(true);
     // UUID should NOT be treated as a generator id
     expect(result.has('xxxxxxxx-uuid-0000-0000-000000000001')).toBe(false);
+  });
+
+  it('maps imported Milkwave layer ids onto the registered generator id', () => {
+    const project = makeProject([['layer-milkwave', 'layer-milkwave-effects']]);
+    const result = collectActiveGeneratorIds(project);
+    expect(result.has('gen-milkwave')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
+  it('excludes visualizer and effect placeholder ids from shader collection', () => {
+    const project = makeProject([['layer-plasma', 'viz-spectrum', 'fx-bloom']]);
+    const result = collectActiveGeneratorIds(project);
+    expect(result.has('layer-plasma')).toBe(true);
+    expect(result.has('viz-spectrum')).toBe(false);
+    expect(result.has('fx-bloom')).toBe(false);
+    expect(result.size).toBe(1);
+  });
+
+  it('ignores disabled layers when collecting project-wide generator ids', () => {
+    const project = makeProject([['layer-plasma', 'layer-spectrum'], ['layer-glyph', 'layer-crystal']]);
+    project.scenes[0].layers[0].enabled = false;
+    project.scenes[1].layers[0].enabled = false;
+
+    const result = collectActiveGeneratorIds(project);
+
+    expect([...result].sort()).toEqual(['layer-crystal', 'layer-spectrum']);
+  });
+});
+
+describe('collectSceneGeneratorIds', () => {
+  it('maps imported Milkwave layer ids onto the registered generator id', () => {
+    const scene = makeProject([['layer-milkwave']]).scenes[0];
+    const result = collectSceneGeneratorIds(scene);
+    expect(result.has('gen-milkwave')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
+  it('excludes non-rendering visualizer and effect placeholders', () => {
+    const scene = makeProject([['viz-waveform', 'fx-feedback', 'gen-lightning']]).scenes[0];
+    const result = collectSceneGeneratorIds(scene);
+    expect(result.has('viz-waveform')).toBe(false);
+    expect(result.has('fx-feedback')).toBe(false);
+    expect(result.has('gen-lightning')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
+  it('ignores disabled layers when collecting scene generator ids', () => {
+    const scene = makeProject([['layer-plasma', 'layer-spectrum', 'layer-glyph']]).scenes[0];
+    scene.layers[0].enabled = false;
+    scene.layers[2].enabled = false;
+
+    const result = collectSceneGeneratorIds(scene);
+
+    expect([...result]).toEqual(['layer-spectrum']);
   });
 });

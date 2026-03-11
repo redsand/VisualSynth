@@ -10,7 +10,13 @@
     "dev": "concurrently -k \"tsc -w -p tsconfig.main.json\" \"node scripts/build-renderer.js --watch\" \"wait-on dist/main/main/main.js && electron .\"",
     "prepare:assets": "node scripts/prepare-assets.js",
     "build": "npm run prepare:assets && tsc -p tsconfig.main.json && node scripts/build-renderer.js",
+    "build:bootstrap": "npm run prepare:assets && tsc -p tsconfig.main.json && node scripts/build-renderer.js --entry=bootstrap",
+    "build:index": "npm run prepare:assets && tsc -p tsconfig.main.json && node scripts/build-renderer.js --entry=index",
     "verify:packaging": "node scripts/verify-packaging.js",
+    "release:check": "npm run verify:packaging && npm run build && npm test",
+    "release:check:bootstrap": "npm run verify:packaging && npm run build:bootstrap && npm test",
+    "release:check:index": "npm run verify:packaging && npm run build:index && npm test",
+    "test:bootstrap-readiness": "vitest run tests/bootstrapStartupOrder.test.ts tests/bootstrapEntrypoint.test.ts tests/rendererArchitecture.test.ts tests/visualSynthBridge.test.ts tests/startupProject.test.ts tests/startupProjectApply.test.ts tests/projectApplyRuntime.test.ts tests/loadableProject.test.ts tests/outputRuntime.test.ts tests/outputSessionRuntime.test.ts tests/sceneRuntime.test.ts tests/shaderLifecycle.test.ts tests/renderLoopHelpers.test.ts tests/rendererLoop.integration.test.ts tests/renderGraphEntryParity.test.ts tests/renderGraphFxParity.test.ts tests/renderGraphGeneratorDefaultParity.test.ts",
     "dist": "npm run verify:packaging && npm run build && electron-builder",
     "test": "vitest run",
     "screenshots:generate": "node scripts/generate-visual-screenshots.js",
@@ -21,7 +27,10 @@
     "screenshots:generators": "node scripts/generate-visual-screenshots.js --category generators",
     "screenshots:effects": "node scripts/generate-visual-screenshots.js --category effects",
     "screenshots:test": "npm test -- screenshot.test.ts",
-    "presets:migrate": "ts-node scripts/migrate-presets.ts"
+    "presets:migrate": "ts-node scripts/migrate-presets.ts",
+    "visual-regression:v1": "node scripts/compare-v1-visuals.js",
+    "visual-regression:v1:prepare": "node scripts/compare-v1-visuals.js --prepare-only",
+    "visual-regression:v1:all": "node scripts/compare-v1-visuals.js --all-v1-presets"
   },
   "build": {
     "appId": "com.visualsynth.app",

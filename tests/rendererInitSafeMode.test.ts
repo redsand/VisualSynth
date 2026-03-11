@@ -45,7 +45,7 @@ describe('createRenderer safe-mode init guard', () => {
   it('captures WebGL init errors and records safe mode reason', () => {
     const store = createStore(createInitialState());
 
-    createRenderer({
+    const renderer = createRenderer({
       store,
       renderGraph: { buildRenderState: vi.fn(), getDebugState: vi.fn() } as any,
       audioEngine: { update: vi.fn(), getContext: vi.fn(), getActiveBpm: vi.fn(() => 120) } as any,
@@ -57,5 +57,8 @@ describe('createRenderer safe-mode init guard', () => {
     const state = store.getState();
     expect(state.safeMode.webglInitError).toBe('WebGL disabled for test');
     expect(state.safeMode.reasons).toContain('Renderer init failed');
+    expect(renderer.getLastShaderError()).toBeNull();
+    expect(renderer.getGeneratorDiagnostics()).toEqual([]);
+    expect(renderer.getMissingUniforms()).toEqual([]);
   });
 });

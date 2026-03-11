@@ -1,0 +1,53 @@
+import type { VisualSynthProject, SceneConfig } from '../shared/project';
+import type { CustomShaderBlock } from '../shared/customShaderBlock';
+import { collectSceneGeneratorIds } from '../shared/shaderUtils';
+
+export interface ShaderCompiler {
+  recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) => boolean;
+  precompileVariant: (ids: Set<string>) => void;
+  setCustomShaderBlocks?: (blocks: CustomShaderBlock[]) => void;
+}
+
+export const getActiveScene = (project: VisualSynthProject): SceneConfig | undefined =>
+  project.scenes.find((scene) => scene.id === project.activeSceneId) ?? project.scenes[0];
+
+export const compileSceneShaders = (
+  renderer: ShaderCompiler,
+  scene: SceneConfig | undefined,
+  customBlocks: CustomShaderBlock[] = []
+): number => {
+  const activeIds = scene ? collectSceneGeneratorIds(scene) : new Set<string>();
+  renderer.setCustomShaderBlocks?.(customBlocks);
+  renderer.recompileForGenerators(activeIds, customBlocks);
+  return activeIds.size;
+};
+
+export const compileActiveSceneShaders = (
+  renderer: ShaderCompiler,
+  project: VisualSynthProject
+): number => compileSceneShaders(renderer, getActiveScene(project), project.customShaderBlocks ?? []);
+
+export const primeProjectShaders = (
+  renderer: ShaderCompiler,
+  project: VisualSynthProject,
+  initialDelayMs: number
+): number => {
+  const activeGeneratorCount = compileActiveSceneShaders(renderer, project);
+  queueSceneVariantPrecompile(renderer, project.scenes, initialDelayMs);
+  return activeGeneratorCount;
+};
+
+export const queueSceneVariantPrecompile = (
+  renderer: ShaderCompiler,
+  scenes: SceneConfig[],
+  initialDelayMs: number
+) => {
+  const scenesToPrecompile = [...scenes];
+  const precompileNext = (index: number) => {
+    if (index >= scenesToPrecompile.length) return;
+    const ids = collectSceneGeneratorIds(scenesToPrecompile[index]);
+    renderer.precompileVariant(ids);
+    setTimeout(() => precompileNext(index + 1), 0);
+  };
+  setTimeout(() => precompileNext(0), initialDelayMs);
+};

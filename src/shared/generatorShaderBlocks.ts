@@ -258,7 +258,7 @@ uniform float uTopoSlide;
     terrain += uTopoQuake * 0.6 * sin(flow.x * 6.0 + uTime * 1.4);
     terrain -= uTopoSlide * 0.5 * smoothstep(0.2, 0.9, terrain);
     float mask = smoothstep(0.12, 0.02, abs(sin(terrain * mix(6.0, 18.0, high))) * mix(0.2, 1.0, mid));
-    color += mix(palette(0.2), palette(0.6), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity * uRoleWeights.z;
+    color += mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity * uRoleWeights.z;
   }
 `,
   },
@@ -279,13 +279,13 @@ uniform float uWeatherIntensity;
     flow += vec2(-centered.y, centered.x) * (0.2 + (uWeatherMode > 2.5 ? 1.0 : 0.0) * 0.6) * (0.4 + pressure);
     vec2 wUv = effectUv + flow * (0.08 + mid * 1.1 * 0.15);
     float cloud = smoothstep(0.1, 0.7, (sin(wUv.x * 3.2 + uTime * 0.1 * uWeatherSpeed) + cos(wUv.y * 2.6 - uTime * 0.08 * uWeatherSpeed)) * 0.35 + pressure);
-    vec3 cCol = mix(palette(0.1), palette(0.3), cloud);
-    if (uWeatherMode < 0.5) cCol = mix(cCol, palette(0.2), 1.0);
-    else if (uWeatherMode < 2.5) cCol = mix(cCol, palette(0.4), 1.0);
+    vec3 cCol = mix(vec3(0.6, 0.65, 0.7), vec3(0.85, 0.88, 0.9), cloud);
+    if (uWeatherMode < 0.5) cCol = mix(cCol, vec3(0.45, 0.55, 0.65), 1.0);
+    else if (uWeatherMode < 2.5) cCol = mix(cCol, vec3(0.7, 0.75, 0.8), 1.0);
     float pHigh = high * 1.2 + uWeatherIntensity * 0.2;
     float rain = smoothstep(0.6, 0.0, abs(sin((wUv.x + uTime * 0.4 * uWeatherSpeed) * 30.0)) * pHigh) * (uWeatherMode < 0.5 || uWeatherMode > 2.5 ? 1.0 : 0.0);
     float snow = smoothstep(0.65, 0.0, abs(sin((wUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * pHigh) * (uWeatherMode > 0.5 && uWeatherMode < 1.5 ? 1.0 : 0.0);
-    color += (cCol * cloud + palette(0.6) * rain + palette(0.9) * snow + palette(1.0) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity * uRoleWeights.z;
+    color += (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity * uRoleWeights.z;
   }
 `,
   },
@@ -314,10 +314,10 @@ uniform float uPortalActive[4];
       warp += normalize(delta + 0.0001) * (rad - dist) * mix(0.06, 0.12, step(1.5, style));
     }
     effectUv = clamp(effectUv + warp * mix(0.45, 0.6, step(0.5, style)), 0.0, 1.0);
-    vec3 baseCol = palette(0.2);
-    if (style > 0.5 && style < 1.5) baseCol = palette(0.5);
-    if (style >= 1.5) baseCol = palette(0.8);
-    color += (baseCol + palette(0.9) * uPortalShift) * ringGlow * uPortalOpacity * uRoleWeights.z;
+    vec3 baseCol = vec3(0.2, 0.6, 0.9);
+    if (style > 0.5 && style < 1.5) baseCol = vec3(0.7, 0.35, 0.95);
+    if (style >= 1.5) baseCol = vec3(0.2, 0.9, 0.55);
+    color += (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity * uRoleWeights.z;
   }
 `,
   },
@@ -394,7 +394,7 @@ uniform float uOscillo[64];
       minDist = min(minDist, length(centered - p));
       arcGlow += smoothstep(0.08, 0.0, abs(length(centered) - (rad + 0.06 * sin(t * 12.0 + uTime * 0.3)))) * 0.2;
     }
-    color += (mix(palette(0.1), palette(0.3), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(palette(0.2), palette(0.4), uSpectrum[8]) * (0.2 + uPeak * 0.6) + palette(0.6) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity * uRoleWeights.y;
+    color += (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity * uRoleWeights.y;
   }
 `,
   },
@@ -4873,7 +4873,25 @@ uniform float uVariantNebulaDriftColdOpacity;
     uniforms: `uniform float uMilkwaveEnabled;
 uniform float uMilkwaveOpacity;
 `,
-    functions: `vec3 milkwave(vec2 uv, float t, float audio) { return vec3(0.0); }
+    functions: `vec3 milkwave(vec2 uv, float t, float audio) {
+  vec2 p = uv * 2.0 - 1.0;
+  float radius = length(p);
+  float angle = atan(p.y, p.x);
+  float warp = fbm(p * 2.8 + vec2(t * 0.08, -t * 0.06));
+  float tunnel = sin(angle * 6.0 + t * 0.7 + warp * 4.0);
+  float ripples = sin(radius * 24.0 - t * (1.6 + audio * 2.0) + warp * 5.0);
+  float glow = smoothstep(0.45, 0.0, abs(tunnel) * radius);
+  float bands = smoothstep(-0.15, 0.95, ripples);
+  float haze = fbm(p * 4.5 - vec2(t * 0.12, t * 0.09));
+  vec3 col = mix(
+    palette(fract(warp * 0.35 + t * 0.02)),
+    palette(fract(0.35 + radius * 0.6 - t * 0.03)),
+    0.5 + 0.5 * sin(angle + t * 0.2)
+  );
+  col += palette(fract(0.7 + radius * 0.25 + audio * 0.2)) * glow * (0.5 + audio);
+  col += palette(fract(angle * 0.08 + t * 0.04)) * bands * 0.25;
+  return col * (0.35 + haze * 0.85);
+}
 `,
     mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity * uRoleWeights.z;
 `,

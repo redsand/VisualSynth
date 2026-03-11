@@ -1,6 +1,9 @@
 /**
  * Bootstrap: Orchestrates application initialization in correct order.
  *
+ * NOTE: This module is the default browser entrypoint for production builds.
+ * Keep behavior aligned with src/renderer/index.ts while fallback support remains.
+ *
  * CRITICAL: The initialization order MUST be preserved to prevent:
  * - Layer toggle null references (renderLayerList must run before render loop)
  * - Modulator array undefined errors (initModulators before render loop)
@@ -27,12 +30,23 @@ import { createRenderer } from './render/Renderer';
 import { createProjectIO } from './persistence/projectIO';
 import { DEFAULT_OUTPUT_CONFIG, OUTPUT_BASE_WIDTH, OUTPUT_BASE_HEIGHT } from '../shared/project';
 import type { VisualSynthProject } from '../shared/project';
-import { projectSchema } from '../shared/projectSchema';
-import { collectActiveGeneratorIds, collectSceneGeneratorIds } from '../shared/shaderUtils';
+import { compileSceneShaders, primeProjectShaders } from './shaderLifecycle';
+import { selectStartupProject } from './startupProject';
+import { applyStartupSelection } from './startupProjectApply';
+import { applySceneActivationRuntime, resolveSceneActivationRuntime } from './sceneRuntime';
+import { initializeOutputSession } from './outputSessionRuntime';
+import { buildCaptureDiagnostics } from './captureDiagnostics';
+import { ensureVisualSynthBridge } from './visualSynthBridge';
 
 export interface BootstrapResult {
   store: Store;
   cleanup: () => void;
+}
+
+declare global {
+  interface Window {
+    __visualSynthBootstrapStarted?: boolean;
+  }
 }
 
 /**
@@ -41,6 +55,7 @@ export interface BootstrapResult {
  */
 export const bootstrap = async (): Promise<BootstrapResult> => {
   console.log('[Bootstrap] Starting VisualSynth initialization...');
+  ensureVisualSynthBridge(window);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PHASE 1: Create Core Services
@@ -149,29 +164,40 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
     onProjectApplied: () => {
       // Re-initialize modulators when project changes
       audioEngine.initModulators();
-      // Recompile shaders for active generators
-      const activeIds = collectActiveGeneratorIds(store.getState().project);
-      renderer.recompileForGenerators(activeIds, store.getState().project.customShaderBlocks ?? []);
-      console.log(`[Bootstrap] Project applied, modulators reinitialized, shaders recompiled for ${activeIds.size} generators`);
+      const project = store.getState().project;
+      const activeGeneratorCount = primeProjectShaders(renderer, project, 500);
+      console.log(`[Bootstrap] Project applied, modulators reinitialized, active scene shader primed for ${activeGeneratorCount} generators`);
     }
   });
 
   // Renderer with dependencies
+  const applySceneById = (sceneId: string) => {
+    const activation = resolveSceneActivationRuntime(store.getState().project, sceneId);
+    if (!activation) return;
+    actions.setProject(store, activation.project);
+    const runtime = applySceneActivationRuntime(activation, {
+      transportTimeMs: store.getState().transport.timeMs,
+      onVisualTransition: () => {},
+      startBlendTransition: () => {},
+      clearBlendTransition: () => {},
+      markSceneActivated: () => {},
+      setPaletteApplied: () => {},
+      compileSceneShaders: (scene, project) =>
+        compileSceneShaders(renderer, scene, project.customShaderBlocks ?? [])
+    });
+    console.log(
+      `[Bootstrap] Scene applied ${activation.scene.name}, recompiled shaders for ${runtime.activeGeneratorCount ?? 0} active generators`
+    );
+    setStatus(`Scene applied: ${activation.scene.name}`);
+  };
+
   const renderer = createRenderer({
     store,
     renderGraph,
     audioEngine,
     debugOverlay,
     serializeProject: projectIO.serializeProject,
-    onSceneApplied: (sceneId) => {
-      const scene = store.getState().project.scenes.find((s) => s.id === sceneId);
-      if (scene) {
-        actions.mutateProject(store, (project) => {
-          project.activeSceneId = sceneId;
-        });
-        setStatus(`Scene applied: ${scene.name}`);
-      }
-    }
+    onSceneApplied: applySceneById
   });
 
   console.log('[Bootstrap] Core services created');
@@ -208,20 +234,20 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log('[Bootstrap] Phase 3: Loading persisted configuration...');
 
-  // Load output configuration
-  const savedOutputConfig = await window.visualSynth.getOutputConfig();
-  const outputOpen = await window.visualSynth.isOutputOpen();
-  actions.setOutputConfig(store, { ...DEFAULT_OUTPUT_CONFIG, ...savedOutputConfig });
-  actions.setOutputOpen(store, outputOpen);
-
-  // Setup output window close handler
-  window.visualSynth.onOutputClosed(() => {
-    actions.setOutputOpen(store, false);
-    actions.setOutputConfig(store, { ...store.getState().outputConfig, enabled: false });
-    setStatus('Output window closed.');
+  const outputSession = await initializeOutputSession(window.visualSynth, {
+    defaultConfig: DEFAULT_OUTPUT_CONFIG,
+    applyState: (config, outputOpen) => {
+      actions.setOutputConfig(store, config);
+      actions.setOutputOpen(store, outputOpen);
+    },
+    onOutputClosed: () => {
+      actions.setOutputOpen(store, false);
+      actions.setOutputConfig(store, { ...store.getState().outputConfig, enabled: false });
+      setStatus('Output window closed.');
+    }
   });
 
-  console.log('[Bootstrap] Output config loaded:', store.getState().outputConfig);
+  console.log('[Bootstrap] Output config loaded:', outputSession.config);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // PHASE 4: Initialize Audio & MIDI
@@ -251,46 +277,16 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   console.log('[Bootstrap] Phase 5: Checking for recovery project...');
 
-  const recovery = await window.visualSynth.getRecovery();
-  if (recovery.found && recovery.payload) {
-    try {
-      const parsed = projectSchema.safeParse(JSON.parse(recovery.payload));
-      if (parsed.success) {
-        await projectIO.applyProject(parsed.data);
-        setStatus('Recovery session loaded.');
-        console.log('[Bootstrap] Recovery project applied');
-      } else {
-        console.warn('[Bootstrap] Recovery project invalid:', parsed.error);
-        setStatus('Recovery session found but invalid.');
-      }
-    } catch (error) {
-      console.error('[Bootstrap] Recovery project parse failed:', error);
-      setStatus('Recovery session found but failed to load.');
-    }
-  } else {
-    console.log('[Bootstrap] No recovery project found');
-    const firstLaunchKey = 'visualsynth.firstLaunchComplete';
-    const isFirstLaunch = localStorage.getItem(firstLaunchKey) !== '1';
-    if (isFirstLaunch) {
-      localStorage.setItem(firstLaunchKey, '1');
-      try {
-        const showcase = await window.visualSynth.loadShowcaseProject();
-        if (showcase.found && showcase.payload) {
-          const parsed = projectSchema.safeParse(JSON.parse(showcase.payload));
-          if (parsed.success) {
-            await projectIO.applyProject(parsed.data);
-            setStatus('Showcase project loaded.');
-            console.log('[Bootstrap] Showcase project applied');
-          } else {
-            console.warn('[Bootstrap] Showcase project invalid:', parsed.error);
-          }
-        } else if (showcase.error) {
-          console.warn('[Bootstrap] Showcase project missing:', showcase.error);
-        }
-      } catch (error) {
-        console.error('[Bootstrap] Showcase project load failed:', error);
-      }
-    }
+  try {
+    const startupSelection = await selectStartupProject(window.visualSynth, localStorage);
+    await applyStartupSelection(startupSelection, {
+      applyProject: projectIO.applyProject,
+      setStatus,
+      log: (message) => console.log(`[Bootstrap] ${message}`),
+      warn: (message, detail) => console.warn(`[Bootstrap] ${message}:`, detail)
+    });
+  } catch (error) {
+    console.error('[Bootstrap] Startup project load failed:', error);
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -300,19 +296,44 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
 
   renderer.start();
 
-  // Phase 4: Precompile shader variants for each scene in idle time
-  // so scene switching never triggers an on-demand compile stall.
-  const scenesToPrecompile = [...store.getState().project.scenes];
-  const precompileNext = (index: number) => {
-    if (index >= scenesToPrecompile.length) return;
-    const ids = collectSceneGeneratorIds(scenesToPrecompile[index]);
-    renderer.precompileVariant(ids);
-    setTimeout(() => precompileNext(index + 1), 0);
-  };
-  setTimeout(() => precompileNext(0), 500);
+  const startupGeneratorCount = primeProjectShaders(renderer, store.getState().project, 500);
+  console.log(`[Bootstrap] Startup shaders primed for ${startupGeneratorCount} generators`);
 
   console.log('[Bootstrap] ✓ Initialization complete');
   setStatus('VisualSynth ready.');
+
+  (window as any).__visualSynthCaptureApi = {
+    applyProject: async (project: VisualSynthProject, options: { skipRecovery?: boolean } = {}) => {
+      if (options.skipRecovery) {
+        console.log('[Capture API] Skipping recovery session as requested');
+      }
+      await projectIO.applyProject(project);
+    },
+    getCurrentProject: () => {
+      return { ...store.getState().project };
+    },
+    getDiagnostics: () => {
+      const state = store.getState();
+      return buildCaptureDiagnostics(
+        state.project,
+        state.safeMode.reasons,
+        renderer.getLastShaderError(),
+        renderer.getGeneratorDiagnostics(),
+        renderer.getMissingUniforms()
+      );
+    },
+    applyScene: (sceneId: string) => {
+      applySceneById(sceneId);
+    },
+    setMode: (mode: 'performance' | 'scene' | 'design' | 'system') => {
+      actions.setUiMode(store, mode);
+    },
+    triggerAction: (action: string, velocity = 1.0) => {
+      renderGraph.handlePadAction(action, velocity);
+    }
+  };
+  (window as any).__visualSynthInitialized = true;
+  console.log('[Bootstrap] Capture API exposed');
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // Cleanup Function
@@ -325,3 +346,15 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
 
   return { store, cleanup };
 };
+
+const startBootstrapEntrypoint = () => {
+  if (window.__visualSynthBootstrapStarted) {
+    return;
+  }
+  window.__visualSynthBootstrapStarted = true;
+  void bootstrap().catch((error) => {
+    console.error('[Bootstrap] Fatal initialization error:', error);
+  });
+};
+
+startBootstrapEntrypoint();

@@ -11,9 +11,11 @@ This assessment focuses on the current render-engine path centered around `creat
 ## High-Impact Gaps
 
 ### 1) Render contract drift risk (manual field fan-out)
-`Renderer.ts` manually copies a very large set of `renderState` fields into the output-channel payload. This is high risk for drift when `RenderState` evolves because there is no compiler-enforced mapping layer or schema guard between source and broadcast payload.
+Output payload fan-out is now centralized in `src/renderer/render/outputPayload.ts` and used by both `src/renderer/index.ts` and `src/renderer/render/Renderer.ts`. This removes the prior duplicate payload-mapping paths.
 
-**Impact:** Output window regressions and silent missing fields after adding generators/effects.
+Residual risk remains: there is still no schema guard on broadcast payload shape beyond TypeScript types, so runtime validation is not yet enforced.
+
+**Impact:** Lower drift risk than before, but possible silent runtime payload drift if shape assumptions change outside typed code paths.
 
 ### 2) Overgrown `RenderState` interface with weak segmentation
 `glRenderer.ts` defines a very large `RenderState` interface spanning core timing, post FX, SDF, particles, EDM, and rock generators. The structure is feature-rich but hard to reason about and validate as a stable contract.

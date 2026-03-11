@@ -537,6 +537,8 @@ export interface RenderState
   pixelRainOpacity: number;
   pixelRainDensity: number;
   pixelRainSpeed: number;
+  milkwaveEnabled: boolean;
+  milkwaveOpacity: number;
   bossHealthEnabled: boolean;
   bossHealthOpacity: number;
   bossHealthValue: number;

@@ -225,11 +225,35 @@ float fbm(vec2 p) {
 }
 
 vec3 palette(float t) {
-  vec3 a = vec3(0.5);
-  vec3 b = vec3(0.5);
-  vec3 c = vec3(2.0);
-  vec3 d = vec3(0.5, 0.5, 0.5);
-  return a + b * cos(6.28318 * (c * t + d + uPaletteShift));
+  return mix(uPalette[0], uPalette[1], smoothstep(0.0, 0.25, t)) +
+         mix(uPalette[1], uPalette[2], smoothstep(0.25, 0.5, t)) +
+         mix(uPalette[2], uPalette[3], smoothstep(0.5, 0.75, t)) +
+         mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, t));
+}
+
+vec3 applySaturation(vec3 color, float amount) {
+  float luma = dot(color, vec3(0.299, 0.587, 0.114));
+  return mix(vec3(luma), color, amount);
+}
+
+vec3 applyContrast(vec3 color, float amount) {
+  return (color - 0.5) * amount + 0.5;
+}
+
+vec3 shiftPalette(vec3 color, float shift) {
+  float angle = shift * 6.28318;
+  mat3 rot = mat3(
+    0.299 + 0.701 * cos(angle) + 0.168 * sin(angle), 0.587 - 0.587 * cos(angle) + 0.330 * sin(angle), 0.114 - 0.114 * cos(angle) - 0.497 * sin(angle),
+    0.299 - 0.299 * cos(angle) - 0.328 * sin(angle), 0.587 + 0.413 * cos(angle) + 0.035 * sin(angle), 0.114 - 0.114 * cos(angle) + 0.292 * sin(angle),
+    0.299 - 0.300 * cos(angle) + 1.250 * sin(angle), 0.587 - 0.588 * cos(angle) - 1.050 * sin(angle), 0.114 + 0.886 * cos(angle) - 0.203 * sin(angle)
+  );
+  return clamp(rot * color, 0.0, 1.0);
+}
+
+vec3 posterize(vec3 color, float amount) {
+  if (amount <= 0.01) return color;
+  float levels = mix(16.0, 3.0, amount);
+  return floor(color * levels) / levels;
 }
 
 vec2 rotate2d(vec2 p, float angle) {

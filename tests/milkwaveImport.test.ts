@@ -7,7 +7,8 @@ import {
   extractNameFromFilename
 } from '../src/shared/milkwaveParser';
 import { transpileMilkDropShader, inferPresetCategory } from '../src/shared/hlslToGlsl';
-import { presetV6Schema } from '../src/shared/presetMigration';
+import { applyPresetV6, presetV6Schema } from '../src/shared/presetMigration';
+import { DEFAULT_PROJECT } from '../src/shared/project';
 
 const fixturesDir = join(__dirname, 'fixtures', 'milkwave');
 const milkwavePath = join(__dirname, '..', '..', 'Milkwave', 'Visualizer', 'resources', 'presets');
@@ -134,6 +135,111 @@ describe('Milkwave Import Pipeline', () => {
 
       const result = presetV6Schema.safeParse(preset);
       expect(result.success).toBe(true);
+    });
+
+    it('preserves imported shader payload on v6 validation', () => {
+      const preset = {
+        version: 6,
+        metadata: {
+          version: 6,
+          name: 'Milkwave Payload',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          category: 'Imported',
+          compatibility: { minVersion: '1.4.0' },
+          activeEngineId: 'engine-radial-core',
+          activeModeId: 'mode-cosmic',
+          intendedMusicStyle: 'Electronic',
+          visualIntentTags: ['imported', 'milkwave'],
+          colorChemistry: ['analog'],
+          defaultTransition: { durationMs: 600, curve: 'easeInOut' }
+        },
+        scenes: [{
+          id: 'scene-1',
+          scene_id: 'scene-1',
+          name: 'Main',
+          intent: 'ambient',
+          duration: 0,
+          transition_in: { durationMs: 600, curve: 'easeInOut' },
+          transition_out: { durationMs: 600, curve: 'easeInOut' },
+          trigger: { type: 'manual' },
+          assigned_layers: { core: [], support: ['layer-milkwave'], atmosphere: [] },
+          layers: [{
+            id: 'layer-milkwave',
+            name: 'Milkwave',
+            role: 'support',
+            enabled: true,
+            opacity: 1,
+            blendMode: 'screen',
+            transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+            params: { opacity: 1, enabled: true }
+          }]
+        }],
+        activeSceneId: 'scene-1',
+        roleWeights: { core: 1, support: 1, atmosphere: 1 },
+        tempoSync: { bpm: 120, source: 'manual' },
+        _shaderData: {
+          warp: 'void main() { }',
+          comp: 'void main() { }'
+        }
+      };
+
+      const result = presetV6Schema.safeParse(preset);
+      expect(result.success).toBe(true);
+      expect(result.success ? (result.data as any)._shaderData : null).toEqual(preset._shaderData);
+    });
+
+    it('warns when imported shader payload is unsupported and falls back to gen-milkwave', () => {
+      const preset = {
+        version: 6,
+        metadata: {
+          version: 6,
+          name: 'Milkwave Payload',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          category: 'Imported',
+          compatibility: { minVersion: '1.4.0' },
+          activeEngineId: 'engine-radial-core',
+          activeModeId: 'mode-cosmic',
+          intendedMusicStyle: 'Electronic',
+          visualIntentTags: ['imported', 'milkwave'],
+          colorChemistry: ['analog'],
+          defaultTransition: { durationMs: 600, curve: 'easeInOut' }
+        },
+        scenes: [{
+          id: 'scene-1',
+          scene_id: 'scene-1',
+          name: 'Main',
+          intent: 'ambient',
+          duration: 0,
+          transition_in: { durationMs: 600, curve: 'easeInOut' },
+          transition_out: { durationMs: 600, curve: 'easeInOut' },
+          trigger: { type: 'manual' },
+          assigned_layers: { core: [], support: ['layer-milkwave'], atmosphere: [] },
+          layers: [{
+            id: 'layer-milkwave',
+            name: 'Milkwave',
+            role: 'support',
+            enabled: true,
+            opacity: 1,
+            blendMode: 'screen',
+            transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+            params: { opacity: 1, enabled: true }
+          }]
+        }],
+        activeSceneId: 'scene-1',
+        roleWeights: { core: 1, support: 1, atmosphere: 1 },
+        tempoSync: { bpm: 120, source: 'manual' },
+        _shaderData: {
+          warp: 'void main() { }',
+          comp: 'void main() { }'
+        }
+      };
+
+      const result = applyPresetV6(preset, DEFAULT_PROJECT);
+      expect(result.warnings).toContain(
+        'Milkwave custom warp/comp shaders are not supported by the runtime yet; using the gen-milkwave fallback renderer.'
+      );
     });
   });
 

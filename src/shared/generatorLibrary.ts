@@ -169,6 +169,7 @@ export type GeneratorId =
 export interface GeneratorEntry {
   id: GeneratorId;
   name: string;
+  visible?: boolean;
 }
 
 export const GENERATORS: GeneratorEntry[] = [
@@ -317,8 +318,12 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-score-counter', name: 'Generator: Score Counter' },
   { id: 'gen-pixel-rain', name: 'Generator: Pixel Rain' },
   { id: 'gen-boss-health', name: 'Generator: Boss Health' },
-  { id: 'gen-milkwave', name: 'Generator: Milkwave Import' }
+  { id: 'gen-milkwave', name: 'Generator: Milkwave Import', visible: false }
 ];
+
+export const isVisibleGeneratorEntry = (entry: GeneratorEntry) => entry.visible !== false;
+
+export const getVisibleGenerators = () => GENERATORS.filter(isVisibleGeneratorEntry);
 
 export const updateRecents = (recents: GeneratorId[], next: GeneratorId, limit = 5) => {
   const filtered = recents.filter((item) => item !== next);

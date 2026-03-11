@@ -17,11 +17,11 @@ import {
   AssetItem,
   AssetColorSpace
 } from '../shared/project';
-import { SceneManager, captureSceneSnapshot } from './scene/SceneManager';
+import { SceneManager } from './scene/SceneManager';
 import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
-import { collectActiveGeneratorIds, collectSceneGeneratorIds } from '../shared/shaderUtils';
+import { compileSceneShaders, primeProjectShaders } from './shaderLifecycle';
 import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './ui/panels/LayerPanel';
 import { createMixerPanel } from './ui/panels/MixerPanel';
@@ -30,9 +30,9 @@ import { createSdfPanel } from './ui/panels/SdfPanel';
 import { createOutputManagerPanel, injectOutputManagerStyles } from './ui/panels/OutputManagerPanel';
 import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './ui/panels/ModulationPanel';
-import { getBeatMs, getBeatsUntil, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
+import { getBeatMs, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
-import { GENERATORS, GeneratorId, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
+import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
 import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
@@ -48,6 +48,22 @@ import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
 import { playlistManager, PlaylistEvent } from './playlist/PlaylistManager';
+import { buildCaptureDiagnostics } from './captureDiagnostics';
+import { createSafeModeRenderer } from './safeModeRenderer';
+import { applySceneActivationRuntime, resolveSceneActivationRuntime } from './sceneRuntime';
+import { selectStartupProject } from './startupProject';
+import { applyStartupSelection } from './startupProjectApply';
+import { applyLoadableProjectRuntime } from './projectApplyRuntime';
+import { initializeOutputSession } from './outputSessionRuntime';
+import {
+  nextFrameDropScore,
+  resolveFrameCadence,
+  resolveLatencyDiagnostics,
+  resolveSceneSwitch,
+  tickFpsTracker
+} from './render/renderLoopHelpers';
+import { buildRendererOutputBroadcastPayload } from './render/outputPayload';
+import { ensureVisualSynthBridge } from './visualSynthBridge';
 
 declare global {
   interface Window {
@@ -116,7 +132,7 @@ declare global {
       ndiDisable: () => Promise<void>;
       ndiSetSenderName: (name: string) => Promise<void>;
     };
-    // RenderGraph for macro triggering (set in bootstrap.ts)
+    // RenderGraph for macro triggering. bootstrap.ts is now the shipped renderer entrypoint.
     renderGraph?: {
       triggerMacro: (macroId: string) => void;
       handleMidiNote: (channel: number, note: number, velocity: number, bank?: number) => boolean;
@@ -499,8 +515,8 @@ let bpmSource: 'manual' | 'auto' | 'network' = 'manual';
 let bpmNetworkActive = false;
 let lastTempoEstimateTime = 0;
 let beatSensitivity = 1.5;
-let beatFilterRange: 'full' | 'bass' | 'mids' = 'bass';
-let beatHoldOffMs = 200;
+let beatFilterRange: 'full' | 'bass' | 'mids' = 'full';
+let beatHoldOffMs = 0;
 let lastBeatTime = 0;
 let fluxPrev = 0;
 let fluxPrevPrev = 0;
@@ -510,6 +526,7 @@ let onsetTimes: number[] = [];
 let spectrumPrev: Float32Array | null = null;
 let generatorFavoritesState: GeneratorId[] = [];
 let generatorRecentsState: GeneratorId[] = [];
+const visibleGenerators = getVisibleGenerators();
 let activeStyleId = '';
 let macroInputs: HTMLInputElement[] = [];
 let macroPreviewRows: HTMLDivElement[] = [];
@@ -517,6 +534,52 @@ let learnTarget: { target: string; label: string } | null = null;
 let midiLearnEnabled = false;
 let midiSum: Record<string, number> = {};
 let safeModeReasons: string[] = [];
+let latestCaptureRenderSnapshot: {
+  timeMs: number;
+  rms: number;
+  peak: number;
+  strobe: number;
+  legacyNeutral: boolean;
+  activeEngineId: string | null;
+  activeModeId: string | null;
+  roleCoreWeight: number;
+  roleSupportWeight: number;
+  roleAtmosphereWeight: number;
+  effectsEnabled: boolean;
+  plasmaEnabled: boolean;
+  spectrumEnabled: boolean;
+  plasmaOpacity: number;
+  spectrumOpacity: number;
+  glyphBeat: number;
+  topoOpacity: number;
+  weatherOpacity: number;
+  weatherMode: number;
+  weatherIntensity: number;
+  weatherSpeed: number;
+  portalOpacity: number;
+  portalStyle: number;
+  portalShift: number;
+  sdfEnabled: boolean;
+  sdfShape: number;
+  sdfScale: number;
+  sdfEdge: number;
+  sdfGlow: number;
+  sdfRotation: number;
+  sdfFill: number;
+  transitionAmount: number;
+  transitionType: number;
+  chemistryMode: number;
+  motionTemplate: number;
+  contrast: number;
+  saturation: number;
+  paletteShift: number;
+  bloom: number;
+  blur: number;
+  chroma: number;
+  feedback: number;
+  kaleidoscope: number;
+  posterize: number;
+} | null = null;
 let webglInitError: string | null = null;
 let frameDropScore = 0;
 let lastWatchdogUpdate = 0;
@@ -546,6 +609,7 @@ let playlistIndex = 0;
 let playlistTimer: number | null = null;
 let playlistActive = false;
 let playlistOverrides: Record<string, Partial<LayerConfig>> = {};
+let fpsTracker = { fpsAccumulatorMs: 0, frameCount: 0 };
 
 const triggerPlaylistSlot = async (index: number) => {
   if (index < 0 || index >= playlist.length) return;
@@ -917,6 +981,8 @@ const applyVisualEngine = (engineId: EngineId) => {
   }
 
   if (engineId === 'engine-none') {
+    (currentProject as any).engineGrammar = {};
+    (currentProject as any).engineFinish = { grain: 0, vignette: 0, ca: 0 };
     return;
   }
 
@@ -5103,37 +5169,14 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
   shaderTargetSelect.value = `${shaderTargetAssetPrefix}${asset.id}`;
 };
 
-const applyScene = (sceneId: string) => {
-  const scene = currentProject.scenes.find((item) => item.id === sceneId);
-  if (!scene) return;
-  const previousSceneId = currentProject.activeSceneId;
-  const previousScene = currentProject.scenes.find((item) => item.id === previousSceneId) ?? null;
-  const fromSnapshot = previousSceneId ? captureSceneSnapshot(currentProject, previousSceneId) : null;
+const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {}) => {
+  const activation = resolveSceneActivationRuntime(currentProject, sceneId);
+  if (!activation) return;
+  const { scene } = activation;
 
-  // Trigger Visual Transition based on Scene settings
-  if (scene.transition_in) {
-    const tMap: Record<string, number> = { fade: 1, crossfade: 1, warp: 2, glitch: 3, dissolve: 4 };
-    currentTransitionType = tMap[scene.transition_in.type || 'fade'] || 1;
-    currentTransitionAmount = 1.0;
-    currentTransitionDecay = 1.0 / (scene.transition_in.durationMs || 600);
-  }
-
-  currentProject = { ...currentProject, activeSceneId: sceneId };
+  currentProject = activation.project;
   previewSceneId = sceneId;
   if (scene.look) {
-    currentProject = {
-      ...currentProject,
-      effects: scene.look.effects ?? currentProject.effects,
-      particles: scene.look.particles ?? currentProject.particles,
-      sdf: scene.look.sdf ?? currentProject.sdf,
-      visualizer: scene.look.visualizer ?? currentProject.visualizer,
-      stylePresets: scene.look.stylePresets ?? currentProject.stylePresets,
-      activeStylePresetId: scene.look.activeStylePresetId ?? currentProject.activeStylePresetId,
-      palettes: scene.look.palettes ?? currentProject.palettes,
-      activePaletteId: scene.look.activePaletteId ?? currentProject.activePaletteId,
-      macros: scene.look.macros ?? currentProject.macros,
-      modMatrix: scene.look.modMatrix ?? currentProject.modMatrix
-    };
     initStylePresets();
     initPalettes();
     initMacros();
@@ -5143,21 +5186,33 @@ const applyScene = (sceneId: string) => {
     syncVisualizerFromProject();
     renderModMatrix();
   }
-  const toSnapshot = captureSceneSnapshot(currentProject, sceneId);
-  if (fromSnapshot && toSnapshot && previousSceneId !== sceneId) {
-    const { durationMs, curve } = SceneManager.resolveTransitionDuration(previousScene, scene);
-    sceneManager.startTransition(fromSnapshot, toSnapshot, transportTimeMs, durationMs, curve);
-  } else {
-    sceneManager.clearTransition();
-  }
-  sceneManager.markSceneActivated(transportTimeMs);
-  paletteApplyToggle.checked = Boolean(scene.look?.activePaletteId);
 
-  // Recompile shaders for this scene's generators (cache hit if precompiled at load time)
-  const activeIds = collectSceneGeneratorIds(scene);
-  renderer.setCustomShaderBlocks(currentProject.customShaderBlocks ?? []);
-  renderer.recompileForGenerators(activeIds, currentProject.customShaderBlocks ?? []);
-  console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${activeIds.size} active generators`);
+  const runtime = applySceneActivationRuntime(activation, {
+    transportTimeMs,
+    onVisualTransition: (transition) => {
+      currentTransitionType = transition.type;
+      currentTransitionAmount = transition.amount;
+      currentTransitionDecay = transition.decay;
+    },
+    startBlendTransition: (fromSnapshot, toSnapshot, at, durationMs, curve) => {
+      sceneManager.startTransition(fromSnapshot, toSnapshot, at, durationMs, curve);
+    },
+    clearBlendTransition: () => {
+      sceneManager.clearTransition();
+    },
+    markSceneActivated: (at) => {
+      sceneManager.markSceneActivated(at);
+    },
+    setPaletteApplied: (applied) => {
+      paletteApplyToggle.checked = applied;
+    },
+    compileSceneShaders: (targetScene, targetProject) =>
+      compileSceneShaders(renderer, targetScene, targetProject.customShaderBlocks ?? []),
+    skipShaderWarmup: options.skipShaderWarmup
+  });
+  if (runtime.activeGeneratorCount !== null) {
+    console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${runtime.activeGeneratorCount} active generators`);
+  }
   sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
     sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
@@ -5431,7 +5486,7 @@ const applyGeneratorVariant = (
 const renderGeneratorList = (container: HTMLElement, items: GeneratorId[]) => {
   container.innerHTML = '';
   items.forEach((id) => {
-    const entry = GENERATORS.find((gen) => gen.id === id);
+    const entry = visibleGenerators.find((gen) => gen.id === id);
     if (!entry) return;
     const chip = document.createElement('div');
     chip.className = 'generator-chip';
@@ -5458,7 +5513,7 @@ const renderGeneratorList = (container: HTMLElement, items: GeneratorId[]) => {
 
 const refreshGeneratorUI = () => {
   generatorSelect.innerHTML = '';
-  const sorted = [...GENERATORS].sort((a, b) =>
+  const sorted = [...visibleGenerators].sort((a, b) =>
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
   );
   sorted.forEach((gen) => {
@@ -8589,45 +8644,29 @@ const serializeProject = () => {
 };
 
 const applyProject = async (project: VisualSynthProject) => {
-  const parsed = projectSchema.safeParse(project);
-  if (!parsed.success) {
-    const presetName = (project as any).metadata?.name || (project as any).name || 'Unknown';
-    const errorDetail = JSON.stringify(parsed.error.format(), null, 2);
-    console.error(`[Project] Zod Validation Failed for "${presetName}":`, errorDetail);
-    setStatus(`Invalid project: ${presetName}`);
+  const applied = await applyLoadableProjectRuntime(project, {
+    currentOutputConfig: outputConfig,
+    onResolvedProject: (normalized) => {
+      currentProject = normalized;
+      initEngineSelect();
+      refreshSceneSelect();
+      applyScene(currentProject.activeSceneId, { skipShaderWarmup: true });
+
+      const activeGeneratorCount = primeProjectShaders(renderer, currentProject, 200);
+      console.log(`[Project] Applied project "${currentProject.name}", active scene shader primed for ${activeGeneratorCount} generators and scene variants queued for precompile`);
+    },
+    syncOutputConfig,
+    setOutputEnabled
+  });
+  if (!applied.ok) {
+    console.error(`[Project] Zod Validation Failed for "${applied.name}":`, applied.errorDetail);
+    setStatus(`Invalid project: ${applied.name}`);
     return;
   }
-  const normalized = parsed.data;
-  ensureProjectMacros(normalized);
-  ensureProjectPalettes(normalized);
-  ensureProjectExpressiveFx(normalized);
-  ensureProjectModulators(normalized);
-  ensureProjectScenes(normalized);
-  normalized.version = Math.max(normalized.version ?? 0, DEFAULT_PROJECT.version);
-  currentProject = normalized;
-  initEngineSelect();
-  refreshSceneSelect();
-  applyScene(currentProject.activeSceneId);
 
-  // Recompile shaders for all project generators (covers active scene)
-  const activeIds = collectActiveGeneratorIds(currentProject);
-  renderer.setCustomShaderBlocks(currentProject.customShaderBlocks ?? []);
-  renderer.recompileForGenerators(activeIds, currentProject.customShaderBlocks ?? []);
-  console.log(`[Project] Applied project "${currentProject.name}", recompiled shaders for ${activeIds.size} active generators`);
+  currentProject = applied.project;
+  outputConfig = applied.outputConfig;
 
-  // Precompile per-scene variants in idle time for zero-stall scene switching
-  const scenesToPrecompile = [...currentProject.scenes];
-  const precompileNext = (index: number) => {
-    if (index >= scenesToPrecompile.length) return;
-    const ids = collectSceneGeneratorIds(scenesToPrecompile[index]);
-    renderer.precompileVariant(ids);
-    setTimeout(() => precompileNext(index + 1), 0);
-  };
-  setTimeout(() => precompileNext(0), 200);
-
-  outputConfig = { ...DEFAULT_OUTPUT_CONFIG, ...currentProject.output };
-  await syncOutputConfig(outputConfig);
-  await setOutputEnabled(outputConfig.enabled);
   initStylePresets();
   initPalettes();
   initMacros();
@@ -8636,23 +8675,23 @@ const applyProject = async (project: VisualSynthProject) => {
   initSdf();
   syncVisualizerFromProject();
   if (visualModeSelect) {
-    visualModeSelect.value = normalized.activeModeId || 'mode-cosmic';
+    visualModeSelect.value = currentProject.activeModeId || 'mode-cosmic';
   }
   if (engineSelect) {
-    engineSelect.value = normalized.activeEngineId || 'engine-radial-core';
+    engineSelect.value = currentProject.activeEngineId || 'engine-radial-core';
     const engine = ENGINE_REGISTRY[engineSelect.value as EngineId];
     if (engine && engineDescription) {
       engineDescription.textContent = engine.description;
     }
   }
-  if (normalized.roleWeights) {
-    mixRoleCore.value = String(normalized.roleWeights.core);
-    mixRoleSupport.value = String(normalized.roleWeights.support);
-    mixRoleAtmosphere.value = String(normalized.roleWeights.atmosphere);
+  if (currentProject.roleWeights) {
+    mixRoleCore.value = String(currentProject.roleWeights.core);
+    mixRoleSupport.value = String(currentProject.roleWeights.support);
+    mixRoleAtmosphere.value = String(currentProject.roleWeights.atmosphere);
   }
-  if (normalized.tempoSync) {
-    syncTempoInputs(normalized.tempoSync.bpm);
-    bpmSource = normalized.tempoSync.source;
+  if (currentProject.tempoSync) {
+    syncTempoInputs(currentProject.tempoSync.bpm);
+    bpmSource = currentProject.tempoSync.source;
     if (bpmSourceSelect) bpmSourceSelect.value = bpmSource;
   }
   initModulators();
@@ -8843,7 +8882,7 @@ beatFilterSelect.addEventListener('change', () => {
 });
 
 beatHoldOffInput.addEventListener('change', () => {
-  beatHoldOffMs = Number(beatHoldOffInput.value) || 200;
+  beatHoldOffMs = Number(beatHoldOffInput.value) || 0;
 });
 
 bpmNetworkToggle.addEventListener('click', async () => {
@@ -9670,18 +9709,18 @@ const initOutputConfig = async () => {
     return;
   }
 
-  const savedConfig = await window.visualSynth.getOutputConfig();
-  outputOpen = await window.visualSynth.isOutputOpen();
-  await syncOutputConfig({
-    ...DEFAULT_OUTPUT_CONFIG,
-    ...savedConfig,
-    enabled: outputOpen || savedConfig.enabled
-  });
-  window.visualSynth.onOutputClosed(() => {
-    outputOpen = false;
-    outputConfig = { ...outputConfig, enabled: false };
-    updateOutputUI();
-    setStatus('Output window closed.');
+  await initializeOutputSession(window.visualSynth, {
+    defaultConfig: DEFAULT_OUTPUT_CONFIG,
+    applyState: async (config, isOpen) => {
+      outputOpen = isOpen;
+      await syncOutputConfig(config);
+    },
+    onOutputClosed: () => {
+      outputOpen = false;
+      outputConfig = { ...outputConfig, enabled: false };
+      updateOutputUI();
+      setStatus('Output window closed.');
+    }
   });
 };
 
@@ -9858,26 +9897,7 @@ try {
   updateSafeModeBanner();
   setStatus('Renderer init failed. Safe mode enabled.');
   updateWebglDiagnostics();
-  renderer = {
-    render: () => {
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.fillStyle = '#0b111b';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#ffd0d0';
-      ctx.font = '16px Segoe UI, sans-serif';
-      ctx.fillText('Safe mode: WebGL2 unavailable', 24, 32);
-    },
-    setLayerAsset: async () => undefined,
-    setPalette: () => {},
-    setPlasmaShaderSource: (_source: string | null) => ({ ok: false }),
-    getLastShaderError: () => null,
-    getGeneratorDiagnostics: () => [],
-    getMissingUniforms: () => [],
-    recompileForGenerators: () => false,
-    precompileVariant: () => {},
-    setCustomShaderBlocks: () => {}
-  };
+  renderer = createSafeModeRenderer(canvas);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -9890,8 +9910,6 @@ const debugOverlay = createDebugOverlay((flags) => {
 });
 
 let lastTime = performance.now();
-let fpsAccumulator = 0;
-let frameCount = 0;
 let currentFps = 0;
 
 const buildModSources = (bpm: number, macros: MacroConfig[] = currentProject.macros) => {
@@ -9988,7 +10006,16 @@ const ROLE_SETTINGS = {
 const getLayerRole = (layer?: LayerConfig) =>
   layer?.role ?? getDefaultRoleForLayerId(layer?.id ?? '');
 
-const applyRoleOpacity = (opacity: number, role: keyof typeof ROLE_SETTINGS, lowFreq: number) => {
+const isLegacyNeutralProject = (project: VisualSynthProject) =>
+  !project.activeEngineId && !project.activeModeId;
+
+const applyRoleOpacity = (
+  opacity: number,
+  role: keyof typeof ROLE_SETTINGS,
+  lowFreq: number,
+  legacyNeutral: boolean
+) => {
+  if (legacyNeutral) return opacity;
   const settings = ROLE_SETTINGS[role];
   if (settings.lowFreqOnly) {
     return opacity * (0.35 + lowFreq * 0.65);
@@ -9996,7 +10023,12 @@ const applyRoleOpacity = (opacity: number, role: keyof typeof ROLE_SETTINGS, low
   return opacity * settings.opacityBoost;
 };
 
-const getRoleAudioScale = (role: keyof typeof ROLE_SETTINGS, lowFreq: number) => {
+const getRoleAudioScale = (
+  role: keyof typeof ROLE_SETTINGS,
+  lowFreq: number,
+  legacyNeutral: boolean
+) => {
+  if (legacyNeutral) return 1;
   const settings = ROLE_SETTINGS[role];
   const lowFreqScale = settings.lowFreqOnly ? 0.3 + lowFreq * 0.7 : 1;
   return settings.audioScale * lowFreqScale;
@@ -10012,14 +10044,12 @@ const getChemistryModeIndex = (tags: string[] = []) => {
 const render = (time: number) => {
   const delta = time - lastTime;
   lastTime = time;
-  fpsAccumulator += delta;
-  frameCount += 1;
-  if (fpsAccumulator > 1000) {
-    currentFps = Math.round((frameCount / fpsAccumulator) * 1000);
+  const fpsTick = tickFpsTracker(fpsTracker, delta);
+  fpsTracker = fpsTick.tracker;
+  if (fpsTick.fps !== null) {
+    currentFps = fpsTick.fps;
     fpsLabel.textContent = `FPS: ${currentFps}`;
     healthFps.textContent = `FPS: ${currentFps}`;
-    fpsAccumulator = 0;
-    frameCount = 0;
   }
   if (!isPlaying) {
     requestAnimationFrame(render);
@@ -10030,12 +10060,18 @@ const render = (time: number) => {
     const elapsed = time - recordingStartedAt;
     setCaptureStatus(`Recording... ${formatTimestamp(elapsed)}`);
   }
-  if (delta > 24) {
-    frameDropScore = Math.min(1, frameDropScore + 0.02);
-  } else {
-    frameDropScore = Math.max(0, frameDropScore - 0.01);
-  }
-  if (time - lastWatchdogUpdate > 1000) {
+  frameDropScore = nextFrameDropScore(frameDropScore, delta);
+  const cadence = resolveFrameCadence({
+    timeMs: time,
+    lastWatchdogUpdateAt: lastWatchdogUpdate,
+    lastAutosaveAt,
+    outputOpen,
+    lastBroadcastAt: lastOutputBroadcast,
+    isPlaying,
+    transportTimeMs,
+    deltaMs: delta
+  });
+  if (cadence.shouldUpdateWatchdog) {
     lastWatchdogUpdate = time;
     if (frameDropScore > 0.3) {
       watchdogLabel.textContent = 'Watchdog: Frame drops detected — try lowering output scale.';
@@ -10050,7 +10086,7 @@ const render = (time: number) => {
     }
   }
 
-  if (time - lastAutosaveAt > 120000) {
+  if (cadence.shouldAutosave) {
     lastAutosaveAt = time;
     const payload = serializeProject();
     void window.visualSynth.autosaveProject(payload);
@@ -10059,15 +10095,15 @@ const render = (time: number) => {
     lastSummaryUpdate = time;
     updateSummaryChips();
   }
-  if (audioContext) {
-    latencyLabel.textContent = `Audio Latency: ${Math.round(audioContext.baseLatency * 1000)}ms`;
-    healthLatency.textContent = `Latency: ${Math.round(audioContext.baseLatency * 1000)}ms`;
-    const outputLatency = audioContext.outputLatency ?? 0;
-    outputLatencyLabel.textContent = outputLatency
-      ? `Output Latency: ${Math.round(outputLatency * 1000)}ms`
+  const latency = resolveLatencyDiagnostics(audioContext);
+  if (latency.latencyMs !== null) {
+    latencyLabel.textContent = `Audio Latency: ${latency.latencyMs}ms`;
+    healthLatency.textContent = `Latency: ${latency.latencyMs}ms`;
+    outputLatencyLabel.textContent = latency.outputLatencyMs !== null
+      ? `Output Latency: ${latency.outputLatencyMs}ms`
       : 'Output Latency: --';
-    latencySummary.textContent = `Audio: ${Math.round(audioContext.baseLatency * 1000)}ms | Output: ${
-      outputLatency ? `${Math.round(outputLatency * 1000)}ms` : '--'
+    latencySummary.textContent = `Audio: ${latency.latencyMs}ms | Output: ${
+      latency.outputLatencyMs !== null ? `${latency.outputLatencyMs}ms` : '--'
     } | MIDI: ${
       lastMidiLatencyMs === null ? '--' : `${Math.round(lastMidiLatencyMs)}ms`
     }`;
@@ -10081,21 +10117,12 @@ const render = (time: number) => {
       : `MIDI Latency: ${Math.round(lastMidiLatencyMs)}ms`;
   updateBpmDisplay();
 
-  if (!isPlaying) {
-    updateQuantizeHud(null);
-  } else if (pendingSceneSwitch) {
-    const bpm = getActiveBpm();
-    const beatsLeft = getBeatsUntil(time, pendingSceneSwitch.scheduledTimeMs, bpm);
-    if (time >= pendingSceneSwitch.scheduledTimeMs) {
+  const sceneSwitch = resolveSceneSwitch(isPlaying, pendingSceneSwitch, time, getActiveBpm());
+  updateQuantizeHud(sceneSwitch.quantizeHudMessage);
+  if (sceneSwitch.shouldApplyScene && pendingSceneSwitch) {
       applyScene(pendingSceneSwitch.targetSceneId);
-      updateQuantizeHud(null);
       setStatus(`Scene switched: ${sceneSelect.selectedOptions[0]?.textContent ?? 'Scene'}`);
       pendingSceneSwitch = null;
-    } else {
-      updateQuantizeHud(`Switching in ${beatsLeft} beat${beatsLeft === 1 ? '' : 's'}`);
-    }
-  } else {
-    updateQuantizeHud(null);
   }
 
   updateAudioAnalysis();
@@ -10131,8 +10158,8 @@ const render = (time: number) => {
   topoTravel += delta * 0.0002;
   strobeIntensity *= strobeDecay;
 
-  if (isPlaying) {
-    transportTimeMs += delta;
+  if (cadence.nextTransportTime !== null) {
+    transportTimeMs = cadence.nextTransportTime;
   }
 
   if (isPlaying && !pendingSceneSwitch) {
@@ -10290,6 +10317,8 @@ const render = (time: number) => {
     ? currentProject.scenes.find((scene) => scene.id === previewSceneId) ?? activeScene
     : blendSnapshot?.scene ?? activeScene;
   const outputScene = blendSnapshot?.scene ?? activeScene;
+  const legacyNeutral = isLegacyNeutralProject(currentProject);
+  const hasActiveEngine = Boolean(currentProject.activeEngineId && currentProject.activeEngineId !== 'engine-none');
 
   const buildRenderStateForScene = (renderScene: typeof activeScene | undefined) => {
     const getGeneratorLayers = (scene: typeof renderScene | undefined, generatorId: string) =>
@@ -10577,7 +10606,8 @@ const render = (time: number) => {
   const moddedPlasmaOpacity = applyRoleOpacity(
     modValue('layer-plasma.opacity', plasmaOpacity),
     plasmaRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedPlasmaSpeed = modValue('layer-plasma.speed', plasmaSpeed);
   const moddedPlasmaScale = modValue('layer-plasma.scale', plasmaScale);
@@ -10585,61 +10615,71 @@ const render = (time: number) => {
   const moddedSpectrumOpacity = applyRoleOpacity(
     modValue('layer-spectrum.opacity', spectrumOpacity),
     spectrumRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedOrigamiOpacity = applyRoleOpacity(
     modValue('layer-origami.opacity', origamiOpacity),
     origamiRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedOrigamiSpeed = modValue('layer-origami.speed', origamiSpeed);
   const moddedGlyphOpacity = applyRoleOpacity(
     modValue('layer-glyph.opacity', glyphOpacity),
     glyphRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedGlyphSpeed = modValue('layer-glyph.speed', glyphSpeed);
   const moddedCrystalOpacity = applyRoleOpacity(
     modValue('layer-crystal.opacity', crystalOpacity),
     crystalRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedCrystalScale = modValue('layer-crystal.scale', crystalScale);
   const moddedCrystalSpeed = modValue('layer-crystal.speed', crystalSpeed);
   const moddedInkOpacity = applyRoleOpacity(
     modValue('layer-inkflow.opacity', inkOpacity),
     inkRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedInkSpeed = modValue('layer-inkflow.speed', inkSpeed);
   const moddedInkScale = modValue('layer-inkflow.scale', inkScale);
   const moddedTopoOpacity = applyRoleOpacity(
     modValue('layer-topo.opacity', topoOpacity),
     topoRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedTopoScale = modValue('layer-topo.scale', topoScale);
   const moddedTopoElevation = modValue('layer-topo.elevation', topoElevation);
   const moddedWeatherOpacity = applyRoleOpacity(
     modValue('layer-weather.opacity', weatherOpacity),
     weatherRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedWeatherSpeed = modValue('layer-weather.speed', weatherSpeed);
   const moddedPortalOpacity = applyRoleOpacity(
     modValue('layer-portal.opacity', portalOpacity),
     portalRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedMediaOpacity = applyRoleOpacity(
     modValue('layer-media.opacity', mediaOpacity),
     mediaRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const moddedOscilloOpacity = applyRoleOpacity(
     modValue('layer-oscillo.opacity', oscilloOpacity),
     oscilloRole,
-    lowFreq
+    lowFreq,
+    legacyNeutral
   );
   const plasmaEnabled = plasmaLayer?.enabled ?? true;
   const spectrumEnabled = spectrumLayer?.enabled ?? false;
@@ -10808,13 +10848,13 @@ const render = (time: number) => {
   }
   const plasmaAssetBlendMode = getAssetBlendModeValue('layer-plasma');
   const plasmaAssetAudioReact =
-    getAssetAudioReactValue('layer-plasma') * getRoleAudioScale(plasmaRole, lowFreq);
+    getAssetAudioReactValue('layer-plasma') * getRoleAudioScale(plasmaRole, lowFreq, legacyNeutral);
   const spectrumAssetBlendMode = getAssetBlendModeValue('layer-spectrum');
   const spectrumAssetAudioReact =
-    getAssetAudioReactValue('layer-spectrum') * getRoleAudioScale(spectrumRole, lowFreq);
+    getAssetAudioReactValue('layer-spectrum') * getRoleAudioScale(spectrumRole, lowFreq, legacyNeutral);
   const mediaAssetBlendMode = getAssetBlendModeValue('layer-media');
   const mediaAssetAudioReact =
-    getAssetAudioReactValue('layer-media') * getRoleAudioScale(mediaRole, lowFreq);
+    getAssetAudioReactValue('layer-media') * getRoleAudioScale(mediaRole, lowFreq, legacyNeutral);
   const expressive = currentProject.expressiveFx ?? DEFAULT_PROJECT.expressiveFx;
   const expressiveEnabled = expressive.enabled ?? true;
   const activeIntent = renderScene?.intent ?? 'ambient';
@@ -11295,9 +11335,9 @@ const render = (time: number) => {
     engineMass: (currentProject as any).engineGrammar?.mass ?? 0.5,
     engineFriction: (currentProject as any).engineGrammar?.friction ?? 0.95,
     engineElasticity: (currentProject as any).engineGrammar?.elasticity ?? 1.0,
-    engineGrain: (currentProject as any).engineFinish?.grain ?? 0.2,
-    engineVignette: (currentProject as any).engineFinish?.vignette ?? 1.0,
-    engineCA: (currentProject as any).engineFinish?.ca ?? 0.3,
+    engineGrain: (currentProject as any).engineFinish?.grain ?? (hasActiveEngine ? 0.2 : 0),
+    engineVignette: (currentProject as any).engineFinish?.vignette ?? (hasActiveEngine ? 1.0 : 0),
+    engineCA: (currentProject as any).engineFinish?.ca ?? (hasActiveEngine ? 0.3 : 0),
     engineSignature: (() => {
         const id = currentProject.activeEngineId;
         if (id === 'engine-radial-core') return 1;
@@ -11359,7 +11399,6 @@ const render = (time: number) => {
   };
     return {
       renderState,
-      layers: { plasmaLayer, spectrumLayer, mediaLayer },
       laserLayer
     };
   };
@@ -11370,6 +11409,52 @@ const render = (time: number) => {
       ? buildRenderStateForScene(outputScene)
       : previewData;
   const renderState = previewData.renderState;
+  latestCaptureRenderSnapshot = {
+    timeMs: renderState.timeMs,
+    rms: renderState.rms,
+    peak: renderState.peak,
+    strobe: renderState.strobe,
+    legacyNeutral,
+    activeEngineId: currentProject.activeEngineId ?? null,
+    activeModeId: currentProject.activeModeId ?? null,
+    roleCoreWeight: renderState.roleWeights.core,
+    roleSupportWeight: renderState.roleWeights.support,
+    roleAtmosphereWeight: renderState.roleWeights.atmosphere,
+    effectsEnabled: renderState.effectsEnabled,
+    plasmaEnabled: renderState.plasmaEnabled,
+    spectrumEnabled: renderState.spectrumEnabled,
+    plasmaOpacity: renderState.plasmaOpacity,
+    spectrumOpacity: renderState.spectrumOpacity,
+    glyphBeat: renderState.glyphBeat,
+    topoOpacity: renderState.topoOpacity,
+    weatherOpacity: renderState.weatherOpacity,
+    weatherMode: renderState.weatherMode,
+    weatherIntensity: renderState.weatherIntensity,
+    weatherSpeed: renderState.weatherSpeed,
+    portalOpacity: renderState.portalOpacity,
+    portalStyle: renderState.portalStyle,
+    portalShift: renderState.portalShift,
+    sdfEnabled: renderState.sdfEnabled,
+    sdfShape: renderState.sdfShape,
+    sdfScale: renderState.sdfScale,
+    sdfEdge: renderState.sdfEdge,
+    sdfGlow: renderState.sdfGlow,
+    sdfRotation: renderState.sdfRotation,
+    sdfFill: renderState.sdfFill,
+    transitionAmount: renderState.transitionAmount,
+    transitionType: renderState.transitionType,
+    chemistryMode: renderState.chemistryMode,
+    motionTemplate: renderState.motionTemplate,
+    contrast: renderState.contrast,
+    saturation: renderState.saturation,
+    paletteShift: renderState.paletteShift,
+    bloom: renderState.bloom,
+    blur: renderState.blur,
+    chroma: renderState.chroma,
+    feedback: renderState.feedback,
+    kaleidoscope: renderState.kaleidoscope,
+    posterize: renderState.posterize
+  };
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
   updateSceneTimelineProgress(blendSnapshot);
@@ -11473,40 +11558,16 @@ const render = (time: number) => {
     currentFps
   );
 
-  if (outputOpen && time - lastOutputBroadcast > 33) {
+  if (cadence.shouldBroadcastOutput) {
     lastOutputBroadcast = time;
-    const activePalette =
-      currentProject.palettes.find((palette) => palette.id === currentProject.activePaletteId) ??
-      currentProject.palettes[0];
-    const serializeAssetForOutput = (asset: AssetItem | null) =>
-      asset
-        ? {
-            id: asset.id,
-            name: asset.name,
-            kind: asset.kind,
-            path: asset.path,
-            width: asset.width,
-            height: asset.height,
-            internalSource: asset.internalSource,
-            options: asset.options
-          }
-        : null;
-    const resolveLayerAsset = (layer?: LayerConfig | null) =>
-      layer?.assetId
-        ? serializeAssetForOutput(
-            currentProject.assets.find((item) => item.id === layer.assetId) ?? null
-          )
-        : null;
-    const { sdfScene: _ignoredSdfScene, ...outputState } = outputData.renderState;
-    outputChannel.postMessage({
-      ...outputState,
-      paletteColors: activePalette?.colors ?? DEFAULT_PROJECT.palettes[0].colors,
-      layerAssets: {
-        'layer-plasma': resolveLayerAsset(outputData.layers.plasmaLayer),
-        'layer-spectrum': resolveLayerAsset(outputData.layers.spectrumLayer),
-        'layer-media': resolveLayerAsset(outputData.layers.mediaLayer)
-      }
-    });
+    outputChannel.postMessage(
+      buildRendererOutputBroadcastPayload({
+        renderState: outputData.renderState,
+        project: currentProject,
+        scene: outputScene ?? activeScene,
+        activePaletteId: currentProject.activePaletteId
+      })
+    );
   }
 
   requestAnimationFrame(render);
@@ -11538,22 +11599,7 @@ const hideLoadingSplash = () => {
 const init = async () => {
   updateLoadingProgress(0, 'Initializing application...');
 
-  // Safety fallback for non-Electron environments (e.g. browser tests, puppeteer)
-  if (!window.visualSynth) {
-    console.warn('[Init] window.visualSynth not found, providing mock API');
-    (window as any).visualSynth = {
-      listPresets: async () => [],
-      listTemplates: async () => [],
-      getOutputConfig: async () => ({ enabled: false, fullscreen: false, scale: 1 }),
-      isOutputOpen: async () => false,
-      isProlinkAvailable: async () => false,
-      listNetworkInterfaces: async () => [],
-      onNetworkBpm: () => {},
-      onOutputClosed: () => {},
-      spoutIsAvailable: async () => false,
-      ndiIsAvailable: async () => false
-    };
-  }
+  ensureVisualSynthBridge(window);
 
   updateLoadingProgress(5, 'Setting up interface...');
   initPads();
@@ -11679,15 +11725,17 @@ const init = async () => {
   updateLoadingProgress(92, 'Checking recovery session...');
   if (window.visualSynth && window.visualSynth.getRecovery) {
     console.log('[Init] Starting recovery check...');
-    const recovery = await window.visualSynth.getRecovery();
-    if (recovery.found && recovery.payload) {
-      try {
-        const parsed = JSON.parse(recovery.payload) as VisualSynthProject;
-        await applyProject(parsed);
-        setStatus('Recovery session loaded.');
-      } catch {
-        setStatus('Recovery session found but failed to load.');
-      }
+    try {
+      const startupSelection = await selectStartupProject(window.visualSynth, localStorage);
+      await applyStartupSelection(startupSelection, {
+        applyProject,
+        setStatus,
+        log: (message) => console.log(`[Init] ${message}`),
+        warn: (message, detail) => console.warn(`[Init] ${message}:`, detail),
+        invalidRecoveryFallbackStatus: 'Recovery session found but failed to load.'
+      });
+    } catch {
+      setStatus('Recovery session found but failed to load.');
     }
   } else {
     console.log('[Init] Recovery API not available - skipping');
@@ -11742,6 +11790,16 @@ const init = async () => {
     },
     getCurrentProject: () => {
       return { ...currentProject };
+    },
+    getDiagnostics: () => {
+      return buildCaptureDiagnostics(
+        currentProject,
+        safeModeReasons,
+        lastShaderError,
+        renderer.getGeneratorDiagnostics(),
+        renderer.getMissingUniforms(),
+        latestCaptureRenderSnapshot
+      );
     },
     applyScene: (sceneId: string) => {
       applyScene(sceneId);

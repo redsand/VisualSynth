@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toggleFavorite, updateRecents } from '../src/shared/generatorLibrary';
+import { GENERATORS, getVisibleGenerators, toggleFavorite, updateRecents } from '../src/shared/generatorLibrary';
 
 describe('generator library helpers', () => {
   it('updates recents with latest first', () => {
@@ -21,5 +21,10 @@ describe('generator library helpers', () => {
   it('toggles favorites', () => {
     expect(toggleFavorite(['layer-plasma'], 'layer-plasma')).toEqual([]);
     expect(toggleFavorite([], 'layer-spectrum')).toEqual(['layer-spectrum']);
+  });
+
+  it('keeps import-only generators out of the visible library', () => {
+    expect(GENERATORS.some((entry) => entry.id === 'gen-milkwave')).toBe(true);
+    expect(getVisibleGenerators().some((entry) => entry.id === 'gen-milkwave')).toBe(false);
   });
 });

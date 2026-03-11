@@ -11,6 +11,48 @@ import { DEFAULT_PROJECT, DEFAULT_SCENE_TRANSITION, SceneConfig, SceneTransition
 import { projectSchema } from './projectSchema';
 import { ENGINE_REGISTRY, EngineId } from './engines';
 
+const applyLegacyVisualDefaults = (project: any) => {
+  project.activeEngineId = '';
+  project.activeModeId = '';
+  project.colorChemistry = ['analog', 'balanced'];
+  project.roleWeights = { core: 1, support: 1, atmosphere: 1 };
+  project.engineGrammar = {};
+  project.engineFinish = { grain: 0, vignette: 0, ca: 0 };
+  project.stylePresets = [
+    {
+      id: 'style-neutral',
+      name: 'Neutral',
+      settings: { contrast: 1, saturation: 1, paletteShift: 0 }
+    }
+  ];
+  project.activeStylePresetId = 'style-neutral';
+  project.sdf = {
+    ...(project.sdf ?? {}),
+    enabled: true,
+    shape: 'triangle',
+    scale: 0.55,
+    edge: 0.06,
+    glow: 0.65,
+    rotation: 0.2,
+    fill: 0.4,
+    color: [1.0, 0.6, 0.25]
+  };
+};
+
+const normalizeMacroTargets = (macros: any[] | undefined) =>
+  (macros ?? []).map((macro: any) => ({
+    ...macro,
+    value: macro.value ?? 0.5,
+    targets:
+      macro.targets?.map((t: any) => ({
+        ...t,
+        target:
+          typeof t.target === 'string'
+            ? t.target
+            : buildLegacyTarget(t.target.type || t.target.layerType, t.target.param)
+      })) ?? []
+  }));
+
 export const APP_VERSION = '1.4.0';
 
 export interface PresetCompatibility {
@@ -243,7 +285,7 @@ export const presetV6Schema = z.object({
   modulations: z.array(presetV3ModulationSchema).optional(),
   macros: z.array(z.any()).optional(),
   project: projectSchema.optional()
-});
+}).passthrough();
 
 export type PresetV1 = z.infer<typeof presetV1Schema>;
 export type PresetV2 = z.infer<typeof presetV2Schema>;
@@ -572,13 +614,14 @@ const migrateV3ToV4 = (preset: PresetV3): { preset: any; warnings: string[]; err
 const migrateV4ToV5 = (preset: PresetV4): { preset: any; warnings: string[]; errors: string[] } => {
   const warnings: string[] = [];
   const errors: string[] = [];
+  const applied = applyPresetV4(preset, DEFAULT_PROJECT);
 
   const presetV5: any = {
     version: 5,
     metadata: {
       ...preset.metadata,
       version: 5,
-      activeModeId: 'mode-cosmic', // Default mode for migration
+      activeModeId: '',
       colorChemistry: ['analog', 'balanced'],
       updatedAt: new Date().toISOString()
     },
@@ -588,7 +631,7 @@ const migrateV4ToV5 = (preset: PresetV4): { preset: any; warnings: string[]; err
     tempoSync: { bpm: 120, source: 'manual' },
     modulations: preset.modulations ?? [],
     macros: preset.macros ?? [],
-    project: preset.project
+    project: applied.project
   };
 
   return { preset: presetV5, warnings, errors };
@@ -606,7 +649,7 @@ const migrateV5ToV6 = (preset: PresetV5): { preset: any; warnings: string[]; err
     metadata: {
       ...preset.metadata,
       version: 6,
-      activeEngineId: 'engine-radial-core', // Default engine for legacy conversion
+      activeEngineId: preset.project?.activeEngineId ?? '',
       updatedAt: new Date().toISOString()
     },
     scenes: preset.scenes,
@@ -776,6 +819,8 @@ export const applyPresetV3 = (preset: any, currentProject: any): { project: any;
   const warnings: string[] = [];
   // Deep clone to avoid mutating the caller (DEFAULT_PROJECT or current project state).
   const project = JSON.parse(JSON.stringify(currentProject));
+  project.name = preset.metadata?.name ?? preset.name ?? project.name;
+  applyLegacyVisualDefaults(project);
 
   // Get the active scene, or use the first scene from DEFAULT_PROJECT if none exists
   const defaultScene = DEFAULT_PROJECT.scenes[0];
@@ -889,6 +934,7 @@ export const applyPresetV4 = (preset: any, currentProject: any): { project: any;
 
   // Scene preset: build a fresh project with the preset scenes.
   const project: VisualSynthProject = JSON.parse(JSON.stringify(currentProject ?? DEFAULT_PROJECT));
+  applyLegacyVisualDefaults(project as any);
   const scenes = Array.isArray(preset.scenes) ? preset.scenes : [];
   const defaultTransition = preset?.metadata?.defaultTransition ?? DEFAULT_SCENE_TRANSITION;
 
@@ -907,6 +953,7 @@ export const applyPresetV4 = (preset: any, currentProject: any): { project: any;
 
   // Map metadata
   if (preset.metadata) {
+    project.name = preset.metadata.name ?? project.name;
     project.intendedMusicStyle = preset.metadata.intendedMusicStyle;
     project.visualIntentTags = preset.metadata.visualIntentTags;
   }
@@ -956,7 +1003,7 @@ export const applyPresetV5 = (preset: any, currentProject: any): { project: any;
   const project: VisualSynthProject = JSON.parse(JSON.stringify(preset.project ?? currentProject ?? DEFAULT_PROJECT));
   
   // Core performance mapping
-  project.activeModeId = preset.metadata?.activeModeId || 'mode-cosmic';
+  project.activeModeId = preset.metadata?.activeModeId ?? project.activeModeId ?? '';
   project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
   project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
@@ -988,17 +1035,7 @@ export const applyPresetV5 = (preset: any, currentProject: any): { project: any;
   }
 
   if (preset.macros) {
-    project.macros = preset.macros.map((macro: any) => {
-      // Version 5 presets expect default macro values
-      return {
-        ...macro,
-        value: macro.value ?? 0.5,
-        targets: macro.targets?.map((t: any) => ({
-          ...t,
-          target: typeof t.target === 'string' ? t.target : buildLegacyTarget(t.target.type || t.target.layerType, t.target.param)
-        })) || []
-      };
-    });
+    project.macros = normalizeMacroTargets(preset.macros);
   }
 
   return { project, warnings };
@@ -1013,8 +1050,8 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
   // Scoped fresh project
   const project: VisualSynthProject = JSON.parse(JSON.stringify(preset.project ?? currentProject ?? DEFAULT_PROJECT));
   
-  project.activeEngineId = preset.metadata?.activeEngineId || 'engine-radial-core';
-  project.activeModeId = preset.metadata?.activeModeId || 'mode-cosmic';
+  project.activeEngineId = preset.metadata?.activeEngineId ?? project.activeEngineId ?? '';
+  project.activeModeId = preset.metadata?.activeModeId ?? project.activeModeId ?? '';
   project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
   project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
@@ -1062,8 +1099,12 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
         });
       }
     } else {
-      project.macros = preset.macros;
+      project.macros = normalizeMacroTargets(preset.macros);
     }
+  }
+
+  if (preset?._shaderData?.warp || preset?._shaderData?.comp) {
+    warnings.push('Milkwave custom warp/comp shaders are not supported by the runtime yet; using the gen-milkwave fallback renderer.');
   }
 
   return { project, warnings };

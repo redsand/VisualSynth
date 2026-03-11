@@ -1,5 +1,6 @@
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 import type { AssetItem } from '../shared/project';
+import { createSafeModeRenderer } from './safeModeRenderer';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
 const debugOverlay = document.getElementById('output-debug') as HTMLDivElement | null;
@@ -76,8 +77,11 @@ const getTextCanvas = (asset: AssetItem): HTMLCanvasElement | null => {
 try {
   renderer = createGLRenderer(canvas, {});
 } catch (error) {
-  document.body.textContent = 'WebGL2 not supported.';
-  throw error;
+  if (debugOverlay) {
+    debugOverlay.textContent = error instanceof Error ? error.message : 'WebGL2 not supported.';
+    debugOverlay.classList.remove('hidden');
+  }
+  renderer = createSafeModeRenderer(canvas, 'Safe mode: Output WebGL2 unavailable');
 }
 
 const requestExitFullscreen = async () => {
@@ -127,9 +131,9 @@ const state: RenderState = {
   engineMass: 0.5,
   engineFriction: 0.95,
   engineElasticity: 1,
-  engineGrain: 0.2,
-  engineVignette: 1,
-  engineCA: 0.3,
+  engineGrain: 0,
+  engineVignette: 0,
+  engineCA: 0,
   engineSignature: 0,
   maxBloom: 1,
   forceFeedback: false,
@@ -604,6 +608,8 @@ const state: RenderState = {
   pixelRainOpacity: 1,
   pixelRainDensity: 1,
   pixelRainSpeed: 1,
+  milkwaveEnabled: false,
+  milkwaveOpacity: 1,
   bossHealthEnabled: false,
   bossHealthOpacity: 1,
   bossHealthValue: 1,
@@ -1024,6 +1030,8 @@ channel.onmessage = (event) => {
   if (typeof data.myceliumGrowthOpacity === 'number') state.myceliumGrowthOpacity = data.myceliumGrowthOpacity;
   if (typeof data.myceliumGrowthSpread === 'number') state.myceliumGrowthSpread = data.myceliumGrowthSpread;
   if (typeof data.myceliumGrowthDecay === 'number') state.myceliumGrowthDecay = data.myceliumGrowthDecay;
+  if (typeof data.milkwaveEnabled === 'boolean') state.milkwaveEnabled = data.milkwaveEnabled;
+  if (typeof data.milkwaveOpacity === 'number') state.milkwaveOpacity = data.milkwaveOpacity;
   if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
     const colors = (data as any).paletteColors as string[];
     if (colors.length >= 5) {

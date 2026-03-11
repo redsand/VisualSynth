@@ -13,6 +13,9 @@ void main() {
   float high = 0.0;
   for (float i = 24.0; i < 64.0; i += 1.0) { high += uSpectrum[int(i)]; }
   high /= 40.0;
+  low = pow(low, 1.2);
+  mid = pow(mid, 1.1);
+  high = pow(high, 1.0);
   vec2 pixel = 1.0 / max(uResolution, vec2(1.0));
   float dither = hash21(floor(uv / pixel));
 
@@ -66,9 +69,12 @@ void main() {
     vec2 centered = effectUv * 2.0 - 1.0;
     float angle = atan(centered.y, centered.x) + uKaleidoscopeRotation;
     float radius = length(centered);
-    float segment = 6.28318 / floor(2.0 + uKaleidoscope * 6.0);
-    angle = mod(angle, segment);
-    effectUv = vec2(cos(angle), sin(angle)) * radius * 0.5 + 0.5;
+    float slices = mix(1.0, 8.0, uKaleidoscope);
+    float slice = 6.28318 / slices;
+    angle = mod(angle, slice);
+    angle = abs(angle - slice * 0.5);
+    vec2 rotated = vec2(cos(angle), sin(angle)) * radius;
+    effectUv = rotated * 0.5 + 0.5;
   }
 
   // Apply Feedback
@@ -89,6 +95,33 @@ void main() {
 
     effectUv = vec2(cos(angle), sin(angle)) * newRadius * 0.5 + 0.5;
   }
+  float gravityLens = 0.0;
+  float gravityRing = 0.0;
+  if (uGravityActive[0] > 0.5 || uGravityActive[1] > 0.5 || uGravityActive[2] > 0.5 || uGravityActive[3] > 0.5 ||
+      uGravityActive[4] > 0.5 || uGravityActive[5] > 0.5 || uGravityActive[6] > 0.5 || uGravityActive[7] > 0.5) {
+    vec2 centered = effectUv * 2.0 - 1.0;
+    vec2 warp = vec2(0.0);
+    float ringAcc = 0.0;
+    float lens = 0.0;
+    float tWarp = uTime * (1.0 - clamp(low, 0.0, 1.0) * 0.25);
+    for (int i = 0; i < 8; i += 1) {
+      if (uGravityActive[i] < 0.5) continue;
+      vec2 well = uGravityPos[i];
+      vec2 toWell = centered - well;
+      float dist = length(toWell) + 1e-4;
+      float inv = uGravityStrength[i] / (dist * dist + 0.12);
+      float polarity = uGravityPolarity[i];
+      vec2 tang = vec2(-toWell.y, toWell.x) / dist;
+      warp += (-toWell / dist) * inv * polarity * 0.35;
+      warp += tang * inv * (1.0 - abs(polarity)) * 0.15 * sin(tWarp + float(i));
+      lens += inv * (0.18 + 0.12 * low);
+      ringAcc += smoothstep(0.35, 0.0, abs(dist - 0.45)) * inv;
+    }
+    warp *= (1.0 + uGravityCollapse * 0.8);
+    effectUv = clamp(effectUv + warp * 0.5, 0.0, 1.0);
+    gravityLens = lens;
+    gravityRing = ringAcc;
+  }
   if (uExpressiveRadialGravity > 0.01) {
     vec2 focus = vec2(uExpressiveRadialFocusX, uExpressiveRadialFocusY);
     vec2 toFocus = focus - effectUv;
@@ -99,9 +132,12 @@ void main() {
     vec2 pull = normalize(toFocus + 0.0001) * strength * falloff * 0.12;
     effectUv = clamp(effectUv + pull, 0.0, 1.0);
   }
-  vec3 color = vec3(0.0);
+  vec3 color = vec3(0.02, 0.04, 0.08);
 
   /* @@GENERATOR_CALLS */
+  if (gravityLens > 0.0 || gravityRing > 0.0) {
+    color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
+  }
 
   // Apply Chemistry Palette Shift
   if (uChemistryMode > 0.5) {
@@ -134,50 +170,19 @@ void main() {
     color = mix(color, texture(uPreviousFrame, smearUv).rgb, uExpressiveSpectralSmear);
   }
 
-  // Apply Contrast & Saturation
-  color = mix(vec3(0.5), color, 1.0 + uContrast);
-  float gray = dot(color, vec3(0.299, 0.587, 0.114));
-  color = mix(vec3(gray), color, 1.0 + uSaturation);
+  color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
 
-  // Apply Strobe
-  if (uStrobe > 0.01) {
-    float strobePulse = step(0.5, fract(uTime * uStrobe));
-    color *= (0.4 + 0.6 * strobePulse);
+  if (uEffectsEnabled > 0.5) {
+    color += pow(color, vec3(2.0)) * uBloom;
+    color = posterize(color, uPosterize);
   }
 
-  // Apply Posterize
-  if (uPosterize > 0.01) {
-    float levels = 2.0 + floor(uPosterize * 6.0);
-    color = floor(color * levels) / levels;
+  if (uEffectsEnabled > 0.5 && uChroma > 0.01) {
+    color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
   }
 
-  // Apply Chromatic Aberration
-  if (uChroma > 0.01) {
-    float chromaAmount = uChroma * 0.01;
-    vec2 chromaOffset = vec2(chromaAmount, 0.0);
-    float r = texture(uPreviousFrame, uv - chromaOffset).r;
-    float g = texture(uPreviousFrame, uv).g;
-    float b = texture(uPreviousFrame, uv + chromaOffset).b;
-    color = vec3(r, g, b);
-  }
-
-  // Apply Blur
-  if (uBlur > 0.01) {
-    vec2 blurOffset = pixel * uBlur * 2.0;
-    vec3 blurColor = vec3(0.0);
-    blurColor += texture(uPreviousFrame, uv + blurOffset * vec2(-1, -1)).rgb;
-    blurColor += texture(uPreviousFrame, uv + blurOffset * vec2( 1, -1)).rgb;
-    blurColor += texture(uPreviousFrame, uv + blurOffset * vec2(-1,  1)).rgb;
-    blurColor += texture(uPreviousFrame, uv + blurOffset * vec2( 1,  1)).rgb;
-    blurColor *= 0.25;
-    color = mix(color, blurColor, uBlur);
-  }
-
-  // Apply Bloom
-  if (uBloom > 0.01) {
-    float brightness = dot(color, vec3(0.299, 0.587, 0.114));
-    float bloom = smoothstep(0.7, 1.0, brightness);
-    color += color * bloom * uBloom;
+  if (uEffectsEnabled > 0.5 && uBlur > 0.01) {
+    color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
   }
 
   // Engine Grain
@@ -207,12 +212,6 @@ void main() {
     vec2 sigUv = uv * 20.0;
     float sig = sin(sigUv.x) * sin(sigUv.y);
     color += vec3(sig * sig * sig * uEngineSignature * 0.02);
-  }
-
-  // Apply Persistence/Trails
-  if (uPersistence > 0.01) {
-    vec3 trailColor = texture(uPreviousFrame, uv).rgb;
-    color = mix(color, trailColor, uPersistence);
   }
 
   // Strobe Pattern Overlay
@@ -256,11 +255,12 @@ void main() {
     }
   }
 
-  // Final Safety Check: Prevent retina-burning white-out
-  float totalLuma = dot(color, vec3(0.299, 0.587, 0.114));
-  if (totalLuma > 0.92) {
-      color *= (0.92 / totalLuma);
-  }
+  color = shiftPalette(color, uPaletteShift);
+  color = applySaturation(color, uSaturation);
+  color = applyContrast(color, uContrast);
+  color = color / (vec3(1.0) + color);
+  color = pow(color, vec3(1.0 / 1.35));
+  color *= uGlobalColor;
 
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);

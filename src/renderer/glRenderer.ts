@@ -8,6 +8,7 @@ import { GENERATOR_SHADER_BLOCKS } from '../shared/generatorShaderBlocks';
 import SHADER_PREAMBLE from './shaders/preamble.glsl';
 import SHADER_MAIN_TEMPLATE from './shaders/mainTemplate.glsl';
 import type { RenderState } from './renderState';
+import { collectActiveUniformLookup, hasUniform } from './uniformIntrospection';
 export type {
   RenderTelemetryState,
   RenderLayerEnabledState,
@@ -72,9 +73,12 @@ void main() {
   const spectrumTexture = gl.createTexture();
   const modulatorTexture = gl.createTexture();
   const midiTexture = gl.createTexture();
+  const previousFrameTexture = gl.createTexture();
+  let previousFrameWidth = 0;
+  let previousFrameHeight = 0;
 
   const initInternalTextures = () => {
-    [waveformTexture, spectrumTexture, modulatorTexture, midiTexture].forEach(tex => {
+    [waveformTexture, spectrumTexture, modulatorTexture, midiTexture, previousFrameTexture].forEach(tex => {
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -83,6 +87,16 @@ void main() {
     });
   };
   initInternalTextures();
+
+  const ensurePreviousFrameTextureSize = () => {
+    if (canvas.width === previousFrameWidth && canvas.height === previousFrameHeight) {
+      return;
+    }
+    gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, Math.max(1, canvas.width), Math.max(1, canvas.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    previousFrameWidth = canvas.width;
+    previousFrameHeight = canvas.height;
+  };
 
   const compileShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
@@ -140,7 +154,8 @@ void main() {
 
   // Shader program cache to avoid recompiling the same shader variants
   const programCache = new Map<string, WebGLProgram>();
-  const uniformLocationCache = new Map<string, WebGLUniformLocation | null>();
+  const activeUniformLookupCache = new Map<WebGLProgram, Set<string>>();
+  const uniformLocationCache = new Map<WebGLProgram, Map<string, WebGLUniformLocation | null>>();
 
   // Cache current SDF parameters for recompilation
   let currentSdfUniforms = '';
@@ -182,9 +197,11 @@ void main() {
     return prog ?? null;
   };
 
-  // Initial compilation with all generators
+  const EMPTY_GENERATOR_SET = new Set<string>();
+
+  // Start from a minimal shader and switch to scene/project-specific variants once loaded.
   let standardProgram = getOrCompileProgram(
-    new Set(GENERATOR_SHADER_BLOCKS.map(b => b.id)),
+    EMPTY_GENERATOR_SET,
     '', '', '10.0', null
   );
   if (!standardProgram) {
@@ -210,7 +227,7 @@ void main() {
       currentSdfMapBody = compiled.mapBody;
 
       const newProg = getOrCompileProgram(
-        currentActiveIds.size > 0 ? currentActiveIds : new Set(GENERATOR_SHADER_BLOCKS.map(b => b.id)),
+        currentActiveIds,
         uniformsCode,
         compiled.functionsCode,
         compiled.mapBody,
@@ -234,24 +251,33 @@ void main() {
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
-  // Preamble uniforms that are always declared but may be dead-code-eliminated
-  // by the GLSL compiler when no active generator references them. Missing warnings
-  // for these are expected and should be suppressed.
-  const PREAMBLE_ONLY_UNIFORMS = new Set([
-    'uGravityPos[0]', 'uGravityStrength[0]', 'uGravityPolarity[0]',
-    'uGravityActive[0]', 'uGravityCollapse',
-    'uEffectsEnabled', 'uGlobalColor',
-    'uEngineMass', 'uEngineFriction', 'uEngineElasticity',
-    'uMaxBloom', 'uForceFeedback',
-    'uExpressiveMotionEchoWarp', 'uExpressiveSpectralOffset',
-    'uPalette[0]',
-  ]);
+  const getActiveUniformLookup = (prog: WebGLProgram) => {
+    let lookup = activeUniformLookupCache.get(prog);
+    if (!lookup) {
+      lookup = collectActiveUniformLookup(gl, prog);
+      activeUniformLookupCache.set(prog, lookup);
+    }
+    return lookup;
+  };
 
   const updateStandardUniforms = (prog: WebGLProgram, state: RenderState) => {
     gl.useProgram(prog);
+    const activeUniformLookup = getActiveUniformLookup(prog);
+    let programUniformLocations = uniformLocationCache.get(prog);
+    if (!programUniformLocations) {
+      programUniformLocations = new Map<string, WebGLUniformLocation | null>();
+      uniformLocationCache.set(prog, programUniformLocations);
+    }
     const getLocation = (name: string) => {
+      if (!hasUniform(activeUniformLookup, name)) {
+        return null;
+      }
+      if (programUniformLocations!.has(name)) {
+        return programUniformLocations!.get(name)!;
+      }
       const loc = gl.getUniformLocation(prog, name);
-      if (!loc && !missingUniforms.has(name) && !PREAMBLE_ONLY_UNIFORMS.has(name)) {
+      programUniformLocations!.set(name, loc);
+      if (loc === null && !missingUniforms.has(name)) {
         missingUniforms.add(name);
         console.warn(`[VisualSynth] Uniform not found in shader: "${name}"`);
       }
@@ -750,6 +776,8 @@ void main() {
     gl.uniform1f(getLocation('uPixelRainOpacity'), state.pixelRainOpacity ?? 1.0);
     gl.uniform1f(getLocation('uPixelRainDensity'), state.pixelRainDensity ?? 0.5);
     gl.uniform1f(getLocation('uPixelRainSpeed'), state.pixelRainSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uMilkwaveEnabled'), state.milkwaveEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uMilkwaveOpacity'), state.milkwaveOpacity ?? 1.0);
     gl.uniform1f(getLocation('uBossHealthEnabled'), state.bossHealthEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uBossHealthOpacity'), state.bossHealthOpacity ?? 1.0);
     gl.uniform1f(getLocation('uBossHealthValue'), state.bossHealthValue ?? 0.5);
@@ -831,13 +859,15 @@ void main() {
       ['plasmaBall', state.plasmaBallEnabled, state.plasmaBallOpacity],
       ['warpDrive', state.warpDriveEnabled, state.warpDriveOpacity],
       ['visualFeedback', state.visualFeedbackEnabled, state.visualFeedbackOpacity],
+      ['milkwave', state.milkwaveEnabled, state.milkwaveOpacity],
     ];
     generatorDiagnostics.clear();
     for (const [name, enabled, opacity] of genEntries) {
+      const enabledUniformName = `u${name.charAt(0).toUpperCase() + name.slice(1)}Enabled`;
       generatorDiagnostics.set(name, {
         enabled,
         opacity,
-        uniformsBound: !missingUniforms.has(`u${name.charAt(0).toUpperCase() + name.slice(1)}Enabled`)
+        uniformsBound: hasUniform(activeUniformLookup, enabledUniformName) && !missingUniforms.has(enabledUniformName)
       });
     }
 
@@ -1028,7 +1058,7 @@ void main() {
   };
 
   const applyInternalTextures = (prog: WebGLProgram) => {
-    const units = { waveform: 10, spectrum: 11, modulators: 12 };
+    const units = { waveform: 10, spectrum: 11, modulators: 12, midi: 13, previousFrame: 14 };
     
     gl.activeTexture(gl.TEXTURE0 + units.waveform);
     gl.bindTexture(gl.TEXTURE_2D, waveformTexture);
@@ -1042,9 +1072,14 @@ void main() {
     gl.bindTexture(gl.TEXTURE_2D, modulatorTexture);
     gl.uniform1i(gl.getUniformLocation(prog, 'uModulatorTex'), units.modulators);
 
-    gl.activeTexture(gl.TEXTURE0 + 13);
+    gl.activeTexture(gl.TEXTURE0 + units.midi);
     gl.bindTexture(gl.TEXTURE_2D, midiTexture);
-    gl.uniform1i(gl.getUniformLocation(prog, 'uMidiTex'), 13);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uMidiTex'), units.midi);
+
+    ensurePreviousFrameTextureSize();
+    gl.activeTexture(gl.TEXTURE0 + units.previousFrame);
+    gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uPreviousFrame'), units.previousFrame);
   };
 
   const applyLayerBinding = (prog: WebGLProgram, layerId: AssetLayerId) => {
@@ -1089,9 +1124,7 @@ void main() {
   const setPlasmaShaderSource = (source: string | null) => {
     const trimmed = source?.trim();
     const nextSource = trimmed ? trimmed : null;
-    const activeIds = currentActiveIds.size > 0
-      ? currentActiveIds
-      : new Set(GENERATOR_SHADER_BLOCKS.map(b => b.id));
+    const activeIds = currentActiveIds;
     const nextProgram = getOrCompileProgram(
       activeIds,
       currentSdfUniforms,
@@ -1160,6 +1193,9 @@ void main() {
       });
     }
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    ensurePreviousFrameTextureSize();
+    gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, canvas.width, canvas.height);
   };
 
   const getLastShaderError = () => lastShaderError;

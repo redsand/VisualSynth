@@ -117,4 +117,28 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     expect(renderState.shimmerVeilEnabled).toBe(true);
     expect(renderState.shimmerVeilComplexity).toBe(12.0);
   });
+
+  it('maps imported Milkwave layers into render state', () => {
+    const store = createStore(createInitialState());
+    const renderGraph = new RenderGraph(store);
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.activeSceneId = 'scene-1';
+    project.scenes[0].layers = [
+      {
+        id: 'layer-milkwave',
+        name: 'Milkwave',
+        role: 'atmosphere',
+        enabled: true,
+        opacity: 0.85,
+        blendMode: 'screen',
+        transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+        params: { opacity: 0.85, enabled: true }
+      }
+    ];
+    store.update((state: any) => { state.project = project; });
+
+    const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
+    expect(renderState.milkwaveEnabled).toBe(true);
+    expect(renderState.milkwaveOpacity).toBe(0.85);
+  });
 });

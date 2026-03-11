@@ -3,10 +3,15 @@ const fs = require('fs');
 const path = require('path');
 
 const watch = process.argv.includes('--watch');
+const entryArg = process.argv.find((arg) => arg.startsWith('--entry='));
+const requestedEntry = entryArg ? entryArg.split('=')[1] : process.env.VS_RENDERER_ENTRY;
+const rendererEntry = requestedEntry === 'index' ? 'index' : 'bootstrap';
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'dist/renderer');
 const srcDir = path.join(root, 'src/renderer');
+const rendererEntryPath = path.join(srcDir, `${rendererEntry}.ts`);
 
+fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 
 const copyStatic = () => {
@@ -19,40 +24,33 @@ const copyStatic = () => {
   );
 };
 
+const createBuildOptions = (mode) => ({
+  entryPoints: [
+    { in: rendererEntryPath, out: 'index' },
+    { in: path.join(srcDir, 'output.ts'), out: 'output' }
+  ],
+  bundle: true,
+  sourcemap: true,
+  outdir: outDir,
+  entryNames: '[name]',
+  platform: 'browser',
+  target: ['chrome120'],
+  external: ['@novnc/novnc', '@novnc/novnc/*'],
+  loader: { '.glsl': 'text' },
+  define: {
+    'process.env.NODE_ENV': mode === 'watch' ? '"development"' : '"production"'
+  }
+});
+
 const build = () => {
-  return esbuild.build({
-    entryPoints: [path.join(srcDir, 'index.ts'), path.join(srcDir, 'output.ts')],
-    bundle: true,
-    sourcemap: true,
-    outdir: outDir,
-    entryNames: '[name]',
-    platform: 'browser',
-    target: ['chrome120'],
-    external: ['@novnc/novnc', '@novnc/novnc/*'],
-    loader: { '.glsl': 'text' },
-    define: {
-      'process.env.NODE_ENV': watch ? '"development"' : '"production"'
-    }
-  });
+  return esbuild.build(createBuildOptions(watch ? 'watch' : 'build'));
 };
 
 const run = async () => {
+  console.log(`[build-renderer] entrypoint: ${rendererEntry}.ts`);
   copyStatic();
   if (watch) {
-    const ctx = await esbuild.context({
-      entryPoints: [path.join(srcDir, 'index.ts'), path.join(srcDir, 'output.ts')],
-      bundle: true,
-      sourcemap: true,
-      outdir: outDir,
-      entryNames: '[name]',
-      platform: 'browser',
-      target: ['chrome120'],
-      external: ['@novnc/novnc', '@novnc/novnc/*'],
-      loader: { '.glsl': 'text' },
-      define: {
-        'process.env.NODE_ENV': '"development"'
-      }
-    });
+    const ctx = await esbuild.context(createBuildOptions('watch'));
     await ctx.watch();
     fs.watch(srcDir, { recursive: true }, (event, filename) => {
       if (!filename) return;

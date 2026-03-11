@@ -113,6 +113,60 @@ describe('GLSL shader static validation', () => {
     expect(builtShader).not.toContain('@@GENERATOR_CALLS');
   });
 
+  it('matches v1.0 contrast and saturation semantics', () => {
+    expect(builtShader).toContain('vec3 applySaturation(vec3 color, float amount)');
+    expect(builtShader).toContain('vec3 applyContrast(vec3 color, float amount)');
+    expect(builtShader).toContain('color = applySaturation(color, uSaturation);');
+    expect(builtShader).toContain('color = applyContrast(color, uContrast);');
+    expect(builtShader).not.toContain('1.0 + uContrast');
+    expect(builtShader).not.toContain('1.0 + uSaturation');
+  });
+
+  it('matches v1.0 low/mid/high audio band shaping', () => {
+    expect(builtShader).toContain('low = pow(low, 1.2);');
+    expect(builtShader).toContain('mid = pow(mid, 1.1);');
+    expect(builtShader).toContain('high = pow(high, 1.0);');
+  });
+
+  it('matches v1.0 kaleidoscope distortion semantics', () => {
+    expect(builtShader).toContain('float slices = mix(1.0, 8.0, uKaleidoscope);');
+    expect(builtShader).toContain('angle = abs(angle - slice * 0.5);');
+    expect(builtShader).not.toContain('floor(2.0 + uKaleidoscope * 6.0)');
+  });
+
+  it('matches v1.0 base frame color', () => {
+    expect(builtShader).toContain('vec3 color = vec3(0.02, 0.04, 0.08);');
+  });
+
+  it('matches v1.0 finishing color pipeline and effect gating', () => {
+    expect(builtShader).toContain('if (uEffectsEnabled > 0.5) {');
+    expect(builtShader).toContain('color = posterize(color, uPosterize);');
+    expect(builtShader).toContain('if (uEffectsEnabled > 0.5 && uChroma > 0.01)');
+    expect(builtShader).toContain('if (uEffectsEnabled > 0.5 && uBlur > 0.01)');
+    expect(builtShader).toContain('color = shiftPalette(color, uPaletteShift);');
+    expect(builtShader).toContain('color = color / (vec3(1.0) + color);');
+    expect(builtShader).toContain('color = pow(color, vec3(1.0 / 1.35));');
+    expect(builtShader).toContain('color *= uGlobalColor;');
+  });
+
+  it('matches v1.0 gravity warp and lens accumulation path', () => {
+    expect(builtShader).toContain('float gravityLens = 0.0;');
+    expect(builtShader).toContain('float gravityRing = 0.0;');
+    expect(builtShader).toContain('if (uGravityActive[0] > 0.5 || uGravityActive[1] > 0.5');
+    expect(builtShader).toContain('warp *= (1.0 + uGravityCollapse * 0.8);');
+    expect(builtShader).toContain('effectUv = clamp(effectUv + warp * 0.5, 0.0, 1.0);');
+    expect(builtShader).toContain('color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);');
+  });
+
+  it('matches v1.0 fixed-color semantics for topo/weather/portal/oscillo core generators', () => {
+    expect(builtShader).toContain('mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0))');
+    expect(builtShader).toContain('vec3 cCol = mix(vec3(0.6, 0.65, 0.7), vec3(0.85, 0.88, 0.9), cloud);');
+    expect(builtShader).toContain('vec3 baseCol = vec3(0.2, 0.6, 0.9);');
+    expect(builtShader).toContain('if (style > 0.5 && style < 1.5) baseCol = vec3(0.7, 0.35, 0.95);');
+    expect(builtShader).toContain('if (style >= 1.5) baseCol = vec3(0.2, 0.9, 0.55);');
+    expect(builtShader).toContain('mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28])');
+  });
+
   it('does not contain GLSL reserved-word variable names', () => {
     // These are GLSL ES 3.0 reserved words that must not appear as identifiers
     const reserved = ['half', ' active ', ' sample ', ' filter '];

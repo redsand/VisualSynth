@@ -81,7 +81,7 @@ exports[`render-state preset snapshots > produces a stable render-state snapshot
   "sdfRotation": 0.2,
   "sdfScale": 0.55,
   "sdfScenePresent": false,
-  "spectrumEnabled": true,
+  "spectrumEnabled": false,
   "spectrumOpacity": 1,
   "topoEnabled": false,
   "topoOpacity": 0,
