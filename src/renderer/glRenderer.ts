@@ -837,10 +837,10 @@ void main() {
     gl.uniform1f(getLocation('uMyceliumGrowthSpread'), state.myceliumGrowthSpread ?? 1.0);
     gl.uniform1f(getLocation('uMyceliumGrowthDecay'), state.myceliumGrowthDecay ?? 0.5);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
-    if (currentPalette.length >= 5) {
-      console.log('[GLRenderer] Setting uPalette uniform:', currentPalette.flat());
-      gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
-    }
+     if (currentPalette.length >= 5) {
+       // console.log('[GLRenderer] Setting uPalette uniform:', currentPalette.flat());
+       gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
+     }
     const pLoc = gl.getAttribLocation(prog, 'position');
     gl.enableVertexAttribArray(pLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);

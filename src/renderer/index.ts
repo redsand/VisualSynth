@@ -11587,8 +11587,8 @@ const render = (time: number) => {
   if (renderState.milkDropShaderData) {
     renderer.updateMilkDropShaders?.(renderState.milkDropShaderData);
   }
-  
-  console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
+   
+  // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
   updateSceneTimelineProgress(blendSnapshot);

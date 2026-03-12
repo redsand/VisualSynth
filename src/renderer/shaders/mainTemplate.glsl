@@ -141,9 +141,8 @@ void main() {
 
   float sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
 
-  // Apply Chemistry Palette Shift
-  // TEMPORARILY DISABLED to prevent palette overwriting for ocean/ocean palettes
-  if (sceneColorEnergy > 0.001 && uChemistryMode > 0.5 && uChemistryMode < 0.51) {
+  // Apply Chemistry Palette Shift (DISABLED - was overwriting generator colors)
+  if (false) {
     float chemShift = sin(uTime * 0.1 + uv.x * 3.0 + uv.y * 2.0) * 0.1;
     if (uChemistryMode > 1.5 && uChemistryMode < 2.5) { // Triadic
       chemShift += 0.333;
