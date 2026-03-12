@@ -134,24 +134,22 @@ void main() {
   }
   vec3 color = vec3(0.0);
 
-    /* @@GENERATOR_CALLS */
-    if (gravityLens > 0.0 || gravityRing > 0.0) {
-      color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
-    }
+  /* @@GENERATOR_CALLS */
+  if (gravityLens > 0.0 || gravityRing > 0.0) {
+    color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
+  }
 
   float sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
 
-  // Apply Chemistry Palette Shift
-  // DISABLED: This was overwriting generator colors in analog mode (uChemistryMode=0)
-  // Only applies in non-analog modes (1=triadic, 2=complementary, 3=monochromatic)
-  if (false) { // Completely disabled for now
+  // Apply Chemistry Palette Shift (DISABLED - was overwriting generator colors)
+  if (false) {
     float chemShift = sin(uTime * 0.1 + uv.x * 3.0 + uv.y * 2.0) * 0.1;
     if (uChemistryMode > 1.5 && uChemistryMode < 2.5) { // Triadic
       chemShift += 0.333;
     } else if (uChemistryMode > 2.5 && uChemistryMode < 3.5) { // Complementary
       chemShift += 0.5;
     }
-    color = palette(fract(chemShift + dot(color, vec3(0.299, 0.587, 0.114)))) * length(color);
+    color = palette(fract(chemShift + dot(color, vec3(0.299, 0.587, 0.114))) * length(color);
   }
 
   // Apply Expressive Features
@@ -262,16 +260,7 @@ void main() {
     }
   }
 
-  // Keep uPalette uniform alive (prevents shader optimization when chemistry mode is off)
-  // Use uPaletteShift as a runtime guard that the compiler can't optimize away
-  if (uPaletteShift < -1000.0) {
-    color = palette(uPaletteShift * 0.001);
-  }
-
-  // Only apply palette shift when not in analog mode (chemistryMode > 0)
-  if (uChemistryMode > 0.5) {
-    color = shiftPalette(color, uPaletteShift);
-  }
+  color = shiftPalette(color, uPaletteShift);
   color = applySaturation(color, uSaturation);
   color = applyContrast(color, uContrast);
   color = color / (vec3(1.0) + color);
@@ -280,214 +269,4 @@ void main() {
 
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);
-}
-
-  if (sceneColorEnergy > 0.001 && uExpressiveMotionEcho > 0.01) {
-    vec2 motionUv = effectUv + vec2(sin(uv.y * 10.0 + uTime * 2.0), cos(uv.x * 10.0 + uTime * 2.0)) * uExpressiveMotionEcho * 0.05;
-    float echo = texture(uPreviousFrame, motionUv).r * uExpressiveMotionEchoDecay;
-    color += vec3(echo) * uExpressiveMotionEcho;
-  }
-
-  if (sceneColorEnergy > 0.001 && uExpressiveSpectralSmear > 0.01) {
-    float spectral = uSpectrum[int(clamp(uv.x * 64.0, 0.0, 63.0))];
-    vec2 smearUv = uv + vec2((spectral - 0.5) * uExpressiveSpectralMix, 0.0);
-    color = mix(color, texture(uPreviousFrame, smearUv).rgb, uExpressiveSpectralSmear);
-  }
-
-  sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
-  if (sceneColorEnergy > 0.001) {
-    color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
-  }
-
-  if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5) {
-    color += pow(color, vec3(2.0)) * uBloom;
-    color = posterize(color, uPosterize);
-  }
-
-  if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uChroma > 0.01) {
-    color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
-  }
-
-  if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uBlur > 0.01) {
-    color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
-  }
-
-  // Engine Grain
-  if (sceneColorEnergy > 0.001 && uEngineGrain > 0.01) {
-    float noise = hash21(uv * uResolution + floor(uTime * 2.0));
-    color += (noise - 0.5) * uEngineGrain * 0.1;
-  }
-
-  // Engine Vignette
-  if (sceneColorEnergy > 0.001 && uEngineVignette > 0.01) {
-    vec2 centered = uv * 2.0 - 1.0;
-    float vignette = 1.0 - dot(centered, centered) * 0.3;
-    color *= pow(vignette, 1.0 + uEngineVignette * 2.0);
-  }
-
-  // Engine CA (Color Aberration at edges)
-  if (sceneColorEnergy > 0.001 && uEngineCA > 0.01) {
-    vec2 centered = uv * 2.0 - 1.0;
-    float edge = length(centered);
-    vec2 caOffset = normalize(centered) * uEngineCA * 0.01 * edge;
-    color.r = texture(uPreviousFrame, uv + caOffset).r;
-    color.b = texture(uPreviousFrame, uv - caOffset).b;
-  }
-
-  // Signature Watermark (very subtle)
-  if (uEngineSignature > 0.01) {
-    vec2 sigUv = uv * 20.0;
-    float sig = sin(sigUv.x) * sin(sigUv.y);
-    color += vec3(sig * sig * sig * uEngineSignature * 0.02);
-  }
-
-  // Strobe Pattern Overlay
-  if (sceneColorEnergy > 0.001 && uStrobeEnabled > 0.5) {
-    float strobePhase = fract(uTime * uStrobeRate);
-    float strobeWindow = step(strobePhase, uStrobeDutyCycle);
-    float audioGate = step(uStrobeThreshold, low);
-    if (uStrobeAudioTrigger > 0.5) {
-      strobeWindow *= audioGate;
-    }
-    float strobeBrightness = 1.0 - (strobeWindow * uStrobeOpacity * uStrobeFadeOut);
-    if (uStrobeMode > 0.5 && uStrobeMode < 1.5) {
-      color *= strobeBrightness;
-    } else if (uStrobeMode > 1.5 && uStrobeMode < 2.5) {
-      color = mix(color, vec3(1.0), 1.0 - strobeBrightness);
-    } else {
-      color += (1.0 - strobeBrightness) * 0.5;
-    }
-    if (uStrobePattern > 0.5) {
-      float pattern = step(0.5, sin(uv.x * 20.0 + uTime));
-      strobeBrightness = mix(strobeBrightness, 1.0, pattern);
-    }
-  }
-
-  // Apply VHS Scanline Effect
-  if (sceneColorEnergy > 0.001 && uVhsScanlineEnabled > 0.5 && uVhsScanlineMode > 0.5) {
-    float scanline = sin(uv.y * uVhsScanlineFrequency * 400.0 + uTime * uVhsScanlineSpeed) * 0.5 + 0.5;
-    float scanIntensity = uVhsScanlineIntensity * (0.5 + low * 0.5);
-    if (uVhsScanlineMode < 1.5) {
-      color *= 1.0 - scanline * scanIntensity;
-    } else if (uVhsScanlineMode < 2.5) {
-      color += vec3(scanline * scanIntensity * 0.3);
-    } else {
-      color.r *= 1.0 - scanline * scanIntensity * 0.7;
-      color.g *= 1.0 - scanline * scanIntensity * 0.5;
-      color.b *= 1.0 - scanline * scanIntensity * 0.3;
-    }
-    if (uVhsScanlineWarp > 0.01) {
-      float warp = sin(uv.y * 100.0 + uTime) * uVhsScanlineWarp * 0.02;
-      uv.x += warp;
-    }
-  }
-
-  // Keep uPalette uniform alive (prevents shader optimization when chemistry mode is off)
-  // Use uPaletteShift as a runtime guard that the compiler can't optimize away
-  if (uPaletteShift < -1000.0) {
-    color = palette(uPaletteShift * 0.001);
-  }
-
-  // Debug: Add red tint if shiftPalette guard is TRUE
-  vec3 colorBeforeShift = color;
-  if (uChemistryMode > 0.5) {
-    color = shiftPalette(color, uPaletteShift);
-    // Add red tint to visualize when shiftPalette is applied
-    color += vec3(0.5, 0.0, 0.0);
-  }
-
-  // Debug: Store color after shiftPalette (Stage 1)
-  vec3 colorAfterShift = color;
-
-  color = applySaturation(color, uSaturation);
-
-  // Debug: Log saturation
-  float lum = dot(color, vec3(0.299, 0.587, 0.114));
-  color = clamp(color, 0.0, 1.0); // Clamp to prevent NaN
-
-  // Debug: Store color after saturation (Stage 2)
-  vec3 colorAfterSaturation = color;
-
-  color = applyContrast(color, uContrast);
-
-  // Debug: Log contrast
-  vec3 grayscale = vec3(lum);
-  vec3 blended = mix(grayscale, color, uContrast);
-  color = clamp(color, 0.0, 1.0); // Clamp to prevent NaN
-
-  // Debug: Store color after contrast (Stage 3)
-  vec3 colorAfterContrast = color;
-
-  color = color / (vec3(1.0) + color);
-
-  // Debug: Log Reinhard
-  vec3 onePlusColor = vec3(1.0) + color;
-  vec3 reinhard = color / onePlusColor;
-  color = clamp(color, 0.0, 1.0); // Clamp to prevent NaN
-
-  // Debug: Store color after Reinhard tone map (Stage 4)
-  vec3 colorAfterReinhard = color;
-
-  vec3 gamma = vec3(1.0 / 1.35);
-  vec3 gammaResult = pow(color, gamma);
-  color = clamp(color, 0.0, 1.0); // Clamp to prevent NaN
-
-  // Debug: Store color after gamma correction (Stage 5)
-  vec3 colorAfterGamma = color;
-
-  color *= uGlobalColor;
-
-  // Debug: Check for NaN, inf, or out-of-range values
-  vec3 colorBeforeErrorCheck = color;
-
-  // Visual error indicators:
-  // Red = NaN detected
-  // Green = Inf detected
-  // Blue = Negative detected
-  // Yellow = >1 detected
-  vec3 errorIndicators = vec3(0.0);
-  if (isnan(colorBeforeErrorCheck.r) || isnan(colorBeforeErrorCheck.g) || isnan(colorBeforeErrorCheck.b)) {
-    errorIndicators += vec3(1.0, 0.0, 0.0); // Red = NaN
-  }
-  if (isinf(colorBeforeErrorCheck.r) || isinf(colorBeforeErrorCheck.g) || isinf(colorBeforeErrorCheck.b)) {
-    errorIndicators += vec3(0.0, 1.0, 0.0); // Green = Inf
-  }
-  if (colorBeforeErrorCheck.r < 0.0 || colorBeforeErrorCheck.g < 0.0 || colorBeforeErrorCheck.b < 0.0) {
-    errorIndicators += vec3(0.0, 0.0, 1.0); // Blue = Negative
-  }
-  if (colorBeforeErrorCheck.r > 1.0 || colorBeforeErrorCheck.g > 1.0 || colorBeforeErrorCheck.b > 1.0) {
-    errorIndicators += vec3(1.0, 1.0, 0.0); // Yellow = >1
-  }
-
-  // Debug: Select which stage to visualize (default: 7 = final)
-  // Stages:
-  // 0: Raw generator output
-  // 1: After shiftPalette
-  // 2: After saturation
-  // 3: After contrast
-  // 4: After Reinhard tone map
-  // 5: After gamma correction
-  // 6: Error indicators (red=NaN, green=Inf, blue=neg, yellow=>1)
-  // 7: Final output (default)
-  int debugStage = int(uDebugColorStage);
-  if (debugStage == 0) {
-    color = colorAfterGenerator;
-  } else if (debugStage == 1) {
-    color = colorAfterShift;
-  } else if (debugStage == 2) {
-    color = colorAfterSaturation;
-  } else if (debugStage == 3) {
-    color = colorAfterContrast;
-  } else if (debugStage == 4) {
-    color = colorAfterReinhard;
-  } else if (debugStage == 5) {
-    color = colorAfterGamma;
-  } else if (debugStage == 6) {
-    color = errorIndicators; // Show error indicators
-  } else {
-    color = colorBeforeErrorCheck; // Default: normal final output
-  }
-
-   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
-   outColor = vec4(color, 1.0);
 }
