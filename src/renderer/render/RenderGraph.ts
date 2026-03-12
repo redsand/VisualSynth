@@ -1277,6 +1277,7 @@ export class RenderGraph {
     const maxBloom = engine?.constraints?.maxBloom ?? 1.0;
     const forceFeedback = engine?.constraints?.forceFeedback ?? false;
     const chemistryMode = getChemistryModeIndex(state.project.colorChemistry ?? ['analog', 'balanced']);
+    console.log('[RenderGraph] colorChemistry:', state.project.colorChemistry, '-> chemistryMode:', chemistryMode);
     const transitionAmount = 0;
     const transitionType = 0;
 

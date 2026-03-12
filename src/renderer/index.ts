@@ -8760,9 +8760,11 @@ const serializeProject = () => {
 const applyProject = async (project: VisualSynthProject) => {
   resetTransientVisualState();
   renderer.clearHistory?.();
+  console.log('[ApplyProject] Input project activeStylePresetId:', project.activeStylePresetId, 'stylePresets.length:', project.stylePresets?.length);
   const applied = await applyLoadableProjectRuntime(project, {
     currentOutputConfig: outputConfig,
     onResolvedProject: (normalized) => {
+      console.log('[ApplyProject] Normalized activeStylePresetId:', normalized.activeStylePresetId, 'stylePresets.length:', normalized.stylePresets?.length);
       currentProject = normalized;
       initEngineSelect();
       refreshSceneSelect();
@@ -8780,6 +8782,7 @@ const applyProject = async (project: VisualSynthProject) => {
     return;
   }
 
+  console.log('[ApplyProject] Final applied.project activeStylePresetId:', applied.project.activeStylePresetId);
   currentProject = applied.project;
   outputConfig = applied.outputConfig;
 
@@ -10322,6 +10325,13 @@ const render = (time: number) => {
     null;
   const styleSettings =
     blendSnapshot?.styleSettings ?? activeStyle?.settings ?? { contrast: 1, saturation: 1, paletteShift: 0 };
+  if (styleSettings.paletteShift !== 0) {
+    console.log('[StyleSettings] paletteShift:', styleSettings.paletteShift,
+      '| blendSnapshot?.styleSettings:', blendSnapshot?.styleSettings,
+      '| activeStyle?.settings:', activeStyle?.settings,
+      '| project.activeStylePresetId:', currentProject.activeStylePresetId,
+      '| project.stylePresets.length:', currentProject.stylePresets?.length);
+  }
   const effects = blendSnapshot?.effects ?? currentProject.effects ?? {
     enabled: true,
     bloom: 0.2,
@@ -11912,11 +11922,6 @@ const init = async () => {
   console.log('[Init] Initialized flag set');
 
   // Hide splash screen after a brief moment
-  setTimeout(() => {
-    hideLoadingSplash();
-  }, 300);
-
-  // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {
     applyProject: async (project: VisualSynthProject, options: { skipRecovery?: boolean } = {}) => {
       if (options.skipRecovery) {

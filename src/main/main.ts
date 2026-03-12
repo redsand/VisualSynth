@@ -278,6 +278,7 @@ ipcMain.handle('project:autosave', async (_event, payload: string) => {
 ipcMain.handle('project:recovery', async () => {
   const baseDir = app.getPath('userData');
   const filePath = path.join(baseDir, 'sessions', 'recovery.json');
+  console.log('[Main] Recovery file path:', filePath, '| exists:', fs.existsSync(filePath));
   if (!fs.existsSync(filePath)) return { found: false };
   const payload = fs.readFileSync(filePath, 'utf-8');
   return { found: true, payload, filePath };
