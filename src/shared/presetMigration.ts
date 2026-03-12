@@ -1113,10 +1113,26 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
       project.macros = normalizeMacroTargets(preset.macros);
     }
   }
-
-  if (preset?._shaderData?.warp || preset?._shaderData?.comp) {
-    warnings.push('Milkwave custom warp/comp shaders are not supported by the runtime yet; using the gen-milkwave fallback renderer.');
+ 
+  // Preserve MilkDrop shader data for custom presets
+  if (preset?._shaderData) {
+    console.log('[PresetMigration] Preserving MilkDrop shader data:', {
+      hasWarp: !!preset._shaderData.warp,
+      warpLength: preset._shaderData.warp?.length || 0,
+      hasComp: !!preset._shaderData.comp,
+      compLength: preset._shaderData.comp?.length || 0,
+      perFrameCodeLength: preset._shaderData.perFrameCode?.length || 0
+    });
+    const activeScene = project.scenes.find((s: any) => s.id === project.activeSceneId);
+    if (activeScene) {
+      activeScene._shaderData = preset._shaderData;
+      console.log('[PresetMigration] Shader data copied to scene:', activeScene.id);
+    } else {
+      console.error('[PresetMigration] Active scene not found:', project.activeSceneId);
+    }
+  } else {
+    console.log('[PresetMigration] No _shaderData in preset, using fallback');
   }
-
+ 
   return { project, warnings };
 };

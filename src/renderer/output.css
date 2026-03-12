@@ -33,3 +33,18 @@ body {
 .output-debug.hidden {
   display: none;
 }
+
+.output-palette-indicator {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  z-index: 1000;
+  pointer-events: none;
+}

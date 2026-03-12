@@ -189,7 +189,7 @@ describe('Milkwave Import Pipeline', () => {
       expect(result.success ? (result.data as any)._shaderData : null).toEqual(preset._shaderData);
     });
 
-    it('warns when imported shader payload is unsupported and falls back to gen-milkwave', () => {
+    it('preserves imported shader payload without warnings', () => {
       const preset = {
         version: 6,
         metadata: {
@@ -232,14 +232,18 @@ describe('Milkwave Import Pipeline', () => {
         tempoSync: { bpm: 120, source: 'manual' },
         _shaderData: {
           warp: 'void main() { }',
-          comp: 'void main() { }'
+          comp: 'void main() { }',
+          perFrameCode: [],
+          perFrameInitCode: [],
+          originalParameters: {}
         }
       };
-
+ 
       const result = applyPresetV6(preset, DEFAULT_PROJECT);
-      expect(result.warnings).toContain(
+      expect(result.warnings).not.toContain(
         'Milkwave custom warp/comp shaders are not supported by the runtime yet; using the gen-milkwave fallback renderer.'
       );
+      expect(result.project.scenes[0]._shaderData).toEqual(preset._shaderData);
     });
   });
 

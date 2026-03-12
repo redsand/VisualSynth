@@ -9,8 +9,10 @@ import { fileURLToPath } from 'url';
 const presetsDir = path.resolve(__dirname, '../assets/presets');
 
 // Required v6 metadata fields with defaults
+// Note: These are VISUAL MODE IDs (mode-pulse, mode-cyber, etc.), not UI modes (performance, scene, design)
+// For Pulse Heart preset, we use mode-pulse which correctly applies the industrial palette
 const DEFAULTS = {
-  activeModeId: 'mode-performance',
+  activeModeId: 'mode-pulse', // Use mode-pulse instead of mode-performance (UI mode, not visual mode)
   visualIntentTags: ['visual', 'immersive'],
   colorChemistry: ['balanced'],
   defaultTransition: {
@@ -32,9 +34,24 @@ function fixPreset(filePath: string): boolean {
     let fixed = false;
     const metadata = preset.metadata || {};
 
+    // Fix incorrect mode-performance (UI mode, not visual mode)
+    // For Pulse Heart preset, use mode-pulse which correctly uses the industrial palette
+    if (metadata.activeModeId === 'mode-performance') {
+      // mode-performance is a UI mode, not a visual mode
+      // Replace with appropriate visual mode based on preset content
+      const presetName = preset.name || '';
+      if (presetName.toLowerCase().includes('pulse') || presetName.toLowerCase().includes('strobe')) {
+        metadata.activeModeId = 'mode-pulse'; // Pulse mode uses industrial palette
+      } else {
+        // Default to cosmic for other presets with wrong mode
+        metadata.activeModeId = 'mode-cosmic';
+      }
+      fixed = true;
+    }
+
     // Add missing required fields
     if (!metadata.activeModeId) {
-      metadata.activeModeId = DEFAULTS.activeModeId;
+      metadata.activeModeId = 'mode-cosmic';
       fixed = true;
     }
     if (!metadata.visualIntentTags) {

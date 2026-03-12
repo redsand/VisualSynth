@@ -2214,6 +2214,7 @@ export class RenderGraph {
       pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
       milkwaveEnabled: milkwaveLayer?.enabled ?? false,
       milkwaveOpacity: getLayerParamNumber(milkwaveLayer, 'opacity', milkwaveLayer?.opacity ?? 1.0),
+      milkDropShaderData: activeScene?._shaderData ?? null,
       bossHealthEnabled: bossHealthLayer?.enabled ?? false,
       bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
       bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 0.5),

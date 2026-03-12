@@ -115,6 +115,8 @@ export const createMixerPanel = ({
       fader.value = String(layer.opacity);
       fader.oninput = () => {
         layer.opacity = Number(fader.value);
+        if (layer.params) layer.params.opacity = Number(fader.value);
+        onLayerListChanged();
       };
       nameStack.appendChild(name);
       nameStack.appendChild(fader);

@@ -190,7 +190,7 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
       markSceneActivated: () => {},
       setPaletteApplied: () => {},
       compileSceneShaders: (scene, project) =>
-        compileSceneShaders(renderer, scene, project.customShaderBlocks ?? [])
+        compileSceneShaders(renderer, scene, project.customShaderBlocks ?? [], project.sdf?.enabled ?? false)
     });
     console.log(
       `[Bootstrap] Scene applied ${activation.scene.name}, recompiled shaders for ${runtime.activeGeneratorCount ?? 0} active generators`

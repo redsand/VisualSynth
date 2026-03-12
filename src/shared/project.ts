@@ -1,5 +1,13 @@
 import type { CustomShaderBlock } from './customShaderBlock';
 
+export interface MilkDropShaderData {
+  warp: string;
+  comp: string;
+  perFrameCode: string[];
+  perFrameInitCode: string[];
+  originalParameters: Record<string, number | boolean>;
+}
+
 export type LayerBlendMode = 'normal' | 'add' | 'multiply' | 'screen' | 'overlay' | 'difference';
 
 export const OUTPUT_BASE_WIDTH = 1280;
@@ -211,6 +219,7 @@ export interface SceneConfig {
   assigned_layers?: SceneLayerRoles;
   layers: LayerConfig[];
   look?: SceneLook;
+  _shaderData?: MilkDropShaderData;
 }
 
 export interface MacroTarget {
@@ -543,6 +552,7 @@ export interface VisualSynthProject {
     source: 'manual' | 'auto' | 'network';
   };
   customShaderBlocks?: CustomShaderBlock[];
+  _shaderData?: MilkDropShaderData;
 }
 
 export interface EffectConfig {

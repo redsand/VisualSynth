@@ -102,7 +102,7 @@ export const VISUAL_MODES: VisualMode[] = [
     name: 'Pulse',
     description: 'Stroboscopic energy flashes for intense rhythmic segments.',
     motionTemplate: 'strobe',
-    palette: COLOR_PALETTES.find(p => p.id === 'industrial') || COLOR_PALETTES[4],
+    palette: COLOR_PALETTES.find(p => p.id === 'ocean') || COLOR_PALETTES[1], // TEMPORARY: Changed to ocean (blues) for testing - was industrial
     audioMappings: [
       { source: 'audio.strobe', target: 'effects.posterize', amount: 0.9 },
       { source: 'audio.peak', target: 'effects.bloom', amount: 1.0 }

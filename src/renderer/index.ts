@@ -1116,11 +1116,15 @@ const applyVisualMode = (
 
   currentProject.activeModeId = modeId;
   setStatus(`Visual Mode applied: ${mode.name}`);
-
+  
   // 1. Apply Palette
   if (!options?.preservePalette) {
-    applyPaletteSelection(mode.palette.id);
-    paletteSelect.value = mode.palette.id;
+    const activeScene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (!activeScene?.look?.activePaletteId) {
+      // Only apply mode palette if scene doesn't have a custom palette
+      applyPaletteSelection(mode.palette.id);
+      paletteSelect.value = mode.palette.id;
+    }
   }
 
   // 2. Apply Audio Mappings (Mod Matrix)
@@ -2709,7 +2713,26 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
     closeSceneTimelineMenu();
   };
 
+  const activateBtn = document.createElement('button');
+  activateBtn.type = 'button';
+  activateBtn.textContent = 'Activate Now';
+  activateBtn.style.display = 'block';
+  activateBtn.style.width = '100%';
+  activateBtn.style.textAlign = 'left';
+  activateBtn.style.background = 'transparent';
+  activateBtn.style.color = '#e6eef8';
+  activateBtn.style.border = '0';
+  activateBtn.style.padding = '8px 10px';
+  activateBtn.style.cursor = 'pointer';
+  activateBtn.onmouseenter = () => { activateBtn.style.background = '#1f2633'; };
+  activateBtn.onmouseleave = () => { activateBtn.style.background = 'transparent'; };
+  activateBtn.onclick = () => {
+    applyScene(sceneId);
+    closeSceneTimelineMenu();
+  };
+
   menu.appendChild(queueBtn);
+  menu.appendChild(activateBtn);
   document.body.appendChild(menu);
 
   const rect = menu.getBoundingClientRect();
@@ -2926,6 +2949,7 @@ const renderLayerList = () => {
       opacity.dataset.learnLabel = `${layer.name} Opacity`;
       opacity.addEventListener('input', () => {
         layer.opacity = Number(opacity.value);
+        if (layer.params) layer.params.opacity = Number(opacity.value);
         recordPlaylistOverride(layer.id, { opacity: Number(opacity.value) });
       });
       const opacityRow = document.createElement('div');
@@ -3046,7 +3070,7 @@ const renderLayerList = () => {
       // Modern Generator Parameter Editing (Generic)
       if (layer.generatorId) {
           const genType = getLayerType(layer.generatorId);
-          const params = genType?.params ?? [];
+          const params = (genType?.params ?? []).filter(p => p.id !== 'opacity');
           if (params.length > 0) {
               const paramsContainer = document.createElement('div');
               paramsContainer.className = 'layer-params-grid';
@@ -5166,15 +5190,6 @@ const initMatrixTabs = () => {
 };
 
 const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
-  if (runtimeShaderOverride) {
-    const applied = applyPlasmaShaderSource(runtimeShaderOverride, 'Draft');
-    if (!applied) {
-      runtimeShaderOverride = null;
-    } else {
-      return;
-    }
-  }
-
   const plasmaLayer = scene.layers.find((layer) => layer.id === 'layer-plasma');
   const shaderId = plasmaLayer?.params?.shaderId as string | undefined;
   const asset = getShaderAssetById(shaderId ?? null);
@@ -5192,6 +5207,8 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
   applyPlasmaShaderSource(source, asset.name);
   shaderTargetSelect.value = `${shaderTargetAssetPrefix}${asset.id}`;
 };
+
+let syncRendererPalette: (() => void) | undefined;
 
 const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {}) => {
   const activation = resolveSceneActivationRuntime(currentProject, sceneId);
@@ -5231,13 +5248,13 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
       paletteApplyToggle.checked = applied;
     },
     compileSceneShaders: (targetScene, targetProject) =>
-      compileSceneShaders(renderer, targetScene, targetProject.customShaderBlocks ?? []),
+      compileSceneShaders(renderer, targetScene, targetProject.customShaderBlocks ?? [], targetProject.sdf?.enabled ?? false),
     skipShaderWarmup: options.skipShaderWarmup
   });
   if (runtime.activeGeneratorCount !== null) {
     console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${runtime.activeGeneratorCount} active generators`);
   }
-  syncRendererPalette();
+  syncRendererPalette?.();
   sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
     sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
@@ -7249,21 +7266,59 @@ const renderPalettePreview = (colors: [string, string, string, string, string]) 
   });
 };
 
-const syncRendererPalette = () => {
-  const palette =
-    currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
-    currentProject.palettes[0];
-  if (!palette) return;
-  renderPalettePreview(palette.colors);
-  renderer?.setPalette?.(palette.colors);
+const updatePaletteIndicator = () => {
+  const activePalette = currentProject.palettes.find((item) => item.id === currentProject.activePaletteId);
+  if (!activePalette) return;
+  
+  // Create color swatches indicator
+  const indicator = document.getElementById('palette-indicator');
+  if (!indicator) return;
+  
+  indicator.innerHTML = '';
+  const colors = activePalette.colors;
+  colors.forEach((color) => {
+    const swatch = document.createElement('span');
+    swatch.style.display = 'inline-block';
+    swatch.style.width = '12px';
+    swatch.style.height = '12px';
+    swatch.style.backgroundColor = color;
+    swatch.style.borderRadius = '2px';
+    swatch.style.border = '1px solid rgba(255,255,255,0.2)';
+    swatch.style.marginRight = '2px';
+    swatch.style.cursor = 'pointer';
+    swatch.title = color;
+    indicator.appendChild(swatch);
+  });
+  
+  console.log('[Palette] Indicator updated for:', activePalette.id, 'colors:', colors);
 };
+
+syncRendererPalette = () => {
+    const palette =
+      currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
+      currentProject.palettes[0];
+    if (!palette) {
+      console.error('[Palette] No palette found! activePaletteId:', currentProject.activePaletteId, 'available palettes:', currentProject.palettes.map(p => p.id));
+      return;
+    }
+
+    console.log('[Palette] Syncing palette to renderer:', palette.id, 'with colors:', palette.colors);
+    console.log('[Palette] Current activePaletteId:', currentProject.activePaletteId);
+    console.log('[Palette] All available palettes:', currentProject.palettes.map(p => ({ id: p.id, name: p.name, colors: p.colors })));
+
+    renderPalettePreview(palette.colors);
+    renderer?.setPalette?.(palette.colors);
+    console.log('[Palette] renderer.setPalette() called');
+  };
 
 const applyPaletteSelection = (paletteId: string) => {
   const palette =
     currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
   if (!palette) return;
   currentProject.activePaletteId = palette.id;
-  syncRendererPalette();
+  syncRendererPalette?.();
+  outputChannel.postMessage({ paletteColors: palette.colors });
+  console.log('[Palette] Applied palette:', palette.id, 'with colors:', palette.colors);
   // Sync mixer palette select if it exists
   const mixerSelect = document.getElementById('mixer-palette-select') as HTMLSelectElement | null;
   if (mixerSelect && mixerSelect.value !== palette.id) mixerSelect.value = palette.id;
@@ -7276,6 +7331,24 @@ const applyPaletteSelection = (paletteId: string) => {
       activePaletteId: palette.id
     };
   }
+};
+
+const resetPaletteToSceneDefault = () => {
+  const scene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+  if (!scene?.look?.activePaletteId) {
+    setStatus('Scene does not have a custom palette to reset to.');
+    return;
+  }
+  
+  scene.look = {
+    ...scene.look,
+    activePaletteId: undefined
+  };
+  
+  syncRendererPalette?.();
+  outputChannel.postMessage({ paletteColors: currentProject.palettes.find((p) => p.id === currentProject.activePaletteId)?.colors });
+  setStatus('Palette reset to scene default');
+  console.log('[Palette] Reset palette to scene default for:', scene.id);
 };
 
 const initPalettes = () => {
@@ -7307,6 +7380,7 @@ const initPalettes = () => {
 
   paletteSelect.onchange = () => {
     applyPaletteSelection(paletteSelect.value);
+    updatePaletteIndicator();
   };
   chemistrySelect.onchange = () => {
     currentProject.colorChemistry = [chemistrySelect.value];
@@ -7326,6 +7400,13 @@ const initPalettes = () => {
       delete scene.look.activePaletteId;
     }
   };
+  
+  const paletteResetBtn = document.getElementById('palette-reset-btn') as HTMLButtonElement | null;
+  if (paletteResetBtn) {
+    paletteResetBtn.onclick = resetPaletteToSceneDefault;
+  }
+  
+  updatePaletteIndicator();
 };
 
 const applyStyleControls = () => {
@@ -11444,12 +11525,13 @@ const render = (time: number) => {
     };
   };
 
+  const activeSceneData = buildRenderStateForScene(activeScene);
   const previewData = buildRenderStateForScene(previewScene);
   const outputData =
     outputOpen && outputScene?.id && outputScene?.id !== previewScene?.id
       ? buildRenderStateForScene(outputScene)
-      : previewData;
-  const renderState = previewData.renderState;
+      : activeSceneData;
+  const renderState = activeSceneData.renderState;
   latestCaptureRenderSnapshot = {
     timeMs: renderState.timeMs,
     rms: renderState.rms,
@@ -11496,6 +11578,12 @@ const render = (time: number) => {
     kaleidoscope: renderState.kaleidoscope,
     posterize: renderState.posterize
   };
+  
+  if (renderState.milkDropShaderData) {
+    renderer.updateMilkDropShaders?.(renderState.milkDropShaderData);
+  }
+  
+  console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
   updateSceneTimelineProgress(blendSnapshot);
@@ -11601,7 +11689,11 @@ const render = (time: number) => {
 
   if (cadence.shouldBroadcastOutput) {
     lastOutputBroadcast = time;
-    const broadcastScene = outputScene ?? activeScene;
+    const broadcastScene = activeScene;
+    const generatorIds = broadcastScene ? collectSceneGeneratorIds(broadcastScene) : new Set<string>();
+    if (currentProject.sdf?.enabled) {
+      generatorIds.add('gen-sdf');
+    }
     outputChannel.postMessage(
       buildRendererOutputBroadcastPayload({
         renderState: outputData.renderState,
@@ -11610,9 +11702,7 @@ const render = (time: number) => {
         activePaletteId:
           broadcastScene?.look?.activePaletteId ??
           currentProject.activePaletteId,
-        activeGeneratorIds: broadcastScene
-          ? [...collectSceneGeneratorIds(broadcastScene)]
-          : undefined
+        activeGeneratorIds: [...generatorIds]
       })
     );
   }

@@ -14,9 +14,13 @@ export const getActiveScene = (project: VisualSynthProject): SceneConfig | undef
 export const compileSceneShaders = (
   renderer: ShaderCompiler,
   scene: SceneConfig | undefined,
-  customBlocks: CustomShaderBlock[] = []
+  customBlocks: CustomShaderBlock[] = [],
+  sdfEnabled = false
 ): number => {
   const activeIds = scene ? collectSceneGeneratorIds(scene) : new Set<string>();
+  if (sdfEnabled) {
+    activeIds.add('gen-sdf');
+  }
   renderer.setCustomShaderBlocks?.(customBlocks);
   renderer.recompileForGenerators(activeIds, customBlocks);
   return activeIds.size;
@@ -25,7 +29,12 @@ export const compileSceneShaders = (
 export const compileActiveSceneShaders = (
   renderer: ShaderCompiler,
   project: VisualSynthProject
-): number => compileSceneShaders(renderer, getActiveScene(project), project.customShaderBlocks ?? []);
+): number => compileSceneShaders(
+  renderer,
+  getActiveScene(project),
+  project.customShaderBlocks ?? [],
+  project.sdf?.enabled ?? false
+);
 
 export const primeProjectShaders = (
   renderer: ShaderCompiler,

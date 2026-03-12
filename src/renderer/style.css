@@ -2689,3 +2689,45 @@ body[data-mode='matrix'] .safe-mode {
   padding: 4px 12px;
   font-weight: bold;
 }
+
+/* Palette Indicator */
+.palette-indicator {
+  display: flex;
+  gap: 2px;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  align-items: center;
+}
+
+.palette-indicator span {
+  transition: transform 0.15s ease;
+}
+
+.palette-indicator span:hover {
+  transform: scale(1.2);
+}
+
+/* Palette Reset Button */
+.palette-reset-btn {
+  background: transparent;
+  color: #e6eef8;
+  border: 1px solid #2c4159;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.palette-reset-btn:hover {
+  background: #1ec8ff;
+  color: #0b111b;
+  border-color: #1ec8ff;
+}
+
+.palette-reset-btn:active {
+  transform: scale(0.95);
+}

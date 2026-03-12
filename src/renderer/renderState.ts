@@ -6,6 +6,8 @@
  * compatibility.
  */
 
+import type { MilkDropShaderData } from '../shared/project';
+
 export interface RenderTelemetryState {
   timeMs: number;
   rms: number;
@@ -539,6 +541,7 @@ export interface RenderState
   pixelRainSpeed: number;
   milkwaveEnabled: boolean;
   milkwaveOpacity: number;
+  milkDropShaderData: MilkDropShaderData | null;
   bossHealthEnabled: boolean;
   bossHealthOpacity: number;
   bossHealthValue: number;
