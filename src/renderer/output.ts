@@ -1038,6 +1038,10 @@ channel.onmessage = (event) => {
       renderer.setPalette(colors.slice(0, 5) as [string, string, string, string, string]);
     }
   }
+  if (Array.isArray((data as any).activeGeneratorIds) && renderer?.recompileForGenerators) {
+    const ids = new Set((data as any).activeGeneratorIds as string[]);
+    renderer.recompileForGenerators(ids);
+  }
   if (data.layerAssets) {
     (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
       const asset = data.layerAssets?.[layerId] ?? null;

@@ -18,6 +18,17 @@ const applyLegacyVisualDefaults = (project: any) => {
   project.roleWeights = { core: 1, support: 1, atmosphere: 1 };
   project.engineGrammar = {};
   project.engineFinish = { grain: 0, vignette: 0, ca: 0 };
+  project.effects = {
+    ...(project.effects ?? {}),
+    enabled: true,
+    bloom: 0,
+    blur: 0,
+    chroma: 0,
+    posterize: 0,
+    kaleidoscope: 0,
+    feedback: 0,
+    persistence: 0
+  };
   project.stylePresets = [
     {
       id: 'style-neutral',
@@ -28,13 +39,13 @@ const applyLegacyVisualDefaults = (project: any) => {
   project.activeStylePresetId = 'style-neutral';
   project.sdf = {
     ...(project.sdf ?? {}),
-    enabled: true,
+    enabled: false,
     shape: 'triangle',
-    scale: 0.55,
-    edge: 0.06,
-    glow: 0.65,
-    rotation: 0.2,
-    fill: 0.4,
+    scale: 0,
+    edge: 0,
+    glow: 0,
+    rotation: 0,
+    fill: 0,
     color: [1.0, 0.6, 0.25]
   };
 };

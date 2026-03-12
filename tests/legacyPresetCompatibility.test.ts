@@ -5,6 +5,16 @@ import { DEFAULT_PROJECT } from '../src/shared/project';
 import { applyPresetV3, applyPresetV4, applyPresetV6, migratePreset } from '../src/shared/presetMigration';
 
 const cloneDefaultProject = () => JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+const LEGACY_NEUTRAL_EFFECTS = {
+  enabled: true,
+  bloom: 0,
+  blur: 0,
+  chroma: 0,
+  posterize: 0,
+  kaleidoscope: 0,
+  feedback: 0,
+  persistence: 0
+};
 
 describe('legacy preset compatibility', () => {
   it('applies v3 presets onto a neutral legacy scaffold', () => {
@@ -36,8 +46,10 @@ describe('legacy preset compatibility', () => {
     expect(project.roleWeights).toEqual({ core: 1, support: 1, atmosphere: 1 });
     expect(project.engineFinish).toEqual({ grain: 0, vignette: 0, ca: 0 });
     expect(project.activeStylePresetId).toBe('style-neutral');
-    expect(project.sdf.enabled).toBe(true);
-    expect(project.effects).toEqual(DEFAULT_PROJECT.effects);
+    expect(project.sdf.enabled).toBe(false);
+    expect(project.sdf.fill).toBe(0);
+    expect(project.sdf.glow).toBe(0);
+    expect(project.effects).toEqual(LEGACY_NEUTRAL_EFFECTS);
     expect(project.activePaletteId).toBe(DEFAULT_PROJECT.activePaletteId);
   });
 
@@ -89,7 +101,10 @@ describe('legacy preset compatibility', () => {
     expect(project.roleWeights).toEqual({ core: 1, support: 1, atmosphere: 1 });
     expect(project.engineFinish).toEqual({ grain: 0, vignette: 0, ca: 0 });
     expect(project.activeStylePresetId).toBe('style-neutral');
-    expect(project.sdf.enabled).toBe(true);
+    expect(project.sdf.enabled).toBe(false);
+    expect(project.sdf.fill).toBe(0);
+    expect(project.sdf.glow).toBe(0);
+    expect(project.effects).toEqual(LEGACY_NEUTRAL_EFFECTS);
     expect(project.activePaletteId).toBe(DEFAULT_PROJECT.activePaletteId);
   });
 
@@ -245,6 +260,10 @@ describe('legacy preset compatibility', () => {
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
 
-    expect(renderState.bloom).toBe(project.effects.bloom);
+    expect(renderState.bloom).toBe(0);
+    expect(renderState.blur).toBe(0);
+    expect(renderState.chroma).toBe(0);
+    expect(renderState.feedback).toBe(0);
+    expect(renderState.sdfEnabled).toBe(false);
   });
 });

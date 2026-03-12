@@ -25,7 +25,6 @@ import { compileSceneShaders, primeProjectShaders } from './shaderLifecycle';
 import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './ui/panels/LayerPanel';
 import { createMixerPanel } from './ui/panels/MixerPanel';
-import { createModeDashboard } from './ui/panels/ModeDashboard';
 import { createSdfPanel } from './ui/panels/SdfPanel';
 import { createOutputManagerPanel, injectOutputManagerStyles } from './ui/panels/OutputManagerPanel';
 import { registerSdfNodes } from './sdf/nodes';
@@ -63,6 +62,7 @@ import {
   tickFpsTracker
 } from './render/renderLoopHelpers';
 import { buildRendererOutputBroadcastPayload } from './render/outputPayload';
+import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 
 declare global {
@@ -507,7 +507,6 @@ let lastMidiLatencyMs: number | null = null;
 let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null = null;
 let sdfPanel: { render: () => void } | null = null;
 let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, bands: number[]) => void } | null = null;
-let modeDashboard: { render: () => void } | null = null;
 let autoBpm: number | null = null;
 let networkBpm: number | null = null;
 let bpmRange: BpmRange = { min: 80, max: 150 };
@@ -802,6 +801,65 @@ const shapeBurstSlots = Array.from({ length: 8 }, () => ({
 }));
 const shapeBurstSpawnTimes = new Float32Array(8);
 const shapeBurstActives = new Float32Array(8);
+
+const resetTransientVisualState = () => {
+  strobeIntensity = 0;
+  origamiFoldState = 0;
+  origamiFoldSharpness = 0.65;
+  gravityGlobalPolarity = 1;
+  gravityCollapse = 0;
+  lastGravityIndex = -1;
+  portalShift = 0;
+  portalSeed = Math.random() * 1000;
+  lastPortalAutoSpawn = 0;
+  currentTransitionAmount = 0;
+  currentTransitionType = 0;
+  trailSpectrum = new Float32Array(64);
+
+  gravityWells.forEach((well) => {
+    well.x = 0;
+    well.y = 0;
+    well.baseX = 0;
+    well.baseY = 0;
+    well.strength = 0;
+    well.polarity = 1;
+    well.active = false;
+  });
+  gravityPositions.fill(0);
+  gravityStrengths.fill(0);
+  gravityPolarities.fill(0);
+  gravityActives.fill(0);
+
+  portals.forEach((portal) => {
+    portal.x = 0;
+    portal.y = 0;
+    portal.radius = 0.2;
+    portal.active = false;
+  });
+  portalPositions.fill(0);
+  portalRadii.fill(0);
+  portalActives.fill(0);
+
+  mediaBursts.forEach((burst) => {
+    burst.x = 0;
+    burst.y = 0;
+    burst.radius = 0;
+    burst.life = 0;
+    burst.type = 0;
+    burst.active = false;
+  });
+  mediaBurstPositions.fill(0);
+  mediaBurstRadii.fill(0);
+  mediaBurstTypes.fill(0);
+  mediaBurstActives.fill(0);
+
+  shapeBurstSlots.forEach((burst) => {
+    burst.active = false;
+    burst.spawnTime = 0;
+  });
+  shapeBurstSpawnTimes.fill(0);
+  shapeBurstActives.fill(0);
+};
 let shapeBurstSlotIndex = 0;
 let lastShapeBurstSpawn = 0;
 
@@ -1184,41 +1242,7 @@ const setMode = (mode: UiMode) => {
     }
   }
   if (mode === 'mixer') {
-    const anchor = document.getElementById('mixer-role-weights-anchor');
-    if (anchor) {
-      anchor.innerHTML = `
-        <div class="scene-row">
-          <label class="scene-inline">
-            Core
-            <input id="mix-role-core-2" type="range" min="0" max="2" step="0.05" value="${currentProject.roleWeights?.core || 1}" />
-          </label>
-          <label class="scene-inline">
-            Support
-            <input id="mix-role-support-2" type="range" min="0" max="2" step="0.05" value="${currentProject.roleWeights?.support || 1}" />
-          </label>
-          <label class="scene-inline">
-            Atmosphere
-            <input id="mix-role-atmosphere-2" type="range" min="0" max="2" step="0.05" value="${currentProject.roleWeights?.atmosphere || 1}" />
-          </label>
-        </div>
-      `;
-      const updateWeights = () => {
-        currentProject.roleWeights = {
-          core: Number((document.getElementById('mix-role-core-2') as HTMLInputElement).value),
-          support: Number((document.getElementById('mix-role-support-2') as HTMLInputElement).value),
-          atmosphere: Number((document.getElementById('mix-role-atmosphere-2') as HTMLInputElement).value)
-        };
-        // Sync back to Performance tab sliders
-        mixRoleCore.value = String(currentProject.roleWeights.core);
-        mixRoleSupport.value = String(currentProject.roleWeights.support);
-        mixRoleAtmosphere.value = String(currentProject.roleWeights.atmosphere);
-      };
-      document.getElementById('mix-role-core-2')?.addEventListener('input', updateWeights);
-      document.getElementById('mix-role-support-2')?.addEventListener('input', updateWeights);
-      document.getElementById('mix-role-atmosphere-2')?.addEventListener('input', updateWeights);
-    }
     mixerPanel?.render();
-    modeDashboard?.render();
   }
   if (mode === 'mapping') {
     renderMappingSources();
@@ -5213,6 +5237,7 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
   if (runtime.activeGeneratorCount !== null) {
     console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${runtime.activeGeneratorCount} active generators`);
   }
+  syncRendererPalette();
   sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
     sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
@@ -7224,13 +7249,21 @@ const renderPalettePreview = (colors: [string, string, string, string, string]) 
   });
 };
 
+const syncRendererPalette = () => {
+  const palette =
+    currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
+    currentProject.palettes[0];
+  if (!palette) return;
+  renderPalettePreview(palette.colors);
+  renderer?.setPalette?.(palette.colors);
+};
+
 const applyPaletteSelection = (paletteId: string) => {
   const palette =
     currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
   if (!palette) return;
   currentProject.activePaletteId = palette.id;
-  renderPalettePreview(palette.colors);
-  renderer?.setPalette?.(palette.colors);
+  syncRendererPalette();
   // Sync mixer palette select if it exists
   const mixerSelect = document.getElementById('mixer-palette-select') as HTMLSelectElement | null;
   if (mixerSelect && mixerSelect.value !== palette.id) mixerSelect.value = palette.id;
@@ -8644,6 +8677,8 @@ const serializeProject = () => {
 };
 
 const applyProject = async (project: VisualSynthProject) => {
+  resetTransientVisualState();
+  renderer.clearHistory?.();
   const applied = await applyLoadableProjectRuntime(project, {
     currentOutputConfig: outputConfig,
     onResolvedProject: (normalized) => {
@@ -10435,6 +10470,10 @@ const render = (time: number) => {
   const chiptuneWaveLayer = findLayerById(renderScene?.layers, 'gen-chiptune-wave');
   const scoreCounterLayer = findLayerById(renderScene?.layers, 'gen-score-counter');
   const pixelRainLayer = findLayerById(renderScene?.layers, 'gen-pixel-rain');
+  const milkwaveLayer =
+    findLayerById(renderScene?.layers, 'gen-milkwave') ??
+    findLayerById(renderScene?.layers, 'layer-milkwave') ??
+    findLayerById(renderScene?.layers, 'layer-milkwave-effects');
   const bossHealthLayer = findLayerById(renderScene?.layers, 'gen-boss-health');
 
   const plasmaRole = getLayerRole(plasmaLayer);
@@ -11259,6 +11298,8 @@ const render = (time: number) => {
     pixelRainOpacity: getLayerParamNumber(pixelRainLayer, 'opacity', 1.0),
     pixelRainDensity: getLayerParamNumber(pixelRainLayer, 'density', 0.5),
     pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
+    milkwaveEnabled: milkwaveLayer?.enabled ?? false,
+    milkwaveOpacity: getLayerParamNumber(milkwaveLayer, 'opacity', milkwaveLayer?.opacity ?? 1.0),
     bossHealthEnabled: bossHealthLayer?.enabled ?? false,
     bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
     bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 0.5),
@@ -11560,12 +11601,18 @@ const render = (time: number) => {
 
   if (cadence.shouldBroadcastOutput) {
     lastOutputBroadcast = time;
+    const broadcastScene = outputScene ?? activeScene;
     outputChannel.postMessage(
       buildRendererOutputBroadcastPayload({
         renderState: outputData.renderState,
         project: currentProject,
-        scene: outputScene ?? activeScene,
-        activePaletteId: currentProject.activePaletteId
+        scene: broadcastScene,
+        activePaletteId:
+          broadcastScene?.look?.activePaletteId ??
+          currentProject.activePaletteId,
+        activeGeneratorIds: broadcastScene
+          ? [...collectSceneGeneratorIds(broadcastScene)]
+          : undefined
       })
     );
   }
@@ -11688,10 +11735,6 @@ const init = async () => {
       setStatus(`Color Chemistry set to: ${chemistry}`);
     },
     getProjectData: () => currentProject as any,
-  });
-  modeDashboard = createModeDashboard({
-    store: { getState: () => ({ project: currentProject }) } as any,
-    onApplyMode: (modeId) => applyVisualMode(modeId)
   });
   initModulators();
   renderModulators();

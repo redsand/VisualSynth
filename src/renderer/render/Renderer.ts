@@ -15,6 +15,7 @@ import {
   tickFpsTracker
 } from './renderLoopHelpers';
 import { buildRendererOutputBroadcastPayload } from './outputPayload';
+import { collectSceneGeneratorIds } from '../../shared/shaderUtils';
 
 export interface RendererDeps {
   store: Store;
@@ -212,7 +213,10 @@ export const createRenderer = ({
         buildRendererOutputBroadcastPayload({
           renderState,
           project: outputState.project,
-          scene: outputScene
+          scene: outputScene,
+          activeGeneratorIds: outputScene
+            ? [...collectSceneGeneratorIds(outputScene)]
+            : undefined
         })
       );
     }

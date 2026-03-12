@@ -141,4 +141,10 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     expect(renderState.milkwaveEnabled).toBe(true);
     expect(renderState.milkwaveOpacity).toBe(0.85);
   });
+
+  it('treats imported Milkwave layers as support-role content', async () => {
+    const { GENERATOR_SHADER_BLOCKS } = await import('../src/shared/generatorShaderBlocks');
+    const block = GENERATOR_SHADER_BLOCKS.find((entry) => entry.id === 'gen-milkwave');
+    expect(block?.mainCall).toContain('uRoleWeights.y');
+  });
 });

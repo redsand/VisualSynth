@@ -260,6 +260,12 @@ void main() {
     }
   }
 
+  // Keep uPalette uniform alive (prevents shader optimization when chemistry mode is off)
+  // Use uPaletteShift as a runtime guard that the compiler can't optimize away
+  if (uPaletteShift < -1000.0) {
+    color = palette(uPaletteShift * 0.001);
+  }
+
   color = shiftPalette(color, uPaletteShift);
   color = applySaturation(color, uSaturation);
   color = applyContrast(color, uContrast);

@@ -98,6 +98,23 @@ void main() {
     previousFrameHeight = canvas.height;
   };
 
+  const clearHistory = () => {
+    ensurePreviousFrameTextureSize();
+    gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
+    const emptyFrame = new Uint8Array(Math.max(1, canvas.width) * Math.max(1, canvas.height) * 4);
+    gl.texSubImage2D(
+      gl.TEXTURE_2D,
+      0,
+      0,
+      0,
+      Math.max(1, canvas.width),
+      Math.max(1, canvas.height),
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      emptyFrame
+    );
+  };
+
   const compileShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
     if (!shader) return null;
@@ -1255,5 +1272,17 @@ void main() {
     programCache.clear();
   };
 
-  return { render, setLayerAsset, setPalette, setPlasmaShaderSource, getLastShaderError, getGeneratorDiagnostics, getMissingUniforms, recompileForGenerators, precompileVariant, setCustomShaderBlocks };
+  return {
+    render,
+    clearHistory,
+    setLayerAsset,
+    setPalette,
+    setPlasmaShaderSource,
+    getLastShaderError,
+    getGeneratorDiagnostics,
+    getMissingUniforms,
+    recompileForGenerators,
+    precompileVariant,
+    setCustomShaderBlocks
+  };
 };

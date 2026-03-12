@@ -19,6 +19,7 @@ export interface SerializedOutputAsset {
 export interface RendererOutputBroadcastPayload extends RendererOutputPayload {
   paletteColors?: string[];
   layerAssets?: Partial<Record<AssetLayerId, SerializedOutputAsset | null>>;
+  activeGeneratorIds?: string[];
 }
 
 export const buildRendererOutputPayload = (
@@ -66,12 +67,14 @@ export const buildRendererOutputBroadcastPayload = ({
   renderState,
   project,
   scene,
-  activePaletteId
+  activePaletteId,
+  activeGeneratorIds
 }: {
   renderState: RenderState;
   project: VisualSynthProject;
   scene?: SceneConfig;
   activePaletteId?: string;
+  activeGeneratorIds?: string[];
 }): RendererOutputBroadcastPayload => {
   const base = buildRendererOutputPayload(renderState);
   const palette =
@@ -85,6 +88,7 @@ export const buildRendererOutputBroadcastPayload = ({
       'layer-plasma': resolveLayerAsset(project, scene, 'layer-plasma'),
       'layer-spectrum': resolveLayerAsset(project, scene, 'layer-spectrum'),
       'layer-media': resolveLayerAsset(project, scene, 'layer-media')
-    }
+    },
+    activeGeneratorIds
   };
 };

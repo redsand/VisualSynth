@@ -1,5 +1,6 @@
 type SafeModeRenderer = {
   render: () => void;
+  clearHistory: () => void;
   setLayerAsset: () => Promise<void>;
   setPalette: () => void;
   setPlasmaShaderSource: (_source: string | null) => { ok: boolean };
@@ -21,6 +22,7 @@ export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Saf
     ctx.font = '16px Segoe UI, sans-serif';
     ctx.fillText(message, 24, 32);
   },
+  clearHistory: () => {},
   setLayerAsset: async () => undefined,
   setPalette: () => {},
   setPlasmaShaderSource: (_source: string | null) => ({ ok: false }),

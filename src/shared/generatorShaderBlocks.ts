@@ -4893,7 +4893,7 @@ uniform float uMilkwaveOpacity;
   return col * (0.35 + haze * 0.85);
 }
 `,
-    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity * uRoleWeights.z;
+    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity * uRoleWeights.y;
 `,
   },
 
