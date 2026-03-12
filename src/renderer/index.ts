@@ -11581,7 +11581,8 @@ const render = (time: number) => {
     chroma: renderState.chroma,
     feedback: renderState.feedback,
     kaleidoscope: renderState.kaleidoscope,
-    posterize: renderState.posterize
+    posterize: renderState.posterize,
+    debugColorStage: (window as any).__debugColorStage ?? 7
   };
   
   if (renderState.milkDropShaderData) {
@@ -11915,6 +11916,21 @@ const init = async () => {
   setTimeout(() => {
     hideLoadingSplash();
   }, 300);
+
+  // Expose color debug API
+  (window as any).__debugColorStage = 7; // Default: 7 = final output
+  (window as any).setDebugColorStage = (stage: number) => {
+    (window as any).__debugColorStage = stage;
+    const stageNames = ['raw generator', 'after saturation', 'after contrast', 'after Reinhard', 'after gamma', 'final'];
+    console.log(`[Color Debug] Stage set to ${stage}: ${stageNames[stage] || 'unknown'}`);
+  };
+  console.log('[Color Debug] Use setDebugColorStage(0-7) to visualize colors at each stage:');
+  console.log('  0 = raw generator output');
+  console.log('  1 = after saturation');
+  console.log('  2 = after contrast');
+  console.log('  3 = after Reinhard tone map');
+  console.log('  4 = after gamma correction');
+  console.log('  7 = final output (default)');
 
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {

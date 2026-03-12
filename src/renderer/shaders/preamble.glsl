@@ -38,6 +38,7 @@ uniform sampler2D uModulatorTex;
 uniform sampler2D uMidiTex;
 uniform vec3 uGlobalColor;
 uniform float uDebugTint;
+uniform float uDebugColorStage;
 uniform vec3 uRoleWeights; // x: core, y: support, z: atmosphere
 uniform float uTransitionAmount;
 uniform float uTransitionType;

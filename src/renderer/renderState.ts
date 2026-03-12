@@ -166,6 +166,7 @@ export interface RenderState
   gravityActives: Float32Array;
   gravityCollapse: number;
   debugTint?: number;
+  debugColorStage?: number;
   origamiSpeed: number;
   roleWeights: {
     core: number;

@@ -260,18 +260,63 @@ void main() {
     }
   }
 
-  // Keep uPalette uniform alive (prevents shader optimization when chemistry mode is off)
-  // Use uPaletteShift as a runtime guard that the compiler can't optimize away
-  if (uPaletteShift < -1000.0) {
-    color = palette(uPaletteShift * 0.001);
-  }
+   // Keep uPalette uniform alive (prevents shader optimization when chemistry mode is off)
+   // Use uPaletteShift as a runtime guard that the compiler can't optimize away
+   if (uPaletteShift < -1000.0) {
+     color = palette(uPaletteShift * 0.001);
+   }
 
-  color = shiftPalette(color, uPaletteShift);
-  color = applySaturation(color, uSaturation);
-  color = applyContrast(color, uContrast);
-  color = color / (vec3(1.0) + color);
-  color = pow(color, vec3(1.0 / 1.35));
-  color *= uGlobalColor;
+   // Only apply shiftPalette when NOT in analog mode
+   if (uChemistryMode > 0.5) {
+     color = shiftPalette(color, uPaletteShift);
+   }
+
+   // Debug: Store color after generator (Stage 0)
+   vec3 colorAfterGenerator = color;
+
+   color = applySaturation(color, uSaturation);
+
+   // Debug: Store color after saturation (Stage 1)
+   vec3 colorAfterSaturation = color;
+
+   color = applyContrast(color, uContrast);
+
+   // Debug: Store color after contrast (Stage 2)
+   vec3 colorAfterContrast = color;
+
+   color = color / (vec3(1.0) + color);
+
+   // Debug: Store color after Reinhard tone map (Stage 3)
+   vec3 colorAfterReinhard = color;
+
+   color = pow(color, vec3(1.0 / 1.35));
+
+   // Debug: Store color after gamma correction (Stage 4)
+   vec3 colorAfterGamma = color;
+
+   color *= uGlobalColor;
+
+   // Debug: Select which stage to visualize (default: 7 = final)
+   // 0: Raw generator output
+   // 1: After saturation
+   // 2: After contrast
+   // 3: After Reinhard tone map
+   // 4: After gamma correction
+   // 7: Final output (default)
+   int debugStage = int(uDebugColorStage);
+   if (debugStage == 0) {
+     color = colorAfterGenerator;
+   } else if (debugStage == 1) {
+     color = colorAfterSaturation;
+   } else if (debugStage == 2) {
+     color = colorAfterContrast;
+   } else if (debugStage == 3) {
+     color = colorAfterReinhard;
+   } else if (debugStage == 4) {
+     color = colorAfterGamma;
+   } else {
+     color = color; // Default: final output (stage 7)
+   }
 
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);

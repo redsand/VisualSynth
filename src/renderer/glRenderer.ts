@@ -458,6 +458,7 @@ void main() {
     gl.uniform1f(getLocation('uInternalSource'), state.hasInternalAsset ? 1 : 0);
     gl.uniform3fv(getLocation('uGlobalColor'), state.globalColor || [1.0, 1.0, 1.0]);
     gl.uniform1f(getLocation('uDebugTint'), state.debugTint ?? 0);
+    gl.uniform1f(getLocation('uDebugColorStage'), state.debugColorStage ?? 7); // Default: 7 = final output
     gl.uniform3f(getLocation('uRoleWeights'), state.roleWeights.core, state.roleWeights.support, state.roleWeights.atmosphere);
     gl.uniform1f(getLocation('uTransitionAmount'), state.transitionAmount);
     gl.uniform1f(getLocation('uTransitionType'), state.transitionType);
