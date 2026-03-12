@@ -22,8 +22,9 @@
  * 3. Load persisted state (presets, templates, output config)
  * 4. Apply initial scene (initializes layer toggles)
  * 5. Setup audio/MIDI (async operations)
- * 6. Handle recovery (if available)
- * 7. Start render loop
+ * 6. Initialize preset library
+ * 7. Handle recovery (if available)
+ * 8. Start render loop
  */
 
 import { createStore, createInitialState, type Store } from './state/store';
@@ -38,12 +39,13 @@ import { createProjectIO } from './persistence/projectIO';
 import { DEFAULT_OUTPUT_CONFIG, OUTPUT_BASE_WIDTH, OUTPUT_BASE_HEIGHT } from '../shared/project';
 import type { VisualSynthProject } from '../shared/project';
 import { compileSceneShaders, primeProjectShaders } from './shaderLifecycle';
-import { selectStartupProject } from './startupProject';
-import { applyStartupSelection } from './startupProjectApply';
-import { applySceneActivationRuntime, resolveSceneActivationRuntime } from './sceneRuntime';
-import { initializeOutputSession } from './outputSessionRuntime';
-import { buildCaptureDiagnostics } from './captureDiagnostics';
-import { ensureVisualSynthBridge } from './visualSynthBridge';
+ import { selectStartupProject } from './startupProject';
+ import { applyStartupSelection } from './startupProjectApply';
+ import { applySceneActivationRuntime, resolveSceneActivationRuntime } from './sceneRuntime';
+ import { initializeOutputSession } from './outputSessionRuntime';
+ import { buildCaptureDiagnostics } from './captureDiagnostics';
+ import { ensureVisualSynthBridge } from './visualSynthBridge';
+ import { migratePreset, validatePreset } from '../shared/presetMigration';
 
 export interface BootstrapResult {
   store: Store;
@@ -277,29 +279,42 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   // Initialize modulators BEFORE render loop
   audioEngine.initModulators();
 
-  console.log('[Bootstrap] Audio and MIDI initialized');
+   console.log('[Bootstrap] Audio and MIDI initialized');
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PHASE 5: Handle Recovery Project
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  console.log('[Bootstrap] Phase 5: Checking for recovery project...');
+   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   // PHASE 5: Initialize Preset Library
+   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   console.log('[Bootstrap] Phase 5: Initializing preset library...');
 
-  try {
-    const startupSelection = await selectStartupProject(window.visualSynth, localStorage);
-    await applyStartupSelection(startupSelection, {
-      applyProject: projectIO.applyProject,
-      setStatus,
-      log: (message) => console.log(`[Bootstrap] ${message}`),
-      warn: (message, detail) => console.warn(`[Bootstrap] ${message}:`, detail)
-    });
-  } catch (error) {
-    console.error('[Bootstrap] Startup project load failed:', error);
-  }
+   try {
+     if (!window.visualSynth?.listPresets) {
+       console.error('[Bootstrap] window.visualSynth.listPresets not available!');
+     } else {
+       console.log('[Bootstrap] Calling listPresets()...');
+       const presets = await window.visualSynth.listPresets();
+       console.log(`[Bootstrap] Loaded ${presets.length} presets`);
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // PHASE 6: Start Render Loop
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  console.log('[Bootstrap] Phase 6: Starting render loop...');
+       const presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
+
+       if (presetSelect && presets.length > 0) {
+         presetSelect.innerHTML = '';
+         presets.sort((a, b) => a.name.localeCompare(b.name)).forEach(preset => {
+           const option = document.createElement('option');
+           option.value = preset.path;
+           option.textContent = preset.name;
+           presetSelect.appendChild(option);
+         });
+         console.log('[Bootstrap] Preset dropdown populated');
+       }
+     }
+   } catch (error) {
+     console.error('[Bootstrap] Preset library initialization failed:', error);
+   }
+
+   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   // PHASE 7: Start Render Loop
+   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   console.log('[Bootstrap] Phase 7: Starting render loop...');
 
   renderer.start();
 

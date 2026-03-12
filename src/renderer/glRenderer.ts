@@ -1166,13 +1166,17 @@ void main() {
     console.log('[GLRenderer] setPalette called from:', new Error().stack?.split('\n')[1]?.trim() || 'unknown');
     console.log('[GLRenderer] setPalette called with:', colors);
     const newPalette: [number, number, number][] = colors.map(hex => {
+      console.log('[GLRenderer] Converting hex:', hex);
       const r = parseInt(hex.slice(1, 3), 16) / 255;
       const g = parseInt(hex.slice(3, 5), 16) / 255;
       const b = parseInt(hex.slice(5, 7), 16) / 255;
+      console.log('[GLRenderer] Converted to RGB:', [r, g, b]);
       return [r, g, b];
     });
-    console.log('[GLRenderer] Converted to RGB:', newPalette);
+    console.log('[GLRenderer] Final converted palette:', newPalette);
+    console.log('[GLRenderer] Current palette BEFORE:', currentPalette);
     currentPalette = newPalette;
+    console.log('[GLRenderer] Current palette AFTER:', currentPalette);
   };
 
   const setPlasmaShaderSource = (source: string | null) => {

@@ -9592,12 +9592,17 @@ const initPresets = async () => {
   loadPresetThumbnails();
 
   // Try to load presets - may not be available in testing environment
+  console.log('[Presets] window.visualSynth exists:', !!window.visualSynth);
+  console.log('[Presets] window.visualSynth.listPresets exists:', !!window.visualSynth?.listPresets);
+  
   if (!window.visualSynth || !window.visualSynth.listPresets) {
-    console.log('Preset API not available - skipping preset initialization');
+    console.log('[Presets] Preset API not available - skipping preset initialization');
     return;
   }
 
+  console.log('[Presets] Calling listPresets()...');
   const presets = await window.visualSynth.listPresets();
+  console.log('[Presets] Received presets:', presets?.length ?? 0);
   
   // Sort presets alphabetically by name
   presets.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));

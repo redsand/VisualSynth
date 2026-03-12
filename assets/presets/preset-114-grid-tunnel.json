@@ -135,7 +135,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "grid-tunnel-1",
+        "type": "gen-grid-tunnel",
         "param": "opacity"
       },
       "amount": 0.3,

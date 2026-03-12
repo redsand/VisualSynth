@@ -1057,16 +1057,37 @@ export const applyPresetV5 = (preset: any, currentProject: any): { project: any;
  */
 export const applyPresetV6 = (preset: any, currentProject: any): { project: any; warnings: string[] } => {
   const warnings: string[] = [];
-  
+
   // Scoped fresh project
   const project: VisualSynthProject = JSON.parse(JSON.stringify(preset.project ?? currentProject ?? DEFAULT_PROJECT));
-  
+
   project.activeEngineId = preset.metadata?.activeEngineId ?? project.activeEngineId ?? '';
   project.activeModeId = preset.metadata?.activeModeId ?? project.activeModeId ?? '';
   project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
   project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
-  
+
+  // CRITICAL: Copy palettes and activePaletteId from preset
+  if (preset.palettes && Array.isArray(preset.palettes)) {
+    project.palettes = preset.palettes;
+    console.log('[PresetMigration] Applied palettes from preset:', preset.palettes.map((p: any) => ({ id: p.id, name: p.name })));
+  } else {
+    console.log('[PresetMigration] No palettes in preset, using current project palettes');
+  }
+
+  if (preset.project?.activePaletteId) {
+    project.activePaletteId = preset.project.activePaletteId;
+    console.log('[PresetMigration] Applied activePaletteId from preset.project:', preset.project.activePaletteId);
+  } else if (preset.project?.scenes?.[0]?.look?.activePaletteId) {
+    project.activePaletteId = preset.project.scenes[0].look.activePaletteId;
+    console.log('[PresetMigration] Applied activePaletteId from scene look:', preset.project.scenes[0].look.activePaletteId);
+  } else if (preset.activePaletteId) {
+    project.activePaletteId = preset.activePaletteId;
+    console.log('[PresetMigration] Applied activePaletteId from preset root:', preset.activePaletteId);
+  } else {
+    console.log('[PresetMigration] No activePaletteId in preset, keeping current:', project.activePaletteId);
+  }
+
   if (Array.isArray(preset.scenes)) {
     project.scenes = preset.scenes;
     project.activeSceneId = preset.activeSceneId ?? project.scenes[0].id;

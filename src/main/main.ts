@@ -510,6 +510,9 @@ ipcMain.handle('presets:list', async () => {
     ? path.join(process.resourcesPath, 'presets')
     : path.join(app.getAppPath(), 'assets/presets');
 
+  console.log('[Presets] isPackaged:', app.isPackaged);
+  console.log('[Presets] process.resourcesPath:', process.resourcesPath);
+  console.log('[Presets] app.getAppPath():', app.getAppPath());
   console.log('[Presets] Listing from:', presetDir);
 
   if (!fs.existsSync(presetDir)) {
