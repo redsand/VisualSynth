@@ -132,15 +132,17 @@ void main() {
     vec2 pull = normalize(toFocus + 0.0001) * strength * falloff * 0.12;
     effectUv = clamp(effectUv + pull, 0.0, 1.0);
   }
-  vec3 color = vec3(0.02, 0.04, 0.08);
+  vec3 color = vec3(0.0);
 
   /* @@GENERATOR_CALLS */
   if (gravityLens > 0.0 || gravityRing > 0.0) {
     color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
   }
 
+  float sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
+
   // Apply Chemistry Palette Shift
-  if (uChemistryMode > 0.5) {
+  if (sceneColorEnergy > 0.001 && uChemistryMode > 0.5) {
     float chemShift = sin(uTime * 0.1 + uv.x * 3.0 + uv.y * 2.0) * 0.1;
     if (uChemistryMode > 1.5 && uChemistryMode < 2.5) { // Triadic
       chemShift += 0.333;
@@ -151,60 +153,58 @@ void main() {
   }
 
   // Apply Expressive Features
-  if (uExpressiveEnergyBloom > 0.01) {
+  if (sceneColorEnergy > 0.001 && uExpressiveEnergyBloom > 0.01) {
     float energy = dot(color, vec3(0.299, 0.587, 0.114));
     float threshold = uExpressiveEnergyThreshold;
     float bloom = smoothstep(threshold, threshold + 0.2, energy);
     color += color * bloom * uExpressiveEnergyBloom * (1.0 + uExpressiveEnergyAccumulation * 2.0);
   }
 
-  if (uExpressiveMotionEcho > 0.01) {
+  if (sceneColorEnergy > 0.001 && uExpressiveMotionEcho > 0.01) {
     vec2 motionUv = effectUv + vec2(sin(uv.y * 10.0 + uTime * 2.0), cos(uv.x * 10.0 + uTime * 2.0)) * uExpressiveMotionEcho * 0.05;
     float echo = texture(uPreviousFrame, motionUv).r * uExpressiveMotionEchoDecay;
     color += vec3(echo) * uExpressiveMotionEcho;
   }
 
-  if (uExpressiveSpectralSmear > 0.01) {
+  if (sceneColorEnergy > 0.001 && uExpressiveSpectralSmear > 0.01) {
     float spectral = uSpectrum[int(clamp(uv.x * 64.0, 0.0, 63.0))];
     vec2 smearUv = uv + vec2((spectral - 0.5) * uExpressiveSpectralMix, 0.0);
     color = mix(color, texture(uPreviousFrame, smearUv).rgb, uExpressiveSpectralSmear);
   }
 
-  // Only apply audio-reactive overlay if there's actual visual content
-  // (base color length is ~0.09, so threshold slightly above that means generators ran)
-  float colorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
-  if (colorEnergy > 0.15) {
+  sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
+  if (sceneColorEnergy > 0.001) {
     color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
   }
 
-  if (uEffectsEnabled > 0.5) {
+  if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5) {
     color += pow(color, vec3(2.0)) * uBloom;
     color = posterize(color, uPosterize);
   }
 
-  if (uEffectsEnabled > 0.5 && uChroma > 0.01) {
+  if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uChroma > 0.01) {
     color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
   }
 
-  if (uEffectsEnabled > 0.5 && uBlur > 0.01) {
+  if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uBlur > 0.01) {
     color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
   }
 
   // Engine Grain
-  if (uEngineGrain > 0.01) {
+  if (sceneColorEnergy > 0.001 && uEngineGrain > 0.01) {
     float noise = hash21(uv * uResolution + floor(uTime * 2.0));
     color += (noise - 0.5) * uEngineGrain * 0.1;
   }
 
   // Engine Vignette
-  if (uEngineVignette > 0.01) {
+  if (sceneColorEnergy > 0.001 && uEngineVignette > 0.01) {
     vec2 centered = uv * 2.0 - 1.0;
     float vignette = 1.0 - dot(centered, centered) * 0.3;
     color *= pow(vignette, 1.0 + uEngineVignette * 2.0);
   }
 
   // Engine CA (Color Aberration at edges)
-  if (uEngineCA > 0.01) {
+  if (sceneColorEnergy > 0.001 && uEngineCA > 0.01) {
     vec2 centered = uv * 2.0 - 1.0;
     float edge = length(centered);
     vec2 caOffset = normalize(centered) * uEngineCA * 0.01 * edge;
@@ -220,7 +220,7 @@ void main() {
   }
 
   // Strobe Pattern Overlay
-  if (uStrobeEnabled > 0.5) {
+  if (sceneColorEnergy > 0.001 && uStrobeEnabled > 0.5) {
     float strobePhase = fract(uTime * uStrobeRate);
     float strobeWindow = step(strobePhase, uStrobeDutyCycle);
     float audioGate = step(uStrobeThreshold, low);
@@ -242,7 +242,7 @@ void main() {
   }
 
   // Apply VHS Scanline Effect
-  if (uVhsScanlineEnabled > 0.5 && uVhsScanlineMode > 0.5) {
+  if (sceneColorEnergy > 0.001 && uVhsScanlineEnabled > 0.5 && uVhsScanlineMode > 0.5) {
     float scanline = sin(uv.y * uVhsScanlineFrequency * 400.0 + uTime * uVhsScanlineSpeed) * 0.5 + 0.5;
     float scanIntensity = uVhsScanlineIntensity * (0.5 + low * 0.5);
     if (uVhsScanlineMode < 1.5) {

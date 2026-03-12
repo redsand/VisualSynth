@@ -134,15 +134,18 @@ describe('GLSL shader static validation', () => {
     expect(builtShader).not.toContain('floor(2.0 + uKaleidoscope * 6.0)');
   });
 
-  it('matches v1.0 base frame color', () => {
-    expect(builtShader).toContain('vec3 color = vec3(0.02, 0.04, 0.08);');
+  it('keeps the base frame neutral until scene content is rendered', () => {
+    expect(builtShader).toContain('vec3 color = vec3(0.0);');
+    expect(builtShader).toContain('float sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));');
+    expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uChemistryMode > 0.5)');
+    expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uEngineCA > 0.01)');
   });
 
-  it('matches v1.0 finishing color pipeline and effect gating', () => {
-    expect(builtShader).toContain('if (uEffectsEnabled > 0.5) {');
+  it('keeps finishing effects gated behind actual scene content', () => {
+    expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5) {');
     expect(builtShader).toContain('color = posterize(color, uPosterize);');
-    expect(builtShader).toContain('if (uEffectsEnabled > 0.5 && uChroma > 0.01)');
-    expect(builtShader).toContain('if (uEffectsEnabled > 0.5 && uBlur > 0.01)');
+    expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uChroma > 0.01)');
+    expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uBlur > 0.01)');
     expect(builtShader).toContain('color = shiftPalette(color, uPaletteShift);');
     expect(builtShader).toContain('color = color / (vec3(1.0) + color);');
     expect(builtShader).toContain('color = pow(color, vec3(1.0 / 1.35));');
