@@ -410,6 +410,9 @@ void main() {
     gl.uniform1f(getLocation('uGravityCollapse'), state.gravityCollapse);
     gl.uniform1f(getLocation('uContrast'), state.contrast);
     gl.uniform1f(getLocation('uSaturation'), state.saturation);
+    if (state.paletteShift !== 0) {
+      console.log('[GLRenderer] uPaletteShift is NON-ZERO:', state.paletteShift);
+    }
     gl.uniform1f(getLocation('uPaletteShift'), state.paletteShift);
     gl.uniform1f(getLocation('uEffectsEnabled'), state.effectsEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uBloom'), state.bloom);
