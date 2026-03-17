@@ -232,8 +232,8 @@ float fbm(vec2 p) {
     v += amp * gradientNoise(p);
     p *= 2.0;
     amp *= 0.5;
-}
-  return v;
+  }
+  return v * 0.5 + 0.5;
 }
 
 vec3 palette(float t) {

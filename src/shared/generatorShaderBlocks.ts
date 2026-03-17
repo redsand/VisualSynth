@@ -967,7 +967,7 @@ uniform float uCircuitBoardOpacity;
   },
 
   {
-    id: 'gen-lorenz-attractor',
+id: 'gen-lorenz-attractor',
     uniforms: `uniform float uLorenzAttractorEnabled;
 uniform float uLorenzAttractorSpeed;
 uniform float uLorenzAttractorChaos;
@@ -976,15 +976,21 @@ uniform float uLorenzAttractorOpacity;
     functions: `vec3 lorenzAttractor(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
   float d = 10000000000.0;
-  vec3 curr = vec3(0.1, 0.0, 0.0);
   float dt = 0.01 * uLorenzAttractorSpeed;
-  for (float i = 0.0; i < 20.0; i += 1.0) {
+  float trail = 50.0 + audio * 30.0;
+  float start = mod(t * uLorenzAttractorSpeed * 5.0, 200.0);
+  vec3 curr = vec3(0.1, 0.0, 0.0);
+  for (float i = 0.0; i < 250.0; i += 1.0) {
     vec3 next;
     next.x = curr.x + dt * 10.0 * (curr.y - curr.x);
     next.y = curr.y + dt * (curr.x * (28.0 - curr.z) - curr.y);
     next.z = curr.z + dt * (curr.x * curr.y - (8.0/3.0) * curr.z);
     curr = next;
-    d = min(d, length(p - curr.xy * 0.05 * uLorenzAttractorChaos));
+    if (i >= start && i < start + trail) {
+      float fade = 1.0 - (i - start) / trail;
+      float dist = length(p - curr.xy * 0.05 * uLorenzAttractorChaos);
+      d = min(d, dist / fade);
+    }
   }
   return palette(t * 0.1) * smoothstep(0.05, 0.0, d) * uLorenzAttractorOpacity;
 }`,
@@ -1192,26 +1198,24 @@ uniform float uNeuralNetOpacity;
   vec2 p = uv * 6.0 * uNeuralNetDensity;
   vec2 id = floor(p);
   vec2 f = fract(p);
-  float col = 0.0;
-  // Create visible neural nodes
-  float node = smoothstep(0.15, 0.0, length(f - 0.5));
-  // Create connections to neighbors
+  float node = smoothstep(0.12, 0.0, length(f - 0.5));
+  float connections = 0.0;
   for (float y = -1.0; y <= 1.0; y += 1.0) {
     for (float x = -1.0; x <= 1.0; x += 1.0) {
       if (x == 0.0 && y == 0.0) continue;
       vec2 neighbor = vec2(x, y);
       float h = hash21(id + neighbor);
-      float connectionStrength = 0.5 + 0.5 * sin(t * uNeuralNetActivity + h * 6.28);
-      if (connectionStrength > 0.3) {
-        vec2 pt = neighbor * 0.5;
-        vec2 mid = (f + pt) * 0.5;
-        vec2 ab = pt - f; vec2 ac = mid - f;
-        float d = abs(ab.x * ac.y - ab.y * ac.x) / length(pt - f);
-        col += smoothstep(0.05, 0.0, d) * connectionStrength * 0.3;
+      float pulse = 0.5 + 0.5 * sin(t * uNeuralNetActivity + h * 6.28);
+      if (pulse > 0.25) {
+        vec2 target = neighbor * 0.5;
+        vec2 toTarget = target - f;
+        float lineDist = abs(toTarget.x * 0.5 - toTarget.y) / length(toTarget);
+        float lineFade = 1.0 - length(f - 0.5) * 2.0;
+        connections += smoothstep(0.03, 0.0, lineDist) * pulse * max(0.0, lineFade);
       }
     }
   }
-  return palette(audio + t * 0.05) * (node * 2.0 + col) * uNeuralNetOpacity * (1.0 + audio * 0.3);
+  return palette(audio + t * 0.05) * (node + connections * 0.8) * uNeuralNetOpacity * (1.0 + audio * 0.3);
 }`,
     mainCall: `  if (uNeuralNetEnabled > 0.5) color += neuralNet(effectUv, uTime, mid) * uRoleWeights.z;
 `
@@ -1225,12 +1229,19 @@ uniform float uAuroraChordWaviness;
 uniform float uAuroraChordOpacity;
 `,
     functions: `vec3 auroraChord(vec2 uv, float t, float audio) {
+  vec2 p = (uv - 0.5) * 2.0;
+  p.x *= uAspect;
   float v = 0.0;
+  float audioAmp = 1.0 + audio * 2.0;
   for (float i = 0.0; i < 3.0; i += 1.0) {
     float shift = i * uAuroraChordColorRange;
-    v += sin(uv.x * 5.0 + t + shift) * sin(uv.y * 2.0 - t * 0.5);
+    float wave1 = sin(p.x * 3.0 + t + i * 0.5) * sin(p.y * 2.0 - t * 0.3 + i * 0.3);
+    float wave2 = sin(p.x * 2.5 + t * 0.7 + i * 0.8) * sin(p.y * 1.5 + t * 0.4);
+    v += (wave1 + wave2 * 0.5) * audioAmp * uAuroraChordWaviness;
   }
-  return palette(v * 0.2 + t * 0.1) * abs(v) * uAuroraChordOpacity * uAuroraChordWaviness;
+  v = v * 0.15 + 0.5;
+  float glow = smoothstep(0.8, 0.2, length(p)) * 0.3;
+  return palette(v * 0.3 + t * 0.05 + audio * 0.2) * (abs(v - 0.5) * 2.0 + glow) * uAuroraChordOpacity;
 }`,
     mainCall: `  if (uAuroraChordEnabled > 0.5) color += auroraChord(effectUv, uTime, mid) * uRoleWeights.z;
 `
@@ -1539,13 +1550,28 @@ uniform float uMirrorMazeOpacity;
 `,
     functions: `vec3 mirrorMaze(vec2 uv, float t, float audio) {
   vec2 p = (uv - 0.5) * 2.0;
+  p.x *= uAspect;
+  float col = 0.0;
+  float edge = 0.0;
   for (float i = 0.0; i < 8.0; i += 1.0) {
     if (i >= float(uMirrorMazeRecursion)) break;
+    vec2 prev = p;
     p = abs(p) - 0.2;
     p = rotate2d(p, uMirrorMazeAngle);
+    // Detect edges from folding
+    edge += smoothstep(0.02, 0.0, abs(prev.x - 0.2));
+    edge += smoothstep(0.02, 0.0, abs(prev.x + 0.2));
+    edge += smoothstep(0.02, 0.0, abs(prev.y - 0.2));
+    edge += smoothstep(0.02, 0.0, abs(prev.y + 0.2));
   }
+  // Draw maze edges
+  col = edge * 0.3;
+  // Add glow based on position
   float d = length(p);
-  return palette(d + t) * smoothstep(0.1, 0.0, d) * uMirrorMazeOpacity;
+  col += smoothstep(0.5, 0.0, d) * 0.5;
+  // Audio reactive pulse
+  col *= 1.0 + audio * 0.5;
+  return palette(d + t + audio * 0.3) * col * uMirrorMazeOpacity;
 }`,
     mainCall: `  if (uMirrorMazeEnabled > 0.5) color += mirrorMaze(effectUv, uTime, high) * uRoleWeights.y;
 `
