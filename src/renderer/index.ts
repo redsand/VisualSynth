@@ -7276,6 +7276,15 @@ const renderPalettePreview = (colors: [string, string, string, string, string]) 
   });
 };
 
+syncRendererPalette = () => {
+  const palette =
+    currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
+    currentProject.palettes[0];
+  if (!palette) return;
+  renderPalettePreview(palette.colors);
+  renderer?.setPalette?.(palette.colors);
+};
+
 const applyPaletteSelection = (paletteId: string) => {
   const palette =
     currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
