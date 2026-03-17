@@ -7276,41 +7276,6 @@ const renderPalettePreview = (colors: [string, string, string, string, string]) 
   });
 };
 
-const updatePaletteIndicator = () => {
-  const activePalette = currentProject.palettes.find((item) => item.id === currentProject.activePaletteId);
-  if (!activePalette) return;
-  
-  // Create color swatches indicator
-  const indicator = document.getElementById('palette-indicator');
-  if (!indicator) return;
-  
-  indicator.innerHTML = '';
-  const colors = activePalette.colors;
-  colors.forEach((color) => {
-    const swatch = document.createElement('span');
-    swatch.style.display = 'inline-block';
-    swatch.style.width = '12px';
-    swatch.style.height = '12px';
-    swatch.style.backgroundColor = color;
-    swatch.style.borderRadius = '2px';
-    swatch.style.border = '1px solid rgba(255,255,255,0.2)';
-    swatch.style.marginRight = '2px';
-    swatch.style.cursor = 'pointer';
-    swatch.title = color;
-    indicator.appendChild(swatch);
-  });
-  
-};
-
-syncRendererPalette = () => {
-    const palette =
-      currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
-      currentProject.palettes[0];
-    if (!palette) return;
-    renderPalettePreview(palette.colors);
-    renderer?.setPalette?.(palette.colors);
-  };
-
 const applyPaletteSelection = (paletteId: string) => {
   const palette =
     currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
@@ -7378,7 +7343,6 @@ const initPalettes = () => {
 
   paletteSelect.onchange = () => {
     applyPaletteSelection(paletteSelect.value);
-    updatePaletteIndicator();
   };
   chemistrySelect.onchange = () => {
     currentProject.colorChemistry = [chemistrySelect.value];
@@ -7403,8 +7367,6 @@ const initPalettes = () => {
   if (paletteResetBtn) {
     paletteResetBtn.onclick = resetPaletteToSceneDefault;
   }
-  
-  updatePaletteIndicator();
 };
 
 const applyStyleControls = () => {
