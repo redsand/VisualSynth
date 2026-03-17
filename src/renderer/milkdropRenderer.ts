@@ -381,17 +381,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       return false;
     }
 
-    console.log('[MilkDrop] Rendering frame:', {
-      frame: variables.frame,
-      time: variables.time,
-      width,
-      height,
-      hasWarp: !!warpProgram,
-      hasComp: !!compProgram,
-      warpShaderLength: shaderData.warp?.length || 0,
-      compShaderLength: shaderData.comp?.length || 0
-    });
-
     executePerFrameCode(shaderData.perFrameCode, state);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, warpFbo?.fbo ?? null);

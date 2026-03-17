@@ -45,7 +45,6 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
   let lastShaderError: string | null = null;
   let customPlasmaSource: string | null = null;
   let contextLost = false;
-  let paletteUploadLogTime = 0;
 
   // Handle WebGL context loss / restore
   canvas.addEventListener('webglcontextlost', (e) => {
@@ -64,6 +63,11 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     uniformWarningsLogged = false;
     advancedSdfProgram = null;
     advancedSdfUniformLocations.clear();
+    milkDropCompositeProgram = null;
+    milkDropEnabled = false;
+    milkDropRenderer = null;
+    lastMilkDropWarp = '';
+    lastMilkDropComp = '';
     previousFrameWidth = 0;
     previousFrameHeight = 0;
     // Re-init textures and recompile the active shader
@@ -301,16 +305,31 @@ void main() {
     }
   };
 
+  let lastMilkDropWarp = '';
+  let lastMilkDropComp = '';
+  let milkDropCompositeProgram: WebGLProgram | null = null;
+
   const updateMilkDropShaders = (shaderData: MilkDropShaderData | null) => {
     if (!shaderData) {
-      console.log('[GLRenderer] No MilkDrop shader data, disabling MilkDrop');
+      if (milkDropEnabled) {
+        console.log('[GLRenderer] No MilkDrop shader data, disabling MilkDrop');
+      }
       currentMilkDropShaderData = null;
       milkDropEnabled = false;
+      lastMilkDropWarp = '';
+      lastMilkDropComp = '';
+      return;
+    }
+
+    // Skip recompilation if shader source hasn't changed
+    if (shaderData.warp === lastMilkDropWarp && shaderData.comp === lastMilkDropComp) {
       return;
     }
 
     currentMilkDropShaderData = shaderData;
     milkDropEnabled = true;
+    lastMilkDropWarp = shaderData.warp;
+    lastMilkDropComp = shaderData.comp;
 
     if (!milkDropRenderer) {
       milkDropRenderer = createMilkDropRenderer({ canvas, onError: options.onError });
@@ -869,21 +888,14 @@ void main() {
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) {
       // Set each palette element individually for maximum driver compatibility
-      let paletteFound = 0;
       for (let pi = 0; pi < 5; pi++) {
         const loc = gl.getUniformLocation(prog, `uPalette[${pi}]`);
         if (loc !== null) {
           gl.uniform3fv(loc, currentPalette[pi]);
-          paletteFound++;
         } else if (pi === 0 && !missingUniforms.has('uPalette[0]')) {
           missingUniforms.add('uPalette[0]');
           console.warn('[GLRenderer] uPalette[0] not in active uniforms — palette() will return black.');
         }
-      }
-      // Log palette upload once per second
-      if (!paletteUploadLogTime || performance.now() - paletteUploadLogTime > 1000) {
-        paletteUploadLogTime = performance.now();
-        console.log(`[GLRenderer] Palette upload: ${paletteFound}/5 locs found, p0=[${currentPalette[0]}], p1=[${currentPalette[1]}], p2=[${currentPalette[2]}]`);
       }
     }
     const pLoc = gl.getAttribLocation(prog, 'position');
@@ -1211,16 +1223,12 @@ void main() {
   };
 
   const setPalette = (colors: [string, string, string, string, string]) => {
-    console.log('[GLRenderer] setPalette called:', colors);
     currentPalette = colors.map(hex => {
       const r = parseInt(hex.slice(1, 3), 16) / 255;
       const g = parseInt(hex.slice(3, 5), 16) / 255;
       const b = parseInt(hex.slice(5, 7), 16) / 255;
       return [r, g, b];
     }) as [number, number, number][];
-    console.log('[GLRenderer] Parsed palette[0]:', currentPalette[0], 'palette[1]:', currentPalette[1]);
-    // Clear the previous frame buffer so stale palette colors don't bleed
-    // through effects that read from uPreviousFrame (CA, motion echo, spectral smear)
     clearHistory();
   };
 
@@ -1299,35 +1307,21 @@ void main() {
     
     // Render MilkDrop if enabled
     if (milkDropEnabled && milkDropRenderer && currentMilkDropShaderData && state.milkwaveEnabled) {
-      console.log('[GLRenderer] Rendering MilkDrop:', {
-        milkDropEnabled,
-        hasRenderer: !!milkDropRenderer,
-        hasShaderData: !!currentMilkDropShaderData,
-        milkwaveEnabled: state.milkwaveEnabled,
-        shaderDataLength: currentMilkDropShaderData.warp?.length || 0,
-        perFrameCodeLength: currentMilkDropShaderData.perFrameCode?.length || 0
-      });
       const milkDropSuccess = milkDropRenderer.render(state, currentMilkDropShaderData, false);
       if (milkDropSuccess) {
-        const milkDropTexture = milkDropRenderer.getMainTexture();
-        if (milkDropTexture) {
-          gl.enable(gl.BLEND);
-          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-          
-          // Draw MilkDrop output as fullscreen quad
-          const tempProgram = gl.createProgram();
-          const vs = gl.createShader(gl.VERTEX_SHADER)!;
-          gl.shaderSource(vs, `#version 300 es
+        const mdTexture = milkDropRenderer.getMainTexture();
+        if (mdTexture) {
+          // Lazily create the composite program (reused across frames)
+          if (!milkDropCompositeProgram) {
+            milkDropCompositeProgram = createProgram(
+              `#version 300 es
 in vec2 position;
 out vec2 vUv;
 void main() {
   vUv = position * 0.5 + 0.5;
   gl_Position = vec4(position, 0.0, 1.0);
-}`);
-          gl.compileShader(vs);
-          
-          const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
-          gl.shaderSource(fs, `#version 300 es
+}`,
+              `#version 300 es
 precision highp float;
 in vec2 vUv;
 uniform sampler2D uTexture;
@@ -1335,31 +1329,24 @@ uniform float uOpacity;
 out vec4 fragColor;
 void main() {
   fragColor = texture(uTexture, vUv) * uOpacity;
-}`);
-          gl.compileShader(fs);
-          
-          gl.attachShader(tempProgram, vs);
-          gl.attachShader(tempProgram, fs);
-          gl.linkProgram(tempProgram);
-          
-          gl.useProgram(tempProgram);
-          gl.uniform1i(gl.getUniformLocation(tempProgram, 'uTexture'), 0);
-          gl.uniform1f(gl.getUniformLocation(tempProgram, 'uOpacity'), state.milkwaveOpacity ?? 1.0);
-          
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, milkDropTexture);
-          
-          const posLoc = gl.getAttribLocation(tempProgram, 'position');
-          gl.enableVertexAttribArray(posLoc);
-          gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()!);
-          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
-          gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-          gl.drawArrays(gl.TRIANGLES, 0, 6);
-          
-          gl.deleteShader(vs);
-          gl.deleteShader(fs);
-          gl.deleteProgram(tempProgram);
-          gl.disable(gl.BLEND);
+}`
+            );
+          }
+          if (milkDropCompositeProgram) {
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.useProgram(milkDropCompositeProgram);
+            gl.uniform1i(gl.getUniformLocation(milkDropCompositeProgram, 'uTexture'), 0);
+            gl.uniform1f(gl.getUniformLocation(milkDropCompositeProgram, 'uOpacity'), state.milkwaveOpacity ?? 1.0);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, mdTexture);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            const posLoc = gl.getAttribLocation(milkDropCompositeProgram, 'position');
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.disable(gl.BLEND);
+          }
         }
       }
     }

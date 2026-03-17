@@ -5408,7 +5408,8 @@ const addSceneFromPreset = async (presetPath: string) => {
       }
       return cloned;
     }),
-    look
+    look,
+    _shaderData: sourceScene._shaderData ? cloneValue(sourceScene._shaderData) : undefined
   };
   addSceneToProject(newScene, true);
   selectedSceneId = newScene.id;
@@ -11383,6 +11384,7 @@ const render = (time: number) => {
     pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
     milkwaveEnabled: milkwaveLayer?.enabled ?? false,
     milkwaveOpacity: getLayerParamNumber(milkwaveLayer, 'opacity', milkwaveLayer?.opacity ?? 1.0),
+    milkDropShaderData: renderScene?._shaderData ?? null,
     bossHealthEnabled: bossHealthLayer?.enabled ?? false,
     bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
     bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 0.5),

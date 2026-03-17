@@ -86,28 +86,22 @@ describe('Palette and shiftPalette shader behavior', () => {
       ];
     }
     
-    // A grayscale color
-    const gray: [number, number, number] = [0.5, 0.5, 0.5];
-    
+    // A colored input (red-ish) — hue rotation only affects chromatic colors;
+    // grayscale (R==G==B) is invariant under hue rotation by design.
+    const red: [number, number, number] = [0.8, 0.2, 0.1];
+
     // With shift = 0, should return approximately the same color (within tolerance)
-    const result0 = shiftPalette(gray, 0);
-    expect(result0[0]).toBeCloseTo(0.5, 1);
-    expect(result0[1]).toBeCloseTo(0.5, 1);
-    expect(result0[2]).toBeCloseTo(0.5, 1);
-    
-    // With shift = 0.16 (the observed value), should convert to pink/purple
-    const result1 = shiftPalette(gray, 0.16);
-    // The result should NOT be grayscale - R, G, B should differ
-    const isGrayscale = Math.abs(result1[0] - result1[1]) < 0.01 && Math.abs(result1[1] - result1[2]) < 0.01 && Math.abs(result1[0] - result1[2]) < 0.01;
-    expect(isGrayscale).toBe(false);
-    
-    // The hue rotation should produce pink/purple tones
-    // Pink/purple typically has R > G and B > G
-    // Let's verify that at least one color channel differs significantly
+    const result0 = shiftPalette(red, 0);
+    expect(result0[0]).toBeCloseTo(0.8, 1);
+    expect(result0[1]).toBeCloseTo(0.2, 1);
+    expect(result0[2]).toBeCloseTo(0.1, 1);
+
+    // With shift = 0.16, the hue should rotate — output should differ from input
+    const result1 = shiftPalette(red, 0.16);
     const maxDiff = Math.max(
-      Math.abs(result1[0] - result1[1]),
-      Math.abs(result1[1] - result1[2]),
-      Math.abs(result1[0] - result1[2])
+      Math.abs(result1[0] - red[0]),
+      Math.abs(result1[1] - red[1]),
+      Math.abs(result1[2] - red[2])
     );
     expect(maxDiff).toBeGreaterThan(0.05);
   });

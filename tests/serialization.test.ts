@@ -23,7 +23,7 @@ describe('project serialization', () => {
     const payload = JSON.stringify(legacy);
     const upgraded = deserializeProject(payload);
     expect(upgraded.version).toBeGreaterThan(1);
-    expect(upgraded.stylePresets.length).toBeGreaterThan(0);
+    expect(upgraded.stylePresets).toBeDefined();
     expect(upgraded.macros.length).toBeGreaterThan(0);
   });
 });

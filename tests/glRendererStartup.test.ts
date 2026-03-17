@@ -53,6 +53,7 @@ describe('createGLRenderer startup compilation', () => {
     const { gl, fragmentSources } = createMockGl();
     const canvas = {
       getContext: (kind: string) => (kind === 'webgl2' ? gl : null),
+      addEventListener: () => {},
       clientWidth: 640,
       clientHeight: 360,
       width: 640,

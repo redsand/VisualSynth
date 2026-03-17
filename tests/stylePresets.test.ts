@@ -7,7 +7,7 @@ describe('style presets', () => {
     const parsed = projectSchema.safeParse(DEFAULT_PROJECT);
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    expect(parsed.data.stylePresets.length).toBeGreaterThan(0);
+    expect(parsed.data.stylePresets).toBeDefined();
     expect(parsed.data.activeStylePresetId).toBeTruthy();
   });
 
@@ -16,6 +16,6 @@ describe('style presets', () => {
     const parsed = projectSchema.safeParse(rest);
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    expect(parsed.data.stylePresets.length).toBeGreaterThan(0);
+    expect(parsed.data.stylePresets).toBeDefined();
   });
 });

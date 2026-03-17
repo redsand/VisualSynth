@@ -13,21 +13,16 @@ describe('bootstrap startup order', () => {
     const outputInit = source.indexOf('await initializeOutputSession(window.visualSynth', phase3);
     const phase4 = source.indexOf('Phase 4: Initializing audio and MIDI');
     const audioInit = source.indexOf('audioEngine.initModulators();', phase4);
-    const phase5 = source.indexOf('Phase 5: Checking for recovery project');
-    const startupSelection = source.indexOf(
-      'await selectStartupProject(window.visualSynth, localStorage)',
-      phase5
-    );
-    const phase6 = source.indexOf('Phase 6: Starting render loop');
-    const renderStart = source.indexOf('renderer.start();', phase6);
+    const phase5 = source.indexOf('Phase 5: Initializing preset library');
+    const phase7 = source.indexOf('Phase 7: Starting render loop');
+    const renderStart = source.indexOf('renderer.start();', phase7);
 
     expect(phase3).toBeGreaterThan(-1);
     expect(outputInit).toBeGreaterThan(phase3);
     expect(phase4).toBeGreaterThan(outputInit);
     expect(audioInit).toBeGreaterThan(phase4);
     expect(phase5).toBeGreaterThan(audioInit);
-    expect(startupSelection).toBeGreaterThan(phase5);
-    expect(phase6).toBeGreaterThan(startupSelection);
-    expect(renderStart).toBeGreaterThan(phase6);
+    expect(phase7).toBeGreaterThan(phase5);
+    expect(renderStart).toBeGreaterThan(phase7);
   });
 });

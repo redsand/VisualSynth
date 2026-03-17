@@ -327,6 +327,14 @@ const sceneLayerRolesSchema = z.object({
   atmosphere: z.array(z.string())
 });
 
+const milkDropShaderDataSchema = z.object({
+  warp: z.string(),
+  comp: z.string(),
+  perFrameCode: z.array(z.string()),
+  perFrameInitCode: z.array(z.string()),
+  originalParameters: z.record(z.union([z.number(), z.boolean()]))
+});
+
 const sceneSchema = z.object({
   id: z.string(),
   scene_id: z.string().optional(),
@@ -344,7 +352,8 @@ const sceneSchema = z.object({
     atmosphere: []
   }),
   layers: z.array(layerSchema).min(1),
-  look: sceneLookSchema.optional()
+  look: sceneLookSchema.optional(),
+  _shaderData: milkDropShaderDataSchema.optional()
 });
 
 const lfoSchema = z.object({
@@ -735,7 +744,8 @@ export const projectSchema = z.object({
     bpm: z.number().default(120),
     source: z.enum(['manual', 'auto', 'network']).default('manual')
   }).default({ bpm: 120, source: 'manual' }),
-  customShaderBlocks: z.array(customShaderBlockSchema).default([])
+  customShaderBlocks: z.array(customShaderBlockSchema).default([]),
+  _shaderData: milkDropShaderDataSchema.optional()
 });
 
 export type ProjectSchema = z.infer<typeof projectSchema>;
