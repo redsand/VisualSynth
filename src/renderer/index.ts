@@ -5364,6 +5364,15 @@ const addSceneFromPreset = async (presetPath: string) => {
     currentProject.assets = nextAssets;
     renderAssets();
   }
+  // Only lock palette in scene look if the preset JSON explicitly specified one.
+  // Using currentProject's activePaletteId would lock every loaded scene to whatever
+  // palette happened to be active, preventing the user from changing it.
+  const presetExplicitPaletteId: string | undefined =
+    migratedPreset.activePaletteId ||
+    migratedPreset.project?.activePaletteId ||
+    migratedPreset.project?.scenes?.[0]?.look?.activePaletteId ||
+    undefined;
+
   const look: SceneLook = {
     effects: cloneValue(sourceProject.effects || {}),
     particles: cloneValue(sourceProject.particles || {}),
@@ -5372,7 +5381,7 @@ const addSceneFromPreset = async (presetPath: string) => {
     stylePresets: cloneValue(sourceProject.stylePresets || []),
     activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
     palettes: cloneValue(sourceProject.palettes || []),
-    activePaletteId: cloneValue(sourceProject.activePaletteId || ''),
+    activePaletteId: presetExplicitPaletteId,
     macros: cloneValue(sourceProject.macros || []),
     modMatrix: cloneValue(sourceProject.modMatrix || [])
   };
@@ -7290,25 +7299,15 @@ const updatePaletteIndicator = () => {
     indicator.appendChild(swatch);
   });
   
-  console.log('[Palette] Indicator updated for:', activePalette.id, 'colors:', colors);
 };
 
 syncRendererPalette = () => {
     const palette =
       currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
       currentProject.palettes[0];
-    if (!palette) {
-      console.error('[Palette] No palette found! activePaletteId:', currentProject.activePaletteId, 'available palettes:', currentProject.palettes.map(p => p.id));
-      return;
-    }
-
-    console.log('[Palette] Syncing palette to renderer:', palette.id, 'with colors:', palette.colors);
-    console.log('[Palette] Current activePaletteId:', currentProject.activePaletteId);
-    console.log('[Palette] All available palettes:', currentProject.palettes.map(p => ({ id: p.id, name: p.name, colors: p.colors })));
-
+    if (!palette) return;
     renderPalettePreview(palette.colors);
     renderer?.setPalette?.(palette.colors);
-    console.log('[Palette] renderer.setPalette() called');
   };
 
 const applyPaletteSelection = (paletteId: string) => {
@@ -7318,7 +7317,6 @@ const applyPaletteSelection = (paletteId: string) => {
   currentProject.activePaletteId = palette.id;
   syncRendererPalette?.();
   outputChannel.postMessage({ paletteColors: palette.colors });
-  console.log('[Palette] Applied palette:', palette.id, 'with colors:', palette.colors);
   // Sync mixer palette select if it exists
   const mixerSelect = document.getElementById('mixer-palette-select') as HTMLSelectElement | null;
   if (mixerSelect && mixerSelect.value !== palette.id) mixerSelect.value = palette.id;
@@ -7348,7 +7346,6 @@ const resetPaletteToSceneDefault = () => {
   syncRendererPalette?.();
   outputChannel.postMessage({ paletteColors: currentProject.palettes.find((p) => p.id === currentProject.activePaletteId)?.colors });
   setStatus('Palette reset to scene default');
-  console.log('[Palette] Reset palette to scene default for:', scene.id);
 };
 
 const initPalettes = () => {
@@ -11582,9 +11579,8 @@ const render = (time: number) => {
     feedback: renderState.feedback,
     kaleidoscope: renderState.kaleidoscope,
     posterize: renderState.posterize,
-    debugColorStage: (window as any).__debugColorStage ?? 7
   };
-  
+
   if (renderState.milkDropShaderData) {
     renderer.updateMilkDropShaders?.(renderState.milkDropShaderData);
   }
@@ -11916,21 +11912,6 @@ const init = async () => {
   setTimeout(() => {
     hideLoadingSplash();
   }, 300);
-
-  // Expose color debug API
-  (window as any).__debugColorStage = 7; // Default: 7 = final output
-  (window as any).setDebugColorStage = (stage: number) => {
-    (window as any).__debugColorStage = stage;
-    const stageNames = ['raw generator', 'after saturation', 'after contrast', 'after Reinhard', 'after gamma', 'final'];
-    console.log(`[Color Debug] Stage set to ${stage}: ${stageNames[stage] || 'unknown'}`);
-  };
-  console.log('[Color Debug] Use setDebugColorStage(0-7) to visualize colors at each stage:');
-  console.log('  0 = raw generator output');
-  console.log('  1 = after saturation');
-  console.log('  2 = after contrast');
-  console.log('  3 = after Reinhard tone map');
-  console.log('  4 = after gamma correction');
-  console.log('  7 = final output (default)');
 
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {

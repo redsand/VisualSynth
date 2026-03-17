@@ -591,24 +591,8 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   output: { ...DEFAULT_OUTPUT_CONFIG },
-  stylePresets: [
-    {
-      id: 'style-signature',
-      name: 'Signature Glow',
-      settings: { contrast: 1.15, saturation: 1.25, paletteShift: 0.05 }
-    },
-    {
-      id: 'style-surge',
-      name: 'Surge',
-      settings: { contrast: 1.2, saturation: 1.4, paletteShift: 0.08 }
-    },
-    {
-      id: 'style-noir',
-      name: 'Noir',
-      settings: { contrast: 1.4, saturation: 0.7, paletteShift: -0.12 }
-    }
-  ],
-  activeStylePresetId: 'style-signature',
+  stylePresets: [],
+  activeStylePresetId: 'style-neutral',
   palettes: COLOR_PALETTES,
   activePaletteId: 'heat',
   macros: [

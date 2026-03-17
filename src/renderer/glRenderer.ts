@@ -44,6 +44,40 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
 
   let lastShaderError: string | null = null;
   let customPlasmaSource: string | null = null;
+  let contextLost = false;
+  let paletteUploadLogTime = 0;
+
+  // Handle WebGL context loss / restore
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    contextLost = true;
+    console.warn('[GLRenderer] WebGL context lost');
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    console.log('[GLRenderer] WebGL context restored — rebuilding');
+    contextLost = false;
+    // All GL resources are invalid after context loss — clear every cache
+    programCache.clear();
+    activeUniformLookupCache.clear();
+    uniformLocationCache.clear();
+    missingUniforms.clear();
+    uniformWarningsLogged = false;
+    advancedSdfProgram = null;
+    advancedSdfUniformLocations.clear();
+    previousFrameWidth = 0;
+    previousFrameHeight = 0;
+    // Re-init textures and recompile the active shader
+    initInternalTextures();
+    standardProgram = getOrCompileProgram(
+      currentActiveIds,
+      currentSdfUniforms,
+      currentSdfFunctions,
+      currentSdfMapBody,
+      currentPlasmaSource,
+      currentCustomBlocks
+    );
+    currentProgram = standardProgram;
+  });
 
   // --- Generator Diagnostics ---
   const missingUniforms = new Set<string>();
@@ -59,16 +93,15 @@ void main() {
 }`;
 
   let currentPalette: [number, number, number][] = [
-    [0.02, 0.02, 0.02], // Near black
-    [0.15, 0.1, 0.05],  // Dark warm
-    [0.4, 0.25, 0.1],   // Amber
-    [0.7, 0.5, 0.3],    // Light amber
-    [1.0, 1.0, 1.0]     // White
+    [0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0]
   ];
   let advancedSdfProgram: WebGLProgram | null = null;
   let advancedSdfUniforms: any[] = [];
   let advancedSdfUniformLocations: Map<string, WebGLUniformLocation | null> = new Map();
-  
   let milkDropRenderer: MilkDropRenderer | null = null;
   let currentMilkDropShaderData: MilkDropShaderData | null = null;
   let milkDropEnabled = false;
@@ -410,9 +443,6 @@ void main() {
     gl.uniform1f(getLocation('uGravityCollapse'), state.gravityCollapse);
     gl.uniform1f(getLocation('uContrast'), state.contrast);
     gl.uniform1f(getLocation('uSaturation'), state.saturation);
-    if (state.paletteShift !== 0) {
-      console.log('[GLRenderer] uPaletteShift is NON-ZERO:', state.paletteShift);
-    }
     gl.uniform1f(getLocation('uPaletteShift'), state.paletteShift);
     gl.uniform1f(getLocation('uEffectsEnabled'), state.effectsEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uBloom'), state.bloom);
@@ -458,7 +488,6 @@ void main() {
     gl.uniform1f(getLocation('uInternalSource'), state.hasInternalAsset ? 1 : 0);
     gl.uniform3fv(getLocation('uGlobalColor'), state.globalColor || [1.0, 1.0, 1.0]);
     gl.uniform1f(getLocation('uDebugTint'), state.debugTint ?? 0);
-    gl.uniform1f(getLocation('uDebugColorStage'), state.debugColorStage ?? 7); // Default: 7 = final output
     gl.uniform3f(getLocation('uRoleWeights'), state.roleWeights.core, state.roleWeights.support, state.roleWeights.atmosphere);
     gl.uniform1f(getLocation('uTransitionAmount'), state.transitionAmount);
     gl.uniform1f(getLocation('uTransitionType'), state.transitionType);
@@ -838,10 +867,25 @@ void main() {
     gl.uniform1f(getLocation('uMyceliumGrowthSpread'), state.myceliumGrowthSpread ?? 1.0);
     gl.uniform1f(getLocation('uMyceliumGrowthDecay'), state.myceliumGrowthDecay ?? 0.5);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
-     if (currentPalette.length >= 5) {
-       // console.log('[GLRenderer] Setting uPalette uniform:', currentPalette.flat());
-       gl.uniform3fv(getLocation('uPalette[0]'), currentPalette.flat());
-     }
+    if (currentPalette.length >= 5) {
+      // Set each palette element individually for maximum driver compatibility
+      let paletteFound = 0;
+      for (let pi = 0; pi < 5; pi++) {
+        const loc = gl.getUniformLocation(prog, `uPalette[${pi}]`);
+        if (loc !== null) {
+          gl.uniform3fv(loc, currentPalette[pi]);
+          paletteFound++;
+        } else if (pi === 0 && !missingUniforms.has('uPalette[0]')) {
+          missingUniforms.add('uPalette[0]');
+          console.warn('[GLRenderer] uPalette[0] not in active uniforms — palette() will return black.');
+        }
+      }
+      // Log palette upload once per second
+      if (!paletteUploadLogTime || performance.now() - paletteUploadLogTime > 1000) {
+        paletteUploadLogTime = performance.now();
+        console.log(`[GLRenderer] Palette upload: ${paletteFound}/5 locs found, p0=[${currentPalette[0]}], p1=[${currentPalette[1]}], p2=[${currentPalette[2]}]`);
+      }
+    }
     const pLoc = gl.getAttribLocation(prog, 'position');
     gl.enableVertexAttribArray(pLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -1167,20 +1211,17 @@ void main() {
   };
 
   const setPalette = (colors: [string, string, string, string, string]) => {
-    console.log('[GLRenderer] setPalette called from:', new Error().stack?.split('\n')[1]?.trim() || 'unknown');
-    console.log('[GLRenderer] setPalette called with:', colors);
-    const newPalette: [number, number, number][] = colors.map(hex => {
-      console.log('[GLRenderer] Converting hex:', hex);
+    console.log('[GLRenderer] setPalette called:', colors);
+    currentPalette = colors.map(hex => {
       const r = parseInt(hex.slice(1, 3), 16) / 255;
       const g = parseInt(hex.slice(3, 5), 16) / 255;
       const b = parseInt(hex.slice(5, 7), 16) / 255;
-      console.log('[GLRenderer] Converted to RGB:', [r, g, b]);
       return [r, g, b];
-    });
-    console.log('[GLRenderer] Final converted palette:', newPalette);
-    console.log('[GLRenderer] Current palette BEFORE:', currentPalette);
-    currentPalette = newPalette;
-    console.log('[GLRenderer] Current palette AFTER:', currentPalette);
+    }) as [number, number, number][];
+    console.log('[GLRenderer] Parsed palette[0]:', currentPalette[0], 'palette[1]:', currentPalette[1]);
+    // Clear the previous frame buffer so stale palette colors don't bleed
+    // through effects that read from uPreviousFrame (CA, motion echo, spectral smear)
+    clearHistory();
   };
 
   const setPlasmaShaderSource = (source: string | null) => {
@@ -1206,6 +1247,7 @@ void main() {
   };
 
   const render = (state: RenderState) => {
+    if (contextLost) return;
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
     updateInternalTextures(state);
@@ -1371,6 +1413,7 @@ void main() {
   };
 
   const precompileVariant = (ids: Set<string>): void => {
+    if (contextLost) return;
     // Compile and cache a shader variant without activating it.
     // Used at load time to warm the cache for all scene variants.
     const t0 = performance.now();

@@ -226,17 +226,11 @@ float fbm(vec2 p) {
 }
 
 vec3 palette(float t) {
-  float clamped = clamp(t, 0.0, 1.0);
-  if (clamped < 0.25) {
-    return mix(uPalette[0], uPalette[1], smoothstep(0.0, 0.25, clamped));
-  }
-  if (clamped < 0.5) {
-    return mix(uPalette[1], uPalette[2], smoothstep(0.25, 0.5, clamped));
-  }
-  if (clamped < 0.75) {
-    return mix(uPalette[2], uPalette[3], smoothstep(0.5, 0.75, clamped));
-  }
-  return mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, clamped));
+  float s = clamp(t, 0.0, 1.0) * 4.0;
+  int i = int(floor(s));
+  float f = fract(s);
+  if (i >= 4) return uPalette[4];
+  return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
 }
 
 vec3 applySaturation(vec3 color, float amount) {

@@ -56,7 +56,7 @@ export const queueSceneVariantPrecompile = (
     if (index >= scenesToPrecompile.length) return;
     const ids = collectSceneGeneratorIds(scenesToPrecompile[index]);
     renderer.precompileVariant(ids);
-    setTimeout(() => precompileNext(index + 1), 0);
+    setTimeout(() => precompileNext(index + 1), 150);
   };
   setTimeout(() => precompileNext(0), initialDelayMs);
 };

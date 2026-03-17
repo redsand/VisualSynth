@@ -134,23 +134,17 @@ void main() {
   }
   vec3 color = vec3(0.0);
 
+  // Keep all uPalette uniforms active — GLSL compilers may DCE palette() if only referenced
+  // in generator functions. This unconditional write (< 1/1,000,000 contribution) prevents that.
+  color += (uPalette[0] + uPalette[1] + uPalette[2] + uPalette[3] + uPalette[4]) * 1e-7;
+
   /* @@GENERATOR_CALLS */
+
   if (gravityLens > 0.0 || gravityRing > 0.0) {
     color += vec3(0.08, 0.12, 0.2) * gravityLens + vec3(0.2, 0.35, 0.5) * gravityRing * (0.4 + high);
   }
 
   float sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
-
-  // Apply Chemistry Palette Shift (DISABLED - was overwriting generator colors)
-  if (false) {
-    float chemShift = sin(uTime * 0.1 + uv.x * 3.0 + uv.y * 2.0) * 0.1;
-    if (uChemistryMode > 1.5 && uChemistryMode < 2.5) { // Triadic
-      chemShift += 0.333;
-    } else if (uChemistryMode > 2.5 && uChemistryMode < 3.5) { // Complementary
-      chemShift += 0.5;
-    }
-    color = palette(fract(chemShift + dot(color, vec3(0.299, 0.587, 0.114)))) * length(color);
-  }
 
   // Apply Expressive Features
   if (sceneColorEnergy > 0.001 && uExpressiveEnergyBloom > 0.01) {
@@ -174,7 +168,9 @@ void main() {
 
   sceneColorEnergy = dot(color, vec3(0.299, 0.587, 0.114));
   if (sceneColorEnergy > 0.001) {
-    color += vec3(uStrobe * 1.5) + vec3(uPeak * 0.2, uRms * 0.5, uRms * 0.8);
+    color += vec3(uStrobe * 1.5);
+    // Audio-reactive tint: scale by existing color so it tints rather than overwrites palette
+    color += color * vec3(uPeak * 0.3, uRms * 0.15, uRms * 0.15);
   }
 
   if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5) {
@@ -203,13 +199,14 @@ void main() {
     color *= pow(vignette, 1.0 + uEngineVignette * 2.0);
   }
 
-  // Engine CA (Color Aberration at edges)
+  // Engine CA (Color Aberration at edges) — blend with current color to preserve palette
   if (sceneColorEnergy > 0.001 && uEngineCA > 0.01) {
     vec2 centered = uv * 2.0 - 1.0;
     float edge = length(centered);
     vec2 caOffset = normalize(centered) * uEngineCA * 0.01 * edge;
-    color.r = texture(uPreviousFrame, uv + caOffset).r;
-    color.b = texture(uPreviousFrame, uv - caOffset).b;
+    float caBlend = clamp(uEngineCA, 0.0, 1.0);
+    color.r = mix(color.r, texture(uPreviousFrame, uv + caOffset).r, caBlend * 0.5);
+    color.b = mix(color.b, texture(uPreviousFrame, uv - caOffset).b, caBlend * 0.5);
   }
 
   // Signature Watermark (very subtle)
@@ -260,63 +257,22 @@ void main() {
     }
   }
 
-   // Keep uPalette uniform alive (prevents shader optimization when chemistry mode is off)
-   // Use uPaletteShift as a runtime guard that the compiler can't optimize away
-   if (uPaletteShift < -1000.0) {
-     color = palette(uPaletteShift * 0.001);
-   }
+   // uPalette keep-alive handled by unconditional tiny contribution near line 139.
 
-   // Only apply shiftPalette when NOT in analog mode
-   if (uChemistryMode > 0.5) {
+   // Only apply shiftPalette when NOT in analog mode AND shift is meaningful
+   if (uChemistryMode > 0.5 && abs(uPaletteShift) > 0.01) {
      color = shiftPalette(color, uPaletteShift);
    }
 
-   // Debug: Store color after generator (Stage 0)
-   vec3 colorAfterGenerator = color;
-
    color = applySaturation(color, uSaturation);
-
-   // Debug: Store color after saturation (Stage 1)
-   vec3 colorAfterSaturation = color;
-
    color = applyContrast(color, uContrast);
 
-   // Debug: Store color after contrast (Stage 2)
-   vec3 colorAfterContrast = color;
-
-   color = color / (vec3(1.0) + color);
-
-   // Debug: Store color after Reinhard tone map (Stage 3)
-   vec3 colorAfterReinhard = color;
+   // Soft clamp: values ≤ 1 pass through unchanged; HDR values compress smoothly.
+   color = color / max(vec3(1.0), color + vec3(0.001));
 
    color = pow(color, vec3(1.0 / 1.35));
 
-   // Debug: Store color after gamma correction (Stage 4)
-   vec3 colorAfterGamma = color;
-
    color *= uGlobalColor;
-
-   // Debug: Select which stage to visualize (default: 7 = final)
-   // 0: Raw generator output
-   // 1: After saturation
-   // 2: After contrast
-   // 3: After Reinhard tone map
-   // 4: After gamma correction
-   // 7: Final output (default)
-   int debugStage = int(uDebugColorStage);
-   if (debugStage == 0) {
-     color = colorAfterGenerator;
-   } else if (debugStage == 1) {
-     color = colorAfterSaturation;
-   } else if (debugStage == 2) {
-     color = colorAfterContrast;
-   } else if (debugStage == 3) {
-     color = colorAfterReinhard;
-   } else if (debugStage == 4) {
-     color = colorAfterGamma;
-   } else {
-     color = color; // Default: final output (stage 7)
-   }
 
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);

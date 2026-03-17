@@ -1067,25 +1067,16 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
   project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
 
-  // CRITICAL: Copy palettes and activePaletteId from preset
   if (preset.palettes && Array.isArray(preset.palettes)) {
     project.palettes = preset.palettes;
-    console.log('[PresetMigration] Applied palettes from preset:', preset.palettes.map((p: any) => ({ id: p.id, name: p.name })));
-  } else {
-    console.log('[PresetMigration] No palettes in preset, using current project palettes');
   }
 
   if (preset.project?.activePaletteId) {
     project.activePaletteId = preset.project.activePaletteId;
-    console.log('[PresetMigration] Applied activePaletteId from preset.project:', preset.project.activePaletteId);
   } else if (preset.project?.scenes?.[0]?.look?.activePaletteId) {
     project.activePaletteId = preset.project.scenes[0].look.activePaletteId;
-    console.log('[PresetMigration] Applied activePaletteId from scene look:', preset.project.scenes[0].look.activePaletteId);
   } else if (preset.activePaletteId) {
     project.activePaletteId = preset.activePaletteId;
-    console.log('[PresetMigration] Applied activePaletteId from preset root:', preset.activePaletteId);
-  } else {
-    console.log('[PresetMigration] No activePaletteId in preset, keeping current:', project.activePaletteId);
   }
 
   if (Array.isArray(preset.scenes)) {

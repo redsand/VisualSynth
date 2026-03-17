@@ -541,8 +541,8 @@ export const projectSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
-  stylePresets: z.array(stylePresetSchema).default(stylePresetDefaults),
-  activeStylePresetId: z.string().default(stylePresetDefaults[0].id),
+  stylePresets: z.array(stylePresetSchema).default([]),
+  activeStylePresetId: z.string().default('style-neutral'),
   palettes: z.array(colorPaletteSchema).default([]),
   activePaletteId: z.string().default('heat'),
   macros: z
