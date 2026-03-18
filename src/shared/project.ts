@@ -55,7 +55,7 @@ export interface ModConnection {
   bipolar: boolean;
   min: number;
   max: number;
-  enabled: boolean;
+  enabled?: boolean;
 }
 
 export interface MidiMapping {
@@ -379,6 +379,7 @@ export interface LfoConfig {
   shape: 'sine' | 'triangle' | 'saw' | 'square';
   rate: number;
   sync: boolean;
+  syncDivision?: string;
   phase: number;
 }
 

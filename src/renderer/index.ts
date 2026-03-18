@@ -4867,11 +4867,32 @@ const updateLfos = (dt: number, bpm: number) => {
   });
 };
 
+const LFO_SYNC_DIVISIONS: { label: string; beats: number }[] = [
+  { label: '1/16',   beats: 0.25 },
+  { label: '1/16T',  beats: 0.25 * 2 / 3 },
+  { label: '1/16·3/5', beats: 0.25 * 3 / 5 },
+  { label: '1/8',    beats: 0.5 },
+  { label: '1/8T',   beats: 0.5 * 2 / 3 },
+  { label: '1/8·3/5', beats: 0.5 * 3 / 5 },
+  { label: '1/4',    beats: 1 },
+  { label: '1/4T',   beats: 1 * 2 / 3 },
+  { label: '1/4·3/5', beats: 1 * 3 / 5 },
+  { label: '1/2',    beats: 2 },
+  { label: '1/2T',   beats: 2 * 2 / 3 },
+  { label: '1/2·3/5', beats: 2 * 3 / 5 },
+  { label: '1 beat',  beats: 4 },
+  { label: '1 beatT', beats: 4 * 2 / 3 },
+  { label: '1 beat·3/5', beats: 4 * 3 / 5 },
+  { label: '2 beats', beats: 8 },
+  { label: '2 beatsT', beats: 8 * 2 / 3 },
+  { label: '2 beats·3/5', beats: 8 * 3 / 5 },
+];
+
 const renderLfoList = () => {
   lfoList.innerHTML = '';
   currentProject.lfos.forEach((lfo, index) => {
     const row = document.createElement('div');
-    row.className = 'mod-row';
+    row.className = 'mod-row lfo-row';
     const label = document.createElement('div');
     label.textContent = lfo.name;
 
@@ -4890,27 +4911,47 @@ const renderLfoList = () => {
     shapeWrap.appendChild(shapeText);
     shapeWrap.appendChild(shapeSelect);
 
+    // Rate division dropdown (sync divisions + Hz)
+    const divisionSelect = document.createElement('select');
+    divisionSelect.className = 'lfo-division-select';
+    const hzOption = document.createElement('option');
+    hzOption.value = 'hz';
+    hzOption.textContent = 'Hz';
+    divisionSelect.appendChild(hzOption);
+    LFO_SYNC_DIVISIONS.forEach((div) => {
+      const option = document.createElement('option');
+      option.value = div.label;
+      option.textContent = div.label;
+      divisionSelect.appendChild(option);
+    });
+    // Set current selection
+    const currentDivision = lfo.syncDivision ?? (lfo.sync ? '1/4' : 'hz');
+    divisionSelect.value = currentDivision;
+    // If saved division doesn't match any option, fall back
+    if (divisionSelect.value !== currentDivision) {
+      divisionSelect.value = lfo.sync ? '1/4' : 'hz';
+    }
+    const divisionWrap = document.createElement('label');
+    divisionWrap.className = 'dial-toggle';
+    const divisionText = document.createElement('span');
+    divisionText.textContent = 'Rate';
+    divisionWrap.appendChild(divisionText);
+    divisionWrap.appendChild(divisionSelect);
+
+    // Hz rate dial (only visible when Hz is selected)
     const rateDial = createDial({
-      value: lfo.rate,
+      value: lfo.sync ? 1 : lfo.rate,
       min: 0.05,
-      max: 8,
+      max: 20,
       step: 0.05,
       onChange: (value) => {
         lfo.rate = value;
       },
-      title: 'Rate',
-      label: 'Rate'
+      title: 'Hz',
+      label: 'Hz'
     });
-
-    const syncToggle = document.createElement('input');
-    syncToggle.type = 'checkbox';
-    syncToggle.checked = lfo.sync;
-    const syncWrap = document.createElement('label');
-    syncWrap.className = 'dial-toggle';
-    const syncText = document.createElement('span');
-    syncText.textContent = 'Sync';
-    syncWrap.appendChild(syncText);
-    syncWrap.appendChild(syncToggle);
+    const isHz = divisionSelect.value === 'hz';
+    rateDial.wrapper.style.display = isHz ? '' : 'none';
 
     const phaseDial = createDial({
       value: lfo.phase,
@@ -4932,8 +4973,18 @@ const renderLfoList = () => {
     rateDial.input.addEventListener('change', () => {
       lfo.rate = Number(rateDial.input.value);
     });
-    syncToggle.addEventListener('change', () => {
-      lfo.sync = syncToggle.checked;
+    divisionSelect.addEventListener('change', () => {
+      const val = divisionSelect.value;
+      lfo.syncDivision = val;
+      if (val === 'hz') {
+        lfo.sync = false;
+        rateDial.wrapper.style.display = '';
+      } else {
+        lfo.sync = true;
+        const div = LFO_SYNC_DIVISIONS.find((d) => d.label === val);
+        if (div) lfo.rate = div.beats;
+        rateDial.wrapper.style.display = 'none';
+      }
     });
     phaseDial.input.addEventListener('change', () => {
       lfo.phase = Number(phaseDial.input.value);
@@ -4942,8 +4993,8 @@ const renderLfoList = () => {
 
     row.appendChild(label);
     row.appendChild(shapeWrap);
+    row.appendChild(divisionWrap);
     row.appendChild(rateDial.wrapper);
-    row.appendChild(syncWrap);
     row.appendChild(phaseDial.wrapper);
     lfoList.appendChild(row);
   });
@@ -10482,6 +10533,12 @@ const render = (time: number) => {
   const modSources = buildModSources(activeBpm, effectiveMacros);
   const modValue = (target: string, base: number) =>
     applyModMatrix(base, target, modSources, currentProject.modMatrix);
+  /** Shorthand: read a gen-* layer param and apply mod matrix + optional MIDI sum */
+  const genParam = (layer: any, genId: string, param: string, fallback: number, midi?: number) => {
+    const base = getLayerParamNumber(layer, param, fallback);
+    const modded = modValue(`layer-${genId}.${param}`, base);
+    return midi != null ? modded * midi : modded;
+  };
   const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
   const macroSum = effectiveMacros.reduce(
     (acc, macro) => {
@@ -10960,143 +11017,142 @@ const render = (time: number) => {
     Math.max(
       0,
       (laserLayer?.opacity ?? 1) *
-        getLayerParamNumber(laserLayer, 'opacity', 1.0) *
+        genParam(laserLayer, 'laser-beam', 'opacity', 1.0) *
         (laserMidiOpacity ?? 1)
     )
   );
-  const laserBeamCount = getLayerParamNumber(laserLayer, 'beamCount', 4);
-  const laserBeamWidth = getLayerParamNumber(laserLayer, 'beamWidth', 0.02) * (laserMidiWidth ?? 1);
-  const laserBeamLength = getLayerParamNumber(laserLayer, 'beamLength', 1.0);
-  const laserRotation = getLayerParamNumber(laserLayer, 'rotation', 0);
-  const laserRotationSpeed =
-    getLayerParamNumber(laserLayer, 'rotationSpeed', 0.5) * (laserMidiSpeed ?? 1);
-  const laserSpread = getLayerParamNumber(laserLayer, 'spread', 1.57);
+  const laserBeamCount = genParam(laserLayer, 'laser-beam', 'beamCount', 4);
+  const laserBeamWidth = genParam(laserLayer, 'laser-beam', 'beamWidth', 0.02, laserMidiWidth ?? 1);
+  const laserBeamLength = genParam(laserLayer, 'laser-beam', 'beamLength', 1.0);
+  const laserRotation = genParam(laserLayer, 'laser-beam', 'rotation', 0);
+  const laserRotationSpeed = genParam(laserLayer, 'laser-beam', 'rotationSpeed', 0.5, laserMidiSpeed ?? 1);
+  const laserSpread = genParam(laserLayer, 'laser-beam', 'spread', 1.57);
   const laserMode = getLayerParamNumber(laserLayer, 'mode', 0);
   const laserColorShift = Math.min(
     1,
-    Math.max(0, getLayerParamNumber(laserLayer, 'colorShift', 0) + (laserMidiColorShift ?? 0))
+    Math.max(0, genParam(laserLayer, 'laser-beam', 'colorShift', 0) + (laserMidiColorShift ?? 0))
   );
-  const laserAudioReact = getLayerParamNumber(laserLayer, 'audioReact', 0.7);
-  const laserGlow = getLayerParamNumber(laserLayer, 'glow', 0.5);
+  const laserAudioReact = genParam(laserLayer, 'laser-beam', 'audioReact', 0.7);
+  const laserGlow = genParam(laserLayer, 'laser-beam', 'glow', 0.5);
   const strobeOpacity =
-    (strobeLayer?.opacity ?? 1) * getLayerParamNumber(strobeLayer, 'opacity', 1.0);
-  const strobeRate = getLayerParamNumber(strobeLayer, 'rate', 4);
-  const strobeDutyCycle = getLayerParamNumber(strobeLayer, 'dutyCycle', 0.1);
+    (strobeLayer?.opacity ?? 1) * genParam(strobeLayer, 'strobe', 'opacity', 1.0);
+  const strobeRate = genParam(strobeLayer, 'strobe', 'rate', 4);
+  const strobeDutyCycle = genParam(strobeLayer, 'strobe', 'dutyCycle', 0.1);
   const strobeMode = getLayerParamNumber(strobeLayer, 'mode', 0);
   const strobePattern = getLayerParamNumber(strobeLayer, 'pattern', 0);
-  const strobeThreshold = getLayerParamNumber(strobeLayer, 'threshold', 0.6);
-  const strobeFadeOut = getLayerParamNumber(strobeLayer, 'fadeOut', 0.1);
+  const strobeThreshold = genParam(strobeLayer, 'strobe', 'threshold', 0.6);
+  const strobeFadeOut = genParam(strobeLayer, 'strobe', 'fadeOut', 0.1);
   const strobeAudioTrigger = (strobeLayer?.params as any)?.audioTrigger ?? true;
   const shapeBurstOpacity =
-    (shapeBurstLayer?.opacity ?? 1) * getLayerParamNumber(shapeBurstLayer, 'opacity', 1.0);
+    (shapeBurstLayer?.opacity ?? 1) * genParam(shapeBurstLayer, 'shape-burst', 'opacity', 1.0);
   const shapeBurstShape = getLayerParamNumber(shapeBurstLayer, 'shape', 0);
-  const shapeBurstExpandSpeed = getLayerParamNumber(shapeBurstLayer, 'expandSpeed', 2);
-  const shapeBurstStartSize = getLayerParamNumber(shapeBurstLayer, 'startSize', 0.05);
-  const shapeBurstMaxSize = getLayerParamNumber(shapeBurstLayer, 'maxSize', 1.5);
-  const shapeBurstThickness = getLayerParamNumber(shapeBurstLayer, 'thickness', 0.03);
+  const shapeBurstExpandSpeed = genParam(shapeBurstLayer, 'shape-burst', 'expandSpeed', 2);
+  const shapeBurstStartSize = genParam(shapeBurstLayer, 'shape-burst', 'startSize', 0.05);
+  const shapeBurstMaxSize = genParam(shapeBurstLayer, 'shape-burst', 'maxSize', 1.5);
+  const shapeBurstThickness = genParam(shapeBurstLayer, 'shape-burst', 'thickness', 0.03);
   const shapeBurstFadeMode = getLayerParamNumber(shapeBurstLayer, 'fadeMode', 2);
   const gridTunnelOpacity =
-    (gridTunnelLayer?.opacity ?? 1) * getLayerParamNumber(gridTunnelLayer, 'opacity', 1.0);
-  const gridTunnelSpeed = getLayerParamNumber(gridTunnelLayer, 'speed', 1);
-  const gridTunnelGridSize = getLayerParamNumber(gridTunnelLayer, 'gridSize', 20);
-  const gridTunnelLineWidth = getLayerParamNumber(gridTunnelLayer, 'lineWidth', 0.02);
-  const gridTunnelPerspective = getLayerParamNumber(gridTunnelLayer, 'perspective', 1);
-  const gridTunnelHorizonY = getLayerParamNumber(gridTunnelLayer, 'horizonY', 0.5);
-  const gridTunnelGlow = getLayerParamNumber(gridTunnelLayer, 'glow', 0.5);
-  const gridTunnelAudioReact = getLayerParamNumber(gridTunnelLayer, 'audioReact', 0.3);
+    (gridTunnelLayer?.opacity ?? 1) * genParam(gridTunnelLayer, 'grid-tunnel', 'opacity', 1.0);
+  const gridTunnelSpeed = genParam(gridTunnelLayer, 'grid-tunnel', 'speed', 1);
+  const gridTunnelGridSize = genParam(gridTunnelLayer, 'grid-tunnel', 'gridSize', 20);
+  const gridTunnelLineWidth = genParam(gridTunnelLayer, 'grid-tunnel', 'lineWidth', 0.02);
+  const gridTunnelPerspective = genParam(gridTunnelLayer, 'grid-tunnel', 'perspective', 1);
+  const gridTunnelHorizonY = genParam(gridTunnelLayer, 'grid-tunnel', 'horizonY', 0.5);
+  const gridTunnelGlow = genParam(gridTunnelLayer, 'grid-tunnel', 'glow', 0.5);
+  const gridTunnelAudioReact = genParam(gridTunnelLayer, 'grid-tunnel', 'audioReact', 0.3);
   const gridTunnelMode = getLayerParamNumber(gridTunnelLayer, 'mode', 0);
 
   // Rock Generator Extractions
   const lightningEnabled = lightningLayer?.enabled ?? false;
-  const lightningOpacity = (lightningLayer?.opacity ?? 1) * getLayerParamNumber(lightningLayer, 'opacity', 1.0);
-  const lightningSpeed = getLayerParamNumber(lightningLayer, 'speed', 1.0);
-  const lightningBranches = getLayerParamNumber(lightningLayer, 'branches', 3.0);
-  const lightningThickness = getLayerParamNumber(lightningLayer, 'thickness', 0.02);
+  const lightningOpacity = (lightningLayer?.opacity ?? 1) * genParam(lightningLayer, 'lightning', 'opacity', 1.0);
+  const lightningSpeed = genParam(lightningLayer, 'lightning', 'speed', 1.0);
+  const lightningBranches = genParam(lightningLayer, 'lightning', 'branches', 3.0);
+  const lightningThickness = genParam(lightningLayer, 'lightning', 'thickness', 0.02);
   const lightningColor = getLayerParamNumber(lightningLayer, 'color', 0);
 
   const analogOscilloEnabled = analogOscilloLayer?.enabled ?? false;
-  const analogOscilloOpacity = (analogOscilloLayer?.opacity ?? 1) * getLayerParamNumber(analogOscilloLayer, 'opacity', 1.0);
-  const analogOscilloThickness = getLayerParamNumber(analogOscilloLayer, 'thickness', 0.01);
-  const analogOscilloGlow = getLayerParamNumber(analogOscilloLayer, 'glow', 0.5);
+  const analogOscilloOpacity = (analogOscilloLayer?.opacity ?? 1) * genParam(analogOscilloLayer, 'analog-oscillo', 'opacity', 1.0);
+  const analogOscilloThickness = genParam(analogOscilloLayer, 'analog-oscillo', 'thickness', 0.01);
+  const analogOscilloGlow = genParam(analogOscilloLayer, 'analog-oscillo', 'glow', 0.5);
   const analogOscilloColor = getLayerParamNumber(analogOscilloLayer, 'color', 0);
   const analogOscilloMode = getLayerParamNumber(analogOscilloLayer, 'mode', 0);
 
   const speakerConeEnabled = speakerConeLayer?.enabled ?? false;
-  const speakerConeOpacity = (speakerConeLayer?.opacity ?? 1) * getLayerParamNumber(speakerConeLayer, 'opacity', 1.0);
-  const speakerConeForce = getLayerParamNumber(speakerConeLayer, 'force', 1.0);
+  const speakerConeOpacity = (speakerConeLayer?.opacity ?? 1) * genParam(speakerConeLayer, 'speaker-cone', 'opacity', 1.0);
+  const speakerConeForce = genParam(speakerConeLayer, 'speaker-cone', 'force', 1.0);
 
   const glitchScanlineEnabled = glitchScanlineLayer?.enabled ?? false;
-  const glitchScanlineOpacity = (glitchScanlineLayer?.opacity ?? 1) * getLayerParamNumber(glitchScanlineLayer, 'opacity', 1.0);
-  const glitchScanlineSpeed = getLayerParamNumber(glitchScanlineLayer, 'speed', 1.0);
-  const glitchScanlineCount = getLayerParamNumber(glitchScanlineLayer, 'count', 1.0);
+  const glitchScanlineOpacity = (glitchScanlineLayer?.opacity ?? 1) * genParam(glitchScanlineLayer, 'glitch-scanline', 'opacity', 1.0);
+  const glitchScanlineSpeed = genParam(glitchScanlineLayer, 'glitch-scanline', 'speed', 1.0);
+  const glitchScanlineCount = genParam(glitchScanlineLayer, 'glitch-scanline', 'count', 1.0);
 
   const laserStarfieldEnabled = laserStarfieldLayer?.enabled ?? false;
-  const laserStarfieldOpacity = (laserStarfieldLayer?.opacity ?? 1) * getLayerParamNumber(laserStarfieldLayer, 'opacity', 1.0);
-  const laserStarfieldSpeed = getLayerParamNumber(laserStarfieldLayer, 'speed', 1.0);
-  const laserStarfieldDensity = getLayerParamNumber(laserStarfieldLayer, 'density', 1.0);
+  const laserStarfieldOpacity = (laserStarfieldLayer?.opacity ?? 1) * genParam(laserStarfieldLayer, 'laser-starfield', 'opacity', 1.0);
+  const laserStarfieldSpeed = genParam(laserStarfieldLayer, 'laser-starfield', 'speed', 1.0);
+  const laserStarfieldDensity = genParam(laserStarfieldLayer, 'laser-starfield', 'density', 1.0);
 
   const pulsingRibbonsEnabled = pulsingRibbonsLayer?.enabled ?? false;
-  const pulsingRibbonsOpacity = (pulsingRibbonsLayer?.opacity ?? 1) * getLayerParamNumber(pulsingRibbonsLayer, 'opacity', 1.0);
-  const pulsingRibbonsCount = getLayerParamNumber(pulsingRibbonsLayer, 'count', 3.0);
-  const pulsingRibbonsWidth = getLayerParamNumber(pulsingRibbonsLayer, 'width', 0.05);
+  const pulsingRibbonsOpacity = (pulsingRibbonsLayer?.opacity ?? 1) * genParam(pulsingRibbonsLayer, 'pulsing-ribbons', 'opacity', 1.0);
+  const pulsingRibbonsCount = genParam(pulsingRibbonsLayer, 'pulsing-ribbons', 'count', 3.0);
+  const pulsingRibbonsWidth = genParam(pulsingRibbonsLayer, 'pulsing-ribbons', 'width', 0.05);
 
   const electricArcEnabled = electricArcLayer?.enabled ?? false;
-  const electricArcOpacity = (electricArcLayer?.opacity ?? 1) * getLayerParamNumber(electricArcLayer, 'opacity', 1.0);
-  const electricArcRadius = getLayerParamNumber(electricArcLayer, 'radius', 0.5);
-  const electricArcChaos = getLayerParamNumber(electricArcLayer, 'chaos', 1.0);
+  const electricArcOpacity = (electricArcLayer?.opacity ?? 1) * genParam(electricArcLayer, 'electric-arc', 'opacity', 1.0);
+  const electricArcRadius = genParam(electricArcLayer, 'electric-arc', 'radius', 0.5);
+  const electricArcChaos = genParam(electricArcLayer, 'electric-arc', 'chaos', 1.0);
 
   const pyroBurstEnabled = pyroBurstLayer?.enabled ?? false;
-  const pyroBurstOpacity = (pyroBurstLayer?.opacity ?? 1) * getLayerParamNumber(pyroBurstLayer, 'opacity', 1.0);
-  const pyroBurstForce = getLayerParamNumber(pyroBurstLayer, 'force', 1.0);
+  const pyroBurstOpacity = (pyroBurstLayer?.opacity ?? 1) * genParam(pyroBurstLayer, 'pyro-burst', 'opacity', 1.0);
+  const pyroBurstForce = genParam(pyroBurstLayer, 'pyro-burst', 'force', 1.0);
 
   const geoWireframeEnabled = geoWireframeLayer?.enabled ?? false;
-  const geoWireframeOpacity = (geoWireframeLayer?.opacity ?? 1) * getLayerParamNumber(geoWireframeLayer, 'opacity', 1.0);
+  const geoWireframeOpacity = (geoWireframeLayer?.opacity ?? 1) * genParam(geoWireframeLayer, 'geo-wireframe', 'opacity', 1.0);
   const geoWireframeShape = getLayerParamNumber(geoWireframeLayer, 'shape', 0);
-  const geoWireframeScale = getLayerParamNumber(geoWireframeLayer, 'scale', 0.5);
+  const geoWireframeScale = genParam(geoWireframeLayer, 'geo-wireframe', 'scale', 0.5);
 
   const signalNoiseEnabled = signalNoiseLayer?.enabled ?? false;
-  const signalNoiseOpacity = (signalNoiseLayer?.opacity ?? 1) * getLayerParamNumber(signalNoiseLayer, 'opacity', 1.0);
-  const signalNoiseAmount = getLayerParamNumber(signalNoiseLayer, 'amount', 1.0);
+  const signalNoiseOpacity = (signalNoiseLayer?.opacity ?? 1) * genParam(signalNoiseLayer, 'signal-noise', 'opacity', 1.0);
+  const signalNoiseAmount = genParam(signalNoiseLayer, 'signal-noise', 'amount', 1.0);
 
   const wormholeEnabled = wormholeLayer?.enabled ?? false;
-  const wormholeOpacity = (wormholeLayer?.opacity ?? 1) * getLayerParamNumber(wormholeLayer, 'opacity', 1.0);
-  const wormholeSpeed = getLayerParamNumber(wormholeLayer, 'speed', 1.0);
-  const wormholeWeave = getLayerParamNumber(wormholeLayer, 'weave', 0.2);
-  const wormholeIter = getLayerParamNumber(wormholeLayer, 'iter', 3.0);
+  const wormholeOpacity = (wormholeLayer?.opacity ?? 1) * genParam(wormholeLayer, 'infinite-wormhole', 'opacity', 1.0);
+  const wormholeSpeed = genParam(wormholeLayer, 'infinite-wormhole', 'speed', 1.0);
+  const wormholeWeave = genParam(wormholeLayer, 'infinite-wormhole', 'weave', 0.2);
+  const wormholeIter = genParam(wormholeLayer, 'infinite-wormhole', 'iter', 3.0);
 
   const ribbonTunnelEnabled = ribbonTunnelLayer?.enabled ?? false;
-  const ribbonTunnelOpacity = (ribbonTunnelLayer?.opacity ?? 1) * getLayerParamNumber(ribbonTunnelLayer, 'opacity', 1.0);
-  const ribbonTunnelSpeed = getLayerParamNumber(ribbonTunnelLayer, 'speed', 1.0);
-  const ribbonTunnelTwist = getLayerParamNumber(ribbonTunnelLayer, 'twist', 1.0);
+  const ribbonTunnelOpacity = (ribbonTunnelLayer?.opacity ?? 1) * genParam(ribbonTunnelLayer, 'ribbon-tunnel', 'opacity', 1.0);
+  const ribbonTunnelSpeed = genParam(ribbonTunnelLayer, 'ribbon-tunnel', 'speed', 1.0);
+  const ribbonTunnelTwist = genParam(ribbonTunnelLayer, 'ribbon-tunnel', 'twist', 1.0);
 
   const fractalTunnelEnabled = fractalTunnelLayer?.enabled ?? false;
-  const fractalTunnelOpacity = (fractalTunnelLayer?.opacity ?? 1) * getLayerParamNumber(fractalTunnelLayer, 'opacity', 1.0);
-  const fractalTunnelSpeed = getLayerParamNumber(fractalTunnelLayer, 'speed', 1.0);
-  const fractalTunnelComplexity = getLayerParamNumber(fractalTunnelLayer, 'complexity', 3.0);
+  const fractalTunnelOpacity = (fractalTunnelLayer?.opacity ?? 1) * genParam(fractalTunnelLayer, 'fractal-tunnel', 'opacity', 1.0);
+  const fractalTunnelSpeed = genParam(fractalTunnelLayer, 'fractal-tunnel', 'speed', 1.0);
+  const fractalTunnelComplexity = genParam(fractalTunnelLayer, 'fractal-tunnel', 'complexity', 3.0);
 
   const circuitConduitEnabled = circuitConduitLayer?.enabled ?? false;
-  const circuitConduitOpacity = (circuitConduitLayer?.opacity ?? 1) * getLayerParamNumber(circuitConduitLayer, 'opacity', 1.0);
-  const circuitConduitSpeed = getLayerParamNumber(circuitConduitLayer, 'speed', 1.0);
+  const circuitConduitOpacity = (circuitConduitLayer?.opacity ?? 1) * genParam(circuitConduitLayer, 'circuit-conduit', 'opacity', 1.0);
+  const circuitConduitSpeed = genParam(circuitConduitLayer, 'circuit-conduit', 'speed', 1.0);
 
   const auraPortalEnabled = auraPortalLayer?.enabled ?? false;
-  const auraPortalOpacity = (auraPortalLayer?.opacity ?? 1) * getLayerParamNumber(auraPortalLayer, 'opacity', 1.0);
+  const auraPortalOpacity = (auraPortalLayer?.opacity ?? 1) * genParam(auraPortalLayer, 'aura-portal', 'opacity', 1.0);
   const auraPortalColor = getLayerParamNumber(auraPortalLayer, 'color', 0);
 
   const freqTerrainEnabled = freqTerrainLayer?.enabled ?? false;
-  const freqTerrainOpacity = (freqTerrainLayer?.opacity ?? 1) * getLayerParamNumber(freqTerrainLayer, 'opacity', 1.0);
-  const freqTerrainScale = getLayerParamNumber(freqTerrainLayer, 'scale', 1.0);
+  const freqTerrainOpacity = (freqTerrainLayer?.opacity ?? 1) * genParam(freqTerrainLayer, 'freq-terrain', 'opacity', 1.0);
+  const freqTerrainScale = genParam(freqTerrainLayer, 'freq-terrain', 'scale', 1.0);
 
   const dataStreamEnabled = dataStreamLayer?.enabled ?? false;
-  const dataStreamOpacity = (dataStreamLayer?.opacity ?? 1) * getLayerParamNumber(dataStreamLayer, 'opacity', 1.0);
-  const dataStreamSpeed = getLayerParamNumber(dataStreamLayer, 'speed', 1.0);
+  const dataStreamOpacity = (dataStreamLayer?.opacity ?? 1) * genParam(dataStreamLayer, 'data-stream', 'opacity', 1.0);
+  const dataStreamSpeed = genParam(dataStreamLayer, 'data-stream', 'speed', 1.0);
 
   const causticLiquidEnabled = causticLiquidLayer?.enabled ?? false;
-  const causticLiquidOpacity = (causticLiquidLayer?.opacity ?? 1) * getLayerParamNumber(causticLiquidLayer, 'opacity', 1.0);
-  const causticLiquidSpeed = getLayerParamNumber(causticLiquidLayer, 'speed', 1.0);
+  const causticLiquidOpacity = (causticLiquidLayer?.opacity ?? 1) * genParam(causticLiquidLayer, 'caustic-liquid', 'opacity', 1.0);
+  const causticLiquidSpeed = genParam(causticLiquidLayer, 'caustic-liquid', 'speed', 1.0);
 
   const shimmerVeilEnabled = shimmerVeilLayer?.enabled ?? false;
-  const shimmerVeilOpacity = (shimmerVeilLayer?.opacity ?? 1) * getLayerParamNumber(shimmerVeilLayer, 'opacity', 1.0);
-  const shimmerVeilComplexity = getLayerParamNumber(shimmerVeilLayer, 'complexity', 10.0);
+  const shimmerVeilOpacity = (shimmerVeilLayer?.opacity ?? 1) * genParam(shimmerVeilLayer, 'shimmer-veil', 'opacity', 1.0);
+  const shimmerVeilComplexity = genParam(shimmerVeilLayer, 'shimmer-veil', 'complexity', 10.0);
 
   if (oscilloFreeze < 0.5) {
     oscilloCapture.set(audioState.waveform);
@@ -11407,9 +11463,9 @@ const render = (time: number) => {
     glowWormsLength: getLayerParamNumber(glowWormsLayer, 'length', 1.0),
     glowWormsSpeed: getLayerParamNumber(glowWormsLayer, 'speed', 1.0),
     mirrorMazeEnabled: mirrorMazeLayer?.enabled ?? false,
-    mirrorMazeOpacity: getLayerParamNumber(mirrorMazeLayer, 'opacity', 1.0),
-    mirrorMazeRecursion: getLayerParamNumber(mirrorMazeLayer, 'recursion', 4.0),
-    mirrorMazeAngle: getLayerParamNumber(mirrorMazeLayer, 'angle', 0.78),
+    mirrorMazeOpacity: genParam(mirrorMazeLayer, 'mirror-maze', 'opacity', 1.0),
+    mirrorMazeRecursion: genParam(mirrorMazeLayer, 'mirror-maze', 'recursion', 4.0),
+    mirrorMazeAngle: genParam(mirrorMazeLayer, 'mirror-maze', 'angle', 0.78),
     pulseHeartEnabled: pulseHeartLayer?.enabled ?? false,
     pulseHeartOpacity: getLayerParamNumber(pulseHeartLayer, 'opacity', 1.0),
     pulseHeartBeats: getLayerParamNumber(pulseHeartLayer, 'beats', 1.0),

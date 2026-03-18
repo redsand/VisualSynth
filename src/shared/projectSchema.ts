@@ -363,6 +363,7 @@ const lfoSchema = z.object({
   shape: z.enum(['sine', 'triangle', 'saw', 'square']),
   rate: z.number(),
   sync: z.boolean(),
+  syncDivision: z.string().optional(),
   phase: z.number()
 });
 

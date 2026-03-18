@@ -41,17 +41,17 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
       row.className = 'mod-row';
       const label = document.createElement('div');
       label.textContent = `LFO ${index + 1}: ${lfo.shape}`;
-      const rate = document.createElement('input');
-      rate.type = 'range';
-      rate.min = '0.01';
-      rate.max = '10';
-      rate.step = '0.01';
-      rate.value = String(lfo.rate);
-      rate.addEventListener('input', () => {
-        lfo.rate = Number(rate.value);
-      });
+      const divisionLabel = document.createElement('div');
+      divisionLabel.className = 'lfo-division-label';
+      if (lfo.syncDivision && lfo.syncDivision !== 'hz') {
+        divisionLabel.textContent = lfo.syncDivision;
+      } else if (lfo.sync) {
+        divisionLabel.textContent = 'Sync';
+      } else {
+        divisionLabel.textContent = `${lfo.rate.toFixed(2)} Hz`;
+      }
       row.appendChild(label);
-      row.appendChild(rate);
+      row.appendChild(divisionLabel);
       lfoList.appendChild(row);
     });
   };

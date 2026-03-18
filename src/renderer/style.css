@@ -528,6 +528,7 @@ body[data-mode='mapping'] .mapping-row select {
 
 body[data-mode='mapping'] .matrix-row {
   grid-template-columns:
+    24px
     minmax(90px, 1.2fr)
     minmax(110px, 1.4fr)
     minmax(54px, 0.6fr)
@@ -536,6 +537,7 @@ body[data-mode='mapping'] .matrix-row {
     minmax(44px, 0.5fr)
     minmax(44px, 0.5fr)
     minmax(44px, 0.5fr)
+    24px
     22px;
   gap: 6px;
   padding: 6px 8px;
@@ -1762,7 +1764,7 @@ body[data-mode='matrix'] .safe-mode {
 
 .matrix-row {
   display: grid;
-  grid-template-columns: 110px 140px 80px 90px 90px 70px 70px 70px 34px;
+  grid-template-columns: 28px 110px 140px 80px 90px 90px 70px 70px 70px 28px 34px;
   gap: 6px;
   align-items: center;
   padding: 6px 8px;
@@ -1770,6 +1772,42 @@ body[data-mode='matrix'] .safe-mode {
   background: #162335;
   margin-top: 6px;
   font-size: 11px;
+}
+
+.matrix-row-disabled {
+  opacity: 0.45;
+}
+
+.mod-enable-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: #8fd6ff;
+  background: transparent;
+  border: 1px solid #2c4159;
+  border-radius: 50%;
+  text-align: center;
+}
+
+.mod-enable-btn.disabled {
+  color: #4a6070;
+}
+
+.midi-learn-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #ffd580;
+  background: transparent;
+  border: 1px solid #4d4030;
+  border-radius: 4px;
+  text-align: center;
 }
 
 .matrix-row-header {
@@ -2594,6 +2632,19 @@ body[data-mode='matrix'] .safe-mode {
   background: #162335;
   border-radius: 6px;
   padding: 6px 8px;
+  font-size: 11px;
+}
+
+.lfo-row {
+  grid-template-columns: 90px minmax(70px, 1fr) minmax(80px, 1fr) minmax(70px, 1fr) minmax(70px, 1fr);
+}
+
+.lfo-division-select {
+  min-width: 70px;
+}
+
+.lfo-division-label {
+  color: #8fd6ff;
   font-size: 11px;
 }
 
