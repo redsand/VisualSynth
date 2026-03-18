@@ -255,6 +255,12 @@ Goal:
 
 - Introduce a stable, explicit Milkwave IR and normalization path.
 
+Status:
+
+- In progress, foundation implemented.
+- `src/shared/milkwaveIr.ts` exists and normalizes parsed presets into IR.
+- IR currently captures metadata, shader passes, expression blocks, waves, shapes, feature requirements, and initial capability assessment.
+
 Deliverables:
 
 - `src/shared/milkwaveIr.ts`
@@ -275,6 +281,13 @@ Goal:
 
 - Determine support level before runtime execution.
 
+Status:
+
+- In progress, first classifier implemented.
+- `src/shared/milkwaveCapability.ts` exists.
+- `scripts/audit-milkwave-support.ts` exists and has already produced an audit baseline.
+- Import-time metadata persistence is now started: imported presets can carry `metadata.milkwave` with support tier, feature summary, and classifier reasons.
+
 Deliverables:
 
 - feature inventory model
@@ -292,6 +305,15 @@ Acceptance criteria:
 Goal:
 
 - Implement the actual runtime resources Milkwave shaders expect.
+
+Status:
+
+- Started.
+- `src/renderer/milkwave/runtime/milkwaveContract.ts` defines the current runtime contract scaffold.
+- Builtin and sampler binders now exist in:
+  - `src/renderer/milkwave/runtime/milkwaveBuiltins.ts`
+  - `src/renderer/milkwave/runtime/milkwaveSamplers.ts`
+- `src/renderer/milkdropRenderer.ts` has begun delegating uniform/sampler binding to those modules.
 
 Deliverables:
 
@@ -372,9 +394,11 @@ Acceptance criteria:
 
 The next coding steps after this document are:
 
-1. Add the Phase 1 IR types
-2. Add parser-to-IR normalization
-3. Add IR normalization tests
+1. Expand the runtime contract beyond builtin/sampler binding into explicit pass-state management
+2. Add support-tier-aware import/audit reporting everywhere imported Milkwave presets are generated or inspected
+3. Start the next high-leverage runtime subsystem: custom shape execution path
+4. Add tests around persisted `metadata.milkwave` and runtime contract extraction
+5. Keep `gen-milkwave` as the guaranteed fallback while native path coverage expands
 
 Do not start native runtime rewrites before IR and capability classification exist.
 

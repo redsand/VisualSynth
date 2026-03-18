@@ -52,8 +52,11 @@ describe('Milkwave IR', () => {
       hasPresetFrame: false,
       hasPresetPixel: false,
       hasCustomWaves: false,
+      hasCustomWaveInitCode: false,
       hasCustomWavePointCode: false,
       hasCustomShapes: false,
+      hasCustomShapeInitCode: false,
+      hasCustomShapePointCode: false,
       requiresVolumeNoise: false,
       requiresBlurSamplers: false,
       requiresCustomSamplers: false,
@@ -67,5 +70,33 @@ describe('Milkwave IR', () => {
 
     expect(tier.tier).toBe('fallback-only');
     expect(tier.reasons.some((reason) => reason.includes('sampler_state'))).toBe(true);
+  });
+
+  it('captures wave and shape init/per-point blocks in the IR', () => {
+    const parsed = parseMilkFile(
+      [
+        'MILKDROP_PRESET_VERSION=201',
+        '[preset00]',
+        'wavecode_0_enabled=1',
+        'wave_0_init1=t1 = 0.5;',
+        'wave_0_per_frame1=x = x + 0.1;',
+        'wave_0_per_point1=y = sample;',
+        'shapecode_0_enabled=1',
+        'shape_0_init1=t2 = 0.25;',
+        'shape_0_per_frame1=ang = ang + 0.02;',
+        'shape_0_per_point1=x = x + 0.01;'
+      ].join('\n'),
+      'Author - ShapeWave.milk',
+      'TestFolder'
+    );
+    expect(parsed).not.toBeNull();
+
+    const ir = buildMilkwaveIR(parsed!);
+    expect(ir.featureRequirements.hasCustomWaveInitCode).toBe(true);
+    expect(ir.featureRequirements.hasCustomWavePointCode).toBe(true);
+    expect(ir.featureRequirements.hasCustomShapeInitCode).toBe(true);
+    expect(ir.featureRequirements.hasCustomShapePointCode).toBe(true);
+    expect(ir.waves[0]?.expressionBlocks.some((block) => block.kind === 'wave-init' && block.lines[0] === 't1 = 0.5;')).toBe(true);
+    expect(ir.shapes[0]?.expressionBlocks.some((block) => block.kind === 'shape-point' && block.lines[0] === 'x = x + 0.01;')).toBe(true);
   });
 });

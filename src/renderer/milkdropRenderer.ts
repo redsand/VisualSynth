@@ -1,4 +1,5 @@
 import type { RenderState } from './renderState';
+import type { MilkShapeConfig, MilkWaveConfig } from '../shared/milkwaveParser';
 import {
   analyzeMilkwaveShaderSource,
   summarizeMilkwaveShaderDiagnostics,
@@ -6,12 +7,16 @@ import {
 } from '../shared/milkwaveDiagnostics';
 import { bindMilkwaveBuiltins } from './milkwave/runtime/milkwaveBuiltins';
 import { bindMilkwaveSamplers } from './milkwave/runtime/milkwaveSamplers';
+import { createMilkwaveShapeRenderer } from './milkwave/runtime/milkwaveShapeRenderer';
 
 export interface MilkDropShaderData {
   warp: string;
   comp: string;
   perFrameCode: string[];
   perFrameInitCode: string[];
+  perPixelCode?: string[];
+  waves?: MilkWaveConfig[];
+  shapes?: MilkShapeConfig[];
   originalParameters: Record<string, number | boolean>;
 }
 
@@ -708,6 +713,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   let randomPreset = [Math.random(), Math.random()];
   const gmegabufData: Record<number, number> = {};
   let perFrameInitRun = false;
+  const shapeRenderer = createMilkwaveShapeRenderer(gl);
   
   const positionBuffer = gl.createBuffer();
   if (!positionBuffer) throw new Error('[MilkDrop] Buffer creation failed');
@@ -1076,6 +1082,25 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
+    if (shaderData.shapes?.length) {
+      shapeRenderer.render({
+        shapes: shaderData.shapes,
+        runtime: {
+          timeSeconds: variables.time,
+          frame: variables.frame,
+          fps: variables.fps,
+          progress: 0,
+          bass: variables.bass,
+          mid: variables.mid,
+          treb: variables.treb,
+          bassAtt: variables.bass_att,
+          midAtt: variables.mid_att,
+          trebAtt: variables.treb_att,
+          qVars
+        }
+      });
+    }
+
     if (blurProgram && warpFbo) {
       // Blur1: half resolution
       const bw1 = Math.max(1, Math.floor(width / 2));
@@ -1224,6 +1249,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const clear = () => {
     if (warpProgram) gl.deleteProgram(warpProgram);
     if (compProgram) gl.deleteProgram(compProgram);
+    shapeRenderer.clear();
     warpProgram = null;
     compProgram = null;
   };

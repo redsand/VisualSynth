@@ -19,7 +19,16 @@ export type MilkwaveSupportTier =
 export type MilkwaveShaderPassKind = 'warp' | 'comp';
 
 export interface MilkwaveExpressionBlock {
-  kind: 'preset-init' | 'preset-frame' | 'preset-pixel' | 'wave-frame' | 'wave-point' | 'shape-frame';
+  kind:
+    | 'preset-init'
+    | 'preset-frame'
+    | 'preset-pixel'
+    | 'wave-init'
+    | 'wave-frame'
+    | 'wave-point'
+    | 'shape-init'
+    | 'shape-frame'
+    | 'shape-point';
   lines: string[];
 }
 
@@ -56,8 +65,11 @@ export interface MilkwaveFeatureRequirements {
   hasPresetFrame: boolean;
   hasPresetPixel: boolean;
   hasCustomWaves: boolean;
+  hasCustomWaveInitCode: boolean;
   hasCustomWavePointCode: boolean;
   hasCustomShapes: boolean;
+  hasCustomShapeInitCode: boolean;
+  hasCustomShapePointCode: boolean;
   requiresVolumeNoise: boolean;
   requiresBlurSamplers: boolean;
   requiresCustomSamplers: boolean;
@@ -155,6 +167,15 @@ const inferFeatureRequirements = ({
   const wavePointCode = waves.some((wave) =>
     wave.expressionBlocks.some((block) => block.kind === 'wave-point' && block.lines.length > 0)
   );
+  const waveInitCode = waves.some((wave) =>
+    wave.expressionBlocks.some((block) => block.kind === 'wave-init' && block.lines.length > 0)
+  );
+  const shapeInitCode = shapes.some((shape) =>
+    shape.expressionBlocks.some((block) => block.kind === 'shape-init' && block.lines.length > 0)
+  );
+  const shapePointCode = shapes.some((shape) =>
+    shape.expressionBlocks.some((block) => block.kind === 'shape-point' && block.lines.length > 0)
+  );
   const customTextureSlots =
     warp.requiresCustomSamplers ||
     comp.requiresCustomSamplers ||
@@ -169,8 +190,11 @@ const inferFeatureRequirements = ({
     hasPresetFrame: preset.perFrameCode.length > 0,
     hasPresetPixel: preset.perPixelCode.length > 0,
     hasCustomWaves: waves.length > 0,
+    hasCustomWaveInitCode: waveInitCode,
     hasCustomWavePointCode: wavePointCode,
     hasCustomShapes: shapes.length > 0,
+    hasCustomShapeInitCode: shapeInitCode,
+    hasCustomShapePointCode: shapePointCode,
     requiresVolumeNoise: warp.requiresVolumeNoise || comp.requiresVolumeNoise,
     requiresBlurSamplers: warp.requiresBlurSamplers || comp.requiresBlurSamplers,
     requiresCustomSamplers: warp.requiresCustomSamplers || comp.requiresCustomSamplers,
@@ -203,6 +227,7 @@ export const buildMilkwaveIR = (preset: MilkPresetData): MilkwaveIR => {
     index,
     config: wave,
     expressionBlocks: [
+      { kind: 'wave-init', lines: compactLines(wave.initCode) },
       { kind: 'wave-frame', lines: compactLines(wave.perFrameCode) },
       { kind: 'wave-point', lines: compactLines(wave.perPointCode) }
     ]
@@ -211,7 +236,11 @@ export const buildMilkwaveIR = (preset: MilkPresetData): MilkwaveIR => {
   const shapes: MilkwaveShapeNode[] = preset.shapes.map((shape, index) => ({
     index,
     config: shape,
-    expressionBlocks: [{ kind: 'shape-frame', lines: compactLines(shape.perFrameCode) }]
+    expressionBlocks: [
+      { kind: 'shape-init', lines: compactLines(shape.initCode) },
+      { kind: 'shape-frame', lines: compactLines(shape.perFrameCode) },
+      { kind: 'shape-point', lines: compactLines(shape.perPointCode) }
+    ]
   }));
 
   const expressionBlocks: MilkwaveExpressionBlock[] = [

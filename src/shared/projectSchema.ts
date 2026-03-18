@@ -328,11 +328,63 @@ const sceneLayerRolesSchema = z.object({
   atmosphere: z.array(z.string())
 });
 
+const milkWaveConfigSchema = z.object({
+  enabled: z.boolean(),
+  samples: z.number(),
+  sep: z.number(),
+  bSpectrum: z.boolean(),
+  bUseDots: z.boolean(),
+  bDrawThick: z.boolean(),
+  bAdditive: z.boolean(),
+  scaling: z.number(),
+  smoothing: z.number(),
+  r: z.number(),
+  g: z.number(),
+  b: z.number(),
+  a: z.number(),
+  initCode: z.array(z.string()).optional().default([]),
+  perFrameCode: z.array(z.string()),
+  perPointCode: z.array(z.string())
+});
+
+const milkShapeConfigSchema = z.object({
+  enabled: z.boolean(),
+  sides: z.number(),
+  additive: z.boolean(),
+  thickOutline: z.boolean(),
+  textured: z.boolean(),
+  numInst: z.number(),
+  x: z.number(),
+  y: z.number(),
+  rad: z.number(),
+  ang: z.number(),
+  texAng: z.number(),
+  texZoom: z.number(),
+  r: z.number(),
+  g: z.number(),
+  b: z.number(),
+  a: z.number(),
+  r2: z.number(),
+  g2: z.number(),
+  b2: z.number(),
+  a2: z.number(),
+  borderR: z.number(),
+  borderG: z.number(),
+  borderB: z.number(),
+  borderA: z.number(),
+  initCode: z.array(z.string()).optional().default([]),
+  perFrameCode: z.array(z.string()),
+  perPointCode: z.array(z.string()).optional().default([])
+});
+
 const milkDropShaderDataSchema = z.object({
   warp: z.string(),
   comp: z.string(),
   perFrameCode: z.array(z.string()),
   perFrameInitCode: z.array(z.string()),
+  perPixelCode: z.array(z.string()).optional(),
+  waves: z.array(milkWaveConfigSchema).optional(),
+  shapes: z.array(milkShapeConfigSchema).optional(),
   originalParameters: z.record(z.union([z.number(), z.boolean()]))
 });
 

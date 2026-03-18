@@ -57,27 +57,9 @@ const FAMILY_PATTERNS: Array<{ family: string; patterns: string[] }> = [
 
 const CATEGORY_RULES: Array<{ category: string; subcategory: string; match: (families: Set<string>, blob: string) => boolean }> = [
   {
-    category: 'Typography/Data',
-    subcategory: 'Text and overlays',
-    match: (families, blob) => families.has('Glyph/Text') || blob.includes('typography') || blob.includes('data')
-  },
-  {
-    category: 'Audio-Reactive',
-    subcategory: 'Audio driven',
-    match: (families, blob) =>
-      families.has('Oscillo') || families.has('Spectrum') || blob.includes('audio') || blob.includes('speaker')
-  },
-  {
-    category: 'Transitions',
-    subcategory: 'Scene switches',
-    match: (families, blob) =>
-      families.has('Feedback') || families.has('Strobe') || blob.includes('transition') || blob.includes('break')
-  },
-  {
-    category: 'Atmospheric',
-    subcategory: 'Mood beds',
-    match: (families, blob) =>
-      families.has('Liquid') || families.has('Organic') || families.has('Weather') || blob.includes('ambient')
+    category: 'Utility/Test',
+    subcategory: 'Calibration and tools',
+    match: (_families, blob) => blob.includes('test') || blob.includes('debug') || blob.includes('utility')
   },
   {
     category: 'Imported/Milkwave',
@@ -85,9 +67,81 @@ const CATEGORY_RULES: Array<{ category: string; subcategory: string; match: (fam
     match: (_families, blob) => blob.includes('milkwave') || blob.includes('milkdrop')
   },
   {
-    category: 'Utility/Test',
-    subcategory: 'Calibration and tools',
-    match: (_families, blob) => blob.includes('test') || blob.includes('debug') || blob.includes('utility')
+    category: 'Typography/Data',
+    subcategory: 'Text and overlays',
+    match: (families, blob) => families.has('Glyph/Text') || blob.includes('typography') || blob.includes('hud') || blob.includes('data-overlay')
+  },
+  {
+    category: 'Audio-Reactive',
+    subcategory: 'Audio driven',
+    match: (families, blob) =>
+      families.has('Oscillo') || families.has('Spectrum') || blob.includes('audio') || blob.includes('speaker') || blob.includes('waveform')
+  },
+  {
+    category: 'Laser/Beam',
+    subcategory: 'Laser and arc effects',
+    match: (families, blob) =>
+      families.has('Laser') || blob.includes('laser') || blob.includes('beam') || blob.includes('arc') || blob.includes('tesla')
+  },
+  {
+    category: 'Strobe/Flash',
+    subcategory: 'High-energy flash',
+    match: (families, blob) =>
+      families.has('Strobe') || blob.includes('strobe') || blob.includes('flash')
+  },
+  {
+    category: 'Particles/Burst',
+    subcategory: 'Particle systems',
+    match: (families, blob) =>
+      families.has('Particles') || blob.includes('particle') || blob.includes('burst') || blob.includes('pyro') || blob.includes('swarm')
+  },
+  {
+    category: 'Fractal/Geometric',
+    subcategory: 'Fractal and SDF shapes',
+    match: (families, blob) =>
+      families.has('Fractal') || blob.includes('fractal') || blob.includes('kaleido') || blob.includes('sdf') || blob.includes('prism') || blob.includes('geo')
+  },
+  {
+    category: 'Grid/Tunnel',
+    subcategory: 'Tunnels and corridors',
+    match: (families, blob) =>
+      families.has('Grid/Tunnel') || blob.includes('tunnel') || blob.includes('grid') || blob.includes('wormhole') || blob.includes('portal') || blob.includes('highway')
+  },
+  {
+    category: 'Glitch/Digital',
+    subcategory: 'Glitch and digital artifacts',
+    match: (families, blob) =>
+      families.has('Glitch') || blob.includes('glitch') || blob.includes('vhs') || blob.includes('scanline') || blob.includes('datamosh') || blob.includes('signal')
+  },
+  {
+    category: 'Weather/Storm',
+    subcategory: 'Weather and natural forces',
+    match: (families, blob) =>
+      families.has('Weather') || blob.includes('weather') || blob.includes('storm') || blob.includes('lightning') || blob.includes('rain') || blob.includes('hurricane')
+  },
+  {
+    category: 'Terrain/Landscape',
+    subcategory: 'Terrain and topographic',
+    match: (families, blob) =>
+      families.has('Terrain') || blob.includes('terrain') || blob.includes('topo') || blob.includes('mountain') || blob.includes('landscape')
+  },
+  {
+    category: 'Transitions',
+    subcategory: 'Scene switches',
+    match: (families, blob) =>
+      families.has('Feedback') || blob.includes('transition') || blob.includes('bridge') || blob.includes('crossfade')
+  },
+  {
+    category: 'Atmospheric',
+    subcategory: 'Ambient mood beds',
+    match: (families, blob) =>
+      blob.includes('ambient') || blob.includes('nebula') || blob.includes('aura') || blob.includes('drift') || blob.includes('dream')
+  },
+  {
+    category: 'Liquid/Organic',
+    subcategory: 'Fluid and organic motion',
+    match: (families, blob) =>
+      families.has('Liquid') || families.has('Organic') || blob.includes('liquid') || blob.includes('plasma') || blob.includes('fluid') || blob.includes('organic') || blob.includes('ink') || blob.includes('ribbon')
   }
 ];
 
@@ -241,7 +295,10 @@ export const buildPresetIndexEntry = (presetPath: string, data: any): PresetInde
   const motion = detectMotion(layerBlob, familySet);
   const riskFlags = detectRiskFlags(layerBlob, sourceDependency, energy, density);
   const useCases = detectUseCases(layerBlob, energy, sourceDependency);
-  const categoryInfo = detectCategory(familySet, layerBlob, importedFrom);
+  const metadataCategory = (data?.metadata?.category as string | undefined)?.trim();
+  const categoryInfo = metadataCategory
+    ? { primaryCategory: metadataCategory, subcategory: metadataCategory }
+    : detectCategory(familySet, layerBlob, importedFrom);
   const thumbnail = data?.thumbnail || data?.metadata?.thumbnail;
   const searchText = tokenize(
     name,

@@ -192,7 +192,10 @@ describe('Milkwave Import Pipeline', () => {
         tempoSync: { bpm: 120, source: 'manual' },
         _shaderData: {
           warp: 'void main() { }',
-          comp: 'void main() { }'
+          comp: 'void main() { }',
+          perPixelCode: ['zoom = zoom + 0.01;'],
+          waves: [],
+          shapes: []
         }
       };
 
@@ -247,6 +250,58 @@ describe('Milkwave Import Pipeline', () => {
           comp: 'void main() { }',
           perFrameCode: [],
           perFrameInitCode: [],
+          perPixelCode: ['rot = rot + 0.01;'],
+          waves: [
+            {
+              enabled: true,
+              samples: 512,
+              sep: 0,
+              bSpectrum: false,
+              bUseDots: false,
+              bDrawThick: false,
+              bAdditive: false,
+              scaling: 1,
+              smoothing: 0.5,
+              r: 1,
+              g: 1,
+              b: 1,
+              a: 1,
+              initCode: ['t1 = 0.2;'],
+              perFrameCode: ['x = x + 0.1;'],
+              perPointCode: ['y = sample;']
+            }
+          ],
+          shapes: [
+            {
+              enabled: true,
+              sides: 4,
+              additive: false,
+              thickOutline: false,
+              textured: true,
+              numInst: 2,
+              x: 0.5,
+              y: 0.5,
+              rad: 0.2,
+              ang: 0,
+              texAng: 0,
+              texZoom: 1,
+              r: 1,
+              g: 1,
+              b: 1,
+              a: 1,
+              r2: 0.5,
+              g2: 0.5,
+              b2: 0.5,
+              a2: 1,
+              borderR: 1,
+              borderG: 1,
+              borderB: 1,
+              borderA: 1,
+              initCode: ['t2 = 0.3;'],
+              perFrameCode: ['ang = ang + 0.1;'],
+              perPointCode: ['x = x + 0.05;']
+            }
+          ],
           originalParameters: {}
         }
       };
@@ -256,6 +311,9 @@ describe('Milkwave Import Pipeline', () => {
         'Milkwave custom warp/comp shaders are not supported by the runtime yet; using the gen-milkwave fallback renderer.'
       );
       expect(result.project.scenes[0]._shaderData).toEqual(preset._shaderData);
+      expect(result.project.scenes[0]._shaderData?.perPixelCode).toEqual(['rot = rot + 0.01;']);
+      expect(result.project.scenes[0]._shaderData?.waves?.[0]?.initCode).toEqual(['t1 = 0.2;']);
+      expect(result.project.scenes[0]._shaderData?.shapes?.[0]?.perPointCode).toEqual(['x = x + 0.05;']);
     });
 
     it('accepts persisted Milkwave capability metadata on imported presets', () => {
@@ -318,6 +376,58 @@ describe('Milkwave Import Pipeline', () => {
           comp: 'void main() { }',
           perFrameCode: [],
           perFrameInitCode: [],
+          perPixelCode: ['rot = rot + 0.01;'],
+          waves: [
+            {
+              enabled: true,
+              samples: 512,
+              sep: 0,
+              bSpectrum: false,
+              bUseDots: false,
+              bDrawThick: false,
+              bAdditive: false,
+              scaling: 1,
+              smoothing: 0.5,
+              r: 1,
+              g: 1,
+              b: 1,
+              a: 1,
+              initCode: ['t1 = 0.2;'],
+              perFrameCode: ['x = x + 0.1;'],
+              perPointCode: ['y = sample;']
+            }
+          ],
+          shapes: [
+            {
+              enabled: true,
+              sides: 4,
+              additive: false,
+              thickOutline: false,
+              textured: true,
+              numInst: 2,
+              x: 0.5,
+              y: 0.5,
+              rad: 0.2,
+              ang: 0,
+              texAng: 0,
+              texZoom: 1,
+              r: 1,
+              g: 1,
+              b: 1,
+              a: 1,
+              r2: 0.5,
+              g2: 0.5,
+              b2: 0.5,
+              a2: 1,
+              borderR: 1,
+              borderG: 1,
+              borderB: 1,
+              borderA: 1,
+              initCode: ['t2 = 0.3;'],
+              perFrameCode: ['ang = ang + 0.1;'],
+              perPointCode: ['x = x + 0.05;']
+            }
+          ],
           originalParameters: {}
         }
       };

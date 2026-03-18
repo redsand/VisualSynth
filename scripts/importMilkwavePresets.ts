@@ -35,6 +35,8 @@ interface ImportResult {
   author: string;
   name: string;
   category: string;
+  supportTier?: 'native-supported' | 'supported-with-degradation' | 'fallback-only' | 'unsupported';
+  featureSummary?: string[];
   error?: string;
 }
 
@@ -135,6 +137,8 @@ function createMilkwavePreset(
       perFrameCode: milkData.perFrameCode,
       perFrameInitCode: milkData.perFrameInitCode,
       perPixelCode: milkData.perPixelCode,
+      waves: milkData.waves,
+      shapes: milkData.shapes,
       originalParameters: milkData.parameters
     }
   };
@@ -238,7 +242,9 @@ async function importMilkwavePresets(options: ImportOptions): Promise<ImportResu
           success: true,
           author: milkData.metadata.author,
           name: milkData.metadata.name,
-          category: preset.metadata.category
+          category: preset.metadata.category,
+          supportTier: capability.tier,
+          featureSummary: capability.featureSummary
         });
 
         presetNumber++;
@@ -317,6 +323,19 @@ async function main() {
   console.log('Category distribution:');
   for (const [cat, count] of categoryCount.entries()) {
     console.log(`  ${cat}: ${count}`);
+  }
+
+  const supportTierCount = new Map<string, number>();
+  for (const r of successful) {
+    if (!r.supportTier) continue;
+    supportTierCount.set(r.supportTier, (supportTierCount.get(r.supportTier) || 0) + 1);
+  }
+  if (supportTierCount.size > 0) {
+    console.log('');
+    console.log('Milkwave support tiers:');
+    for (const [tier, count] of supportTierCount.entries()) {
+      console.log(`  ${tier}: ${count}`);
+    }
   }
 
   // Author breakdown (top 10)

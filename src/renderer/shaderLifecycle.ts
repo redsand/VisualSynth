@@ -46,21 +46,17 @@ export const primeProjectShaders = (
   return activeGeneratorCount;
 };
 
-const MAX_PRECOMPILE_VARIANTS = 8;
-const PRECOMPILE_INTERVAL_MS = 400;
-
 export const queueSceneVariantPrecompile = (
   renderer: ShaderCompiler,
   scenes: SceneConfig[],
   initialDelayMs: number
 ) => {
-  // Limit to first N scenes to avoid prolonged main-thread stalls in large projects.
-  const scenesToPrecompile = scenes.slice(0, MAX_PRECOMPILE_VARIANTS);
+  const scenesToPrecompile = [...scenes];
   const precompileNext = (index: number) => {
     if (index >= scenesToPrecompile.length) return;
     const ids = collectSceneGeneratorIds(scenesToPrecompile[index]);
     renderer.precompileVariant(ids);
-    setTimeout(() => precompileNext(index + 1), PRECOMPILE_INTERVAL_MS);
+    setTimeout(() => precompileNext(index + 1), 150);
   };
   setTimeout(() => precompileNext(0), initialDelayMs);
 };

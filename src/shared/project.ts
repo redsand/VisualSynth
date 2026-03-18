@@ -1,10 +1,14 @@
 import type { CustomShaderBlock } from './customShaderBlock';
+import type { MilkShapeConfig, MilkWaveConfig } from './milkwaveParser';
 
 export interface MilkDropShaderData {
   warp: string;
   comp: string;
   perFrameCode: string[];
   perFrameInitCode: string[];
+  perPixelCode?: string[];
+  waves?: MilkWaveConfig[];
+  shapes?: MilkShapeConfig[];
   originalParameters: Record<string, number | boolean>;
 }
 

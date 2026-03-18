@@ -74,6 +74,9 @@ const normalizeMilkDropShaderData = (shaderData: any) => {
     comp: typeof shaderData.comp === 'string' ? shaderData.comp : '',
     perFrameCode: Array.isArray(shaderData.perFrameCode) ? shaderData.perFrameCode : [],
     perFrameInitCode: Array.isArray(shaderData.perFrameInitCode) ? shaderData.perFrameInitCode : [],
+    perPixelCode: Array.isArray(shaderData.perPixelCode) ? shaderData.perPixelCode : [],
+    waves: Array.isArray(shaderData.waves) ? cloneJson(shaderData.waves) : [],
+    shapes: Array.isArray(shaderData.shapes) ? cloneJson(shaderData.shapes) : [],
     originalParameters:
       shaderData.originalParameters && typeof shaderData.originalParameters === 'object'
         ? shaderData.originalParameters
@@ -1213,7 +1216,10 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
       warpLength: normalizedShaderData?.warp?.length || 0,
       hasComp: !!normalizedShaderData?.comp,
       compLength: normalizedShaderData?.comp?.length || 0,
-      perFrameCodeLength: normalizedShaderData?.perFrameCode?.length || 0
+      perFrameCodeLength: normalizedShaderData?.perFrameCode?.length || 0,
+      perPixelCodeLength: normalizedShaderData?.perPixelCode?.length || 0,
+      waveCount: normalizedShaderData?.waves?.length || 0,
+      shapeCount: normalizedShaderData?.shapes?.length || 0
     });
     const activeScene = project.scenes.find((s: any) => s.id === project.activeSceneId);
     if (activeScene) {
