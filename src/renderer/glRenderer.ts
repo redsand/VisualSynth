@@ -936,7 +936,7 @@ void main() {
     }
     
     // Render MilkDrop if enabled
-    if (milkDropEnabled && milkDropRenderer && currentMilkDropShaderData && state.milkwaveEnabled) {
+    if (milkDropEnabled && milkDropRenderer && currentMilkDropShaderData && (state.genUniforms?.MilkwaveEnabled ?? 0) > 0) {
       const milkDropSuccess = milkDropRenderer.render(state, currentMilkDropShaderData, false);
       if (milkDropSuccess) {
         const mdTexture = milkDropRenderer.getMainTexture();
@@ -967,7 +967,7 @@ void main() {
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             gl.useProgram(milkDropCompositeProgram);
             gl.uniform1i(gl.getUniformLocation(milkDropCompositeProgram, 'uTexture'), 0);
-            gl.uniform1f(gl.getUniformLocation(milkDropCompositeProgram, 'uOpacity'), state.milkwaveOpacity ?? 1.0);
+            gl.uniform1f(gl.getUniformLocation(milkDropCompositeProgram, 'uOpacity'), state.genUniforms?.MilkwaveOpacity ?? 1.0);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, mdTexture);
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);

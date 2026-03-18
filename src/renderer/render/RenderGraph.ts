@@ -1,7 +1,7 @@
 import { applyModMatrix } from '../../shared/modMatrix';
 import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
-import { DEFAULT_PROJECT, LayerConfig } from '../../shared/project';
+import { DEFAULT_PROJECT, LayerConfig, type VisualSynthProject } from '../../shared/project';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';

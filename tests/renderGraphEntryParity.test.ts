@@ -78,8 +78,8 @@ describe('RenderGraph entry parity', () => {
       state.project = withCanonical;
     });
     const canonicalState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(canonicalState.eightBitGridEnabled).toBe(true);
-    expect(canonicalState.eightBitGridPixelSize).toBe(12);
+    expect(canonicalState.genUniforms['8BitGridEnabled']).toBe(1);
+    expect(canonicalState.genUniforms['8BitGridPixelSize']).toBe(12);
 
     const withLegacy = {
       ...DEFAULT_PROJECT,
@@ -107,8 +107,8 @@ describe('RenderGraph entry parity', () => {
       state.project = withLegacy;
     });
     const legacyState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(legacyState.eightBitGridEnabled).toBe(true);
-    expect(legacyState.eightBitGridPixelSize).toBe(10);
+    expect(legacyState.genUniforms['8BitGridEnabled']).toBe(1);
+    expect(legacyState.genUniforms['8BitGridPixelSize']).toBe(10);
   });
 });
 

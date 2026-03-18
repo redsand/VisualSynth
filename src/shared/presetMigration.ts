@@ -155,6 +155,18 @@ export interface PresetMetadataV6 extends PresetMetadata {
   source?: string;
   /** Source system (e.g., "Milkwave", "MilkDrop", "VisualSynth") */
   importedFrom?: string;
+  /** Imported Milkwave runtime support report */
+  milkwave?: {
+    format: 'milkwave-ir';
+    version: number;
+    supportTier: 'native-supported' | 'supported-with-degradation' | 'fallback-only' | 'unsupported';
+    featureSummary: string[];
+    reasons: Array<{
+      key: string;
+      message: string;
+      severity: 'degrade' | 'fallback' | 'block';
+    }>;
+  };
 }
 
 /**
@@ -329,7 +341,18 @@ export const presetV6Schema = z.object({
     }),
     author: z.string().optional(),
     source: z.string().optional(),
-    importedFrom: z.string().optional()
+    importedFrom: z.string().optional(),
+    milkwave: z.object({
+      format: z.literal('milkwave-ir'),
+      version: z.number(),
+      supportTier: z.enum(['native-supported', 'supported-with-degradation', 'fallback-only', 'unsupported']),
+      featureSummary: z.array(z.string()),
+      reasons: z.array(z.object({
+        key: z.string(),
+        message: z.string(),
+        severity: z.enum(['degrade', 'fallback', 'block'])
+      }))
+    }).optional()
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),
@@ -1178,6 +1201,13 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
   // Preserve MilkDrop shader data for custom presets
   if (preset?._shaderData) {
     const normalizedShaderData = normalizeMilkDropShaderData(preset._shaderData);
+    if (preset?.metadata?.milkwave) {
+      console.log('[PresetMigration] Milkwave support assessment:', {
+        tier: preset.metadata.milkwave.supportTier,
+        featureSummary: preset.metadata.milkwave.featureSummary,
+        reasons: preset.metadata.milkwave.reasons.slice(0, 5)
+      });
+    }
     console.log('[PresetMigration] Preserving MilkDrop shader data:', {
       hasWarp: !!normalizedShaderData?.warp,
       warpLength: normalizedShaderData?.warp?.length || 0,

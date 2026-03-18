@@ -16,6 +16,8 @@ import {
   MilkPresetData
 } from '../src/shared/milkwaveParser';
 import { transpileMilkDropShader, inferPresetCategory } from '../src/shared/hlslToGlsl';
+import { buildMilkwaveIR } from '../src/shared/milkwaveIr';
+import { classifyMilkwaveIR } from '../src/shared/milkwaveCapability';
 
 const MILKWAVE_PATH = path.resolve(__dirname, '../../Milkwave/Visualizer/resources/presets');
 const OUTPUT_PATH = path.resolve(__dirname, '../assets/presets');
@@ -45,6 +47,8 @@ function createMilkwavePreset(
 ): any {
   const now = new Date().toISOString();
   const category = inferPresetCategory(milkData.metadata.name, (glslWarp || '') + (glslComp || ''));
+  const ir = buildMilkwaveIR(milkData);
+  const capability = classifyMilkwaveIR(ir);
 
   return {
     version: 6,
@@ -59,6 +63,13 @@ function createMilkwavePreset(
       category,
       compatibility: {
         minVersion: '1.4.0'
+      },
+      milkwave: {
+        format: ir.format,
+        version: ir.version,
+        supportTier: capability.tier,
+        featureSummary: capability.featureSummary,
+        reasons: capability.reasonsDetailed
       },
       activeEngineId: 'engine-radial-core',
       activeModeId: 'mode-cosmic',

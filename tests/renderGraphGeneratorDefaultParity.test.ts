@@ -8,22 +8,22 @@ describe('RenderGraph generator default parity', () => {
     const renderGraph = new RenderGraph(store);
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
 
-    expect(renderState.pixelDustPixelSize).toBeCloseTo(0.02, 6);
-    expect(renderState.eightBitGridPixelSize).toBeCloseTo(0.02, 6);
-    expect(renderState.retroStarfieldSize).toBeCloseTo(0.01, 6);
+    expect(renderState.genUniforms.PixelDustPixelSize).toBeCloseTo(0.02, 6);
+    expect(renderState.genUniforms['8BitGridPixelSize']).toBeCloseTo(0.02, 6);
+    expect(renderState.genUniforms.RetroStarfieldSize).toBeCloseTo(0.01, 6);
 
-    expect(renderState.crimsonVeilDarkness).toBeCloseTo(0.5, 6);
-    expect(renderState.victorianCryptComplexity).toBeCloseTo(0.5, 6);
-    expect(renderState.spectralApparitionDensity).toBeCloseTo(0.5, 6);
-    expect(renderState.gothicCobwebsDensity).toBeCloseTo(0.5, 6);
-    expect(renderState.bloodMoonRiseEclipse).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.CrimsonVeilDarkness).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.VictorianCryptComplexity).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.SpectralApparitionDensity).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.GothicCobwebsDensity).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.BloodMoonRiseEclipse).toBeCloseTo(0.5, 6);
 
-    expect(renderState.arcadeInvadersDensity).toBeCloseTo(0.5, 6);
-    expect(renderState.powerUpPulseIntensity).toBeCloseTo(0.5, 6);
-    expect(renderState.dungeonTilesPattern).toBeCloseTo(0.5, 6);
-    expect(renderState.chiptuneWaveBits).toBeCloseTo(4.0, 6);
-    expect(renderState.bossHealthValue).toBeCloseTo(0.5, 6);
-    expect(renderState.bossHealthBars).toBeCloseTo(3.0, 6);
+    expect(renderState.genUniforms.ArcadeInvadersDensity).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.PowerUpPulseIntensity).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.DungeonTilesPattern).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.ChiptuneWaveBits).toBeCloseTo(4.0, 6);
+    expect(renderState.genUniforms.BossHealthValue).toBeCloseTo(0.5, 6);
+    expect(renderState.genUniforms.BossHealthBars).toBeCloseTo(3.0, 6);
   });
 });
 

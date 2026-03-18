@@ -30,7 +30,8 @@ export interface GenUniformMeta {
 
 const PREFIX_CACHE = new Map<string, GenUniformMeta>();
 const LAYER_ID_ALIASES: Record<string, string[]> = {
-  'gen-milkwave': ['layer-milkwave', 'layer-milkwave-effects']
+  'gen-milkwave': ['layer-milkwave', 'layer-milkwave-effects'],
+  'gen-8bit-grid': ['gen-eight-bit-grid']
 };
 const META_OVERRIDES: Record<string, GenUniformMeta> = {
   'gen-strobe': {

@@ -1,4 +1,11 @@
 import type { RenderState } from './renderState';
+import {
+  analyzeMilkwaveShaderSource,
+  summarizeMilkwaveShaderDiagnostics,
+  type MilkwaveShaderDiagnostics
+} from '../shared/milkwaveDiagnostics';
+import { bindMilkwaveBuiltins } from './milkwave/runtime/milkwaveBuiltins';
+import { bindMilkwaveSamplers } from './milkwave/runtime/milkwaveSamplers';
 
 export interface MilkDropShaderData {
   warp: string;
@@ -24,6 +31,19 @@ export interface MilkDropVariables {
   mid_att: number;
   treb_att: number;
   [key: string]: number;
+}
+
+export interface MilkDropCompileReportPass {
+  requested: boolean;
+  diagnostics: MilkwaveShaderDiagnostics;
+  patchedDiagnostics?: MilkwaveShaderDiagnostics;
+  compiled: boolean;
+  fallbackUsed: boolean;
+}
+
+export interface MilkDropCompileReport {
+  warp: MilkDropCompileReportPass;
+  comp: MilkDropCompileReportPass;
 }
 
 /**
@@ -667,6 +687,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   let noiseTexture: WebGLTexture | null = null;
   let lastWidth = 0;
   let lastHeight = 0;
+  let lastCompileReport: MilkDropCompileReport | null = null;
   
   const variables: MilkDropVariables = {
     time: 0,
@@ -744,6 +765,30 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const compileShaders = (shaderData: MilkDropShaderData): boolean => {
     warpProgram = null;
     compProgram = null;
+    const warpRawDiagnostics = analyzeMilkwaveShaderSource({
+      source: shaderData.warp ?? '',
+      pass: 'warp',
+      stage: 'raw'
+    });
+    const compRawDiagnostics = analyzeMilkwaveShaderSource({
+      source: shaderData.comp ?? '',
+      pass: 'comp',
+      stage: 'raw'
+    });
+    lastCompileReport = {
+      warp: {
+        requested: Boolean(shaderData.warp),
+        diagnostics: warpRawDiagnostics,
+        compiled: false,
+        fallbackUsed: false
+      },
+      comp: {
+        requested: Boolean(shaderData.comp),
+        diagnostics: compRawDiagnostics,
+        compiled: false,
+        fallbackUsed: false
+      }
+    };
     const vs = createMilkDropVertexShader(gl);
     if (!vs) {
       onError?.('Failed to compile vertex shader', 'vertex');
@@ -752,6 +797,16 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
 
     if (shaderData.warp) {
       const patchedWarp = patchMilkDropGlsl(shaderData.warp);
+      const warpPatchedDiagnostics = analyzeMilkwaveShaderSource({
+        source: patchedWarp,
+        pass: 'warp',
+        stage: 'glsl'
+      });
+      lastCompileReport.warp.patchedDiagnostics = warpPatchedDiagnostics;
+      console.info('[MilkDrop] Warp diagnostics', {
+        summary: summarizeMilkwaveShaderDiagnostics(warpPatchedDiagnostics),
+        issues: [...warpRawDiagnostics.issues, ...warpPatchedDiagnostics.issues].slice(0, 8)
+      });
       const warpFs = createMilkDropFragmentShader(gl, patchedWarp);
       if (warpFs) {
         warpProgram = createProgram(gl, vs, warpFs);
@@ -763,16 +818,29 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         const fallbackWarp = createFallbackWarpShader();
         const fallbackFs = createMilkDropFragmentShader(gl, fallbackWarp);
         if (fallbackFs) warpProgram = createProgram(gl, vs, fallbackFs);
+        lastCompileReport.warp.fallbackUsed = true;
       }
+      lastCompileReport.warp.compiled = warpProgram !== null;
     } else {
       // Pre-MilkDrop2 preset: no custom warp shader, use default warp
       const defaultWarp = createDefaultWarpShader(shaderData.originalParameters);
       const defaultFs = createMilkDropFragmentShader(gl, defaultWarp);
       if (defaultFs) warpProgram = createProgram(gl, vs, defaultFs);
+      lastCompileReport.warp.compiled = warpProgram !== null;
     }
 
     if (shaderData.comp) {
       const patchedComp = patchMilkDropGlsl(shaderData.comp);
+      const compPatchedDiagnostics = analyzeMilkwaveShaderSource({
+        source: patchedComp,
+        pass: 'comp',
+        stage: 'glsl'
+      });
+      lastCompileReport.comp.patchedDiagnostics = compPatchedDiagnostics;
+      console.info('[MilkDrop] Comp diagnostics', {
+        summary: summarizeMilkwaveShaderDiagnostics(compPatchedDiagnostics),
+        issues: [...compRawDiagnostics.issues, ...compPatchedDiagnostics.issues].slice(0, 8)
+      });
       const compFs = createMilkDropFragmentShader(gl, patchedComp);
       if (compFs) {
         compProgram = createProgram(gl, vs, compFs);
@@ -784,12 +852,15 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         const fallbackComp = createFallbackCompShader();
         const fallbackFs = createMilkDropFragmentShader(gl, fallbackComp);
         if (fallbackFs) compProgram = createProgram(gl, vs, fallbackFs);
+        lastCompileReport.comp.fallbackUsed = true;
       }
+      lastCompileReport.comp.compiled = compProgram !== null;
     } else {
       // Pre-MilkDrop2 preset: no custom comp shader, use default passthrough
       const defaultComp = createFallbackCompShader();
       const defaultFs = createMilkDropFragmentShader(gl, defaultComp);
       if (defaultFs) compProgram = createProgram(gl, vs, defaultFs);
+      lastCompileReport.comp.compiled = compProgram !== null;
     }
 
     // Reset state for new preset
@@ -803,7 +874,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
 
     console.log('[MilkDrop] Shaders compiled:', {
       warp: !!warpProgram,
-      comp: !!compProgram
+      comp: !!compProgram,
+      report: lastCompileReport
     });
     return warpProgram !== null || compProgram !== null;
   };
@@ -984,40 +1056,18 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (warpProgram) {
       gl.useProgram(warpProgram);
       setUniforms(warpProgram, state, width, height);
-
-      // Bind previous frame as sampler_main for warp pass
-      if (mainFbo) {
-        const mainLoc = gl.getUniformLocation(warpProgram, 'sampler_main');
-        if (mainLoc) {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, mainFbo.texture);
-          gl.uniform1i(mainLoc, 0);
-        }
-      }
-      if (noiseTexture) {
-        const noiseLoc = gl.getUniformLocation(warpProgram, 'sampler_noise_lq');
-        if (noiseLoc) {
-          gl.activeTexture(gl.TEXTURE4);
-          gl.bindTexture(gl.TEXTURE_2D, noiseTexture);
-          gl.uniform1i(noiseLoc, 4);
-        }
-        const noiseMqLoc = gl.getUniformLocation(warpProgram, 'sampler_noise_mq');
-        if (noiseMqLoc) gl.uniform1i(noiseMqLoc, 4);
-        const noiseHqLoc = gl.getUniformLocation(warpProgram, 'sampler_noise_hq');
-        if (noiseHqLoc) gl.uniform1i(noiseHqLoc, 4);
-      }
-      if (blur1Fbo) {
-        const loc = gl.getUniformLocation(warpProgram, 'sampler_blur1');
-        if (loc) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, blur1Fbo.texture); gl.uniform1i(loc, 1); }
-      }
-      if (blur2Fbo) {
-        const loc = gl.getUniformLocation(warpProgram, 'sampler_blur2');
-        if (loc) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, blur2Fbo.texture); gl.uniform1i(loc, 2); }
-      }
-      if (blur3Fbo) {
-        const loc = gl.getUniformLocation(warpProgram, 'sampler_blur3');
-        if (loc) { gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, blur3Fbo.texture); gl.uniform1i(loc, 3); }
-      }
+      bindMilkwaveSamplers({
+        gl,
+        loc: (name) => gl.getUniformLocation(warpProgram, name),
+        resources: {
+          previousFrameTexture: mainFbo?.texture,
+          blur1Texture: blur1Fbo?.texture,
+          blur2Texture: blur2Fbo?.texture,
+          blur3Texture: blur3Fbo?.texture,
+          noiseTexture
+        },
+        phase: 'warp'
+      });
 
       const posLoc = gl.getAttribLocation(warpProgram, 'position');
       gl.enableVertexAttribArray(posLoc);
@@ -1072,48 +1122,18 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (compProgram) {
       gl.useProgram(compProgram);
       setUniforms(compProgram, state, width, height);
-      
-      if (warpFbo) {
-        const mainLoc = gl.getUniformLocation(compProgram, 'sampler_main');
-        if (mainLoc) {
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, warpFbo.texture);
-          gl.uniform1i(mainLoc, 0);
-        }
-      }
-      
-      if (blur1Fbo) {
-        const blur1Loc = gl.getUniformLocation(compProgram, 'sampler_blur1');
-        if (blur1Loc) {
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, blur1Fbo.texture);
-          gl.uniform1i(blur1Loc, 1);
-        }
-      }
-      if (blur2Fbo) {
-        const blur2Loc = gl.getUniformLocation(compProgram, 'sampler_blur2');
-        if (blur2Loc) {
-          gl.activeTexture(gl.TEXTURE2);
-          gl.bindTexture(gl.TEXTURE_2D, blur2Fbo.texture);
-          gl.uniform1i(blur2Loc, 2);
-        }
-      }
-      if (blur3Fbo) {
-        const blur3Loc = gl.getUniformLocation(compProgram, 'sampler_blur3');
-        if (blur3Loc) {
-          gl.activeTexture(gl.TEXTURE3);
-          gl.bindTexture(gl.TEXTURE_2D, blur3Fbo.texture);
-          gl.uniform1i(blur3Loc, 3);
-        }
-      }
-      if (noiseTexture) {
-        const noiseLoc = gl.getUniformLocation(compProgram, 'sampler_noise_lq');
-        if (noiseLoc) {
-          gl.activeTexture(gl.TEXTURE4);
-          gl.bindTexture(gl.TEXTURE_2D, noiseTexture);
-          gl.uniform1i(noiseLoc, 4);
-        }
-      }
+      bindMilkwaveSamplers({
+        gl,
+        loc: (name) => gl.getUniformLocation(compProgram, name),
+        resources: {
+          warpTexture: warpFbo?.texture,
+          blur1Texture: blur1Fbo?.texture,
+          blur2Texture: blur2Fbo?.texture,
+          blur3Texture: blur3Fbo?.texture,
+          noiseTexture
+        },
+        phase: 'comp'
+      });
       
       const posLoc = gl.getAttribLocation(compProgram, 'position');
       gl.enableVertexAttribArray(posLoc);
@@ -1175,87 +1195,26 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.uniform2f(loc('uRandomPreset'), randomPreset[0], randomPreset[1]);
     gl.uniform2f(loc('uRandomFrame'), Math.random(), Math.random());
 
-    // q-variables (set by per-frame code)
-    for (let i = 0; i < 32; i++) {
-      const qLoc = loc(`q${i + 1}`);
-      if (qLoc) gl.uniform1f(qLoc, qVars[i]);
-    }
-
-    // MilkDrop built-in _c uniforms
-    // _c0: aspect multipliers
-    const l = loc('_c0');
-    if (l) gl.uniform4f(l, aspect, 1.0, 1.0 / aspect, 1.0);
-    // _c2: time, fps, frame, progress
-    const c2 = loc('_c2');
-    if (c2) gl.uniform4f(c2, t, 60, variables.frame, 0);
-    // _c3: bass, mid, treb, vol
-    const c3 = loc('_c3');
-    if (c3) gl.uniform4f(c3, variables.bass, variables.mid, variables.treb, state.rms);
-    // _c4: bass_att, mid_att, treb_att, vol_att
-    const c4 = loc('_c4');
-    if (c4) gl.uniform4f(c4, variables.bass_att, variables.mid_att, variables.treb_att, state.rms);
-    // _c7: texsize (w, h, 1/w, 1/h)
-    const c7 = loc('_c7');
-    if (c7) gl.uniform4f(c7, width, height, 1 / width, 1 / height);
-    // _c8, _c9: roam_cos, roam_sin
-    const c8 = loc('_c8');
-    if (c8) gl.uniform4f(c8, 0.5 + 0.5 * Math.cos(t * 0.3), 0.5 + 0.5 * Math.cos(t * 1.3), 0.5 + 0.5 * Math.cos(t * 5), 0.5 + 0.5 * Math.cos(t * 20));
-    const c9 = loc('_c9');
-    if (c9) gl.uniform4f(c9, 0.5 + 0.5 * Math.sin(t * 0.3), 0.5 + 0.5 * Math.sin(t * 1.3), 0.5 + 0.5 * Math.sin(t * 5), 0.5 + 0.5 * Math.sin(t * 20));
-    // _c10, _c11: slow_roam_cos, slow_roam_sin
-    const c10 = loc('_c10');
-    if (c10) gl.uniform4f(c10, 0.5 + 0.5 * Math.cos(t * 0.005), 0.5 + 0.5 * Math.cos(t * 0.008), 0.5 + 0.5 * Math.cos(t * 0.013), 0.5 + 0.5 * Math.cos(t * 0.022));
-    const c11 = loc('_c11');
-    if (c11) gl.uniform4f(c11, 0.5 + 0.5 * Math.sin(t * 0.005), 0.5 + 0.5 * Math.sin(t * 0.008), 0.5 + 0.5 * Math.sin(t * 0.013), 0.5 + 0.5 * Math.sin(t * 0.022));
-    // _c1: (unused in most presets — mesh-related)
-    const c1 = loc('_c1');
-    if (c1) gl.uniform4f(c1, 0, 0, 0, 0);
-    // _c5: texsize_noise_lq (256x256 noise texture)
-    const c5 = loc('_c5');
-    if (c5) gl.uniform4f(c5, 256, 256, 1 / 256, 1 / 256);
-    // _c6: texsize_noise_mq (256x256)
-    const c6 = loc('_c6');
-    if (c6) gl.uniform4f(c6, 256, 256, 1 / 256, 1 / 256);
-    // _c12, _c13: additional roam cosines/sines
-    const c12 = loc('_c12');
-    if (c12) gl.uniform4f(c12, 0.5 + 0.5 * Math.cos(t * 0.0005 + 1), 0.5 + 0.5 * Math.cos(t * 0.0008 + 2), 0.5 + 0.5 * Math.cos(t * 0.0013 + 3), 0.5 + 0.5 * Math.cos(t * 0.0022 + 5));
-    const c13 = loc('_c13');
-    if (c13) gl.uniform4f(c13, 0.5 + 0.5 * Math.sin(t * 0.0005 + 1), 0.5 + 0.5 * Math.sin(t * 0.0008 + 2), 0.5 + 0.5 * Math.sin(t * 0.0013 + 3), 0.5 + 0.5 * Math.sin(t * 0.0022 + 5));
-    // _c14: blur min/max (preset-dependent, using reasonable defaults)
-    const c14 = loc('_c14');
-    if (c14) gl.uniform4f(c14, 0, 1, 0, 1);
-    // _c15: bass_smooth, mid_smooth, treb_smooth, vol_smooth
-    const c15 = loc('_c15');
-    if (c15) gl.uniform4f(c15, variables.bass_att, variables.mid_att, variables.treb_att, state.rms);
-    // _c16, _c17: rarely used additional constants
-    const c16 = loc('_c16');
-    if (c16) gl.uniform4f(c16, 0, 0, 0, 0);
-    const c17 = loc('_c17');
-    if (c17) gl.uniform4f(c17, 0, 0, 0, 0);
-
-    // Texture size variants
-    const tsnLq = loc('texsize_noise_lq');
-    if (tsnLq) gl.uniform4f(tsnLq, 256, 256, 1 / 256, 1 / 256);
-    const tsnMq = loc('texsize_noise_mq');
-    if (tsnMq) gl.uniform4f(tsnMq, 256, 256, 1 / 256, 1 / 256);
-    const tsnHq = loc('texsize_noise_hq');
-    if (tsnHq) gl.uniform4f(tsnHq, 256, 256, 1 / 256, 1 / 256);
-
-    // rand_frame and rand_preset as vec4
-    const rfLoc = loc('rand_frame');
-    if (rfLoc) gl.uniform4f(rfLoc, Math.random(), Math.random(), Math.random(), Math.random());
-    const rpLoc = loc('rand_preset');
-    if (rpLoc) gl.uniform4f(rpLoc, randomPreset[0], randomPreset[1], Math.random(), Math.random());
-
-    // _qa–_qh: q-variable banks as vec4
-    const qaLoc = loc('_qa'); if (qaLoc) gl.uniform4f(qaLoc, qVars[0], qVars[1], qVars[2], qVars[3]);
-    const qbLoc = loc('_qb'); if (qbLoc) gl.uniform4f(qbLoc, qVars[4], qVars[5], qVars[6], qVars[7]);
-    const qcLoc = loc('_qc'); if (qcLoc) gl.uniform4f(qcLoc, qVars[8], qVars[9], qVars[10], qVars[11]);
-    const qdLoc = loc('_qd'); if (qdLoc) gl.uniform4f(qdLoc, qVars[12], qVars[13], qVars[14], qVars[15]);
-    const qeLoc = loc('_qe'); if (qeLoc) gl.uniform4f(qeLoc, qVars[16], qVars[17], qVars[18], qVars[19]);
-    const qfLoc = loc('_qf'); if (qfLoc) gl.uniform4f(qfLoc, qVars[20], qVars[21], qVars[22], qVars[23]);
-    const qgLoc = loc('_qg'); if (qgLoc) gl.uniform4f(qgLoc, qVars[24], qVars[25], qVars[26], qVars[27]);
-    const qhLoc = loc('_qh'); if (qhLoc) gl.uniform4f(qhLoc, qVars[28], qVars[29], qVars[30], qVars[31]);
+    bindMilkwaveBuiltins({
+      gl,
+      loc,
+      state: {
+        timeSeconds: t,
+        frame: variables.frame,
+        width,
+        height,
+        rms: state.rms,
+        bass: variables.bass,
+        mid: variables.mid,
+        treb: variables.treb,
+        bassAtt: variables.bass_att,
+        midAtt: variables.mid_att,
+        trebAtt: variables.treb_att,
+        qVars,
+        randomPreset,
+        randomFrame: [Math.random(), Math.random(), Math.random(), Math.random()]
+      }
+    });
   };
 
   const getMainTexture = (): WebGLTexture | null => {
@@ -1274,6 +1233,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     render,
     getMainTexture,
     clear,
+    getLastCompileReport: () => lastCompileReport,
     getVariables: () => ({ ...variables }),
     getQVars: () => [...qVars],
   };
