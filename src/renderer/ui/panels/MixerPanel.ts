@@ -43,7 +43,11 @@ export const createMixerPanel = ({
     const table = document.createElement('div');
     table.className = 'mixer-table';
 
-    scene.layers.forEach((layer, index) => {
+    // Group layers by role
+    const roles: ('core' | 'support' | 'atmosphere')[] = ['core', 'support', 'atmosphere'];
+    const roleLabels: Record<string, string> = { core: 'Core', support: 'Support', atmosphere: 'Atmosphere' };
+
+    const buildLayerRow = (layer: any, index: number) => {
       const row = document.createElement('div');
       row.className = 'mixer-row-layer';
       row.dataset.id = layer.id;
@@ -90,11 +94,9 @@ export const createMixerPanel = ({
       soloBtn.title = 'Solo';
       soloBtn.onclick = () => {
         if (soloedLayerId === layer.id) {
-          // Unsolo all
           scene.layers.forEach(l => l.enabled = true);
           soloedLayerId = null;
         } else {
-          // Solo this one
           scene.layers.forEach(l => l.enabled = (l.id === layer.id));
           soloedLayerId = layer.id;
         }
@@ -140,8 +142,25 @@ export const createMixerPanel = ({
       row.appendChild(nameStack);
       row.appendChild(meterContainer);
       row.appendChild(controls);
-      table.appendChild(row);
-    });
+      return row;
+    };
+
+    // Only render sections for roles that have layers
+    for (const role of roles) {
+      const roleLayers = scene.layers
+        .map((layer, index) => ({ layer, index }))
+        .filter(({ layer }) => (layer.role || 'support') === role);
+      if (roleLayers.length === 0) continue;
+
+      const sectionHeader = document.createElement('div');
+      sectionHeader.className = `mixer-section-header mixer-section-${role}`;
+      sectionHeader.textContent = `${getRoleIcon(role)} ${roleLabels[role]}`;
+      table.appendChild(sectionHeader);
+
+      for (const { layer, index } of roleLayers) {
+        table.appendChild(buildLayerRow(layer, index));
+      }
+    }
 
     container.appendChild(table);
 

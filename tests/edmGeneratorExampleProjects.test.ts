@@ -34,21 +34,21 @@ const buildRenderState = (fileName: string) => {
 describe('EDM generator example projects', () => {
   it('laser-only project enables laser', () => {
     const renderState = buildRenderState('laser-only.project.json');
-    expect(renderState.laserEnabled).toBe(true);
+    expect(renderState.genUniforms.LaserEnabled).toBe(1);
   });
 
   it('strobe-only project enables strobe', () => {
     const renderState = buildRenderState('strobe-only.project.json');
-    expect(renderState.strobeEnabled).toBe(true);
+    expect(renderState.genUniforms.StrobeEnabled).toBe(1);
   });
 
   it('shape-burst-only project enables shape burst', () => {
     const renderState = buildRenderState('shape-burst-only.project.json');
-    expect(renderState.shapeBurstEnabled).toBe(true);
+    expect(renderState.genUniforms.ShapeBurstEnabled).toBe(1);
   });
 
   it('grid-tunnel-only project enables grid tunnel', () => {
     const renderState = buildRenderState('grid-tunnel-only.project.json');
-    expect(renderState.gridTunnelEnabled).toBe(true);
+    expect(renderState.genUniforms.GridTunnelEnabled).toBe(1);
   });
 });

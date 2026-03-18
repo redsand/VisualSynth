@@ -521,370 +521,10 @@ void main() {
     gl.uniform1f(getLocation('uEngineVignette'), state.engineVignette);
     gl.uniform1f(getLocation('uEngineCA'), state.engineCA);
     gl.uniform1f(getLocation('uEngineSignature'), state.engineSignature);
-    // EDM Generators
-    gl.uniform1f(getLocation('uLaserEnabled'), state.laserEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uLaserOpacity'), state.laserOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uLaserBeamCount'), state.laserBeamCount ?? 4);
-    gl.uniform1f(getLocation('uLaserBeamWidth'), state.laserBeamWidth ?? 0.02);
-    gl.uniform1f(getLocation('uLaserBeamLength'), state.laserBeamLength ?? 1.0);
-    gl.uniform1f(getLocation('uLaserRotation'), state.laserRotation ?? 0);
-    gl.uniform1f(getLocation('uLaserRotationSpeed'), state.laserRotationSpeed ?? 0.5);
-    gl.uniform1f(getLocation('uLaserSpread'), state.laserSpread ?? 1.57);
-    gl.uniform1f(getLocation('uLaserMode'), state.laserMode ?? 0);
-    gl.uniform1f(getLocation('uLaserColorShift'), state.laserColorShift ?? 0);
-    gl.uniform1f(getLocation('uLaserAudioReact'), state.laserAudioReact ?? 0.7);
-    gl.uniform1f(getLocation('uLaserGlow'), state.laserGlow ?? 0.5);
-    gl.uniform1f(getLocation('uStrobeEnabled'), state.strobeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uStrobeOpacity'), state.strobeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uStrobeRate'), state.strobeRate ?? 4);
-    gl.uniform1f(getLocation('uStrobeDutyCycle'), state.strobeDutyCycle ?? 0.1);
-    gl.uniform1f(getLocation('uStrobeMode'), state.strobeMode ?? 0);
-    gl.uniform1f(getLocation('uStrobeAudioTrigger'), state.strobeAudioTrigger ? 1 : 0);
-    gl.uniform1f(getLocation('uStrobeThreshold'), state.strobeThreshold ?? 0.6);
-    gl.uniform1f(getLocation('uStrobeFadeOut'), state.strobeFadeOut ?? 0.1);
-    gl.uniform1f(getLocation('uStrobePattern'), state.strobePattern ?? 0);
-    gl.uniform1f(getLocation('uShapeBurstEnabled'), state.shapeBurstEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uShapeBurstOpacity'), state.shapeBurstOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uShapeBurstShape'), state.shapeBurstShape ?? 0);
-    gl.uniform1f(getLocation('uShapeBurstExpandSpeed'), state.shapeBurstExpandSpeed ?? 2);
-    gl.uniform1f(getLocation('uShapeBurstStartSize'), state.shapeBurstStartSize ?? 0.05);
-    gl.uniform1f(getLocation('uShapeBurstMaxSize'), state.shapeBurstMaxSize ?? 1.5);
-    gl.uniform1f(getLocation('uShapeBurstThickness'), state.shapeBurstThickness ?? 0.03);
-    gl.uniform1f(getLocation('uShapeBurstFadeMode'), state.shapeBurstFadeMode ?? 2);
+    // Gen-* uniforms: all handled dynamically via state.genUniforms below.
+    // Only special-case array uniforms remain explicit:
     gl.uniform1fv(getLocation('uBurstSpawnTimes[0]'), state.shapeBurstSpawnTimes ?? new Float32Array(8));
     gl.uniform1fv(getLocation('uBurstActives[0]'), state.shapeBurstActives ?? new Float32Array(8));
-    gl.uniform1f(getLocation('uGridTunnelEnabled'), state.gridTunnelEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uGridTunnelOpacity'), state.gridTunnelOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uGridTunnelSpeed'), state.gridTunnelSpeed ?? 1);
-    gl.uniform1f(getLocation('uGridTunnelGridSize'), state.gridTunnelGridSize ?? 20);
-    gl.uniform1f(getLocation('uGridTunnelLineWidth'), state.gridTunnelLineWidth ?? 0.02);
-    gl.uniform1f(getLocation('uGridTunnelPerspective'), state.gridTunnelPerspective ?? 1);
-    gl.uniform1f(getLocation('uGridTunnelHorizonY'), state.gridTunnelHorizonY ?? 0.5);
-    gl.uniform1f(getLocation('uGridTunnelGlow'), state.gridTunnelGlow ?? 0.5);
-    gl.uniform1f(getLocation('uGridTunnelAudioReact'), state.gridTunnelAudioReact ?? 0.3);
-    gl.uniform1f(getLocation('uGridTunnelMode'), state.gridTunnelMode ?? 0);
-    // Rock Generators
-    gl.uniform1f(getLocation('uLightningEnabled'), state.lightningEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uLightningOpacity'), state.lightningOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uLightningSpeed'), state.lightningSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uLightningBranches'), state.lightningBranches ?? 3.0);
-    gl.uniform1f(getLocation('uLightningThickness'), state.lightningThickness ?? 0.02);
-    gl.uniform1f(getLocation('uLightningColor'), state.lightningColor ?? 0);
-    gl.uniform1f(getLocation('uAnalogOscilloEnabled'), state.analogOscilloEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uAnalogOscilloOpacity'), state.analogOscilloOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uAnalogOscilloThickness'), state.analogOscilloThickness ?? 0.01);
-    gl.uniform1f(getLocation('uAnalogOscilloGlow'), state.analogOscilloGlow ?? 0.5);
-    gl.uniform1f(getLocation('uAnalogOscilloColor'), state.analogOscilloColor ?? 0);
-    gl.uniform1f(getLocation('uAnalogOscilloMode'), state.analogOscilloMode ?? 0);
-    gl.uniform1f(getLocation('uSpeakerConeEnabled'), state.speakerConeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uSpeakerConeOpacity'), state.speakerConeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uSpeakerConeForce'), state.speakerConeForce ?? 1.0);
-    gl.uniform1f(getLocation('uGlitchScanlineEnabled'), state.glitchScanlineEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uGlitchScanlineOpacity'), state.glitchScanlineOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uGlitchScanlineSpeed'), state.glitchScanlineSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uGlitchScanlineCount'), state.glitchScanlineCount ?? 1.0);
-    gl.uniform1f(getLocation('uLaserStarfieldEnabled'), state.laserStarfieldEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uLaserStarfieldOpacity'), state.laserStarfieldOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uLaserStarfieldSpeed'), state.laserStarfieldSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uLaserStarfieldDensity'), state.laserStarfieldDensity ?? 1.0);
-    gl.uniform1f(getLocation('uPulsingRibbonsEnabled'), state.pulsingRibbonsEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPulsingRibbonsOpacity'), state.pulsingRibbonsOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPulsingRibbonsCount'), state.pulsingRibbonsCount ?? 3.0);
-    gl.uniform1f(getLocation('uPulsingRibbonsWidth'), state.pulsingRibbonsWidth ?? 0.05);
-    gl.uniform1f(getLocation('uElectricArcEnabled'), state.electricArcEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uElectricArcOpacity'), state.electricArcOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uElectricArcRadius'), state.electricArcRadius ?? 0.5);
-    gl.uniform1f(getLocation('uElectricArcChaos'), state.electricArcChaos ?? 1.0);
-    gl.uniform1f(getLocation('uPyroBurstEnabled'), state.pyroBurstEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPyroBurstOpacity'), state.pyroBurstOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPyroBurstForce'), state.pyroBurstForce ?? 1.0);
-    gl.uniform1f(getLocation('uGeoWireframeEnabled'), state.geoWireframeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uGeoWireframeOpacity'), state.geoWireframeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uGeoWireframeShape'), state.geoWireframeShape ?? 0);
-    gl.uniform1f(getLocation('uGeoWireframeScale'), state.geoWireframeScale ?? 0.5);
-    gl.uniform1f(getLocation('uSignalNoiseEnabled'), state.signalNoiseEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uSignalNoiseOpacity'), state.signalNoiseOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uSignalNoiseAmount'), state.signalNoiseAmount ?? 1.0);
-    gl.uniform1f(getLocation('uWormholeEnabled'), state.wormholeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uWormholeOpacity'), state.wormholeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uWormholeSpeed'), state.wormholeSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uWormholeWeave'), state.wormholeWeave ?? 0.2);
-    gl.uniform1f(getLocation('uWormholeIter'), state.wormholeIter ?? 3.0);
-    gl.uniform1f(getLocation('uRibbonTunnelEnabled'), state.ribbonTunnelEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uRibbonTunnelOpacity'), state.ribbonTunnelOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uRibbonTunnelSpeed'), state.ribbonTunnelSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uRibbonTunnelTwist'), state.ribbonTunnelTwist ?? 1.0);
-    gl.uniform1f(getLocation('uFractalTunnelEnabled'), state.fractalTunnelEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uFractalTunnelOpacity'), state.fractalTunnelOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uFractalTunnelSpeed'), state.fractalTunnelSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uFractalTunnelComplexity'), state.fractalTunnelComplexity ?? 3.0);
-    gl.uniform1f(getLocation('uCircuitConduitEnabled'), state.circuitConduitEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCircuitConduitOpacity'), state.circuitConduitOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCircuitConduitSpeed'), state.circuitConduitSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uAuraPortalEnabled'), state.auraPortalEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uAuraPortalOpacity'), state.auraPortalOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uAuraPortalColor'), state.auraPortalColor ?? 0);
-    gl.uniform1f(getLocation('uFreqTerrainEnabled'), state.freqTerrainEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uFreqTerrainOpacity'), state.freqTerrainOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uFreqTerrainScale'), state.freqTerrainScale ?? 1.0);
-    gl.uniform1f(getLocation('uDataStreamEnabled'), state.dataStreamEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uDataStreamOpacity'), state.dataStreamOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uDataStreamSpeed'), state.dataStreamSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uCausticLiquidEnabled'), state.causticLiquidEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCausticLiquidOpacity'), state.causticLiquidOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCausticLiquidSpeed'), state.causticLiquidSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uShimmerVeilEnabled'), state.shimmerVeilEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uShimmerVeilOpacity'), state.shimmerVeilOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uShimmerVeilComplexity'), state.shimmerVeilComplexity ?? 10.0);
-
-    // --- New 31 Generators Uniform Bindings ---
-    gl.uniform1f(getLocation('uNebulaCloudEnabled'), state.nebulaCloudEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uNebulaCloudOpacity'), state.nebulaCloudOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uNebulaCloudDensity'), state.nebulaCloudDensity ?? 1.0);
-    gl.uniform1f(getLocation('uNebulaCloudSpeed'), state.nebulaCloudSpeed ?? 0.5);
-    gl.uniform1f(getLocation('uCircuitBoardEnabled'), state.circuitBoardEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCircuitBoardOpacity'), state.circuitBoardOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCircuitBoardGrowth'), state.circuitBoardGrowth ?? 1.0);
-    gl.uniform1f(getLocation('uCircuitBoardComplexity'), state.circuitBoardComplexity ?? 5.0);
-    gl.uniform1f(getLocation('uLorenzAttractorEnabled'), state.lorenzAttractorEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uLorenzAttractorOpacity'), state.lorenzAttractorOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uLorenzAttractorSpeed'), state.lorenzAttractorSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uLorenzAttractorChaos'), state.lorenzAttractorChaos ?? 1.0);
-    gl.uniform1f(getLocation('uMandalaSpinnerEnabled'), state.mandalaSpinnerEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uMandalaSpinnerOpacity'), state.mandalaSpinnerOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uMandalaSpinnerSides'), state.mandalaSpinnerSides ?? 6.0);
-    gl.uniform1f(getLocation('uMandalaSpinnerSpeed'), state.mandalaSpinnerSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uStarburstGalaxyEnabled'), state.starburstGalaxyEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uStarburstGalaxyOpacity'), state.starburstGalaxyOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uStarburstGalaxyForce'), state.starburstGalaxyForce ?? 1.0);
-    gl.uniform1f(getLocation('uStarburstGalaxyCount'), state.starburstGalaxyCount ?? 100.0);
-    gl.uniform1f(getLocation('uDigitalRainV2Enabled'), state.digitalRainV2Enabled ? 1 : 0);
-    gl.uniform1f(getLocation('uDigitalRainV2Opacity'), state.digitalRainV2Opacity ?? 1.0);
-    gl.uniform1f(getLocation('uDigitalRainV2Speed'), state.digitalRainV2Speed ?? 1.0);
-    gl.uniform1f(getLocation('uDigitalRainV2Density'), state.digitalRainV2Density ?? 1.0);
-    gl.uniform1f(getLocation('uLavaFlowEnabled'), state.lavaFlowEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uLavaFlowOpacity'), state.lavaFlowOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uLavaFlowHeat'), state.lavaFlowHeat ?? 1.0);
-    gl.uniform1f(getLocation('uLavaFlowViscosity'), state.lavaFlowViscosity ?? 1.0);
-    gl.uniform1f(getLocation('uCrystalGrowthEnabled'), state.crystalGrowthEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCrystalGrowthOpacity'), state.crystalGrowthOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCrystalGrowthRate'), state.crystalGrowthRate ?? 0.5);
-    gl.uniform1f(getLocation('uCrystalGrowthSharpness'), state.crystalGrowthSharpness ?? 0.8);
-    gl.uniform1f(getLocation('uTechnoGridEnabled'), state.technoGridEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uTechnoGridOpacity'), state.technoGridOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uTechnoGridHeight'), state.technoGridHeight ?? 1.0);
-    gl.uniform1f(getLocation('uTechnoGridSpeed'), state.technoGridSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uMagneticFieldEnabled'), state.magneticFieldEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uMagneticFieldOpacity'), state.magneticFieldOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uMagneticFieldStrength'), state.magneticFieldStrength ?? 1.0);
-    gl.uniform1f(getLocation('uMagneticFieldDensity'), state.magneticFieldDensity ?? 20.0);
-    gl.uniform1f(getLocation('uPrismShardsEnabled'), state.prismShardsEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPrismShardsOpacity'), state.prismShardsOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPrismShardsRefraction'), state.prismShardsRefraction ?? 0.5);
-    gl.uniform1f(getLocation('uPrismShardsCount'), state.prismShardsCount ?? 5.0);
-    gl.uniform1f(getLocation('uNeuralNetEnabled'), state.neuralNetEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uNeuralNetOpacity'), state.neuralNetOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uNeuralNetActivity'), state.neuralNetActivity ?? 1.0);
-    gl.uniform1f(getLocation('uNeuralNetDensity'), state.neuralNetDensity ?? 1.0);
-    gl.uniform1f(getLocation('uAuroraChordEnabled'), state.auroraChordEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uAuroraChordOpacity'), state.auroraChordOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uAuroraChordWaviness'), state.auroraChordWaviness ?? 1.0);
-    gl.uniform1f(getLocation('uAuroraChordColorRange'), state.auroraChordColorRange ?? 1.0);
-    gl.uniform1f(getLocation('uVhsGlitchEnabled'), state.vhsGlitchEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uVhsGlitchOpacity'), state.vhsGlitchOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uVhsGlitchJitter'), state.vhsGlitchJitter ?? 0.2);
-    gl.uniform1f(getLocation('uVhsGlitchNoise'), state.vhsGlitchNoise ?? 0.3);
-    gl.uniform1f(getLocation('uMoirePatternEnabled'), state.moirePatternEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uMoirePatternOpacity'), state.moirePatternOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uMoirePatternScale'), state.moirePatternScale ?? 5.0);
-    gl.uniform1f(getLocation('uMoirePatternSpeed'), state.moirePatternSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uHypercubeEnabled'), state.hypercubeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uHypercubeOpacity'), state.hypercubeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uHypercubeProjection'), state.hypercubeProjection ?? 1.0);
-    gl.uniform1f(getLocation('uHypercubeSpeed'), state.hypercubeSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uFluidSwirlEnabled'), state.fluidSwirlEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uFluidSwirlOpacity'), state.fluidSwirlOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uFluidSwirlVorticity'), state.fluidSwirlVorticity ?? 1.0);
-    gl.uniform1f(getLocation('uFluidSwirlColorMix'), state.fluidSwirlColorMix ?? 1.0);
-    gl.uniform1f(getLocation('uAsciiStreamEnabled'), state.asciiStreamEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uAsciiStreamOpacity'), state.asciiStreamOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uAsciiStreamResolution'), state.asciiStreamResolution ?? 40.0);
-    gl.uniform1f(getLocation('uAsciiStreamContrast'), state.asciiStreamContrast ?? 1.0);
-    gl.uniform1f(getLocation('uRetroWaveEnabled'), state.retroWaveEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uRetroWaveOpacity'), state.retroWaveOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uRetroWaveSunSize'), state.retroWaveSunSize ?? 1.0);
-    gl.uniform1f(getLocation('uRetroWaveGridSpeed'), state.retroWaveGridSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uBubblePopEnabled'), state.bubblePopEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uBubblePopOpacity'), state.bubblePopOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uBubblePopPopRate'), state.bubblePopPopRate ?? 1.0);
-    gl.uniform1f(getLocation('uBubblePopSize'), state.bubblePopSize ?? 0.5);
-    gl.uniform1f(getLocation('uSoundWave3DEnabled'), state.soundWave3DEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uSoundWave3DOpacity'), state.soundWave3DOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uSoundWave3DAmplitude'), state.soundWave3DAmplitude ?? 1.0);
-    gl.uniform1f(getLocation('uSoundWave3DSmoothness'), state.soundWave3DSmoothness ?? 1.0);
-    gl.uniform1f(getLocation('uParticleVortexEnabled'), state.particleVortexEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uParticleVortexOpacity'), state.particleVortexOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uParticleVortexSuction'), state.particleVortexSuction ?? 1.0);
-    gl.uniform1f(getLocation('uParticleVortexSpin'), state.particleVortexSpin ?? 1.0);
-    gl.uniform1f(getLocation('uGlowWormsEnabled'), state.glowWormsEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uGlowWormsOpacity'), state.glowWormsOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uGlowWormsLength'), state.glowWormsLength ?? 1.0);
-    gl.uniform1f(getLocation('uGlowWormsSpeed'), state.glowWormsSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uMirrorMazeEnabled'), state.mirrorMazeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uMirrorMazeOpacity'), state.mirrorMazeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uMirrorMazeRecursion'), state.mirrorMazeRecursion ?? 4.0);
-    gl.uniform1f(getLocation('uMirrorMazeAngle'), state.mirrorMazeAngle ?? 0.78);
-    gl.uniform1f(getLocation('uPulseHeartEnabled'), state.pulseHeartEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPulseHeartOpacity'), state.pulseHeartOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPulseHeartBeats'), state.pulseHeartBeats ?? 1.0);
-    gl.uniform1f(getLocation('uPulseHeartLayers'), state.pulseHeartLayers ?? 5.0);
-    gl.uniform1f(getLocation('uDataShardsEnabled'), state.dataShardsEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uDataShardsOpacity'), state.dataShardsOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uDataShardsSpeed'), state.dataShardsSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uDataShardsSharpness'), state.dataShardsSharpness ?? 1.0);
-    gl.uniform1f(getLocation('uHexCellEnabled'), state.hexCellEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uHexCellOpacity'), state.hexCellOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uHexCellPulse'), state.hexCellPulse ?? 1.0);
-    gl.uniform1f(getLocation('uHexCellScale'), state.hexCellScale ?? 1.0);
-    gl.uniform1f(getLocation('uPlasmaBallEnabled'), state.plasmaBallEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPlasmaBallOpacity'), state.plasmaBallOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPlasmaBallVoltage'), state.plasmaBallVoltage ?? 1.0);
-    gl.uniform1f(getLocation('uPlasmaBallFilaments'), state.plasmaBallFilaments ?? 5.0);
-    gl.uniform1f(getLocation('uWarpDriveEnabled'), state.warpDriveEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uWarpDriveOpacity'), state.warpDriveOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uWarpDriveWarp'), state.warpDriveWarp ?? 1.0);
-    gl.uniform1f(getLocation('uWarpDriveGlow'), state.warpDriveGlow ?? 1.0);
-    gl.uniform1f(getLocation('uVisualFeedbackEnabled'), state.visualFeedbackEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uVisualFeedbackOpacity'), state.visualFeedbackOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uVisualFeedbackZoom'), state.visualFeedbackZoom ?? 1.01);
-    gl.uniform1f(getLocation('uVisualFeedbackRotation'), state.visualFeedbackRotation ?? 0.01);
-    // New Unique Generator Uniforms
-    gl.uniform1f(getLocation('uCellularGrowthEnabled'), state.cellularGrowthEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCellularGrowthOpacity'), state.cellularGrowthOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCellularGrowthRate'), state.cellularGrowthRate ?? 1.0);
-    gl.uniform1f(getLocation('uCellularGrowthDensity'), state.cellularGrowthDensity ?? 0.8);
-    gl.uniform1f(getLocation('uBioLuminescentForestEnabled'), state.bioLuminescentForestEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uBioLuminescentForestOpacity'), state.bioLuminescentForestOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uBioLuminescentForestPulse'), state.bioLuminescentForestPulse ?? 1.0);
-    gl.uniform1f(getLocation('uBioLuminescentForestDensity'), state.bioLuminescentForestDensity ?? 0.7);
-    gl.uniform1f(getLocation('uCrystallineEnabled'), state.crystallineEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCrystallineOpacity'), state.crystallineOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCrystallineRotation'), state.crystallineRotation ?? 1.0);
-    gl.uniform1f(getLocation('uCrystallineRefraction'), state.crystallineRefraction ?? 0.5);
-    gl.uniform1f(getLocation('uAudioDnaEnabled'), state.audioDnaEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uAudioDnaOpacity'), state.audioDnaOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uAudioDnaRotation'), state.audioDnaRotation ?? 1.0);
-    gl.uniform1f(getLocation('uAudioDnaSegments'), state.audioDnaSegments ?? 20.0);
-    gl.uniform1f(getLocation('uLiquidMetalEnabled'), state.liquidMetalEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uLiquidMetalOpacity'), state.liquidMetalOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uLiquidMetalFlow'), state.liquidMetalFlow ?? 1.0);
-    gl.uniform1f(getLocation('uLiquidMetalShimmer'), state.liquidMetalShimmer ?? 0.5);
-    gl.uniform1f(getLocation('uNeonCityscapeEnabled'), state.neonCityscapeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uNeonCityscapeOpacity'), state.neonCityscapeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uNeonCityscapeSpeed'), state.neonCityscapeSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uNeonCityscapeDensity'), state.neonCityscapeDensity ?? 0.6);
-    gl.uniform1f(getLocation('uCosmicNebulaEnabled'), state.cosmicNebulaEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCosmicNebulaOpacity'), state.cosmicNebulaOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCosmicNebulaExpansion'), state.cosmicNebulaExpansion ?? 1.0);
-    gl.uniform1f(getLocation('uCosmicNebulaTurbulence'), state.cosmicNebulaTurbulence ?? 0.5);
-    gl.uniform1f(getLocation('uSonicRainEnabled'), state.sonicRainEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uSonicRainOpacity'), state.sonicRainOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uSonicRainSpeed'), state.sonicRainSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uSonicRainDensity'), state.sonicRainDensity ?? 0.8);
-    gl.uniform1f(getLocation('uMorphingGeometryEnabled'), state.morphingGeometryEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uMorphingGeometryOpacity'), state.morphingGeometryOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uMorphingGeometrySpeed'), state.morphingGeometrySpeed ?? 1.0);
-    gl.uniform1f(getLocation('uMorphingGeometryComplexity'), state.morphingGeometryComplexity ?? 0.7);
-    gl.uniform1f(getLocation('uUrbanRhythmEnabled'), state.urbanRhythmEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uUrbanRhythmOpacity'), state.urbanRhythmOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uUrbanRhythmBpm'), state.urbanRhythmBpm ?? 1.0);
-    gl.uniform1f(getLocation('uUrbanRhythmIntensity'), state.urbanRhythmIntensity ?? 0.6);
-    gl.uniform1f(getLocation('uCrimsonVeilEnabled'), state.crimsonVeilEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCrimsonVeilOpacity'), state.crimsonVeilOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCrimsonVeilFlow'), state.crimsonVeilFlow ?? 1.0);
-    gl.uniform1f(getLocation('uCrimsonVeilDarkness'), state.crimsonVeilDarkness ?? 0.5);
-    gl.uniform1f(getLocation('uVictorianCryptEnabled'), state.victorianCryptEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uVictorianCryptOpacity'), state.victorianCryptOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uVictorianCryptComplexity'), state.victorianCryptComplexity ?? 0.5);
-    gl.uniform1f(getLocation('uVictorianCryptDecay'), state.victorianCryptDecay ?? 0.5);
-    gl.uniform1f(getLocation('uSpectralApparitionEnabled'), state.spectralApparitionEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uSpectralApparitionOpacity'), state.spectralApparitionOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uSpectralApparitionDensity'), state.spectralApparitionDensity ?? 0.5);
-    gl.uniform1f(getLocation('uSpectralApparitionFade'), state.spectralApparitionFade ?? 0.5);
-    gl.uniform1f(getLocation('uGothicCobwebsEnabled'), state.gothicCobwebsEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uGothicCobwebsOpacity'), state.gothicCobwebsOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uGothicCobwebsDensity'), state.gothicCobwebsDensity ?? 0.5);
-    gl.uniform1f(getLocation('uGothicCobwebsDecay'), state.gothicCobwebsDecay ?? 0.5);
-    gl.uniform1f(getLocation('uBloodMoonRiseEnabled'), state.bloodMoonRiseEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uBloodMoonRiseOpacity'), state.bloodMoonRiseOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uBloodMoonRiseEclipse'), state.bloodMoonRiseEclipse ?? 0.5);
-    gl.uniform1f(getLocation('uBloodMoonRiseGlow'), state.bloodMoonRiseGlow ?? 0.5);
-    gl.uniform1f(getLocation('uCandlelightVigilEnabled'), state.candlelightVigilEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCandlelightVigilOpacity'), state.candlelightVigilOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCandlelightVigilFlicker'), state.candlelightVigilFlicker ?? 0.5);
-    gl.uniform1f(getLocation('uCandlelightVigilDecay'), state.candlelightVigilDecay ?? 0.5);
-    gl.uniform1f(getLocation('uGargoylesAwakeEnabled'), state.gargoylesAwakeEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uGargoylesAwakeOpacity'), state.gargoylesAwakeOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uGargoylesAwakeAnimation'), state.gargoylesAwakeAnimation ?? 0.5);
-    gl.uniform1f(getLocation('uGargoylesAwakeShadow'), state.gargoylesAwakeShadow ?? 0.5);
-    gl.uniform1f(getLocation('uCryptShadowsEnabled'), state.cryptShadowsEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uCryptShadowsOpacity'), state.cryptShadowsOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uCryptShadowsDepth'), state.cryptShadowsDepth ?? 0.5);
-    gl.uniform1f(getLocation('uCryptShadowsMovement'), state.cryptShadowsMovement ?? 0.5);
-    gl.uniform1f(getLocation('uGothicRoseEnabled'), state.gothicRoseEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uGothicRoseOpacity'), state.gothicRoseOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uGothicRoseDecay'), state.gothicRoseDecay ?? 0.5);
-    gl.uniform1f(getLocation('uGothicRoseThorns'), state.gothicRoseThorns ?? 0.5);
-    gl.uniform1f(getLocation('uEternalDarknessEnabled'), state.eternalDarknessEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uEternalDarknessOpacity'), state.eternalDarknessOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uEternalDarknessVoid'), state.eternalDarknessVoid ?? 0.5);
-    gl.uniform1f(getLocation('uEternalDarknessTraces'), state.eternalDarknessTraces ?? 0.5);
-    gl.uniform1f(getLocation('uPixelDustEnabled'), state.pixelDustEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPixelDustOpacity'), state.pixelDustOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPixelDustDensity'), state.pixelDustDensity ?? 0.5);
-    gl.uniform1f(getLocation('uPixelDustPixelSize'), state.pixelDustPixelSize ?? 0.02);
-    gl.uniform1f(getLocation('uRetroStarfieldEnabled'), state.retroStarfieldEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uRetroStarfieldOpacity'), state.retroStarfieldOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uRetroStarfieldSpeed'), state.retroStarfieldSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uRetroStarfieldSize'), state.retroStarfieldSize ?? 0.01);
-    gl.uniform1f(getLocation('u8BitGridEnabled'), state.eightBitGridEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('u8BitGridOpacity'), state.eightBitGridOpacity ?? 1.0);
-    gl.uniform1f(getLocation('u8BitGridSpeed'), state.eightBitGridSpeed ?? 1.0);
-    gl.uniform1f(getLocation('u8BitGridPixelSize'), state.eightBitGridPixelSize ?? 0.02);
-    gl.uniform1f(getLocation('uArcadeInvadersEnabled'), state.arcadeInvadersEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uArcadeInvadersOpacity'), state.arcadeInvadersOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uArcadeInvadersDensity'), state.arcadeInvadersDensity ?? 0.5);
-    gl.uniform1f(getLocation('uArcadeInvadersAnimation'), state.arcadeInvadersAnimation ?? 0.5);
-    gl.uniform1f(getLocation('uPowerUpPulseEnabled'), state.powerUpPulseEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPowerUpPulseOpacity'), state.powerUpPulseOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPowerUpPulseIntensity'), state.powerUpPulseIntensity ?? 0.5);
-    gl.uniform1f(getLocation('uPowerUpPulseSpeed'), state.powerUpPulseSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uDungeonTilesEnabled'), state.dungeonTilesEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uDungeonTilesOpacity'), state.dungeonTilesOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uDungeonTilesPattern'), state.dungeonTilesPattern ?? 0.5);
-    gl.uniform1f(getLocation('uDungeonTilesAnimation'), state.dungeonTilesAnimation ?? 0.5);
-    gl.uniform1f(getLocation('uChiptuneWaveEnabled'), state.chiptuneWaveEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uChiptuneWaveOpacity'), state.chiptuneWaveOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uChiptuneWaveBits'), state.chiptuneWaveBits ?? 4.0);
-    gl.uniform1f(getLocation('uChiptuneWaveSpeed'), state.chiptuneWaveSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uScoreCounterEnabled'), state.scoreCounterEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uScoreCounterOpacity'), state.scoreCounterOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uScoreCounterDigits'), state.scoreCounterDigits ?? 6.0);
-    gl.uniform1f(getLocation('uScoreCounterAnimation'), state.scoreCounterAnimation ?? 1.0);
-    gl.uniform1f(getLocation('uPixelRainEnabled'), state.pixelRainEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uPixelRainOpacity'), state.pixelRainOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uPixelRainDensity'), state.pixelRainDensity ?? 0.5);
-    gl.uniform1f(getLocation('uPixelRainSpeed'), state.pixelRainSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uMilkwaveEnabled'), state.milkwaveEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uMilkwaveOpacity'), state.milkwaveOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uBossHealthEnabled'), state.bossHealthEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uBossHealthOpacity'), state.bossHealthOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uBossHealthValue'), state.bossHealthValue ?? 0.5);
-    gl.uniform1f(getLocation('uBossHealthBars'), state.bossHealthBars ?? 3.0);
-    gl.uniform1f(getLocation('uMyceliumGrowthEnabled'), state.myceliumGrowthEnabled ? 1 : 0);
-    gl.uniform1f(getLocation('uMyceliumGrowthOpacity'), state.myceliumGrowthOpacity ?? 1.0);
-    gl.uniform1f(getLocation('uMyceliumGrowthSpread'), state.myceliumGrowthSpread ?? 1.0);
-    gl.uniform1f(getLocation('uMyceliumGrowthDecay'), state.myceliumGrowthDecay ?? 0.5);
     gl.uniform1f(getLocation('uAdvancedSdfEnabled'), (state.sdfScene && prog === advancedSdfProgram) ? 1 : 0);
     if (currentPalette.length >= 5) {
       // Set each palette element individually for maximum driver compatibility
@@ -903,8 +543,19 @@ void main() {
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
 
+    // --- Dynamic gen-* uniforms from resolveGenUniforms() ---
+    if (state.genUniforms) {
+      for (const key in state.genUniforms) {
+        const loc = getLocation(`u${key}`);
+        if (loc) {
+          gl.uniform1f(loc, state.genUniforms[key]);
+        }
+      }
+    }
+
     // --- Generator Diagnostics: track enable/opacity state ---
-    const genEntries: [string, boolean, number][] = [
+    // Legacy layers use explicit state properties
+    const legacyEntries: [string, boolean, number][] = [
       ['plasma', state.plasmaEnabled, state.plasmaOpacity],
       ['spectrum', state.spectrumEnabled, state.spectrumOpacity],
       ['origami', state.origamiEnabled, state.origamiOpacity],
@@ -916,69 +567,33 @@ void main() {
       ['portal', state.portalEnabled, state.portalOpacity],
       ['media', state.mediaEnabled, state.mediaOpacity],
       ['oscillo', state.oscilloEnabled, state.oscilloOpacity],
-      ['laser', state.laserEnabled, state.laserOpacity],
-      ['strobe', state.strobeEnabled, state.strobeOpacity],
-      ['shapeBurst', state.shapeBurstEnabled, state.shapeBurstOpacity],
-      ['gridTunnel', state.gridTunnelEnabled, state.gridTunnelOpacity],
-      ['lightning', state.lightningEnabled, state.lightningOpacity],
-      ['analogOscillo', state.analogOscilloEnabled, state.analogOscilloOpacity],
-      ['speakerCone', state.speakerConeEnabled, state.speakerConeOpacity],
-      ['glitchScanline', state.glitchScanlineEnabled, state.glitchScanlineOpacity],
-      ['laserStarfield', state.laserStarfieldEnabled, state.laserStarfieldOpacity],
-      ['pulsingRibbons', state.pulsingRibbonsEnabled, state.pulsingRibbonsOpacity],
-      ['electricArc', state.electricArcEnabled, state.electricArcOpacity],
-      ['pyroBurst', state.pyroBurstEnabled, state.pyroBurstOpacity],
-      ['geoWireframe', state.geoWireframeEnabled, state.geoWireframeOpacity],
-      ['signalNoise', state.signalNoiseEnabled, state.signalNoiseOpacity],
-      ['wormhole', state.wormholeEnabled, state.wormholeOpacity],
-      ['ribbonTunnel', state.ribbonTunnelEnabled, state.ribbonTunnelOpacity],
-      ['fractalTunnel', state.fractalTunnelEnabled, state.fractalTunnelOpacity],
-      ['circuitConduit', state.circuitConduitEnabled, state.circuitConduitOpacity],
-      ['auraPortal', state.auraPortalEnabled, state.auraPortalOpacity],
-      ['freqTerrain', state.freqTerrainEnabled, state.freqTerrainOpacity],
-      ['dataStream', state.dataStreamEnabled, state.dataStreamOpacity],
-      ['causticLiquid', state.causticLiquidEnabled, state.causticLiquidOpacity],
-      ['shimmerVeil', state.shimmerVeilEnabled, state.shimmerVeilOpacity],
-      ['nebulaCloud', state.nebulaCloudEnabled, state.nebulaCloudOpacity],
-      ['circuitBoard', state.circuitBoardEnabled, state.circuitBoardOpacity],
-      ['lorenzAttractor', state.lorenzAttractorEnabled, state.lorenzAttractorOpacity],
-      ['mandalaSpinner', state.mandalaSpinnerEnabled, state.mandalaSpinnerOpacity],
-      ['starburstGalaxy', state.starburstGalaxyEnabled, state.starburstGalaxyOpacity],
-      ['digitalRainV2', state.digitalRainV2Enabled, state.digitalRainV2Opacity],
-      ['lavaFlow', state.lavaFlowEnabled, state.lavaFlowOpacity],
-      ['crystalGrowth', state.crystalGrowthEnabled, state.crystalGrowthOpacity],
-      ['technoGrid', state.technoGridEnabled, state.technoGridOpacity],
-      ['magneticField', state.magneticFieldEnabled, state.magneticFieldOpacity],
-      ['prismShards', state.prismShardsEnabled, state.prismShardsOpacity],
-      ['neuralNet', state.neuralNetEnabled, state.neuralNetOpacity],
-      ['auroraChord', state.auroraChordEnabled, state.auroraChordOpacity],
-      ['vhsGlitch', state.vhsGlitchEnabled, state.vhsGlitchOpacity],
-      ['moirePattern', state.moirePatternEnabled, state.moirePatternOpacity],
-      ['hypercube', state.hypercubeEnabled, state.hypercubeOpacity],
-      ['fluidSwirl', state.fluidSwirlEnabled, state.fluidSwirlOpacity],
-      ['asciiStream', state.asciiStreamEnabled, state.asciiStreamOpacity],
-      ['retroWave', state.retroWaveEnabled, state.retroWaveOpacity],
-      ['bubblePop', state.bubblePopEnabled, state.bubblePopOpacity],
-      ['soundWave3D', state.soundWave3DEnabled, state.soundWave3DOpacity],
-      ['particleVortex', state.particleVortexEnabled, state.particleVortexOpacity],
-      ['glowWorms', state.glowWormsEnabled, state.glowWormsOpacity],
-      ['mirrorMaze', state.mirrorMazeEnabled, state.mirrorMazeOpacity],
-      ['pulseHeart', state.pulseHeartEnabled, state.pulseHeartOpacity],
-      ['dataShards', state.dataShardsEnabled, state.dataShardsOpacity],
-      ['hexCell', state.hexCellEnabled, state.hexCellOpacity],
-      ['plasmaBall', state.plasmaBallEnabled, state.plasmaBallOpacity],
-      ['warpDrive', state.warpDriveEnabled, state.warpDriveOpacity],
-      ['visualFeedback', state.visualFeedbackEnabled, state.visualFeedbackOpacity],
-      ['milkwave', state.milkwaveEnabled, state.milkwaveOpacity],
     ];
     generatorDiagnostics.clear();
-    for (const [name, enabled, opacity] of genEntries) {
+    for (const [name, enabled, opacity] of legacyEntries) {
       const enabledUniformName = `u${name.charAt(0).toUpperCase() + name.slice(1)}Enabled`;
       generatorDiagnostics.set(name, {
         enabled,
         opacity,
         uniformsBound: hasUniform(activeUniformLookup, enabledUniformName) && !missingUniforms.has(enabledUniformName)
       });
+    }
+    // Gen-* layers: derive diagnostics from genUniforms dictionary
+    if (state.genUniforms) {
+      const seen = new Set<string>();
+      for (const key in state.genUniforms) {
+        if (!key.endsWith('Enabled')) continue;
+        const prefix = key.slice(0, -'Enabled'.length);
+        if (seen.has(prefix)) continue;
+        seen.add(prefix);
+        const enabled = state.genUniforms[key] > 0;
+        const opacity = state.genUniforms[`${prefix}Opacity`] ?? 0;
+        const uniformName = `u${prefix}Enabled`;
+        generatorDiagnostics.set(prefix, {
+          enabled,
+          opacity,
+          uniformsBound: hasUniform(activeUniformLookup, uniformName) && !missingUniforms.has(uniformName)
+        });
+      }
     }
 
     // Log uniform binding summary once

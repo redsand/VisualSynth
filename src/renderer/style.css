@@ -2015,6 +2015,21 @@ body[data-mode='matrix'] .safe-mode {
   border: 1px solid #1d2b3d;
 }
 
+.mixer-section-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #8da7c1;
+  background: rgba(15, 23, 36, 0.6);
+}
+
+.mixer-section-core { color: #1ec8ff; border-left: 3px solid #1ec8ff; }
+.mixer-section-support { color: #4aa3ff; border-left: 3px solid #4aa3ff; }
+.mixer-section-atmosphere { color: #7dffb3; border-left: 3px solid #7dffb3; }
+
 .mixer-row-layer {
   display: grid;
   grid-template-columns: 28px minmax(160px, 1fr) 10px auto;
