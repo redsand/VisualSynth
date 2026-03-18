@@ -681,6 +681,9 @@ channel.onmessage = (event) => {
   if (typeof data.myceliumGrowthDecay === 'number') state.myceliumGrowthDecay = data.myceliumGrowthDecay;
   if (typeof data.milkwaveEnabled === 'boolean') state.milkwaveEnabled = data.milkwaveEnabled;
   if (typeof data.milkwaveOpacity === 'number') state.milkwaveOpacity = data.milkwaveOpacity;
+  if (data.genUniforms && typeof data.genUniforms === 'object') {
+    state.genUniforms = { ...data.genUniforms };
+  }
   if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
     const colors = (data as any).paletteColors as string[];
     if (colors.length >= 5) {

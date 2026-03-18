@@ -371,6 +371,12 @@ body {
   line-height: 1;
 }
 
+.project-quick-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
 .project-quick-button:hover,
 .project-quick-button:focus-visible {
   border-color: #62e7ff;

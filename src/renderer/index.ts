@@ -769,6 +769,8 @@ let presetFavorites: string[] = [];
 let presetRecents: string[] = [];
 let presetPreviewBaseProject: VisualSynthProject | null = null;
 let presetPreviewPath: string | null = null;
+let preservePresetPreviewState = false;
+let lastOutputRenderState: RenderState | null = null;
 const shaderDraftKey = 'vs.shader.draft';
 const shaderTargetDraftValue = 'layer-plasma';
 const shaderTargetAssetPrefix = 'asset:';
@@ -1400,15 +1402,11 @@ const updateSelectedPreset = (path: string, reason = 'Selected') => {
   setStatus(`${reason}: ${preset.name}`);
 };
 
-const previewPresetSelection = async (path: string, reason = 'Preview') => {
+const previewPresetSelection = (path: string, reason = 'Selected') => {
   const preset = presetLibrary.find((entry) => entry.path === path);
   if (!preset) return;
+  clearPresetPreviewState();
   updateSelectedPreset(path, reason);
-  if (!presetPreviewBaseProject) {
-    presetPreviewBaseProject = cloneValue(currentProject);
-  }
-  presetPreviewPath = path;
-  await applyPresetPath(path, 'Preview');
   renderPresetPreview();
 };
 
@@ -5661,6 +5659,9 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
 let syncRendererPalette: (() => void) | undefined;
 
 const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {}) => {
+  if (!preservePresetPreviewState && presetPreviewBaseProject) {
+    clearPresetPreviewState();
+  }
   const activation = resolveSceneActivationRuntime(currentProject, sceneId);
   if (!activation) return;
   const { scene } = activation;
@@ -5705,6 +5706,7 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
     console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${runtime.activeGeneratorCount} active generators`);
   }
   syncRendererPalette?.();
+  broadcastCurrentOutputState();
   if (sceneSelect) sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
     sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
@@ -7689,6 +7691,28 @@ syncRendererPalette = () => {
   renderer?.setPalette?.(palette.colors);
 };
 
+const broadcastCurrentOutputState = () => {
+  if (!outputOpen || !lastOutputRenderState) return;
+  const broadcastScene =
+    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const generatorIds = broadcastScene ? collectSceneGeneratorIds(broadcastScene) : new Set<string>();
+  if (currentProject.sdf?.enabled) {
+    generatorIds.add('gen-sdf');
+  }
+  outputChannel.postMessage(
+    buildRendererOutputBroadcastPayload({
+      renderState: lastOutputRenderState,
+      project: currentProject,
+      scene: broadcastScene,
+      activePaletteId:
+        broadcastScene?.look?.activePaletteId ??
+        currentProject.activePaletteId,
+      activeGeneratorIds: [...generatorIds]
+    })
+  );
+};
+
 const applyPaletteSelection = (paletteId: string) => {
   const palette =
     currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
@@ -9156,6 +9180,9 @@ const serializeProject = () => {
 };
 
 const applyProject = async (project: VisualSynthProject) => {
+  if (!preservePresetPreviewState && presetPreviewBaseProject) {
+    clearPresetPreviewState();
+  }
   resetTransientVisualState();
   renderer.clearHistory?.();
   const applied = await applyLoadableProjectRuntime(project, {
@@ -9223,6 +9250,7 @@ const applyProject = async (project: VisualSynthProject) => {
   diffBaseProject = { ...currentProject };
   renderDiffSections();
   void checkMissingAssets();
+  broadcastCurrentOutputState();
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
@@ -9334,6 +9362,7 @@ if (presetLoadProjectButton) {
     if (presetPreviewPath === selectedPresetPath) {
       clearPresetPreviewState();
       lastOutputBroadcast = 0;
+      broadcastCurrentOutputState();
       setStatus(`Activated: ${presetLibrary.find((preset) => preset.path === selectedPresetPath)?.name ?? selectedPresetPath}`);
     } else {
       await applyPresetPath(selectedPresetPath, 'Activate');
@@ -11563,6 +11592,7 @@ const render = (time: number) => {
     outputOpen && outputScene?.id && outputScene?.id !== previewScene?.id
       ? buildRenderStateForScene(outputScene)
       : activeSceneData;
+  lastOutputRenderState = outputData.renderState;
   const renderState = activeSceneData.renderState;
   latestCaptureRenderSnapshot = {
     timeMs: renderState.timeMs,
@@ -11717,7 +11747,7 @@ const render = (time: number) => {
     currentFps
   );
 
-  if (cadence.shouldBroadcastOutput && !presetPreviewBaseProject) {
+  if (cadence.shouldBroadcastOutput) {
     lastOutputBroadcast = time;
     const broadcastScene = activeScene;
     const generatorIds = broadcastScene ? collectSceneGeneratorIds(broadcastScene) : new Set<string>();

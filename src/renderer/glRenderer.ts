@@ -337,9 +337,24 @@ void main() {
 
     const success = milkDropRenderer.compileShaders(shaderData);
     if (!success) {
-      console.warn('[GLRenderer] MilkDrop shaders failed to compile, using fallback gen-milkwave');
-      currentMilkDropShaderData = null;
-      milkDropEnabled = false;
+      console.warn('[GLRenderer] MilkDrop shaders failed to compile, attempting safe MilkDrop fallback');
+      const fallbackShaderData: MilkDropShaderData = {
+        ...shaderData,
+        warp: '',
+        comp: ''
+      };
+      const fallbackSuccess = milkDropRenderer.compileShaders(fallbackShaderData);
+      if (fallbackSuccess) {
+        currentMilkDropShaderData = fallbackShaderData;
+        milkDropEnabled = true;
+        lastMilkDropWarp = '';
+        lastMilkDropComp = '';
+        console.warn('[GLRenderer] MilkDrop custom shader failed; using default MilkDrop fallback renderer');
+      } else {
+        console.warn('[GLRenderer] MilkDrop fallback renderer failed, disabling custom MilkDrop path');
+        currentMilkDropShaderData = null;
+        milkDropEnabled = false;
+      }
     } else {
       console.log('[GLRenderer] MilkDrop shaders compiled successfully');
     }

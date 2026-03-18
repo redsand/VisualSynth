@@ -742,6 +742,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   };
 
   const compileShaders = (shaderData: MilkDropShaderData): boolean => {
+    warpProgram = null;
+    compProgram = null;
     const vs = createMilkDropVertexShader(gl);
     if (!vs) {
       onError?.('Failed to compile vertex shader', 'vertex');
