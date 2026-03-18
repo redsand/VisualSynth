@@ -3236,6 +3236,15 @@ const renderSceneTimeline = () => {
     onSelect: (sceneId, sceneName) => {
       selectedSceneId = sceneId;
       previewSceneId = sceneId;
+      const scene = currentProject.scenes.find((s) => s.id === sceneId);
+      if (scene) {
+        compileSceneShaders(
+          renderer,
+          scene,
+          currentProject.customShaderBlocks ?? [],
+          currentProject.sdf?.enabled ?? false
+        );
+      }
       renderSceneStrip();
       setStatus(`Scene preview: ${sceneName}`);
     },
@@ -11699,7 +11708,7 @@ const render = (time: number) => {
       ? buildRenderStateForScene(outputScene)
       : activeSceneData;
   lastOutputRenderState = outputData.renderState;
-  const renderState = activeSceneData.renderState;
+  const renderState = previewData.renderState;
   latestCaptureRenderSnapshot = {
     timeMs: renderState.timeMs,
     rms: renderState.rms,
