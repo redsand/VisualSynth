@@ -66,6 +66,21 @@ const normalizeMacroTargets = (macros: any[] | undefined) =>
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
+const normalizeMilkDropShaderData = (shaderData: any) => {
+  if (!shaderData) return undefined;
+  return {
+    ...shaderData,
+    warp: typeof shaderData.warp === 'string' ? shaderData.warp : '',
+    comp: typeof shaderData.comp === 'string' ? shaderData.comp : '',
+    perFrameCode: Array.isArray(shaderData.perFrameCode) ? shaderData.perFrameCode : [],
+    perFrameInitCode: Array.isArray(shaderData.perFrameInitCode) ? shaderData.perFrameInitCode : [],
+    originalParameters:
+      shaderData.originalParameters && typeof shaderData.originalParameters === 'object'
+        ? shaderData.originalParameters
+        : {}
+  };
+};
+
 const mergePresetAssets = (project: VisualSynthProject, preset: any) => {
   const mergedAssets = cloneJson(project.assets ?? []);
   const incomingAssets = Array.isArray(preset?.assets) ? preset.assets : [];
@@ -1162,16 +1177,17 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
  
   // Preserve MilkDrop shader data for custom presets
   if (preset?._shaderData) {
+    const normalizedShaderData = normalizeMilkDropShaderData(preset._shaderData);
     console.log('[PresetMigration] Preserving MilkDrop shader data:', {
-      hasWarp: !!preset._shaderData.warp,
-      warpLength: preset._shaderData.warp?.length || 0,
-      hasComp: !!preset._shaderData.comp,
-      compLength: preset._shaderData.comp?.length || 0,
-      perFrameCodeLength: preset._shaderData.perFrameCode?.length || 0
+      hasWarp: !!normalizedShaderData?.warp,
+      warpLength: normalizedShaderData?.warp?.length || 0,
+      hasComp: !!normalizedShaderData?.comp,
+      compLength: normalizedShaderData?.comp?.length || 0,
+      perFrameCodeLength: normalizedShaderData?.perFrameCode?.length || 0
     });
     const activeScene = project.scenes.find((s: any) => s.id === project.activeSceneId);
     if (activeScene) {
-      activeScene._shaderData = preset._shaderData;
+      activeScene._shaderData = normalizedShaderData;
       console.log('[PresetMigration] Shader data copied to scene:', activeScene.id);
     } else {
       console.error('[PresetMigration] Active scene not found:', project.activeSceneId);

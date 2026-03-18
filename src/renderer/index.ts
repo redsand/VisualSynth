@@ -45,6 +45,7 @@ import { toFileUrl } from '../shared/fileUrl';
 import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
 import { createScenePreset } from '../shared/scenePreset';
+import type { PresetIndexEntry } from '../shared/presetIndex';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
@@ -87,7 +88,7 @@ declare global {
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
-      listPresets: () => Promise<{ name: string; category: string; path: string }[]>;
+      listPresets: () => Promise<PresetIndexEntry[]>;
       loadPreset: (presetPath: string) => Promise<{ preset?: any; error?: string }>;
       listTemplates: () => Promise<{ name: string; path: string }[]>;
       loadTemplate: (templatePath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
@@ -165,6 +166,15 @@ const presetCategorySelect = document.getElementById('preset-category') as HTMLS
 const presetShuffleButton = document.getElementById('preset-shuffle') as HTMLButtonElement;
 const presetBrowser = document.getElementById('preset-browser') as HTMLDivElement;
 const presetExplorer = document.getElementById('preset-explorer') as HTMLDivElement;
+const presetSearchInput = document.getElementById('preset-search') as HTMLInputElement;
+const presetQuickFilters = document.getElementById('preset-quick-filters') as HTMLDivElement;
+const presetResultsCount = document.getElementById('preset-results-count') as HTMLDivElement;
+const presetPreviewThumb = document.getElementById('preset-preview-thumb') as HTMLDivElement;
+const presetPreviewName = document.getElementById('preset-preview-name') as HTMLDivElement;
+const presetPreviewMeta = document.getElementById('preset-preview-meta') as HTMLDivElement;
+const presetPreviewBadges = document.getElementById('preset-preview-badges') as HTMLDivElement;
+const presetLoadProjectButton = document.getElementById('preset-load-project') as HTMLButtonElement;
+const presetFavoriteButton = document.getElementById('preset-favorite') as HTMLButtonElement;
 const templateSelect = document.getElementById('template-select') as HTMLSelectElement;
 const applyTemplateButton = document.getElementById('btn-apply-template') as HTMLButtonElement;
 const modeSwitcher = document.getElementById('mode-switcher') as HTMLDivElement;
@@ -200,6 +210,8 @@ const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputE
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
 const visualModeSelect = document.getElementById('visual-mode-select') as HTMLSelectElement;
+const topbarOpenProjectButton = document.getElementById('topbar-open-project') as HTMLButtonElement | null;
+const topbarSaveProjectButton = document.getElementById('topbar-save-project') as HTMLButtonElement | null;
 const engineSelect = document.getElementById('engine-select') as HTMLSelectElement | null;
 const engineDescription = document.getElementById('engine-description') as HTMLDivElement | null;
 const healthFps = document.getElementById('health-fps') as HTMLSpanElement;
@@ -744,9 +756,19 @@ const markPlaylistBeatDrop = () => {
   playlistManager.markBeatDrop();
 };
 
-let presetLibrary: { name: string; path: string; category: string }[] = [];
+let presetLibrary: PresetIndexEntry[] = [];
+let filteredPresetLibrary: PresetIndexEntry[] = [];
+let selectedPresetPath = '';
+let presetCategoryFilter = 'All';
+let presetQuickFilter = 'all';
 const presetThumbStorageKey = 'vs.preset.thumbs';
 let presetThumbs: Record<string, string> = {};
+const presetFavoritesStorageKey = 'vs.preset.favorites';
+const presetRecentsStorageKey = 'vs.preset.recents';
+let presetFavorites: string[] = [];
+let presetRecents: string[] = [];
+let presetPreviewBaseProject: VisualSynthProject | null = null;
+let presetPreviewPath: string | null = null;
 const shaderDraftKey = 'vs.shader.draft';
 const shaderTargetDraftValue = 'layer-plasma';
 const shaderTargetAssetPrefix = 'asset:';
@@ -1307,6 +1329,42 @@ const savePresetThumbnails = () => {
   localStorage.setItem(presetThumbStorageKey, JSON.stringify(presetThumbs));
 };
 
+const loadPresetPreferences = () => {
+  try {
+    const favorites = localStorage.getItem(presetFavoritesStorageKey);
+    presetFavorites = favorites ? (JSON.parse(favorites) as string[]) : [];
+  } catch {
+    presetFavorites = [];
+  }
+  try {
+    const recents = localStorage.getItem(presetRecentsStorageKey);
+    presetRecents = recents ? (JSON.parse(recents) as string[]) : [];
+  } catch {
+    presetRecents = [];
+  }
+};
+
+const savePresetPreferences = () => {
+  localStorage.setItem(presetFavoritesStorageKey, JSON.stringify(presetFavorites));
+  localStorage.setItem(presetRecentsStorageKey, JSON.stringify(presetRecents));
+};
+
+const markPresetRecent = (path: string) => {
+  if (!path) return;
+  presetRecents = [path, ...presetRecents.filter((entry) => entry !== path)].slice(0, 24);
+  savePresetPreferences();
+};
+
+const togglePresetFavorite = (path: string) => {
+  if (!path) return false;
+  const isFavorite = presetFavorites.includes(path);
+  presetFavorites = isFavorite
+    ? presetFavorites.filter((entry) => entry !== path)
+    : [path, ...presetFavorites];
+  savePresetPreferences();
+  return !isFavorite;
+};
+
 const hashPreset = (value: string) => {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -1316,26 +1374,119 @@ const hashPreset = (value: string) => {
   return Math.abs(hash);
 };
 
-const categorizePreset = (name: string) => {
-  const key = name.toLowerCase();
-  if (key.includes('dna')) return 'DNA';
-  if (key.includes('particle')) return 'Particles';
-  if (key.includes('sdf') || key.includes('prism')) return 'SDF';
-  if (key.includes('feedback') || key.includes('trail')) return 'Feedback';
-  if (key.includes('kaleido')) return 'Kaleido';
-  if (key.includes('strobe')) return 'Strobe';
-  if (key.includes('nebula') || key.includes('no bars')) return 'No Bars';
-  return 'General';
+const presetQuickFilterDefs: Array<{ id: string; label: string; match: (preset: PresetIndexEntry) => boolean }> = [
+  { id: 'all', label: 'All', match: () => true },
+  { id: 'favorites', label: 'Favorites', match: (preset) => presetFavorites.includes(preset.path) },
+  { id: 'recent', label: 'Recent', match: (preset) => presetRecents.includes(preset.path) },
+  { id: 'safe', label: 'Safe', match: (preset) => !preset.riskFlags.includes('flash-heavy') && !preset.riskFlags.includes('cpu-heavy') },
+  { id: 'audio', label: 'Audio', match: (preset) => preset.sourceDependency === 'audio-reactive' || preset.sourceDependency === 'hybrid' },
+  { id: 'no-media', label: 'No Media', match: (preset) => preset.sourceDependency === 'none' || preset.sourceDependency === 'audio-reactive' },
+  { id: 'high-energy', label: 'High Energy', match: (preset) => preset.energy === 'high' || preset.energy === 'peak' },
+  { id: 'transitions', label: 'Transitions', match: (preset) => preset.primaryCategory === 'Transitions' || preset.useCases.includes('bridge') }
+];
+
+const getPresetGradient = (preset: PresetIndexEntry) => {
+  const hue = hashPreset(preset.name) % 360;
+  return `linear-gradient(135deg, hsl(${hue},70%,45%), hsl(${(hue + 60) % 360},70%,35%))`;
+};
+
+const updateSelectedPreset = (path: string, reason = 'Selected') => {
+  const preset = presetLibrary.find((entry) => entry.path === path);
+  if (!preset) return;
+  selectedPresetPath = path;
+  presetSelect.value = path;
+  renderPresetBrowser();
+  renderPresetPreview();
+  setStatus(`${reason}: ${preset.name}`);
+};
+
+const previewPresetSelection = async (path: string, reason = 'Preview') => {
+  const preset = presetLibrary.find((entry) => entry.path === path);
+  if (!preset) return;
+  updateSelectedPreset(path, reason);
+  if (!presetPreviewBaseProject) {
+    presetPreviewBaseProject = cloneValue(currentProject);
+  }
+  presetPreviewPath = path;
+  await applyPresetPath(path, 'Preview');
+  renderPresetPreview();
+};
+
+const clearPresetPreviewState = () => {
+  presetPreviewBaseProject = null;
+  presetPreviewPath = null;
+};
+
+const getSortedPresetEntries = (entries: PresetIndexEntry[]) =>
+  [...entries].sort((a, b) => {
+    const favoriteDiff = Number(presetFavorites.includes(b.path)) - Number(presetFavorites.includes(a.path));
+    if (favoriteDiff !== 0) return favoriteDiff;
+    const recentDiff = (presetRecents.indexOf(a.path) === -1 ? 999 : presetRecents.indexOf(a.path))
+      - (presetRecents.indexOf(b.path) === -1 ? 999 : presetRecents.indexOf(b.path));
+    if (recentDiff !== 0) return recentDiff;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+
+const getFilteredPresetEntries = () => {
+  const search = presetSearchInput.value.trim().toLowerCase();
+  const quickFilter = presetQuickFilterDefs.find((entry) => entry.id === presetQuickFilter) ?? presetQuickFilterDefs[0];
+  return getSortedPresetEntries(
+    presetLibrary.filter((preset) => {
+      if (presetCategoryFilter !== 'All' && preset.primaryCategory !== presetCategoryFilter) return false;
+      if (!quickFilter.match(preset)) return false;
+      if (!search) return true;
+      return preset.searchText.includes(search) || preset.name.toLowerCase().includes(search);
+    })
+  );
+};
+
+const renderPresetQuickFilters = () => {
+  presetQuickFilters.innerHTML = '';
+  presetQuickFilterDefs.forEach((filter) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `preset-filter-chip${filter.id === presetQuickFilter ? ' active' : ''}`;
+    button.textContent = filter.label;
+    button.addEventListener('click', () => {
+      presetQuickFilter = filter.id;
+      renderPresetQuickFilters();
+      renderPresetBrowser();
+      renderPresetPreview();
+    });
+    presetQuickFilters.appendChild(button);
+  });
+};
+
+const refreshPresetCategories = () => {
+  const categories = ['All', ...Array.from(new Set(presetLibrary.map((item) => item.primaryCategory))).sort()];
+  presetCategorySelect.innerHTML = '';
+  categories.forEach((category) => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    presetCategorySelect.appendChild(option);
+  });
+  presetCategorySelect.value = categories.includes(presetCategoryFilter) ? presetCategoryFilter : 'All';
 };
 
 const renderPresetBrowser = () => {
   presetBrowser.innerHTML = '';
-  const filter = presetCategorySelect.value;
-  const entries =
-    filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
-  entries.forEach((preset) => {
+  filteredPresetLibrary = getFilteredPresetEntries();
+  if (!selectedPresetPath || !filteredPresetLibrary.some((preset) => preset.path === selectedPresetPath)) {
+    selectedPresetPath = filteredPresetLibrary[0]?.path ?? '';
+    presetSelect.value = selectedPresetPath;
+  }
+  presetResultsCount.textContent = `${filteredPresetLibrary.length} preset${filteredPresetLibrary.length === 1 ? '' : 's'}`;
+  if (filteredPresetLibrary.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No presets match the current search and filters.';
+    presetBrowser.appendChild(empty);
+    return;
+  }
+  filteredPresetLibrary.forEach((preset) => {
     const card = document.createElement('div');
-    const selected = preset.path === presetSelect.value;
+    const selected = preset.path === selectedPresetPath;
     card.className = `preset-card${selected ? ' selected' : ''}`;
     const thumb = document.createElement('div');
     thumb.className = 'preset-thumb';
@@ -1343,40 +1494,54 @@ const renderPresetBrowser = () => {
     if (cachedThumb) {
       thumb.style.backgroundImage = `url('${cachedThumb}')`;
     } else {
-      const hue = hashPreset(preset.name) % 360;
-      thumb.style.background = `linear-gradient(135deg, hsl(${hue},70%,45%), hsl(${(hue + 60) % 360},70%,35%))`;
+      thumb.style.background = getPresetGradient(preset);
     }
+    const summary = document.createElement('div');
+    summary.className = 'preset-summary';
     const name = document.createElement('div');
     name.className = 'preset-name';
     name.textContent = preset.name;
-    const tag = document.createElement('div');
-    tag.className = 'preset-tag';
-    tag.textContent = preset.category;
-    
-    const auditionBtn = document.createElement('button');
-    auditionBtn.className = 'preset-audition-btn';
-    auditionBtn.textContent = 'Audition';
-    auditionBtn.addEventListener('click', (e) => {
+    const meta = document.createElement('div');
+    meta.className = 'preset-meta-line';
+    meta.textContent = `${preset.primaryCategory} · ${preset.energy} energy · ${preset.motion}`;
+    const tags = document.createElement('div');
+    tags.className = 'preset-tags';
+    [preset.primaryCategory, ...preset.visualFamilies.slice(0, 2), ...preset.riskFlags.slice(0, 1)].forEach((tagText) => {
+      const tag = document.createElement('div');
+      tag.className = 'preset-tag';
+      tag.textContent = tagText;
+      tags.appendChild(tag);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'preset-card-actions';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'preset-add-btn';
+    addBtn.textContent = 'Add';
+    addBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      void auditionPreset(preset.path);
+      selectedPresetPath = preset.path;
+      markPresetRecent(preset.path);
+      void addSceneFromPreset(preset.path);
+      renderPresetQuickFilters();
+      renderPresetPreview();
     });
 
-    // Hover Preview Metadata
     card.addEventListener('mouseenter', () => {
-        setStatus(`Preview: ${preset.name} [${preset.category}] - Designed for ${preset.name.includes('DNA') ? 'Identity' : 'Performance'}`);
-    });
-    card.addEventListener('mouseleave', () => {
-        setStatus('Ready');
-    });
-
-    card.appendChild(thumb);
-    card.appendChild(name);
-    card.appendChild(tag);
-    card.appendChild(auditionBtn);
-    card.addEventListener('click', () => {
+      selectedPresetPath = preset.path;
       presetSelect.value = preset.path;
-      renderPresetBrowser();
-      setStatus(`Preset selected: ${preset.name}`);
+      renderPresetPreview();
+      setStatus(`Preview: ${preset.name} [${preset.primaryCategory}]`);
+    });
+    card.appendChild(thumb);
+    summary.appendChild(name);
+    summary.appendChild(meta);
+    summary.appendChild(tags);
+    actions.appendChild(addBtn);
+    card.appendChild(summary);
+    card.appendChild(actions);
+    card.addEventListener('click', () => {
+      void previewPresetSelection(preset.path);
     });
     card.addEventListener('dblclick', () => {
       void addSceneFromPreset(preset.path);
@@ -1385,21 +1550,46 @@ const renderPresetBrowser = () => {
   });
 };
 
-const refreshPresetCategories = () => {
-  const categories = Array.from(new Set(presetLibrary.map((item) => item.category)));
-  presetCategorySelect.innerHTML = '';
-  const all = document.createElement('option');
-  all.value = 'All';
-  all.textContent = 'All';
-  presetCategorySelect.appendChild(all);
-  categories.sort().forEach((category) => {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category;
-    presetCategorySelect.appendChild(option);
-  });
-  const hasDna = categories.includes('DNA');
-  presetCategorySelect.value = hasDna ? 'DNA' : 'All';
+const renderPresetPreview = () => {
+  const preset = presetLibrary.find((entry) => entry.path === selectedPresetPath);
+  if (!preset) {
+    presetPreviewName.textContent = 'No preset selected';
+    presetPreviewMeta.textContent = 'Choose a preset to inspect it.';
+    presetPreviewThumb.style.background = 'linear-gradient(135deg, #19304c, #101c2c)';
+    presetPreviewThumb.style.backgroundImage = '';
+    presetPreviewBadges.innerHTML = '';
+    return;
+  }
+  const cachedThumb = presetThumbs[preset.path] ?? preset.thumbnail;
+  presetPreviewThumb.style.background = cachedThumb ? getPresetGradient(preset) : getPresetGradient(preset);
+  presetPreviewThumb.style.backgroundImage = cachedThumb ? `url('${cachedThumb}')` : '';
+  presetPreviewName.textContent = preset.name;
+  presetPreviewMeta.textContent =
+    `${preset.primaryCategory} · ${preset.subcategory} · ${preset.energy} energy · ${preset.motion} motion · ${preset.sourceDependency}`;
+  presetPreviewBadges.innerHTML = '';
+  [
+    ...preset.visualFamilies,
+    ...preset.useCases,
+    ...preset.riskFlags,
+    preset.importedFrom ? `Imported: ${preset.importedFrom}` : ''
+  ]
+    .filter(Boolean)
+    .slice(0, 8)
+    .forEach((tagText) => {
+      const tag = document.createElement('div');
+      tag.className = 'preset-tag';
+      tag.textContent = tagText;
+      presetPreviewBadges.appendChild(tag);
+    });
+  if (presetPreviewPath === preset.path) {
+    const tag = document.createElement('div');
+    tag.className = 'preset-tag';
+    tag.textContent = 'Previewing';
+    presetPreviewBadges.prepend(tag);
+  }
+  presetFavoriteButton.innerHTML = presetFavorites.includes(preset.path)
+    ? '<span class="preset-action-icon">♥</span><span>Unfavorite</span>'
+    : '<span class="preset-action-icon">♥</span><span>Favorite</span>';
 };
 
 const captureCanvasSnapshot = () => {
@@ -1428,6 +1618,7 @@ const capturePresetThumbnail = async (path: string) => {
     presetThumbs[path] = dataUrl;
     savePresetThumbnails();
     renderPresetBrowser();
+    renderPresetPreview();
   } catch {
     // Ignore thumbnail capture failures (likely tainted canvas).
   }
@@ -1702,23 +1893,6 @@ const applyPresetPath = async (path: string, reason?: string) => {
       setStatus(message);
     }
     void capturePresetThumbnail(path);
-  }
-};
-
-const auditionPreset = async (path: string) => {
-  setStatus('Auditioning performance...');
-  await applyPresetPath(path, 'Audition');
-  
-  // Audition automatically sets tempo and mode
-  if (currentProject.tempoSync) {
-    syncTempoInputs(currentProject.tempoSync.bpm);
-    bpmSource = currentProject.tempoSync.source;
-    bpmSourceSelect.value = bpmSource;
-  }
-  
-  if (currentProject.activeModeId) {
-    visualModeSelect.value = currentProject.activeModeId;
-    applyVisualMode(currentProject.activeModeId);
   }
 };
 
@@ -9069,44 +9243,70 @@ loadButton.addEventListener('click', async () => {
   }
 });
 
+if (topbarSaveProjectButton) {
+  topbarSaveProjectButton.addEventListener('click', () => {
+    void saveButton.click();
+  });
+}
+
+if (topbarOpenProjectButton) {
+  topbarOpenProjectButton.addEventListener('click', () => {
+    void loadButton.click();
+  });
+}
+
 if (applyPresetButton) {
   applyPresetButton.addEventListener('click', async () => {
-    if (!presetSelect.value) return;
-    await addSceneFromPreset(presetSelect.value);
+    if (!selectedPresetPath) return;
+    if (presetPreviewBaseProject) {
+      const baseProject = cloneValue(presetPreviewBaseProject);
+      clearPresetPreviewState();
+      await applyProject(baseProject);
+    }
+    markPresetRecent(selectedPresetPath);
+    await addSceneFromPreset(selectedPresetPath);
+    renderPresetQuickFilters();
+    renderPresetPreview();
   });
 }
 
 if (presetPrevButton) {
   presetPrevButton.addEventListener('click', () => {
-    if (presetSelect.options.length === 0) return;
-    const nextIndex =
-      (presetSelect.selectedIndex - 1 + presetSelect.options.length) % presetSelect.options.length;
-    presetSelect.selectedIndex = nextIndex;
-    renderPresetBrowser();
-    setPresetSelectionStatus('Previous');
+    if (filteredPresetLibrary.length === 0) return;
+    const currentIndex = Math.max(0, filteredPresetLibrary.findIndex((preset) => preset.path === selectedPresetPath));
+    const nextIndex = (currentIndex - 1 + filteredPresetLibrary.length) % filteredPresetLibrary.length;
+    void previewPresetSelection(filteredPresetLibrary[nextIndex].path, 'Previous');
   });
 }
 
 if (presetNextButton) {
   presetNextButton.addEventListener('click', () => {
-    if (presetSelect.options.length === 0) return;
-    const nextIndex = (presetSelect.selectedIndex + 1) % presetSelect.options.length;
-    presetSelect.selectedIndex = nextIndex;
-    renderPresetBrowser();
-    setPresetSelectionStatus('Next');
+    if (filteredPresetLibrary.length === 0) return;
+    const currentIndex = Math.max(0, filteredPresetLibrary.findIndex((preset) => preset.path === selectedPresetPath));
+    const nextIndex = (currentIndex + 1) % filteredPresetLibrary.length;
+    void previewPresetSelection(filteredPresetLibrary[nextIndex].path, 'Next');
   });
 }
 
 if (presetSelect) {
   presetSelect.addEventListener('change', () => {
-    renderPresetBrowser();
-    setPresetSelectionStatus('Selected');
+    updateSelectedPreset(presetSelect.value);
   });
 }
 
 if (presetCategorySelect) {
   presetCategorySelect.addEventListener('change', () => {
+    presetCategoryFilter = presetCategorySelect.value;
+    refreshPresetCategories();
     renderPresetBrowser();
+    renderPresetPreview();
+  });
+}
+
+if (presetSearchInput) {
+  presetSearchInput.addEventListener('input', () => {
+    renderPresetBrowser();
+    renderPresetPreview();
   });
 }
 
@@ -9120,17 +9320,77 @@ if (addBlankSceneButton) {
 
 if (presetShuffleButton) {
   presetShuffleButton.addEventListener('click', () => {
-    if (presetLibrary.length === 0) return;
-    const filter = presetCategorySelect.value;
-    const entries =
-      filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
+    const entries = getFilteredPresetEntries();
     const pick = entries[Math.floor(Math.random() * entries.length)];
     if (!pick) return;
-    presetSelect.value = pick.path;
-    renderPresetBrowser();
-    setPresetSelectionStatus('Shuffle');
+    void previewPresetSelection(pick.path, 'Shuffle');
   });
 }
+
+if (presetLoadProjectButton) {
+  presetLoadProjectButton.addEventListener('click', async () => {
+    if (!selectedPresetPath) return;
+    markPresetRecent(selectedPresetPath);
+    if (presetPreviewPath === selectedPresetPath) {
+      clearPresetPreviewState();
+      lastOutputBroadcast = 0;
+      setStatus(`Activated: ${presetLibrary.find((preset) => preset.path === selectedPresetPath)?.name ?? selectedPresetPath}`);
+    } else {
+      await applyPresetPath(selectedPresetPath, 'Activate');
+    }
+    renderPresetQuickFilters();
+    renderPresetPreview();
+  });
+}
+
+if (presetFavoriteButton) {
+  presetFavoriteButton.addEventListener('click', () => {
+    if (!selectedPresetPath) return;
+    togglePresetFavorite(selectedPresetPath);
+    renderPresetQuickFilters();
+    renderPresetBrowser();
+    renderPresetPreview();
+  });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (activeMode !== 'performance') return;
+  const target = event.target as HTMLElement | null;
+  const isTypingTarget = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable;
+  if (event.key === '/' && !isTypingTarget) {
+    event.preventDefault();
+    presetSearchInput?.focus();
+    presetSearchInput?.select();
+    return;
+  }
+  if (document.activeElement === presetSearchInput) return;
+  if (!filteredPresetLibrary.length) return;
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    presetNextButton.click();
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    presetPrevButton.click();
+  } else if (event.key === 'Enter' && event.shiftKey) {
+    event.preventDefault();
+    applyPresetButton.click();
+  } else if (event.key === 'Enter' && event.ctrlKey) {
+    event.preventDefault();
+    presetLoadProjectButton.click();
+  } else if (event.key.toLowerCase() === 'f') {
+    event.preventDefault();
+    presetFavoriteButton.click();
+  } else if (event.key === 'Escape' && presetSearchInput.value) {
+    presetSearchInput.value = '';
+    renderPresetBrowser();
+    renderPresetPreview();
+  } else if (event.key === 'Escape' && presetPreviewBaseProject) {
+    event.preventDefault();
+    const baseProject = cloneValue(presetPreviewBaseProject);
+    clearPresetPreviewState();
+    void applyProject(baseProject);
+  }
+});
 
 if (applyTemplateButton) {
   applyTemplateButton.addEventListener('click', async () => {
@@ -9798,6 +10058,7 @@ outputScaleSelect.addEventListener('change', async () => {
 
 const initPresets = async () => {
   loadPresetThumbnails();
+  loadPresetPreferences();
 
   // Try to load presets - may not be available in testing environment
   console.log('[Presets] window.visualSynth exists:', !!window.visualSynth);
@@ -9816,11 +10077,7 @@ const initPresets = async () => {
   presets.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
   presetSelect.innerHTML = '';
-  presetLibrary = presets.map((preset) => ({
-    name: preset.name,
-    path: preset.path,
-    category: preset.category
-  }));
+  presetLibrary = presets;
   presets.forEach((preset) => {
     const option = document.createElement('option');
     option.value = preset.path;
@@ -9828,19 +10085,21 @@ const initPresets = async () => {
     presetSelect.appendChild(option);
   });
   refreshPresetCategories();
+  renderPresetQuickFilters();
+  selectedPresetPath = presets[0]?.path ?? '';
+  presetSelect.value = selectedPresetPath;
   // Defer browser render to avoid blocking the loading sequence with 100+ DOM nodes
-  setTimeout(() => renderPresetBrowser(), 0);
+  setTimeout(() => {
+    renderPresetBrowser();
+    renderPresetPreview();
+  }, 0);
   const hasPresets = presets.length > 0;
   presetPrevButton.disabled = !hasPresets;
   presetNextButton.disabled = !hasPresets;
   applyPresetButton.disabled = !hasPresets;
   presetShuffleButton.disabled = !hasPresets;
-};
-
-const setPresetSelectionStatus = (reason?: string) => {
-  if (!presetSelect.value) return;
-  const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
-  setStatus(`${reason ? `${reason}: ` : ''}Preset selected: ${name}`);
+  presetLoadProjectButton.disabled = !hasPresets;
+  presetFavoriteButton.disabled = !hasPresets;
 };
 
 const updateGravityWells = (time: number, dt: number) => {
@@ -11458,7 +11717,7 @@ const render = (time: number) => {
     currentFps
   );
 
-  if (cadence.shouldBroadcastOutput) {
+  if (cadence.shouldBroadcastOutput && !presetPreviewBaseProject) {
     lastOutputBroadcast = time;
     const broadcastScene = activeScene;
     const generatorIds = broadcastScene ? collectSceneGeneratorIds(broadcastScene) : new Set<string>();

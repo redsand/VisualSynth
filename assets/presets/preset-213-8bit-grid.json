@@ -45,16 +45,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-8bit-grid"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-8bit-grid",
           "name": "8-Bit Grid",
+          "role": "core",
           "enabled": true,
           "opacity": 0.88,
           "blendMode": "screen",
@@ -64,6 +65,7 @@
             "scale": 1,
             "rotation": 0
           },
+          "generatorId": "gen-8bit-grid",
           "params": {
             "opacity": 0.88,
             "enabled": true,

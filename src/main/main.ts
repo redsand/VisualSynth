@@ -15,6 +15,7 @@ import {
 } from '../shared/project';
 import { deserializeProject } from '../shared/serialization';
 import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
+import { buildPresetIndexEntry } from '../shared/presetIndex';
 import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
 
 const isDev = !app.isPackaged;
@@ -558,24 +559,14 @@ ipcMain.handle('presets:list', async () => {
       try {
         const content = await fs.promises.readFile(presetPath, 'utf-8');
         const data = JSON.parse(content);
-        // Handle both v2 (data.name) and v3 (data.metadata.name) formats
-        const usesMetadata = data.version === 3 || data.version === 4 || data.version === 5 || data.version === 6;
-        const presetName =
-          usesMetadata && data.metadata?.name
-            ? data.metadata.name
-            : typeof data.name === 'string' && data.name.length > 0
-              ? data.name
-              : file;
-        const presetCategory =
-          usesMetadata && data.metadata?.category
-            ? data.metadata.category
-            : typeof data.category === 'string'
-              ? data.category
-              : 'General';
-        return { name: presetName, category: presetCategory, path: presetPath };
+        return buildPresetIndexEntry(presetPath, data);
       } catch (error) {
         console.error(`[Presets] Failed to read/parse ${file}:`, error);
-        return { name: `ERR: ${(error as Error).message.substring(0, 30)}`, category: 'General', path: presetPath };
+        return buildPresetIndexEntry(presetPath, {
+          name: file,
+          metadata: { importedFrom: 'Unreadable' },
+          category: 'Utility/Test'
+        });
       }
     })
   );

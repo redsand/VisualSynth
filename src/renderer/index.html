@@ -49,15 +49,25 @@
               <option value="output">Output</option>
             </select>
           </label>
-          <label class="visual-mode-route">
-            Visual Mode
-            <select id="visual-mode-select">
-              <option value="mode-cosmic">Cosmic</option>
-              <option value="mode-ignite">Ignite</option>
-              <option value="mode-minimal">Minimal</option>
-              <option value="mode-acid">Acid</option>
-            </select>
-          </label>
+          <div class="visual-mode-group">
+            <label class="visual-mode-route">
+              Visual Mode
+              <select id="visual-mode-select">
+                <option value="mode-cosmic">Cosmic</option>
+                <option value="mode-ignite">Ignite</option>
+                <option value="mode-minimal">Minimal</option>
+                <option value="mode-acid">Acid</option>
+              </select>
+            </label>
+            <div class="project-quick-actions" aria-label="Project actions">
+              <button id="topbar-open-project" type="button" class="project-quick-button" aria-label="Open Project" title="Open Project">
+                <span aria-hidden="true">📂</span>
+              </button>
+              <button id="topbar-save-project" type="button" class="project-quick-button" aria-label="Save Project" title="Save Project">
+                <span aria-hidden="true">💾</span>
+              </button>
+            </div>
+          </div>
           <div class="summary-chips">
             <button type="button" id="summary-auto" class="summary-chip hidden" data-mode="scene">Auto: 0</button>
           </div>
@@ -105,23 +115,40 @@
             </div>
             <div class="panel-block" id="preset-explorer">
               <h3>Preset Explorer</h3>
-              <label class="scene-label">
-                Preset
-                <select id="preset-select"></select>
-              </label>
+              <div class="preset-toolbar">
+                <input id="preset-search" type="search" placeholder="Search presets, families, mood, source..." />
+                <button id="preset-shuffle" type="button">Shuffle</button>
+              </div>
               <div class="scene-row">
                 <label class="scene-inline">
                   Category
                   <select id="preset-category"></select>
                 </label>
-                <button id="preset-shuffle" type="button">Shuffle</button>
+                <div id="preset-results-count" class="preset-results-count">0 presets</div>
               </div>
-              <div class="scene-row">
-                <button id="preset-prev" type="button">Previous</button>
-                <button id="preset-next" type="button">Next</button>
-                <button id="btn-apply-preset" type="button">Add Preset</button>
+              <div id="preset-quick-filters" class="preset-quick-filters"></div>
+              <label class="scene-label hidden">
+                Preset
+                <select id="preset-select"></select>
+              </label>
+              <div class="preset-browser-toolbar">
+                <div class="preset-browser-actions">
+                  <button id="preset-prev" type="button">Previous</button>
+                  <button id="preset-next" type="button">Next</button>
+                </div>
               </div>
               <div id="preset-browser" class="preset-browser"></div>
+              <div id="preset-preview" class="preset-preview">
+                <div id="preset-preview-thumb" class="preset-preview-thumb"></div>
+                <div id="preset-preview-name" class="preset-preview-name">No preset selected</div>
+                <div id="preset-preview-meta" class="preset-preview-meta">Choose a preset to inspect it.</div>
+                <div id="preset-preview-badges" class="preset-preview-badges"></div>
+                <div id="preset-preview-actions" class="preset-preview-actions">
+                  <button id="btn-apply-preset" type="button"><span class="preset-action-icon">+</span><span>Add</span></button>
+                  <button id="preset-load-project" type="button"><span class="preset-action-icon">▶</span><span>Activate</span></button>
+                  <button id="preset-favorite" type="button"><span class="preset-action-icon">♥</span><span>Favorite</span></button>
+                </div>
+              </div>
             </div>
             <div class="panel-block">
               <h3>Layer Quick Controls</h3>
