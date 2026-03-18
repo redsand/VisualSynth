@@ -224,10 +224,11 @@ export const createMixerPanel = ({
 
     container.appendChild(envSection);
 
-    // Color Palette Section — mirrors the design tab exactly
+// Color Palette Section — mirrors the design tab exactly
     const paletteProject = getProjectData();
     const paletteSection = document.createElement('div');
     paletteSection.className = 'panel-block';
+    paletteSection.style.marginTop = '12px';
     paletteSection.innerHTML = '<h3>Color Palette</h3>';
 
     // Palette select

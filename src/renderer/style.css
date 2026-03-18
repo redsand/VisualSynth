@@ -1381,6 +1381,28 @@ body[data-mode='matrix'] .safe-mode {
   gap: 8px;
 }
 
+.perf-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+}
+
+.perf-palette-swatch {
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.perf-palette-swatch:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.perf-palette-swatch.active {
+  border-color: #8fd6ff;
+}
+
 .macro-row {
   display: grid;
   grid-template-columns: 70px 1fr 44px;
@@ -1996,13 +2018,21 @@ body[data-mode='matrix'] .safe-mode {
 }
 
 .mini-meter {
-  width: 6px !important;
-  height: 24px !important;
+  width: 100% !important;
+  height: 6px !important;
   margin-bottom: 0;
+  align-items: flex-start !important;
+}
+
+.mini-meter .mixer-meter-fill {
+  width: 0%;
+  height: 100%;
+  transition: width 0.05s ease, background 0.2s ease;
 }
 
 .mixer-envelope-panel {
   margin-top: 20px;
+  margin-bottom: 10px;
   padding: 12px;
   background: #111c2d;
   border: 1px solid #22344a;

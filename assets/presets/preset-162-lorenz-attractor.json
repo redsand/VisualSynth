@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-lorenz-attractor-1",
+          "id": "gen-lorenz-attractor",
           "name": "Lorenz Attractor",
           "role": "core",
           "enabled": true,

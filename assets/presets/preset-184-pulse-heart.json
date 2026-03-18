@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-pulse-heart-1",
+          "id": "gen-pulse-heart",
           "name": "Pulse Heart",
           "role": "core",
           "enabled": true,

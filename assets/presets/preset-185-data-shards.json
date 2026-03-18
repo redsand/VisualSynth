@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-data-shards-1",
+          "id": "gen-data-shards",
           "name": "Data Shards",
           "role": "core",
           "enabled": true,

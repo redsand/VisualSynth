@@ -37,8 +37,8 @@ export const createPerformancePanel = ({
   const padBank = document.getElementById('pad-bank') as HTMLDivElement;
   const padMapGrid = document.getElementById('pad-map-grid') as HTMLDivElement;
   const padMapBank = document.getElementById('pad-map-bank') as HTMLDivElement;
-  const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
-  const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
+  const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement | null;
+  const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement | null;
   const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
   const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
   const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
@@ -302,7 +302,7 @@ export const createPerformancePanel = ({
     const scene = store.getState().project.scenes.find((item) => item.id === store.getState().project.activeSceneId);
     if (!scene) return;
     const spectrumLayer = scene.layers.find((layer) => layer.id === 'layer-spectrum');
-    if (spectrumLayer) perfToggleSpectrum.checked = spectrumLayer.enabled;
+    if (spectrumLayer && perfToggleSpectrum) perfToggleSpectrum.checked = spectrumLayer.enabled;
   };
 
   const updateMetrics = () => {
@@ -364,19 +364,23 @@ export const createPerformancePanel = ({
     updateOutputUI();
   });
 
-  perfToggleSpectrum.addEventListener('change', () => {
-    const scene = store.getState().project.scenes.find((item) => item.id === store.getState().project.activeSceneId);
-    const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
-    if (spectrumLayer) {
-      spectrumLayer.enabled = perfToggleSpectrum.checked;
-      onLayerListChanged();
-      setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
-    }
-  });
+  if (perfToggleSpectrum) {
+    perfToggleSpectrum.addEventListener('change', () => {
+      const scene = store.getState().project.scenes.find((item) => item.id === store.getState().project.activeSceneId);
+      const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
+      if (spectrumLayer && perfToggleSpectrum) {
+        spectrumLayer.enabled = perfToggleSpectrum.checked;
+        onLayerListChanged();
+        setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
+      }
+    });
+  }
 
-  perfAddLayerButton.addEventListener('click', () => {
-    onAddLayerShortcut();
-  });
+  if (perfAddLayerButton) {
+    perfAddLayerButton.addEventListener('click', () => {
+      onAddLayerShortcut();
+    });
+  }
 
   padBank.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;

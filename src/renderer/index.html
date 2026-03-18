@@ -82,38 +82,6 @@
 <section class="left-panel">
           <div id="mode-performance-left" class="mode-pane">
             <h2>Performance</h2>
-            <div id="scene-strip" class="panel-block scene-strip">
-              <div class="scene-strip-header">
-                <h3>Scene Strip</h3>
-                <div class="scene-strip-controls">
-                  <span class="scene-strip-label">View</span>
-                  <button type="button" class="scene-strip-toggle active" data-scene-view="cards">Cards</button>
-                  <button type="button" class="scene-strip-toggle" data-scene-view="list">List</button>
-                </div>
-              </div>
-              <label class="scene-label">
-                Active Scene
-                <select id="scene-select"></select>
-              </label>
-              <label class="scene-label">
-                Quantize
-                <select id="quantize-select">
-                  <option value="quarter">1/4</option>
-                  <option value="half">1/2</option>
-                  <option value="bar" selected>1 Bar</option>
-                </select>
-              </label>
-              <div class="scene-row">
-                <button id="queue-scene">Queue</button>
-                <button id="activate-scene" type="button">Activate</button>
-              </div>
-              <div id="bpm-display" class="bpm-display">BPM: --</div>
-              <div id="scene-strip-cards" class="scene-strip-cards"></div>
-              <div id="scene-strip-list" class="scene-strip-list hidden"></div>
-              <div class="scene-strip-add">
-                <button id="scene-add-blank" type="button">New Blank Scene</button>
-              </div>
-            </div>
             <div class="panel-block">
               <h3>Performance Mixer</h3>
               <div class="scene-row">
@@ -156,6 +124,10 @@
               <div id="preset-browser" class="preset-browser"></div>
             </div>
             <div class="panel-block">
+              <h3>Layer Quick Controls</h3>
+              <div class="layer-list" id="layer-list"></div>
+            </div>
+            <div class="panel-block">
               <h3>64-Pad Performance</h3>
               <div class="bank-row" id="pad-bank">
                 <button type="button" data-bank="A" class="bank-button active">A</button>
@@ -165,27 +137,6 @@
               </div>
               <div id="pad-grid" class="pad-grid"></div>
               <div class="pad-hint">Pads 32-63 trigger strobe.</div>
-            </div>
-            <div class="panel-block">
-              <h3>Quick Toggles</h3>
-              <label class="scene-label">
-                <input type="checkbox" id="perf-toggle-spectrum" /> Spectrum Bars
-              </label>
-              <div id="spectrum-hint" class="hint">
-                These bars are the Spectrum layer. Toggle off to hide them.
-                <button id="spectrum-hint-dismiss" type="button">Got it</button>
-              </div>
-            </div>
-            <div class="panel-block">
-              <h3>Add Layers</h3>
-              <div class="scene-row">
-                <button id="perf-add-layer" type="button">Add Layer...</button>
-              </div>
-              <div class="output-hint">Opens Scene mode Generator Library.</div>
-            </div>
-            <div class="panel-block">
-              <h3>Layer Quick Controls</h3>
-              <div class="layer-list" id="layer-list"></div>
             </div>
           </div>
 
@@ -814,11 +765,11 @@
             <h2>Macros</h2>
             <div id="macro-list" class="macro-list"></div>
             <div class="panel-block">
-              <h3>Preset Playlist</h3>
-              <div class="scene-row">
-                <button id="playlist-add" type="button">Add Selected</button>
-                <button id="playlist-remove" type="button">Remove</button>
-              </div>
+              <h3>Color Palette</h3>
+              <div id="perf-palette-grid" class="perf-palette-grid"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Scene Playlist</h3>
               <div class="scene-row">
                 <label class="scene-inline">
                   Slot Sec
@@ -835,8 +786,6 @@
               </div>
               <div id="playlist-list" class="marker-list"></div>
             </div>
-            <!-- VJ Output Integration Panel -->
-            <div id="output-manager-container" class="panel-block"></div>
           </div>
 
           <div id="mode-scene-right" class="mode-pane hidden">
@@ -1097,26 +1046,8 @@
 
           <div id="mode-system-right" class="mode-pane hidden">
             <h2>System</h2>
-            <div class="panel-block">
-              <h3>Latency Dashboard</h3>
-              <div id="latency-summary" class="output-hint">Audio: -- | Output: -- | MIDI: --</div>
-            </div>
-            <div class="panel-block">
-              <h3>Performance Guardrails</h3>
-              <div id="guardrail-status" class="output-hint">Guardrails: OK</div>
-              <div id="guardrail-hint" class="output-hint">Output scale: 100%</div>
-            </div>
-            <div class="panel-block">
-              <h3>Diagnostics</h3>
-              <div id="diag-fps">FPS: --</div>
-              <div id="diag-gpu">GPU: WebGL2</div>
-              <div id="diag-latency">Audio Latency: --</div>
-              <div id="diag-output-latency">Output Latency: --</div>
-              <div id="diag-midi-latency">MIDI Latency: --</div>
-              <div id="diag-watchdog">Watchdog: OK</div>
-              <div id="diag-webgl" class="diag-webgl"></div>
-              <button id="diag-webgl-copy" type="button">Copy WebGL Diagnostics</button>
-            </div>
+            <!-- VJ Output Integration Panel -->
+            <div id="output-manager-container" class="panel-block"></div>
             <div class="panel-block">
               <h3>Output</h3>
               <div class="output-row">
@@ -1153,6 +1084,26 @@
               </div>
               <div id="diff-status" class="output-hint">No incoming project loaded.</div>
               <div id="diff-sections" class="diff-sections"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Diagnostics</h3>
+              <div id="diag-fps">FPS: --</div>
+              <div id="diag-gpu">GPU: WebGL2</div>
+              <div id="diag-latency">Audio Latency: --</div>
+              <div id="diag-output-latency">Output Latency: --</div>
+              <div id="diag-midi-latency">MIDI Latency: --</div>
+              <div id="diag-watchdog">Watchdog: OK</div>
+              <div id="diag-webgl" class="diag-webgl"></div>
+              <button id="diag-webgl-copy" type="button">Copy WebGL Diagnostics</button>
+            </div>
+            <div class="panel-block">
+              <h3>Performance Guardrails</h3>
+              <div id="guardrail-status" class="output-hint">Guardrails: OK</div>
+              <div id="guardrail-hint" class="output-hint">Output scale: 100%</div>
+            </div>
+            <div class="panel-block">
+              <h3>Latency Dashboard</h3>
+              <div id="latency-summary" class="output-hint">Audio: -- | Output: -- | MIDI: --</div>
             </div>
           </div>
         </section>

@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-bubble-pop-1",
+          "id": "gen-bubble-pop",
           "name": "Bubble Pop",
           "role": "core",
           "enabled": true,

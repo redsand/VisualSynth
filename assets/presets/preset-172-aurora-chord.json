@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-aurora-chord-1",
+          "id": "gen-aurora-chord",
           "name": "Aurora Chord",
           "role": "core",
           "enabled": true,

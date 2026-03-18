@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-digital-rain-v2-1",
+          "id": "gen-digital-rain-v2",
           "name": "Digital Rain V2",
           "role": "core",
           "enabled": true,

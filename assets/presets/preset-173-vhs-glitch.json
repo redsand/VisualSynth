@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-vhs-glitch-1",
+          "id": "gen-vhs-glitch",
           "name": "VHS Glitch Pro",
           "role": "core",
           "enabled": true,

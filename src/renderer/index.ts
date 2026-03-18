@@ -178,14 +178,14 @@ const mixerRight = document.getElementById('mode-mixer-right') as HTMLDivElement
 const mappingRight = document.getElementById('mode-mapping-right') as HTMLDivElement;
 const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
 const systemRight = document.getElementById('mode-system-right') as HTMLDivElement;
-const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement;
+const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement | null;
 const sceneStripAnchor = document.getElementById('scene-strip-anchor') as HTMLDivElement;
-const sceneStripCards = document.getElementById('scene-strip-cards') as HTMLDivElement;
-const sceneStripList = document.getElementById('scene-strip-list') as HTMLDivElement;
-const sceneStripViewButtons = Array.from(
-  sceneStrip.querySelectorAll<HTMLButtonElement>('button[data-scene-view]')
-);
-const addBlankSceneButton = document.getElementById('scene-add-blank') as HTMLButtonElement;
+const sceneStripCards = document.getElementById('scene-strip-cards') as HTMLDivElement | null;
+const sceneStripList = document.getElementById('scene-strip-list') as HTMLDivElement | null;
+const sceneStripViewButtons = sceneStrip
+  ? Array.from(sceneStrip.querySelectorAll<HTMLButtonElement>('button[data-scene-view]'))
+  : [];
+const addBlankSceneButton = document.getElementById('scene-add-blank') as HTMLButtonElement | null;
 const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
 const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
@@ -205,14 +205,13 @@ const guardrailHint = document.getElementById('guardrail-hint') as HTMLDivElemen
 const mixRoleCore = document.getElementById('mix-role-core') as HTMLInputElement;
 const mixRoleSupport = document.getElementById('mix-role-support') as HTMLInputElement;
 const mixRoleAtmosphere = document.getElementById('mix-role-atmosphere') as HTMLInputElement;
-const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
-const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement;
-const spectrumHintDismiss = document.getElementById('spectrum-hint-dismiss') as HTMLButtonElement;
-const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
+const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement | null;
+const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement | null;
+const spectrumHintDismiss = document.getElementById('spectrum-hint-dismiss') as HTMLButtonElement | null;
+const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement | null;
 const designAddLayerButton = document.getElementById('design-add-layer') as HTMLButtonElement;
 const generatorPanel = document.getElementById('generator-panel') as HTMLDivElement;
-const playlistAddButton = document.getElementById('playlist-add') as HTMLButtonElement;
-const playlistRemoveButton = document.getElementById('playlist-remove') as HTMLButtonElement;
+const perfPaletteGrid = document.getElementById('perf-palette-grid') as HTMLDivElement;
 const playlistPlayButton = document.getElementById('playlist-play') as HTMLButtonElement;
 const playlistStopButton = document.getElementById('playlist-stop') as HTMLButtonElement;
 const playlistList = document.getElementById('playlist-list') as HTMLDivElement;
@@ -241,11 +240,11 @@ const padGrid = document.getElementById('pad-grid') as HTMLDivElement;
 const padBank = document.getElementById('pad-bank') as HTMLDivElement;
 const padMapGrid = document.getElementById('pad-map-grid') as HTMLDivElement;
 const padMapBank = document.getElementById('pad-map-bank') as HTMLDivElement;
-const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement;
+const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement | null;
 const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
-const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement;
-const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonElement;
-const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement;
+const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement | null;
+const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonElement | null;
+const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement | null;
 const quantizeHud = document.getElementById('quantize-hud') as HTMLDivElement;
 const safeModeBanner = document.getElementById('safe-mode-banner') as HTMLDivElement;
 const mappingHud = document.getElementById('mapping-hud') as HTMLDivElement;
@@ -281,7 +280,7 @@ const bpmMinInput = document.getElementById('bpm-min') as HTMLInputElement;
 const bpmMaxInput = document.getElementById('bpm-max') as HTMLInputElement;
 const bpmInterfaceSelect = document.getElementById('bpm-interface') as HTMLSelectElement;
 const bpmNetworkToggle = document.getElementById('bpm-network-toggle') as HTMLButtonElement;
-const bpmDisplay = document.getElementById('bpm-display') as HTMLDivElement;
+const bpmDisplay = document.getElementById('bpm-display') as HTMLDivElement | null;
 const beatSensitivityInput = document.getElementById('beat-sensitivity') as HTMLInputElement;
 const beatFilterSelect = document.getElementById('beat-filter') as HTMLSelectElement;
 const beatHoldOffInput = document.getElementById('beat-holdoff') as HTMLInputElement;
@@ -611,17 +610,14 @@ let playlistOverrides: Record<string, Partial<LayerConfig>> = {};
 let fpsTracker = { fpsAccumulatorMs: 0, frameCount: 0 };
 
 const triggerPlaylistSlot = async (index: number) => {
-  if (index < 0 || index >= playlist.length) return;
+  const scenes = currentProject.scenes;
+  if (index < 0 || index >= scenes.length) return;
   playlistIndex = index;
-  const item = playlist[index];
-  
-  if (item.crossfade > 0) {
-    await crossfadeToPreset(item.path, item.name, item.crossfade);
-  } else {
-    await applyPresetPath(item.path, 'Playlist');
-  }
-  
-  // Update UI to highlight active slot
+  const scene = scenes[index];
+
+  // applyScene handles transitions via sceneRuntime
+  applyScene(scene.id);
+  setStatus(`Playlist: ${scene.name}`);
   renderPlaylist();
 };
 
@@ -1434,83 +1430,39 @@ const crossfadeToPreset = async (path: string, name: string, fadeSeconds: number
 
 const renderPlaylist = () => {
   playlistList.innerHTML = '';
-  if (playlist.length === 0) {
+  const scenes = currentProject.scenes;
+  if (scenes.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'matrix-empty';
-    empty.textContent = 'No presets queued.';
+    empty.textContent = 'No scenes in timeline.';
     playlistList.appendChild(empty);
     return;
   }
-  playlist.forEach((item, index) => {
+  scenes.forEach((scene, index) => {
     const row = document.createElement('div');
     const isActive = playlistIndex === index && playlistActive;
     row.className = `marker-row playlist-slot${isActive ? ' active' : ''}`;
-    
+
     const indexLabel = document.createElement('div');
     indexLabel.className = 'slot-index';
     indexLabel.textContent = String(index + 1);
-    
+
     const name = document.createElement('div');
     name.className = 'slot-name';
-    name.textContent = item.name;
+    name.textContent = scene.name;
 
-    const durLabel = document.createElement('label');
-    durLabel.className = 'slot-inline';
-    durLabel.innerHTML = `<span class="slot-mini-label">Dur</span>`;
-    const durationInput = document.createElement('input');
-    durationInput.type = 'number';
-    durationInput.className = 'slot-input';
-    durationInput.value = String(item.duration);
-    durationInput.min = '1';
-    durationInput.addEventListener('change', () => {
-      item.duration = Math.max(1, Number(durationInput.value) || 16);
-      savePlaylist();
-    });
-    durLabel.appendChild(durationInput);
-
-    const fadeLabel = document.createElement('label');
-    fadeLabel.className = 'slot-inline';
-    fadeLabel.innerHTML = `<span class="slot-mini-label">Fade</span>`;
-    const fadeInput = document.createElement('input');
-    fadeInput.type = 'number';
-    fadeInput.className = 'slot-input';
-    fadeInput.value = String(item.crossfade);
-    fadeInput.min = '0';
-    fadeInput.step = '0.5';
-    fadeInput.addEventListener('change', () => {
-      item.crossfade = Math.max(0, Number(fadeInput.value) || 2);
-      savePlaylist();
-    });
-    fadeLabel.appendChild(fadeInput);
-
-    const controls = document.createElement('div');
-    controls.className = 'slot-controls';
-
-    const playNow = document.createElement('button');
-    playNow.className = 'slot-trigger';
-    playNow.textContent = '▶';
-    playNow.title = 'Trigger slot';
-    playNow.addEventListener('click', () => {
-      void triggerPlaylistSlot(index);
-    });
-
-    const remove = document.createElement('button');
-    remove.textContent = '✕';
-    remove.className = 'slot-remove';
-    remove.addEventListener('click', () => {
-      playlist = playlist.filter((_entry, i) => i !== index);
-      if (playlistIndex >= playlist.length) playlistIndex = 0;
-      savePlaylist();
-      renderPlaylist();
+    const trigger = document.createElement('button');
+    trigger.className = 'slot-trigger';
+    trigger.textContent = '▶';
+    trigger.title = 'Activate scene';
+    trigger.addEventListener('click', () => {
+      applyScene(scene.id);
+      setStatus(`Scene: ${scene.name}`);
     });
 
     row.appendChild(indexLabel);
     row.appendChild(name);
-    row.appendChild(durLabel);
-    row.appendChild(fadeLabel);
-    controls.appendChild(playNow);
-    controls.appendChild(remove);
-    row.appendChild(controls);
+    row.appendChild(trigger);
     playlistList.appendChild(row);
   });
 };
@@ -1716,7 +1668,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       await applyProject(resolvedProject);
     }
 
-    const presetName = playlist.find((item) => item.path === path)?.name ?? path;
+    const presetName = path.split(/[\\/]/).pop()?.replace(/\.\w+$/, '') ?? path;
     const message = `${reason ? `${reason}: ` : ''}Preset applied: ${presetName}`;
     if (migrationResult.warnings.length > 0) {
       setStatus(`${message} (${migrationResult.warnings.length} warnings - see console)`);
@@ -1745,22 +1697,22 @@ const auditionPreset = async (path: string) => {
 };
 
 const advancePlaylist = async () => {
-  if (playlist.length === 0) return;
-  
-  // Advance index
-  playlistIndex = (playlistIndex + 1) % playlist.length;
-  const item = playlist[playlistIndex];
-  
-  setStatus(`Sequencing: ${item.name}...`);
+  const scenes = currentProject.scenes;
+  if (scenes.length === 0) return;
+
+  // Advance index through scene timeline
+  playlistIndex = (playlistIndex + 1) % scenes.length;
+
+  setStatus(`Sequencing: ${scenes[playlistIndex].name}...`);
   await triggerPlaylistSlot(playlistIndex);
-  
+
   // Schedule next if still active
   if (playlistActive) {
     if (playlistTimer) window.clearTimeout(playlistTimer);
-    const durationMs = (item.duration || 16) * 1000;
+    const slotSec = Number(playlistSlotSeconds.value) || 16;
     playlistTimer = window.setTimeout(() => {
       void advancePlaylist();
-    }, durationMs);
+    }, slotSec * 1000);
   }
 };
 
@@ -1967,12 +1919,12 @@ const syncPerformanceToggles = () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
   const spectrumLayer = scene.layers.find((layer) => layer.id === 'layer-spectrum');
-  if (spectrumLayer) perfToggleSpectrum.checked = spectrumLayer.enabled;
+  if (spectrumLayer && perfToggleSpectrum) perfToggleSpectrum.checked = spectrumLayer.enabled;
 };
 
 const initSpectrumHint = () => {
   const dismissed = localStorage.getItem('visualsynth.spectrumHintDismissed') === '1';
-  spectrumHint.classList.toggle('hidden', dismissed);
+  spectrumHint?.classList.toggle('hidden', dismissed);
 };
 
 const updateSafeModeBanner = () => {
@@ -2566,6 +2518,7 @@ const removeScene = (sceneId: string) => {
     refreshSceneSelect();
   }
   renderSceneStrip();
+  renderPlaylist();
   setStatus('Scene removed.');
 };
 
@@ -2587,14 +2540,15 @@ const updateOutputUI = () => {
 const setSceneStripView = (view: 'cards' | 'list') => {
   sceneStripView = view;
   localStorage.setItem('vs.sceneStrip.view', view);
-  sceneStripCards.classList.toggle('hidden', view !== 'cards');
-  sceneStripList.classList.toggle('hidden', view !== 'list');
+  sceneStripCards?.classList.toggle('hidden', view !== 'cards');
+  sceneStripList?.classList.toggle('hidden', view !== 'list');
   sceneStripViewButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.sceneView === view);
   });
 };
 
 const renderSceneStrip = () => {
+  if (!sceneStripCards || !sceneStripList) return;
   sceneStripCards.innerHTML = '';
   sceneStripList.innerHTML = '';
   if (currentProject.scenes.length === 0) {
@@ -2813,6 +2767,7 @@ const updateSceneTimelineProgress = (blendSnapshot: { mix: number; inTransition:
 };
 
 const refreshSceneSelect = () => {
+  if (!sceneSelect) return;
   sceneSelect.innerHTML = '';
   currentProject.scenes.forEach((scene) => {
     const option = document.createElement('option');
@@ -5255,7 +5210,7 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
     console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${runtime.activeGeneratorCount} active generators`);
   }
   syncRendererPalette?.();
-  sceneSelect.value = sceneId;
+  if (sceneSelect) sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
     sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
   }
@@ -5415,6 +5370,7 @@ const addSceneFromPreset = async (presetPath: string) => {
   selectedSceneId = newScene.id;
   renderSceneStrip();
   renderSceneTimeline();
+  renderPlaylist();
   setStatus(`Scene added from preset: ${newScene.name}`);
   logPresetDebug(
     traceId,
@@ -5464,10 +5420,12 @@ const updateBpmDisplay = () => {
       : bpmSource === 'auto'
         ? autoBpm ?? 0
         : networkBpm ?? 0;
-  bpmDisplay.innerHTML =
-    value > 0
-      ? `BPM: <strong>${value.toFixed(1)}</strong> (${sourceLabel})`
-      : `BPM: -- (${sourceLabel})`;
+  if (bpmDisplay) {
+    bpmDisplay.innerHTML =
+      value > 0
+        ? `BPM: <strong>${value.toFixed(1)}</strong> (${sourceLabel})`
+        : `BPM: -- (${sourceLabel})`;
+  }
 };
 
 const formatDurationMs = (ms: number) => {
@@ -7304,6 +7262,7 @@ const applyPaletteSelection = (paletteId: string) => {
       activePaletteId: palette.id
     };
   }
+  renderPerfPaletteGrid();
 };
 
 const resetPaletteToSceneDefault = () => {
@@ -7376,7 +7335,31 @@ const initPalettes = () => {
   if (paletteResetBtn) {
     paletteResetBtn.onclick = resetPaletteToSceneDefault;
   }
+  renderPerfPaletteGrid();
 };
+
+function renderPerfPaletteGrid() {
+  if (!perfPaletteGrid) return;
+  perfPaletteGrid.innerHTML = '';
+  const palettes = currentProject.palettes;
+  palettes.forEach((palette) => {
+    const swatch = document.createElement('div');
+    swatch.className = `perf-palette-swatch${palette.id === currentProject.activePaletteId ? ' active' : ''}`;
+    swatch.title = palette.name;
+    const gradient = palette.colors.map((c, i) => {
+      const pct = (i / (palette.colors.length - 1)) * 100;
+      return `${c} ${pct}%`;
+    }).join(', ');
+    swatch.style.background = `linear-gradient(to right, ${gradient})`;
+    swatch.addEventListener('click', () => {
+      applyPaletteSelection(palette.id);
+      paletteSelect.value = palette.id;
+      renderPerfPaletteGrid();
+      setStatus(`Palette: ${palette.name}`);
+    });
+    perfPaletteGrid.appendChild(swatch);
+  });
+}
 
 const applyStyleControls = () => {
   if (!activeStyleId) return;
@@ -8303,7 +8286,7 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
       const delta = action === 'scene-next' ? 1 : -1;
       const nextIndex = (currentIndex + delta + currentProject.scenes.length) % currentProject.scenes.length;
       const nextScene = currentProject.scenes[nextIndex];
-      sceneSelect.value = nextScene.id;
+      if (sceneSelect) sceneSelect.value = nextScene.id;
       applyScene(nextScene.id);
       setStatus(`Scene active: ${nextScene.name}`);
     }
@@ -8893,7 +8876,7 @@ if (queueSceneButton) {
     const targetSceneId = selectedSceneId ?? sceneSelect?.value;
     if (!targetSceneId) return;
     const bpm = getActiveBpm();
-    const unit = quantizeSelect.value as QuantizationUnit;
+    const unit = (quantizeSelect?.value ?? 'bar') as QuantizationUnit;
     const scheduledTimeMs = getNextQuantizedTimeMs(performance.now(), bpm, unit);
     pendingSceneSwitch = { targetSceneId, scheduledTimeMs };
     const targetName =
@@ -9349,28 +9332,34 @@ requestMicPermissionButton.addEventListener('click', async () => {
   }
 });
 
-perfToggleSpectrum.addEventListener('change', () => {
-  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
-  const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
-  if (spectrumLayer) {
-    spectrumLayer.enabled = perfToggleSpectrum.checked;
-    recordPlaylistOverride('layer-spectrum', { enabled: perfToggleSpectrum.checked });
-    renderLayerList();
-    setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
-  }
-});
+if (perfToggleSpectrum) {
+  perfToggleSpectrum.addEventListener('change', () => {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
+    if (spectrumLayer) {
+      spectrumLayer.enabled = perfToggleSpectrum.checked;
+      recordPlaylistOverride('layer-spectrum', { enabled: perfToggleSpectrum.checked });
+      renderLayerList();
+      setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
+    }
+  });
+}
 
-spectrumHintDismiss.addEventListener('click', () => {
-  localStorage.setItem('visualsynth.spectrumHintDismissed', '1');
-  spectrumHint.classList.add('hidden');
-});
+if (spectrumHintDismiss) {
+  spectrumHintDismiss.addEventListener('click', () => {
+    localStorage.setItem('visualsynth.spectrumHintDismissed', '1');
+    spectrumHint?.classList.add('hidden');
+  });
+}
 
-perfAddLayerButton.addEventListener('click', () => {
-  setMode('scene');
-  generatorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  generatorSelect.focus();
-  setStatus('Scene mode: use Generator Library to add layers.');
-});
+if (perfAddLayerButton) {
+  perfAddLayerButton.addEventListener('click', () => {
+    setMode('scene');
+    generatorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    generatorSelect.focus();
+    setStatus('Scene mode: use Generator Library to add layers.');
+  });
+}
 
 designAddLayerButton.addEventListener('click', () => {
   setMode('scene');
@@ -9379,42 +9368,16 @@ designAddLayerButton.addEventListener('click', () => {
   setStatus('Scene mode: use Generator Library to add layers.');
 });
 
-playlistAddButton.addEventListener('click', () => {
-  if (!presetSelect.value) return;
-  const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
-  const exists = playlist.some((item) => item.path === presetSelect.value);
-  if (!exists) {
-    playlist.push({ 
-      name, 
-      path: presetSelect.value,
-      duration: Number(playlistSlotSeconds.value) || 16,
-      crossfade: Number(playlistFadeSeconds.value) || 2
-    });
-    savePlaylist();
-    renderPlaylist();
-    setStatus(`Added to playlist: ${name}`);
-  }
-});
-
-playlistRemoveButton.addEventListener('click', () => {
-  if (playlist.length === 0) return;
-  playlist.pop();
-  if (playlistIndex >= playlist.length) playlistIndex = 0;
-  savePlaylist();
-  renderPlaylist();
-});
-
 playlistPlayButton.addEventListener('click', async () => {
-  if (playlist.length === 0) return;
+  if (currentProject.scenes.length === 0) return;
   stopPlaylist();
   playlistActive = true;
   playlistOverrides = {};
   playlistIndex = 0;
-  
-  const firstItem = playlist[0];
+
   await triggerPlaylistSlot(0);
-  
-  const slotMs = Math.max(2000, (firstItem.duration || 16) * 1000);
+
+  const slotMs = Math.max(2000, (Number(playlistSlotSeconds.value) || 16) * 1000);
   playlistTimer = window.setTimeout(() => {
     void advancePlaylist();
   }, slotMs);
@@ -10211,7 +10174,7 @@ const render = (time: number) => {
   updateQuantizeHud(sceneSwitch.quantizeHudMessage);
   if (sceneSwitch.shouldApplyScene && pendingSceneSwitch) {
       applyScene(pendingSceneSwitch.targetSceneId);
-      setStatus(`Scene switched: ${sceneSelect.selectedOptions[0]?.textContent ?? 'Scene'}`);
+      setStatus(`Scene switched: ${sceneSelect?.selectedOptions[0]?.textContent ?? 'Scene'}`);
       pendingSceneSwitch = null;
   }
 
@@ -10322,11 +10285,6 @@ const render = (time: number) => {
   const modValue = (target: string, base: number) =>
     applyModMatrix(base, target, modSources, currentProject.modMatrix);
   const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
-  const moddedStyle = {
-    contrast: modValue('style.contrast', styleSettings.contrast),
-    saturation: modValue('style.saturation', styleSettings.saturation),
-    paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift)
-  };
   const macroSum = effectiveMacros.reduce(
     (acc, macro) => {
       macro.targets.forEach((target) => {
@@ -10350,17 +10308,22 @@ const render = (time: number) => {
     {} as Record<string, number>
   );
   const macroVal = (target: string) => macroSum[target] ?? 0;
+  const moddedStyle = {
+    contrast: modValue('style.contrast', styleSettings.contrast + macroVal('style.contrast')),
+    saturation: modValue('style.saturation', styleSettings.saturation + macroVal('style.saturation')),
+    paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift + macroVal('style.paletteShift'))
+  };
   const effectsActive = effects.enabled;
   let moddedEffects = effectsActive
     ? {
-        bloom: modValue('effects.bloom', effects.bloom),
-        blur: modValue('effects.blur', effects.blur),
-        chroma: modValue('effects.chroma', effects.chroma),
-        posterize: modValue('effects.posterize', effects.posterize),
-        kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope),
-        kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', 0), // Default to 0 if not present in project
-        feedback: modValue('effects.feedback', effects.feedback),
-        persistence: modValue('effects.persistence', effects.persistence)
+        bloom: modValue('effects.bloom', effects.bloom + macroVal('effects.bloom')),
+        blur: modValue('effects.blur', effects.blur + macroVal('effects.blur')),
+        chroma: modValue('effects.chroma', effects.chroma + macroVal('effects.chroma')),
+        posterize: modValue('effects.posterize', effects.posterize + macroVal('effects.posterize')),
+        kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope + macroVal('effects.kaleidoscope')),
+        kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', macroVal('effects.kaleidoscopeRotation')),
+        feedback: modValue('effects.feedback', effects.feedback + macroVal('effects.feedback')),
+        persistence: modValue('effects.persistence', effects.persistence + macroVal('effects.persistence'))
       }
     : {
         bloom: 0,
@@ -10379,19 +10342,19 @@ const render = (time: number) => {
     moddedFeedbackRotation = 0;
   }
   let moddedParticles = {
-    density: modValue('particles.density', particles.density),
-    speed: modValue('particles.speed', particles.speed),
-    size: modValue('particles.size', particles.size),
-    glow: modValue('particles.glow', particles.glow),
-    turbulence: modValue('particles.turbulence', particles.turbulence ?? 0.3),
-    audioLift: modValue('particles.audioLift', particles.audioLift ?? 0.5)
+    density: modValue('particles.density', particles.density + macroVal('particles.density')),
+    speed: modValue('particles.speed', particles.speed + macroVal('particles.speed')),
+    size: modValue('particles.size', particles.size + macroVal('particles.size')),
+    glow: modValue('particles.glow', particles.glow + macroVal('particles.glow')),
+    turbulence: modValue('particles.turbulence', (particles.turbulence ?? 0.3) + macroVal('particles.turbulence')),
+    audioLift: modValue('particles.audioLift', (particles.audioLift ?? 0.5) + macroVal('particles.audioLift'))
   };
   let moddedSdf = {
-    scale: modValue('sdf.scale', sdf.scale),
-    edge: modValue('sdf.edge', sdf.edge),
-    glow: modValue('sdf.glow', sdf.glow),
-    rotation: modValue('sdf.rotation', sdf.rotation),
-    fill: modValue('sdf.fill', sdf.fill)
+    scale: modValue('sdf.scale', sdf.scale + macroVal('sdf.scale')),
+    edge: modValue('sdf.edge', sdf.edge + macroVal('sdf.edge')),
+    glow: modValue('sdf.glow', sdf.glow + macroVal('sdf.glow')),
+    rotation: modValue('sdf.rotation', sdf.rotation + macroVal('sdf.rotation')),
+    fill: modValue('sdf.fill', sdf.fill + macroVal('sdf.fill'))
   };
   if (moddedEffects.persistence > 0) {
     const decay = 0.85 + moddedEffects.persistence * 0.14;

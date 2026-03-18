@@ -166,8 +166,14 @@ const patchMilkDropGlsl = (source: string): string => {
 
   // MilkDrop #define shortcuts that may appear in shader bodies
   // texsize in MilkDrop is vec4(w, h, 1/w, 1/h) — uTexSize is only vec2
+  // Must use #define (not global var) because GLSL ES can't init globals from uniforms
   if (/\btexsize\b/.test(afterMainStart) && !beforeMain.includes('#define texsize') && !beforeMain.includes('uniform vec4 texsize')) {
-    additions.push(`vec4 texsize = vec4(uTexSize, 1.0/uTexSize);`);
+    additions.push(`#define texsize vec4(uTexSize, 1.0/uTexSize)`);
+  }
+
+  // vUvOriginal: the transpiler maps uv_orig→vUvOriginal but the header doesn't declare it
+  if (/\bvUvOriginal\b/.test(source) && !beforeMain.includes('in vec2 vUvOriginal')) {
+    additions.push(`in vec2 vUvOriginal;`);
   }
 
   // ── 2. Auto-declare undeclared local variables in the shader body ──
@@ -236,33 +242,77 @@ const patchMilkDropGlsl = (source: string): string => {
     // For each undeclared variable, infer type from usage context
     if (undeclared.size > 0) {
       const decls: string[] = ['  // Auto-declared MilkDrop variables'];
+      const varTypes = new Map<string, string>();
       for (const vname of undeclared) {
-        // Heuristic: check if assigned from vec2/vec3/vec4 constructor, texture(), or .xy/.xyz
+        // Collect ALL assignment RHS to determine best type
         const usageRe = new RegExp(`\\b${vname}\\b\\s*=[^=]*`, 'g');
-        let type = 'vec4'; // default — most flexible
+        const candidates: string[] = [];
         let um: RegExpExecArray | null;
         while ((um = usageRe.exec(body)) !== null) {
           const rhs = um[0];
-          if (/=\s*vec2\s*\(/.test(rhs) || /\.xy\b/.test(rhs)) { type = 'vec2'; break; }
-          if (/=\s*vec3\s*\(/.test(rhs) || /\.xyz\b/.test(rhs) || /=\s*GetPixel|=\s*GetBlur|=\s*GetMain/.test(rhs)) { type = 'vec3'; break; }
-          if (/=\s*vec4\s*\(/.test(rhs) || /=\s*texture\s*\(/.test(rhs)) { type = 'vec4'; break; }
-          if (/=\s*mat2\s*\(/.test(rhs)) { type = 'mat2'; break; }
-          if (/=\s*mat3\s*\(/.test(rhs)) { type = 'mat3'; break; }
-          if (/=\s*(?:float|int|bool)?\s*\d/.test(rhs) || /=\s*(?:sin|cos|length|dot|abs|pow|sqrt|floor|ceil|atan|acos|asin|fract|clamp01|lum|sat)\s*\(/.test(rhs)) { type = 'float'; break; }
-          if (/=\s*\d+\.\d+/.test(rhs) || /=\s*\d+\s*[;,\)]/.test(rhs)) { type = 'float'; break; }
+          if (/=\s*vec2\s*\(/.test(rhs)) { candidates.push('vec2'); }
+          else if (/=\s*vec3\s*\(/.test(rhs) || /=\s*GetPixel|=\s*GetBlur|=\s*GetMain/.test(rhs)) { candidates.push('vec3'); }
+          else if (/=\s*vec4\s*\(/.test(rhs) || /=\s*texture\s*\(/.test(rhs)) { candidates.push('vec4'); }
+          else if (/=\s*mat2\s*\(/.test(rhs)) { candidates.push('mat2'); }
+          else if (/=\s*mat3\s*\(/.test(rhs)) { candidates.push('mat3'); }
+          else if (/=\s*(?:float|int|bool)?\s*\d/.test(rhs) || /=\s*(?:sin|cos|length|dot|abs|pow|sqrt|floor|ceil|atan|acos|asin|fract|clamp01|lum|sat|max|min|clamp|step|smoothstep)\s*\(/.test(rhs)) { candidates.push('float'); }
+          else if (/=\s*\d+\.\d+/.test(rhs) || /=\s*\d+\s*[;,)]/.test(rhs)) { candidates.push('float'); }
         }
-        // Check if used with .xy or .xyz accessor → must be vec
-        const accessRe = new RegExp(`\\b${vname}\\.(xy|xyz|xyzw|rg|rgb|rgba)\\b`);
-        const accessMatch = accessRe.exec(body);
-        if (accessMatch) {
-          const acc = accessMatch[1];
-          if (acc.length === 2) type = type === 'float' ? 'vec2' : type;
-          if (acc.length === 3) type = 'vec3';
-          if (acc.length === 4) type = 'vec4';
-          if (type === 'vec2' && acc.length === 3) type = 'vec3';
+        // Check if used as LHS with swizzle assignment: var.xyz = ... → must be vec
+        const lhsAccessRe = new RegExp(`\\b${vname}\\.(xy|xyz|xyzw|rg|rgb|rgba)\\s*=`, 'g');
+        let lhsMatch: RegExpExecArray | null;
+        let needsVecFromLhs = 0;
+        while ((lhsMatch = lhsAccessRe.exec(body)) !== null) {
+          needsVecFromLhs = Math.max(needsVecFromLhs, lhsMatch[1].length);
         }
+        // Determine type: prioritize vec types from assignments, fall back to float
+        let type = 'float'; // safer default — most undeclared MilkDrop vars are float
+        const vecCandidates = candidates.filter(c => c.startsWith('vec') || c.startsWith('mat'));
+        if (vecCandidates.length > 0) {
+          // Use the vec type that appears most, or the largest
+          type = vecCandidates[0];
+        } else if (candidates.length > 0) {
+          type = candidates[0];
+        }
+        // Override from LHS swizzle assignment (var.xyz = ...)
+        if (needsVecFromLhs >= 4) type = 'vec4';
+        else if (needsVecFromLhs >= 3 && type === 'float') type = 'vec3';
+        else if (needsVecFromLhs >= 2 && type === 'float') type = 'vec2';
+        // Also check RHS swizzle reads — but only promote if no conflicting scalar assignments
+        // In HLSL, `scalar.xxx` is valid (broadcast); in GLSL it's not — we'll rewrite those later
+        if (type === 'float') {
+          const rhsAccessRe = new RegExp(`\\b${vname}\\.(xy|xyz|xyzw|rg|rgb|rgba)\\b`);
+          const rhsMatch = rhsAccessRe.exec(body);
+          // Only promote if there are NO scalar assignments (all assignments are vec-compatible)
+          if (rhsMatch && candidates.every(c => c !== 'float')) {
+            const acc = rhsMatch[1];
+            if (acc.length >= 4) type = 'vec4';
+            else if (acc.length >= 3) type = 'vec3';
+            else if (acc.length >= 2) type = 'vec2';
+          }
+        }
+        varTypes.set(vname, type);
         decls.push(`  ${type} ${vname} = ${type === 'float' ? '0.0' : type + '(0.0)'};`);
       }
+
+      // Post-fix: wrap scalar RHS in vec constructor for vec-typed auto-declared vars
+      for (const [vname, type] of varTypes) {
+        if (!type.startsWith('vec')) continue;
+        // Match: vname = max(...) or vname = min(...) etc. where result would be scalar
+        const scalarFns = 'max|min|clamp|abs|pow|sqrt|floor|ceil|fract|sin|cos|atan|acos|asin|length|dot|step|smoothstep|mix';
+        const fixRe = new RegExp(
+          `(\\b${vname}\\s*=\\s*)((?:${scalarFns})\\s*\\([^;]*\\))\\s*;`,
+          'g'
+        );
+        body = body.replace(fixRe, (m, lhs, rhs) => {
+          // Don't wrap if RHS already produces a vec (contains vec constructor or GetPixel)
+          if (/\bvec[234]\s*\(/.test(rhs) || /\bGetPixel|GetBlur|GetMain/.test(rhs) || /\btexture\s*\(/.test(rhs)) {
+            return m;
+          }
+          return `${lhs}${type}(${rhs});`;
+        });
+      }
+
       body = '\n' + decls.join('\n') + '\n' + body;
     }
 
@@ -282,24 +332,43 @@ const patchMilkDropGlsl = (source: string): string => {
       patched.substring(insertPoint);
   }
 
-  // ── 5. Fix GLSL ES strict typing issues ──
+  // ── 5. Fix uTexSize swizzle: transpiler replaced texsize→uTexSize (vec2),
+  // but MilkDrop texsize is vec4(w, h, 1/w, 1/h) — .z/.w/.zw access fails on vec2.
+  patched = patched.replace(/\buTexSize\.zw\b/g, '(vec2(1.0)/uTexSize)');
+  patched = patched.replace(/\buTexSize\.z\b/g, '(1.0/uTexSize.x)');
+  patched = patched.replace(/\buTexSize\.w\b/g, '(1.0/uTexSize.y)');
+  // Also handle the 4-component swizzle
+  patched = patched.replace(/\buTexSize\.xyzw\b/g, 'vec4(uTexSize, 1.0/uTexSize)');
+
+  // ── 6. Fix GLSL ES strict typing issues ──
   // HLSL auto-promotes int→float; GLSL ES 3.0 does not.
-  // We target the most common pattern: bare integers in multiplication/division
-  // with identifiers or function results (likely float/vec types).
-  // Pattern: "identifier * 2" or "2 * identifier" where 2 has no decimal point.
-  // Avoid: array[2], int i = 2, for(int i=0; i<5; i++), vec2(1,2)
-  patched = patched.replace(
-    /([a-zA-Z_]\w*(?:\.[xyzwrgba]+)?)\s*([*\/])\s*(\d+)(?!\.|\d|\s*\])/g,
-    (match, id, op, num) => `${id} ${op} ${num}.0`
-  );
-  patched = patched.replace(
-    /(\d+)(?!\.\d)(\s*[*\/]\s*)([a-zA-Z_]\w*)/g,
-    (match, num, op, id) => {
-      if (num.includes('.')) return match;
-      // Don't convert if it looks like a type constructor: vec2(1, ...)
-      return `${num}.0${op}${id}`;
-    }
-  );
+  // Process line-by-line for safer context-aware integer promotion.
+  patched = patched.split('\n').map(line => {
+    const trimmed = line.trim();
+    // Skip lines that are purely integer declarations, for loops, or array indices
+    if (/^\s*int\s/.test(line) || /^\s*for\s*\(/.test(line) || /^\s*ivec/.test(line)) return line;
+    // Skip preprocessor directives
+    if (trimmed.startsWith('#')) return line;
+
+    // Fix integer literals in float/vec contexts:
+    // 1. After arithmetic operators: expr * 2 → expr * 2.0, expr * -4 → expr * -4.0
+    //    Covers *, /, +, - with optional negation on the integer
+    line = line.replace(/([a-zA-Z_)\]]\w*(?:\.[xyzwrgba]+)?)\s*([*\/+\-])\s*(-?\d+)(?!\.|\d|\s*\[)/g,
+      (m, id, op, num) => `${id} ${op} ${num}.0`
+    );
+    // 2. Before arithmetic operators: 2 * expr → 2.0 * expr, 1-expr → 1.0-expr
+    line = line.replace(/(?<=[\s(,=])(\d+)(?!\.\d)\s*([*\/+\-])\s*([a-zA-Z_(])/g,
+      (m, num, op, id) => `${num}.0 ${op} ${id}`
+    );
+    // 3. Inside vec/mat constructors: vec3(x, 0) → vec3(x, 0.0)
+    //    Match bare integers after comma or opening paren, before comma or close-paren
+    line = line.replace(
+      /(?<=[,(])\s*(\d+)\s*(?=[,)])/g,
+      (m, num) => ` ${num}.0 `
+    );
+
+    return line;
+  }).join('\n');
 
   // Fix ret type mismatch: the template declares `vec4 ret` but MilkDrop shaders
   // assign vec3 values to it (GetPixel returns vec3 in original MilkDrop).
@@ -368,6 +437,23 @@ const createMilkDropFragmentShader = (gl: WebGL2RenderingContext, source: string
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const info = gl.getShaderInfoLog(shader);
     console.error('[MilkDrop] Fragment shader compile error:', info);
+    // Log all error lines for diagnosis
+    const lines = source.split('\n');
+    const errorLines = new Set<number>();
+    const lineRe = /\d+:(\d+):/g;
+    let lm: RegExpExecArray | null;
+    while ((lm = lineRe.exec(info ?? '')) !== null) {
+      errorLines.add(parseInt(lm[1], 10));
+    }
+    if (errorLines.size > 0) {
+      const minLine = Math.min(...errorLines);
+      const maxLine = Math.max(...errorLines);
+      const start = Math.max(0, minLine - 5);
+      const end = Math.min(lines.length, maxLine + 3);
+      console.error('[MilkDrop] Shader lines around errors:',
+        lines.slice(start, end).map((l, i) => `${start + i + 1}: ${l}`).join('\n')
+      );
+    }
     return null;
   }
   return shader;
@@ -597,6 +683,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const qVars: number[] = new Array(32).fill(0);
   const customVars: Record<string, number> = {};
   const megabufData: Record<number, number> = {};
+  // Random preset value — set once per preset load, not per frame
+  let randomPreset = [Math.random(), Math.random()];
   const gmegabufData: Record<number, number> = {};
   let perFrameInitRun = false;
   
@@ -637,16 +725,18 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     return texture;
   };
 
+  // Create noise texture once (not on every resize)
+  noiseTexture = generateNoiseTexture(256, 256);
+
   const ensureFramebuffers = (width: number, height: number) => {
     if (width === lastWidth && height === lastHeight && mainFbo) return;
-    
+
     mainFbo = createFramebuffer(gl, width, height);
     warpFbo = createFramebuffer(gl, width, height);
     blur1Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2)));
     blur2Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 4)), Math.max(1, Math.floor(height / 4)));
     blur3Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 8)), Math.max(1, Math.floor(height / 8)));
-    noiseTexture = generateNoiseTexture(256, 256);
-    
+
     lastWidth = width;
     lastHeight = height;
   };
@@ -707,6 +797,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     Object.keys(customVars).forEach(k => delete customVars[k]);
     variables.frame = 0;
     perFrameInitRun = false;
+    randomPreset = [Math.random(), Math.random()];
 
     console.log('[MilkDrop] Shaders compiled:', {
       warp: !!warpProgram,
@@ -720,7 +811,19 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     const mid = state.spectrum?.[Math.floor((state.spectrum?.length ?? 0) / 2)] ?? state.rms ?? 0;
     const treb = state.spectrum?.[(state.spectrum?.length ?? 1) - 1] ?? state.rms ?? 0;
     
+    // Standard MilkDrop variable names — these get fresh values each frame
+    // and must NOT be overwritten by stale customVars from the previous frame.
+    const standardVarNames = new Set([
+      'time', 'frame', 'fps', 'bass', 'mid', 'treb',
+      'bass_att', 'mid_att', 'treb_att', 'rms',
+    ]);
+    for (let qi = 1; qi <= 32; qi++) standardVarNames.add(`q${qi}`);
+
     const ctx: Record<string, any> = {
+      // Custom vars from previous frame (persistent state like 'puls', 'beat', etc.)
+      // Must come FIRST so fresh values below overwrite standard variable names
+      ...customVars,
+      // Fresh values — always take priority
       time: state.timeMs / 1000,
       frame: variables.frame,
       fps: 60,
@@ -732,7 +835,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       treb_att: treb * 0.9 + variables.treb * 0.1,
       rms: state.rms,
       ...qVars.reduce((acc, v, i) => { acc[`q${i + 1}`] = v; return acc; }, {} as Record<string, number>),
-      ...customVars,
       above: (a: number, b: number) => a > b ? 1 : 0,
       below: (a: number, b: number) => a < b ? 1 : 0,
       equal: (a: number, b: number) => a === b ? 1 : 0,
@@ -810,7 +912,12 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         for (let i = 0; i < 32; i++) {
           qVars[i] = ctx[`q${i + 1}`] ?? qVars[i];
         }
-        Object.assign(customVars, result);
+        // Save only truly custom variables (not standard ones) for persistence
+        for (const [k, v] of Object.entries(result)) {
+          if (!standardVarNames.has(k) && typeof v === 'number') {
+            customVars[k] = v;
+          }
+        }
       }
     } catch (_e) {
       // Per-frame code errors are expected for complex presets using megabuf/loop
@@ -901,6 +1008,14 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         const loc = gl.getUniformLocation(warpProgram, 'sampler_blur1');
         if (loc) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, blur1Fbo.texture); gl.uniform1i(loc, 1); }
       }
+      if (blur2Fbo) {
+        const loc = gl.getUniformLocation(warpProgram, 'sampler_blur2');
+        if (loc) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, blur2Fbo.texture); gl.uniform1i(loc, 2); }
+      }
+      if (blur3Fbo) {
+        const loc = gl.getUniformLocation(warpProgram, 'sampler_blur3');
+        if (loc) { gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, blur3Fbo.texture); gl.uniform1i(loc, 3); }
+      }
 
       const posLoc = gl.getAttribLocation(warpProgram, 'position');
       gl.enableVertexAttribArray(posLoc);
@@ -910,14 +1025,41 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     }
 
     if (blurProgram && warpFbo) {
-      const bw = Math.max(1, Math.floor(width / 2));
-      const bh = Math.max(1, Math.floor(height / 2));
-      const tempFbo = createFramebuffer(gl, bw, bh);
-      if (tempFbo) {
-        applyBlurPass(warpFbo.texture, tempFbo.fbo, bw, bh, true);
-        applyBlurPass(tempFbo.texture, blur1Fbo?.fbo ?? null, bw, bh, false);
-        gl.deleteFramebuffer(tempFbo.fbo);
-        gl.deleteTexture(tempFbo.texture);
+      // Blur1: half resolution
+      const bw1 = Math.max(1, Math.floor(width / 2));
+      const bh1 = Math.max(1, Math.floor(height / 2));
+      const temp1 = createFramebuffer(gl, bw1, bh1);
+      if (temp1) {
+        applyBlurPass(warpFbo.texture, temp1.fbo, bw1, bh1, true);
+        applyBlurPass(temp1.texture, blur1Fbo?.fbo ?? null, bw1, bh1, false);
+        gl.deleteFramebuffer(temp1.fbo);
+        gl.deleteTexture(temp1.texture);
+      }
+
+      // Blur2: quarter resolution (cascade from blur1)
+      if (blur1Fbo && blur2Fbo) {
+        const bw2 = Math.max(1, Math.floor(width / 4));
+        const bh2 = Math.max(1, Math.floor(height / 4));
+        const temp2 = createFramebuffer(gl, bw2, bh2);
+        if (temp2) {
+          applyBlurPass(blur1Fbo.texture, temp2.fbo, bw2, bh2, true);
+          applyBlurPass(temp2.texture, blur2Fbo.fbo, bw2, bh2, false);
+          gl.deleteFramebuffer(temp2.fbo);
+          gl.deleteTexture(temp2.texture);
+        }
+      }
+
+      // Blur3: eighth resolution (cascade from blur2)
+      if (blur2Fbo && blur3Fbo) {
+        const bw3 = Math.max(1, Math.floor(width / 8));
+        const bh3 = Math.max(1, Math.floor(height / 8));
+        const temp3 = createFramebuffer(gl, bw3, bh3);
+        if (temp3) {
+          applyBlurPass(blur2Fbo.texture, temp3.fbo, bw3, bh3, true);
+          applyBlurPass(temp3.texture, blur3Fbo.fbo, bw3, bh3, false);
+          gl.deleteFramebuffer(temp3.fbo);
+          gl.deleteTexture(temp3.texture);
+        }
       }
     }
 
@@ -993,6 +1135,15 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
     }
 
+    // Clean up GL state — milkdrop shares the GL context with the main renderer.
+    // Leaving textures/FBOs bound causes feedback loops and corrupts rendering.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    for (let i = 0; i < 5; i++) {
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+    gl.activeTexture(gl.TEXTURE0);
+
     variables.frame++;
     return true;
   };
@@ -1019,7 +1170,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.uniform2f(loc('uAspect'), aspect, 1.0);
     gl.uniform2f(loc('uTexSize'), width, height);
 
-    gl.uniform2f(loc('uRandomPreset'), Math.random(), Math.random());
+    gl.uniform2f(loc('uRandomPreset'), randomPreset[0], randomPreset[1]);
     gl.uniform2f(loc('uRandomFrame'), Math.random(), Math.random());
 
     // q-variables (set by per-frame code)
@@ -1054,9 +1205,45 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (c10) gl.uniform4f(c10, 0.5 + 0.5 * Math.cos(t * 0.005), 0.5 + 0.5 * Math.cos(t * 0.008), 0.5 + 0.5 * Math.cos(t * 0.013), 0.5 + 0.5 * Math.cos(t * 0.022));
     const c11 = loc('_c11');
     if (c11) gl.uniform4f(c11, 0.5 + 0.5 * Math.sin(t * 0.005), 0.5 + 0.5 * Math.sin(t * 0.008), 0.5 + 0.5 * Math.sin(t * 0.013), 0.5 + 0.5 * Math.sin(t * 0.022));
+    // _c1: (unused in most presets — mesh-related)
+    const c1 = loc('_c1');
+    if (c1) gl.uniform4f(c1, 0, 0, 0, 0);
+    // _c5: texsize_noise_lq (256x256 noise texture)
+    const c5 = loc('_c5');
+    if (c5) gl.uniform4f(c5, 256, 256, 1 / 256, 1 / 256);
+    // _c6: texsize_noise_mq (256x256)
+    const c6 = loc('_c6');
+    if (c6) gl.uniform4f(c6, 256, 256, 1 / 256, 1 / 256);
+    // _c12, _c13: additional roam cosines/sines
+    const c12 = loc('_c12');
+    if (c12) gl.uniform4f(c12, 0.5 + 0.5 * Math.cos(t * 0.0005 + 1), 0.5 + 0.5 * Math.cos(t * 0.0008 + 2), 0.5 + 0.5 * Math.cos(t * 0.0013 + 3), 0.5 + 0.5 * Math.cos(t * 0.0022 + 5));
+    const c13 = loc('_c13');
+    if (c13) gl.uniform4f(c13, 0.5 + 0.5 * Math.sin(t * 0.0005 + 1), 0.5 + 0.5 * Math.sin(t * 0.0008 + 2), 0.5 + 0.5 * Math.sin(t * 0.0013 + 3), 0.5 + 0.5 * Math.sin(t * 0.0022 + 5));
+    // _c14: blur min/max (preset-dependent, using reasonable defaults)
+    const c14 = loc('_c14');
+    if (c14) gl.uniform4f(c14, 0, 1, 0, 1);
     // _c15: bass_smooth, mid_smooth, treb_smooth, vol_smooth
     const c15 = loc('_c15');
     if (c15) gl.uniform4f(c15, variables.bass_att, variables.mid_att, variables.treb_att, state.rms);
+    // _c16, _c17: rarely used additional constants
+    const c16 = loc('_c16');
+    if (c16) gl.uniform4f(c16, 0, 0, 0, 0);
+    const c17 = loc('_c17');
+    if (c17) gl.uniform4f(c17, 0, 0, 0, 0);
+
+    // Texture size variants
+    const tsnLq = loc('texsize_noise_lq');
+    if (tsnLq) gl.uniform4f(tsnLq, 256, 256, 1 / 256, 1 / 256);
+    const tsnMq = loc('texsize_noise_mq');
+    if (tsnMq) gl.uniform4f(tsnMq, 256, 256, 1 / 256, 1 / 256);
+    const tsnHq = loc('texsize_noise_hq');
+    if (tsnHq) gl.uniform4f(tsnHq, 256, 256, 1 / 256, 1 / 256);
+
+    // rand_frame and rand_preset as vec4
+    const rfLoc = loc('rand_frame');
+    if (rfLoc) gl.uniform4f(rfLoc, Math.random(), Math.random(), Math.random(), Math.random());
+    const rpLoc = loc('rand_preset');
+    if (rpLoc) gl.uniform4f(rpLoc, randomPreset[0], randomPreset[1], Math.random(), Math.random());
 
     // _qa–_qh: q-variable banks as vec4
     const qaLoc = loc('_qa'); if (qaLoc) gl.uniform4f(qaLoc, qVars[0], qVars[1], qVars[2], qVars[3]);

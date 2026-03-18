@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-hypercube-1",
+          "id": "gen-hypercube",
           "name": "Hypercube",
           "role": "core",
           "enabled": true,

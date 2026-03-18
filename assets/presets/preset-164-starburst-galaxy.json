@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-starburst-galaxy-1",
+          "id": "gen-starburst-galaxy",
           "name": "Starburst Galaxy",
           "role": "core",
           "enabled": true,

@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-prism-shards-1",
+          "id": "gen-prism-shards",
           "name": "Prism Shards",
           "role": "core",
           "enabled": true,

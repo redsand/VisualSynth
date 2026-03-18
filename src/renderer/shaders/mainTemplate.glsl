@@ -209,12 +209,7 @@ void main() {
     color.b = mix(color.b, texture(uPreviousFrame, uv - caOffset).b, caBlend * 0.5);
   }
 
-  // Signature Watermark (very subtle)
-  if (uEngineSignature > 0.01) {
-    vec2 sigUv = uv * 20.0;
-    float sig = sin(sigUv.x) * sin(sigUv.y);
-    color += vec3(sig * sig * sig * uEngineSignature * 0.02);
-  }
+  // (Engine signature removed — caused visible dot grid on black canvas)
 
   // Strobe Pattern Overlay
   if (sceneColorEnergy > 0.001 && uStrobeEnabled > 0.5) {

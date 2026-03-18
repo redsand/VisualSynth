@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-circuit-board-1",
+          "id": "gen-circuit-board",
           "name": "Circuit Board",
           "role": "core",
           "enabled": true,

@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-glow-worms-1",
+          "id": "gen-glow-worms",
           "name": "Glow Worms",
           "role": "core",
           "enabled": true,
