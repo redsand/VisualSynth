@@ -177,6 +177,37 @@ body {
   box-shadow: 0 0 10px rgba(30, 200, 255, 0.25);
 }
 
+.scene-timeline-item-import {
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 104px;
+  border-style: dashed;
+  border-color: #34516d;
+  background:
+    linear-gradient(180deg, rgba(18, 31, 48, 0.96), rgba(13, 24, 38, 0.96));
+}
+
+.scene-timeline-item-import:hover,
+.scene-timeline-item-import:focus-visible {
+  border-color: #62e7ff;
+  box-shadow: 0 0 12px rgba(98, 231, 255, 0.18);
+  outline: none;
+}
+
+.scene-timeline-import-plus {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(98, 231, 255, 0.35);
+  color: #62e7ff;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 500;
+}
+
 .scene-timeline-name {
   font-size: 12px;
   font-weight: 600;

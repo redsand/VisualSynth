@@ -38,6 +38,7 @@
           "name": "Looping Video",
           "role": "core",
           "enabled": true,
+          "assetId": "asset-cinematic-title",
           "opacity": 1,
           "blendMode": "normal",
           "transform": {
@@ -118,7 +119,24 @@
     "rotation": 0,
     "fill": 0
   },
-  "assets": [],
+  "assets": [
+    {
+      "id": "asset-cinematic-title",
+      "name": "Cinematic Title Card",
+      "kind": "text",
+      "tags": [
+        "preset",
+        "default-media"
+      ],
+      "addedAt": "2026-02-06T00:03:20.016Z",
+      "options": {
+        "text": "CINEMATIC",
+        "font": "Georgia",
+        "fontSize": 124,
+        "fontColor": "#f1ede2"
+      }
+    }
+  ],
   "plugins": [],
   "lfos": [],
   "envelopes": [],

@@ -44,6 +44,7 @@ import { mergeProjectSections, MergeOptions } from '../shared/projectMerge';
 import { toFileUrl } from '../shared/fileUrl';
 import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
+import { createScenePreset } from '../shared/scenePreset';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
@@ -73,11 +74,16 @@ declare global {
     visualSynth: {
       saveProject: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
       autosaveProject: (payload: string) => Promise<{ saved: boolean; filePath?: string }>;
+      savePreset: (
+        payload: string,
+        defaultName: string
+      ) => Promise<{ canceled: boolean; filePath?: string }>;
       saveExchange: (
         payload: string,
         defaultName: string
       ) => Promise<{ canceled: boolean; filePath?: string }>;
       openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; error?: string }>;
+      openSceneFile: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
@@ -2515,6 +2521,109 @@ const addSceneToProject = (scene: SceneConfig, activate = false) => {
   if (activate) applyScene(scene.id);
 };
 
+const addSceneFromSourceProject = (
+  sourceProject: VisualSynthProject,
+  options: {
+    sourceSceneId?: string;
+    sceneName: string;
+    explicitPaletteId?: string;
+    statusLabel: string;
+  }
+) => {
+  if (!sourceProject.scenes.length) {
+    setStatus('Imported file has no scenes.');
+    return null;
+  }
+
+  const sourceScene =
+    sourceProject.scenes.find((scene) => scene.id === options.sourceSceneId) ??
+    sourceProject.scenes.find((scene) => scene.id === sourceProject.activeSceneId) ??
+    sourceProject.scenes[0];
+
+  const assetIdMap = new Map<string, string>();
+  const referencedAssetIds = new Set<string>();
+  sourceScene.layers.forEach((layer) => {
+    if (layer.assetId) referencedAssetIds.add(layer.assetId);
+  });
+
+  if (sourceProject.assets?.length && referencedAssetIds.size > 0) {
+    const nextAssets = [...currentProject.assets];
+    sourceProject.assets.forEach((asset) => {
+      if (!referencedAssetIds.has(asset.id)) return;
+      const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
+      const newId = hasCollision ? getNextAssetId() : asset.id;
+      assetIdMap.set(asset.id, newId);
+      nextAssets.push({ ...cloneValue(asset), id: newId });
+    });
+    currentProject.assets = nextAssets;
+    renderAssets();
+  }
+
+  const look: SceneLook = {
+    effects: cloneValue(sourceProject.effects || {}),
+    particles: cloneValue(sourceProject.particles || {}),
+    sdf: cloneValue(sourceProject.sdf || {}),
+    visualizer: cloneValue(sourceProject.visualizer || {}),
+    stylePresets: cloneValue(sourceProject.stylePresets || []),
+    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
+    palettes: cloneValue(sourceProject.palettes || []),
+    activePaletteId: options.explicitPaletteId,
+    macros: cloneValue(sourceProject.macros || []),
+    modMatrix: cloneValue(sourceProject.modMatrix || [])
+  };
+
+  const newSceneId = getNextSceneId();
+  const newScene: SceneConfig = {
+    id: newSceneId,
+    scene_id: newSceneId,
+    name: getUniqueSceneName(options.sceneName),
+    intent: sourceScene.intent ?? 'ambient',
+    duration: typeof sourceScene.duration === 'number' ? sourceScene.duration : 0,
+    transition_in: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_in ?? {}) },
+    transition_out: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_out ?? {}) },
+    trigger: { ...DEFAULT_SCENE_TRIGGER, ...(sourceScene.trigger ?? {}) },
+    assigned_layers: {
+      core: sourceScene.assigned_layers?.core ?? [],
+      support: sourceScene.assigned_layers?.support ?? [],
+      atmosphere: sourceScene.assigned_layers?.atmosphere ?? []
+    },
+    layers: sourceScene.layers.map((layer) => {
+      const cloned = cloneLayerConfig(layer);
+      if (cloned.assetId && assetIdMap.has(cloned.assetId)) {
+        cloned.assetId = assetIdMap.get(cloned.assetId);
+      }
+      return cloned;
+    }),
+    look,
+    _shaderData: sourceScene._shaderData ? cloneValue(sourceScene._shaderData) : undefined
+  };
+
+  addSceneToProject(newScene, true);
+  selectedSceneId = newScene.id;
+  renderSceneStrip();
+  renderSceneTimeline();
+  renderPlaylist();
+  setStatus(`${options.statusLabel}: ${newScene.name}`);
+  return newScene.id;
+};
+
+const addSceneFromExchangePayload = (payload: Extract<ExchangePayload, { kind: 'scene' }>) => {
+  const nextProject = applyExchangePayload(currentProject, payload);
+  const newScene = nextProject.scenes[nextProject.scenes.length - 1];
+  currentProject = nextProject;
+  refreshSceneSelect();
+  selectedSceneId = newScene?.id ?? null;
+  renderSceneStrip();
+  renderSceneTimeline();
+  renderPlaylist();
+  if (newScene) {
+    applyScene(newScene.id);
+    setStatus(`Scene loaded: ${newScene.name}`);
+    return newScene.id;
+  }
+  return null;
+};
+
 const removeScene = (sceneId: string) => {
   if (currentProject.scenes.length <= 1) {
     setStatus('At least one scene is required.');
@@ -2644,6 +2753,108 @@ const closeSceneTimelineMenu = () => {
   }
 };
 
+const saveSceneAsPreset = async (sceneId: string) => {
+  const scene = currentProject.scenes.find((entry) => entry.id === sceneId);
+  if (!scene) {
+    setStatus('Scene preset save failed.');
+    return;
+  }
+
+  try {
+    const preset = createScenePreset(currentProject, sceneId);
+    const safeName = scene.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sceneId;
+    const result = await window.visualSynth.savePreset(
+      JSON.stringify(preset, null, 2),
+      `preset-${safeName}.json`
+    );
+    if (!result.canceled) {
+      setStatus(`Scene preset saved: ${scene.name}`);
+    }
+  } catch (error) {
+    setStatus('Scene preset save failed.');
+  }
+};
+
+const importSceneFromDisk = async () => {
+  const result = await window.visualSynth.openSceneFile();
+  if (result.canceled || !result.payload) return;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.payload);
+  } catch {
+    setStatus('Scene import failed: invalid JSON.');
+    return;
+  }
+
+  const exchangePayload = parsed as Partial<ExchangePayload>;
+  if (exchangePayload.kind === 'scene' && exchangePayload.version === 1 && exchangePayload.scene) {
+    addSceneFromExchangePayload(exchangePayload as Extract<ExchangePayload, { kind: 'scene' }>);
+    return;
+  }
+
+  const parsedProject = projectSchema.safeParse(parsed);
+  if (parsedProject.success) {
+    addSceneFromSourceProject(parsedProject.data, {
+      sceneName: parsedProject.data.scenes.find((scene) => scene.id === parsedProject.data.activeSceneId)?.name
+        ?? parsedProject.data.scenes[0]?.name
+        ?? 'Imported Scene',
+      explicitPaletteId:
+        parsedProject.data.activePaletteId ||
+        parsedProject.data.scenes[0]?.look?.activePaletteId ||
+        undefined,
+      statusLabel: 'Scene imported'
+    });
+    return;
+  }
+
+  const presetMigration = await import('../shared/presetMigration');
+  const migrationResult = presetMigration.migratePreset(parsed);
+  if (!migrationResult.success) {
+    setStatus(`Scene import failed: ${migrationResult.errors.join(', ') || 'unsupported file.'}`);
+    return;
+  }
+
+  const validationResult = presetMigration.validatePreset(migrationResult.preset);
+  if (!validationResult.valid) {
+    setStatus(`Scene import failed: ${validationResult.errors.join(', ') || 'invalid preset.'}`);
+    return;
+  }
+
+  const migratedPreset = migrationResult.preset;
+  let sourceProject: VisualSynthProject | null = null;
+  if (migratedPreset.version === 6) {
+    sourceProject = presetMigration.applyPresetV6(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 5) {
+    sourceProject = presetMigration.applyPresetV5(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 4) {
+    sourceProject = presetMigration.applyPresetV4(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 3) {
+    sourceProject = presetMigration.applyPresetV3(migratedPreset, currentProject).project ?? null;
+  } else if (projectSchema.safeParse(migratedPreset).success) {
+    sourceProject = migratedPreset as VisualSynthProject;
+  }
+
+  if (!sourceProject) {
+    setStatus('Scene import failed: file has no importable scene.');
+    return;
+  }
+
+  addSceneFromSourceProject(sourceProject, {
+    sceneName:
+      migratedPreset.metadata?.name ||
+      sourceProject.scenes.find((scene) => scene.id === sourceProject.activeSceneId)?.name ||
+      sourceProject.scenes[0]?.name ||
+      'Imported Scene',
+    explicitPaletteId:
+      migratedPreset.activePaletteId ||
+      migratedPreset.project?.activePaletteId ||
+      migratedPreset.project?.scenes?.[0]?.look?.activePaletteId ||
+      undefined,
+    statusLabel: 'Scene imported'
+  });
+};
+
 const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName: string) => {
   closeSceneTimelineMenu();
   const menu = document.createElement('div');
@@ -2657,6 +2868,29 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   menu.style.boxShadow = '0 6px 18px rgba(0,0,0,0.45)';
   menu.style.zIndex = '9999';
   menu.style.minWidth = '180px';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.textContent = 'Save As';
+  saveBtn.style.display = 'block';
+  saveBtn.style.width = '100%';
+  saveBtn.style.textAlign = 'left';
+  saveBtn.style.background = 'transparent';
+  saveBtn.style.color = '#e6eef8';
+  saveBtn.style.border = '0';
+  saveBtn.style.padding = '8px 10px';
+  saveBtn.style.cursor = 'pointer';
+  saveBtn.onmouseenter = () => { saveBtn.style.background = '#1f2633'; };
+  saveBtn.onmouseleave = () => { saveBtn.style.background = 'transparent'; };
+  saveBtn.onclick = () => {
+    void saveSceneAsPreset(sceneId);
+    closeSceneTimelineMenu();
+  };
+
+  const divider = document.createElement('div');
+  divider.style.height = '1px';
+  divider.style.margin = '4px 0';
+  divider.style.background = '#2a3344';
 
   const queueBtn = document.createElement('button');
   queueBtn.type = 'button';
@@ -2700,6 +2934,8 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
     closeSceneTimelineMenu();
   };
 
+  menu.appendChild(saveBtn);
+  menu.appendChild(divider);
   menu.appendChild(queueBtn);
   menu.appendChild(activateBtn);
   document.body.appendChild(menu);
@@ -2743,6 +2979,9 @@ const renderSceneTimeline = () => {
     },
     onContextMenu: (sceneId, sceneName, event) => {
       showSceneTimelineMenu(event.clientX, event.clientY, sceneId, sceneName);
+    },
+    onImport: () => {
+      void importSceneFromDisk();
     }
   });
 };
@@ -5388,24 +5627,6 @@ const addSceneFromPreset = async (presetPath: string) => {
     sourceProject.scenes.find((scene) => scene.id === sourceProject?.activeSceneId) ??
     sourceProject.scenes[0];
   const presetName = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
-  const assetIdMap = new Map<string, string>();
-  const referencedAssetIds = new Set<string>();
-  sourceScene.layers.forEach((layer: any) => {
-    const assetId = (layer as LayerConfig & { assetId?: string }).assetId;
-    if (assetId) referencedAssetIds.add(assetId);
-  });
-  if (sourceProject.assets && sourceProject.assets.length > 0 && referencedAssetIds.size > 0) {
-    const nextAssets = [...currentProject.assets];
-    sourceProject.assets.forEach((asset) => {
-      if (!referencedAssetIds.has(asset.id)) return;
-      const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
-      const newId = hasCollision ? getNextAssetId() : asset.id;
-      assetIdMap.set(asset.id, newId);
-      nextAssets.push({ ...cloneValue(asset), id: newId });
-    });
-    currentProject.assets = nextAssets;
-    renderAssets();
-  }
   // Only lock palette in scene look if the preset JSON explicitly specified one.
   // Using currentProject's activePaletteId would lock every loaded scene to whatever
   // palette happened to be active, preventing the user from changing it.
@@ -5414,51 +5635,15 @@ const addSceneFromPreset = async (presetPath: string) => {
     migratedPreset.project?.activePaletteId ||
     migratedPreset.project?.scenes?.[0]?.look?.activePaletteId ||
     undefined;
-
-  const look: SceneLook = {
-    effects: cloneValue(sourceProject.effects || {}),
-    particles: cloneValue(sourceProject.particles || {}),
-    sdf: cloneValue(sourceProject.sdf || {}),
-    visualizer: cloneValue(sourceProject.visualizer || {}),
-    stylePresets: cloneValue(sourceProject.stylePresets || []),
-    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
-    palettes: cloneValue(sourceProject.palettes || []),
-    activePaletteId: presetExplicitPaletteId,
-    macros: cloneValue(sourceProject.macros || []),
-    modMatrix: cloneValue(sourceProject.modMatrix || [])
-  };
-  const newSceneId = getNextSceneId();
-  const newScene: SceneConfig = {
-    id: newSceneId,
-    scene_id: newSceneId,
-    name: getUniqueSceneName(presetName),
-    intent: sourceScene.intent ?? 'ambient',
-    duration: typeof sourceScene.duration === 'number' ? sourceScene.duration : 0,
-    transition_in: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_in ?? {}) },
-    transition_out: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_out ?? {}) },
-    trigger: { ...DEFAULT_SCENE_TRIGGER, ...(sourceScene.trigger ?? {}) },
-    assigned_layers: {
-      core: sourceScene.assigned_layers?.core ?? [],
-      support: sourceScene.assigned_layers?.support ?? [],
-      atmosphere: sourceScene.assigned_layers?.atmosphere ?? []
-    },
-    layers: sourceScene.layers.map((layer) => {
-      const cloned = cloneLayerConfig(layer);
-      const assetId = (cloned as LayerConfig & { assetId?: string }).assetId;
-      if (assetId && assetIdMap.has(assetId)) {
-        (cloned as LayerConfig & { assetId?: string }).assetId = assetIdMap.get(assetId);
-      }
-      return cloned;
-    }),
-    look,
-    _shaderData: sourceScene._shaderData ? cloneValue(sourceScene._shaderData) : undefined
-  };
-  addSceneToProject(newScene, true);
-  selectedSceneId = newScene.id;
-  renderSceneStrip();
-  renderSceneTimeline();
-  renderPlaylist();
-  setStatus(`Scene added from preset: ${newScene.name}`);
+  const addedSceneId = addSceneFromSourceProject(sourceProject, {
+    sourceSceneId: sourceScene.id,
+    sceneName: presetName,
+    explicitPaletteId: presetExplicitPaletteId,
+    statusLabel: 'Scene added from preset'
+  });
+  if (!addedSceneId) return null;
+  const newScene = currentProject.scenes.find((scene) => scene.id === addedSceneId);
+  if (!newScene) return null;
   logPresetDebug(
     traceId,
     'Preset scene added',

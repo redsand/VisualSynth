@@ -98,7 +98,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "geo-1",
+        "type": "geo-wireframe",
         "param": "opacity"
       },
       "amount": 0.3,

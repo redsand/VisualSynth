@@ -99,7 +99,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "strobe-1",
+        "type": "strobe",
         "param": "opacity"
       },
       "amount": 0.3,

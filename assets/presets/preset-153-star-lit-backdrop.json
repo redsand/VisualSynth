@@ -38,6 +38,7 @@
           "name": "Video Plane",
           "role": "support",
           "enabled": true,
+          "assetId": "asset-starlit-backdrop",
           "opacity": 0.9,
           "transform": {
             "x": 0,
@@ -119,7 +120,24 @@
     "rotation": 0,
     "fill": 0
   },
-  "assets": [],
+  "assets": [
+    {
+      "id": "asset-starlit-backdrop",
+      "name": "Star Lit Backdrop",
+      "kind": "text",
+      "tags": [
+        "preset",
+        "default-media"
+      ],
+      "addedAt": "2026-02-06T00:03:20.016Z",
+      "options": {
+        "text": "STARLIT",
+        "font": "Georgia",
+        "fontSize": 120,
+        "fontColor": "#f8f2ff"
+      }
+    }
+  ],
   "plugins": [],
   "lfos": [],
   "envelopes": [],

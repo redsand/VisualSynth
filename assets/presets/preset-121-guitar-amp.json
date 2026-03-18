@@ -42,8 +42,9 @@
           "blendMode": "screen",
           "generatorId": "gen-analog-oscillo",
           "params": {
-            "thickness": 0.02,
-            "glow": 0.8,
+            "opacity": 1,
+            "thickness": 0.03,
+            "glow": 1,
             "color": 1,
             "mode": 0
           },
@@ -59,8 +60,8 @@
           "name": "Speaker Pulse",
           "role": "atmosphere",
           "enabled": true,
-          "opacity": 1,
-          "blendMode": "multiply",
+          "opacity": 0.9,
+          "blendMode": "screen",
           "generatorId": "gen-speaker-cone",
           "params": {
             "force": 1.5
@@ -99,7 +100,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "oscillo-1",
+        "type": "analog-oscillo",
         "param": "opacity"
       },
       "amount": 0.3,

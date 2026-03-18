@@ -60,6 +60,27 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     expect(renderState.genUniforms.AnalogOscilloColor).toBe(2);
   });
 
+  it('feeds live waveform data into oscillo render state when audio input is present', () => {
+    const store = createStore(createInitialState());
+    const renderGraph = new RenderGraph(store);
+    const project = buildProjectWithGenerator('gen-analog-oscillo', {
+      thickness: 0.02,
+      glow: 0.8,
+      color: 2
+    });
+
+    store.update((state: any) => {
+      state.project = project;
+      state.audio.waveform = Float32Array.from({ length: 256 }, (_, index) => Math.sin(index / 12));
+      state.audio.rms = 0.42;
+      state.audio.peak = 0.73;
+    });
+
+    const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
+    expect(renderState.oscilloData[1]).not.toBe(0);
+    expect(renderState.oscilloData[32]).not.toBe(0);
+  });
+
   it('correctly maps gen-infinite-wormhole parameters', () => {
     const store = createStore(createInitialState());
     const renderGraph = new RenderGraph(store);
@@ -140,6 +161,31 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
     expect(renderState.genUniforms.MilkwaveEnabled).toBe(1);
     expect(renderState.genUniforms.MilkwaveOpacity).toBe(0.85);
+  });
+
+  it('applies MIDI CC overlays to dynamic generator uniforms in RenderGraph', () => {
+    const store = createStore(createInitialState());
+    const renderGraph = new RenderGraph(store);
+    const project = buildProjectWithGenerator('gen-lightning', {
+      speed: 1.0,
+      color: 0
+    });
+    project.midiMappings = [
+      {
+        id: 'midi-lightning-color',
+        message: 'cc',
+        channel: 1,
+        control: 7,
+        target: 'gen-lightning.color',
+        mode: 'trigger'
+      }
+    ];
+    store.update((state: any) => { state.project = project; });
+
+    expect(renderGraph.handleMidiCC(1, 7, 127)).toBe(true);
+
+    const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
+    expect(renderState.genUniforms.LightningColor).toBe(2);
   });
 
   it('treats imported Milkwave layers as support-role content', async () => {

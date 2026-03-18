@@ -97,10 +97,7 @@
   "modulations": [
     {
       "source": "audio.rms",
-      "target": {
-        "type": "particles",
-        "param": "opacity"
-      },
+      "target": "particles.density",
       "amount": 0.3,
       "min": 0.5,
       "max": 1,

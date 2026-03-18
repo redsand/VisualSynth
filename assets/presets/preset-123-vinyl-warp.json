@@ -96,7 +96,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "glitch-1",
+        "type": "glitch-scanline",
         "param": "opacity"
       },
       "amount": 0.3,

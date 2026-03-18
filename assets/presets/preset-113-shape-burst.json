@@ -135,7 +135,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "shape-burst-1",
+        "type": "shape-burst",
         "param": "opacity"
       },
       "amount": 0.3,

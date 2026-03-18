@@ -64,6 +64,31 @@ const normalizeMacroTargets = (macros: any[] | undefined) =>
       })) ?? []
   }));
 
+const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const mergePresetAssets = (project: VisualSynthProject, preset: any) => {
+  const mergedAssets = cloneJson(project.assets ?? []);
+  const incomingAssets = Array.isArray(preset?.assets) ? preset.assets : [];
+
+  incomingAssets.forEach((asset: any) => {
+    const nextAsset = cloneJson(asset);
+    const existingIndex = mergedAssets.findIndex((entry: any) => entry.id === nextAsset.id);
+    if (existingIndex >= 0) {
+      mergedAssets[existingIndex] = nextAsset;
+    } else {
+      mergedAssets.push(nextAsset);
+    }
+  });
+
+  DEFAULT_PROJECT.assets.forEach((asset) => {
+    if (!mergedAssets.some((entry: any) => entry.id === asset.id)) {
+      mergedAssets.push(cloneJson(asset));
+    }
+  });
+
+  project.assets = mergedAssets;
+};
+
 export const APP_VERSION = '1.4.0';
 
 export interface PresetCompatibility {
@@ -180,7 +205,7 @@ const presetV3ModulationTargetSchema = z.object({
 
 const presetV3ModulationSchema = z.object({
   source: z.string(),
-  target: presetV3ModulationTargetSchema,
+  target: z.union([presetV3ModulationTargetSchema, z.string()]),
   amount: z.number(),
   min: z.number(),
   max: z.number(),
@@ -229,6 +254,7 @@ export const presetV4Schema = z.object({
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),
+  assets: projectSchema.shape.assets.optional(),
   modulations: z.array(presetV3ModulationSchema).optional(),
   macros: z.array(z.any()).optional(),
   project: projectSchema.optional()
@@ -257,6 +283,7 @@ export const presetV5Schema = z.object({
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),
+  assets: projectSchema.shape.assets.optional(),
   roleWeights: projectSchema.shape.roleWeights,
   tempoSync: projectSchema.shape.tempoSync,
   modulations: z.array(presetV3ModulationSchema).optional(),
@@ -291,6 +318,7 @@ export const presetV6Schema = z.object({
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),
+  assets: projectSchema.shape.assets.optional(),
   roleWeights: projectSchema.shape.roleWeights,
   tempoSync: projectSchema.shape.tempoSync,
   modulations: z.array(presetV3ModulationSchema).optional(),
@@ -1000,6 +1028,8 @@ export const applyPresetV4 = (preset: any, currentProject: any): { project: any;
     });
   }
 
+  mergePresetAssets(project, preset);
+
   return { project, warnings };
 };
 
@@ -1048,6 +1078,8 @@ export const applyPresetV5 = (preset: any, currentProject: any): { project: any;
   if (preset.macros) {
     project.macros = normalizeMacroTargets(preset.macros);
   }
+
+  mergePresetAssets(project, preset);
 
   return { project, warnings };
 };
@@ -1125,6 +1157,8 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
       project.macros = normalizeMacroTargets(preset.macros);
     }
   }
+
+  mergePresetAssets(project, preset);
  
   // Preserve MilkDrop shader data for custom presets
   if (preset?._shaderData) {

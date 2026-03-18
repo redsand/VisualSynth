@@ -1,8 +1,9 @@
 import { applyModMatrix } from '../../shared/modMatrix';
-import { buildLegacyTarget } from '../../shared/parameterRegistry';
+import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
 import { DEFAULT_PROJECT, LayerConfig } from '../../shared/project';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
+import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
@@ -304,6 +305,7 @@ export class RenderGraph {
   private burstSdfInitialized = false;
   private macroState: MacroExecutionState = createMacroExecutionState();
   private midiSceneConfig: MidiSceneConfig = DEFAULT_MIDI_SCENE_CONFIG;
+  private midiSum: Record<string, number> = {};
   private onLoadPreset: ((path: string, name: string, crossfade: number) => Promise<void>) | null = null;
   private onPlaylistControl: ((control: string) => void) | null = null;
 
@@ -584,15 +586,40 @@ export class RenderGraph {
    * Handle MIDI CC for scene parameter control
    */
   handleMidiCC(channel: number, cc: number, value: number): boolean {
+    const state = this.store.getState();
+    let handled = false;
+    state.project.midiMappings
+      .filter((mapping) => mapping.message === 'cc' && mapping.channel === channel && mapping.control === cc)
+      .forEach((mapping) => {
+        const scaledValue = this.resolveMidiMappedValue(mapping.target, value);
+        if (scaledValue === null) return;
+        this.midiSum[mapping.target] = scaledValue;
+        handled = true;
+      });
+
     const result = processMidiCC(this.midiSceneConfig, channel, cc, value);
-
-    if (!result.handled || !result.target || result.value === undefined) {
-      return false;
+    if (result.handled && result.target && result.value !== undefined) {
+      this.applyMacroParam(result.target, result.value);
+      handled = true;
     }
+    return handled;
+  }
 
-    // Apply the CC value to the target
-    this.applyMacroParam(result.target, result.value);
-    return true;
+  private resolveMidiMappedValue(target: string, value: number): number | null {
+    const parsed = parseLegacyTarget(target);
+    if (!parsed) return null;
+    const paramDef = getParamDef(parsed.layerType, parsed.param);
+    if (!paramDef) return null;
+    if (paramDef.type === 'boolean') {
+      return value >= 64 ? 1 : 0;
+    }
+    if (paramDef.type === 'enum') {
+      return scaleMidiValue(value, 0, Math.max(0, (paramDef.options?.length ?? 1) - 1));
+    }
+    if (paramDef.type === 'number') {
+      return scaleMidiValue(value, paramDef.min ?? 0, paramDef.max ?? 1);
+    }
+    return null;
   }
 
   /**
@@ -1026,15 +1053,17 @@ export class RenderGraph {
     const spawnRate = (typeof shapeBurstLayer?.params?.spawnRate === 'number')
       ? shapeBurstLayer.params.spawnRate : 1;
 
-    // Spawn new burst on audio peak
-    const peak = state.audio.peak;
-    const threshold = 0.5;
+    const peak = Math.max(state.audio.peak, state.audio.rms ?? 0);
+    const threshold = 0.15;
     const timeSinceLastSpawn = time - this.lastShapeBurstSpawn;
     const minInterval = 200 / spawnRate; // Milliseconds between spawns
 
-    if (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) {
-      // Find an inactive slot or the oldest one
-      let slotIndex = this.shapeBurstSlotIndex;
+    const shouldSpawn =
+      (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) ||
+      (!audioTrigger && timeSinceLastSpawn > minInterval);
+
+    if (shouldSpawn) {
+      const slotIndex = this.shapeBurstSlotIndex;
       this.shapeBurstSlots[slotIndex] = {
         active: true,
         spawnTime: time / 1000 // Convert to seconds for shader
@@ -1565,7 +1594,7 @@ export class RenderGraph {
     const genUniforms = resolveGenUniforms({
       layers: activeScene?.layers ?? [],
       modValue,
-      midiSum: {},
+      midiSum: this.midiSum,
       getLayerParamNumber,
       findLayerById: (layers, id) => findLayerById(layers as LayerConfig[], id),
       buildLegacyTarget
@@ -1574,33 +1603,33 @@ export class RenderGraph {
     const plasmaBaseSpeed = getLayerParamNumber(plasmaLayer, 'speed', 1.0);
     const plasmaBaseScale = getLayerParamNumber(plasmaLayer, 'scale', 1.0);
     const plasmaBaseComplexity = getLayerParamNumber(plasmaLayer, 'complexity', 0.5);
-    const plasmaSpeed = Math.max(0.1, plasmaBaseSpeed + macroVal('layer-plasma.speed'));
-    const plasmaScale = Math.max(0.1, plasmaBaseScale + macroVal('layer-plasma.scale'));
+    const plasmaSpeed = Math.max(0.1, plasmaBaseSpeed + macroVal('layer-plasma.speed') + (this.midiSum['layer-plasma.speed'] ?? 0));
+    const plasmaScale = Math.max(0.1, plasmaBaseScale + macroVal('layer-plasma.scale') + (this.midiSum['layer-plasma.scale'] ?? 0));
     const plasmaComplexity = Math.max(0.1, plasmaBaseComplexity + macroVal('layer-plasma.complexity'));
 
     const origamiBaseSpeed = getLayerParamNumber(origamiLayer, 'speed', 1.0);
-    const origamiSpeed = Math.max(0.1, origamiBaseSpeed + macroVal('layer-origami.speed'));
+    const origamiSpeed = Math.max(0.1, origamiBaseSpeed + macroVal('layer-origami.speed') + (this.midiSum['layer-origami.speed'] ?? 0));
 
     const glyphBaseSpeed = getLayerParamNumber(glyphLayer, 'speed', 1.0);
-    const glyphSpeed = Math.max(0.1, glyphBaseSpeed + macroVal('layer-glyph.speed'));
+    const glyphSpeed = Math.max(0.1, glyphBaseSpeed + macroVal('layer-glyph.speed') + (this.midiSum['layer-glyph.speed'] ?? 0));
 
     const crystalBaseScale = getLayerParamNumber(crystalLayer, 'scale', 1.0);
     const crystalBaseSpeed = getLayerParamNumber(crystalLayer, 'speed', 1.0);
-    const crystalScale = Math.max(0.1, crystalBaseScale + macroVal('layer-crystal.scale'));
-    const crystalSpeed = Math.max(0.1, crystalBaseSpeed + macroVal('layer-crystal.speed'));
+    const crystalScale = Math.max(0.1, crystalBaseScale + macroVal('layer-crystal.scale') + (this.midiSum['layer-crystal.scale'] ?? 0));
+    const crystalSpeed = Math.max(0.1, crystalBaseSpeed + macroVal('layer-crystal.speed') + (this.midiSum['layer-crystal.speed'] ?? 0));
 
     const inkBaseSpeed = getLayerParamNumber(inkLayer, 'speed', 1.0);
     const inkBaseScale = getLayerParamNumber(inkLayer, 'scale', 1.0);
-    const inkSpeed = Math.max(0.1, inkBaseSpeed + macroVal('layer-inkflow.speed'));
-    const inkScale = Math.max(0.1, inkBaseScale + macroVal('layer-inkflow.scale'));
+    const inkSpeed = Math.max(0.1, inkBaseSpeed + macroVal('layer-inkflow.speed') + (this.midiSum['layer-inkflow.speed'] ?? 0));
+    const inkScale = Math.max(0.1, inkBaseScale + macroVal('layer-inkflow.scale') + (this.midiSum['layer-inkflow.scale'] ?? 0));
 
     const topoBaseScale = getLayerParamNumber(topoLayer, 'scale', 1.0);
     const topoBaseElevation = getLayerParamNumber(topoLayer, 'elevation', 0.5);
-    const topoScale = Math.max(0.1, topoBaseScale + macroVal('layer-topo.scale'));
-    const topoElevation = Math.max(0.1, topoBaseElevation + macroVal('layer-topo.elevation'));
+    const topoScale = Math.max(0.1, topoBaseScale + macroVal('layer-topo.scale') + (this.midiSum['layer-topo.scale'] ?? 0));
+    const topoElevation = Math.max(0.1, topoBaseElevation + macroVal('layer-topo.elevation') + (this.midiSum['layer-topo.elevation'] ?? 0));
 
     const weatherBaseSpeed = getLayerParamNumber(weatherLayer, 'speed', 1.0);
-    const weatherSpeed = Math.max(0.1, weatherBaseSpeed + macroVal('layer-weather.speed'));
+    const weatherSpeed = Math.max(0.1, weatherBaseSpeed + macroVal('layer-weather.speed') + (this.midiSum['layer-weather.speed'] ?? 0));
 
     const moddedPlasmaOpacity = applyRoleOpacity(
       modValue('layer-plasma.opacity', layerOpacity(plasmaLayer, 'layer-plasma.opacity', 1)),

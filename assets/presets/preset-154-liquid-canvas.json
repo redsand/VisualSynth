@@ -38,6 +38,7 @@
           "name": "Fluid Video",
           "role": "core",
           "enabled": true,
+          "assetId": "asset-liquid-canvas",
           "opacity": 1,
           "transform": {
             "x": 0,
@@ -50,13 +51,33 @@
         {
           "id": "layer-caustic-overlay",
           "name": "Refraction Overlay",
-          "role": "support",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.4,
+          "opacity": 0.85,
           "blendMode": "screen",
           "generatorId": "gen-caustic-liquid",
           "params": {
-            "speed": 0.5
+            "opacity": 1,
+            "speed": 1.4
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-liquid-noise",
+          "name": "Liquid Noise",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.25,
+          "blendMode": "screen",
+          "generatorId": "gen-signal-noise",
+          "params": {
+            "opacity": 1,
+            "amount": 0.5
           },
           "transform": {
             "x": 0,
@@ -118,7 +139,24 @@
     "rotation": 0,
     "fill": 0
   },
-  "assets": [],
+  "assets": [
+    {
+      "id": "asset-liquid-canvas",
+      "name": "Liquid Canvas Plate",
+      "kind": "text",
+      "tags": [
+        "preset",
+        "default-media"
+      ],
+      "addedAt": "2026-02-06T00:03:20.016Z",
+      "options": {
+        "text": "LIQUID",
+        "font": "Georgia",
+        "fontSize": 132,
+        "fontColor": "#dff7ff"
+      }
+    }
+  ],
   "plugins": [],
   "lfos": [],
   "envelopes": [],

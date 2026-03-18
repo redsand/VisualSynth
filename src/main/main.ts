@@ -275,6 +275,20 @@ ipcMain.handle('project:autosave', async (_event, payload: string) => {
   }
 });
 
+ipcMain.handle('preset:save', async (_event, payload: string, defaultName: string) => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save VisualSynth Scene Preset',
+    defaultPath: defaultName,
+    filters: [{ name: 'VisualSynth Preset', extensions: ['json'] }]
+  });
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+  fs.writeFileSync(result.filePath, payload, 'utf-8');
+  return { canceled: false, filePath: result.filePath };
+});
+
 ipcMain.handle('project:recovery', async () => {
   const baseDir = app.getPath('userData');
   const filePath = path.join(baseDir, 'sessions', 'recovery.json');
@@ -314,6 +328,21 @@ ipcMain.handle('project:open', async () => {
     return { canceled: true, error: 'Invalid project file.' };
   }
   return { canceled: false, filePath, project: parsed.data };
+});
+
+ipcMain.handle('scene:open', async () => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Open VisualSynth Scene',
+    filters: [{ name: 'VisualSynth JSON', extensions: ['json'] }],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true };
+  }
+  const filePath = result.filePaths[0];
+  const payload = fs.readFileSync(filePath, 'utf-8');
+  return { canceled: false, filePath, payload };
 });
 
 ipcMain.handle('project:load-showcase', async () => {
