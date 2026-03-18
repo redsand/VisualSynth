@@ -131,7 +131,8 @@ const modConnectionSchema = z.object({
   smoothing: z.number().default(0),
   bipolar: z.boolean().default(false),
   min: z.number().default(0),
-  max: z.number().default(1)
+  max: z.number().default(1),
+  enabled: z.boolean().default(true)
 });
 
 const midiMappingSchema = z.object({
@@ -745,6 +746,26 @@ export const projectSchema = z.object({
     source: z.enum(['manual', 'auto', 'network']).default('manual')
   }).default({ bpm: 120, source: 'manual' }),
   customShaderBlocks: z.array(customShaderBlockSchema).default([]),
+  overlays: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(['image', 'text']),
+    enabled: z.boolean().default(true),
+    x: z.number().default(0),
+    y: z.number().default(0),
+    width: z.number().default(0.15),
+    height: z.number().default(0.1),
+    opacity: z.number().default(1),
+    rotation: z.number().default(0),
+    includeInFx: z.boolean().default(false),
+    assetPath: z.string().optional(),
+    text: z.string().optional(),
+    fontFamily: z.string().optional(),
+    fontSize: z.number().optional(),
+    fontColor: z.string().optional(),
+    fontWeight: z.enum(['normal', 'bold']).optional(),
+    textShadow: z.boolean().optional()
+  })).default([]),
   _shaderData: milkDropShaderDataSchema.optional()
 });
 

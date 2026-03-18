@@ -112,6 +112,15 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
     project.modMatrix.forEach((connection, index) => {
       const row = document.createElement('div');
       row.className = 'matrix-row';
+      if (connection.enabled === false) row.classList.add('matrix-row-disabled');
+      const enableButton = document.createElement('button');
+      enableButton.className = 'mod-enable-btn' + (connection.enabled === false ? ' disabled' : '');
+      enableButton.textContent = connection.enabled === false ? '○' : '●';
+      enableButton.title = connection.enabled === false ? 'Enable' : 'Disable';
+      enableButton.addEventListener('click', () => {
+        connection.enabled = connection.enabled === false ? true : false;
+        renderModMatrix();
+      });
       const sourceLabel = document.createElement('div');
       sourceLabel.textContent = connection.source;
       const targetLabel = document.createElement('div');
@@ -125,15 +134,24 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
       amountInput.addEventListener('input', () => {
         connection.amount = Number(amountInput.value);
       });
+      const midiLearnBtn = document.createElement('button');
+      midiLearnBtn.className = 'midi-learn-btn';
+      midiLearnBtn.textContent = 'M';
+      midiLearnBtn.title = 'MIDI learn toggle for this mod connection';
+      midiLearnBtn.addEventListener('click', () => {
+        armMidiLearn(`modMatrix.${index}.enabled`, `Mod ${index + 1} Enable`);
+      });
       const removeButton = document.createElement('button');
       removeButton.textContent = '✕';
       removeButton.addEventListener('click', () => {
         project.modMatrix.splice(index, 1);
         renderModMatrix();
       });
+      row.appendChild(enableButton);
       row.appendChild(sourceLabel);
       row.appendChild(targetLabel);
       row.appendChild(amountInput);
+      row.appendChild(midiLearnBtn);
       row.appendChild(removeButton);
       modMatrixList.appendChild(row);
     });
@@ -186,7 +204,8 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
       smoothing: 0,
       bipolar: false,
       min: 0,
-      max: 1
+      max: 1,
+      enabled: true
     });
     renderModMatrix();
     setStatus('Modulation connection added.');

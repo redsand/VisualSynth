@@ -395,7 +395,7 @@ ipcMain.handle('capture:transcode', async (_event, data: Uint8Array, defaultName
 ipcMain.handle('assets:import', async (_event, kind: 'texture' | 'shader' | 'video') => {
   if (!mainWindow) return { canceled: true };
   const filters: Record<typeof kind, { name: string; extensions: string[] }> = {
-    texture: { name: 'Textures', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
+    texture: { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] },
     shader: { name: 'Shaders', extensions: ['glsl', 'frag', 'vert'] },
     video: { name: 'Videos', extensions: ['mp4', 'webm', 'mov'] }
   };

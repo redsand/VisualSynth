@@ -10,7 +10,7 @@ export const applyModMatrix = (
   sources: ModSourceValues,
   connections: ModConnection[]
 ) => {
-  const mods = connections.filter((conn) => conn.target === targetId);
+  const mods = connections.filter((conn) => conn.target === targetId && conn.enabled !== false);
   if (mods.length === 0) {
     return baseValue;
   }

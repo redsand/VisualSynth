@@ -1,14 +1,25 @@
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
-import type { AssetItem } from '../shared/project';
+import type { AssetItem, OverlayConfig } from '../shared/project';
 import { createSafeModeRenderer } from './safeModeRenderer';
+import { createOverlayRenderer } from './overlayRenderer';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
+const outputOverlayCanvas = document.getElementById('output-overlay-canvas') as HTMLCanvasElement;
 const debugOverlay = document.getElementById('output-debug') as HTMLDivElement | null;
 let debugVisible = false;
 let renderer: ReturnType<typeof createGLRenderer>;
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
+
+let outputOverlays: OverlayConfig[] = [];
+const outputOverlayRenderer = createOverlayRenderer({
+  canvas: outputOverlayCanvas,
+  getOverlays: () => outputOverlays,
+  onOverlayUpdate: () => {},
+  onSelect: () => {},
+  isDesignMode: () => false
+});
 
 const renderTextToCanvas = (
   text: string,
@@ -1057,6 +1068,9 @@ channel.onmessage = (event) => {
       renderer.setLayerAsset(layerId, asset, undefined, textCanvas);
     });
   }
+  if (Array.isArray((data as any).overlays)) {
+    outputOverlays = (data as any).overlays as OverlayConfig[];
+  }
 };
 
 let lastDebugUpdate = 0;
@@ -1067,6 +1081,7 @@ const render = (time: number) => {
     ...state,
     timeMs: Number.isFinite(state.timeMs) ? state.timeMs : time
   });
+  outputOverlayRenderer.draw();
   frameCount += 1;
   if (debugOverlay) {
     const now = performance.now();

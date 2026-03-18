@@ -34,7 +34,7 @@ import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
-import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
+import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
 import { lfoValueForShape } from '../shared/lfoUtils';
 import { reorderLayers, cloneLayerConfig, ensureLayerWithDefaults } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
@@ -64,6 +64,8 @@ import {
 import { buildRendererOutputBroadcastPayload } from './render/outputPayload';
 import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
+import { createOverlayRenderer } from './overlayRenderer';
+import type { OverlayConfig } from '../shared/project';
 
 declare global {
   interface Window {
@@ -212,6 +214,22 @@ const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButt
 const designAddLayerButton = document.getElementById('design-add-layer') as HTMLButtonElement;
 const generatorPanel = document.getElementById('generator-panel') as HTMLDivElement;
 const perfPaletteGrid = document.getElementById('perf-palette-grid') as HTMLDivElement;
+const overlayCanvas = document.getElementById('overlay-canvas') as HTMLCanvasElement;
+const overlayAddImageBtn = document.getElementById('overlay-add-image') as HTMLButtonElement;
+const overlayAddTextBtn = document.getElementById('overlay-add-text') as HTMLButtonElement;
+const overlayListEl = document.getElementById('overlay-list') as HTMLDivElement;
+const overlayPropsEl = document.getElementById('overlay-props') as HTMLDivElement;
+const overlayNameInput = document.getElementById('overlay-name') as HTMLInputElement;
+const overlayTextGroup = document.getElementById('overlay-text-group') as HTMLDivElement;
+const overlayTextInput = document.getElementById('overlay-text') as HTMLInputElement;
+const overlayFontSizeInput = document.getElementById('overlay-font-size') as HTMLInputElement;
+const overlayFontColorInput = document.getElementById('overlay-font-color') as HTMLInputElement;
+const overlayFontBoldInput = document.getElementById('overlay-font-bold') as HTMLInputElement;
+const overlayTextShadowInput = document.getElementById('overlay-text-shadow') as HTMLInputElement;
+const overlayOpacityInput = document.getElementById('overlay-opacity') as HTMLInputElement;
+const overlayRotationInput = document.getElementById('overlay-rotation') as HTMLInputElement;
+const overlayIncludeFxInput = document.getElementById('overlay-include-fx') as HTMLInputElement;
+const overlayDeleteBtn = document.getElementById('overlay-delete') as HTMLButtonElement;
 const playlistPlayButton = document.getElementById('playlist-play') as HTMLButtonElement;
 const playlistStopButton = document.getElementById('playlist-stop') as HTMLButtonElement;
 const playlistList = document.getElementById('playlist-list') as HTMLDivElement;
@@ -1197,6 +1215,7 @@ const setMode = (mode: UiMode) => {
   activeMode = mode;
   const visibility = getModeVisibility(mode);
   document.body.dataset.mode = mode;
+  updateOverlayPointerEvents();
   modeButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.mode === mode);
   });
@@ -2015,29 +2034,7 @@ const modSourceOptions = [
   { id: 'macro-8', label: 'Macro 8' }
 ];
 
-const modTargetOptions = [
-  { id: 'layer-plasma.opacity', label: 'Plasma Opacity', min: 0, max: 1 },
-  { id: 'layer-plasma.speed', label: 'Plasma Speed', min: 0.1, max: 3 },
-  { id: 'layer-plasma.scale', label: 'Plasma Scale', min: 0.1, max: 3 },
-  { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity', min: 0, max: 1 },
-  { id: 'layer-origami.opacity', label: 'Origami Opacity', min: 0, max: 1 },
-  { id: 'layer-origami.speed', label: 'Origami Speed', min: 0.1, max: 3 },
-  { id: 'layer-glyph.opacity', label: 'Glyph Opacity', min: 0, max: 1 },
-  { id: 'layer-glyph.speed', label: 'Glyph Speed', min: 0.1, max: 3 },
-  { id: 'layer-crystal.opacity', label: 'Crystal Opacity', min: 0, max: 1 },
-  { id: 'layer-crystal.scale', label: 'Crystal Scale', min: 0.1, max: 3 },
-  { id: 'layer-crystal.speed', label: 'Crystal Speed', min: 0.1, max: 3 },
-  { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity', min: 0, max: 1 },
-  { id: 'layer-inkflow.speed', label: 'Ink Flow Speed', min: 0.1, max: 3 },
-  { id: 'layer-inkflow.scale', label: 'Ink Flow Scale', min: 0.1, max: 3 },
-  { id: 'layer-topo.opacity', label: 'Topo Opacity', min: 0, max: 1 },
-  { id: 'layer-topo.scale', label: 'Topo Scale', min: 0.1, max: 3 },
-  { id: 'layer-topo.elevation', label: 'Topo Elevation', min: 0, max: 1 },
-  { id: 'layer-weather.opacity', label: 'Weather Opacity', min: 0, max: 1 },
-  { id: 'layer-weather.speed', label: 'Weather Speed', min: 0.1, max: 3 },
-  { id: 'layer-portal.opacity', label: 'Portal Opacity', min: 0, max: 1 },
-  { id: 'layer-media.opacity', label: 'Media Opacity', min: 0, max: 1 },
-  { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity', min: 0, max: 1 },
+const globalModTargets = [
   { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
   { id: 'style.saturation', label: 'Style Saturation', min: 0.6, max: 1.8 },
   { id: 'style.paletteShift', label: 'Palette Shift', min: -0.5, max: 0.5 },
@@ -2059,48 +2056,36 @@ const modTargetOptions = [
   { id: 'sdf.fill', label: 'SDF Fill', min: 0, max: 1 }
 ];
 
+function buildModTargetOptions() {
+  const activeScene =
+    currentProject.scenes.find((s) => s.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const layerTargets: { id: string; label: string; min: number; max: number }[] = [];
+  for (const layer of activeScene?.layers ?? []) {
+    const genId = layer.generatorId ?? layer.id;
+    const layerType = getLayerType(genId);
+    if (!layerType) continue;
+    const legacyPrefix = buildLegacyTarget(layerType.id, '').replace(/\.$/, '');
+    const params = getModulatableParams(genId);
+    for (const p of params) {
+      if (p.type !== 'number') continue;
+      layerTargets.push({
+        id: `${legacyPrefix}.${p.id}`,
+        label: `${layer.name || layerType.name} ${p.name}`,
+        min: p.min ?? 0,
+        max: p.max ?? 1
+      });
+    }
+  }
+  return [...layerTargets, ...globalModTargets];
+}
+
+let modTargetOptions = buildModTargetOptions();
+
 const getTargetDefaults = (targetId: string) =>
   modTargetOptions.find((item) => item.id === targetId) ?? { min: 0, max: 1 };
 
-const midiTargetOptions = [
-  { id: 'layer-plasma.enabled', label: 'Plasma Enabled' },
-  { id: 'layer-spectrum.enabled', label: 'Spectrum Enabled' },
-  { id: 'layer-origami.enabled', label: 'Origami Enabled' },
-  { id: 'layer-glyph.enabled', label: 'Glyph Enabled' },
-  { id: 'layer-crystal.enabled', label: 'Crystal Enabled' },
-  { id: 'layer-inkflow.enabled', label: 'Ink Flow Enabled' },
-  { id: 'layer-topo.enabled', label: 'Topo Enabled' },
-  { id: 'layer-weather.enabled', label: 'Weather Enabled' },
-  { id: 'layer-portal.enabled', label: 'Portal Enabled' },
-  { id: 'layer-media.enabled', label: 'Media Enabled' },
-  { id: 'layer-oscillo.enabled', label: 'Oscillo Enabled' },
-  { id: 'layer-plasma.opacity', label: 'Plasma Opacity' },
-  { id: 'layer-plasma.speed', label: 'Plasma Speed' },
-  { id: 'layer-plasma.scale', label: 'Plasma Scale' },
-  { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity' },
-  { id: 'layer-origami.opacity', label: 'Origami Opacity' },
-  { id: 'layer-origami.speed', label: 'Origami Speed' },
-  { id: 'layer-glyph.opacity', label: 'Glyph Opacity' },
-  { id: 'layer-glyph.speed', label: 'Glyph Speed' },
-  { id: 'layer-crystal.opacity', label: 'Crystal Opacity' },
-  { id: 'layer-crystal.scale', label: 'Crystal Scale' },
-  { id: 'layer-crystal.speed', label: 'Crystal Speed' },
-  { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity' },
-  { id: 'layer-inkflow.speed', label: 'Ink Flow Speed' },
-  { id: 'layer-inkflow.scale', label: 'Ink Flow Scale' },
-  { id: 'layer-topo.opacity', label: 'Topo Opacity' },
-  { id: 'layer-topo.scale', label: 'Topo Scale' },
-  { id: 'layer-topo.elevation', label: 'Topo Elevation' },
-  { id: 'layer-weather.opacity', label: 'Weather Opacity' },
-  { id: 'layer-weather.speed', label: 'Weather Speed' },
-  { id: 'layer-portal.opacity', label: 'Portal Opacity' },
-  { id: 'layer-media.opacity', label: 'Media Opacity' },
-  { id: 'layer-media.burst', label: 'Media Burst' },
-  { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity' },
-  { id: 'gen-laser-beam.opacity', label: 'Laser Opacity' },
-  { id: 'gen-laser-beam.beamWidth', label: 'Laser Beam Width' },
-  { id: 'gen-laser-beam.rotationSpeed', label: 'Laser Sweep Speed' },
-  { id: 'gen-laser-beam.colorShift', label: 'Laser Color Shift' },
+const globalMidiTargets = [
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
   { id: 'style.paletteShift', label: 'Palette Shift' },
@@ -2136,6 +2121,35 @@ const midiTargetOptions = [
   { id: 'playlist-slot-7', label: 'Playlist Slot 7' },
   { id: 'playlist-slot-8', label: 'Playlist Slot 8' }
 ];
+
+function buildMidiTargetOptions() {
+  const activeScene =
+    currentProject.scenes.find((s) => s.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const layerTargets: { id: string; label: string }[] = [];
+  for (const layer of activeScene?.layers ?? []) {
+    const genId = layer.generatorId ?? layer.id;
+    const layerType = getLayerType(genId);
+    if (!layerType) continue;
+    const legacyPrefix = buildLegacyTarget(layerType.id, '').replace(/\.$/, '');
+    // Add enabled toggle
+    layerTargets.push({
+      id: `${legacyPrefix}.enabled`,
+      label: `${layer.name || layerType.name} Enabled`
+    });
+    const params = getMidiMappableParams(genId);
+    for (const p of params) {
+      if (p.type !== 'number') continue;
+      layerTargets.push({
+        id: `${legacyPrefix}.${p.id}`,
+        label: `${layer.name || layerType.name} ${p.name}`
+      });
+    }
+  }
+  return [...layerTargets, ...globalMidiTargets];
+}
+
+let midiTargetOptions = buildMidiTargetOptions();
 
 const normalizeOutputScale = (value: number) => Math.min(1, Math.max(0.25, value));
 
@@ -3185,9 +3199,20 @@ const renderModMatrix = () => {
     return;
   }
 
-  currentProject.modMatrix.forEach((connection) => {
+  currentProject.modMatrix.forEach((connection, index) => {
     const row = document.createElement('div');
     row.className = 'matrix-row';
+    if (connection.enabled === false) row.classList.add('matrix-row-disabled');
+
+    const enableButton = document.createElement('button');
+    enableButton.className = 'mod-enable-btn' + (connection.enabled === false ? ' disabled' : '');
+    enableButton.textContent = connection.enabled === false ? '○' : '●';
+    enableButton.title = connection.enabled === false ? 'Enable modulation' : 'Disable modulation';
+    enableButton.addEventListener('click', () => {
+      connection.enabled = connection.enabled === false ? true : false;
+      renderModMatrix();
+      renderLayerList();
+    });
 
     const sourceSelect = document.createElement('select');
     modSourceOptions.forEach((option) => {
@@ -3288,6 +3313,15 @@ const renderModMatrix = () => {
       connection.max = Number(maxInput.value);
     });
 
+    const midiLearnBtn = document.createElement('button');
+    midiLearnBtn.className = 'midi-learn-btn';
+    midiLearnBtn.textContent = 'M';
+    midiLearnBtn.title = 'MIDI learn toggle for this mod connection';
+    midiLearnBtn.addEventListener('click', () => {
+      armMidiLearn(`modMatrix.${index}.enabled`, `Mod ${index + 1} Enable`);
+    });
+
+    row.appendChild(enableButton);
     row.appendChild(sourceSelect);
     row.appendChild(targetSelect);
     row.appendChild(amountInput);
@@ -3296,6 +3330,7 @@ const renderModMatrix = () => {
     row.appendChild(bipolarToggle);
     row.appendChild(minInput);
     row.appendChild(maxInput);
+    row.appendChild(midiLearnBtn);
     row.appendChild(removeButton);
     modMatrixList.appendChild(row);
   });
@@ -3316,7 +3351,8 @@ const addModConnection = () => {
       smoothing: 0.1,
       bipolar: false,
       min: defaults.min,
-      max: defaults.max
+      max: defaults.max,
+      enabled: true
     }
   ];
   renderModMatrix();
@@ -3477,19 +3513,12 @@ const renderMappingSources = () => {
 const renderMappingTargets = (filterText = '') => {
   if (!mappingTargetList) return;
   const filter = filterText.trim().toLowerCase();
-  const activeScene =
-    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
-    currentProject.scenes[0];
-  const availableLayerIds = new Set((activeScene?.layers ?? []).map((layer) => layer.id));
   mappingTargetList.innerHTML = '';
+  // modTargetOptions is already scoped to active scene layers via buildModTargetOptions()
   const targets = modTargetOptions
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
     .filter((target) => {
-      if (target.id.startsWith('layer-')) {
-        const layerId = target.id.split('.')[0];
-        if (!availableLayerIds.has(layerId)) return false;
-      }
       return filter ? target.label.toLowerCase().includes(filter) : true;
     });
 
@@ -3557,7 +3586,8 @@ const initDragAndDropMapping = () => {
           smoothing: 0.1,
           bipolar: false,
           min: defaults.min,
-          max: defaults.max
+          max: defaults.max,
+          enabled: true
         });
         renderModMatrix();
         setStatus(`Mapped ${sourceId} to ${dropTarget.dataset.learnLabel || targetId}`);
@@ -5218,6 +5248,11 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
   syncPerformanceToggles();
   renderSceneStrip();
   renderSceneTimeline();
+  modTargetOptions = buildModTargetOptions();
+  midiTargetOptions = buildMidiTargetOptions();
+  if (activeMode === 'mapping') {
+    renderMappingTargets(mappingTargetSearch?.value ?? '');
+  }
   if (activeMode === 'mixer') {
     mixerPanel?.render();
   }
@@ -8770,6 +8805,10 @@ const applyProject = async (project: VisualSynthProject) => {
   renderMarkers();
   renderAssets();
   renderPlugins();
+  renderOverlayList();
+  selectedOverlayId = null;
+  overlayRenderer.setSelected(null);
+  overlayPropsEl.classList.add('hidden');
   diffBaseProject = { ...currentProject };
   renderDiffSections();
   void checkMissingAssets();
@@ -9961,6 +10000,165 @@ const debugOverlay = createDebugOverlay((flags) => {
   // Flags: { tintLayers: boolean, fxDelta: boolean }
   // These can be used to enable visual debugging features
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Image/Text Overlay System
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let selectedOverlayId: string | null = null;
+
+const overlayRenderer = createOverlayRenderer({
+  canvas: overlayCanvas,
+  getOverlays: () => currentProject.overlays ?? [],
+  onOverlayUpdate: (id, changes) => {
+    const overlays = currentProject.overlays ?? [];
+    const idx = overlays.findIndex(o => o.id === id);
+    if (idx < 0) return;
+    Object.assign(overlays[idx], changes);
+    if (id === selectedOverlayId) syncOverlayProps(overlays[idx]);
+  },
+  onSelect: (id) => {
+    selectedOverlayId = id;
+    renderOverlayList();
+    if (id) {
+      const overlay = (currentProject.overlays ?? []).find(o => o.id === id);
+      if (overlay) syncOverlayProps(overlay);
+      overlayPropsEl.classList.remove('hidden');
+    } else {
+      overlayPropsEl.classList.add('hidden');
+    }
+  },
+  isDesignMode: () => activeMode === 'design'
+});
+
+function generateOverlayId(): string {
+  return 'ovl-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+}
+
+function syncOverlayProps(o: OverlayConfig) {
+  overlayNameInput.value = o.name;
+  overlayTextGroup.classList.toggle('hidden', o.type !== 'text');
+  if (o.type === 'text') {
+    overlayTextInput.value = o.text ?? '';
+    overlayFontSizeInput.value = String(o.fontSize ?? 24);
+    overlayFontColorInput.value = o.fontColor ?? '#ffffff';
+    overlayFontBoldInput.checked = o.fontWeight === 'bold';
+    overlayTextShadowInput.checked = o.textShadow ?? false;
+  }
+  overlayOpacityInput.value = String(o.opacity);
+  overlayRotationInput.value = String(o.rotation);
+  overlayIncludeFxInput.checked = o.includeInFx;
+}
+
+function updateSelectedOverlay(changes: Partial<OverlayConfig>) {
+  if (!selectedOverlayId) return;
+  const overlays = currentProject.overlays ?? [];
+  const overlay = overlays.find(o => o.id === selectedOverlayId);
+  if (overlay) Object.assign(overlay, changes);
+}
+
+function renderOverlayList() {
+  const overlays = currentProject.overlays ?? [];
+  overlayListEl.innerHTML = '';
+  for (const o of overlays) {
+    const item = document.createElement('div');
+    item.className = 'overlay-item' + (o.id === selectedOverlayId ? ' selected' : '');
+    const icon = o.type === 'image' ? '\u{1F5BC}' : '\u{1F524}';
+    item.innerHTML = `<span class="overlay-handle">${icon}</span> ${o.name}`;
+    item.addEventListener('click', () => {
+      selectedOverlayId = o.id;
+      overlayRenderer.setSelected(o.id);
+      renderOverlayList();
+      syncOverlayProps(o);
+      overlayPropsEl.classList.remove('hidden');
+    });
+    overlayListEl.appendChild(item);
+  }
+  if (overlays.length === 0) {
+    overlayPropsEl.classList.add('hidden');
+  }
+}
+
+overlayAddImageBtn.addEventListener('click', async () => {
+  const result = await window.visualSynth.importAsset('texture');
+  if (result.canceled || !result.filePath) return;
+  const name = result.filePath.split(/[\\/]/).pop() ?? 'Image';
+  const overlay: OverlayConfig = {
+    id: generateOverlayId(),
+    name,
+    type: 'image',
+    enabled: true,
+    x: 0.8, y: 0.85,
+    width: 0.15, height: 0.1,
+    opacity: 1,
+    rotation: 0,
+    includeInFx: false,
+    assetPath: result.filePath
+  };
+  if (!currentProject.overlays) currentProject.overlays = [];
+  currentProject.overlays.push(overlay);
+  selectedOverlayId = overlay.id;
+  overlayRenderer.setSelected(overlay.id);
+  renderOverlayList();
+  syncOverlayProps(overlay);
+  overlayPropsEl.classList.remove('hidden');
+  setStatus(`Overlay added: ${name}`);
+});
+
+overlayAddTextBtn.addEventListener('click', () => {
+  const overlay: OverlayConfig = {
+    id: generateOverlayId(),
+    name: 'Text Overlay',
+    type: 'text',
+    enabled: true,
+    x: 0.05, y: 0.9,
+    width: 0.3, height: 0.08,
+    opacity: 1,
+    rotation: 0,
+    includeInFx: false,
+    text: 'Your Text',
+    fontFamily: 'sans-serif',
+    fontSize: 24,
+    fontColor: '#ffffff',
+    fontWeight: 'normal',
+    textShadow: true
+  };
+  if (!currentProject.overlays) currentProject.overlays = [];
+  currentProject.overlays.push(overlay);
+  selectedOverlayId = overlay.id;
+  overlayRenderer.setSelected(overlay.id);
+  renderOverlayList();
+  syncOverlayProps(overlay);
+  overlayPropsEl.classList.remove('hidden');
+  setStatus('Text overlay added');
+});
+
+overlayNameInput.addEventListener('input', () => updateSelectedOverlay({ name: overlayNameInput.value }));
+overlayTextInput.addEventListener('input', () => updateSelectedOverlay({ text: overlayTextInput.value }));
+overlayFontSizeInput.addEventListener('input', () => updateSelectedOverlay({ fontSize: Number(overlayFontSizeInput.value) }));
+overlayFontColorInput.addEventListener('input', () => updateSelectedOverlay({ fontColor: overlayFontColorInput.value }));
+overlayFontBoldInput.addEventListener('change', () => updateSelectedOverlay({ fontWeight: overlayFontBoldInput.checked ? 'bold' : 'normal' }));
+overlayTextShadowInput.addEventListener('change', () => updateSelectedOverlay({ textShadow: overlayTextShadowInput.checked }));
+overlayOpacityInput.addEventListener('input', () => updateSelectedOverlay({ opacity: Number(overlayOpacityInput.value) }));
+overlayRotationInput.addEventListener('input', () => updateSelectedOverlay({ rotation: Number(overlayRotationInput.value) }));
+overlayIncludeFxInput.addEventListener('change', () => updateSelectedOverlay({ includeInFx: overlayIncludeFxInput.checked }));
+
+overlayDeleteBtn.addEventListener('click', () => {
+  if (!selectedOverlayId) return;
+  const overlays = currentProject.overlays ?? [];
+  currentProject.overlays = overlays.filter(o => o.id !== selectedOverlayId);
+  selectedOverlayId = null;
+  overlayRenderer.setSelected(null);
+  overlayPropsEl.classList.add('hidden');
+  renderOverlayList();
+  setStatus('Overlay deleted');
+});
+
+// Toggle overlay canvas pointer events based on mode
+const updateOverlayPointerEvents = () => {
+  overlayCanvas.style.pointerEvents = activeMode === 'design' ? 'auto' : 'none';
+};
+
+renderOverlayList();
 
 let lastTime = performance.now();
 let currentFps = 0;
@@ -11526,6 +11724,7 @@ const render = (time: number) => {
   resizeCanvasToDisplaySize(visualizerCanvas);
   updateSceneTimelineProgress(blendSnapshot);
   drawVisualizer(blendSnapshot?.visualizer ?? currentProject.visualizer);
+  overlayRenderer.draw();
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

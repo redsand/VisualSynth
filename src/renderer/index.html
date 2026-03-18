@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VisualSynth</title>
@@ -231,6 +231,58 @@
                   Persistence
                   <input id="effect-persistence" type="range" min="0" max="1" step="0.05" value="0" />
                 </label>
+              </div>
+            </div>
+            <div class="panel-block">
+              <h3>Overlays</h3>
+              <div class="scene-row">
+                <button id="overlay-add-image" type="button">Add Image</button>
+                <button id="overlay-add-text" type="button">Add Text</button>
+              </div>
+              <div id="overlay-list" class="overlay-list"></div>
+              <div id="overlay-props" class="overlay-props hidden">
+                <label class="scene-label">
+                  Name
+                  <input id="overlay-name" type="text" />
+                </label>
+                <div id="overlay-text-group">
+                  <label class="scene-label">
+                    Text
+                    <input id="overlay-text" type="text" />
+                  </label>
+                  <div class="scene-row">
+                    <label class="scene-inline">
+                      Size
+                      <input id="overlay-font-size" type="number" min="8" max="200" value="24" />
+                    </label>
+                    <label class="scene-inline">
+                      Color
+                      <input id="overlay-font-color" type="color" value="#ffffff" />
+                    </label>
+                    <label class="scene-inline">
+                      <input id="overlay-font-bold" type="checkbox" /> Bold
+                    </label>
+                    <label class="scene-inline">
+                      <input id="overlay-text-shadow" type="checkbox" checked /> Shadow
+                    </label>
+                  </div>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    Opacity
+                    <input id="overlay-opacity" type="range" min="0" max="1" step="0.05" value="1" />
+                  </label>
+                  <label class="scene-inline">
+                    Rotation
+                    <input id="overlay-rotation" type="range" min="-180" max="180" step="1" value="0" />
+                  </label>
+                </div>
+                <label class="scene-label scene-label-inline">
+                  <input id="overlay-include-fx" type="checkbox" /> Include in FX
+                </label>
+                <div class="scene-row">
+                  <button id="overlay-delete" type="button">Delete Overlay</button>
+                </div>
               </div>
             </div>
             <div class="panel-block">
@@ -727,6 +779,7 @@
             </div>
             <canvas id="gl-canvas" width="1280" height="720"></canvas>
             <canvas id="visualizer-canvas" width="1280" height="720"></canvas>
+            <canvas id="overlay-canvas" width="1280" height="720"></canvas>
             <div id="fade-overlay" class="fade-overlay hidden"></div>
             <div id="quantize-hud" class="quantize-hud hidden">Switching in --</div>
             <div id="safe-mode-banner" class="safe-mode hidden">Safe mode: --</div>

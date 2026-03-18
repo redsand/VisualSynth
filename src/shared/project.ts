@@ -55,6 +55,7 @@ export interface ModConnection {
   bipolar: boolean;
   min: number;
   max: number;
+  enabled: boolean;
 }
 
 export interface MidiMapping {
@@ -242,6 +243,29 @@ export interface StylePreset {
     saturation: number;
     paletteShift: number;
   };
+}
+
+export type OverlayType = 'image' | 'text';
+
+export interface OverlayConfig {
+  id: string;
+  name: string;
+  type: OverlayType;
+  enabled: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+  rotation: number;
+  includeInFx: boolean;
+  assetPath?: string;
+  text?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontColor?: string;
+  fontWeight?: 'normal' | 'bold';
+  textShadow?: boolean;
 }
 
 export interface ColorPalette {
@@ -551,6 +575,7 @@ export interface VisualSynthProject {
     bpm: number;
     source: 'manual' | 'auto' | 'network';
   };
+  overlays?: OverlayConfig[];
   customShaderBlocks?: CustomShaderBlock[];
   _shaderData?: MilkDropShaderData;
 }
@@ -843,6 +868,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     }
   ],
   plugins: [],
+  overlays: [],
   scenes: [
     {
       id: 'scene-1',
