@@ -2,6 +2,8 @@ import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRe
 import type { AssetItem, OverlayConfig } from '../shared/project';
 import { createSafeModeRenderer } from './safeModeRenderer';
 import { createOverlayRenderer } from './overlayRenderer';
+import { syncRenderState } from './render/autoSync';
+import type { SerializedOutputAsset } from './render/outputPayload';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
 const outputOverlayCanvas = document.getElementById('output-overlay-canvas') as HTMLCanvasElement;
@@ -273,9 +275,42 @@ channel.onmessage = (event) => {
   lastMessageAt = performance.now();
   messageCount += 1;
   const data = event.data as Partial<RenderState> & {
-    spectrum?: Float32Array;
-    layerAssets?: Partial<Record<AssetLayerId, AssetItem | null>>;
+    layerAssets?: Partial<Record<AssetLayerId, SerializedOutputAsset | null>>;
   };
+
+  // Auto-sync all standard RenderState fields
+  syncRenderState(data, state);
+
+  // Handle special broadcast-only fields (palette, generators, assets, overlays)
+  if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
+    const colors = (data as any).paletteColors as string[];
+    if (colors.length >= 5) {
+      renderer.setPalette(colors.slice(0, 5) as [string, string, string, string, string]);
+    }
+  }
+  if (Array.isArray((data as any).activeGeneratorIds) && renderer?.recompileForGenerators) {
+    const ids = new Set((data as any).activeGeneratorIds as string[]);
+    renderer.recompileForGenerators(ids);
+  }
+  if (data.layerAssets) {
+    (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
+      const asset = data.layerAssets?.[layerId] ?? null;
+      const nextId = asset?.id ?? null;
+      const assetKey =
+        asset?.kind === 'text'
+          ? `${asset.id}-${asset.options?.text ?? ''}-${asset.options?.font ?? ''}-${asset.options?.fontColor ?? ''}`
+          : asset?.id ?? null;
+      if (layerAssetIds[layerId] === nextId && layerAssetKeys[layerId] === assetKey) return;
+      layerAssetIds[layerId] = nextId;
+      layerAssetKeys[layerId] = assetKey;
+      const textCanvas = asset?.kind === 'text' ? getTextCanvas(asset) ?? undefined : undefined;
+      renderer.setLayerAsset(layerId, asset, undefined, textCanvas);
+    });
+  }
+  if (Array.isArray((data as any).overlays)) {
+    outputOverlays = (data as any).overlays as OverlayConfig[];
+  }
+
   if (typeof data.timeMs === 'number') state.timeMs = data.timeMs;
   if (typeof data.rms === 'number') state.rms = data.rms;
   if (typeof data.peak === 'number') state.peak = data.peak;

@@ -28,14 +28,8 @@ export const getProjectDisplayName = (project: unknown): string => {
 };
 
 export const resolveLoadableProject = (project: unknown): LoadableProjectResult => {
-  const name = getProjectDisplayName(project);
-  const rawStylePresets = (project as any)?.stylePresets;
-  const rawActiveStyleId = (project as any)?.activeStylePresetId;
-  console.log('[LoadableProject] BEFORE parse:',
-    '| raw stylePresets.length:', rawStylePresets?.length,
-    '| raw activeStylePresetId:', rawActiveStyleId);
-  
   const parsed = projectSchema.safeParse(project);
+  const name = getProjectDisplayName(project);
   if (!parsed.success) {
     return {
       ok: false,
@@ -43,10 +37,6 @@ export const resolveLoadableProject = (project: unknown): LoadableProjectResult 
       errorDetail: JSON.stringify(parsed.error.format(), null, 2)
     };
   }
-
-  console.log('[LoadableProject] AFTER parse:',
-    '| parsed stylePresets.length:', parsed.data.stylePresets?.length,
-    '| parsed activeStylePresetId:', parsed.data.activeStylePresetId);
 
   return {
     ok: true,

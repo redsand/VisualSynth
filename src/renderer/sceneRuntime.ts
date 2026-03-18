@@ -53,7 +53,7 @@ export const applySceneLookToProject = (
     return withActiveScene;
   }
 
-  const result = {
+  return {
     ...withActiveScene,
     effects: scene.look.effects ?? withActiveScene.effects,
     particles: scene.look.particles ?? withActiveScene.particles,
@@ -66,16 +66,6 @@ export const applySceneLookToProject = (
     macros: scene.look.macros ?? withActiveScene.macros,
     modMatrix: scene.look.modMatrix ?? withActiveScene.modMatrix
   };
-  if (result.activeStylePresetId !== 'style-neutral' || result.stylePresets.length !== 0) {
-    console.log('[SceneRuntime] applySceneLookToProject:',
-      '| scene.look.stylePresets:', scene.look.stylePresets,
-      '| withActiveScene.stylePresets.length:', withActiveScene.stylePresets.length,
-      '| result.stylePresets.length:', result.stylePresets.length,
-      '| scene.look.activeStylePresetId:', scene.look.activeStylePresetId,
-      '| withActiveScene.activeStylePresetId:', withActiveScene.activeStylePresetId,
-      '| result.activeStylePresetId:', result.activeStylePresetId);
-  }
-  return result;
 };
 
 export const resolveSceneActivationRuntime = (

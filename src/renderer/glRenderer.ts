@@ -536,7 +536,6 @@ void main() {
     gl.uniform1f(getLocation('uTransitionAmount'), state.transitionAmount);
     gl.uniform1f(getLocation('uTransitionType'), state.transitionType);
     gl.uniform1f(getLocation('uChemistryMode'), state.chemistryMode);
-    console.log('[GLRenderer] Setting uChemistryMode:', state.chemistryMode, '(0=analog, 1=triadic, 2=complementary, 3=monochromatic)');
     gl.uniform1f(getLocation('uMotionTemplate'), state.motionTemplate);
     gl.uniform1f(getLocation('uEngineMass'), state.engineMass);
     gl.uniform1f(getLocation('uEngineFriction'), state.engineFriction);

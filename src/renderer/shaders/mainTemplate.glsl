@@ -269,7 +269,6 @@ void main() {
 
    color *= uGlobalColor;
 
-
   if (uDebugTint > 0.5) color += vec3(0.02, 0.0, 0.0);
   outColor = vec4(color, 1.0);
 }

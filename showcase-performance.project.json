@@ -5267,17 +5267,5 @@
       ]
     }
   ],
-  "activePaletteId": "synthwave",
-  "stylePresets": [
-    {
-      "id": "style-neutral",
-      "name": "Neutral",
-      "settings": {
-        "contrast": 1,
-        "saturation": 1,
-        "paletteShift": 0
-      }
-    }
-  ],
-  "activeStylePresetId": "style-neutral"
+  "activePaletteId": "synthwave"
 }
