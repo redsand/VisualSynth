@@ -5,6 +5,7 @@ const createMockGl = () => {
   const fragmentSources: string[] = [];
 
   const gl = {
+    getExtension: () => null,
     VERTEX_SHADER: 0x8b31,
     FRAGMENT_SHADER: 0x8b30,
     COMPILE_STATUS: 0x8b81,

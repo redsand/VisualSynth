@@ -249,6 +249,7 @@ const overlayTextShadowInput = document.getElementById('overlay-text-shadow') as
 const overlayOpacityInput = document.getElementById('overlay-opacity') as HTMLInputElement;
 const overlayRotationInput = document.getElementById('overlay-rotation') as HTMLInputElement;
 const overlayIncludeFxInput = document.getElementById('overlay-include-fx') as HTMLInputElement;
+const overlayPersistInput = document.getElementById('overlay-persist') as HTMLInputElement;
 const overlayDeleteBtn = document.getElementById('overlay-delete') as HTMLButtonElement;
 const playlistPlayButton = document.getElementById('playlist-play') as HTMLButtonElement;
 const playlistStopButton = document.getElementById('playlist-stop') as HTMLButtonElement;
@@ -495,6 +496,8 @@ const webglDiag = document.getElementById('diag-webgl') as HTMLDivElement;
 const webglCopyButton = document.getElementById('diag-webgl-copy') as HTMLButtonElement;
 
 let currentProject: VisualSynthProject = DEFAULT_PROJECT;
+import { SceneCacheWarmer } from './scene/SceneCacheWarmer';
+let cacheWarmer: SceneCacheWarmer | null = null;
 const sceneManager = new SceneManager(() => currentProject);
 let audioContext: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
@@ -3566,25 +3569,52 @@ const renderLayerList = () => {
                   pLabel.textContent = param.name;
                   pLabel.className = 'param-label';
                   
-                  const pInput = document.createElement('input');
-                  pInput.type = 'range';
-                  pInput.min = String(param.min ?? 0);
-                  pInput.max = String(param.max ?? 1);
-                  pInput.step = String(0.01);
-                  pInput.value = String(layer.params?.[param.id] ?? param.default);
-                  pInput.className = 'param-slider';
+                  if (param.type === 'enum' && param.options) {
+                      const pSelect = document.createElement('select');
+                      pSelect.className = 'param-select';
+                      
+                      param.options.forEach(opt => {
+                          const option = document.createElement('option');
+                          option.value = String(opt.value);
+                          option.textContent = opt.label;
+                          pSelect.appendChild(option);
+                      });
+                      
+                      pSelect.value = String(layer.params?.[param.id] ?? param.default);
+                      
+                      pSelect.dataset.learnTarget = `${layer.id}.${param.id}`;
+                      pSelect.dataset.learnLabel = `${layer.name} ${param.name}`;
+                      
+                      pSelect.addEventListener('change', () => {
+                          if (!layer.params) layer.params = {};
+                          layer.params[param.id] = Number(pSelect.value);
+                          recordPlaylistOverride(layer.id, { params: { [param.id]: Number(pSelect.value) } });
+                      });
+                      
+                      paramRow.appendChild(pLabel);
+                      paramRow.appendChild(pSelect);
+                  } else {
+                      const pInput = document.createElement('input');
+                      pInput.type = 'range';
+                      pInput.min = String(param.min ?? 0);
+                      pInput.max = String(param.max ?? 1);
+                      pInput.step = String(0.01);
+                      pInput.value = String(layer.params?.[param.id] ?? param.default);
+                      pInput.className = 'param-slider';
+                      
+                      pInput.dataset.learnTarget = `${layer.id}.${param.id}`;
+                      pInput.dataset.learnLabel = `${layer.name} ${param.name}`;
+                      
+                      pInput.addEventListener('input', () => {
+                          if (!layer.params) layer.params = {};
+                          layer.params[param.id] = Number(pInput.value);
+                          recordPlaylistOverride(layer.id, { params: { [param.id]: Number(pInput.value) } });
+                      });
+                      
+                      paramRow.appendChild(pLabel);
+                      paramRow.appendChild(pInput);
+                  }
                   
-                  pInput.dataset.learnTarget = `${layer.id}.${param.id}`;
-                  pInput.dataset.learnLabel = `${layer.name} ${param.name}`;
-                  
-                  pInput.addEventListener('input', () => {
-                      if (!layer.params) layer.params = {};
-                      layer.params[param.id] = Number(pInput.value);
-                      recordPlaylistOverride(layer.id, { params: { [param.id]: Number(pInput.value) } });
-                  });
-                  
-                  paramRow.appendChild(pLabel);
-                  paramRow.appendChild(pInput);
                   paramsContainer.appendChild(paramRow);
               });
               assetControl.appendChild(paramsContainer);
@@ -9353,6 +9383,7 @@ const applyProject = async (project: VisualSynthProject) => {
   renderDiffSections();
   void checkMissingAssets();
   broadcastCurrentOutputState();
+  cacheWarmer?.notifyProjectChanged(currentProject);
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
@@ -10610,6 +10641,7 @@ try {
       updateWebglDiagnostics();
     }
   });
+  cacheWarmer = new SceneCacheWarmer(renderer);
 } catch (error) {
   webglInitError = error instanceof Error ? error.message : String(error);
   safeModeReasons.push('Renderer init failed');
@@ -10635,7 +10667,11 @@ let selectedOverlayId: string | null = null;
 
 const overlayRenderer = createOverlayRenderer({
   canvas: overlayCanvas,
-  getOverlays: () => currentProject.overlays ?? [],
+  getOverlays: () => {
+    const overlays = currentProject.overlays ?? [];
+    const targetScene = previewSceneId ?? currentProject.activeSceneId;
+    return overlays.filter(o => !o.targetSceneId || o.targetSceneId === targetScene);
+  },
   onOverlayUpdate: (id, changes) => {
     const overlays = currentProject.overlays ?? [];
     const idx = overlays.findIndex(o => o.id === id);
@@ -10674,6 +10710,7 @@ function syncOverlayProps(o: OverlayConfig) {
   overlayOpacityInput.value = String(o.opacity);
   overlayRotationInput.value = String(o.rotation);
   overlayIncludeFxInput.checked = o.includeInFx;
+  overlayPersistInput.checked = !o.targetSceneId;
 }
 
 function updateSelectedOverlay(changes: Partial<OverlayConfig>) {
@@ -10768,6 +10805,10 @@ overlayTextShadowInput.addEventListener('change', () => updateSelectedOverlay({ 
 overlayOpacityInput.addEventListener('input', () => updateSelectedOverlay({ opacity: Number(overlayOpacityInput.value) }));
 overlayRotationInput.addEventListener('input', () => updateSelectedOverlay({ rotation: Number(overlayRotationInput.value) }));
 overlayIncludeFxInput.addEventListener('change', () => updateSelectedOverlay({ includeInFx: overlayIncludeFxInput.checked }));
+overlayPersistInput.addEventListener('change', () => {
+  const targetSceneId = overlayPersistInput.checked ? undefined : (previewSceneId ?? currentProject.activeSceneId);
+  updateSelectedOverlay({ targetSceneId });
+});
 
 overlayDeleteBtn.addEventListener('click', () => {
   if (!selectedOverlayId) return;
@@ -11090,9 +11131,9 @@ const render = (time: number) => {
   const activeStyle =
     currentProject.stylePresets?.find((preset) => preset.id === currentProject.activeStylePresetId) ??
     null;
-  const styleSettings =
-    blendSnapshot?.styleSettings ?? activeStyle?.settings ?? { contrast: 1, saturation: 1, paletteShift: 0 };
-  const effects = blendSnapshot?.effects ?? currentProject.effects ?? {
+
+  // Global trailSpectrum update based on active scene/blend effects (not preview effects)
+  const globalEffects = blendSnapshot?.effects ?? currentProject.effects ?? {
     enabled: true,
     bloom: 0.2,
     blur: 0,
@@ -11102,107 +11143,32 @@ const render = (time: number) => {
     feedback: 0,
     persistence: 0
   };
-  const particles = blendSnapshot?.particles ?? currentProject.particles ?? {
-    enabled: true,
-    density: 0.35,
-    speed: 0.3,
-    size: 0.45,
-    glow: 0.6
-  };
-  const sdf = blendSnapshot?.sdf ?? currentProject.sdf ?? {
-    enabled: false,
-    shape: 'circle' as const,
-    scale: 0,
-    edge: 0,
-    glow: 0,
-    rotation: 0,
-    fill: 0
-  };
-  const effectiveMacros = blendSnapshot?.macros ?? currentProject.macros;
-  const modSources = buildModSources(activeBpm, effectiveMacros);
-  const modValue = (target: string, base: number) =>
-    applyModMatrix(base, target, modSources, currentProject.modMatrix);
-  // genUniforms computed below after getLayerParamNumber is defined
-  const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
-  const macroSum = effectiveMacros.reduce(
-    (acc, macro) => {
-      macro.targets.forEach((target) => {
-        const rawTarget = target.target as
-          | string
-          | { type?: string; layerType?: string; param: string };
-        let key: string | null = null;
-        if (typeof rawTarget === 'string') {
-          key = rawTarget;
-        } else if (rawTarget && rawTarget.param) {
-          const layerType = rawTarget.type ?? rawTarget.layerType;
-          if (layerType) {
-            key = buildLegacyTarget(layerType, rawTarget.param);
-          }
-        }
-        if (!key) return;
-        acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
-      });
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-  const macroVal = (target: string) => macroSum[target] ?? 0;
-  const moddedStyle = {
-    contrast: modValue('style.contrast', styleSettings.contrast + macroVal('style.contrast')),
-    saturation: modValue('style.saturation', styleSettings.saturation + macroVal('style.saturation')),
-    paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift + macroVal('style.paletteShift'))
-  };
-  const effectsActive = effects.enabled;
-  let moddedEffects = effectsActive
-    ? {
-        bloom: modValue('effects.bloom', effects.bloom + macroVal('effects.bloom')),
-        blur: modValue('effects.blur', effects.blur + macroVal('effects.blur')),
-        chroma: modValue('effects.chroma', effects.chroma + macroVal('effects.chroma')),
-        posterize: modValue('effects.posterize', effects.posterize + macroVal('effects.posterize')),
-        kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope + macroVal('effects.kaleidoscope')),
-        kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', macroVal('effects.kaleidoscopeRotation')),
-        feedback: modValue('effects.feedback', effects.feedback + macroVal('effects.feedback')),
-        persistence: modValue('effects.persistence', effects.persistence + macroVal('effects.persistence'))
+  const globalEffectiveMacros = blendSnapshot?.macros ?? currentProject.macros;
+  const globalMacroSum = globalEffectiveMacros.reduce((acc, macro) => {
+    macro.targets.forEach((target) => {
+      const rawTarget = target.target as string | { type?: string; layerType?: string; param: string };
+      let key: string | null = null;
+      if (typeof rawTarget === 'string') { key = rawTarget; } 
+      else if (rawTarget && rawTarget.param) {
+        const layerType = rawTarget.type ?? rawTarget.layerType;
+        if (layerType) key = buildLegacyTarget(layerType, rawTarget.param);
       }
-    : {
-        bloom: 0,
-        blur: 0,
-        chroma: 0,
-        posterize: 0,
-        kaleidoscope: 0,
-        kaleidoscopeRotation: 0,
-        feedback: 0,
-        persistence: 0
-      };
-  let moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
-  let moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
-  if (!effectsActive) {
-    moddedFeedbackZoom = 0;
-    moddedFeedbackRotation = 0;
-  }
-  let moddedParticles = {
-    density: modValue('particles.density', particles.density + macroVal('particles.density')),
-    speed: modValue('particles.speed', particles.speed + macroVal('particles.speed')),
-    size: modValue('particles.size', particles.size + macroVal('particles.size')),
-    glow: modValue('particles.glow', particles.glow + macroVal('particles.glow')),
-    turbulence: modValue('particles.turbulence', (particles.turbulence ?? 0.3) + macroVal('particles.turbulence')),
-    audioLift: modValue('particles.audioLift', (particles.audioLift ?? 0.5) + macroVal('particles.audioLift'))
-  };
-  let moddedSdf = {
-    scale: modValue('sdf.scale', sdf.scale + macroVal('sdf.scale')),
-    edge: modValue('sdf.edge', sdf.edge + macroVal('sdf.edge')),
-    glow: modValue('sdf.glow', sdf.glow + macroVal('sdf.glow')),
-    rotation: modValue('sdf.rotation', sdf.rotation + macroVal('sdf.rotation')),
-    fill: modValue('sdf.fill', sdf.fill + macroVal('sdf.fill'))
-  };
-  if (moddedEffects.persistence > 0) {
-    const decay = 0.85 + moddedEffects.persistence * 0.14;
+      if (!key) return;
+      acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+  const globalPersistence = globalEffects.enabled ? (globalEffects.persistence + (globalMacroSum['effects.persistence'] ?? 0)) : 0;
+  
+  if (globalPersistence > 0) {
+    const decay = 0.85 + globalPersistence * 0.14;
     for (let i = 0; i < trailSpectrum.length; i += 1) {
       trailSpectrum[i] = Math.max(trailSpectrum[i] * decay, audioState.spectrum[i]);
     }
   } else {
     trailSpectrum = new Float32Array(audioState.spectrum);
   }
+
   const activeScene =
     currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
   const previewScene = previewSceneId
@@ -11213,6 +11179,101 @@ const render = (time: number) => {
   const hasActiveEngine = Boolean(currentProject.activeEngineId && currentProject.activeEngineId !== 'engine-none');
 
   const buildRenderStateForScene = (renderScene: typeof activeScene | undefined) => {
+    const isBlendTarget = renderScene === activeScene || renderScene === outputScene;
+
+    const effectiveStyleSettings = (!isBlendTarget && renderScene?.look?.stylePresets?.find((p) => p.id === renderScene.look?.activeStylePresetId)?.settings)
+      ? renderScene.look.stylePresets.find((p) => p.id === renderScene.look?.activeStylePresetId)!.settings
+      : (blendSnapshot?.styleSettings ?? activeStyle?.settings ?? { contrast: 1, saturation: 1, paletteShift: 0 });
+
+    const effects = (!isBlendTarget && renderScene?.look?.effects)
+      ? renderScene.look.effects
+      : (blendSnapshot?.effects ?? currentProject.effects ?? {
+          enabled: true, bloom: 0.2, blur: 0, chroma: 0.1, posterize: 0, kaleidoscope: 0, feedback: 0, persistence: 0
+        });
+
+    const particles = (!isBlendTarget && renderScene?.look?.particles)
+      ? renderScene.look.particles
+      : (blendSnapshot?.particles ?? currentProject.particles ?? { enabled: true, density: 0.35, speed: 0.3, size: 0.45, glow: 0.6 });
+
+    const sdf = (!isBlendTarget && renderScene?.look?.sdf)
+      ? renderScene.look.sdf
+      : (blendSnapshot?.sdf ?? currentProject.sdf ?? { enabled: false, shape: 'circle' as const, scale: 0, edge: 0, glow: 0, rotation: 0, fill: 0 });
+
+    const effectiveMacros = (!isBlendTarget && renderScene?.look?.macros)
+      ? renderScene.look.macros
+      : (blendSnapshot?.macros ?? currentProject.macros);
+
+    const modMatrix = (!isBlendTarget && renderScene?.look?.modMatrix)
+      ? renderScene.look.modMatrix
+      : currentProject.modMatrix;
+
+    const modSources = buildModSources(activeBpm, effectiveMacros);
+    const modValue = (target: string, base: number) =>
+      applyModMatrix(base, target, modSources, modMatrix);
+
+    const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
+    const macroSum = effectiveMacros.reduce((acc, macro) => {
+      macro.targets.forEach((target) => {
+        const rawTarget = target.target as string | { type?: string; layerType?: string; param: string };
+        let key: string | null = null;
+        if (typeof rawTarget === 'string') { key = rawTarget; } 
+        else if (rawTarget && rawTarget.param) {
+          const layerType = rawTarget.type ?? rawTarget.layerType;
+          if (layerType) key = buildLegacyTarget(layerType, rawTarget.param);
+        }
+        if (!key) return;
+        acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+    const macroVal = (target: string) => macroSum[target] ?? 0;
+
+    const moddedStyle = {
+      contrast: modValue('style.contrast', effectiveStyleSettings.contrast + macroVal('style.contrast')),
+      saturation: modValue('style.saturation', effectiveStyleSettings.saturation + macroVal('style.saturation')),
+      paletteShift: modValue('style.paletteShift', effectiveStyleSettings.paletteShift + portalShift + macroVal('style.paletteShift'))
+    };
+
+    const effectsActive = effects.enabled;
+    let moddedEffects = effectsActive
+      ? {
+          bloom: modValue('effects.bloom', effects.bloom + macroVal('effects.bloom')),
+          blur: modValue('effects.blur', effects.blur + macroVal('effects.blur')),
+          chroma: modValue('effects.chroma', effects.chroma + macroVal('effects.chroma')),
+          posterize: modValue('effects.posterize', effects.posterize + macroVal('effects.posterize')),
+          kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope + macroVal('effects.kaleidoscope')),
+          kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', macroVal('effects.kaleidoscopeRotation')),
+          feedback: modValue('effects.feedback', effects.feedback + macroVal('effects.feedback')),
+          persistence: modValue('effects.persistence', effects.persistence + macroVal('effects.persistence'))
+        }
+      : {
+          bloom: 0, blur: 0, chroma: 0, posterize: 0, kaleidoscope: 0, kaleidoscopeRotation: 0, feedback: 0, persistence: 0
+        };
+
+    let moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
+    let moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
+    if (!effectsActive) {
+      moddedFeedbackZoom = 0;
+      moddedFeedbackRotation = 0;
+    }
+
+    let moddedParticles = {
+      density: modValue('particles.density', particles.density + macroVal('particles.density')),
+      speed: modValue('particles.speed', particles.speed + macroVal('particles.speed')),
+      size: modValue('particles.size', particles.size + macroVal('particles.size')),
+      glow: modValue('particles.glow', particles.glow + macroVal('particles.glow')),
+      turbulence: modValue('particles.turbulence', (particles.turbulence ?? 0.3) + macroVal('particles.turbulence')),
+      audioLift: modValue('particles.audioLift', (particles.audioLift ?? 0.5) + macroVal('particles.audioLift'))
+    };
+
+    let moddedSdf = {
+      scale: modValue('sdf.scale', sdf.scale + macroVal('sdf.scale')),
+      edge: modValue('sdf.edge', sdf.edge + macroVal('sdf.edge')),
+      glow: modValue('sdf.glow', sdf.glow + macroVal('sdf.glow')),
+      rotation: modValue('sdf.rotation', sdf.rotation + macroVal('sdf.rotation')),
+      fill: modValue('sdf.fill', sdf.fill + macroVal('sdf.fill'))
+    };
+
     const getGeneratorLayers = (scene: typeof renderScene | undefined, generatorId: string) =>
       scene?.layers.filter((layer) => layer.generatorId === generatorId) ?? [];
     type SceneLayers = NonNullable<typeof renderScene>['layers'];

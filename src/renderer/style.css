@@ -1364,6 +1364,17 @@ body[data-mode='matrix'] .safe-mode {
   width: 100%;
 }
 
+.param-select {
+  background: #162235;
+  color: #e4f4ff;
+  border: 1px solid #2c4159;
+  border-radius: 6px;
+  padding: 4px 8px;
+  width: 100%;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .layer-asset-select {
   background: #162235;
   color: #e4f4ff;

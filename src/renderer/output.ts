@@ -358,6 +358,8 @@ channel.onmessage = (event) => {
   if (data.mediaBurstRadii) state.mediaBurstRadii = new Float32Array(data.mediaBurstRadii);
   if (data.mediaBurstTypes) state.mediaBurstTypes = new Float32Array(data.mediaBurstTypes);
   if (data.mediaBurstActives) state.mediaBurstActives = new Float32Array(data.mediaBurstActives);
+  if (data.shapeBurstSpawnTimes) state.shapeBurstSpawnTimes = new Float32Array(data.shapeBurstSpawnTimes);
+  if (data.shapeBurstActives) state.shapeBurstActives = new Float32Array(data.shapeBurstActives);
   if (typeof data.oscilloOpacity === 'number') state.oscilloOpacity = data.oscilloOpacity;
   if (typeof data.oscilloMode === 'number') state.oscilloMode = data.oscilloMode;
   if (typeof data.oscilloFreeze === 'number') state.oscilloFreeze = data.oscilloFreeze;

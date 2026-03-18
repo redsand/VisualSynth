@@ -42,7 +42,7 @@ export const primeProjectShaders = (
   initialDelayMs: number
 ): number => {
   const activeGeneratorCount = compileActiveSceneShaders(renderer, project);
-  queueSceneVariantPrecompile(renderer, project.scenes, initialDelayMs);
+  // queueSceneVariantPrecompile is now handled by SceneCacheWarmer
   return activeGeneratorCount;
 };
 

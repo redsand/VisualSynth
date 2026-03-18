@@ -42,6 +42,10 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     throw new Error('WebGL2 required');
   }
 
+  const extParallel = gl.getExtension('KHR_parallel_shader_compile');
+  let pendingProgram: { program: WebGLProgram, activeIds: Set<string>, cacheKey: string } | null = null;
+  const pendingPrecompiles: { program: WebGLProgram, cacheKey: string }[] = [];
+
   let lastShaderError: string | null = null;
   let customPlasmaSource: string | null = null;
   let contextLost = false;
@@ -187,7 +191,7 @@ void main() {
     return shader;
   };
 
-  const createProgram = (vSource: string, fSource: string) => {
+  const createProgram = (vSource: string, fSource: string, deferLinkCheck = false) => {
     const vs = compileShader(gl.VERTEX_SHADER, vSource);
     const fs = compileShader(gl.FRAGMENT_SHADER, fSource);
     if (!vs || !fs) return null;
@@ -196,21 +200,23 @@ void main() {
     gl.attachShader(prog, vs);
     gl.attachShader(prog, fs);
     gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      const log = gl.getProgramInfoLog(prog) || 'Unknown link error';
-      lastShaderError = log;
-      console.error('Program link error:', log);
-      
-      if (options.onError) {
-        options.onError(log, 'link');
-      }
 
-      gl.deleteProgram(prog);
-      return null;
+    if (!deferLinkCheck) {
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        const log = gl.getProgramInfoLog(prog) || 'Unknown link error';
+        lastShaderError = log;
+        console.error('Program link error:', log);
+
+        if (options.onError) {
+          options.onError(log, 'link');
+        }
+
+        gl.deleteProgram(prog);
+        return null;
+      }
     }
     return prog;
   };
-
   // Shader program cache to avoid recompiling the same shader variants
   const programCache = new Map<string, WebGLProgram>();
   const activeUniformLookupCache = new Map<WebGLProgram, Set<string>>();
@@ -230,9 +236,13 @@ void main() {
     sdfFunctions = '',
     sdfMapBody = '10.0',
     plasmaSource: string | null = null,
-    customBlocks: CustomShaderBlock[] = []
+    customBlocks: CustomShaderBlock[] = [],
+    deferLinkCheck = false
   ): WebGLProgram | null => {
-    const customHash = customBlocks.map(b => b.id + ':' + b.uniforms + (b.functions ?? '') + b.mainCall).join('|');
+    const customHash = [...customBlocks]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
+      .join('|');
     const key = shaderCacheKey(activeIds, sdfMapBody, plasmaSource ?? '', customHash);
 
     // Check cache first
@@ -249,8 +259,8 @@ void main() {
       sdfUniforms, sdfFunctions, sdfMapBody, plasmaSource
     );
 
-    const prog = createProgram(vertexShaderSrc, fSrc);
-    if (prog) {
+    const prog = createProgram(vertexShaderSrc, fSrc, deferLinkCheck);
+    if (prog && !deferLinkCheck) {
       programCache.set(key, prog);
     }
     return prog ?? null;
@@ -886,6 +896,34 @@ void main() {
 
   const render = (state: RenderState) => {
     if (contextLost) return;
+
+    if (extParallel) {
+      if (pendingProgram && gl.getProgramParameter(pendingProgram.program, extParallel.COMPLETION_STATUS_KHR)) {
+        finalizeProgramSwap(pendingProgram);
+        pendingProgram = null;
+      }
+
+      // Check up to 2 precompiles per frame to avoid spiking the main thread with too many link checks
+      let checked = 0;
+      while (pendingPrecompiles.length > 0 && checked < 2) {
+        const pending = pendingPrecompiles[0];
+        if (gl.getProgramParameter(pending.program, extParallel.COMPLETION_STATUS_KHR)) {
+          pendingPrecompiles.shift(); // remove from queue
+          if (gl.getProgramParameter(pending.program, gl.LINK_STATUS)) {
+            programCache.set(pending.cacheKey, pending.program);
+            uniformLocationCache.set(pending.program, new Map());
+            console.log(`[Shader] Async precompile finished successfully`);
+          } else {
+            console.error('Async precompile failed:', gl.getProgramInfoLog(pending.program));
+            gl.deleteProgram(pending.program);
+          }
+        } else {
+          break; // still compiling, stop checking
+        }
+        checked++;
+      }
+    }
+
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
     updateInternalTextures(state);
@@ -999,45 +1037,121 @@ void main() {
 
   const getMissingUniforms = () => Array.from(missingUniforms);
 
+  const finalizeProgramSwap = (pending: NonNullable<typeof pendingProgram>) => {
+    const t0 = performance.now();
+    if (!gl.getProgramParameter(pending.program, gl.LINK_STATUS)) {
+      const log = gl.getProgramInfoLog(pending.program) || 'Unknown link error';
+      lastShaderError = log;
+      console.error('Program async link error:', log);
+      if (options.onError) {
+        options.onError(log, 'link');
+      }
+      gl.deleteProgram(pending.program);
+      return;
+    }
+
+    programCache.set(pending.cacheKey, pending.program);
+    
+    // Swap only if this pending program is still what the user wants
+    const currentCacheKey = shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', 
+      [...currentCustomBlocks].sort((a, b) => a.id.localeCompare(b.id)).map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, '')).join('|'));
+
+    if (pending.cacheKey === currentCacheKey) {
+      standardProgram = pending.program;
+      currentProgram = standardProgram;
+      uniformLocationCache.set(pending.program, new Map());
+      const elapsed = (performance.now() - t0).toFixed(1);
+      console.log(`[Shader] Async compiled & swapped ${pending.activeIds.size} generators in ${elapsed}ms`);
+    } else {
+      console.log(`[Shader] Async compiled but skipped swap (obsolete variant)`);
+    }
+  };
+
   const recompileForGenerators = (activeIds: Set<string>, customBlocks: CustomShaderBlock[] = []): boolean => {
     // Store the active IDs and custom blocks for future recompilations (e.g., when SDF changes)
     currentActiveIds = new Set(activeIds);
     currentCustomBlocks = customBlocks;
 
     const t0 = performance.now();
-    const customHash = customBlocks.map(b => b.id + ':' + b.uniforms + (b.functions ?? '') + b.mainCall).join('|');
-    const wasCached = programCache.has(shaderCacheKey(activeIds, currentSdfMapBody, currentPlasmaSource, customHash));
+    const customHash = [...customBlocks]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
+      .join('|');
+    const key = shaderCacheKey(activeIds, currentSdfMapBody, currentPlasmaSource ?? '', customHash);
+
+    const wasCached = programCache.has(key);
+    
+    if (wasCached) {
+      const prog = programCache.get(key)!;
+      standardProgram = prog;
+      currentProgram = standardProgram;
+      const elapsed = (performance.now() - t0).toFixed(1);
+      console.log(`[Shader] Swapped to cached program for ${activeIds.size} generators in ${elapsed}ms`);
+      return true;
+    }
+
+    if (pendingProgram && pendingProgram.cacheKey === key) {
+      // Already compiling this exact variant
+      return true;
+    }
+
+    // Trigger compile
+    const useAsync = !!extParallel;
     const prog = getOrCompileProgram(
       activeIds,
       currentSdfUniforms,
       currentSdfFunctions,
       currentSdfMapBody,
       currentPlasmaSource,
-      customBlocks
+      customBlocks,
+      useAsync
     );
-    const elapsed = (performance.now() - t0).toFixed(1);
-    console.log(`[Shader] Compiled ${activeIds.size} generators in ${elapsed}ms (cached: ${wasCached})`);
 
     if (!prog) {
-      console.error('Failed to recompile shader for generators:', activeIds);
+      console.error('Failed to begin recompiling shader for generators:', activeIds);
       return false;
     }
 
-    standardProgram = prog;
-    currentProgram = standardProgram;
-    uniformLocationCache.clear();
+    if (useAsync) {
+      pendingProgram = { program: prog, activeIds, cacheKey: key };
+      // Continue rendering old program while async compiling
+    } else {
+      programCache.set(key, prog);
+      standardProgram = prog;
+      currentProgram = standardProgram;
+      uniformLocationCache.set(prog, new Map());
+      const elapsed = (performance.now() - t0).toFixed(1);
+      console.log(`[Shader] Sync compiled ${activeIds.size} generators in ${elapsed}ms (cached: false)`);
+    }
+
     return true;
   };
 
   const precompileVariant = (ids: Set<string>): void => {
     if (contextLost) return;
-    // Compile and cache a shader variant without activating it.
-    // Used at load time to warm the cache for all scene variants.
     const t0 = performance.now();
-    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks);
+    const customHash = [...currentCustomBlocks]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
+      .join('|');
+    const key = shaderCacheKey(ids, currentSdfMapBody, currentPlasmaSource ?? '', customHash);
+
+    if (programCache.has(key)) return;
+
+    const useAsync = !!extParallel;
+    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync);
+    
+    if (prog) {
+      if (useAsync) {
+        pendingPrecompiles.push({ program: prog, cacheKey: key });
+      } else {
+        programCache.set(key, prog);
+        uniformLocationCache.set(prog, new Map());
+      }
+    }
+    
     const elapsed = (performance.now() - t0).toFixed(1);
-    const cached = !prog || elapsed === '0.0';
-    console.log(`[Shader] Precompiled ${ids.size} generators in ${elapsed}ms (cached: ${cached})`);
+    console.log(`[Shader] Precompile request for ${ids.size} generators handled in ${elapsed}ms (async: ${useAsync})`);
   };
 
   const setCustomShaderBlocks = (blocks: CustomShaderBlock[]): void => {

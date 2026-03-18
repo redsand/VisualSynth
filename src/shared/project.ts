@@ -270,6 +270,7 @@ export interface OverlayConfig {
   fontColor?: string;
   fontWeight?: 'normal' | 'bold';
   textShadow?: boolean;
+  targetSceneId?: string;
 }
 
 export interface ColorPalette {
