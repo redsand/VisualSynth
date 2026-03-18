@@ -74,7 +74,7 @@ const renderTextToCanvas = (
 
 const textCanvasCache = new Map<string, HTMLCanvasElement>();
 
-const getTextCanvas = (asset: AssetItem): HTMLCanvasElement | null => {
+const getTextCanvas = (asset: SerializedOutputAsset): HTMLCanvasElement | null => {
   if (asset.kind !== 'text' || !asset.options?.text) return null;
   const font = asset.options.font || '48px Arial';
   const color = asset.options.fontColor || '#ffffff';
@@ -98,22 +98,19 @@ try {
 }
 
 const requestExitFullscreen = async () => {
-  const api = (window as any).visualSynth;
-  if (!api?.getOutputConfig || !api?.setOutputConfig) return;
   try {
-    const config = await api.getOutputConfig();
-    if (config?.fullscreen) {
-      await api.setOutputConfig({ fullscreen: false });
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
     }
   } catch {
-    // Ignore output fullscreen errors.
+    // Ignore
   }
 };
 
-window.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    event.preventDefault();
-    void requestExitFullscreen();
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) {
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
   }
 });
 
@@ -122,60 +119,60 @@ const state: RenderState = {
   rms: 0,
   peak: 0,
   strobe: 0,
+  spectrum: new Float32Array(64),
   plasmaEnabled: true,
   spectrumEnabled: true,
-  origamiEnabled: false,
-  glyphEnabled: false,
-  crystalEnabled: false,
-  inkEnabled: false,
-  topoEnabled: false,
-  weatherEnabled: false,
-  portalEnabled: false,
-  mediaEnabled: false,
-  oscilloEnabled: false,
-  spectrum: new Float32Array(64),
-  contrast: 1,
-  saturation: 1,
+  origamiEnabled: true,
+  glyphEnabled: true,
+  crystalEnabled: true,
+  inkEnabled: true,
+  topoEnabled: true,
+  weatherEnabled: true,
+  portalEnabled: true,
+  mediaEnabled: true,
+  oscilloEnabled: true,
+  contrast: 0.5,
+  saturation: 1.0,
   paletteShift: 0,
-  chemistryMode: 0,
   transitionAmount: 0,
-  transitionType: 1,
+  transitionType: 0,
+  chemistryMode: 0,
   motionTemplate: 0,
   engineMass: 0.5,
   engineFriction: 0.95,
-  engineElasticity: 1,
+  engineElasticity: 1.0,
+  maxBloom: 1,
+  forceFeedback: false,
   engineGrain: 0,
   engineVignette: 0,
   engineCA: 0,
   engineSignature: 0,
-  maxBloom: 1,
-  forceFeedback: false,
-  plasmaOpacity: 1,
-  plasmaSpeed: 1,
-  plasmaScale: 1,
+  plasmaOpacity: 0.85,
+  plasmaSpeed: 1.0,
+  plasmaScale: 1.0,
   plasmaComplexity: 0.5,
   plasmaAudioReact: 0.6,
-  spectrumOpacity: 1,
-  origamiOpacity: 0.9,
+  spectrumOpacity: 0.85,
+  origamiOpacity: 0.85,
   origamiFoldState: 0,
-  origamiFoldSharpness: 0.65,
-  origamiSpeed: 1,
-  glyphOpacity: 0.8,
+  origamiFoldSharpness: 0.5,
+  origamiSpeed: 1.0,
+  glyphOpacity: 0.85,
   glyphMode: 0,
   glyphSeed: 0,
   glyphBeat: 0,
-  glyphSpeed: 1,
+  glyphSpeed: 1.0,
   crystalOpacity: 0.85,
   crystalMode: 0,
-  crystalBrittleness: 0.4,
-  crystalScale: 1,
-  crystalSpeed: 1,
+  crystalBrittleness: 0.5,
+  crystalScale: 1.0,
+  crystalSpeed: 1.0,
   inkOpacity: 0.85,
   inkBrush: 0,
-  inkPressure: 0.6,
-  inkLifespan: 0.6,
-  inkSpeed: 1,
-  inkScale: 1,
+  inkPressure: 0.5,
+  inkLifespan: 1.0,
+  inkSpeed: 1.0,
+  inkScale: 1.0,
   topoOpacity: 0.85,
   topoQuake: 0,
   topoSlide: 0,
@@ -304,7 +301,7 @@ channel.onmessage = (event) => {
       layerAssetIds[layerId] = nextId;
       layerAssetKeys[layerId] = assetKey;
       const textCanvas = asset?.kind === 'text' ? getTextCanvas(asset) ?? undefined : undefined;
-      renderer.setLayerAsset(layerId, asset, undefined, textCanvas);
+      renderer.setLayerAsset(layerId, asset as any, undefined, textCanvas);
     });
   }
   if (Array.isArray((data as any).overlays)) {
