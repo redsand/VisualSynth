@@ -12,6 +12,7 @@ import {
   SceneLook,
   SceneConfig,
   SceneIntent,
+  SceneTransition,
   MacroConfig,
   LayerConfig,
   AssetItem,
@@ -540,7 +541,7 @@ const outputChannel = new BroadcastChannel('visualsynth-output');
 let lastOutputBroadcast = 0;
 const WEBCAM_STORAGE_KEY = 'visualsynth.webcamDeviceId';
 let lastMidiLatencyMs: number | null = null;
-let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null = null;
+let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number; transitionOverride?: SceneTransition | null } | null = null;
 let sdfPanel: { render: () => void } | null = null;
 let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, bands: number[]) => void } | null = null;
 let autoBpm: number | null = null;
@@ -1644,7 +1645,12 @@ const capturePresetThumbnail = async (path: string) => {
     const dataUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
     presetThumbs[path] = dataUrl;
     savePresetThumbnails();
-    renderPresetBrowser();
+    // Update the matching card thumb in-place rather than rebuilding the whole list
+    const card = presetBrowser.querySelector<HTMLElement>(`.preset-card[data-preset-path="${CSS.escape(path)}"]`);
+    if (card) {
+      const thumbEl = card.querySelector<HTMLElement>('.preset-thumb');
+      if (thumbEl) thumbEl.style.backgroundImage = `url('${dataUrl}')`;
+    }
     renderPresetPreview();
   } catch {
     // Ignore thumbnail capture failures (likely tainted canvas).
@@ -3056,8 +3062,96 @@ const importSceneFromDisk = async () => {
   });
 };
 
+const SCENE_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
+  { label: 'Cut (instant)', transition: null },
+  { label: 'Fade 0.5s', transition: { type: 'fade', durationMs: 500, curve: 'easeInOut' } },
+  { label: 'Fade 1s', transition: { type: 'fade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Fade 2s', transition: { type: 'fade', durationMs: 2000, curve: 'easeInOut' } },
+  { label: 'Crossfade 0.5s', transition: { type: 'crossfade', durationMs: 500, curve: 'easeInOut' } },
+  { label: 'Crossfade 1s', transition: { type: 'crossfade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Warp', transition: { type: 'warp', durationMs: 600, curve: 'easeInOut' } },
+  { label: 'Glitch', transition: { type: 'glitch', durationMs: 300, curve: 'linear' } },
+  { label: 'Dissolve 1s', transition: { type: 'dissolve', durationMs: 1000, curve: 'easeInOut' } },
+];
+
 const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName: string) => {
   closeSceneTimelineMenu();
+
+  const submenus: HTMLElement[] = [];
+
+  const styleMenuBtn = (btn: HTMLButtonElement) => {
+    btn.type = 'button';
+    btn.style.display = 'block';
+    btn.style.width = '100%';
+    btn.style.textAlign = 'left';
+    btn.style.background = 'transparent';
+    btn.style.color = '#e6eef8';
+    btn.style.border = '0';
+    btn.style.padding = '8px 10px';
+    btn.style.cursor = 'pointer';
+    btn.style.fontSize = '13px';
+    btn.onmouseenter = () => { btn.style.background = '#1f2633'; };
+    btn.onmouseleave = () => { btn.style.background = 'transparent'; };
+  };
+
+  const makeSubmenuItem = (
+    parent: HTMLElement,
+    label: string,
+    onSelect: (transition: SceneTransition | null) => void
+  ) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+
+    const btn = document.createElement('button');
+    btn.textContent = `${label}  ›`;
+    styleMenuBtn(btn);
+    wrapper.appendChild(btn);
+    parent.appendChild(wrapper);
+
+    const submenu = document.createElement('div');
+    submenu.style.position = 'fixed';
+    submenu.style.display = 'none';
+    submenu.style.background = '#141a24';
+    submenu.style.border = '1px solid #2a3344';
+    submenu.style.borderRadius = '6px';
+    submenu.style.padding = '6px';
+    submenu.style.boxShadow = '0 6px 18px rgba(0,0,0,0.45)';
+    submenu.style.zIndex = '10000';
+    submenu.style.minWidth = '160px';
+    document.body.appendChild(submenu);
+    submenus.push(submenu);
+
+    SCENE_TRANSITION_OPTIONS.forEach(({ label: tLabel, transition }) => {
+      const tBtn = document.createElement('button');
+      tBtn.textContent = tLabel;
+      styleMenuBtn(tBtn);
+      tBtn.onclick = () => {
+        onSelect(transition);
+        closeSceneTimelineMenu();
+      };
+      submenu.appendChild(tBtn);
+    });
+
+    const hideTimer = { id: 0 };
+    const startHide = () => { hideTimer.id = window.setTimeout(() => { submenu.style.display = 'none'; }, 120); };
+    const cancelHide = () => clearTimeout(hideTimer.id);
+
+    btn.addEventListener('mouseenter', () => {
+      submenus.forEach((s) => { if (s !== submenu) s.style.display = 'none'; });
+      const r = btn.getBoundingClientRect();
+      submenu.style.left = `${r.right + 2}px`;
+      submenu.style.top = `${r.top}px`;
+      submenu.style.display = 'block';
+      const sr = submenu.getBoundingClientRect();
+      if (sr.right > window.innerWidth - 4) submenu.style.left = `${r.left - sr.width - 2}px`;
+      if (sr.bottom > window.innerHeight - 4) submenu.style.top = `${r.top - (sr.bottom - window.innerHeight) - 4}px`;
+      cancelHide();
+    });
+    btn.addEventListener('mouseleave', startHide);
+    submenu.addEventListener('mouseenter', cancelHide);
+    submenu.addEventListener('mouseleave', startHide);
+  };
+
   const menu = document.createElement('div');
   menu.style.position = 'fixed';
   menu.style.left = `${x}px`;
@@ -3070,75 +3164,43 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   menu.style.zIndex = '9999';
   menu.style.minWidth = '180px';
 
-  const saveBtn = document.createElement('button');
-  saveBtn.type = 'button';
-  saveBtn.textContent = 'Save As';
-  saveBtn.style.display = 'block';
-  saveBtn.style.width = '100%';
-  saveBtn.style.textAlign = 'left';
-  saveBtn.style.background = 'transparent';
-  saveBtn.style.color = '#e6eef8';
-  saveBtn.style.border = '0';
-  saveBtn.style.padding = '8px 10px';
-  saveBtn.style.cursor = 'pointer';
-  saveBtn.onmouseenter = () => { saveBtn.style.background = '#1f2633'; };
-  saveBtn.onmouseleave = () => { saveBtn.style.background = 'transparent'; };
-  saveBtn.onclick = () => {
-    void saveSceneAsPreset(sceneId);
-    closeSceneTimelineMenu();
-  };
+  makeSubmenuItem(menu, 'Activate Now', (transition) => {
+    const targetScene = currentProject.scenes.find((s) => s.id === sceneId);
+    if (targetScene && transition !== undefined) {
+      const orig = targetScene.transition_in;
+      targetScene.transition_in = transition ?? { durationMs: 0, curve: 'linear' };
+      applyScene(sceneId);
+      targetScene.transition_in = orig;
+    } else {
+      applyScene(sceneId);
+    }
+  });
 
-  const divider = document.createElement('div');
-  divider.style.height = '1px';
-  divider.style.margin = '4px 0';
-  divider.style.background = '#2a3344';
-
-  const queueBtn = document.createElement('button');
-  queueBtn.type = 'button';
-  queueBtn.textContent = 'Queue in 4 beats';
-  queueBtn.style.display = 'block';
-  queueBtn.style.width = '100%';
-  queueBtn.style.textAlign = 'left';
-  queueBtn.style.background = 'transparent';
-  queueBtn.style.color = '#e6eef8';
-  queueBtn.style.border = '0';
-  queueBtn.style.padding = '8px 10px';
-  queueBtn.style.cursor = 'pointer';
-  queueBtn.onmouseenter = () => { queueBtn.style.background = '#1f2633'; };
-  queueBtn.onmouseleave = () => { queueBtn.style.background = 'transparent'; };
-  queueBtn.onclick = () => {
+  makeSubmenuItem(menu, 'Queue in 4 beats', (transition) => {
     const bpm = getActiveBpm();
     const now = performance.now();
     const beatMs = getBeatMs(bpm);
     const nextBeat = getNextQuantizedTimeMs(now, bpm, 'quarter');
     const scheduledTimeMs = nextBeat + beatMs * 3;
-    pendingSceneSwitch = { targetSceneId: sceneId, scheduledTimeMs };
+    pendingSceneSwitch = { targetSceneId: sceneId, scheduledTimeMs, transitionOverride: transition };
     setStatus(`Queued scene switch to ${sceneName} (4 beats)`);
-    closeSceneTimelineMenu();
-  };
+  });
 
-  const activateBtn = document.createElement('button');
-  activateBtn.type = 'button';
-  activateBtn.textContent = 'Activate Now';
-  activateBtn.style.display = 'block';
-  activateBtn.style.width = '100%';
-  activateBtn.style.textAlign = 'left';
-  activateBtn.style.background = 'transparent';
-  activateBtn.style.color = '#e6eef8';
-  activateBtn.style.border = '0';
-  activateBtn.style.padding = '8px 10px';
-  activateBtn.style.cursor = 'pointer';
-  activateBtn.onmouseenter = () => { activateBtn.style.background = '#1f2633'; };
-  activateBtn.onmouseleave = () => { activateBtn.style.background = 'transparent'; };
-  activateBtn.onclick = () => {
-    applyScene(sceneId);
-    closeSceneTimelineMenu();
-  };
-
-  menu.appendChild(saveBtn);
+  const divider = document.createElement('div');
+  divider.style.height = '1px';
+  divider.style.margin = '4px 0';
+  divider.style.background = '#2a3344';
   menu.appendChild(divider);
-  menu.appendChild(queueBtn);
-  menu.appendChild(activateBtn);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save As';
+  styleMenuBtn(saveBtn);
+  saveBtn.onclick = () => {
+    void saveSceneAsPreset(sceneId);
+    closeSceneTimelineMenu();
+  };
+  menu.appendChild(saveBtn);
+
   document.body.appendChild(menu);
 
   const rect = menu.getBoundingClientRect();
@@ -3148,7 +3210,9 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   menu.style.top = `${Math.max(6, clampY)}px`;
 
   const onDocClick = (event: MouseEvent) => {
-    if (!menu.contains(event.target as Node)) closeSceneTimelineMenu();
+    const inMenu = menu.contains(event.target as Node);
+    const inSub = submenus.some((s) => s.contains(event.target as Node));
+    if (!inMenu && !inSub) closeSceneTimelineMenu();
   };
   const onKey = (event: KeyboardEvent) => {
     if (event.key === 'Escape') closeSceneTimelineMenu();
@@ -3158,6 +3222,7 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   sceneTimelineMenuCleanup = () => {
     document.removeEventListener('mousedown', onDocClick, true);
     document.removeEventListener('keydown', onKey);
+    submenus.forEach((s) => s.remove());
   };
   sceneTimelineMenu = menu;
 };
@@ -5865,7 +5930,6 @@ const addSceneFromPreset = async (presetPath: string) => {
       look: newScene.look
     })
   );
-  void capturePresetThumbnail(presetPath);
   return newScene.id;
 };
 
@@ -10925,9 +10989,22 @@ const render = (time: number) => {
   const sceneSwitch = resolveSceneSwitch(isPlaying, pendingSceneSwitch, time, getActiveBpm());
   updateQuantizeHud(sceneSwitch.quantizeHudMessage);
   if (sceneSwitch.shouldApplyScene && pendingSceneSwitch) {
-      applyScene(pendingSceneSwitch.targetSceneId);
-      setStatus(`Scene switched: ${sceneSelect?.selectedOptions[0]?.textContent ?? 'Scene'}`);
-      pendingSceneSwitch = null;
+    const { targetSceneId, transitionOverride } = pendingSceneSwitch;
+    if (transitionOverride !== undefined) {
+      const targetScene = currentProject.scenes.find((s) => s.id === targetSceneId);
+      if (targetScene) {
+        const orig = targetScene.transition_in;
+        targetScene.transition_in = transitionOverride ?? { durationMs: 0, curve: 'linear' };
+        applyScene(targetSceneId);
+        targetScene.transition_in = orig;
+      } else {
+        applyScene(targetSceneId);
+      }
+    } else {
+      applyScene(targetSceneId);
+    }
+    setStatus(`Scene switched: ${sceneSelect?.selectedOptions[0]?.textContent ?? 'Scene'}`);
+    pendingSceneSwitch = null;
   }
 
   updateAudioAnalysis();
