@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-visual-feedback-1",
+          "id": "gen-visual-feedback",
           "name": "Visual Feedback",
           "role": "core",
           "enabled": true,

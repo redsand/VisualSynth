@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VisualSynth</title>
@@ -49,15 +49,32 @@
               <option value="output">Output</option>
             </select>
           </label>
-          <label class="visual-mode-route">
-            Visual Mode
-            <select id="visual-mode-select">
-              <option value="mode-cosmic">Cosmic</option>
-              <option value="mode-ignite">Ignite</option>
-              <option value="mode-minimal">Minimal</option>
-              <option value="mode-acid">Acid</option>
-            </select>
-          </label>
+          <div class="visual-mode-group">
+            <label class="visual-mode-route">
+              Visual Mode
+              <select id="visual-mode-select">
+                <option value="mode-cosmic">Cosmic</option>
+                <option value="mode-ignite">Ignite</option>
+                <option value="mode-minimal">Minimal</option>
+                <option value="mode-acid">Acid</option>
+              </select>
+            </label>
+            <div class="project-quick-actions" aria-label="Project actions">
+              <button id="topbar-open-project" type="button" class="project-quick-button" aria-label="Open Project" title="Open Project">
+                <svg class="project-quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 19.5V6.5a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2" />
+                  <path d="M3 19.5 5.4 11h15.8l-2.4 8.5H3Z" />
+                </svg>
+              </button>
+              <button id="topbar-save-project" type="button" class="project-quick-button" aria-label="Save Project" title="Save Project">
+                <svg class="project-quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 3.5h11l3 3v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z" />
+                  <path d="M8 3.5v5h7v-5" />
+                  <path d="M8 20v-6h8v6" />
+                </svg>
+              </button>
+            </div>
+          </div>
           <div class="summary-chips">
             <button type="button" id="summary-auto" class="summary-chip hidden" data-mode="scene">Auto: 0</button>
           </div>
@@ -82,38 +99,6 @@
 <section class="left-panel">
           <div id="mode-performance-left" class="mode-pane">
             <h2>Performance</h2>
-            <div id="scene-strip" class="panel-block scene-strip">
-              <div class="scene-strip-header">
-                <h3>Scene Strip</h3>
-                <div class="scene-strip-controls">
-                  <span class="scene-strip-label">View</span>
-                  <button type="button" class="scene-strip-toggle active" data-scene-view="cards">Cards</button>
-                  <button type="button" class="scene-strip-toggle" data-scene-view="list">List</button>
-                </div>
-              </div>
-              <label class="scene-label">
-                Active Scene
-                <select id="scene-select"></select>
-              </label>
-              <label class="scene-label">
-                Quantize
-                <select id="quantize-select">
-                  <option value="quarter">1/4</option>
-                  <option value="half">1/2</option>
-                  <option value="bar" selected>1 Bar</option>
-                </select>
-              </label>
-              <div class="scene-row">
-                <button id="queue-scene">Queue</button>
-                <button id="activate-scene" type="button">Activate</button>
-              </div>
-              <div id="bpm-display" class="bpm-display">BPM: --</div>
-              <div id="scene-strip-cards" class="scene-strip-cards"></div>
-              <div id="scene-strip-list" class="scene-strip-list hidden"></div>
-              <div class="scene-strip-add">
-                <button id="scene-add-blank" type="button">New Blank Scene</button>
-              </div>
-            </div>
             <div class="panel-block">
               <h3>Performance Mixer</h3>
               <div class="scene-row">
@@ -137,23 +122,44 @@
             </div>
             <div class="panel-block" id="preset-explorer">
               <h3>Preset Explorer</h3>
-              <label class="scene-label">
-                Preset
-                <select id="preset-select"></select>
-              </label>
+              <div class="preset-toolbar">
+                <input id="preset-search" type="search" placeholder="Search presets, families, mood, source..." />
+                <button id="preset-shuffle" type="button">Shuffle</button>
+              </div>
               <div class="scene-row">
                 <label class="scene-inline">
                   Category
                   <select id="preset-category"></select>
                 </label>
-                <button id="preset-shuffle" type="button">Shuffle</button>
+                <div id="preset-results-count" class="preset-results-count">0 presets</div>
               </div>
-              <div class="scene-row">
-                <button id="preset-prev" type="button">Previous</button>
-                <button id="preset-next" type="button">Next</button>
-                <button id="btn-apply-preset" type="button">Add Preset</button>
+              <div id="preset-quick-filters" class="preset-quick-filters"></div>
+              <label class="scene-label hidden">
+                Preset
+                <select id="preset-select"></select>
+              </label>
+              <div class="preset-browser-toolbar">
+                <div class="preset-browser-actions">
+                  <button id="preset-prev" type="button">Previous</button>
+                  <button id="preset-next" type="button">Next</button>
+                </div>
               </div>
               <div id="preset-browser" class="preset-browser"></div>
+              <div id="preset-preview" class="preset-preview">
+                <div id="preset-preview-thumb" class="preset-preview-thumb"></div>
+                <div id="preset-preview-name" class="preset-preview-name">No preset selected</div>
+                <div id="preset-preview-meta" class="preset-preview-meta">Choose a preset to inspect it.</div>
+                <div id="preset-preview-badges" class="preset-preview-badges"></div>
+                <div id="preset-preview-actions" class="preset-preview-actions">
+                  <button id="btn-apply-preset" type="button"><span class="preset-action-icon">+</span><span>Add</span></button>
+                  <button id="preset-load-project" type="button"><span class="preset-action-icon">▶</span><span>Activate</span></button>
+                  <button id="preset-favorite" type="button"><span class="preset-action-icon">♥</span><span>Favorite</span></button>
+                </div>
+              </div>
+            </div>
+            <div class="panel-block">
+              <h3>Layer Quick Controls</h3>
+              <div class="layer-list" id="layer-list"></div>
             </div>
             <div class="panel-block">
               <h3>64-Pad Performance</h3>
@@ -165,27 +171,6 @@
               </div>
               <div id="pad-grid" class="pad-grid"></div>
               <div class="pad-hint">Pads 32-63 trigger strobe.</div>
-            </div>
-            <div class="panel-block">
-              <h3>Quick Toggles</h3>
-              <label class="scene-label">
-                <input type="checkbox" id="perf-toggle-spectrum" /> Spectrum Bars
-              </label>
-              <div id="spectrum-hint" class="hint">
-                These bars are the Spectrum layer. Toggle off to hide them.
-                <button id="spectrum-hint-dismiss" type="button">Got it</button>
-              </div>
-            </div>
-            <div class="panel-block">
-              <h3>Add Layers</h3>
-              <div class="scene-row">
-                <button id="perf-add-layer" type="button">Add Layer...</button>
-              </div>
-              <div class="output-hint">Opens Scene mode Generator Library.</div>
-            </div>
-            <div class="panel-block">
-              <h3>Layer Quick Controls</h3>
-              <div class="layer-list" id="layer-list"></div>
             </div>
           </div>
 
@@ -280,6 +265,61 @@
                   Persistence
                   <input id="effect-persistence" type="range" min="0" max="1" step="0.05" value="0" />
                 </label>
+              </div>
+            </div>
+            <div class="panel-block">
+              <h3>Overlays</h3>
+              <div class="scene-row">
+                <button id="overlay-add-image" type="button">Add Image</button>
+                <button id="overlay-add-text" type="button">Add Text</button>
+              </div>
+              <div id="overlay-list" class="overlay-list"></div>
+              <div id="overlay-props" class="overlay-props hidden">
+                <label class="scene-label">
+                  Name
+                  <input id="overlay-name" type="text" />
+                </label>
+                <div id="overlay-text-group">
+                  <label class="scene-label">
+                    Text
+                    <input id="overlay-text" type="text" />
+                  </label>
+                  <div class="scene-row">
+                    <label class="scene-inline">
+                      Size
+                      <input id="overlay-font-size" type="number" min="8" max="200" value="24" />
+                    </label>
+                    <label class="scene-inline">
+                      Color
+                      <input id="overlay-font-color" type="color" value="#ffffff" />
+                    </label>
+                    <label class="scene-inline">
+                      <input id="overlay-font-bold" type="checkbox" /> Bold
+                    </label>
+                    <label class="scene-inline">
+                      <input id="overlay-text-shadow" type="checkbox" checked /> Shadow
+                    </label>
+                  </div>
+                </div>
+                <div class="scene-row">
+                  <label class="scene-inline">
+                    Opacity
+                    <input id="overlay-opacity" type="range" min="0" max="1" step="0.05" value="1" />
+                  </label>
+                  <label class="scene-inline">
+                    Rotation
+                    <input id="overlay-rotation" type="range" min="-180" max="180" step="1" value="0" />
+                  </label>
+                </div>
+                <label class="scene-label scene-label-inline">
+                  <input id="overlay-include-fx" type="checkbox" /> Include in FX
+                </label>
+                <label class="scene-label scene-label-inline">
+                  <input id="overlay-persist" type="checkbox" /> Persist Between Scenes
+                </label>
+                <div class="scene-row">
+                  <button id="overlay-delete" type="button">Delete Overlay</button>
+                </div>
               </div>
             </div>
             <div class="panel-block">
@@ -486,7 +526,6 @@
                 </select>
               </label>
                <div id="palette-preview" class="palette-preview"></div>
-               <div id="palette-indicator" class="palette-indicator"></div>
                <label class="scene-label scene-label-inline">
                  <input type="checkbox" id="palette-apply-scene" /> Apply to Scene Look
                </label>
@@ -707,6 +746,7 @@
                 <button id="mod-matrix-add">Add Mod</button>
               </div>
               <div class="matrix-row matrix-row-header">
+                <div></div>
                 <div>Source</div>
                 <div>Target</div>
                 <div>Amt</div>
@@ -715,6 +755,7 @@
                 <div>Bipolar</div>
                 <div>Min</div>
                 <div>Max</div>
+                <div></div>
                 <div></div>
               </div>
               <div id="mod-matrix-list" class="matrix-list"></div>
@@ -777,6 +818,7 @@
             </div>
             <canvas id="gl-canvas" width="1280" height="720"></canvas>
             <canvas id="visualizer-canvas" width="1280" height="720"></canvas>
+            <canvas id="overlay-canvas" width="1280" height="720"></canvas>
             <div id="fade-overlay" class="fade-overlay hidden"></div>
             <div id="quantize-hud" class="quantize-hud hidden">Switching in --</div>
             <div id="safe-mode-banner" class="safe-mode hidden">Safe mode: --</div>
@@ -815,11 +857,11 @@
             <h2>Macros</h2>
             <div id="macro-list" class="macro-list"></div>
             <div class="panel-block">
-              <h3>Preset Playlist</h3>
-              <div class="scene-row">
-                <button id="playlist-add" type="button">Add Selected</button>
-                <button id="playlist-remove" type="button">Remove</button>
-              </div>
+              <h3>Color Palette</h3>
+              <div id="perf-palette-grid" class="perf-palette-grid"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Scene Playlist</h3>
               <div class="scene-row">
                 <label class="scene-inline">
                   Slot Sec
@@ -836,8 +878,6 @@
               </div>
               <div id="playlist-list" class="marker-list"></div>
             </div>
-            <!-- VJ Output Integration Panel -->
-            <div id="output-manager-container" class="panel-block"></div>
           </div>
 
           <div id="mode-scene-right" class="mode-pane hidden">
@@ -1098,26 +1138,8 @@
 
           <div id="mode-system-right" class="mode-pane hidden">
             <h2>System</h2>
-            <div class="panel-block">
-              <h3>Latency Dashboard</h3>
-              <div id="latency-summary" class="output-hint">Audio: -- | Output: -- | MIDI: --</div>
-            </div>
-            <div class="panel-block">
-              <h3>Performance Guardrails</h3>
-              <div id="guardrail-status" class="output-hint">Guardrails: OK</div>
-              <div id="guardrail-hint" class="output-hint">Output scale: 100%</div>
-            </div>
-            <div class="panel-block">
-              <h3>Diagnostics</h3>
-              <div id="diag-fps">FPS: --</div>
-              <div id="diag-gpu">GPU: WebGL2</div>
-              <div id="diag-latency">Audio Latency: --</div>
-              <div id="diag-output-latency">Output Latency: --</div>
-              <div id="diag-midi-latency">MIDI Latency: --</div>
-              <div id="diag-watchdog">Watchdog: OK</div>
-              <div id="diag-webgl" class="diag-webgl"></div>
-              <button id="diag-webgl-copy" type="button">Copy WebGL Diagnostics</button>
-            </div>
+            <!-- VJ Output Integration Panel -->
+            <div id="output-manager-container" class="panel-block"></div>
             <div class="panel-block">
               <h3>Output</h3>
               <div class="output-row">
@@ -1154,6 +1176,26 @@
               </div>
               <div id="diff-status" class="output-hint">No incoming project loaded.</div>
               <div id="diff-sections" class="diff-sections"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Diagnostics</h3>
+              <div id="diag-fps">FPS: --</div>
+              <div id="diag-gpu">GPU: WebGL2</div>
+              <div id="diag-latency">Audio Latency: --</div>
+              <div id="diag-output-latency">Output Latency: --</div>
+              <div id="diag-midi-latency">MIDI Latency: --</div>
+              <div id="diag-watchdog">Watchdog: OK</div>
+              <div id="diag-webgl" class="diag-webgl"></div>
+              <button id="diag-webgl-copy" type="button">Copy WebGL Diagnostics</button>
+            </div>
+            <div class="panel-block">
+              <h3>Performance Guardrails</h3>
+              <div id="guardrail-status" class="output-hint">Guardrails: OK</div>
+              <div id="guardrail-hint" class="output-hint">Output scale: 100%</div>
+            </div>
+            <div class="panel-block">
+              <h3>Latency Dashboard</h3>
+              <div id="latency-summary" class="output-hint">Audio: -- | Output: -- | MIDI: --</div>
             </div>
           </div>
         </section>

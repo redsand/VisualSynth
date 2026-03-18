@@ -26,6 +26,7 @@ export interface MilkWaveConfig {
   g: number;
   b: number;
   a: number;
+  initCode: string[];
   perFrameCode: string[];
   perPointCode: string[];
 }
@@ -55,7 +56,9 @@ export interface MilkShapeConfig {
   borderG: number;
   borderB: number;
   borderA: number;
+  initCode: string[];
   perFrameCode: string[];
+  perPointCode: string[];
 }
 
 export interface MilkPresetData {
@@ -248,6 +251,19 @@ export function parseMilkFile(
         continue;
       }
 
+      // Parse wave_*_init* lines
+      const waveInitMatch = trimmed.match(/^wave_(\d+)_init(\d+)=(.*)$/);
+      if (waveInitMatch) {
+        const waveIndex = parseInt(waveInitMatch[1], 10);
+        const codeIndex = parseInt(waveInitMatch[2], 10);
+        if (!waves.has(waveIndex)) {
+          waves.set(waveIndex, createDefaultWaveConfig());
+        }
+        const wave = waves.get(waveIndex)!;
+        wave.initCode[codeIndex] = waveInitMatch[3];
+        continue;
+      }
+
       // Parse wave_*_per_point* lines
       const wavePerPointMatch = trimmed.match(/^wave_(\d+)_per_point(\d+)=(.*)$/);
       if (wavePerPointMatch) {
@@ -286,6 +302,32 @@ export function parseMilkFile(
         }
         const shape = shapes.get(shapeIndex)!;
         shape.perFrameCode[codeIndex] = shapePerFrameMatch[3];
+        continue;
+      }
+
+      // Parse shape_*_init* lines
+      const shapeInitMatch = trimmed.match(/^shape_(\d+)_init(\d+)=(.*)$/);
+      if (shapeInitMatch) {
+        const shapeIndex = parseInt(shapeInitMatch[1], 10);
+        const codeIndex = parseInt(shapeInitMatch[2], 10);
+        if (!shapes.has(shapeIndex)) {
+          shapes.set(shapeIndex, createDefaultShapeConfig());
+        }
+        const shape = shapes.get(shapeIndex)!;
+        shape.initCode[codeIndex] = shapeInitMatch[3];
+        continue;
+      }
+
+      // Parse shape_*_per_point* lines
+      const shapePerPointMatch = trimmed.match(/^shape_(\d+)_per_point(\d+)=(.*)$/);
+      if (shapePerPointMatch) {
+        const shapeIndex = parseInt(shapePerPointMatch[1], 10);
+        const codeIndex = parseInt(shapePerPointMatch[2], 10);
+        if (!shapes.has(shapeIndex)) {
+          shapes.set(shapeIndex, createDefaultShapeConfig());
+        }
+        const shape = shapes.get(shapeIndex)!;
+        shape.perPointCode[codeIndex] = shapePerPointMatch[3];
         continue;
       }
 
@@ -366,6 +408,7 @@ function createDefaultWaveConfig(): MilkWaveConfig {
     g: 1,
     b: 1,
     a: 1,
+    initCode: [],
     perFrameCode: [],
     perPointCode: []
   };
@@ -397,7 +440,9 @@ function createDefaultShapeConfig(): MilkShapeConfig {
     borderG: 1,
     borderB: 1,
     borderA: 0,
-    perFrameCode: []
+    initCode: [],
+    perFrameCode: [],
+    perPointCode: []
   };
 }
 

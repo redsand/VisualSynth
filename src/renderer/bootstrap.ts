@@ -116,6 +116,21 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
         if (handled) return;
       }
 
+      // Handle mod matrix enable/disable toggle
+      const modEnableMatch = target.match(/^modMatrix\.(\d+)\.enabled$/);
+      if (modEnableMatch) {
+        const modIndex = parseInt(modEnableMatch[1], 10);
+        const project = store.getState().project;
+        if (modIndex >= 0 && modIndex < project.modMatrix.length) {
+          if (isToggle) {
+            project.modMatrix[modIndex].enabled = !project.modMatrix[modIndex].enabled;
+          } else {
+            project.modMatrix[modIndex].enabled = value >= 0.5;
+          }
+        }
+        return;
+      }
+
       // Fall back to standard MIDI target handling (modulation, etc.)
       console.log('[MIDI] Target:', target, value, isToggle);
     },

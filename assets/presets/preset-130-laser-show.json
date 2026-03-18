@@ -100,7 +100,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "starfield-1",
+        "type": "laser-starfield",
         "param": "opacity"
       },
       "amount": 0.3,

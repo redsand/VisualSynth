@@ -5,9 +5,12 @@ import { OutputConfig } from '../shared/project';
 contextBridge.exposeInMainWorld('visualSynth', {
   saveProject: (payload: string) => ipcRenderer.invoke('project:save', payload),
   autosaveProject: (payload: string) => ipcRenderer.invoke('project:autosave', payload),
+  savePreset: (payload: string, defaultName: string) =>
+    ipcRenderer.invoke('preset:save', payload, defaultName),
   saveExchange: (payload: string, defaultName: string) =>
     ipcRenderer.invoke('exchange:save', payload, defaultName),
   openProject: () => ipcRenderer.invoke('project:open'),
+  openSceneFile: () => ipcRenderer.invoke('scene:open'),
   loadShowcaseProject: () => ipcRenderer.invoke('project:load-showcase'),
   getRecovery: () => ipcRenderer.invoke('project:recovery'),
   openExchange: () => ipcRenderer.invoke('exchange:open'),

@@ -1,7 +1,9 @@
 import { applyModMatrix } from '../../shared/modMatrix';
-import { buildLegacyTarget } from '../../shared/parameterRegistry';
-import { DEFAULT_PROJECT, LayerConfig } from '../../shared/project';
+import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
+import { resolveGenUniforms } from '../../shared/genUniformResolver';
+import { DEFAULT_PROJECT, LayerConfig, type VisualSynthProject } from '../../shared/project';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
+import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
@@ -191,6 +193,11 @@ const normalizeLayerId = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+const toGeneratorDebugId = (generatorId: string) =>
+  generatorId
+    .replace(/^gen-/, '')
+    .replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());
+
 type AnyLayer = { id?: string; generatorId?: string } & Record<string, unknown>;
 const findLayerById = (
   layers: AnyLayer[] | LayerConfig[] | undefined,
@@ -298,6 +305,7 @@ export class RenderGraph {
   private burstSdfInitialized = false;
   private macroState: MacroExecutionState = createMacroExecutionState();
   private midiSceneConfig: MidiSceneConfig = DEFAULT_MIDI_SCENE_CONFIG;
+  private midiSum: Record<string, number> = {};
   private onLoadPreset: ((path: string, name: string, crossfade: number) => Promise<void>) | null = null;
   private onPlaylistControl: ((control: string) => void) | null = null;
 
@@ -578,15 +586,40 @@ export class RenderGraph {
    * Handle MIDI CC for scene parameter control
    */
   handleMidiCC(channel: number, cc: number, value: number): boolean {
+    const state = this.store.getState();
+    let handled = false;
+    state.project.midiMappings
+      .filter((mapping) => mapping.message === 'cc' && mapping.channel === channel && mapping.control === cc)
+      .forEach((mapping) => {
+        const scaledValue = this.resolveMidiMappedValue(mapping.target, value);
+        if (scaledValue === null) return;
+        this.midiSum[mapping.target] = scaledValue;
+        handled = true;
+      });
+
     const result = processMidiCC(this.midiSceneConfig, channel, cc, value);
-
-    if (!result.handled || !result.target || result.value === undefined) {
-      return false;
+    if (result.handled && result.target && result.value !== undefined) {
+      this.applyMacroParam(result.target, result.value);
+      handled = true;
     }
+    return handled;
+  }
 
-    // Apply the CC value to the target
-    this.applyMacroParam(result.target, result.value);
-    return true;
+  private resolveMidiMappedValue(target: string, value: number): number | null {
+    const parsed = parseLegacyTarget(target);
+    if (!parsed) return null;
+    const paramDef = getParamDef(parsed.layerType, parsed.param);
+    if (!paramDef) return null;
+    if (paramDef.type === 'boolean') {
+      return value >= 64 ? 1 : 0;
+    }
+    if (paramDef.type === 'enum') {
+      return scaleMidiValue(value, 0, Math.max(0, (paramDef.options?.length ?? 1) - 1));
+    }
+    if (paramDef.type === 'number') {
+      return scaleMidiValue(value, paramDef.min ?? 0, paramDef.max ?? 1);
+    }
+    return null;
   }
 
   /**
@@ -1020,15 +1053,17 @@ export class RenderGraph {
     const spawnRate = (typeof shapeBurstLayer?.params?.spawnRate === 'number')
       ? shapeBurstLayer.params.spawnRate : 1;
 
-    // Spawn new burst on audio peak
-    const peak = state.audio.peak;
-    const threshold = 0.5;
+    const peak = Math.max(state.audio.peak, state.audio.rms ?? 0);
+    const threshold = 0.15;
     const timeSinceLastSpawn = time - this.lastShapeBurstSpawn;
     const minInterval = 200 / spawnRate; // Milliseconds between spawns
 
-    if (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) {
-      // Find an inactive slot or the oldest one
-      let slotIndex = this.shapeBurstSlotIndex;
+    const shouldSpawn =
+      (audioTrigger && peak > threshold && timeSinceLastSpawn > minInterval) ||
+      (!audioTrigger && timeSinceLastSpawn > minInterval);
+
+    if (shouldSpawn) {
+      const slotIndex = this.shapeBurstSlotIndex;
       this.shapeBurstSlots[slotIndex] = {
         active: true,
         spawnTime: time / 1000 // Convert to seconds for shader
@@ -1557,36 +1592,45 @@ export class RenderGraph {
       return Math.min(1, Math.max(0, base * (1 + macroVal(macroTarget))));
     };
 
+    const genUniforms = resolveGenUniforms({
+      layers: activeScene?.layers ?? [],
+      modValue,
+      midiSum: this.midiSum,
+      getLayerParamNumber,
+      findLayerById: (layers, id) => findLayerById(layers as LayerConfig[], id),
+      buildLegacyTarget
+    });
+
     const plasmaBaseSpeed = getLayerParamNumber(plasmaLayer, 'speed', 1.0);
     const plasmaBaseScale = getLayerParamNumber(plasmaLayer, 'scale', 1.0);
     const plasmaBaseComplexity = getLayerParamNumber(plasmaLayer, 'complexity', 0.5);
-    const plasmaSpeed = Math.max(0.1, plasmaBaseSpeed + macroVal('layer-plasma.speed'));
-    const plasmaScale = Math.max(0.1, plasmaBaseScale + macroVal('layer-plasma.scale'));
+    const plasmaSpeed = Math.max(0.1, plasmaBaseSpeed + macroVal('layer-plasma.speed') + (this.midiSum['layer-plasma.speed'] ?? 0));
+    const plasmaScale = Math.max(0.1, plasmaBaseScale + macroVal('layer-plasma.scale') + (this.midiSum['layer-plasma.scale'] ?? 0));
     const plasmaComplexity = Math.max(0.1, plasmaBaseComplexity + macroVal('layer-plasma.complexity'));
 
     const origamiBaseSpeed = getLayerParamNumber(origamiLayer, 'speed', 1.0);
-    const origamiSpeed = Math.max(0.1, origamiBaseSpeed + macroVal('layer-origami.speed'));
+    const origamiSpeed = Math.max(0.1, origamiBaseSpeed + macroVal('layer-origami.speed') + (this.midiSum['layer-origami.speed'] ?? 0));
 
     const glyphBaseSpeed = getLayerParamNumber(glyphLayer, 'speed', 1.0);
-    const glyphSpeed = Math.max(0.1, glyphBaseSpeed + macroVal('layer-glyph.speed'));
+    const glyphSpeed = Math.max(0.1, glyphBaseSpeed + macroVal('layer-glyph.speed') + (this.midiSum['layer-glyph.speed'] ?? 0));
 
     const crystalBaseScale = getLayerParamNumber(crystalLayer, 'scale', 1.0);
     const crystalBaseSpeed = getLayerParamNumber(crystalLayer, 'speed', 1.0);
-    const crystalScale = Math.max(0.1, crystalBaseScale + macroVal('layer-crystal.scale'));
-    const crystalSpeed = Math.max(0.1, crystalBaseSpeed + macroVal('layer-crystal.speed'));
+    const crystalScale = Math.max(0.1, crystalBaseScale + macroVal('layer-crystal.scale') + (this.midiSum['layer-crystal.scale'] ?? 0));
+    const crystalSpeed = Math.max(0.1, crystalBaseSpeed + macroVal('layer-crystal.speed') + (this.midiSum['layer-crystal.speed'] ?? 0));
 
     const inkBaseSpeed = getLayerParamNumber(inkLayer, 'speed', 1.0);
     const inkBaseScale = getLayerParamNumber(inkLayer, 'scale', 1.0);
-    const inkSpeed = Math.max(0.1, inkBaseSpeed + macroVal('layer-inkflow.speed'));
-    const inkScale = Math.max(0.1, inkBaseScale + macroVal('layer-inkflow.scale'));
+    const inkSpeed = Math.max(0.1, inkBaseSpeed + macroVal('layer-inkflow.speed') + (this.midiSum['layer-inkflow.speed'] ?? 0));
+    const inkScale = Math.max(0.1, inkBaseScale + macroVal('layer-inkflow.scale') + (this.midiSum['layer-inkflow.scale'] ?? 0));
 
     const topoBaseScale = getLayerParamNumber(topoLayer, 'scale', 1.0);
     const topoBaseElevation = getLayerParamNumber(topoLayer, 'elevation', 0.5);
-    const topoScale = Math.max(0.1, topoBaseScale + macroVal('layer-topo.scale'));
-    const topoElevation = Math.max(0.1, topoBaseElevation + macroVal('layer-topo.elevation'));
+    const topoScale = Math.max(0.1, topoBaseScale + macroVal('layer-topo.scale') + (this.midiSum['layer-topo.scale'] ?? 0));
+    const topoElevation = Math.max(0.1, topoBaseElevation + macroVal('layer-topo.elevation') + (this.midiSum['layer-topo.elevation'] ?? 0));
 
     const weatherBaseSpeed = getLayerParamNumber(weatherLayer, 'speed', 1.0);
-    const weatherSpeed = Math.max(0.1, weatherBaseSpeed + macroVal('layer-weather.speed'));
+    const weatherSpeed = Math.max(0.1, weatherBaseSpeed + macroVal('layer-weather.speed') + (this.midiSum['layer-weather.speed'] ?? 0));
 
     const moddedPlasmaOpacity = applyRoleOpacity(
       modValue('layer-plasma.opacity', layerOpacity(plasmaLayer, 'layer-plasma.opacity', 1)),
@@ -1854,372 +1898,10 @@ export class RenderGraph {
       gravityActives: this.gravityActives,
       gravityCollapse: runtime.gravityCollapse,
       debugTint: this.debugTint ? 1 : 0,
-      // EDM Generators
-      laserEnabled: laserLayer?.enabled ?? false,
-      laserOpacity: getLayerParamNumber(laserLayer, 'opacity', 1.0),
-      laserBeamCount: getLayerParamNumber(laserLayer, 'beamCount', 4),
-      laserBeamWidth: getLayerParamNumber(laserLayer, 'beamWidth', 0.02),
-      laserBeamLength: getLayerParamNumber(laserLayer, 'beamLength', 1.0),
-      laserRotation: getLayerParamNumber(laserLayer, 'rotation', 0),
-      laserRotationSpeed: getLayerParamNumber(laserLayer, 'rotationSpeed', 0.5),
-      laserSpread: getLayerParamNumber(laserLayer, 'spread', 1.57),
-      laserMode: getLayerParamNumber(laserLayer, 'mode', 0),
-      laserColorShift: getLayerParamNumber(laserLayer, 'colorShift', 0),
-      laserAudioReact: getLayerParamNumber(laserLayer, 'audioReact', 0.7),
-      laserGlow: getLayerParamNumber(laserLayer, 'glow', 0.5),
-      strobeEnabled: strobeLayer?.enabled ?? false,
-      strobeOpacity: getLayerParamNumber(strobeLayer, 'opacity', 1.0),
-      strobeRate: getLayerParamNumber(strobeLayer, 'rate', 4),
-      strobeDutyCycle: getLayerParamNumber(strobeLayer, 'dutyCycle', 0.1),
-      strobeMode: getLayerParamNumber(strobeLayer, 'mode', 0),
-      strobeAudioTrigger: (strobeLayer?.params as any)?.audioTrigger ?? true,
-      strobeThreshold: getLayerParamNumber(strobeLayer, 'threshold', 0.6),
-      strobeFadeOut: getLayerParamNumber(strobeLayer, 'fadeOut', 0.1),
-      strobePattern: getLayerParamNumber(strobeLayer, 'pattern', 0),
-      shapeBurstEnabled: shapeBurstLayer?.enabled ?? false,
-      shapeBurstOpacity: getLayerParamNumber(shapeBurstLayer, 'opacity', 1.0),
-      shapeBurstShape: getLayerParamNumber(shapeBurstLayer, 'shape', 0),
-      shapeBurstExpandSpeed: getLayerParamNumber(shapeBurstLayer, 'expandSpeed', 2),
-      shapeBurstStartSize: getLayerParamNumber(shapeBurstLayer, 'startSize', 0.05),
-      shapeBurstMaxSize: getLayerParamNumber(shapeBurstLayer, 'maxSize', 1.5),
-      shapeBurstThickness: getLayerParamNumber(shapeBurstLayer, 'thickness', 0.03),
-      shapeBurstFadeMode: getLayerParamNumber(shapeBurstLayer, 'fadeMode', 2),
       shapeBurstSpawnTimes: this.shapeBurstSpawnTimes,
       shapeBurstActives: this.shapeBurstActives,
-      gridTunnelEnabled: gridTunnelLayer?.enabled ?? false,
-      gridTunnelOpacity: getLayerParamNumber(gridTunnelLayer, 'opacity', 1.0),
-      gridTunnelSpeed: getLayerParamNumber(gridTunnelLayer, 'speed', 1),
-      gridTunnelGridSize: getLayerParamNumber(gridTunnelLayer, 'gridSize', 20),
-      gridTunnelLineWidth: getLayerParamNumber(gridTunnelLayer, 'lineWidth', 0.02),
-      gridTunnelPerspective: getLayerParamNumber(gridTunnelLayer, 'perspective', 1),
-      gridTunnelHorizonY: getLayerParamNumber(gridTunnelLayer, 'horizonY', 0.5),
-      gridTunnelGlow: getLayerParamNumber(gridTunnelLayer, 'glow', 0.5),
-      gridTunnelAudioReact: getLayerParamNumber(gridTunnelLayer, 'audioReact', 0.3),
-      gridTunnelMode: getLayerParamNumber(gridTunnelLayer, 'mode', 0),
-      // Rock Generators
-      lightningEnabled: lightningLayer?.enabled ?? false,
-      lightningOpacity: getLayerParamNumber(lightningLayer, 'opacity', 1.0),
-      lightningSpeed: getLayerParamNumber(lightningLayer, 'speed', 1.0),
-      lightningBranches: getLayerParamNumber(lightningLayer, 'branches', 3.0),
-      lightningThickness: getLayerParamNumber(lightningLayer, 'thickness', 0.02),
-      lightningColor: getLayerParamNumber(lightningLayer, 'color', 0),
-      analogOscilloEnabled: analogOscilloLayer?.enabled ?? false,
-      analogOscilloOpacity: getLayerParamNumber(analogOscilloLayer, 'opacity', 1.0),
-      analogOscilloThickness: getLayerParamNumber(analogOscilloLayer, 'thickness', 0.01),
-      analogOscilloGlow: getLayerParamNumber(analogOscilloLayer, 'glow', 0.5),
-      analogOscilloColor: getLayerParamNumber(analogOscilloLayer, 'color', 0),
-      analogOscilloMode: getLayerParamNumber(analogOscilloLayer, 'mode', 0),
-      speakerConeEnabled: speakerConeLayer?.enabled ?? false,
-      speakerConeOpacity: getLayerParamNumber(speakerConeLayer, 'opacity', 1.0),
-      speakerConeForce: getLayerParamNumber(speakerConeLayer, 'force', 1.0),
-      glitchScanlineEnabled: glitchScanlineLayer?.enabled ?? false,
-      glitchScanlineOpacity: getLayerParamNumber(glitchScanlineLayer, 'opacity', 1.0),
-      glitchScanlineSpeed: getLayerParamNumber(glitchScanlineLayer, 'speed', 1.0),
-      glitchScanlineCount: getLayerParamNumber(glitchScanlineLayer, 'count', 1.0),
-      laserStarfieldEnabled: laserStarfieldLayer?.enabled ?? false,
-      laserStarfieldOpacity: getLayerParamNumber(laserStarfieldLayer, 'opacity', 1.0),
-      laserStarfieldSpeed: getLayerParamNumber(laserStarfieldLayer, 'speed', 1.0),
-      laserStarfieldDensity: getLayerParamNumber(laserStarfieldLayer, 'density', 1.0),
-      pulsingRibbonsEnabled: pulsingRibbonsLayer?.enabled ?? false,
-      pulsingRibbonsOpacity: getLayerParamNumber(pulsingRibbonsLayer, 'opacity', 1.0),
-      pulsingRibbonsCount: getLayerParamNumber(pulsingRibbonsLayer, 'count', 3.0),
-      pulsingRibbonsWidth: getLayerParamNumber(pulsingRibbonsLayer, 'width', 0.05),
-      electricArcEnabled: electricArcLayer?.enabled ?? false,
-      electricArcOpacity: getLayerParamNumber(electricArcLayer, 'opacity', 1.0),
-      electricArcRadius: getLayerParamNumber(electricArcLayer, 'radius', 0.5),
-      electricArcChaos: getLayerParamNumber(electricArcLayer, 'chaos', 1.0),
-      pyroBurstEnabled: pyroBurstLayer?.enabled ?? false,
-      pyroBurstOpacity: getLayerParamNumber(pyroBurstLayer, 'opacity', 1.0),
-      pyroBurstForce: getLayerParamNumber(pyroBurstLayer, 'force', 1.0),
-      geoWireframeEnabled: geoWireframeLayer?.enabled ?? false,
-      geoWireframeOpacity: getLayerParamNumber(geoWireframeLayer, 'opacity', 1.0),
-      geoWireframeShape: getLayerParamNumber(geoWireframeLayer, 'shape', 0),
-      geoWireframeScale: getLayerParamNumber(geoWireframeLayer, 'scale', 0.5),
-      signalNoiseEnabled: signalNoiseLayer?.enabled ?? false,
-      signalNoiseOpacity: getLayerParamNumber(signalNoiseLayer, 'opacity', 1.0),
-      signalNoiseAmount: getLayerParamNumber(signalNoiseLayer, 'amount', 1.0),
-      wormholeEnabled: wormholeLayer?.enabled ?? false,
-      wormholeOpacity: getLayerParamNumber(wormholeLayer, 'opacity', 1.0),
-      wormholeSpeed: getLayerParamNumber(wormholeLayer, 'speed', 1.0),
-      wormholeWeave: getLayerParamNumber(wormholeLayer, 'weave', 0.2),
-      wormholeIter: getLayerParamNumber(wormholeLayer, 'iter', 3.0),
-      ribbonTunnelEnabled: ribbonTunnelLayer?.enabled ?? false,
-      ribbonTunnelOpacity: getLayerParamNumber(ribbonTunnelLayer, 'opacity', 1.0),
-      ribbonTunnelSpeed: getLayerParamNumber(ribbonTunnelLayer, 'speed', 1.0),
-      ribbonTunnelTwist: getLayerParamNumber(ribbonTunnelLayer, 'twist', 1.0),
-      fractalTunnelEnabled: fractalTunnelLayer?.enabled ?? false,
-      fractalTunnelOpacity: getLayerParamNumber(fractalTunnelLayer, 'opacity', 1.0),
-      fractalTunnelSpeed: getLayerParamNumber(fractalTunnelLayer, 'speed', 1.0),
-      fractalTunnelComplexity: getLayerParamNumber(fractalTunnelLayer, 'complexity', 3.0),
-      circuitConduitEnabled: circuitConduitLayer?.enabled ?? false,
-      circuitConduitOpacity: getLayerParamNumber(circuitConduitLayer, 'opacity', 1.0),
-      circuitConduitSpeed: getLayerParamNumber(circuitConduitLayer, 'speed', 1.0),
-      auraPortalEnabled: auraPortalLayer?.enabled ?? false,
-      auraPortalOpacity: getLayerParamNumber(auraPortalLayer, 'opacity', 1.0),
-      auraPortalColor: getLayerParamNumber(auraPortalLayer, 'color', 0),
-      freqTerrainEnabled: freqTerrainLayer?.enabled ?? false,
-      freqTerrainOpacity: getLayerParamNumber(freqTerrainLayer, 'opacity', 1.0),
-      freqTerrainScale: getLayerParamNumber(freqTerrainLayer, 'scale', 1.0),
-      dataStreamEnabled: dataStreamLayer?.enabled ?? false,
-      dataStreamOpacity: getLayerParamNumber(dataStreamLayer, 'opacity', 1.0),
-      dataStreamSpeed: getLayerParamNumber(dataStreamLayer, 'speed', 1.0),
-      causticLiquidEnabled: causticLiquidLayer?.enabled ?? false,
-      causticLiquidOpacity: getLayerParamNumber(causticLiquidLayer, 'opacity', 1.0),
-      causticLiquidSpeed: getLayerParamNumber(causticLiquidLayer, 'speed', 1.0),
-      shimmerVeilEnabled: shimmerVeilLayer?.enabled ?? false,
-      shimmerVeilOpacity: getLayerParamNumber(shimmerVeilLayer, 'opacity', 1.0),
-      shimmerVeilComplexity: getLayerParamNumber(shimmerVeilLayer, 'complexity', 10.0),
-      // --- New 31 Generators Parameters ---
-      nebulaCloudEnabled: nebulaCloudLayer?.enabled ?? false,
-      nebulaCloudOpacity: getLayerParamNumber(nebulaCloudLayer, 'opacity', 1.0),
-      nebulaCloudDensity: getLayerParamNumber(nebulaCloudLayer, 'density', 1.0),
-      nebulaCloudSpeed: getLayerParamNumber(nebulaCloudLayer, 'speed', 0.5),
-      circuitBoardEnabled: circuitBoardLayer?.enabled ?? false,
-      circuitBoardOpacity: getLayerParamNumber(circuitBoardLayer, 'opacity', 1.0),
-      circuitBoardGrowth: getLayerParamNumber(circuitBoardLayer, 'growth', 1.0),
-      circuitBoardComplexity: getLayerParamNumber(circuitBoardLayer, 'complexity', 5.0),
-      lorenzAttractorEnabled: lorenzLayer?.enabled ?? false,
-      lorenzAttractorOpacity: getLayerParamNumber(lorenzLayer, 'opacity', 1.0),
-      lorenzAttractorSpeed: getLayerParamNumber(lorenzLayer, 'speed', 1.0),
-      lorenzAttractorChaos: getLayerParamNumber(lorenzLayer, 'chaos', 1.0),
-      mandalaSpinnerEnabled: mandalaLayer?.enabled ?? false,
-      mandalaSpinnerOpacity: getLayerParamNumber(mandalaLayer, 'opacity', 1.0),
-      mandalaSpinnerSides: getLayerParamNumber(mandalaLayer, 'sides', 6.0),
-      mandalaSpinnerSpeed: getLayerParamNumber(mandalaLayer, 'speed', 1.0),
-      starburstGalaxyEnabled: starburstLayer?.enabled ?? false,
-      starburstGalaxyOpacity: getLayerParamNumber(starburstLayer, 'opacity', 1.0),
-      starburstGalaxyForce: getLayerParamNumber(starburstLayer, 'force', 1.0),
-      starburstGalaxyCount: getLayerParamNumber(starburstLayer, 'count', 100.0),
-      digitalRainV2Enabled: rainV2Layer?.enabled ?? false,
-      digitalRainV2Opacity: getLayerParamNumber(rainV2Layer, 'opacity', 1.0),
-      digitalRainV2Speed: getLayerParamNumber(rainV2Layer, 'speed', 1.0),
-      digitalRainV2Density: getLayerParamNumber(rainV2Layer, 'density', 1.0),
-      lavaFlowEnabled: lavaLayer?.enabled ?? false,
-      lavaFlowOpacity: getLayerParamNumber(lavaLayer, 'opacity', 1.0),
-      lavaFlowHeat: getLayerParamNumber(lavaLayer, 'heat', 1.0),
-      lavaFlowViscosity: getLayerParamNumber(lavaLayer, 'viscosity', 1.0),
-      crystalGrowthEnabled: crystalGrowthLayer?.enabled ?? false,
-      crystalGrowthOpacity: getLayerParamNumber(crystalGrowthLayer, 'opacity', 1.0),
-      crystalGrowthRate: getLayerParamNumber(crystalGrowthLayer, 'rate', 0.5),
-      crystalGrowthSharpness: getLayerParamNumber(crystalGrowthLayer, 'sharpness', 0.8),
-      technoGridEnabled: technoGridLayer?.enabled ?? false,
-      technoGridOpacity: getLayerParamNumber(technoGridLayer, 'opacity', 1.0),
-      technoGridHeight: getLayerParamNumber(technoGridLayer, 'height', 1.0),
-      technoGridSpeed: getLayerParamNumber(technoGridLayer, 'speed', 1.0),
-      magneticFieldEnabled: magneticLayer?.enabled ?? false,
-      magneticFieldOpacity: getLayerParamNumber(magneticLayer, 'opacity', 1.0),
-      magneticFieldStrength: getLayerParamNumber(magneticLayer, 'strength', 1.0),
-      magneticFieldDensity: getLayerParamNumber(magneticLayer, 'density', 20.0),
-      prismShardsEnabled: prismShardsLayer?.enabled ?? false,
-      prismShardsOpacity: getLayerParamNumber(prismShardsLayer, 'opacity', 1.0),
-      prismShardsRefraction: getLayerParamNumber(prismShardsLayer, 'refraction', 0.5),
-      prismShardsCount: getLayerParamNumber(prismShardsLayer, 'count', 5.0),
-      neuralNetEnabled: neuralNetLayer?.enabled ?? false,
-      neuralNetOpacity: getLayerParamNumber(neuralNetLayer, 'opacity', 1.0),
-      neuralNetActivity: getLayerParamNumber(neuralNetLayer, 'activity', 1.0),
-      neuralNetDensity: getLayerParamNumber(neuralNetLayer, 'density', 1.0),
-      auroraChordEnabled: auroraChordLayer?.enabled ?? false,
-      auroraChordOpacity: getLayerParamNumber(auroraChordLayer, 'opacity', 1.0),
-      auroraChordWaviness: getLayerParamNumber(auroraChordLayer, 'waviness', 1.0),
-      auroraChordColorRange: getLayerParamNumber(auroraChordLayer, 'colorRange', 1.0),
-      vhsGlitchEnabled: vhsGlitchLayer?.enabled ?? false,
-      vhsGlitchOpacity: getLayerParamNumber(vhsGlitchLayer, 'opacity', 1.0),
-      vhsGlitchJitter: getLayerParamNumber(vhsGlitchLayer, 'jitter', 0.2),
-      vhsGlitchNoise: getLayerParamNumber(vhsGlitchLayer, 'noise', 0.3),
-      moirePatternEnabled: moireLayer?.enabled ?? false,
-      moirePatternOpacity: getLayerParamNumber(moireLayer, 'opacity', 1.0),
-      moirePatternScale: getLayerParamNumber(moireLayer, 'scale', 5.0),
-      moirePatternSpeed: getLayerParamNumber(moireLayer, 'speed', 1.0),
-      hypercubeEnabled: hypercubeLayer?.enabled ?? false,
-      hypercubeOpacity: getLayerParamNumber(hypercubeLayer, 'opacity', 1.0),
-      hypercubeProjection: getLayerParamNumber(hypercubeLayer, 'projection', 1.0),
-      hypercubeSpeed: getLayerParamNumber(hypercubeLayer, 'speed', 1.0),
-      fluidSwirlEnabled: fluidSwirlLayer?.enabled ?? false,
-      fluidSwirlOpacity: getLayerParamNumber(fluidSwirlLayer, 'opacity', 1.0),
-      fluidSwirlVorticity: getLayerParamNumber(fluidSwirlLayer, 'vorticity', 1.0),
-      fluidSwirlColorMix: getLayerParamNumber(fluidSwirlLayer, 'colorMix', 1.0),
-      asciiStreamEnabled: asciiLayer?.enabled ?? false,
-      asciiStreamOpacity: getLayerParamNumber(asciiLayer, 'opacity', 1.0),
-      asciiStreamResolution: getLayerParamNumber(asciiLayer, 'resolution', 40.0),
-      asciiStreamContrast: getLayerParamNumber(asciiLayer, 'contrast', 1.0),
-      retroWaveEnabled: retroWaveLayer?.enabled ?? false,
-      retroWaveOpacity: getLayerParamNumber(retroWaveLayer, 'opacity', 1.0),
-      retroWaveSunSize: getLayerParamNumber(retroWaveLayer, 'sunSize', 1.0),
-      retroWaveGridSpeed: getLayerParamNumber(retroWaveLayer, 'gridSpeed', 1.0),
-      bubblePopEnabled: bubblePopLayer?.enabled ?? false,
-      bubblePopOpacity: getLayerParamNumber(bubblePopLayer, 'opacity', 1.0),
-      bubblePopPopRate: getLayerParamNumber(bubblePopLayer, 'popRate', 1.0),
-      bubblePopSize: getLayerParamNumber(bubblePopLayer, 'size', 0.5),
-      soundWave3DEnabled: soundWave3DLayer?.enabled ?? false,
-      soundWave3DOpacity: getLayerParamNumber(soundWave3DLayer, 'opacity', 1.0),
-      soundWave3DAmplitude: getLayerParamNumber(soundWave3DLayer, 'amplitude', 1.0),
-      soundWave3DSmoothness: getLayerParamNumber(soundWave3DLayer, 'smoothness', 1.0),
-      particleVortexEnabled: particleVortexLayer?.enabled ?? false,
-      particleVortexOpacity: getLayerParamNumber(particleVortexLayer, 'opacity', 1.0),
-      particleVortexSuction: getLayerParamNumber(particleVortexLayer, 'suction', 1.0),
-      particleVortexSpin: getLayerParamNumber(particleVortexLayer, 'spin', 1.0),
-      glowWormsEnabled: glowWormsLayer?.enabled ?? false,
-      glowWormsOpacity: getLayerParamNumber(glowWormsLayer, 'opacity', 1.0),
-      glowWormsLength: getLayerParamNumber(glowWormsLayer, 'length', 1.0),
-      glowWormsSpeed: getLayerParamNumber(glowWormsLayer, 'speed', 1.0),
-      mirrorMazeEnabled: mirrorMazeLayer?.enabled ?? false,
-      mirrorMazeOpacity: getLayerParamNumber(mirrorMazeLayer, 'opacity', 1.0),
-      mirrorMazeRecursion: getLayerParamNumber(mirrorMazeLayer, 'recursion', 4.0),
-      mirrorMazeAngle: getLayerParamNumber(mirrorMazeLayer, 'angle', 0.78),
-      pulseHeartEnabled: pulseHeartLayer?.enabled ?? false,
-      pulseHeartOpacity: getLayerParamNumber(pulseHeartLayer, 'opacity', 1.0),
-      pulseHeartBeats: getLayerParamNumber(pulseHeartLayer, 'beats', 1.0),
-      pulseHeartLayers: getLayerParamNumber(pulseHeartLayer, 'layers', 5.0),
-      dataShardsEnabled: dataShardsLayer?.enabled ?? false,
-      dataShardsOpacity: getLayerParamNumber(dataShardsLayer, 'opacity', 1.0),
-      dataShardsSpeed: getLayerParamNumber(dataShardsLayer, 'speed', 1.0),
-      dataShardsSharpness: getLayerParamNumber(dataShardsLayer, 'sharpness', 1.0),
-      hexCellEnabled: hexCellLayer?.enabled ?? false,
-      hexCellOpacity: getLayerParamNumber(hexCellLayer, 'opacity', 1.0),
-      hexCellPulse: getLayerParamNumber(hexCellLayer, 'pulse', 1.0),
-      hexCellScale: getLayerParamNumber(hexCellLayer, 'scale', 1.0),
-      plasmaBallEnabled: plasmaBallLayer?.enabled ?? false,
-      plasmaBallOpacity: getLayerParamNumber(plasmaBallLayer, 'opacity', 1.0),
-      plasmaBallVoltage: getLayerParamNumber(plasmaBallLayer, 'voltage', 1.0),
-      plasmaBallFilaments: getLayerParamNumber(plasmaBallLayer, 'filaments', 5.0),
-      warpDriveEnabled: warpDriveLayer?.enabled ?? false,
-      warpDriveOpacity: getLayerParamNumber(warpDriveLayer, 'opacity', 1.0),
-      warpDriveWarp: getLayerParamNumber(warpDriveLayer, 'warp', 1.0),
-      warpDriveGlow: getLayerParamNumber(warpDriveLayer, 'glow', 1.0),
-      visualFeedbackEnabled: feedbackLayer?.enabled ?? false,
-      visualFeedbackOpacity: getLayerParamNumber(feedbackLayer, 'opacity', 1.0),
-      visualFeedbackZoom: getLayerParamNumber(feedbackLayer, 'zoom', 1.01),
-      visualFeedbackRotation: getLayerParamNumber(feedbackLayer, 'rotation', 0.01),
-      myceliumGrowthEnabled: myceliumLayer?.enabled ?? false,
-      myceliumGrowthOpacity: getLayerParamNumber(myceliumLayer, 'opacity', 1.0),
-      myceliumGrowthSpread: getLayerParamNumber(myceliumLayer, 'spread', 1.0),
-      myceliumGrowthDecay: getLayerParamNumber(myceliumLayer, 'decay', 0.5),
-      // New Unique Generators
-      cellularGrowthEnabled: cellularGrowthLayer?.enabled ?? false,
-      cellularGrowthOpacity: getLayerParamNumber(cellularGrowthLayer, 'opacity', 1.0),
-      cellularGrowthRate: getLayerParamNumber(cellularGrowthLayer, 'rate', 0.5),
-      cellularGrowthDensity: getLayerParamNumber(cellularGrowthLayer, 'density', 0.8),
-      bioLuminescentForestEnabled: bioLuminescentLayer?.enabled ?? false,
-      bioLuminescentForestOpacity: getLayerParamNumber(bioLuminescentLayer, 'opacity', 1.0),
-      bioLuminescentForestPulse: getLayerParamNumber(bioLuminescentLayer, 'pulse', 1.0),
-      bioLuminescentForestDensity: getLayerParamNumber(bioLuminescentLayer, 'density', 1.0),
-      crystallineEnabled: crystallineLayer?.enabled ?? false,
-      crystallineOpacity: getLayerParamNumber(crystallineLayer, 'opacity', 1.0),
-      crystallineRotation: getLayerParamNumber(crystallineLayer, 'rotation', 0),
-      crystallineRefraction: getLayerParamNumber(crystallineLayer, 'refraction', 1.0),
-      audioDnaEnabled: audioDnaLayer?.enabled ?? false,
-      audioDnaOpacity: getLayerParamNumber(audioDnaLayer, 'opacity', 1.0),
-      audioDnaRotation: getLayerParamNumber(audioDnaLayer, 'rotation', 0),
-      audioDnaSegments: getLayerParamNumber(audioDnaLayer, 'segments', 8.0),
-      liquidMetalEnabled: liquidMetalLayer?.enabled ?? false,
-      liquidMetalOpacity: getLayerParamNumber(liquidMetalLayer, 'opacity', 1.0),
-      liquidMetalFlow: getLayerParamNumber(liquidMetalLayer, 'flow', 1.0),
-      liquidMetalShimmer: getLayerParamNumber(liquidMetalLayer, 'shimmer', 1.0),
-      neonCityscapeEnabled: neonCityscapeLayer?.enabled ?? false,
-      neonCityscapeOpacity: getLayerParamNumber(neonCityscapeLayer, 'opacity', 1.0),
-      neonCityscapeSpeed: getLayerParamNumber(neonCityscapeLayer, 'speed', 1.0),
-      neonCityscapeDensity: getLayerParamNumber(neonCityscapeLayer, 'density', 1.0),
-      cosmicNebulaEnabled: cosmicNebulaLayer?.enabled ?? false,
-      cosmicNebulaOpacity: getLayerParamNumber(cosmicNebulaLayer, 'opacity', 1.0),
-      cosmicNebulaExpansion: getLayerParamNumber(cosmicNebulaLayer, 'expansion', 1.0),
-      cosmicNebulaTurbulence: getLayerParamNumber(cosmicNebulaLayer, 'turbulence', 1.0),
-      sonicRainEnabled: sonicRainLayer?.enabled ?? false,
-      sonicRainOpacity: getLayerParamNumber(sonicRainLayer, 'opacity', 1.0),
-      sonicRainSpeed: getLayerParamNumber(sonicRainLayer, 'speed', 1.0),
-      sonicRainDensity: getLayerParamNumber(sonicRainLayer, 'density', 1.0),
-      morphingGeometryEnabled: morphingGeometryLayer?.enabled ?? false,
-      morphingGeometryOpacity: getLayerParamNumber(morphingGeometryLayer, 'opacity', 1.0),
-      morphingGeometrySpeed: getLayerParamNumber(morphingGeometryLayer, 'speed', 1.0),
-      morphingGeometryComplexity: getLayerParamNumber(morphingGeometryLayer, 'complexity', 3.0),
-      urbanRhythmEnabled: urbanRhythmLayer?.enabled ?? false,
-      urbanRhythmOpacity: getLayerParamNumber(urbanRhythmLayer, 'opacity', 1.0),
-      urbanRhythmBpm: getLayerParamNumber(urbanRhythmLayer, 'bpm', 120.0),
-      urbanRhythmIntensity: getLayerParamNumber(urbanRhythmLayer, 'intensity', 1.0),
-      // Goth Generators
-      crimsonVeilEnabled: crimsonVeilLayer?.enabled ?? false,
-      crimsonVeilOpacity: getLayerParamNumber(crimsonVeilLayer, 'opacity', 1.0),
-      crimsonVeilFlow: getLayerParamNumber(crimsonVeilLayer, 'flow', 1.0),
-      crimsonVeilDarkness: getLayerParamNumber(crimsonVeilLayer, 'darkness', 0.5),
-      victorianCryptEnabled: victorianCryptLayer?.enabled ?? false,
-      victorianCryptOpacity: getLayerParamNumber(victorianCryptLayer, 'opacity', 1.0),
-      victorianCryptComplexity: getLayerParamNumber(victorianCryptLayer, 'complexity', 0.5),
-      victorianCryptDecay: getLayerParamNumber(victorianCryptLayer, 'decay', 0.5),
-      spectralApparitionEnabled: spectralApparitionLayer?.enabled ?? false,
-      spectralApparitionOpacity: getLayerParamNumber(spectralApparitionLayer, 'opacity', 1.0),
-      spectralApparitionDensity: getLayerParamNumber(spectralApparitionLayer, 'density', 0.5),
-      spectralApparitionFade: getLayerParamNumber(spectralApparitionLayer, 'fade', 0.5),
-      gothicCobwebsEnabled: gothicCobwebsLayer?.enabled ?? false,
-      gothicCobwebsOpacity: getLayerParamNumber(gothicCobwebsLayer, 'opacity', 1.0),
-      gothicCobwebsDensity: getLayerParamNumber(gothicCobwebsLayer, 'density', 0.5),
-      gothicCobwebsDecay: getLayerParamNumber(gothicCobwebsLayer, 'decay', 0.5),
-      bloodMoonRiseEnabled: bloodMoonRiseLayer?.enabled ?? false,
-      bloodMoonRiseOpacity: getLayerParamNumber(bloodMoonRiseLayer, 'opacity', 1.0),
-      bloodMoonRiseEclipse: getLayerParamNumber(bloodMoonRiseLayer, 'eclipse', 0.5),
-      bloodMoonRiseGlow: getLayerParamNumber(bloodMoonRiseLayer, 'glow', 0.5),
-      candlelightVigilEnabled: candlelightVigilLayer?.enabled ?? false,
-      candlelightVigilOpacity: getLayerParamNumber(candlelightVigilLayer, 'opacity', 1.0),
-      candlelightVigilFlicker: getLayerParamNumber(candlelightVigilLayer, 'flicker', 0.5),
-      candlelightVigilDecay: getLayerParamNumber(candlelightVigilLayer, 'decay', 0.5),
-      gargoylesAwakeEnabled: gargoylesAwakeLayer?.enabled ?? false,
-      gargoylesAwakeOpacity: getLayerParamNumber(gargoylesAwakeLayer, 'opacity', 1.0),
-      gargoylesAwakeAnimation: getLayerParamNumber(gargoylesAwakeLayer, 'animation', 0.5),
-      gargoylesAwakeShadow: getLayerParamNumber(gargoylesAwakeLayer, 'shadow', 0.5),
-      cryptShadowsEnabled: cryptShadowsLayer?.enabled ?? false,
-      cryptShadowsOpacity: getLayerParamNumber(cryptShadowsLayer, 'opacity', 1.0),
-      cryptShadowsDepth: getLayerParamNumber(cryptShadowsLayer, 'depth', 0.5),
-      cryptShadowsMovement: getLayerParamNumber(cryptShadowsLayer, 'movement', 0.5),
-      gothicRoseEnabled: gothicRoseLayer?.enabled ?? false,
-      gothicRoseOpacity: getLayerParamNumber(gothicRoseLayer, 'opacity', 1.0),
-      gothicRoseDecay: getLayerParamNumber(gothicRoseLayer, 'decay', 0.5),
-      gothicRoseThorns: getLayerParamNumber(gothicRoseLayer, 'thorns', 0.5),
-      eternalDarknessEnabled: eternalDarknessLayer?.enabled ?? false,
-      eternalDarknessOpacity: getLayerParamNumber(eternalDarknessLayer, 'opacity', 1.0),
-      eternalDarknessVoid: getLayerParamNumber(eternalDarknessLayer, 'void', 0.5),
-      eternalDarknessTraces: getLayerParamNumber(eternalDarknessLayer, 'traces', 0.5),
-      // Retro Game Generators
-      pixelDustEnabled: pixelDustLayer?.enabled ?? false,
-      pixelDustOpacity: getLayerParamNumber(pixelDustLayer, 'opacity', 1.0),
-      pixelDustDensity: getLayerParamNumber(pixelDustLayer, 'density', 0.5),
-      pixelDustPixelSize: getLayerParamNumber(pixelDustLayer, 'pixelSize', 0.02),
-      retroStarfieldEnabled: retroStarfieldLayer?.enabled ?? false,
-      retroStarfieldOpacity: getLayerParamNumber(retroStarfieldLayer, 'opacity', 1.0),
-      retroStarfieldSpeed: getLayerParamNumber(retroStarfieldLayer, 'speed', 1.0),
-      retroStarfieldSize: getLayerParamNumber(retroStarfieldLayer, 'size', 0.01),
-      eightBitGridEnabled: eightBitGridLayer?.enabled ?? false,
-      eightBitGridOpacity: getLayerParamNumber(eightBitGridLayer, 'opacity', 1.0),
-      eightBitGridSpeed: getLayerParamNumber(eightBitGridLayer, 'speed', 1.0),
-      eightBitGridPixelSize: getLayerParamNumber(eightBitGridLayer, 'pixelSize', 0.02),
-      arcadeInvadersEnabled: arcadeInvadersLayer?.enabled ?? false,
-      arcadeInvadersOpacity: getLayerParamNumber(arcadeInvadersLayer, 'opacity', 1.0),
-      arcadeInvadersDensity: getLayerParamNumber(arcadeInvadersLayer, 'density', 0.5),
-      arcadeInvadersAnimation: getLayerParamNumber(arcadeInvadersLayer, 'animation', 0.5),
-      powerUpPulseEnabled: powerUpPulseLayer?.enabled ?? false,
-      powerUpPulseOpacity: getLayerParamNumber(powerUpPulseLayer, 'opacity', 1.0),
-      powerUpPulseIntensity: getLayerParamNumber(powerUpPulseLayer, 'intensity', 0.5),
-      powerUpPulseSpeed: getLayerParamNumber(powerUpPulseLayer, 'speed', 1.0),
-      dungeonTilesEnabled: dungeonTilesLayer?.enabled ?? false,
-      dungeonTilesOpacity: getLayerParamNumber(dungeonTilesLayer, 'opacity', 1.0),
-      dungeonTilesPattern: getLayerParamNumber(dungeonTilesLayer, 'pattern', 0.5),
-      dungeonTilesAnimation: getLayerParamNumber(dungeonTilesLayer, 'animation', 1.0),
-      chiptuneWaveEnabled: chiptuneWaveLayer?.enabled ?? false,
-      chiptuneWaveOpacity: getLayerParamNumber(chiptuneWaveLayer, 'opacity', 1.0),
-      chiptuneWaveBits: getLayerParamNumber(chiptuneWaveLayer, 'bits', 4.0),
-      chiptuneWaveSpeed: getLayerParamNumber(chiptuneWaveLayer, 'speed', 1.0),
-      scoreCounterEnabled: scoreCounterLayer?.enabled ?? false,
-      scoreCounterOpacity: getLayerParamNumber(scoreCounterLayer, 'opacity', 1.0),
-      scoreCounterDigits: getLayerParamNumber(scoreCounterLayer, 'digits', 6.0),
-      scoreCounterAnimation: getLayerParamNumber(scoreCounterLayer, 'animation', 1.0),
-      pixelRainEnabled: pixelRainLayer?.enabled ?? false,
-      pixelRainOpacity: getLayerParamNumber(pixelRainLayer, 'opacity', 1.0),
-      pixelRainDensity: getLayerParamNumber(pixelRainLayer, 'density', 1.0),
-      pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
-      milkwaveEnabled: milkwaveLayer?.enabled ?? false,
-      milkwaveOpacity: getLayerParamNumber(milkwaveLayer, 'opacity', milkwaveLayer?.opacity ?? 1.0),
       milkDropShaderData: activeScene?._shaderData ?? null,
-      bossHealthEnabled: bossHealthLayer?.enabled ?? false,
-      bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
-      bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 0.5),
-      bossHealthBars: getLayerParamNumber(bossHealthLayer, 'bars', 3.0)
+      genUniforms
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);
@@ -2285,67 +1967,29 @@ export class RenderGraph {
     ];
     this.debugState.fx = fx;
 
-    // Generator diagnostics: track which generators are active, found, and their opacity
-    const sceneLayers = activeScene?.layers;
-    const genLookups: [string, string, boolean, number][] = [
-      ['lightning', 'gen-lightning', renderState.lightningEnabled, renderState.lightningOpacity ?? 0],
-      ['analogOscillo', 'gen-analog-oscillo', renderState.analogOscilloEnabled, renderState.analogOscilloOpacity ?? 0],
-      ['speakerCone', 'gen-speaker-cone', renderState.speakerConeEnabled, renderState.speakerConeOpacity ?? 0],
-      ['glitchScanline', 'gen-glitch-scanline', renderState.glitchScanlineEnabled, renderState.glitchScanlineOpacity ?? 0],
-      ['laserStarfield', 'gen-laser-starfield', renderState.laserStarfieldEnabled, renderState.laserStarfieldOpacity ?? 0],
-      ['pulsingRibbons', 'gen-pulsing-ribbons', renderState.pulsingRibbonsEnabled, renderState.pulsingRibbonsOpacity ?? 0],
-      ['electricArc', 'gen-electric-arc', renderState.electricArcEnabled, renderState.electricArcOpacity ?? 0],
-      ['pyroBurst', 'gen-pyro-burst', renderState.pyroBurstEnabled, renderState.pyroBurstOpacity ?? 0],
-      ['geoWireframe', 'gen-geo-wireframe', renderState.geoWireframeEnabled, renderState.geoWireframeOpacity ?? 0],
-      ['signalNoise', 'gen-signal-noise', renderState.signalNoiseEnabled, renderState.signalNoiseOpacity ?? 0],
-      ['wormhole', 'gen-infinite-wormhole', renderState.wormholeEnabled, renderState.wormholeOpacity ?? 0],
-      ['ribbonTunnel', 'gen-ribbon-tunnel', renderState.ribbonTunnelEnabled, renderState.ribbonTunnelOpacity ?? 0],
-      ['fractalTunnel', 'gen-fractal-tunnel', renderState.fractalTunnelEnabled, renderState.fractalTunnelOpacity ?? 0],
-      ['circuitConduit', 'gen-circuit-conduit', renderState.circuitConduitEnabled, renderState.circuitConduitOpacity ?? 0],
-      ['auraPortal', 'gen-aura-portal', renderState.auraPortalEnabled, renderState.auraPortalOpacity ?? 0],
-      ['freqTerrain', 'gen-freq-terrain', renderState.freqTerrainEnabled, renderState.freqTerrainOpacity ?? 0],
-      ['dataStream', 'gen-data-stream', renderState.dataStreamEnabled, renderState.dataStreamOpacity ?? 0],
-      ['causticLiquid', 'gen-caustic-liquid', renderState.causticLiquidEnabled, renderState.causticLiquidOpacity ?? 0],
-      ['shimmerVeil', 'gen-shimmer-veil', renderState.shimmerVeilEnabled, renderState.shimmerVeilOpacity ?? 0],
-      ['nebulaCloud', 'gen-nebula-cloud', renderState.nebulaCloudEnabled, renderState.nebulaCloudOpacity ?? 0],
-      ['circuitBoard', 'gen-circuit-board', renderState.circuitBoardEnabled, renderState.circuitBoardOpacity ?? 0],
-      ['lorenzAttractor', 'gen-lorenz-attractor', renderState.lorenzAttractorEnabled, renderState.lorenzAttractorOpacity ?? 0],
-      ['mandalaSpinner', 'gen-mandala-spinner', renderState.mandalaSpinnerEnabled, renderState.mandalaSpinnerOpacity ?? 0],
-      ['starburstGalaxy', 'gen-starburst-galaxy', renderState.starburstGalaxyEnabled, renderState.starburstGalaxyOpacity ?? 0],
-      ['digitalRainV2', 'gen-digital-rain-v2', renderState.digitalRainV2Enabled, renderState.digitalRainV2Opacity ?? 0],
-      ['lavaFlow', 'gen-lava-flow', renderState.lavaFlowEnabled, renderState.lavaFlowOpacity ?? 0],
-      ['crystalGrowth', 'gen-crystal-growth', renderState.crystalGrowthEnabled, renderState.crystalGrowthOpacity ?? 0],
-      ['technoGrid', 'gen-techno-grid', renderState.technoGridEnabled, renderState.technoGridOpacity ?? 0],
-      ['magneticField', 'gen-magnetic-field', renderState.magneticFieldEnabled, renderState.magneticFieldOpacity ?? 0],
-      ['prismShards', 'gen-prism-shards', renderState.prismShardsEnabled, renderState.prismShardsOpacity ?? 0],
-      ['neuralNet', 'gen-neural-net', renderState.neuralNetEnabled, renderState.neuralNetOpacity ?? 0],
-      ['auroraChord', 'gen-aurora-chord', renderState.auroraChordEnabled, renderState.auroraChordOpacity ?? 0],
-      ['vhsGlitch', 'gen-vhs-glitch', renderState.vhsGlitchEnabled, renderState.vhsGlitchOpacity ?? 0],
-      ['moirePattern', 'gen-moire-pattern', renderState.moirePatternEnabled, renderState.moirePatternOpacity ?? 0],
-      ['hypercube', 'gen-hypercube', renderState.hypercubeEnabled, renderState.hypercubeOpacity ?? 0],
-      ['fluidSwirl', 'gen-fluid-swirl', renderState.fluidSwirlEnabled, renderState.fluidSwirlOpacity ?? 0],
-      ['asciiStream', 'gen-ascii-stream', renderState.asciiStreamEnabled, renderState.asciiStreamOpacity ?? 0],
-      ['retroWave', 'gen-retro-wave', renderState.retroWaveEnabled, renderState.retroWaveOpacity ?? 0],
-      ['bubblePop', 'gen-bubble-pop', renderState.bubblePopEnabled, renderState.bubblePopOpacity ?? 0],
-      ['soundWave3D', 'gen-sound-wave-3d', renderState.soundWave3DEnabled, renderState.soundWave3DOpacity ?? 0],
-      ['particleVortex', 'gen-particle-vortex', renderState.particleVortexEnabled, renderState.particleVortexOpacity ?? 0],
-      ['glowWorms', 'gen-glow-worms', renderState.glowWormsEnabled, renderState.glowWormsOpacity ?? 0],
-      ['mirrorMaze', 'gen-mirror-maze', renderState.mirrorMazeEnabled, renderState.mirrorMazeOpacity ?? 0],
-      ['pulseHeart', 'gen-pulse-heart', renderState.pulseHeartEnabled, renderState.pulseHeartOpacity ?? 0],
-      ['dataShards', 'gen-data-shards', renderState.dataShardsEnabled, renderState.dataShardsOpacity ?? 0],
-      ['hexCell', 'gen-hex-cell', renderState.hexCellEnabled, renderState.hexCellOpacity ?? 0],
-      ['plasmaBall', 'gen-plasma-ball', renderState.plasmaBallEnabled, renderState.plasmaBallOpacity ?? 0],
-      ['warpDrive', 'gen-warp-drive', renderState.warpDriveEnabled, renderState.warpDriveOpacity ?? 0],
-      ['visualFeedback', 'gen-visual-feedback', renderState.visualFeedbackEnabled, renderState.visualFeedbackOpacity ?? 0],
-      ['milkwave', 'gen-milkwave', renderState.milkwaveEnabled, renderState.milkwaveOpacity ?? 0],
-    ];
-    this.debugState.generators = genLookups.map(([id, genId, enabled, opacity]) => ({
-      id,
-      generatorId: genId,
-      enabled,
-      opacity,
-      found: Boolean(findLayerById(sceneLayers, genId))
-    }));
+    const sceneLayers = activeScene?.layers ?? [];
+    const generatorIds = Array.from(
+      new Set(
+        sceneLayers
+          .map((layer) => {
+            const generatorId = layer.generatorId ?? layer.id;
+            return typeof generatorId === 'string' && generatorId.startsWith('gen-')
+              ? generatorId
+              : null;
+          })
+          .filter((value): value is string => Boolean(value))
+      )
+    );
+    this.debugState.generators = generatorIds.map((generatorId) => {
+      const prefix = toGeneratorDebugId(generatorId);
+      return {
+        id: prefix,
+        generatorId,
+        enabled: (renderState.genUniforms[`${prefix}Enabled`] ?? 0) > 0,
+        opacity: renderState.genUniforms[`${prefix}Opacity`] ?? 0,
+        found: Boolean(findLayerById(sceneLayers, generatorId))
+      };
+    });
 
     const rawLaserLayer =
       (activeScene?.layers ?? []).find((layer) => normalizeLayerId(layer.id ?? '').includes('laser')) ??
@@ -2359,12 +2003,12 @@ export class RenderGraph {
     const laserTarget = 'gen-laser-beam';
     const laserNormalized = normalizeLayerId(laserIdRaw);
     this.debugState.laser = {
-      enabled: renderState.laserEnabled,
-      opacity: renderState.laserOpacity ?? 0,
-      beamCount: renderState.laserBeamCount ?? 0,
-      beamWidth: renderState.laserBeamWidth ?? 0,
-      beamLength: renderState.laserBeamLength ?? 0,
-      glow: renderState.laserGlow ?? 0,
+      enabled: (renderState.genUniforms.LaserEnabled ?? 0) > 0,
+      opacity: renderState.genUniforms.LaserOpacity ?? 0,
+      beamCount: renderState.genUniforms.LaserBeamCount ?? 0,
+      beamWidth: renderState.genUniforms.LaserBeamWidth ?? 0,
+      beamLength: renderState.genUniforms.LaserBeamLength ?? 0,
+      glow: renderState.genUniforms.LaserGlow ?? 0,
       present: Boolean(laserLayer),
       enabledInScene: laserLayer?.enabled ?? false,
       idRaw: laserIdRaw,
@@ -2427,3 +2071,5 @@ export class RenderGraph {
     return state.bpm.manualBpm || 120;
   }
 }
+
+

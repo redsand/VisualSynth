@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-retro-wave-1",
+          "id": "gen-retro-wave",
           "name": "Retro Wave",
           "role": "core",
           "enabled": true,

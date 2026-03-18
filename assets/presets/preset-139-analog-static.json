@@ -42,8 +42,9 @@
           "blendMode": "screen",
           "generatorId": "gen-analog-oscillo",
           "params": {
-            "thickness": 0.03,
-            "glow": 0.4,
+            "opacity": 1,
+            "thickness": 0.04,
+            "glow": 0.9,
             "color": 0
           },
           "transform": {
@@ -58,11 +59,12 @@
           "name": "Light Noise",
           "role": "atmosphere",
           "enabled": true,
-          "opacity": 0.2,
+          "opacity": 0.45,
           "blendMode": "add",
           "generatorId": "gen-signal-noise",
           "params": {
-            "amount": 0.5
+            "opacity": 1,
+            "amount": 1.2
           },
           "transform": {
             "x": 0,
@@ -98,7 +100,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "oscillo-raw",
+        "type": "analog-oscillo",
         "param": "opacity"
       },
       "amount": 0.3,

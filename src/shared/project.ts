@@ -1,10 +1,14 @@
 import type { CustomShaderBlock } from './customShaderBlock';
+import type { MilkShapeConfig, MilkWaveConfig } from './milkwaveParser';
 
 export interface MilkDropShaderData {
   warp: string;
   comp: string;
   perFrameCode: string[];
   perFrameInitCode: string[];
+  perPixelCode?: string[];
+  waves?: MilkWaveConfig[];
+  shapes?: MilkShapeConfig[];
   originalParameters: Record<string, number | boolean>;
 }
 
@@ -55,6 +59,7 @@ export interface ModConnection {
   bipolar: boolean;
   min: number;
   max: number;
+  enabled?: boolean;
 }
 
 export interface MidiMapping {
@@ -244,6 +249,30 @@ export interface StylePreset {
   };
 }
 
+export type OverlayType = 'image' | 'text';
+
+export interface OverlayConfig {
+  id: string;
+  name: string;
+  type: OverlayType;
+  enabled: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+  rotation: number;
+  includeInFx: boolean;
+  assetPath?: string;
+  text?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontColor?: string;
+  fontWeight?: 'normal' | 'bold';
+  textShadow?: boolean;
+  targetSceneId?: string;
+}
+
 export interface ColorPalette {
   id: string;
   name: string;
@@ -355,6 +384,7 @@ export interface LfoConfig {
   shape: 'sine' | 'triangle' | 'saw' | 'square';
   rate: number;
   sync: boolean;
+  syncDivision?: string;
   phase: number;
 }
 
@@ -551,6 +581,7 @@ export interface VisualSynthProject {
     bpm: number;
     source: 'manual' | 'auto' | 'network';
   };
+  overlays?: OverlayConfig[];
   customShaderBlocks?: CustomShaderBlock[];
   _shaderData?: MilkDropShaderData;
 }
@@ -591,24 +622,8 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   output: { ...DEFAULT_OUTPUT_CONFIG },
-  stylePresets: [
-    {
-      id: 'style-signature',
-      name: 'Signature Glow',
-      settings: { contrast: 1.15, saturation: 1.25, paletteShift: 0.05 }
-    },
-    {
-      id: 'style-surge',
-      name: 'Surge',
-      settings: { contrast: 1.2, saturation: 1.4, paletteShift: 0.08 }
-    },
-    {
-      id: 'style-noir',
-      name: 'Noir',
-      settings: { contrast: 1.4, saturation: 0.7, paletteShift: -0.12 }
-    }
-  ],
-  activeStylePresetId: 'style-signature',
+  stylePresets: [],
+  activeStylePresetId: 'style-neutral',
   palettes: COLOR_PALETTES,
   activePaletteId: 'heat',
   macros: [
@@ -859,6 +874,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
     }
   ],
   plugins: [],
+  overlays: [],
   scenes: [
     {
       id: 'scene-1',

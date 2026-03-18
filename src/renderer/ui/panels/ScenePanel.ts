@@ -20,7 +20,7 @@ export interface ScenePanelApi {
 }
 
 export const createScenePanel = ({ store, loadPreset, applyScene }: ScenePanelDeps): ScenePanelApi => {
-  const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement;
+  const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement | null;
   const presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
   const applyPresetButton = document.getElementById('btn-apply-preset') as HTMLButtonElement;
   const presetPrevButton = document.getElementById('preset-prev') as HTMLButtonElement;
@@ -31,6 +31,7 @@ export const createScenePanel = ({ store, loadPreset, applyScene }: ScenePanelDe
   let macroInputs: HTMLInputElement[] = [];
 
   const refreshSceneSelect = () => {
+    if (!sceneSelect) return;
     const project = store.getState().project;
     sceneSelect.innerHTML = '';
     project.scenes.forEach((scene) => {

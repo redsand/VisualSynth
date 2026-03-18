@@ -55,16 +55,14 @@ const upgradeProject = (project: VisualSynthProject): VisualSynthProject => {
   if (project.version >= CURRENT_VERSION) return project;
   let upgraded = { ...project };
   if (upgraded.version < 2) {
-    upgraded = {
+upgraded = {
       ...DEFAULT_PROJECT,
       ...project,
       palettes: project.palettes ?? COLOR_PALETTES,
       activePaletteId: project.activePaletteId ?? 'default-classic',
       output: { ...DEFAULT_PROJECT.output, ...project.output },
-      stylePresets: project.stylePresets?.length
-        ? project.stylePresets
-        : DEFAULT_PROJECT.stylePresets,
-      activeStylePresetId: project.activeStylePresetId || DEFAULT_PROJECT.activeStylePresetId,
+      stylePresets: project.stylePresets ?? [],
+      activeStylePresetId: project.activeStylePresetId ?? 'style-neutral',
       macros: project.macros?.length ? project.macros : DEFAULT_PROJECT.macros
     };
   }

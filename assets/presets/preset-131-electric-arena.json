@@ -99,7 +99,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "arc-1",
+        "type": "electric-arc",
         "param": "opacity"
       },
       "amount": 0.3,

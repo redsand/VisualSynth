@@ -34,15 +34,15 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-strobe-1",
+          "id": "gen-strobe",
           "name": "Strobe",
-          "role": "core",
+          "role": "atmosphere",
           "enabled": true,
-          "opacity": 1,
-          "blendMode": "add",
+          "opacity": 0.35,
+          "blendMode": "screen",
           "generatorId": "gen-strobe",
           "params": {
-            "rate": 8,
+            "rate": 4,
             "mode": 0
           },
           "transform": {
@@ -53,7 +53,7 @@
           }
         },
         {
-          "id": "layer-burst-1",
+          "id": "gen-shape-burst",
           "name": "Shape Burst",
           "role": "support",
           "enabled": true,
@@ -99,7 +99,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "strobe-1",
+        "type": "strobe",
         "param": "opacity"
       },
       "amount": 0.3,

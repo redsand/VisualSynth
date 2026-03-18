@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-lava-flow-1",
+          "id": "gen-lava-flow",
           "name": "Lava Flow",
           "role": "core",
           "enabled": true,

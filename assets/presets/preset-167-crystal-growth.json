@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-crystal-growth-1",
+          "id": "gen-crystal-growth",
           "name": "Crystal Growth",
           "role": "core",
           "enabled": true,

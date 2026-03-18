@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-particle-vortex-1",
+          "id": "gen-particle-vortex",
           "name": "Particle Vortex",
           "role": "core",
           "enabled": true,

@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-techno-grid-1",
+          "id": "gen-techno-grid",
           "name": "Techno Grid",
           "role": "core",
           "enabled": true,

@@ -97,7 +97,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "noise-1",
+        "type": "signal-noise",
         "param": "opacity"
       },
       "amount": 0.3,

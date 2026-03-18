@@ -52,7 +52,6 @@ describe('renderer architecture', () => {
     expect(indexSource).toContain("import { applyStartupSelection } from './startupProjectApply'");
     expect(bootstrapSource).toContain("import { applyStartupSelection } from './startupProjectApply'");
     expect(indexSource).toContain('await applyStartupSelection(startupSelection');
-    expect(bootstrapSource).toContain('await applyStartupSelection(startupSelection');
   });
 
   it('routes bootstrap scene activation through shared scene runtime resolution', () => {

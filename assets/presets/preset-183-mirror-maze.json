@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-mirror-maze-1",
+          "id": "gen-mirror-maze",
           "name": "Mirror Maze",
           "role": "core",
           "enabled": true,

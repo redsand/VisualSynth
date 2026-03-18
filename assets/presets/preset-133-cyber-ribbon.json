@@ -98,7 +98,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "ribbon-1",
+        "type": "pulsing-ribbons",
         "param": "opacity"
       },
       "amount": 0.3,

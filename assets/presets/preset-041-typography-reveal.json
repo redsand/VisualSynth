@@ -85,6 +85,7 @@
           "name": "Media Overlay",
           "role": "support",
           "enabled": false,
+          "assetId": "asset-typography-title",
           "opacity": 0.9,
           "blendMode": "screen",
           "transform": {
@@ -141,6 +142,7 @@
           "name": "Media Overlay",
           "role": "support",
           "enabled": false,
+          "assetId": "asset-typography-pulse",
           "opacity": 0.9,
           "blendMode": "screen",
           "transform": {
@@ -193,7 +195,40 @@
     "rotation": 0,
     "fill": 0
   },
-  "assets": [],
+  "assets": [
+    {
+      "id": "asset-typography-title",
+      "name": "Typography Title",
+      "kind": "text",
+      "tags": [
+        "preset",
+        "default-media"
+      ],
+      "addedAt": "2026-02-02T01:09:55.231Z",
+      "options": {
+        "text": "TYPOGRAPHY",
+        "font": "Georgia",
+        "fontSize": 108,
+        "fontColor": "#f5f3e7"
+      }
+    },
+    {
+      "id": "asset-typography-pulse",
+      "name": "Typography Pulse",
+      "kind": "text",
+      "tags": [
+        "preset",
+        "default-media"
+      ],
+      "addedAt": "2026-02-02T01:09:55.231Z",
+      "options": {
+        "text": "REVEAL",
+        "font": "Georgia",
+        "fontSize": 112,
+        "fontColor": "#9fe7ff"
+      }
+    }
+  ],
   "plugins": [],
   "lfos": [],
   "envelopes": [],

@@ -42,9 +42,11 @@
           "blendMode": "screen",
           "generatorId": "gen-analog-oscillo",
           "params": {
-            "thickness": 0.01,
-            "glow": 0.9,
-            "color": 2
+            "opacity": 1,
+            "thickness": 0.03,
+            "glow": 1,
+            "color": 2,
+            "mode": 0
           },
           "transform": {
             "x": 0,
@@ -57,8 +59,14 @@
     }
   ],
   "effects": {
+    "enabled": true,
+    "bloom": 0.2,
+    "blur": 0.02,
+    "chroma": 0.15,
+    "posterize": 0,
+    "kaleidoscope": 0,
     "feedback": 0.8,
-    "trails": 0.5
+    "persistence": 0.5
   },
   "activeSceneId": "scene-1",
   "roleWeights": {
@@ -74,7 +82,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "oscillo-2",
+        "type": "analog-oscillo",
         "param": "opacity"
       },
       "amount": 0.3,

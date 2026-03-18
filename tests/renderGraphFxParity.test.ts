@@ -40,8 +40,9 @@ describe('RenderGraph FX parity', () => {
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
     expect(renderState.feedback).toBeCloseTo(0.9, 6);
-    expect(renderState.visualFeedbackEnabled).toBe(true);
-    expect(renderState.visualFeedbackOpacity).toBeCloseTo(1, 6);
+    expect(renderState.genUniforms.VisualFeedbackEnabled).toBe(1);
+    // Dynamic resolver correctly multiplies params.opacity (1.0) by layer.opacity (0.1)
+    expect(renderState.genUniforms.VisualFeedbackOpacity).toBeCloseTo(0.1, 6);
   });
 
   it('falls back to project effects.feedback when fx-feedback layer is absent', () => {
@@ -68,7 +69,7 @@ describe('RenderGraph FX parity', () => {
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
     expect(renderState.feedback).toBeCloseTo(0.27, 6);
-    expect(renderState.visualFeedbackEnabled).toBe(true);
+    expect(renderState.genUniforms.VisualFeedbackEnabled).toBe(1);
   });
 });
 

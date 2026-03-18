@@ -38,6 +38,7 @@ uniform sampler2D uModulatorTex;
 uniform sampler2D uMidiTex;
 uniform vec3 uGlobalColor;
 uniform float uDebugTint;
+uniform float uDebugColorStage;
 uniform vec3 uRoleWeights; // x: core, y: support, z: atmosphere
 uniform float uTransitionAmount;
 uniform float uTransitionType;
@@ -213,29 +214,34 @@ vec2 hash22(vec2 p) {
   return fract(p * p);
 }
 
+float gradientNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = dot(hash22(i) * 2.0 - 1.0, f);
+  float b = dot(hash22(i + vec2(1.0, 0.0)) * 2.0 - 1.0, f - vec2(1.0, 0.0));
+  float c = dot(hash22(i + vec2(0.0, 1.0)) * 2.0 - 1.0, f - vec2(0.0, 1.0));
+  float d = dot(hash22(i + vec2(1.0, 1.0)) * 2.0 - 1.0, f - vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
 float fbm(vec2 p) {
   float v = 0.0;
   float amp = 0.5;
   for (int i = 0; i < 5; i++) {
-    v += amp * hash21(p);
+    v += amp * gradientNoise(p);
     p *= 2.0;
     amp *= 0.5;
   }
-  return v;
+  return v * 0.5 + 0.5;
 }
 
 vec3 palette(float t) {
-  float clamped = clamp(t, 0.0, 1.0);
-  if (clamped < 0.25) {
-    return mix(uPalette[0], uPalette[1], smoothstep(0.0, 0.25, clamped));
-  }
-  if (clamped < 0.5) {
-    return mix(uPalette[1], uPalette[2], smoothstep(0.25, 0.5, clamped));
-  }
-  if (clamped < 0.75) {
-    return mix(uPalette[2], uPalette[3], smoothstep(0.5, 0.75, clamped));
-  }
-  return mix(uPalette[3], uPalette[4], smoothstep(0.75, 1.0, clamped));
+  float s = clamp(t, 0.0, 1.0) * 4.0;
+  int i = int(floor(s));
+  float f = fract(s);
+  if (i >= 4) return uPalette[4];
+  return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
 }
 
 vec3 applySaturation(vec3 color, float amount) {

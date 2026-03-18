@@ -38,6 +38,7 @@
           "name": "Raw Tape",
           "role": "core",
           "enabled": true,
+          "assetId": "asset-vhs-memory",
           "opacity": 1,
           "blendMode": "normal",
           "transform": {
@@ -137,7 +138,24 @@
     "rotation": 0,
     "fill": 0
   },
-  "assets": [],
+  "assets": [
+    {
+      "id": "asset-vhs-memory",
+      "name": "VHS Memory Card",
+      "kind": "text",
+      "tags": [
+        "preset",
+        "default-media"
+      ],
+      "addedAt": "2026-02-06T00:03:20.016Z",
+      "options": {
+        "text": "VHS MEMORIES",
+        "font": "Courier New",
+        "fontSize": 96,
+        "fontColor": "#d5f0ff"
+      }
+    }
+  ],
   "plugins": [],
   "lfos": [],
   "envelopes": [],

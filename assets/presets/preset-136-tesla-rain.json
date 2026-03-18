@@ -100,7 +100,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "lightning-rain",
+        "type": "lightning",
         "param": "opacity"
       },
       "amount": 0.3,

@@ -5,6 +5,7 @@ const createMockGl = () => {
   const fragmentSources: string[] = [];
 
   const gl = {
+    getExtension: () => null,
     VERTEX_SHADER: 0x8b31,
     FRAGMENT_SHADER: 0x8b30,
     COMPILE_STATUS: 0x8b81,
@@ -53,6 +54,7 @@ describe('createGLRenderer startup compilation', () => {
     const { gl, fragmentSources } = createMockGl();
     const canvas = {
       getContext: (kind: string) => (kind === 'webgl2' ? gl : null),
+      addEventListener: () => {},
       clientWidth: 640,
       clientHeight: 360,
       width: 640,

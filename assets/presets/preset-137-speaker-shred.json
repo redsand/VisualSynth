@@ -97,7 +97,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "speaker-extreme",
+        "type": "speaker-cone",
         "param": "opacity"
       },
       "amount": 0.3,

@@ -137,7 +137,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "laser-1",
+        "type": "laser-beam",
         "param": "opacity"
       },
       "amount": 0.3,

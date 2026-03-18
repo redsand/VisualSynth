@@ -7,6 +7,7 @@ export interface SceneTimelineOptions {
   onSelect: (sceneId: string, sceneName: string) => void;
   onRemove: (sceneId: string, sceneName: string) => void;
   onContextMenu?: (sceneId: string, sceneName: string, event: MouseEvent) => void;
+  onImport?: () => void;
 }
 
 export const renderSceneTimelineItems = ({
@@ -15,7 +16,8 @@ export const renderSceneTimelineItems = ({
   status,
   onSelect,
   onRemove,
-  onContextMenu
+  onContextMenu,
+  onImport
 }: SceneTimelineOptions) => {
   track.innerHTML = '';
   if (project.scenes.length === 0) {
@@ -74,4 +76,38 @@ export const renderSceneTimelineItems = ({
     });
     track.appendChild(item);
   });
+
+  if (onImport) {
+    const item = document.createElement('div');
+    item.className = 'scene-timeline-item scene-timeline-item-import';
+    item.style.flexGrow = '0';
+    item.style.flexBasis = '104px';
+    item.setAttribute('role', 'button');
+    item.tabIndex = 0;
+    item.setAttribute('aria-label', 'Open scene from disk');
+
+    const plus = document.createElement('div');
+    plus.className = 'scene-timeline-import-plus';
+    plus.textContent = '+';
+
+    const label = document.createElement('div');
+    label.className = 'scene-timeline-name';
+    label.textContent = 'Open Scene';
+
+    const meta = document.createElement('div');
+    meta.className = 'scene-timeline-meta';
+    meta.textContent = 'From disk';
+
+    item.appendChild(plus);
+    item.appendChild(label);
+    item.appendChild(meta);
+    item.addEventListener('click', () => onImport());
+    item.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onImport();
+      }
+    });
+    track.appendChild(item);
+  }
 };

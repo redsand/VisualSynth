@@ -38,6 +38,7 @@
           "name": "Source Material",
           "role": "core",
           "enabled": true,
+          "assetId": "asset-data-overlay",
           "opacity": 1,
           "transform": {
             "x": 0,
@@ -52,11 +53,31 @@
           "name": "Data Stream",
           "role": "support",
           "enabled": true,
-          "opacity": 0.7,
+          "opacity": 1,
           "blendMode": "screen",
           "generatorId": "gen-data-stream",
           "params": {
-            "speed": 1.2
+            "opacity": 1,
+            "speed": 2
+          },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-signal-fallback",
+          "name": "Signal Noise",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "screen",
+          "generatorId": "gen-signal-noise",
+          "params": {
+            "opacity": 1,
+            "amount": 0.8
           },
           "transform": {
             "x": 0,
@@ -118,7 +139,24 @@
     "rotation": 0,
     "fill": 0
   },
-  "assets": [],
+  "assets": [
+    {
+      "id": "asset-data-overlay",
+      "name": "Data Overlay Plate",
+      "kind": "text",
+      "tags": [
+        "preset",
+        "default-media"
+      ],
+      "addedAt": "2026-02-06T00:03:20.016Z",
+      "options": {
+        "text": "DATA STREAM",
+        "font": "Courier New",
+        "fontSize": 104,
+        "fontColor": "#c8faff"
+      }
+    }
+  ],
   "plugins": [],
   "lfos": [],
   "envelopes": [],

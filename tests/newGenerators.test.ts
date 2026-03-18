@@ -36,11 +36,11 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     store.update((state: any) => { state.project = project; });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.lightningEnabled).toBe(true);
-    expect(renderState.lightningSpeed).toBe(2.5);
-    expect(renderState.lightningBranches).toBe(4);
-    expect(renderState.lightningThickness).toBe(0.05);
-    expect(renderState.lightningColor).toBe(1);
+    expect(renderState.genUniforms.LightningEnabled).toBe(1);
+    expect(renderState.genUniforms.LightningSpeed).toBe(2.5);
+    expect(renderState.genUniforms.LightningBranches).toBe(4);
+    expect(renderState.genUniforms.LightningThickness).toBe(0.05);
+    expect(renderState.genUniforms.LightningColor).toBe(1);
   });
 
   it('correctly maps gen-analog-oscillo parameters', () => {
@@ -54,10 +54,31 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     store.update((state: any) => { state.project = project; });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.analogOscilloEnabled).toBe(true);
-    expect(renderState.analogOscilloThickness).toBe(0.02);
-    expect(renderState.analogOscilloGlow).toBe(0.8);
-    expect(renderState.analogOscilloColor).toBe(2);
+    expect(renderState.genUniforms.AnalogOscilloEnabled).toBe(1);
+    expect(renderState.genUniforms.AnalogOscilloThickness).toBe(0.02);
+    expect(renderState.genUniforms.AnalogOscilloGlow).toBe(0.8);
+    expect(renderState.genUniforms.AnalogOscilloColor).toBe(2);
+  });
+
+  it('feeds live waveform data into oscillo render state when audio input is present', () => {
+    const store = createStore(createInitialState());
+    const renderGraph = new RenderGraph(store);
+    const project = buildProjectWithGenerator('gen-analog-oscillo', {
+      thickness: 0.02,
+      glow: 0.8,
+      color: 2
+    });
+
+    store.update((state: any) => {
+      state.project = project;
+      state.audio.waveform = Float32Array.from({ length: 256 }, (_, index) => Math.sin(index / 12));
+      state.audio.rms = 0.42;
+      state.audio.peak = 0.73;
+    });
+
+    const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
+    expect(renderState.oscilloData[1]).not.toBe(0);
+    expect(renderState.oscilloData[32]).not.toBe(0);
   });
 
   it('correctly maps gen-infinite-wormhole parameters', () => {
@@ -71,10 +92,10 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     store.update((state: any) => { state.project = project; });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.wormholeEnabled).toBe(true);
-    expect(renderState.wormholeSpeed).toBe(1.5);
-    expect(renderState.wormholeWeave).toBe(0.6);
-    expect(renderState.wormholeIter).toBe(5);
+    expect(renderState.genUniforms.WormholeEnabled).toBe(1);
+    expect(renderState.genUniforms.WormholeSpeed).toBe(1.5);
+    expect(renderState.genUniforms.WormholeWeave).toBe(0.6);
+    expect(renderState.genUniforms.WormholeIter).toBe(5);
   });
 
   it('correctly maps gen-data-stream parameters', () => {
@@ -87,9 +108,9 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     store.update((state: any) => { state.project = project; });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.dataStreamEnabled).toBe(true);
-    expect(renderState.dataStreamSpeed).toBe(2.0);
-    expect(renderState.dataStreamOpacity).toBe(0.9);
+    expect(renderState.genUniforms.DataStreamEnabled).toBe(1);
+    expect(renderState.genUniforms.DataStreamSpeed).toBe(2.0);
+    expect(renderState.genUniforms.DataStreamOpacity).toBe(0.9);
   });
 
   it('correctly maps gen-caustic-liquid parameters', () => {
@@ -101,8 +122,8 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     store.update((state: any) => { state.project = project; });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.causticLiquidEnabled).toBe(true);
-    expect(renderState.causticLiquidSpeed).toBe(1.2);
+    expect(renderState.genUniforms.CausticLiquidEnabled).toBe(1);
+    expect(renderState.genUniforms.CausticLiquidSpeed).toBe(1.2);
   });
 
   it('correctly maps gen-shimmer-veil parameters', () => {
@@ -114,8 +135,8 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     store.update((state: any) => { state.project = project; });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.shimmerVeilEnabled).toBe(true);
-    expect(renderState.shimmerVeilComplexity).toBe(12.0);
+    expect(renderState.genUniforms.ShimmerVeilEnabled).toBe(1);
+    expect(renderState.genUniforms.ShimmerVeilComplexity).toBe(12.0);
   });
 
   it('maps imported Milkwave layers into render state', () => {
@@ -138,8 +159,33 @@ describe('New Visual Generators (Rock & Tunnel Suite)', () => {
     store.update((state: any) => { state.project = project; });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.milkwaveEnabled).toBe(true);
-    expect(renderState.milkwaveOpacity).toBe(0.85);
+    expect(renderState.genUniforms.MilkwaveEnabled).toBe(1);
+    expect(renderState.genUniforms.MilkwaveOpacity).toBe(0.85);
+  });
+
+  it('applies MIDI CC overlays to dynamic generator uniforms in RenderGraph', () => {
+    const store = createStore(createInitialState());
+    const renderGraph = new RenderGraph(store);
+    const project = buildProjectWithGenerator('gen-lightning', {
+      speed: 1.0,
+      color: 0
+    });
+    project.midiMappings = [
+      {
+        id: 'midi-lightning-color',
+        message: 'cc',
+        channel: 1,
+        control: 7,
+        target: 'gen-lightning.color',
+        mode: 'trigger'
+      }
+    ];
+    store.update((state: any) => { state.project = project; });
+
+    expect(renderGraph.handleMidiCC(1, 7, 127)).toBe(true);
+
+    const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
+    expect(renderState.genUniforms.LightningColor).toBe(2);
   });
 
   it('treats imported Milkwave layers as support-role content', async () => {

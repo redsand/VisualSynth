@@ -51,9 +51,9 @@ describe('EDM generators render-state', () => {
     });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.laserEnabled).toBe(true);
-    expect(renderState.laserBeamCount).toBe(6);
-    expect(renderState.laserBeamWidth).toBeCloseTo(0.03, 5);
+    expect(renderState.genUniforms.LaserEnabled).toBe(1);
+    expect(renderState.genUniforms.LaserBeamCount).toBe(6);
+    expect(renderState.genUniforms.LaserBeamWidth).toBeCloseTo(0.03, 5);
   });
 
   it('enables laser when layer id contains unicode dashes', () => {
@@ -65,7 +65,7 @@ describe('EDM generators render-state', () => {
     });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.laserEnabled).toBe(true);
+    expect(renderState.genUniforms.LaserEnabled).toBe(1);
   });
 
   it('enables laser when generatorId is gen-laser-beam', () => {
@@ -77,7 +77,7 @@ describe('EDM generators render-state', () => {
     });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.laserEnabled).toBe(true);
+    expect(renderState.genUniforms.LaserEnabled).toBe(1);
   });
 
   it('enables strobe when generatorId is gen-strobe', () => {
@@ -89,7 +89,7 @@ describe('EDM generators render-state', () => {
     });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.strobeEnabled).toBe(true);
+    expect(renderState.genUniforms.StrobeEnabled).toBe(1);
   });
 
   it('enables shape burst when generatorId is gen-shape-burst', () => {
@@ -101,7 +101,7 @@ describe('EDM generators render-state', () => {
     });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.shapeBurstEnabled).toBe(true);
+    expect(renderState.genUniforms.ShapeBurstEnabled).toBe(1);
   });
 
   it('enables grid tunnel when generatorId is gen-grid-tunnel', () => {
@@ -113,6 +113,6 @@ describe('EDM generators render-state', () => {
     });
 
     const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-    expect(renderState.gridTunnelEnabled).toBe(true);
+    expect(renderState.genUniforms.GridTunnelEnabled).toBe(1);
   });
 });

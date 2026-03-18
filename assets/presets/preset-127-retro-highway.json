@@ -102,7 +102,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "grid-2",
+        "type": "grid-tunnel",
         "param": "opacity"
       },
       "amount": 0.3,

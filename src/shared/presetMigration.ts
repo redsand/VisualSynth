@@ -64,6 +64,49 @@ const normalizeMacroTargets = (macros: any[] | undefined) =>
       })) ?? []
   }));
 
+const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const normalizeMilkDropShaderData = (shaderData: any) => {
+  if (!shaderData) return undefined;
+  return {
+    ...shaderData,
+    warp: typeof shaderData.warp === 'string' ? shaderData.warp : '',
+    comp: typeof shaderData.comp === 'string' ? shaderData.comp : '',
+    perFrameCode: Array.isArray(shaderData.perFrameCode) ? shaderData.perFrameCode : [],
+    perFrameInitCode: Array.isArray(shaderData.perFrameInitCode) ? shaderData.perFrameInitCode : [],
+    perPixelCode: Array.isArray(shaderData.perPixelCode) ? shaderData.perPixelCode : [],
+    waves: Array.isArray(shaderData.waves) ? cloneJson(shaderData.waves) : [],
+    shapes: Array.isArray(shaderData.shapes) ? cloneJson(shaderData.shapes) : [],
+    originalParameters:
+      shaderData.originalParameters && typeof shaderData.originalParameters === 'object'
+        ? shaderData.originalParameters
+        : {}
+  };
+};
+
+const mergePresetAssets = (project: VisualSynthProject, preset: any) => {
+  const mergedAssets = cloneJson(project.assets ?? []);
+  const incomingAssets = Array.isArray(preset?.assets) ? preset.assets : [];
+
+  incomingAssets.forEach((asset: any) => {
+    const nextAsset = cloneJson(asset);
+    const existingIndex = mergedAssets.findIndex((entry: any) => entry.id === nextAsset.id);
+    if (existingIndex >= 0) {
+      mergedAssets[existingIndex] = nextAsset;
+    } else {
+      mergedAssets.push(nextAsset);
+    }
+  });
+
+  DEFAULT_PROJECT.assets.forEach((asset) => {
+    if (!mergedAssets.some((entry: any) => entry.id === asset.id)) {
+      mergedAssets.push(cloneJson(asset));
+    }
+  });
+
+  project.assets = mergedAssets;
+};
+
 export const APP_VERSION = '1.4.0';
 
 export interface PresetCompatibility {
@@ -115,6 +158,18 @@ export interface PresetMetadataV6 extends PresetMetadata {
   source?: string;
   /** Source system (e.g., "Milkwave", "MilkDrop", "VisualSynth") */
   importedFrom?: string;
+  /** Imported Milkwave runtime support report */
+  milkwave?: {
+    format: 'milkwave-ir';
+    version: number;
+    supportTier: 'native-supported' | 'supported-with-degradation' | 'fallback-only' | 'unsupported';
+    featureSummary: string[];
+    reasons: Array<{
+      key: string;
+      message: string;
+      severity: 'degrade' | 'fallback' | 'block';
+    }>;
+  };
 }
 
 /**
@@ -180,7 +235,7 @@ const presetV3ModulationTargetSchema = z.object({
 
 const presetV3ModulationSchema = z.object({
   source: z.string(),
-  target: presetV3ModulationTargetSchema,
+  target: z.union([presetV3ModulationTargetSchema, z.string()]),
   amount: z.number(),
   min: z.number(),
   max: z.number(),
@@ -229,6 +284,7 @@ export const presetV4Schema = z.object({
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),
+  assets: projectSchema.shape.assets.optional(),
   modulations: z.array(presetV3ModulationSchema).optional(),
   macros: z.array(z.any()).optional(),
   project: projectSchema.optional()
@@ -257,6 +313,7 @@ export const presetV5Schema = z.object({
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),
+  assets: projectSchema.shape.assets.optional(),
   roleWeights: projectSchema.shape.roleWeights,
   tempoSync: projectSchema.shape.tempoSync,
   modulations: z.array(presetV3ModulationSchema).optional(),
@@ -287,10 +344,22 @@ export const presetV6Schema = z.object({
     }),
     author: z.string().optional(),
     source: z.string().optional(),
-    importedFrom: z.string().optional()
+    importedFrom: z.string().optional(),
+    milkwave: z.object({
+      format: z.literal('milkwave-ir'),
+      version: z.number(),
+      supportTier: z.enum(['native-supported', 'supported-with-degradation', 'fallback-only', 'unsupported']),
+      featureSummary: z.array(z.string()),
+      reasons: z.array(z.object({
+        key: z.string(),
+        message: z.string(),
+        severity: z.enum(['degrade', 'fallback', 'block'])
+      }))
+    }).optional()
   }),
   scenes: projectSchema.shape.scenes,
   activeSceneId: z.string().optional(),
+  assets: projectSchema.shape.assets.optional(),
   roleWeights: projectSchema.shape.roleWeights,
   tempoSync: projectSchema.shape.tempoSync,
   modulations: z.array(presetV3ModulationSchema).optional(),
@@ -1000,6 +1069,8 @@ export const applyPresetV4 = (preset: any, currentProject: any): { project: any;
     });
   }
 
+  mergePresetAssets(project, preset);
+
   return { project, warnings };
 };
 
@@ -1049,6 +1120,8 @@ export const applyPresetV5 = (preset: any, currentProject: any): { project: any;
     project.macros = normalizeMacroTargets(preset.macros);
   }
 
+  mergePresetAssets(project, preset);
+
   return { project, warnings };
 };
 
@@ -1067,25 +1140,16 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
   project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
 
-  // CRITICAL: Copy palettes and activePaletteId from preset
   if (preset.palettes && Array.isArray(preset.palettes)) {
     project.palettes = preset.palettes;
-    console.log('[PresetMigration] Applied palettes from preset:', preset.palettes.map((p: any) => ({ id: p.id, name: p.name })));
-  } else {
-    console.log('[PresetMigration] No palettes in preset, using current project palettes');
   }
 
   if (preset.project?.activePaletteId) {
     project.activePaletteId = preset.project.activePaletteId;
-    console.log('[PresetMigration] Applied activePaletteId from preset.project:', preset.project.activePaletteId);
   } else if (preset.project?.scenes?.[0]?.look?.activePaletteId) {
     project.activePaletteId = preset.project.scenes[0].look.activePaletteId;
-    console.log('[PresetMigration] Applied activePaletteId from scene look:', preset.project.scenes[0].look.activePaletteId);
   } else if (preset.activePaletteId) {
     project.activePaletteId = preset.activePaletteId;
-    console.log('[PresetMigration] Applied activePaletteId from preset root:', preset.activePaletteId);
-  } else {
-    console.log('[PresetMigration] No activePaletteId in preset, keeping current:', project.activePaletteId);
   }
 
   if (Array.isArray(preset.scenes)) {
@@ -1134,19 +1198,32 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
       project.macros = normalizeMacroTargets(preset.macros);
     }
   }
+
+  mergePresetAssets(project, preset);
  
   // Preserve MilkDrop shader data for custom presets
   if (preset?._shaderData) {
+    const normalizedShaderData = normalizeMilkDropShaderData(preset._shaderData);
+    if (preset?.metadata?.milkwave) {
+      console.log('[PresetMigration] Milkwave support assessment:', {
+        tier: preset.metadata.milkwave.supportTier,
+        featureSummary: preset.metadata.milkwave.featureSummary,
+        reasons: preset.metadata.milkwave.reasons.slice(0, 5)
+      });
+    }
     console.log('[PresetMigration] Preserving MilkDrop shader data:', {
-      hasWarp: !!preset._shaderData.warp,
-      warpLength: preset._shaderData.warp?.length || 0,
-      hasComp: !!preset._shaderData.comp,
-      compLength: preset._shaderData.comp?.length || 0,
-      perFrameCodeLength: preset._shaderData.perFrameCode?.length || 0
+      hasWarp: !!normalizedShaderData?.warp,
+      warpLength: normalizedShaderData?.warp?.length || 0,
+      hasComp: !!normalizedShaderData?.comp,
+      compLength: normalizedShaderData?.comp?.length || 0,
+      perFrameCodeLength: normalizedShaderData?.perFrameCode?.length || 0,
+      perPixelCodeLength: normalizedShaderData?.perPixelCode?.length || 0,
+      waveCount: normalizedShaderData?.waves?.length || 0,
+      shapeCount: normalizedShaderData?.shapes?.length || 0
     });
     const activeScene = project.scenes.find((s: any) => s.id === project.activeSceneId);
     if (activeScene) {
-      activeScene._shaderData = preset._shaderData;
+      activeScene._shaderData = normalizedShaderData;
       console.log('[PresetMigration] Shader data copied to scene:', activeScene.id);
     } else {
       console.error('[PresetMigration] Active scene not found:', project.activeSceneId);

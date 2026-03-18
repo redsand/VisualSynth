@@ -131,7 +131,8 @@ const modConnectionSchema = z.object({
   smoothing: z.number().default(0),
   bipolar: z.boolean().default(false),
   min: z.number().default(0),
-  max: z.number().default(1)
+  max: z.number().default(1),
+  enabled: z.boolean().default(true)
 });
 
 const midiMappingSchema = z.object({
@@ -327,6 +328,66 @@ const sceneLayerRolesSchema = z.object({
   atmosphere: z.array(z.string())
 });
 
+const milkWaveConfigSchema = z.object({
+  enabled: z.boolean(),
+  samples: z.number(),
+  sep: z.number(),
+  bSpectrum: z.boolean(),
+  bUseDots: z.boolean(),
+  bDrawThick: z.boolean(),
+  bAdditive: z.boolean(),
+  scaling: z.number(),
+  smoothing: z.number(),
+  r: z.number(),
+  g: z.number(),
+  b: z.number(),
+  a: z.number(),
+  initCode: z.array(z.string()).optional().default([]),
+  perFrameCode: z.array(z.string()),
+  perPointCode: z.array(z.string())
+});
+
+const milkShapeConfigSchema = z.object({
+  enabled: z.boolean(),
+  sides: z.number(),
+  additive: z.boolean(),
+  thickOutline: z.boolean(),
+  textured: z.boolean(),
+  numInst: z.number(),
+  x: z.number(),
+  y: z.number(),
+  rad: z.number(),
+  ang: z.number(),
+  texAng: z.number(),
+  texZoom: z.number(),
+  r: z.number(),
+  g: z.number(),
+  b: z.number(),
+  a: z.number(),
+  r2: z.number(),
+  g2: z.number(),
+  b2: z.number(),
+  a2: z.number(),
+  borderR: z.number(),
+  borderG: z.number(),
+  borderB: z.number(),
+  borderA: z.number(),
+  initCode: z.array(z.string()).optional().default([]),
+  perFrameCode: z.array(z.string()),
+  perPointCode: z.array(z.string()).optional().default([])
+});
+
+const milkDropShaderDataSchema = z.object({
+  warp: z.string(),
+  comp: z.string(),
+  perFrameCode: z.array(z.string()),
+  perFrameInitCode: z.array(z.string()),
+  perPixelCode: z.array(z.string()).optional(),
+  waves: z.array(milkWaveConfigSchema).optional(),
+  shapes: z.array(milkShapeConfigSchema).optional(),
+  originalParameters: z.record(z.union([z.number(), z.boolean()]))
+});
+
 const sceneSchema = z.object({
   id: z.string(),
   scene_id: z.string().optional(),
@@ -344,7 +405,8 @@ const sceneSchema = z.object({
     atmosphere: []
   }),
   layers: z.array(layerSchema).min(1),
-  look: sceneLookSchema.optional()
+  look: sceneLookSchema.optional(),
+  _shaderData: milkDropShaderDataSchema.optional()
 });
 
 const lfoSchema = z.object({
@@ -353,6 +415,7 @@ const lfoSchema = z.object({
   shape: z.enum(['sine', 'triangle', 'saw', 'square']),
   rate: z.number(),
   sync: z.boolean(),
+  syncDivision: z.string().optional(),
   phase: z.number()
 });
 
@@ -541,8 +604,8 @@ export const projectSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
-  stylePresets: z.array(stylePresetSchema).default(stylePresetDefaults),
-  activeStylePresetId: z.string().default(stylePresetDefaults[0].id),
+  stylePresets: z.array(stylePresetSchema).default([]),
+  activeStylePresetId: z.string().default('style-neutral'),
   palettes: z.array(colorPaletteSchema).default([]),
   activePaletteId: z.string().default('heat'),
   macros: z
@@ -735,7 +798,28 @@ export const projectSchema = z.object({
     bpm: z.number().default(120),
     source: z.enum(['manual', 'auto', 'network']).default('manual')
   }).default({ bpm: 120, source: 'manual' }),
-  customShaderBlocks: z.array(customShaderBlockSchema).default([])
+  customShaderBlocks: z.array(customShaderBlockSchema).default([]),
+  overlays: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(['image', 'text']),
+    enabled: z.boolean().default(true),
+    x: z.number().default(0),
+    y: z.number().default(0),
+    width: z.number().default(0.15),
+    height: z.number().default(0.1),
+    opacity: z.number().default(1),
+    rotation: z.number().default(0),
+    includeInFx: z.boolean().default(false),
+    assetPath: z.string().optional(),
+    text: z.string().optional(),
+    fontFamily: z.string().optional(),
+    fontSize: z.number().optional(),
+    fontColor: z.string().optional(),
+    fontWeight: z.enum(['normal', 'bold']).optional(),
+    textShadow: z.boolean().optional()
+  })).default([]),
+  _shaderData: milkDropShaderDataSchema.optional()
 });
 
 export type ProjectSchema = z.infer<typeof projectSchema>;

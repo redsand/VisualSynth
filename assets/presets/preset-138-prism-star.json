@@ -98,7 +98,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "starfield-color",
+        "type": "laser-starfield",
         "param": "opacity"
       },
       "amount": 0.3,

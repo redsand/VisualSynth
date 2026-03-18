@@ -90,4 +90,88 @@ describe('preset regression coverage', () => {
       }))
     ).toMatchSnapshot();
   });
+
+  it('keeps known weak generator presets wired to real layer targets and visible defaults', () => {
+    const analogStatic = loadPreset('preset-139-analog-static.json');
+    const guitarAmp = loadPreset('preset-121-guitar-amp.json');
+    const feedbackLoop = loadPreset('preset-128-feedback-loop.json');
+    const shapeBurst = loadPreset('preset-113-shape-burst.json');
+    const dataOverlay = loadPreset('preset-155-data-overlay.json');
+    const liquidCanvas = loadPreset('preset-154-liquid-canvas.json');
+    const liquidMetal = loadPreset('preset-090-liquid-metal.json');
+    const acidRock = loadPreset('preset-129-acid-rock.json');
+
+    expect(analogStatic.modulations[0].target.type).toBe('analog-oscillo');
+    expect(guitarAmp.modulations[0].target.type).toBe('analog-oscillo');
+    expect(feedbackLoop.modulations[0].target.type).toBe('analog-oscillo');
+    expect(shapeBurst.modulations[0].target.type).toBe('shape-burst');
+
+    expect(feedbackLoop.effects).toMatchObject({
+      enabled: true,
+      feedback: 0.8,
+      persistence: 0.5
+    });
+
+    expect(dataOverlay.scenes[0].layers.some((layer: any) => layer.generatorId === 'gen-signal-noise')).toBe(true);
+    expect(liquidCanvas.scenes[0].layers.some((layer: any) => layer.generatorId === 'gen-signal-noise')).toBe(true);
+    expect(liquidMetal.scenes[0].layers.some((layer: any) => layer.generatorId === 'gen-liquid-metal')).toBe(true);
+    expect(acidRock.scenes[0].layers.some((layer: any) => layer.generatorId === 'gen-liquid-metal')).toBe(true);
+  });
+
+  it('merges preset-owned assets and preserves internal default assets when applying v6 presets', () => {
+    const preset = {
+      version: 6,
+      metadata: {
+        version: 6,
+        name: 'Embedded Media',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        category: 'Tests',
+        compatibility: { minVersion: '1.0.0' },
+        activeEngineId: '',
+        activeModeId: '',
+        intendedMusicStyle: 'Any',
+        visualIntentTags: [],
+        colorChemistry: ['analog', 'balanced'],
+        defaultTransition: { durationMs: 600, curve: 'easeInOut' as const }
+      },
+      scenes: [
+        {
+          id: 'scene-1',
+          scene_id: 'scene-1',
+          name: 'Scene',
+          intent: 'ambient',
+          layers: [
+            {
+              id: 'layer-media',
+              name: 'Media',
+              enabled: true,
+              opacity: 1,
+              blendMode: 'normal',
+              transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+              assetId: 'asset-embedded-title'
+            }
+          ]
+        }
+      ],
+      activeSceneId: 'scene-1',
+      roleWeights: { core: 1, support: 1, atmosphere: 1 },
+      tempoSync: { bpm: 120, source: 'manual' as const },
+      assets: [
+        {
+          id: 'asset-embedded-title',
+          name: 'Embedded Title',
+          kind: 'text',
+          tags: ['preset'],
+          addedAt: new Date().toISOString(),
+          options: { text: 'HELLO', fontSize: 96, fontColor: '#ffffff' }
+        }
+      ]
+    };
+
+    const applied = applyPresetV6(preset, DEFAULT_PROJECT);
+    expect(applied.project.assets.some((asset: any) => asset.id === 'asset-embedded-title')).toBe(true);
+    expect(applied.project.assets.some((asset: any) => asset.id === 'internal-waveform')).toBe(true);
+    expect(applied.project.scenes[0].layers[0].assetId).toBe('asset-embedded-title');
+  });
 });

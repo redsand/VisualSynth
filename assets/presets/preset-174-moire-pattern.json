@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-moire-pattern-1",
+          "id": "gen-moire-pattern",
           "name": "Moire Pattern",
           "role": "core",
           "enabled": true,

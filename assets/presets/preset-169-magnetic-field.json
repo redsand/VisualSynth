@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-magnetic-field-1",
+          "id": "gen-magnetic-field",
           "name": "Magnetic Field",
           "role": "core",
           "enabled": true,

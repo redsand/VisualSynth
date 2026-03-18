@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-ascii-stream-1",
+          "id": "gen-ascii-stream",
           "name": "ASCII Stream",
           "role": "core",
           "enabled": true,

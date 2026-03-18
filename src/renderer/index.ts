@@ -12,6 +12,7 @@ import {
   SceneLook,
   SceneConfig,
   SceneIntent,
+  SceneTransition,
   MacroConfig,
   LayerConfig,
   AssetItem,
@@ -34,7 +35,8 @@ import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
-import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
+import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
+import { resolveGenUniforms } from '../shared/genUniformResolver';
 import { lfoValueForShape } from '../shared/lfoUtils';
 import { reorderLayers, cloneLayerConfig, ensureLayerWithDefaults } from '../shared/layers';
 import { applyExchangePayload, createMacrosExchange, createSceneExchange, ExchangePayload } from '../shared/exchange';
@@ -43,6 +45,8 @@ import { mergeProjectSections, MergeOptions } from '../shared/projectMerge';
 import { toFileUrl } from '../shared/fileUrl';
 import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
+import { createScenePreset } from '../shared/scenePreset';
+import type { PresetIndexEntry } from '../shared/presetIndex';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
@@ -64,21 +68,28 @@ import {
 import { buildRendererOutputBroadcastPayload } from './render/outputPayload';
 import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
+import { createOverlayRenderer } from './overlayRenderer';
+import type { OverlayConfig } from '../shared/project';
 
 declare global {
   interface Window {
     visualSynth: {
       saveProject: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
       autosaveProject: (payload: string) => Promise<{ saved: boolean; filePath?: string }>;
+      savePreset: (
+        payload: string,
+        defaultName: string
+      ) => Promise<{ canceled: boolean; filePath?: string }>;
       saveExchange: (
         payload: string,
         defaultName: string
       ) => Promise<{ canceled: boolean; filePath?: string }>;
       openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; error?: string }>;
+      openSceneFile: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
-      listPresets: () => Promise<{ name: string; category: string; path: string }[]>;
+      listPresets: () => Promise<PresetIndexEntry[]>;
       loadPreset: (presetPath: string) => Promise<{ preset?: any; error?: string }>;
       listTemplates: () => Promise<{ name: string; path: string }[]>;
       loadTemplate: (templatePath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
@@ -156,6 +167,15 @@ const presetCategorySelect = document.getElementById('preset-category') as HTMLS
 const presetShuffleButton = document.getElementById('preset-shuffle') as HTMLButtonElement;
 const presetBrowser = document.getElementById('preset-browser') as HTMLDivElement;
 const presetExplorer = document.getElementById('preset-explorer') as HTMLDivElement;
+const presetSearchInput = document.getElementById('preset-search') as HTMLInputElement;
+const presetQuickFilters = document.getElementById('preset-quick-filters') as HTMLDivElement;
+const presetResultsCount = document.getElementById('preset-results-count') as HTMLDivElement;
+const presetPreviewThumb = document.getElementById('preset-preview-thumb') as HTMLDivElement;
+const presetPreviewName = document.getElementById('preset-preview-name') as HTMLDivElement;
+const presetPreviewMeta = document.getElementById('preset-preview-meta') as HTMLDivElement;
+const presetPreviewBadges = document.getElementById('preset-preview-badges') as HTMLDivElement;
+const presetLoadProjectButton = document.getElementById('preset-load-project') as HTMLButtonElement;
+const presetFavoriteButton = document.getElementById('preset-favorite') as HTMLButtonElement;
 const templateSelect = document.getElementById('template-select') as HTMLSelectElement;
 const applyTemplateButton = document.getElementById('btn-apply-template') as HTMLButtonElement;
 const modeSwitcher = document.getElementById('mode-switcher') as HTMLDivElement;
@@ -178,19 +198,21 @@ const mixerRight = document.getElementById('mode-mixer-right') as HTMLDivElement
 const mappingRight = document.getElementById('mode-mapping-right') as HTMLDivElement;
 const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
 const systemRight = document.getElementById('mode-system-right') as HTMLDivElement;
-const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement;
+const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement | null;
 const sceneStripAnchor = document.getElementById('scene-strip-anchor') as HTMLDivElement;
-const sceneStripCards = document.getElementById('scene-strip-cards') as HTMLDivElement;
-const sceneStripList = document.getElementById('scene-strip-list') as HTMLDivElement;
-const sceneStripViewButtons = Array.from(
-  sceneStrip.querySelectorAll<HTMLButtonElement>('button[data-scene-view]')
-);
-const addBlankSceneButton = document.getElementById('scene-add-blank') as HTMLButtonElement;
+const sceneStripCards = document.getElementById('scene-strip-cards') as HTMLDivElement | null;
+const sceneStripList = document.getElementById('scene-strip-list') as HTMLDivElement | null;
+const sceneStripViewButtons = sceneStrip
+  ? Array.from(sceneStrip.querySelectorAll<HTMLButtonElement>('button[data-scene-view]'))
+  : [];
+const addBlankSceneButton = document.getElementById('scene-add-blank') as HTMLButtonElement | null;
 const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
 const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
 const visualModeSelect = document.getElementById('visual-mode-select') as HTMLSelectElement;
+const topbarOpenProjectButton = document.getElementById('topbar-open-project') as HTMLButtonElement | null;
+const topbarSaveProjectButton = document.getElementById('topbar-save-project') as HTMLButtonElement | null;
 const engineSelect = document.getElementById('engine-select') as HTMLSelectElement | null;
 const engineDescription = document.getElementById('engine-description') as HTMLDivElement | null;
 const healthFps = document.getElementById('health-fps') as HTMLSpanElement;
@@ -205,14 +227,30 @@ const guardrailHint = document.getElementById('guardrail-hint') as HTMLDivElemen
 const mixRoleCore = document.getElementById('mix-role-core') as HTMLInputElement;
 const mixRoleSupport = document.getElementById('mix-role-support') as HTMLInputElement;
 const mixRoleAtmosphere = document.getElementById('mix-role-atmosphere') as HTMLInputElement;
-const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement;
-const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement;
-const spectrumHintDismiss = document.getElementById('spectrum-hint-dismiss') as HTMLButtonElement;
-const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement;
+const perfToggleSpectrum = document.getElementById('perf-toggle-spectrum') as HTMLInputElement | null;
+const spectrumHint = document.getElementById('spectrum-hint') as HTMLDivElement | null;
+const spectrumHintDismiss = document.getElementById('spectrum-hint-dismiss') as HTMLButtonElement | null;
+const perfAddLayerButton = document.getElementById('perf-add-layer') as HTMLButtonElement | null;
 const designAddLayerButton = document.getElementById('design-add-layer') as HTMLButtonElement;
 const generatorPanel = document.getElementById('generator-panel') as HTMLDivElement;
-const playlistAddButton = document.getElementById('playlist-add') as HTMLButtonElement;
-const playlistRemoveButton = document.getElementById('playlist-remove') as HTMLButtonElement;
+const perfPaletteGrid = document.getElementById('perf-palette-grid') as HTMLDivElement;
+const overlayCanvas = document.getElementById('overlay-canvas') as HTMLCanvasElement;
+const overlayAddImageBtn = document.getElementById('overlay-add-image') as HTMLButtonElement;
+const overlayAddTextBtn = document.getElementById('overlay-add-text') as HTMLButtonElement;
+const overlayListEl = document.getElementById('overlay-list') as HTMLDivElement;
+const overlayPropsEl = document.getElementById('overlay-props') as HTMLDivElement;
+const overlayNameInput = document.getElementById('overlay-name') as HTMLInputElement;
+const overlayTextGroup = document.getElementById('overlay-text-group') as HTMLDivElement;
+const overlayTextInput = document.getElementById('overlay-text') as HTMLInputElement;
+const overlayFontSizeInput = document.getElementById('overlay-font-size') as HTMLInputElement;
+const overlayFontColorInput = document.getElementById('overlay-font-color') as HTMLInputElement;
+const overlayFontBoldInput = document.getElementById('overlay-font-bold') as HTMLInputElement;
+const overlayTextShadowInput = document.getElementById('overlay-text-shadow') as HTMLInputElement;
+const overlayOpacityInput = document.getElementById('overlay-opacity') as HTMLInputElement;
+const overlayRotationInput = document.getElementById('overlay-rotation') as HTMLInputElement;
+const overlayIncludeFxInput = document.getElementById('overlay-include-fx') as HTMLInputElement;
+const overlayPersistInput = document.getElementById('overlay-persist') as HTMLInputElement;
+const overlayDeleteBtn = document.getElementById('overlay-delete') as HTMLButtonElement;
 const playlistPlayButton = document.getElementById('playlist-play') as HTMLButtonElement;
 const playlistStopButton = document.getElementById('playlist-stop') as HTMLButtonElement;
 const playlistList = document.getElementById('playlist-list') as HTMLDivElement;
@@ -241,11 +279,11 @@ const padGrid = document.getElementById('pad-grid') as HTMLDivElement;
 const padBank = document.getElementById('pad-bank') as HTMLDivElement;
 const padMapGrid = document.getElementById('pad-map-grid') as HTMLDivElement;
 const padMapBank = document.getElementById('pad-map-bank') as HTMLDivElement;
-const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement;
+const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement | null;
 const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
-const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement;
-const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonElement;
-const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement;
+const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement | null;
+const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonElement | null;
+const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement | null;
 const quantizeHud = document.getElementById('quantize-hud') as HTMLDivElement;
 const safeModeBanner = document.getElementById('safe-mode-banner') as HTMLDivElement;
 const mappingHud = document.getElementById('mapping-hud') as HTMLDivElement;
@@ -281,7 +319,7 @@ const bpmMinInput = document.getElementById('bpm-min') as HTMLInputElement;
 const bpmMaxInput = document.getElementById('bpm-max') as HTMLInputElement;
 const bpmInterfaceSelect = document.getElementById('bpm-interface') as HTMLSelectElement;
 const bpmNetworkToggle = document.getElementById('bpm-network-toggle') as HTMLButtonElement;
-const bpmDisplay = document.getElementById('bpm-display') as HTMLDivElement;
+const bpmDisplay = document.getElementById('bpm-display') as HTMLDivElement | null;
 const beatSensitivityInput = document.getElementById('beat-sensitivity') as HTMLInputElement;
 const beatFilterSelect = document.getElementById('beat-filter') as HTMLSelectElement;
 const beatHoldOffInput = document.getElementById('beat-holdoff') as HTMLInputElement;
@@ -458,6 +496,8 @@ const webglDiag = document.getElementById('diag-webgl') as HTMLDivElement;
 const webglCopyButton = document.getElementById('diag-webgl-copy') as HTMLButtonElement;
 
 let currentProject: VisualSynthProject = DEFAULT_PROJECT;
+import { SceneCacheWarmer } from './scene/SceneCacheWarmer';
+let cacheWarmer: SceneCacheWarmer | null = null;
 const sceneManager = new SceneManager(() => currentProject);
 let audioContext: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
@@ -504,7 +544,7 @@ const outputChannel = new BroadcastChannel('visualsynth-output');
 let lastOutputBroadcast = 0;
 const WEBCAM_STORAGE_KEY = 'visualsynth.webcamDeviceId';
 let lastMidiLatencyMs: number | null = null;
-let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null = null;
+let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number; transitionOverride?: SceneTransition | null } | null = null;
 let sdfPanel: { render: () => void } | null = null;
 let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, bands: number[]) => void } | null = null;
 let autoBpm: number | null = null;
@@ -611,17 +651,14 @@ let playlistOverrides: Record<string, Partial<LayerConfig>> = {};
 let fpsTracker = { fpsAccumulatorMs: 0, frameCount: 0 };
 
 const triggerPlaylistSlot = async (index: number) => {
-  if (index < 0 || index >= playlist.length) return;
+  const scenes = currentProject.scenes;
+  if (index < 0 || index >= scenes.length) return;
   playlistIndex = index;
-  const item = playlist[index];
-  
-  if (item.crossfade > 0) {
-    await crossfadeToPreset(item.path, item.name, item.crossfade);
-  } else {
-    await applyPresetPath(item.path, 'Playlist');
-  }
-  
-  // Update UI to highlight active slot
+  const scene = scenes[index];
+
+  // applyScene handles transitions via sceneRuntime
+  applyScene(scene.id);
+  setStatus(`Playlist: ${scene.name}`);
   renderPlaylist();
 };
 
@@ -723,9 +760,23 @@ const markPlaylistBeatDrop = () => {
   playlistManager.markBeatDrop();
 };
 
-let presetLibrary: { name: string; path: string; category: string }[] = [];
+let presetLibrary: PresetIndexEntry[] = [];
+let filteredPresetLibrary: PresetIndexEntry[] = [];
+let selectedPresetPath = '';
+let presetCategoryFilter = 'All';
+let currentPresetPage = 0;
+const PRESET_PAGE_SIZE = 10;
+let presetQuickFilter = 'all';
 const presetThumbStorageKey = 'vs.preset.thumbs';
 let presetThumbs: Record<string, string> = {};
+const presetFavoritesStorageKey = 'vs.preset.favorites';
+const presetRecentsStorageKey = 'vs.preset.recents';
+let presetFavorites: string[] = [];
+let presetRecents: string[] = [];
+let presetPreviewBaseProject: VisualSynthProject | null = null;
+let presetPreviewPath: string | null = null;
+let preservePresetPreviewState = false;
+let lastOutputRenderState: RenderState | null = null;
 const shaderDraftKey = 'vs.shader.draft';
 const shaderTargetDraftValue = 'layer-plasma';
 const shaderTargetAssetPrefix = 'asset:';
@@ -1201,6 +1252,7 @@ const setMode = (mode: UiMode) => {
   activeMode = mode;
   const visibility = getModeVisibility(mode);
   document.body.dataset.mode = mode;
+  updateOverlayPointerEvents();
   modeButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.mode === mode);
   });
@@ -1285,6 +1337,42 @@ const savePresetThumbnails = () => {
   localStorage.setItem(presetThumbStorageKey, JSON.stringify(presetThumbs));
 };
 
+const loadPresetPreferences = () => {
+  try {
+    const favorites = localStorage.getItem(presetFavoritesStorageKey);
+    presetFavorites = favorites ? (JSON.parse(favorites) as string[]) : [];
+  } catch {
+    presetFavorites = [];
+  }
+  try {
+    const recents = localStorage.getItem(presetRecentsStorageKey);
+    presetRecents = recents ? (JSON.parse(recents) as string[]) : [];
+  } catch {
+    presetRecents = [];
+  }
+};
+
+const savePresetPreferences = () => {
+  localStorage.setItem(presetFavoritesStorageKey, JSON.stringify(presetFavorites));
+  localStorage.setItem(presetRecentsStorageKey, JSON.stringify(presetRecents));
+};
+
+const markPresetRecent = (path: string) => {
+  if (!path) return;
+  presetRecents = [path, ...presetRecents.filter((entry) => entry !== path)].slice(0, 24);
+  savePresetPreferences();
+};
+
+const togglePresetFavorite = (path: string) => {
+  if (!path) return false;
+  const isFavorite = presetFavorites.includes(path);
+  presetFavorites = isFavorite
+    ? presetFavorites.filter((entry) => entry !== path)
+    : [path, ...presetFavorites];
+  savePresetPreferences();
+  return !isFavorite;
+};
+
 const hashPreset = (value: string) => {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -1294,90 +1382,245 @@ const hashPreset = (value: string) => {
   return Math.abs(hash);
 };
 
-const categorizePreset = (name: string) => {
-  const key = name.toLowerCase();
-  if (key.includes('dna')) return 'DNA';
-  if (key.includes('particle')) return 'Particles';
-  if (key.includes('sdf') || key.includes('prism')) return 'SDF';
-  if (key.includes('feedback') || key.includes('trail')) return 'Feedback';
-  if (key.includes('kaleido')) return 'Kaleido';
-  if (key.includes('strobe')) return 'Strobe';
-  if (key.includes('nebula') || key.includes('no bars')) return 'No Bars';
-  return 'General';
+const presetQuickFilterDefs: Array<{ id: string; label: string; match: (preset: PresetIndexEntry) => boolean }> = [
+  { id: 'all', label: 'All', match: () => true },
+  { id: 'favorites', label: 'Favorites', match: (preset) => presetFavorites.includes(preset.path) },
+  { id: 'recent', label: 'Recent', match: (preset) => presetRecents.includes(preset.path) },
+  { id: 'safe', label: 'Safe', match: (preset) => !preset.riskFlags.includes('flash-heavy') && !preset.riskFlags.includes('cpu-heavy') },
+  { id: 'audio', label: 'Audio', match: (preset) => preset.sourceDependency === 'audio-reactive' || preset.sourceDependency === 'hybrid' },
+  { id: 'no-media', label: 'No Media', match: (preset) => preset.sourceDependency === 'none' || preset.sourceDependency === 'audio-reactive' },
+  { id: 'high-energy', label: 'High Energy', match: (preset) => preset.energy === 'high' || preset.energy === 'peak' },
+  { id: 'transitions', label: 'Transitions', match: (preset) => preset.primaryCategory === 'Transitions' || preset.useCases.includes('bridge') }
+];
+
+const getPresetGradient = (preset: PresetIndexEntry) => {
+  const hue = hashPreset(preset.name) % 360;
+  return `linear-gradient(135deg, hsl(${hue},70%,45%), hsl(${(hue + 60) % 360},70%,35%))`;
 };
 
-const renderPresetBrowser = () => {
-  presetBrowser.innerHTML = '';
-  const filter = presetCategorySelect.value;
-  const entries =
-    filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
-  entries.forEach((preset) => {
-    const card = document.createElement('div');
-    const selected = preset.path === presetSelect.value;
-    card.className = `preset-card${selected ? ' selected' : ''}`;
-    const thumb = document.createElement('div');
-    thumb.className = 'preset-thumb';
-    const cachedThumb = presetThumbs[preset.path];
-    if (cachedThumb) {
-      thumb.style.backgroundImage = `url('${cachedThumb}')`;
-    } else {
-      const hue = hashPreset(preset.name) % 360;
-      thumb.style.background = `linear-gradient(135deg, hsl(${hue},70%,45%), hsl(${(hue + 60) % 360},70%,35%))`;
-    }
-    const name = document.createElement('div');
-    name.className = 'preset-name';
-    name.textContent = preset.name;
-    const tag = document.createElement('div');
-    tag.className = 'preset-tag';
-    tag.textContent = preset.category;
-    
-    const auditionBtn = document.createElement('button');
-    auditionBtn.className = 'preset-audition-btn';
-    auditionBtn.textContent = 'Audition';
-    auditionBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      void auditionPreset(preset.path);
-    });
+const updateSelectedPreset = (path: string, reason = 'Selected') => {
+  const preset = presetLibrary.find((entry) => entry.path === path);
+  if (!preset) return;
+  selectedPresetPath = path;
+  presetSelect.value = path;
+  presetBrowser.querySelectorAll<HTMLElement>('.preset-card').forEach((el) => {
+    el.classList.toggle('selected', el.dataset.presetPath === path);
+  });
+  renderPresetPreview();
+  setStatus(`${reason}: ${preset.name}`);
+};
 
-    // Hover Preview Metadata
-    card.addEventListener('mouseenter', () => {
-        setStatus(`Preview: ${preset.name} [${preset.category}] - Designed for ${preset.name.includes('DNA') ? 'Identity' : 'Performance'}`);
-    });
-    card.addEventListener('mouseleave', () => {
-        setStatus('Ready');
-    });
+const previewPresetSelection = (path: string, reason = 'Selected') => {
+  const preset = presetLibrary.find((entry) => entry.path === path);
+  if (!preset) return;
+  clearPresetPreviewState();
+  updateSelectedPreset(path, reason);
+  renderPresetPreview();
+};
 
-    card.appendChild(thumb);
-    card.appendChild(name);
-    card.appendChild(tag);
-    card.appendChild(auditionBtn);
-    card.addEventListener('click', () => {
-      presetSelect.value = preset.path;
-      renderPresetBrowser();
-      setStatus(`Preset selected: ${preset.name}`);
+const clearPresetPreviewState = () => {
+  presetPreviewBaseProject = null;
+  presetPreviewPath = null;
+};
+
+const getSortedPresetEntries = (entries: PresetIndexEntry[]) =>
+  [...entries].sort((a, b) => {
+    const favoriteDiff = Number(presetFavorites.includes(b.path)) - Number(presetFavorites.includes(a.path));
+    if (favoriteDiff !== 0) return favoriteDiff;
+    const recentDiff = (presetRecents.indexOf(a.path) === -1 ? 999 : presetRecents.indexOf(a.path))
+      - (presetRecents.indexOf(b.path) === -1 ? 999 : presetRecents.indexOf(b.path));
+    if (recentDiff !== 0) return recentDiff;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+
+const getFilteredPresetEntries = () => {
+  const search = presetSearchInput.value.trim().toLowerCase();
+  const quickFilter = presetQuickFilterDefs.find((entry) => entry.id === presetQuickFilter) ?? presetQuickFilterDefs[0];
+  return getSortedPresetEntries(
+    presetLibrary.filter((preset) => {
+      if (presetCategoryFilter !== 'All' && preset.primaryCategory !== presetCategoryFilter) return false;
+      if (!quickFilter.match(preset)) return false;
+      if (!search) return true;
+      return preset.searchText.includes(search) || preset.name.toLowerCase().includes(search);
+    })
+  );
+};
+
+const renderPresetQuickFilters = () => {
+  presetQuickFilters.innerHTML = '';
+  presetQuickFilterDefs.forEach((filter) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `preset-filter-chip${filter.id === presetQuickFilter ? ' active' : ''}`;
+    button.textContent = filter.label;
+    button.addEventListener('click', () => {
+      presetQuickFilter = filter.id;
+      renderPresetQuickFilters();
+      renderPresetBrowser(true);
+      renderPresetPreview();
     });
-    card.addEventListener('dblclick', () => {
-      void addSceneFromPreset(preset.path);
-    });
-    presetBrowser.appendChild(card);
+    presetQuickFilters.appendChild(button);
   });
 };
 
 const refreshPresetCategories = () => {
-  const categories = Array.from(new Set(presetLibrary.map((item) => item.category)));
+  const categories = ['All', ...Array.from(new Set(presetLibrary.map((item) => item.primaryCategory))).sort()];
   presetCategorySelect.innerHTML = '';
-  const all = document.createElement('option');
-  all.value = 'All';
-  all.textContent = 'All';
-  presetCategorySelect.appendChild(all);
-  categories.sort().forEach((category) => {
+  categories.forEach((category) => {
     const option = document.createElement('option');
     option.value = category;
     option.textContent = category;
     presetCategorySelect.appendChild(option);
   });
-  const hasDna = categories.includes('DNA');
-  presetCategorySelect.value = hasDna ? 'DNA' : 'All';
+  presetCategorySelect.value = categories.includes(presetCategoryFilter) ? presetCategoryFilter : 'All';
+};
+
+const truncateMiddle = (text: string, maxLen = 42): string => {
+  if (text.length <= maxLen) return text;
+  const tail = Math.floor((maxLen - 1) / 3);
+  const head = maxLen - 1 - tail;
+  return text.slice(0, head) + '…' + text.slice(text.length - tail);
+};
+
+const buildPresetCard = (preset: PresetIndexEntry): HTMLElement => {
+  const card = document.createElement('div');
+  const selected = preset.path === selectedPresetPath;
+  card.className = `preset-card${selected ? ' selected' : ''}`;
+  card.dataset.presetPath = preset.path;
+  const thumb = document.createElement('div');
+  thumb.className = 'preset-thumb';
+  const cachedThumb = presetThumbs[preset.path];
+  if (cachedThumb) {
+    thumb.style.backgroundImage = `url('${cachedThumb}')`;
+  } else {
+    thumb.style.background = getPresetGradient(preset);
+  }
+  const summary = document.createElement('div');
+  summary.className = 'preset-summary';
+  const name = document.createElement('div');
+  name.className = 'preset-name';
+  name.textContent = truncateMiddle(preset.name);
+  if (preset.name.length > 42) name.title = preset.name;
+  const meta = document.createElement('div');
+  meta.className = 'preset-meta-line';
+  meta.textContent = `${preset.primaryCategory} · ${preset.energy} energy · ${preset.motion}`;
+  const tags = document.createElement('div');
+  tags.className = 'preset-tags';
+  [preset.primaryCategory, ...preset.visualFamilies.slice(0, 2), ...preset.riskFlags.slice(0, 1)].forEach((tagText) => {
+    const tag = document.createElement('div');
+    tag.className = 'preset-tag';
+    tag.textContent = tagText;
+    tags.appendChild(tag);
+  });
+  const actions = document.createElement('div');
+  actions.className = 'preset-card-actions';
+  const addBtn = document.createElement('button');
+  addBtn.className = 'preset-add-btn';
+  addBtn.textContent = 'Add';
+  addBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectedPresetPath = preset.path;
+    markPresetRecent(preset.path);
+    void addSceneFromPreset(preset.path);
+    renderPresetQuickFilters();
+    renderPresetPreview();
+  });
+  card.addEventListener('mouseenter', () => {
+    selectedPresetPath = preset.path;
+    presetSelect.value = preset.path;
+    renderPresetPreview();
+    setStatus(`Preview: ${preset.name} [${preset.primaryCategory}]`);
+  });
+  card.appendChild(thumb);
+  summary.appendChild(name);
+  summary.appendChild(meta);
+  summary.appendChild(tags);
+  actions.appendChild(addBtn);
+  card.appendChild(summary);
+  card.appendChild(actions);
+  card.addEventListener('click', () => {
+    void previewPresetSelection(preset.path);
+  });
+  card.addEventListener('dblclick', () => {
+    void addSceneFromPreset(preset.path);
+  });
+  return card;
+};
+
+const renderPresetBrowser = (resetPage = false) => {
+  filteredPresetLibrary = getFilteredPresetEntries();
+  if (resetPage) currentPresetPage = 0;
+
+  const total = filteredPresetLibrary.length;
+  const totalPages = Math.max(1, Math.ceil(total / PRESET_PAGE_SIZE));
+  currentPresetPage = Math.min(currentPresetPage, totalPages - 1);
+
+  if (!selectedPresetPath || !filteredPresetLibrary.some((preset) => preset.path === selectedPresetPath)) {
+    selectedPresetPath = filteredPresetLibrary[currentPresetPage * PRESET_PAGE_SIZE]?.path ?? '';
+    presetSelect.value = selectedPresetPath;
+  }
+
+  presetResultsCount.textContent = total === 0
+    ? '0 presets'
+    : `${total} preset${total === 1 ? '' : 's'} · Page ${currentPresetPage + 1} of ${totalPages}`;
+
+  presetBrowser.innerHTML = '';
+  if (total === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No presets match the current search and filters.';
+    presetBrowser.appendChild(empty);
+  } else {
+    const pageStart = currentPresetPage * PRESET_PAGE_SIZE;
+    filteredPresetLibrary.slice(pageStart, pageStart + PRESET_PAGE_SIZE).forEach((preset) => {
+      presetBrowser.appendChild(buildPresetCard(preset));
+    });
+  }
+
+  if (presetPrevButton) presetPrevButton.disabled = currentPresetPage === 0;
+  if (presetNextButton) presetNextButton.disabled = currentPresetPage >= totalPages - 1;
+};
+
+const renderPresetPreview = () => {
+  const preset = presetLibrary.find((entry) => entry.path === selectedPresetPath);
+  if (!preset) {
+    presetPreviewName.textContent = 'No preset selected';
+    presetPreviewMeta.textContent = 'Choose a preset to inspect it.';
+    presetPreviewThumb.style.background = 'linear-gradient(135deg, #19304c, #101c2c)';
+    presetPreviewThumb.style.backgroundImage = '';
+    presetPreviewBadges.innerHTML = '';
+    return;
+  }
+  const cachedThumb = presetThumbs[preset.path] ?? preset.thumbnail;
+  presetPreviewThumb.style.background = cachedThumb ? getPresetGradient(preset) : getPresetGradient(preset);
+  presetPreviewThumb.style.backgroundImage = cachedThumb ? `url('${cachedThumb}')` : '';
+  presetPreviewName.textContent = preset.name;
+  presetPreviewMeta.textContent =
+    `${preset.primaryCategory} · ${preset.subcategory} · ${preset.energy} energy · ${preset.motion} motion · ${preset.sourceDependency}`;
+  presetPreviewBadges.innerHTML = '';
+  [
+    ...preset.visualFamilies,
+    ...preset.useCases,
+    ...preset.riskFlags,
+    preset.importedFrom ? `Imported: ${preset.importedFrom}` : ''
+  ]
+    .filter(Boolean)
+    .slice(0, 8)
+    .forEach((tagText) => {
+      const tag = document.createElement('div');
+      tag.className = 'preset-tag';
+      tag.textContent = tagText;
+      presetPreviewBadges.appendChild(tag);
+    });
+  if (presetPreviewPath === preset.path) {
+    const tag = document.createElement('div');
+    tag.className = 'preset-tag';
+    tag.textContent = 'Previewing';
+    presetPreviewBadges.prepend(tag);
+  }
+  presetFavoriteButton.innerHTML = presetFavorites.includes(preset.path)
+    ? '<span class="preset-action-icon">♥</span><span>Unfavorite</span>'
+    : '<span class="preset-action-icon">♥</span><span>Favorite</span>';
 };
 
 const captureCanvasSnapshot = () => {
@@ -1405,7 +1648,13 @@ const capturePresetThumbnail = async (path: string) => {
     const dataUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
     presetThumbs[path] = dataUrl;
     savePresetThumbnails();
-    renderPresetBrowser();
+    // Update the matching card thumb in-place rather than rebuilding the whole list
+    const card = presetBrowser.querySelector<HTMLElement>(`.preset-card[data-preset-path="${CSS.escape(path)}"]`);
+    if (card) {
+      const thumbEl = card.querySelector<HTMLElement>('.preset-thumb');
+      if (thumbEl) thumbEl.style.backgroundImage = `url('${dataUrl}')`;
+    }
+    renderPresetPreview();
   } catch {
     // Ignore thumbnail capture failures (likely tainted canvas).
   }
@@ -1434,83 +1683,39 @@ const crossfadeToPreset = async (path: string, name: string, fadeSeconds: number
 
 const renderPlaylist = () => {
   playlistList.innerHTML = '';
-  if (playlist.length === 0) {
+  const scenes = currentProject.scenes;
+  if (scenes.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'matrix-empty';
-    empty.textContent = 'No presets queued.';
+    empty.textContent = 'No scenes in timeline.';
     playlistList.appendChild(empty);
     return;
   }
-  playlist.forEach((item, index) => {
+  scenes.forEach((scene, index) => {
     const row = document.createElement('div');
     const isActive = playlistIndex === index && playlistActive;
     row.className = `marker-row playlist-slot${isActive ? ' active' : ''}`;
-    
+
     const indexLabel = document.createElement('div');
     indexLabel.className = 'slot-index';
     indexLabel.textContent = String(index + 1);
-    
+
     const name = document.createElement('div');
     name.className = 'slot-name';
-    name.textContent = item.name;
+    name.textContent = scene.name;
 
-    const durLabel = document.createElement('label');
-    durLabel.className = 'slot-inline';
-    durLabel.innerHTML = `<span class="slot-mini-label">Dur</span>`;
-    const durationInput = document.createElement('input');
-    durationInput.type = 'number';
-    durationInput.className = 'slot-input';
-    durationInput.value = String(item.duration);
-    durationInput.min = '1';
-    durationInput.addEventListener('change', () => {
-      item.duration = Math.max(1, Number(durationInput.value) || 16);
-      savePlaylist();
-    });
-    durLabel.appendChild(durationInput);
-
-    const fadeLabel = document.createElement('label');
-    fadeLabel.className = 'slot-inline';
-    fadeLabel.innerHTML = `<span class="slot-mini-label">Fade</span>`;
-    const fadeInput = document.createElement('input');
-    fadeInput.type = 'number';
-    fadeInput.className = 'slot-input';
-    fadeInput.value = String(item.crossfade);
-    fadeInput.min = '0';
-    fadeInput.step = '0.5';
-    fadeInput.addEventListener('change', () => {
-      item.crossfade = Math.max(0, Number(fadeInput.value) || 2);
-      savePlaylist();
-    });
-    fadeLabel.appendChild(fadeInput);
-
-    const controls = document.createElement('div');
-    controls.className = 'slot-controls';
-
-    const playNow = document.createElement('button');
-    playNow.className = 'slot-trigger';
-    playNow.textContent = '▶';
-    playNow.title = 'Trigger slot';
-    playNow.addEventListener('click', () => {
-      void triggerPlaylistSlot(index);
-    });
-
-    const remove = document.createElement('button');
-    remove.textContent = '✕';
-    remove.className = 'slot-remove';
-    remove.addEventListener('click', () => {
-      playlist = playlist.filter((_entry, i) => i !== index);
-      if (playlistIndex >= playlist.length) playlistIndex = 0;
-      savePlaylist();
-      renderPlaylist();
+    const trigger = document.createElement('button');
+    trigger.className = 'slot-trigger';
+    trigger.textContent = '▶';
+    trigger.title = 'Activate scene';
+    trigger.addEventListener('click', () => {
+      applyScene(scene.id);
+      setStatus(`Scene: ${scene.name}`);
     });
 
     row.appendChild(indexLabel);
     row.appendChild(name);
-    row.appendChild(durLabel);
-    row.appendChild(fadeLabel);
-    controls.appendChild(playNow);
-    controls.appendChild(remove);
-    row.appendChild(controls);
+    row.appendChild(trigger);
     playlistList.appendChild(row);
   });
 };
@@ -1716,7 +1921,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       await applyProject(resolvedProject);
     }
 
-    const presetName = playlist.find((item) => item.path === path)?.name ?? path;
+    const presetName = path.split(/[\\/]/).pop()?.replace(/\.\w+$/, '') ?? path;
     const message = `${reason ? `${reason}: ` : ''}Preset applied: ${presetName}`;
     if (migrationResult.warnings.length > 0) {
       setStatus(`${message} (${migrationResult.warnings.length} warnings - see console)`);
@@ -1727,40 +1932,23 @@ const applyPresetPath = async (path: string, reason?: string) => {
   }
 };
 
-const auditionPreset = async (path: string) => {
-  setStatus('Auditioning performance...');
-  await applyPresetPath(path, 'Audition');
-  
-  // Audition automatically sets tempo and mode
-  if (currentProject.tempoSync) {
-    syncTempoInputs(currentProject.tempoSync.bpm);
-    bpmSource = currentProject.tempoSync.source;
-    bpmSourceSelect.value = bpmSource;
-  }
-  
-  if (currentProject.activeModeId) {
-    visualModeSelect.value = currentProject.activeModeId;
-    applyVisualMode(currentProject.activeModeId);
-  }
-};
-
 const advancePlaylist = async () => {
-  if (playlist.length === 0) return;
-  
-  // Advance index
-  playlistIndex = (playlistIndex + 1) % playlist.length;
-  const item = playlist[playlistIndex];
-  
-  setStatus(`Sequencing: ${item.name}...`);
+  const scenes = currentProject.scenes;
+  if (scenes.length === 0) return;
+
+  // Advance index through scene timeline
+  playlistIndex = (playlistIndex + 1) % scenes.length;
+
+  setStatus(`Sequencing: ${scenes[playlistIndex].name}...`);
   await triggerPlaylistSlot(playlistIndex);
-  
+
   // Schedule next if still active
   if (playlistActive) {
     if (playlistTimer) window.clearTimeout(playlistTimer);
-    const durationMs = (item.duration || 16) * 1000;
+    const slotSec = Number(playlistSlotSeconds.value) || 16;
     playlistTimer = window.setTimeout(() => {
       void advancePlaylist();
-    }, durationMs);
+    }, slotSec * 1000);
   }
 };
 
@@ -1967,12 +2155,12 @@ const syncPerformanceToggles = () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
   const spectrumLayer = scene.layers.find((layer) => layer.id === 'layer-spectrum');
-  if (spectrumLayer) perfToggleSpectrum.checked = spectrumLayer.enabled;
+  if (spectrumLayer && perfToggleSpectrum) perfToggleSpectrum.checked = spectrumLayer.enabled;
 };
 
 const initSpectrumHint = () => {
   const dismissed = localStorage.getItem('visualsynth.spectrumHintDismissed') === '1';
-  spectrumHint.classList.toggle('hidden', dismissed);
+  spectrumHint?.classList.toggle('hidden', dismissed);
 };
 
 const updateSafeModeBanner = () => {
@@ -2063,29 +2251,7 @@ const modSourceOptions = [
   { id: 'macro-8', label: 'Macro 8' }
 ];
 
-const modTargetOptions = [
-  { id: 'layer-plasma.opacity', label: 'Plasma Opacity', min: 0, max: 1 },
-  { id: 'layer-plasma.speed', label: 'Plasma Speed', min: 0.1, max: 3 },
-  { id: 'layer-plasma.scale', label: 'Plasma Scale', min: 0.1, max: 3 },
-  { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity', min: 0, max: 1 },
-  { id: 'layer-origami.opacity', label: 'Origami Opacity', min: 0, max: 1 },
-  { id: 'layer-origami.speed', label: 'Origami Speed', min: 0.1, max: 3 },
-  { id: 'layer-glyph.opacity', label: 'Glyph Opacity', min: 0, max: 1 },
-  { id: 'layer-glyph.speed', label: 'Glyph Speed', min: 0.1, max: 3 },
-  { id: 'layer-crystal.opacity', label: 'Crystal Opacity', min: 0, max: 1 },
-  { id: 'layer-crystal.scale', label: 'Crystal Scale', min: 0.1, max: 3 },
-  { id: 'layer-crystal.speed', label: 'Crystal Speed', min: 0.1, max: 3 },
-  { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity', min: 0, max: 1 },
-  { id: 'layer-inkflow.speed', label: 'Ink Flow Speed', min: 0.1, max: 3 },
-  { id: 'layer-inkflow.scale', label: 'Ink Flow Scale', min: 0.1, max: 3 },
-  { id: 'layer-topo.opacity', label: 'Topo Opacity', min: 0, max: 1 },
-  { id: 'layer-topo.scale', label: 'Topo Scale', min: 0.1, max: 3 },
-  { id: 'layer-topo.elevation', label: 'Topo Elevation', min: 0, max: 1 },
-  { id: 'layer-weather.opacity', label: 'Weather Opacity', min: 0, max: 1 },
-  { id: 'layer-weather.speed', label: 'Weather Speed', min: 0.1, max: 3 },
-  { id: 'layer-portal.opacity', label: 'Portal Opacity', min: 0, max: 1 },
-  { id: 'layer-media.opacity', label: 'Media Opacity', min: 0, max: 1 },
-  { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity', min: 0, max: 1 },
+const globalModTargets = [
   { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
   { id: 'style.saturation', label: 'Style Saturation', min: 0.6, max: 1.8 },
   { id: 'style.paletteShift', label: 'Palette Shift', min: -0.5, max: 0.5 },
@@ -2107,48 +2273,36 @@ const modTargetOptions = [
   { id: 'sdf.fill', label: 'SDF Fill', min: 0, max: 1 }
 ];
 
+function buildModTargetOptions() {
+  const activeScene =
+    currentProject.scenes.find((s) => s.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const layerTargets: { id: string; label: string; min: number; max: number }[] = [];
+  for (const layer of activeScene?.layers ?? []) {
+    const genId = layer.generatorId ?? layer.id;
+    const layerType = getLayerType(genId);
+    if (!layerType) continue;
+    const legacyPrefix = buildLegacyTarget(layerType.id, '').replace(/\.$/, '');
+    const params = getModulatableParams(genId);
+    for (const p of params) {
+      if (p.type !== 'number') continue;
+      layerTargets.push({
+        id: `${legacyPrefix}.${p.id}`,
+        label: `${layer.name || layerType.name} ${p.name}`,
+        min: p.min ?? 0,
+        max: p.max ?? 1
+      });
+    }
+  }
+  return [...layerTargets, ...globalModTargets];
+}
+
+let modTargetOptions = buildModTargetOptions();
+
 const getTargetDefaults = (targetId: string) =>
   modTargetOptions.find((item) => item.id === targetId) ?? { min: 0, max: 1 };
 
-const midiTargetOptions = [
-  { id: 'layer-plasma.enabled', label: 'Plasma Enabled' },
-  { id: 'layer-spectrum.enabled', label: 'Spectrum Enabled' },
-  { id: 'layer-origami.enabled', label: 'Origami Enabled' },
-  { id: 'layer-glyph.enabled', label: 'Glyph Enabled' },
-  { id: 'layer-crystal.enabled', label: 'Crystal Enabled' },
-  { id: 'layer-inkflow.enabled', label: 'Ink Flow Enabled' },
-  { id: 'layer-topo.enabled', label: 'Topo Enabled' },
-  { id: 'layer-weather.enabled', label: 'Weather Enabled' },
-  { id: 'layer-portal.enabled', label: 'Portal Enabled' },
-  { id: 'layer-media.enabled', label: 'Media Enabled' },
-  { id: 'layer-oscillo.enabled', label: 'Oscillo Enabled' },
-  { id: 'layer-plasma.opacity', label: 'Plasma Opacity' },
-  { id: 'layer-plasma.speed', label: 'Plasma Speed' },
-  { id: 'layer-plasma.scale', label: 'Plasma Scale' },
-  { id: 'layer-spectrum.opacity', label: 'Spectrum Opacity' },
-  { id: 'layer-origami.opacity', label: 'Origami Opacity' },
-  { id: 'layer-origami.speed', label: 'Origami Speed' },
-  { id: 'layer-glyph.opacity', label: 'Glyph Opacity' },
-  { id: 'layer-glyph.speed', label: 'Glyph Speed' },
-  { id: 'layer-crystal.opacity', label: 'Crystal Opacity' },
-  { id: 'layer-crystal.scale', label: 'Crystal Scale' },
-  { id: 'layer-crystal.speed', label: 'Crystal Speed' },
-  { id: 'layer-inkflow.opacity', label: 'Ink Flow Opacity' },
-  { id: 'layer-inkflow.speed', label: 'Ink Flow Speed' },
-  { id: 'layer-inkflow.scale', label: 'Ink Flow Scale' },
-  { id: 'layer-topo.opacity', label: 'Topo Opacity' },
-  { id: 'layer-topo.scale', label: 'Topo Scale' },
-  { id: 'layer-topo.elevation', label: 'Topo Elevation' },
-  { id: 'layer-weather.opacity', label: 'Weather Opacity' },
-  { id: 'layer-weather.speed', label: 'Weather Speed' },
-  { id: 'layer-portal.opacity', label: 'Portal Opacity' },
-  { id: 'layer-media.opacity', label: 'Media Opacity' },
-  { id: 'layer-media.burst', label: 'Media Burst' },
-  { id: 'layer-oscillo.opacity', label: 'Oscillo Opacity' },
-  { id: 'gen-laser-beam.opacity', label: 'Laser Opacity' },
-  { id: 'gen-laser-beam.beamWidth', label: 'Laser Beam Width' },
-  { id: 'gen-laser-beam.rotationSpeed', label: 'Laser Sweep Speed' },
-  { id: 'gen-laser-beam.colorShift', label: 'Laser Color Shift' },
+const globalMidiTargets = [
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
   { id: 'style.paletteShift', label: 'Palette Shift' },
@@ -2184,6 +2338,35 @@ const midiTargetOptions = [
   { id: 'playlist-slot-7', label: 'Playlist Slot 7' },
   { id: 'playlist-slot-8', label: 'Playlist Slot 8' }
 ];
+
+function buildMidiTargetOptions() {
+  const activeScene =
+    currentProject.scenes.find((s) => s.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const layerTargets: { id: string; label: string }[] = [];
+  for (const layer of activeScene?.layers ?? []) {
+    const genId = layer.generatorId ?? layer.id;
+    const layerType = getLayerType(genId);
+    if (!layerType) continue;
+    const legacyPrefix = buildLegacyTarget(layerType.id, '').replace(/\.$/, '');
+    // Add enabled toggle
+    layerTargets.push({
+      id: `${legacyPrefix}.enabled`,
+      label: `${layer.name || layerType.name} Enabled`
+    });
+    const params = getMidiMappableParams(genId);
+    for (const p of params) {
+      if (p.type !== 'number') continue;
+      layerTargets.push({
+        id: `${legacyPrefix}.${p.id}`,
+        label: `${layer.name || layerType.name} ${p.name}`
+      });
+    }
+  }
+  return [...layerTargets, ...globalMidiTargets];
+}
+
+let midiTargetOptions = buildMidiTargetOptions();
 
 const normalizeOutputScale = (value: number) => Math.min(1, Math.max(0.25, value));
 
@@ -2548,6 +2731,109 @@ const addSceneToProject = (scene: SceneConfig, activate = false) => {
   if (activate) applyScene(scene.id);
 };
 
+const addSceneFromSourceProject = (
+  sourceProject: VisualSynthProject,
+  options: {
+    sourceSceneId?: string;
+    sceneName: string;
+    explicitPaletteId?: string;
+    statusLabel: string;
+  }
+) => {
+  if (!sourceProject.scenes.length) {
+    setStatus('Imported file has no scenes.');
+    return null;
+  }
+
+  const sourceScene =
+    sourceProject.scenes.find((scene) => scene.id === options.sourceSceneId) ??
+    sourceProject.scenes.find((scene) => scene.id === sourceProject.activeSceneId) ??
+    sourceProject.scenes[0];
+
+  const assetIdMap = new Map<string, string>();
+  const referencedAssetIds = new Set<string>();
+  sourceScene.layers.forEach((layer) => {
+    if (layer.assetId) referencedAssetIds.add(layer.assetId);
+  });
+
+  if (sourceProject.assets?.length && referencedAssetIds.size > 0) {
+    const nextAssets = [...currentProject.assets];
+    sourceProject.assets.forEach((asset) => {
+      if (!referencedAssetIds.has(asset.id)) return;
+      const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
+      const newId = hasCollision ? getNextAssetId() : asset.id;
+      assetIdMap.set(asset.id, newId);
+      nextAssets.push({ ...cloneValue(asset), id: newId });
+    });
+    currentProject.assets = nextAssets;
+    renderAssets();
+  }
+
+  const look: SceneLook = {
+    effects: cloneValue(sourceProject.effects || {}),
+    particles: cloneValue(sourceProject.particles || {}),
+    sdf: cloneValue(sourceProject.sdf || {}),
+    visualizer: cloneValue(sourceProject.visualizer || {}),
+    stylePresets: cloneValue(sourceProject.stylePresets || []),
+    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
+    palettes: cloneValue(sourceProject.palettes || []),
+    activePaletteId: options.explicitPaletteId,
+    macros: cloneValue(sourceProject.macros || []),
+    modMatrix: cloneValue(sourceProject.modMatrix || [])
+  };
+
+  const newSceneId = getNextSceneId();
+  const newScene: SceneConfig = {
+    id: newSceneId,
+    scene_id: newSceneId,
+    name: getUniqueSceneName(options.sceneName),
+    intent: sourceScene.intent ?? 'ambient',
+    duration: typeof sourceScene.duration === 'number' ? sourceScene.duration : 0,
+    transition_in: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_in ?? {}) },
+    transition_out: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_out ?? {}) },
+    trigger: { ...DEFAULT_SCENE_TRIGGER, ...(sourceScene.trigger ?? {}) },
+    assigned_layers: {
+      core: sourceScene.assigned_layers?.core ?? [],
+      support: sourceScene.assigned_layers?.support ?? [],
+      atmosphere: sourceScene.assigned_layers?.atmosphere ?? []
+    },
+    layers: sourceScene.layers.map((layer) => {
+      const cloned = cloneLayerConfig(layer);
+      if (cloned.assetId && assetIdMap.has(cloned.assetId)) {
+        cloned.assetId = assetIdMap.get(cloned.assetId);
+      }
+      return cloned;
+    }),
+    look,
+    _shaderData: sourceScene._shaderData ? cloneValue(sourceScene._shaderData) : undefined
+  };
+
+  addSceneToProject(newScene, false);
+  selectedSceneId = newScene.id;
+  renderSceneStrip();
+  renderSceneTimeline();
+  renderPlaylist();
+  setStatus(`${options.statusLabel}: ${newScene.name}`);
+  return newScene.id;
+};
+
+const addSceneFromExchangePayload = (payload: Extract<ExchangePayload, { kind: 'scene' }>) => {
+  const nextProject = applyExchangePayload(currentProject, payload);
+  const newScene = nextProject.scenes[nextProject.scenes.length - 1];
+  currentProject = nextProject;
+  refreshSceneSelect();
+  selectedSceneId = newScene?.id ?? null;
+  renderSceneStrip();
+  renderSceneTimeline();
+  renderPlaylist();
+  if (newScene) {
+    applyScene(newScene.id);
+    setStatus(`Scene loaded: ${newScene.name}`);
+    return newScene.id;
+  }
+  return null;
+};
+
 const removeScene = (sceneId: string) => {
   if (currentProject.scenes.length <= 1) {
     setStatus('At least one scene is required.');
@@ -2566,6 +2852,7 @@ const removeScene = (sceneId: string) => {
     refreshSceneSelect();
   }
   renderSceneStrip();
+  renderPlaylist();
   setStatus('Scene removed.');
 };
 
@@ -2587,14 +2874,15 @@ const updateOutputUI = () => {
 const setSceneStripView = (view: 'cards' | 'list') => {
   sceneStripView = view;
   localStorage.setItem('vs.sceneStrip.view', view);
-  sceneStripCards.classList.toggle('hidden', view !== 'cards');
-  sceneStripList.classList.toggle('hidden', view !== 'list');
+  sceneStripCards?.classList.toggle('hidden', view !== 'cards');
+  sceneStripList?.classList.toggle('hidden', view !== 'list');
   sceneStripViewButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.sceneView === view);
   });
 };
 
 const renderSceneStrip = () => {
+  if (!sceneStripCards || !sceneStripList) return;
   sceneStripCards.innerHTML = '';
   sceneStripList.innerHTML = '';
   if (currentProject.scenes.length === 0) {
@@ -2675,8 +2963,198 @@ const closeSceneTimelineMenu = () => {
   }
 };
 
+const saveSceneAsPreset = async (sceneId: string) => {
+  const scene = currentProject.scenes.find((entry) => entry.id === sceneId);
+  if (!scene) {
+    setStatus('Scene preset save failed.');
+    return;
+  }
+
+  try {
+    const preset = createScenePreset(currentProject, sceneId);
+    const safeName = scene.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || sceneId;
+    const result = await window.visualSynth.savePreset(
+      JSON.stringify(preset, null, 2),
+      `preset-${safeName}.json`
+    );
+    if (!result.canceled) {
+      setStatus(`Scene preset saved: ${scene.name}`);
+    }
+  } catch (error) {
+    setStatus('Scene preset save failed.');
+  }
+};
+
+const importSceneFromDisk = async () => {
+  const result = await window.visualSynth.openSceneFile();
+  if (result.canceled || !result.payload) return;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.payload);
+  } catch {
+    setStatus('Scene import failed: invalid JSON.');
+    return;
+  }
+
+  const exchangePayload = parsed as Partial<ExchangePayload>;
+  if (exchangePayload.kind === 'scene' && exchangePayload.version === 1 && exchangePayload.scene) {
+    addSceneFromExchangePayload(exchangePayload as Extract<ExchangePayload, { kind: 'scene' }>);
+    return;
+  }
+
+  const parsedProject = projectSchema.safeParse(parsed);
+  if (parsedProject.success) {
+    addSceneFromSourceProject(parsedProject.data, {
+      sceneName: parsedProject.data.scenes.find((scene) => scene.id === parsedProject.data.activeSceneId)?.name
+        ?? parsedProject.data.scenes[0]?.name
+        ?? 'Imported Scene',
+      explicitPaletteId:
+        parsedProject.data.activePaletteId ||
+        parsedProject.data.scenes[0]?.look?.activePaletteId ||
+        undefined,
+      statusLabel: 'Scene imported'
+    });
+    return;
+  }
+
+  const presetMigration = await import('../shared/presetMigration');
+  const migrationResult = presetMigration.migratePreset(parsed);
+  if (!migrationResult.success) {
+    setStatus(`Scene import failed: ${migrationResult.errors.join(', ') || 'unsupported file.'}`);
+    return;
+  }
+
+  const validationResult = presetMigration.validatePreset(migrationResult.preset);
+  if (!validationResult.valid) {
+    setStatus(`Scene import failed: ${validationResult.errors.join(', ') || 'invalid preset.'}`);
+    return;
+  }
+
+  const migratedPreset = migrationResult.preset;
+  let sourceProject: VisualSynthProject | null = null;
+  if (migratedPreset.version === 6) {
+    sourceProject = presetMigration.applyPresetV6(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 5) {
+    sourceProject = presetMigration.applyPresetV5(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 4) {
+    sourceProject = presetMigration.applyPresetV4(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 3) {
+    sourceProject = presetMigration.applyPresetV3(migratedPreset, currentProject).project ?? null;
+  } else if (projectSchema.safeParse(migratedPreset).success) {
+    sourceProject = migratedPreset as VisualSynthProject;
+  }
+
+  if (!sourceProject) {
+    setStatus('Scene import failed: file has no importable scene.');
+    return;
+  }
+
+  addSceneFromSourceProject(sourceProject, {
+    sceneName:
+      migratedPreset.metadata?.name ||
+      sourceProject.scenes.find((scene) => scene.id === sourceProject.activeSceneId)?.name ||
+      sourceProject.scenes[0]?.name ||
+      'Imported Scene',
+    explicitPaletteId:
+      migratedPreset.activePaletteId ||
+      migratedPreset.project?.activePaletteId ||
+      migratedPreset.project?.scenes?.[0]?.look?.activePaletteId ||
+      undefined,
+    statusLabel: 'Scene imported'
+  });
+};
+
+const SCENE_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
+  { label: 'Cut (instant)', transition: null },
+  { label: 'Fade 0.5s', transition: { type: 'fade', durationMs: 500, curve: 'easeInOut' } },
+  { label: 'Fade 1s', transition: { type: 'fade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Fade 2s', transition: { type: 'fade', durationMs: 2000, curve: 'easeInOut' } },
+  { label: 'Crossfade 0.5s', transition: { type: 'crossfade', durationMs: 500, curve: 'easeInOut' } },
+  { label: 'Crossfade 1s', transition: { type: 'crossfade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Warp', transition: { type: 'warp', durationMs: 600, curve: 'easeInOut' } },
+  { label: 'Glitch', transition: { type: 'glitch', durationMs: 300, curve: 'linear' } },
+  { label: 'Dissolve 1s', transition: { type: 'dissolve', durationMs: 1000, curve: 'easeInOut' } },
+];
+
 const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName: string) => {
   closeSceneTimelineMenu();
+
+  const submenus: HTMLElement[] = [];
+
+  const styleMenuBtn = (btn: HTMLButtonElement) => {
+    btn.type = 'button';
+    btn.style.display = 'block';
+    btn.style.width = '100%';
+    btn.style.textAlign = 'left';
+    btn.style.background = 'transparent';
+    btn.style.color = '#e6eef8';
+    btn.style.border = '0';
+    btn.style.padding = '8px 10px';
+    btn.style.cursor = 'pointer';
+    btn.style.fontSize = '13px';
+    btn.onmouseenter = () => { btn.style.background = '#1f2633'; };
+    btn.onmouseleave = () => { btn.style.background = 'transparent'; };
+  };
+
+  const makeSubmenuItem = (
+    parent: HTMLElement,
+    label: string,
+    onSelect: (transition: SceneTransition | null) => void
+  ) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+
+    const btn = document.createElement('button');
+    btn.textContent = `${label}  ›`;
+    styleMenuBtn(btn);
+    wrapper.appendChild(btn);
+    parent.appendChild(wrapper);
+
+    const submenu = document.createElement('div');
+    submenu.style.position = 'fixed';
+    submenu.style.display = 'none';
+    submenu.style.background = '#141a24';
+    submenu.style.border = '1px solid #2a3344';
+    submenu.style.borderRadius = '6px';
+    submenu.style.padding = '6px';
+    submenu.style.boxShadow = '0 6px 18px rgba(0,0,0,0.45)';
+    submenu.style.zIndex = '10000';
+    submenu.style.minWidth = '160px';
+    document.body.appendChild(submenu);
+    submenus.push(submenu);
+
+    SCENE_TRANSITION_OPTIONS.forEach(({ label: tLabel, transition }) => {
+      const tBtn = document.createElement('button');
+      tBtn.textContent = tLabel;
+      styleMenuBtn(tBtn);
+      tBtn.onclick = () => {
+        onSelect(transition);
+        closeSceneTimelineMenu();
+      };
+      submenu.appendChild(tBtn);
+    });
+
+    const hideTimer = { id: 0 };
+    const startHide = () => { hideTimer.id = window.setTimeout(() => { submenu.style.display = 'none'; }, 120); };
+    const cancelHide = () => clearTimeout(hideTimer.id);
+
+    btn.addEventListener('mouseenter', () => {
+      submenus.forEach((s) => { if (s !== submenu) s.style.display = 'none'; });
+      const r = btn.getBoundingClientRect();
+      submenu.style.left = `${r.right + 2}px`;
+      submenu.style.top = `${r.top}px`;
+      submenu.style.display = 'block';
+      const sr = submenu.getBoundingClientRect();
+      if (sr.right > window.innerWidth - 4) submenu.style.left = `${r.left - sr.width - 2}px`;
+      if (sr.bottom > window.innerHeight - 4) submenu.style.top = `${r.top - (sr.bottom - window.innerHeight) - 4}px`;
+      cancelHide();
+    });
+    btn.addEventListener('mouseleave', startHide);
+    submenu.addEventListener('mouseenter', cancelHide);
+    submenu.addEventListener('mouseleave', startHide);
+  };
+
   const menu = document.createElement('div');
   menu.style.position = 'fixed';
   menu.style.left = `${x}px`;
@@ -2689,50 +3167,43 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   menu.style.zIndex = '9999';
   menu.style.minWidth = '180px';
 
-  const queueBtn = document.createElement('button');
-  queueBtn.type = 'button';
-  queueBtn.textContent = 'Queue in 4 beats';
-  queueBtn.style.display = 'block';
-  queueBtn.style.width = '100%';
-  queueBtn.style.textAlign = 'left';
-  queueBtn.style.background = 'transparent';
-  queueBtn.style.color = '#e6eef8';
-  queueBtn.style.border = '0';
-  queueBtn.style.padding = '8px 10px';
-  queueBtn.style.cursor = 'pointer';
-  queueBtn.onmouseenter = () => { queueBtn.style.background = '#1f2633'; };
-  queueBtn.onmouseleave = () => { queueBtn.style.background = 'transparent'; };
-  queueBtn.onclick = () => {
+  makeSubmenuItem(menu, 'Activate Now', (transition) => {
+    const targetScene = currentProject.scenes.find((s) => s.id === sceneId);
+    if (targetScene && transition !== undefined) {
+      const orig = targetScene.transition_in;
+      targetScene.transition_in = transition ?? { durationMs: 0, curve: 'linear' };
+      applyScene(sceneId);
+      targetScene.transition_in = orig;
+    } else {
+      applyScene(sceneId);
+    }
+  });
+
+  makeSubmenuItem(menu, 'Queue in 4 beats', (transition) => {
     const bpm = getActiveBpm();
     const now = performance.now();
     const beatMs = getBeatMs(bpm);
     const nextBeat = getNextQuantizedTimeMs(now, bpm, 'quarter');
     const scheduledTimeMs = nextBeat + beatMs * 3;
-    pendingSceneSwitch = { targetSceneId: sceneId, scheduledTimeMs };
+    pendingSceneSwitch = { targetSceneId: sceneId, scheduledTimeMs, transitionOverride: transition };
     setStatus(`Queued scene switch to ${sceneName} (4 beats)`);
+  });
+
+  const divider = document.createElement('div');
+  divider.style.height = '1px';
+  divider.style.margin = '4px 0';
+  divider.style.background = '#2a3344';
+  menu.appendChild(divider);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save As';
+  styleMenuBtn(saveBtn);
+  saveBtn.onclick = () => {
+    void saveSceneAsPreset(sceneId);
     closeSceneTimelineMenu();
   };
+  menu.appendChild(saveBtn);
 
-  const activateBtn = document.createElement('button');
-  activateBtn.type = 'button';
-  activateBtn.textContent = 'Activate Now';
-  activateBtn.style.display = 'block';
-  activateBtn.style.width = '100%';
-  activateBtn.style.textAlign = 'left';
-  activateBtn.style.background = 'transparent';
-  activateBtn.style.color = '#e6eef8';
-  activateBtn.style.border = '0';
-  activateBtn.style.padding = '8px 10px';
-  activateBtn.style.cursor = 'pointer';
-  activateBtn.onmouseenter = () => { activateBtn.style.background = '#1f2633'; };
-  activateBtn.onmouseleave = () => { activateBtn.style.background = 'transparent'; };
-  activateBtn.onclick = () => {
-    applyScene(sceneId);
-    closeSceneTimelineMenu();
-  };
-
-  menu.appendChild(queueBtn);
-  menu.appendChild(activateBtn);
   document.body.appendChild(menu);
 
   const rect = menu.getBoundingClientRect();
@@ -2742,7 +3213,9 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   menu.style.top = `${Math.max(6, clampY)}px`;
 
   const onDocClick = (event: MouseEvent) => {
-    if (!menu.contains(event.target as Node)) closeSceneTimelineMenu();
+    const inMenu = menu.contains(event.target as Node);
+    const inSub = submenus.some((s) => s.contains(event.target as Node));
+    if (!inMenu && !inSub) closeSceneTimelineMenu();
   };
   const onKey = (event: KeyboardEvent) => {
     if (event.key === 'Escape') closeSceneTimelineMenu();
@@ -2752,6 +3225,7 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   sceneTimelineMenuCleanup = () => {
     document.removeEventListener('mousedown', onDocClick, true);
     document.removeEventListener('keydown', onKey);
+    submenus.forEach((s) => s.remove());
   };
   sceneTimelineMenu = menu;
 };
@@ -2765,6 +3239,15 @@ const renderSceneTimeline = () => {
     onSelect: (sceneId, sceneName) => {
       selectedSceneId = sceneId;
       previewSceneId = sceneId;
+      const scene = currentProject.scenes.find((s) => s.id === sceneId);
+      if (scene) {
+        compileSceneShaders(
+          renderer,
+          scene,
+          currentProject.customShaderBlocks ?? [],
+          currentProject.sdf?.enabled ?? false
+        );
+      }
       renderSceneStrip();
       setStatus(`Scene preview: ${sceneName}`);
     },
@@ -2774,6 +3257,9 @@ const renderSceneTimeline = () => {
     },
     onContextMenu: (sceneId, sceneName, event) => {
       showSceneTimelineMenu(event.clientX, event.clientY, sceneId, sceneName);
+    },
+    onImport: () => {
+      void importSceneFromDisk();
     }
   });
 };
@@ -2813,6 +3299,7 @@ const updateSceneTimelineProgress = (blendSnapshot: { mix: number; inTransition:
 };
 
 const refreshSceneSelect = () => {
+  if (!sceneSelect) return;
   sceneSelect.innerHTML = '';
   currentProject.scenes.forEach((scene) => {
     const option = document.createElement('option');
@@ -3082,25 +3569,52 @@ const renderLayerList = () => {
                   pLabel.textContent = param.name;
                   pLabel.className = 'param-label';
                   
-                  const pInput = document.createElement('input');
-                  pInput.type = 'range';
-                  pInput.min = String(param.min ?? 0);
-                  pInput.max = String(param.max ?? 1);
-                  pInput.step = String(0.01);
-                  pInput.value = String(layer.params?.[param.id] ?? param.default);
-                  pInput.className = 'param-slider';
+                  if (param.type === 'enum' && param.options) {
+                      const pSelect = document.createElement('select');
+                      pSelect.className = 'param-select';
+                      
+                      param.options.forEach(opt => {
+                          const option = document.createElement('option');
+                          option.value = String(opt.value);
+                          option.textContent = opt.label;
+                          pSelect.appendChild(option);
+                      });
+                      
+                      pSelect.value = String(layer.params?.[param.id] ?? param.default);
+                      
+                      pSelect.dataset.learnTarget = `${layer.id}.${param.id}`;
+                      pSelect.dataset.learnLabel = `${layer.name} ${param.name}`;
+                      
+                      pSelect.addEventListener('change', () => {
+                          if (!layer.params) layer.params = {};
+                          layer.params[param.id] = Number(pSelect.value);
+                          recordPlaylistOverride(layer.id, { params: { [param.id]: Number(pSelect.value) } });
+                      });
+                      
+                      paramRow.appendChild(pLabel);
+                      paramRow.appendChild(pSelect);
+                  } else {
+                      const pInput = document.createElement('input');
+                      pInput.type = 'range';
+                      pInput.min = String(param.min ?? 0);
+                      pInput.max = String(param.max ?? 1);
+                      pInput.step = String(0.01);
+                      pInput.value = String(layer.params?.[param.id] ?? param.default);
+                      pInput.className = 'param-slider';
+                      
+                      pInput.dataset.learnTarget = `${layer.id}.${param.id}`;
+                      pInput.dataset.learnLabel = `${layer.name} ${param.name}`;
+                      
+                      pInput.addEventListener('input', () => {
+                          if (!layer.params) layer.params = {};
+                          layer.params[param.id] = Number(pInput.value);
+                          recordPlaylistOverride(layer.id, { params: { [param.id]: Number(pInput.value) } });
+                      });
+                      
+                      paramRow.appendChild(pLabel);
+                      paramRow.appendChild(pInput);
+                  }
                   
-                  pInput.dataset.learnTarget = `${layer.id}.${param.id}`;
-                  pInput.dataset.learnLabel = `${layer.name} ${param.name}`;
-                  
-                  pInput.addEventListener('input', () => {
-                      if (!layer.params) layer.params = {};
-                      layer.params[param.id] = Number(pInput.value);
-                      recordPlaylistOverride(layer.id, { params: { [param.id]: Number(pInput.value) } });
-                  });
-                  
-                  paramRow.appendChild(pLabel);
-                  paramRow.appendChild(pInput);
                   paramsContainer.appendChild(paramRow);
               });
               assetControl.appendChild(paramsContainer);
@@ -3230,9 +3744,20 @@ const renderModMatrix = () => {
     return;
   }
 
-  currentProject.modMatrix.forEach((connection) => {
+  currentProject.modMatrix.forEach((connection, index) => {
     const row = document.createElement('div');
     row.className = 'matrix-row';
+    if (connection.enabled === false) row.classList.add('matrix-row-disabled');
+
+    const enableButton = document.createElement('button');
+    enableButton.className = 'mod-enable-btn' + (connection.enabled === false ? ' disabled' : '');
+    enableButton.textContent = connection.enabled === false ? '○' : '●';
+    enableButton.title = connection.enabled === false ? 'Enable modulation' : 'Disable modulation';
+    enableButton.addEventListener('click', () => {
+      connection.enabled = connection.enabled === false ? true : false;
+      renderModMatrix();
+      renderLayerList();
+    });
 
     const sourceSelect = document.createElement('select');
     modSourceOptions.forEach((option) => {
@@ -3333,6 +3858,15 @@ const renderModMatrix = () => {
       connection.max = Number(maxInput.value);
     });
 
+    const midiLearnBtn = document.createElement('button');
+    midiLearnBtn.className = 'midi-learn-btn';
+    midiLearnBtn.textContent = 'M';
+    midiLearnBtn.title = 'MIDI learn toggle for this mod connection';
+    midiLearnBtn.addEventListener('click', () => {
+      armMidiLearn(`modMatrix.${index}.enabled`, `Mod ${index + 1} Enable`);
+    });
+
+    row.appendChild(enableButton);
     row.appendChild(sourceSelect);
     row.appendChild(targetSelect);
     row.appendChild(amountInput);
@@ -3341,6 +3875,7 @@ const renderModMatrix = () => {
     row.appendChild(bipolarToggle);
     row.appendChild(minInput);
     row.appendChild(maxInput);
+    row.appendChild(midiLearnBtn);
     row.appendChild(removeButton);
     modMatrixList.appendChild(row);
   });
@@ -3361,7 +3896,8 @@ const addModConnection = () => {
       smoothing: 0.1,
       bipolar: false,
       min: defaults.min,
-      max: defaults.max
+      max: defaults.max,
+      enabled: true
     }
   ];
   renderModMatrix();
@@ -3522,19 +4058,12 @@ const renderMappingSources = () => {
 const renderMappingTargets = (filterText = '') => {
   if (!mappingTargetList) return;
   const filter = filterText.trim().toLowerCase();
-  const activeScene =
-    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
-    currentProject.scenes[0];
-  const availableLayerIds = new Set((activeScene?.layers ?? []).map((layer) => layer.id));
   mappingTargetList.innerHTML = '';
+  // modTargetOptions is already scoped to active scene layers via buildModTargetOptions()
   const targets = modTargetOptions
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
     .filter((target) => {
-      if (target.id.startsWith('layer-')) {
-        const layerId = target.id.split('.')[0];
-        if (!availableLayerIds.has(layerId)) return false;
-      }
       return filter ? target.label.toLowerCase().includes(filter) : true;
     });
 
@@ -3602,7 +4131,8 @@ const initDragAndDropMapping = () => {
           smoothing: 0.1,
           bipolar: false,
           min: defaults.min,
-          max: defaults.max
+          max: defaults.max,
+          enabled: true
         });
         renderModMatrix();
         setStatus(`Mapped ${sourceId} to ${dropTarget.dataset.learnLabel || targetId}`);
@@ -4882,11 +5412,32 @@ const updateLfos = (dt: number, bpm: number) => {
   });
 };
 
+const LFO_SYNC_DIVISIONS: { label: string; beats: number }[] = [
+  { label: '1/16',   beats: 0.25 },
+  { label: '1/16T',  beats: 0.25 * 2 / 3 },
+  { label: '1/16·3/5', beats: 0.25 * 3 / 5 },
+  { label: '1/8',    beats: 0.5 },
+  { label: '1/8T',   beats: 0.5 * 2 / 3 },
+  { label: '1/8·3/5', beats: 0.5 * 3 / 5 },
+  { label: '1/4',    beats: 1 },
+  { label: '1/4T',   beats: 1 * 2 / 3 },
+  { label: '1/4·3/5', beats: 1 * 3 / 5 },
+  { label: '1/2',    beats: 2 },
+  { label: '1/2T',   beats: 2 * 2 / 3 },
+  { label: '1/2·3/5', beats: 2 * 3 / 5 },
+  { label: '1 beat',  beats: 4 },
+  { label: '1 beatT', beats: 4 * 2 / 3 },
+  { label: '1 beat·3/5', beats: 4 * 3 / 5 },
+  { label: '2 beats', beats: 8 },
+  { label: '2 beatsT', beats: 8 * 2 / 3 },
+  { label: '2 beats·3/5', beats: 8 * 3 / 5 },
+];
+
 const renderLfoList = () => {
   lfoList.innerHTML = '';
   currentProject.lfos.forEach((lfo, index) => {
     const row = document.createElement('div');
-    row.className = 'mod-row';
+    row.className = 'mod-row lfo-row';
     const label = document.createElement('div');
     label.textContent = lfo.name;
 
@@ -4905,27 +5456,47 @@ const renderLfoList = () => {
     shapeWrap.appendChild(shapeText);
     shapeWrap.appendChild(shapeSelect);
 
+    // Rate division dropdown (sync divisions + Hz)
+    const divisionSelect = document.createElement('select');
+    divisionSelect.className = 'lfo-division-select';
+    const hzOption = document.createElement('option');
+    hzOption.value = 'hz';
+    hzOption.textContent = 'Hz';
+    divisionSelect.appendChild(hzOption);
+    LFO_SYNC_DIVISIONS.forEach((div) => {
+      const option = document.createElement('option');
+      option.value = div.label;
+      option.textContent = div.label;
+      divisionSelect.appendChild(option);
+    });
+    // Set current selection
+    const currentDivision = lfo.syncDivision ?? (lfo.sync ? '1/4' : 'hz');
+    divisionSelect.value = currentDivision;
+    // If saved division doesn't match any option, fall back
+    if (divisionSelect.value !== currentDivision) {
+      divisionSelect.value = lfo.sync ? '1/4' : 'hz';
+    }
+    const divisionWrap = document.createElement('label');
+    divisionWrap.className = 'dial-toggle';
+    const divisionText = document.createElement('span');
+    divisionText.textContent = 'Rate';
+    divisionWrap.appendChild(divisionText);
+    divisionWrap.appendChild(divisionSelect);
+
+    // Hz rate dial (only visible when Hz is selected)
     const rateDial = createDial({
-      value: lfo.rate,
+      value: lfo.sync ? 1 : lfo.rate,
       min: 0.05,
-      max: 8,
+      max: 20,
       step: 0.05,
       onChange: (value) => {
         lfo.rate = value;
       },
-      title: 'Rate',
-      label: 'Rate'
+      title: 'Hz',
+      label: 'Hz'
     });
-
-    const syncToggle = document.createElement('input');
-    syncToggle.type = 'checkbox';
-    syncToggle.checked = lfo.sync;
-    const syncWrap = document.createElement('label');
-    syncWrap.className = 'dial-toggle';
-    const syncText = document.createElement('span');
-    syncText.textContent = 'Sync';
-    syncWrap.appendChild(syncText);
-    syncWrap.appendChild(syncToggle);
+    const isHz = divisionSelect.value === 'hz';
+    rateDial.wrapper.style.display = isHz ? '' : 'none';
 
     const phaseDial = createDial({
       value: lfo.phase,
@@ -4947,8 +5518,18 @@ const renderLfoList = () => {
     rateDial.input.addEventListener('change', () => {
       lfo.rate = Number(rateDial.input.value);
     });
-    syncToggle.addEventListener('change', () => {
-      lfo.sync = syncToggle.checked;
+    divisionSelect.addEventListener('change', () => {
+      const val = divisionSelect.value;
+      lfo.syncDivision = val;
+      if (val === 'hz') {
+        lfo.sync = false;
+        rateDial.wrapper.style.display = '';
+      } else {
+        lfo.sync = true;
+        const div = LFO_SYNC_DIVISIONS.find((d) => d.label === val);
+        if (div) lfo.rate = div.beats;
+        rateDial.wrapper.style.display = 'none';
+      }
     });
     phaseDial.input.addEventListener('change', () => {
       lfo.phase = Number(phaseDial.input.value);
@@ -4957,8 +5538,8 @@ const renderLfoList = () => {
 
     row.appendChild(label);
     row.appendChild(shapeWrap);
+    row.appendChild(divisionWrap);
     row.appendChild(rateDial.wrapper);
-    row.appendChild(syncWrap);
     row.appendChild(phaseDial.wrapper);
     lfoList.appendChild(row);
   });
@@ -5211,6 +5792,9 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
 let syncRendererPalette: (() => void) | undefined;
 
 const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {}) => {
+  if (!preservePresetPreviewState && presetPreviewBaseProject) {
+    clearPresetPreviewState();
+  }
   const activation = resolveSceneActivationRuntime(currentProject, sceneId);
   if (!activation) return;
   const { scene } = activation;
@@ -5255,7 +5839,8 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
     console.log(`[Scene] Applied scene ${scene.name}, recompiled shaders for ${runtime.activeGeneratorCount} active generators`);
   }
   syncRendererPalette?.();
-  sceneSelect.value = sceneId;
+  broadcastCurrentOutputState();
+  if (sceneSelect) sceneSelect.value = sceneId;
   if (sceneTransitionTypeSelect) {
     sceneTransitionTypeSelect.value = scene.transition_in?.type || 'fade';
   }
@@ -5263,6 +5848,11 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
   syncPerformanceToggles();
   renderSceneStrip();
   renderSceneTimeline();
+  modTargetOptions = buildModTargetOptions();
+  midiTargetOptions = buildMidiTargetOptions();
+  if (activeMode === 'mapping') {
+    renderMappingTargets(mappingTargetSearch?.value ?? '');
+  }
   if (activeMode === 'mixer') {
     mixerPanel?.render();
   }
@@ -5346,66 +5936,23 @@ const addSceneFromPreset = async (presetPath: string) => {
     sourceProject.scenes.find((scene) => scene.id === sourceProject?.activeSceneId) ??
     sourceProject.scenes[0];
   const presetName = presetSelect.selectedOptions[0]?.textContent ?? presetPath;
-  const assetIdMap = new Map<string, string>();
-  const referencedAssetIds = new Set<string>();
-  sourceScene.layers.forEach((layer: any) => {
-    const assetId = (layer as LayerConfig & { assetId?: string }).assetId;
-    if (assetId) referencedAssetIds.add(assetId);
+  // Only lock palette in scene look if the preset JSON explicitly specified one.
+  // Using currentProject's activePaletteId would lock every loaded scene to whatever
+  // palette happened to be active, preventing the user from changing it.
+  const presetExplicitPaletteId: string | undefined =
+    migratedPreset.activePaletteId ||
+    migratedPreset.project?.activePaletteId ||
+    migratedPreset.project?.scenes?.[0]?.look?.activePaletteId ||
+    undefined;
+  const addedSceneId = addSceneFromSourceProject(sourceProject, {
+    sourceSceneId: sourceScene.id,
+    sceneName: presetName,
+    explicitPaletteId: presetExplicitPaletteId,
+    statusLabel: 'Scene added from preset'
   });
-  if (sourceProject.assets && sourceProject.assets.length > 0 && referencedAssetIds.size > 0) {
-    const nextAssets = [...currentProject.assets];
-    sourceProject.assets.forEach((asset) => {
-      if (!referencedAssetIds.has(asset.id)) return;
-      const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
-      const newId = hasCollision ? getNextAssetId() : asset.id;
-      assetIdMap.set(asset.id, newId);
-      nextAssets.push({ ...cloneValue(asset), id: newId });
-    });
-    currentProject.assets = nextAssets;
-    renderAssets();
-  }
-  const look: SceneLook = {
-    effects: cloneValue(sourceProject.effects || {}),
-    particles: cloneValue(sourceProject.particles || {}),
-    sdf: cloneValue(sourceProject.sdf || {}),
-    visualizer: cloneValue(sourceProject.visualizer || {}),
-    stylePresets: cloneValue(sourceProject.stylePresets || []),
-    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
-    palettes: cloneValue(sourceProject.palettes || []),
-    activePaletteId: cloneValue(sourceProject.activePaletteId || ''),
-    macros: cloneValue(sourceProject.macros || []),
-    modMatrix: cloneValue(sourceProject.modMatrix || [])
-  };
-  const newSceneId = getNextSceneId();
-  const newScene: SceneConfig = {
-    id: newSceneId,
-    scene_id: newSceneId,
-    name: getUniqueSceneName(presetName),
-    intent: sourceScene.intent ?? 'ambient',
-    duration: typeof sourceScene.duration === 'number' ? sourceScene.duration : 0,
-    transition_in: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_in ?? {}) },
-    transition_out: { ...DEFAULT_SCENE_TRANSITION, ...(sourceScene.transition_out ?? {}) },
-    trigger: { ...DEFAULT_SCENE_TRIGGER, ...(sourceScene.trigger ?? {}) },
-    assigned_layers: {
-      core: sourceScene.assigned_layers?.core ?? [],
-      support: sourceScene.assigned_layers?.support ?? [],
-      atmosphere: sourceScene.assigned_layers?.atmosphere ?? []
-    },
-    layers: sourceScene.layers.map((layer) => {
-      const cloned = cloneLayerConfig(layer);
-      const assetId = (cloned as LayerConfig & { assetId?: string }).assetId;
-      if (assetId && assetIdMap.has(assetId)) {
-        (cloned as LayerConfig & { assetId?: string }).assetId = assetIdMap.get(assetId);
-      }
-      return cloned;
-    }),
-    look
-  };
-  addSceneToProject(newScene, true);
-  selectedSceneId = newScene.id;
-  renderSceneStrip();
-  renderSceneTimeline();
-  setStatus(`Scene added from preset: ${newScene.name}`);
+  if (!addedSceneId) return null;
+  const newScene = currentProject.scenes.find((scene) => scene.id === addedSceneId);
+  if (!newScene) return null;
   logPresetDebug(
     traceId,
     'Preset scene added',
@@ -5422,7 +5969,6 @@ const addSceneFromPreset = async (presetPath: string) => {
       look: newScene.look
     })
   );
-  void capturePresetThumbnail(presetPath);
   return newScene.id;
 };
 
@@ -5454,10 +6000,12 @@ const updateBpmDisplay = () => {
       : bpmSource === 'auto'
         ? autoBpm ?? 0
         : networkBpm ?? 0;
-  bpmDisplay.innerHTML =
-    value > 0
-      ? `BPM: <strong>${value.toFixed(1)}</strong> (${sourceLabel})`
-      : `BPM: -- (${sourceLabel})`;
+  if (bpmDisplay) {
+    bpmDisplay.innerHTML =
+      value > 0
+        ? `BPM: <strong>${value.toFixed(1)}</strong> (${sourceLabel})`
+        : `BPM: -- (${sourceLabel})`;
+  }
 };
 
 const formatDurationMs = (ms: number) => {
@@ -7266,50 +7814,36 @@ const renderPalettePreview = (colors: [string, string, string, string, string]) 
   });
 };
 
-const updatePaletteIndicator = () => {
-  const activePalette = currentProject.palettes.find((item) => item.id === currentProject.activePaletteId);
-  if (!activePalette) return;
-  
-  // Create color swatches indicator
-  const indicator = document.getElementById('palette-indicator');
-  if (!indicator) return;
-  
-  indicator.innerHTML = '';
-  const colors = activePalette.colors;
-  colors.forEach((color) => {
-    const swatch = document.createElement('span');
-    swatch.style.display = 'inline-block';
-    swatch.style.width = '12px';
-    swatch.style.height = '12px';
-    swatch.style.backgroundColor = color;
-    swatch.style.borderRadius = '2px';
-    swatch.style.border = '1px solid rgba(255,255,255,0.2)';
-    swatch.style.marginRight = '2px';
-    swatch.style.cursor = 'pointer';
-    swatch.title = color;
-    indicator.appendChild(swatch);
-  });
-  
-  console.log('[Palette] Indicator updated for:', activePalette.id, 'colors:', colors);
+syncRendererPalette = () => {
+  const palette =
+    currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
+    currentProject.palettes[0];
+  if (!palette) return;
+  renderPalettePreview(palette.colors);
+  renderer?.setPalette?.(palette.colors);
 };
 
-syncRendererPalette = () => {
-    const palette =
-      currentProject.palettes.find((item) => item.id === currentProject.activePaletteId) ??
-      currentProject.palettes[0];
-    if (!palette) {
-      console.error('[Palette] No palette found! activePaletteId:', currentProject.activePaletteId, 'available palettes:', currentProject.palettes.map(p => p.id));
-      return;
-    }
-
-    console.log('[Palette] Syncing palette to renderer:', palette.id, 'with colors:', palette.colors);
-    console.log('[Palette] Current activePaletteId:', currentProject.activePaletteId);
-    console.log('[Palette] All available palettes:', currentProject.palettes.map(p => ({ id: p.id, name: p.name, colors: p.colors })));
-
-    renderPalettePreview(palette.colors);
-    renderer?.setPalette?.(palette.colors);
-    console.log('[Palette] renderer.setPalette() called');
-  };
+const broadcastCurrentOutputState = () => {
+  if (!outputOpen || !lastOutputRenderState) return;
+  const broadcastScene =
+    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
+    currentProject.scenes[0];
+  const generatorIds = broadcastScene ? collectSceneGeneratorIds(broadcastScene) : new Set<string>();
+  if (currentProject.sdf?.enabled) {
+    generatorIds.add('gen-sdf');
+  }
+  outputChannel.postMessage(
+    buildRendererOutputBroadcastPayload({
+      renderState: lastOutputRenderState,
+      project: currentProject,
+      scene: broadcastScene,
+      activePaletteId:
+        broadcastScene?.look?.activePaletteId ??
+        currentProject.activePaletteId,
+      activeGeneratorIds: [...generatorIds]
+    })
+  );
+};
 
 const applyPaletteSelection = (paletteId: string) => {
   const palette =
@@ -7318,7 +7852,6 @@ const applyPaletteSelection = (paletteId: string) => {
   currentProject.activePaletteId = palette.id;
   syncRendererPalette?.();
   outputChannel.postMessage({ paletteColors: palette.colors });
-  console.log('[Palette] Applied palette:', palette.id, 'with colors:', palette.colors);
   // Sync mixer palette select if it exists
   const mixerSelect = document.getElementById('mixer-palette-select') as HTMLSelectElement | null;
   if (mixerSelect && mixerSelect.value !== palette.id) mixerSelect.value = palette.id;
@@ -7331,6 +7864,7 @@ const applyPaletteSelection = (paletteId: string) => {
       activePaletteId: palette.id
     };
   }
+  renderPerfPaletteGrid();
 };
 
 const resetPaletteToSceneDefault = () => {
@@ -7348,7 +7882,6 @@ const resetPaletteToSceneDefault = () => {
   syncRendererPalette?.();
   outputChannel.postMessage({ paletteColors: currentProject.palettes.find((p) => p.id === currentProject.activePaletteId)?.colors });
   setStatus('Palette reset to scene default');
-  console.log('[Palette] Reset palette to scene default for:', scene.id);
 };
 
 const initPalettes = () => {
@@ -7380,7 +7913,6 @@ const initPalettes = () => {
 
   paletteSelect.onchange = () => {
     applyPaletteSelection(paletteSelect.value);
-    updatePaletteIndicator();
   };
   chemistrySelect.onchange = () => {
     currentProject.colorChemistry = [chemistrySelect.value];
@@ -7405,9 +7937,31 @@ const initPalettes = () => {
   if (paletteResetBtn) {
     paletteResetBtn.onclick = resetPaletteToSceneDefault;
   }
-  
-  updatePaletteIndicator();
+  renderPerfPaletteGrid();
 };
+
+function renderPerfPaletteGrid() {
+  if (!perfPaletteGrid) return;
+  perfPaletteGrid.innerHTML = '';
+  const palettes = currentProject.palettes;
+  palettes.forEach((palette) => {
+    const swatch = document.createElement('div');
+    swatch.className = `perf-palette-swatch${palette.id === currentProject.activePaletteId ? ' active' : ''}`;
+    swatch.title = palette.name;
+    const gradient = palette.colors.map((c, i) => {
+      const pct = (i / (palette.colors.length - 1)) * 100;
+      return `${c} ${pct}%`;
+    }).join(', ');
+    swatch.style.background = `linear-gradient(to right, ${gradient})`;
+    swatch.addEventListener('click', () => {
+      applyPaletteSelection(palette.id);
+      paletteSelect.value = palette.id;
+      renderPerfPaletteGrid();
+      setStatus(`Palette: ${palette.name}`);
+    });
+    perfPaletteGrid.appendChild(swatch);
+  });
+}
 
 const applyStyleControls = () => {
   if (!activeStyleId) return;
@@ -8334,7 +8888,7 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
       const delta = action === 'scene-next' ? 1 : -1;
       const nextIndex = (currentIndex + delta + currentProject.scenes.length) % currentProject.scenes.length;
       const nextScene = currentProject.scenes[nextIndex];
-      sceneSelect.value = nextScene.id;
+      if (sceneSelect) sceneSelect.value = nextScene.id;
       applyScene(nextScene.id);
       setStatus(`Scene active: ${nextScene.name}`);
     }
@@ -8758,6 +9312,9 @@ const serializeProject = () => {
 };
 
 const applyProject = async (project: VisualSynthProject) => {
+  if (!preservePresetPreviewState && presetPreviewBaseProject) {
+    clearPresetPreviewState();
+  }
   resetTransientVisualState();
   renderer.clearHistory?.();
   console.log('[ApplyProject] Input project activeStylePresetId:', project.activeStylePresetId, 'stylePresets.length:', project.stylePresets?.length);
@@ -8821,9 +9378,15 @@ const applyProject = async (project: VisualSynthProject) => {
   renderMarkers();
   renderAssets();
   renderPlugins();
+  renderOverlayList();
+  selectedOverlayId = null;
+  overlayRenderer.setSelected(null);
+  overlayPropsEl.classList.add('hidden');
   diffBaseProject = { ...currentProject };
   renderDiffSections();
   void checkMissingAssets();
+  broadcastCurrentOutputState();
+  cacheWarmer?.notifyProjectChanged(currentProject);
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
@@ -8844,44 +9407,71 @@ loadButton.addEventListener('click', async () => {
   }
 });
 
+if (topbarSaveProjectButton) {
+  topbarSaveProjectButton.addEventListener('click', () => {
+    void saveButton.click();
+  });
+}
+
+if (topbarOpenProjectButton) {
+  topbarOpenProjectButton.addEventListener('click', () => {
+    void loadButton.click();
+  });
+}
+
 if (applyPresetButton) {
   applyPresetButton.addEventListener('click', async () => {
-    if (!presetSelect.value) return;
-    await addSceneFromPreset(presetSelect.value);
+    if (!selectedPresetPath) return;
+    if (presetPreviewBaseProject) {
+      const baseProject = cloneValue(presetPreviewBaseProject);
+      clearPresetPreviewState();
+      await applyProject(baseProject);
+    }
+    markPresetRecent(selectedPresetPath);
+    await addSceneFromPreset(selectedPresetPath);
+    renderPresetQuickFilters();
+    renderPresetPreview();
   });
 }
 
 if (presetPrevButton) {
   presetPrevButton.addEventListener('click', () => {
-    if (presetSelect.options.length === 0) return;
-    const nextIndex =
-      (presetSelect.selectedIndex - 1 + presetSelect.options.length) % presetSelect.options.length;
-    presetSelect.selectedIndex = nextIndex;
-    renderPresetBrowser();
-    setPresetSelectionStatus('Previous');
+    if (currentPresetPage > 0) {
+      currentPresetPage--;
+      renderPresetBrowser();
+    }
   });
 }
 
 if (presetNextButton) {
   presetNextButton.addEventListener('click', () => {
-    if (presetSelect.options.length === 0) return;
-    const nextIndex = (presetSelect.selectedIndex + 1) % presetSelect.options.length;
-    presetSelect.selectedIndex = nextIndex;
-    renderPresetBrowser();
-    setPresetSelectionStatus('Next');
+    const totalPages = Math.ceil(filteredPresetLibrary.length / PRESET_PAGE_SIZE);
+    if (currentPresetPage < totalPages - 1) {
+      currentPresetPage++;
+      renderPresetBrowser();
+    }
   });
 }
 
 if (presetSelect) {
   presetSelect.addEventListener('change', () => {
-    renderPresetBrowser();
-    setPresetSelectionStatus('Selected');
+    updateSelectedPreset(presetSelect.value);
   });
 }
 
 if (presetCategorySelect) {
   presetCategorySelect.addEventListener('change', () => {
-    renderPresetBrowser();
+    presetCategoryFilter = presetCategorySelect.value;
+    refreshPresetCategories();
+    renderPresetBrowser(true);
+    renderPresetPreview();
+  });
+}
+
+if (presetSearchInput) {
+  presetSearchInput.addEventListener('input', () => {
+    renderPresetBrowser(true);
+    renderPresetPreview();
   });
 }
 
@@ -8895,17 +9485,77 @@ if (addBlankSceneButton) {
 
 if (presetShuffleButton) {
   presetShuffleButton.addEventListener('click', () => {
-    if (presetLibrary.length === 0) return;
-    const filter = presetCategorySelect.value;
-    const entries =
-      filter === 'All' ? presetLibrary : presetLibrary.filter((item) => item.category === filter);
+    const entries = getFilteredPresetEntries();
     const pick = entries[Math.floor(Math.random() * entries.length)];
     if (!pick) return;
-    presetSelect.value = pick.path;
-    renderPresetBrowser();
-    setPresetSelectionStatus('Shuffle');
+    void previewPresetSelection(pick.path, 'Shuffle');
   });
 }
+
+if (presetLoadProjectButton) {
+  presetLoadProjectButton.addEventListener('click', async () => {
+    if (!selectedPresetPath) return;
+    markPresetRecent(selectedPresetPath);
+    const addedSceneId = await addSceneFromPreset(selectedPresetPath);
+    if (addedSceneId) {
+      applyScene(addedSceneId);
+      lastOutputBroadcast = 0;
+      broadcastCurrentOutputState();
+    }
+    renderPresetQuickFilters();
+    renderPresetPreview();
+  });
+}
+
+if (presetFavoriteButton) {
+  presetFavoriteButton.addEventListener('click', () => {
+    if (!selectedPresetPath) return;
+    togglePresetFavorite(selectedPresetPath);
+    renderPresetQuickFilters();
+    renderPresetBrowser();
+    renderPresetPreview();
+  });
+}
+
+
+document.addEventListener('keydown', (event) => {
+  if (activeMode !== 'performance') return;
+  const target = event.target as HTMLElement | null;
+  const isTypingTarget = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable;
+  if (event.key === '/' && !isTypingTarget) {
+    event.preventDefault();
+    presetSearchInput?.focus();
+    presetSearchInput?.select();
+    return;
+  }
+  if (document.activeElement === presetSearchInput) return;
+  if (!filteredPresetLibrary.length) return;
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    presetNextButton.click();
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    presetPrevButton.click();
+  } else if (event.key === 'Enter' && event.shiftKey) {
+    event.preventDefault();
+    applyPresetButton.click();
+  } else if (event.key === 'Enter' && event.ctrlKey) {
+    event.preventDefault();
+    presetLoadProjectButton.click();
+  } else if (event.key.toLowerCase() === 'f') {
+    event.preventDefault();
+    presetFavoriteButton.click();
+  } else if (event.key === 'Escape' && presetSearchInput.value) {
+    presetSearchInput.value = '';
+    renderPresetBrowser();
+    renderPresetPreview();
+  } else if (event.key === 'Escape' && presetPreviewBaseProject) {
+    event.preventDefault();
+    const baseProject = cloneValue(presetPreviewBaseProject);
+    clearPresetPreviewState();
+    void applyProject(baseProject);
+  }
+});
 
 if (applyTemplateButton) {
   applyTemplateButton.addEventListener('click', async () => {
@@ -8927,7 +9577,7 @@ if (queueSceneButton) {
     const targetSceneId = selectedSceneId ?? sceneSelect?.value;
     if (!targetSceneId) return;
     const bpm = getActiveBpm();
-    const unit = quantizeSelect.value as QuantizationUnit;
+    const unit = (quantizeSelect?.value ?? 'bar') as QuantizationUnit;
     const scheduledTimeMs = getNextQuantizedTimeMs(performance.now(), bpm, unit);
     pendingSceneSwitch = { targetSceneId, scheduledTimeMs };
     const targetName =
@@ -9383,28 +10033,34 @@ requestMicPermissionButton.addEventListener('click', async () => {
   }
 });
 
-perfToggleSpectrum.addEventListener('change', () => {
-  const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
-  const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
-  if (spectrumLayer) {
-    spectrumLayer.enabled = perfToggleSpectrum.checked;
-    recordPlaylistOverride('layer-spectrum', { enabled: perfToggleSpectrum.checked });
-    renderLayerList();
-    setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
-  }
-});
+if (perfToggleSpectrum) {
+  perfToggleSpectrum.addEventListener('change', () => {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
+    if (spectrumLayer) {
+      spectrumLayer.enabled = perfToggleSpectrum.checked;
+      recordPlaylistOverride('layer-spectrum', { enabled: perfToggleSpectrum.checked });
+      renderLayerList();
+      setStatus(`Spectrum Bars ${perfToggleSpectrum.checked ? 'enabled' : 'disabled'}`);
+    }
+  });
+}
 
-spectrumHintDismiss.addEventListener('click', () => {
-  localStorage.setItem('visualsynth.spectrumHintDismissed', '1');
-  spectrumHint.classList.add('hidden');
-});
+if (spectrumHintDismiss) {
+  spectrumHintDismiss.addEventListener('click', () => {
+    localStorage.setItem('visualsynth.spectrumHintDismissed', '1');
+    spectrumHint?.classList.add('hidden');
+  });
+}
 
-perfAddLayerButton.addEventListener('click', () => {
-  setMode('scene');
-  generatorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  generatorSelect.focus();
-  setStatus('Scene mode: use Generator Library to add layers.');
-});
+if (perfAddLayerButton) {
+  perfAddLayerButton.addEventListener('click', () => {
+    setMode('scene');
+    generatorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    generatorSelect.focus();
+    setStatus('Scene mode: use Generator Library to add layers.');
+  });
+}
 
 designAddLayerButton.addEventListener('click', () => {
   setMode('scene');
@@ -9413,42 +10069,16 @@ designAddLayerButton.addEventListener('click', () => {
   setStatus('Scene mode: use Generator Library to add layers.');
 });
 
-playlistAddButton.addEventListener('click', () => {
-  if (!presetSelect.value) return;
-  const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
-  const exists = playlist.some((item) => item.path === presetSelect.value);
-  if (!exists) {
-    playlist.push({ 
-      name, 
-      path: presetSelect.value,
-      duration: Number(playlistSlotSeconds.value) || 16,
-      crossfade: Number(playlistFadeSeconds.value) || 2
-    });
-    savePlaylist();
-    renderPlaylist();
-    setStatus(`Added to playlist: ${name}`);
-  }
-});
-
-playlistRemoveButton.addEventListener('click', () => {
-  if (playlist.length === 0) return;
-  playlist.pop();
-  if (playlistIndex >= playlist.length) playlistIndex = 0;
-  savePlaylist();
-  renderPlaylist();
-});
-
 playlistPlayButton.addEventListener('click', async () => {
-  if (playlist.length === 0) return;
+  if (currentProject.scenes.length === 0) return;
   stopPlaylist();
   playlistActive = true;
   playlistOverrides = {};
   playlistIndex = 0;
-  
-  const firstItem = playlist[0];
+
   await triggerPlaylistSlot(0);
-  
-  const slotMs = Math.max(2000, (firstItem.duration || 16) * 1000);
+
+  const slotMs = Math.max(2000, (Number(playlistSlotSeconds.value) || 16) * 1000);
   playlistTimer = window.setTimeout(() => {
     void advancePlaylist();
   }, slotMs);
@@ -9593,6 +10223,7 @@ outputScaleSelect.addEventListener('change', async () => {
 
 const initPresets = async () => {
   loadPresetThumbnails();
+  loadPresetPreferences();
 
   // Try to load presets - may not be available in testing environment
   console.log('[Presets] window.visualSynth exists:', !!window.visualSynth);
@@ -9611,11 +10242,7 @@ const initPresets = async () => {
   presets.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
   presetSelect.innerHTML = '';
-  presetLibrary = presets.map((preset) => ({
-    name: preset.name,
-    path: preset.path,
-    category: preset.category
-  }));
+  presetLibrary = presets;
   presets.forEach((preset) => {
     const option = document.createElement('option');
     option.value = preset.path;
@@ -9623,19 +10250,21 @@ const initPresets = async () => {
     presetSelect.appendChild(option);
   });
   refreshPresetCategories();
+  renderPresetQuickFilters();
+  selectedPresetPath = presets[0]?.path ?? '';
+  presetSelect.value = selectedPresetPath;
   // Defer browser render to avoid blocking the loading sequence with 100+ DOM nodes
-  setTimeout(() => renderPresetBrowser(), 0);
+  setTimeout(() => {
+    renderPresetBrowser();
+    renderPresetPreview();
+  }, 0);
   const hasPresets = presets.length > 0;
   presetPrevButton.disabled = !hasPresets;
   presetNextButton.disabled = !hasPresets;
   applyPresetButton.disabled = !hasPresets;
   presetShuffleButton.disabled = !hasPresets;
-};
-
-const setPresetSelectionStatus = (reason?: string) => {
-  if (!presetSelect.value) return;
-  const name = presetSelect.selectedOptions[0]?.textContent ?? presetSelect.value;
-  setStatus(`${reason ? `${reason}: ` : ''}Preset selected: ${name}`);
+  presetLoadProjectButton.disabled = !hasPresets;
+  presetFavoriteButton.disabled = !hasPresets;
 };
 
 const updateGravityWells = (time: number, dt: number) => {
@@ -10015,6 +10644,7 @@ try {
       updateWebglDiagnostics();
     }
   });
+  cacheWarmer = new SceneCacheWarmer(renderer);
 } catch (error) {
   webglInitError = error instanceof Error ? error.message : String(error);
   safeModeReasons.push('Renderer init failed');
@@ -10032,6 +10662,174 @@ const debugOverlay = createDebugOverlay((flags) => {
   // Flags: { tintLayers: boolean, fxDelta: boolean }
   // These can be used to enable visual debugging features
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Image/Text Overlay System
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let selectedOverlayId: string | null = null;
+
+const overlayRenderer = createOverlayRenderer({
+  canvas: overlayCanvas,
+  getOverlays: () => {
+    const overlays = currentProject.overlays ?? [];
+    const targetScene = previewSceneId ?? currentProject.activeSceneId;
+    return overlays.filter(o => !o.targetSceneId || o.targetSceneId === targetScene);
+  },
+  onOverlayUpdate: (id, changes) => {
+    const overlays = currentProject.overlays ?? [];
+    const idx = overlays.findIndex(o => o.id === id);
+    if (idx < 0) return;
+    Object.assign(overlays[idx], changes);
+    if (id === selectedOverlayId) syncOverlayProps(overlays[idx]);
+  },
+  onSelect: (id) => {
+    selectedOverlayId = id;
+    renderOverlayList();
+    if (id) {
+      const overlay = (currentProject.overlays ?? []).find(o => o.id === id);
+      if (overlay) syncOverlayProps(overlay);
+      overlayPropsEl.classList.remove('hidden');
+    } else {
+      overlayPropsEl.classList.add('hidden');
+    }
+  },
+  isDesignMode: () => activeMode === 'design'
+});
+
+function generateOverlayId(): string {
+  return 'ovl-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+}
+
+function syncOverlayProps(o: OverlayConfig) {
+  overlayNameInput.value = o.name;
+  overlayTextGroup.classList.toggle('hidden', o.type !== 'text');
+  if (o.type === 'text') {
+    overlayTextInput.value = o.text ?? '';
+    overlayFontSizeInput.value = String(o.fontSize ?? 24);
+    overlayFontColorInput.value = o.fontColor ?? '#ffffff';
+    overlayFontBoldInput.checked = o.fontWeight === 'bold';
+    overlayTextShadowInput.checked = o.textShadow ?? false;
+  }
+  overlayOpacityInput.value = String(o.opacity);
+  overlayRotationInput.value = String(o.rotation);
+  overlayIncludeFxInput.checked = o.includeInFx;
+  overlayPersistInput.checked = !o.targetSceneId;
+}
+
+function updateSelectedOverlay(changes: Partial<OverlayConfig>) {
+  if (!selectedOverlayId) return;
+  const overlays = currentProject.overlays ?? [];
+  const overlay = overlays.find(o => o.id === selectedOverlayId);
+  if (overlay) Object.assign(overlay, changes);
+}
+
+function renderOverlayList() {
+  const overlays = currentProject.overlays ?? [];
+  overlayListEl.innerHTML = '';
+  for (const o of overlays) {
+    const item = document.createElement('div');
+    item.className = 'overlay-item' + (o.id === selectedOverlayId ? ' selected' : '');
+    const icon = o.type === 'image' ? '\u{1F5BC}' : '\u{1F524}';
+    item.innerHTML = `<span class="overlay-handle">${icon}</span> ${o.name}`;
+    item.addEventListener('click', () => {
+      selectedOverlayId = o.id;
+      overlayRenderer.setSelected(o.id);
+      renderOverlayList();
+      syncOverlayProps(o);
+      overlayPropsEl.classList.remove('hidden');
+    });
+    overlayListEl.appendChild(item);
+  }
+  if (overlays.length === 0) {
+    overlayPropsEl.classList.add('hidden');
+  }
+}
+
+overlayAddImageBtn.addEventListener('click', async () => {
+  const result = await window.visualSynth.importAsset('texture');
+  if (result.canceled || !result.filePath) return;
+  const name = result.filePath.split(/[\\/]/).pop() ?? 'Image';
+  const overlay: OverlayConfig = {
+    id: generateOverlayId(),
+    name,
+    type: 'image',
+    enabled: true,
+    x: 0.8, y: 0.85,
+    width: 0.15, height: 0.1,
+    opacity: 1,
+    rotation: 0,
+    includeInFx: false,
+    assetPath: result.filePath
+  };
+  if (!currentProject.overlays) currentProject.overlays = [];
+  currentProject.overlays.push(overlay);
+  selectedOverlayId = overlay.id;
+  overlayRenderer.setSelected(overlay.id);
+  renderOverlayList();
+  syncOverlayProps(overlay);
+  overlayPropsEl.classList.remove('hidden');
+  setStatus(`Overlay added: ${name}`);
+});
+
+overlayAddTextBtn.addEventListener('click', () => {
+  const overlay: OverlayConfig = {
+    id: generateOverlayId(),
+    name: 'Text Overlay',
+    type: 'text',
+    enabled: true,
+    x: 0.05, y: 0.9,
+    width: 0.3, height: 0.08,
+    opacity: 1,
+    rotation: 0,
+    includeInFx: false,
+    text: 'Your Text',
+    fontFamily: 'sans-serif',
+    fontSize: 24,
+    fontColor: '#ffffff',
+    fontWeight: 'normal',
+    textShadow: true
+  };
+  if (!currentProject.overlays) currentProject.overlays = [];
+  currentProject.overlays.push(overlay);
+  selectedOverlayId = overlay.id;
+  overlayRenderer.setSelected(overlay.id);
+  renderOverlayList();
+  syncOverlayProps(overlay);
+  overlayPropsEl.classList.remove('hidden');
+  setStatus('Text overlay added');
+});
+
+overlayNameInput.addEventListener('input', () => updateSelectedOverlay({ name: overlayNameInput.value }));
+overlayTextInput.addEventListener('input', () => updateSelectedOverlay({ text: overlayTextInput.value }));
+overlayFontSizeInput.addEventListener('input', () => updateSelectedOverlay({ fontSize: Number(overlayFontSizeInput.value) }));
+overlayFontColorInput.addEventListener('input', () => updateSelectedOverlay({ fontColor: overlayFontColorInput.value }));
+overlayFontBoldInput.addEventListener('change', () => updateSelectedOverlay({ fontWeight: overlayFontBoldInput.checked ? 'bold' : 'normal' }));
+overlayTextShadowInput.addEventListener('change', () => updateSelectedOverlay({ textShadow: overlayTextShadowInput.checked }));
+overlayOpacityInput.addEventListener('input', () => updateSelectedOverlay({ opacity: Number(overlayOpacityInput.value) }));
+overlayRotationInput.addEventListener('input', () => updateSelectedOverlay({ rotation: Number(overlayRotationInput.value) }));
+overlayIncludeFxInput.addEventListener('change', () => updateSelectedOverlay({ includeInFx: overlayIncludeFxInput.checked }));
+overlayPersistInput.addEventListener('change', () => {
+  const targetSceneId = overlayPersistInput.checked ? undefined : (previewSceneId ?? currentProject.activeSceneId);
+  updateSelectedOverlay({ targetSceneId });
+});
+
+overlayDeleteBtn.addEventListener('click', () => {
+  if (!selectedOverlayId) return;
+  const overlays = currentProject.overlays ?? [];
+  currentProject.overlays = overlays.filter(o => o.id !== selectedOverlayId);
+  selectedOverlayId = null;
+  overlayRenderer.setSelected(null);
+  overlayPropsEl.classList.add('hidden');
+  renderOverlayList();
+  setStatus('Overlay deleted');
+});
+
+// Toggle overlay canvas pointer events based on mode
+const updateOverlayPointerEvents = () => {
+  overlayCanvas.style.pointerEvents = activeMode === 'design' ? 'auto' : 'none';
+};
+
+renderOverlayList();
 
 let lastTime = performance.now();
 let currentFps = 0;
@@ -10244,9 +11042,22 @@ const render = (time: number) => {
   const sceneSwitch = resolveSceneSwitch(isPlaying, pendingSceneSwitch, time, getActiveBpm());
   updateQuantizeHud(sceneSwitch.quantizeHudMessage);
   if (sceneSwitch.shouldApplyScene && pendingSceneSwitch) {
-      applyScene(pendingSceneSwitch.targetSceneId);
-      setStatus(`Scene switched: ${sceneSelect.selectedOptions[0]?.textContent ?? 'Scene'}`);
-      pendingSceneSwitch = null;
+    const { targetSceneId, transitionOverride } = pendingSceneSwitch;
+    if (transitionOverride !== undefined) {
+      const targetScene = currentProject.scenes.find((s) => s.id === targetSceneId);
+      if (targetScene) {
+        const orig = targetScene.transition_in;
+        targetScene.transition_in = transitionOverride ?? { durationMs: 0, curve: 'linear' };
+        applyScene(targetSceneId);
+        targetScene.transition_in = orig;
+      } else {
+        applyScene(targetSceneId);
+      }
+    } else {
+      applyScene(targetSceneId);
+    }
+    setStatus(`Scene switched: ${sceneSelect?.selectedOptions[0]?.textContent ?? 'Scene'}`);
+    pendingSceneSwitch = null;
   }
 
   updateAudioAnalysis();
@@ -10323,16 +11134,8 @@ const render = (time: number) => {
   const activeStyle =
     currentProject.stylePresets?.find((preset) => preset.id === currentProject.activeStylePresetId) ??
     null;
-  const styleSettings =
-    blendSnapshot?.styleSettings ?? activeStyle?.settings ?? { contrast: 1, saturation: 1, paletteShift: 0 };
-  if (styleSettings.paletteShift !== 0) {
-    console.log('[StyleSettings] paletteShift:', styleSettings.paletteShift,
-      '| blendSnapshot?.styleSettings:', blendSnapshot?.styleSettings,
-      '| activeStyle?.settings:', activeStyle?.settings,
-      '| project.activeStylePresetId:', currentProject.activeStylePresetId,
-      '| project.stylePresets.length:', currentProject.stylePresets?.length);
-  }
-  const effects = blendSnapshot?.effects ?? currentProject.effects ?? {
+  // Global trailSpectrum update based on active scene/blend effects (not preview effects)
+  const globalEffects = blendSnapshot?.effects ?? currentProject.effects ?? {
     enabled: true,
     bloom: 0.2,
     blur: 0,
@@ -10342,106 +11145,32 @@ const render = (time: number) => {
     feedback: 0,
     persistence: 0
   };
-  const particles = blendSnapshot?.particles ?? currentProject.particles ?? {
-    enabled: true,
-    density: 0.35,
-    speed: 0.3,
-    size: 0.45,
-    glow: 0.6
-  };
-  const sdf = blendSnapshot?.sdf ?? currentProject.sdf ?? {
-    enabled: false,
-    shape: 'circle' as const,
-    scale: 0,
-    edge: 0,
-    glow: 0,
-    rotation: 0,
-    fill: 0
-  };
-  const effectiveMacros = blendSnapshot?.macros ?? currentProject.macros;
-  const modSources = buildModSources(activeBpm, effectiveMacros);
-  const modValue = (target: string, base: number) =>
-    applyModMatrix(base, target, modSources, currentProject.modMatrix);
-  const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
-  const moddedStyle = {
-    contrast: modValue('style.contrast', styleSettings.contrast),
-    saturation: modValue('style.saturation', styleSettings.saturation),
-    paletteShift: modValue('style.paletteShift', styleSettings.paletteShift + portalShift)
-  };
-  const macroSum = effectiveMacros.reduce(
-    (acc, macro) => {
-      macro.targets.forEach((target) => {
-        const rawTarget = target.target as
-          | string
-          | { type?: string; layerType?: string; param: string };
-        let key: string | null = null;
-        if (typeof rawTarget === 'string') {
-          key = rawTarget;
-        } else if (rawTarget && rawTarget.param) {
-          const layerType = rawTarget.type ?? rawTarget.layerType;
-          if (layerType) {
-            key = buildLegacyTarget(layerType, rawTarget.param);
-          }
-        }
-        if (!key) return;
-        acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
-      });
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-  const macroVal = (target: string) => macroSum[target] ?? 0;
-  const effectsActive = effects.enabled;
-  let moddedEffects = effectsActive
-    ? {
-        bloom: modValue('effects.bloom', effects.bloom),
-        blur: modValue('effects.blur', effects.blur),
-        chroma: modValue('effects.chroma', effects.chroma),
-        posterize: modValue('effects.posterize', effects.posterize),
-        kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope),
-        kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', 0), // Default to 0 if not present in project
-        feedback: modValue('effects.feedback', effects.feedback),
-        persistence: modValue('effects.persistence', effects.persistence)
+  const globalEffectiveMacros = blendSnapshot?.macros ?? currentProject.macros;
+  const globalMacroSum = globalEffectiveMacros.reduce((acc, macro) => {
+    macro.targets.forEach((target) => {
+      const rawTarget = target.target as string | { type?: string; layerType?: string; param: string };
+      let key: string | null = null;
+      if (typeof rawTarget === 'string') { key = rawTarget; } 
+      else if (rawTarget && rawTarget.param) {
+        const layerType = rawTarget.type ?? rawTarget.layerType;
+        if (layerType) key = buildLegacyTarget(layerType, rawTarget.param);
       }
-    : {
-        bloom: 0,
-        blur: 0,
-        chroma: 0,
-        posterize: 0,
-        kaleidoscope: 0,
-        kaleidoscopeRotation: 0,
-        feedback: 0,
-        persistence: 0
-      };
-  let moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
-  let moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
-  if (!effectsActive) {
-    moddedFeedbackZoom = 0;
-    moddedFeedbackRotation = 0;
-  }
-  let moddedParticles = {
-    density: modValue('particles.density', particles.density),
-    speed: modValue('particles.speed', particles.speed),
-    size: modValue('particles.size', particles.size),
-    glow: modValue('particles.glow', particles.glow),
-    turbulence: modValue('particles.turbulence', particles.turbulence ?? 0.3),
-    audioLift: modValue('particles.audioLift', particles.audioLift ?? 0.5)
-  };
-  let moddedSdf = {
-    scale: modValue('sdf.scale', sdf.scale),
-    edge: modValue('sdf.edge', sdf.edge),
-    glow: modValue('sdf.glow', sdf.glow),
-    rotation: modValue('sdf.rotation', sdf.rotation),
-    fill: modValue('sdf.fill', sdf.fill)
-  };
-  if (moddedEffects.persistence > 0) {
-    const decay = 0.85 + moddedEffects.persistence * 0.14;
+      if (!key) return;
+      acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+  const globalPersistence = globalEffects.enabled ? (globalEffects.persistence + (globalMacroSum['effects.persistence'] ?? 0)) : 0;
+  
+  if (globalPersistence > 0) {
+    const decay = 0.85 + globalPersistence * 0.14;
     for (let i = 0; i < trailSpectrum.length; i += 1) {
       trailSpectrum[i] = Math.max(trailSpectrum[i] * decay, audioState.spectrum[i]);
     }
   } else {
     trailSpectrum = new Float32Array(audioState.spectrum);
   }
+
   const activeScene =
     currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId);
   const previewScene = previewSceneId
@@ -10452,6 +11181,101 @@ const render = (time: number) => {
   const hasActiveEngine = Boolean(currentProject.activeEngineId && currentProject.activeEngineId !== 'engine-none');
 
   const buildRenderStateForScene = (renderScene: typeof activeScene | undefined) => {
+    const isBlendTarget = renderScene === activeScene || renderScene === outputScene;
+
+    const effectiveStyleSettings = (!isBlendTarget && renderScene?.look?.stylePresets?.find((p) => p.id === renderScene.look?.activeStylePresetId)?.settings)
+      ? renderScene.look.stylePresets.find((p) => p.id === renderScene.look?.activeStylePresetId)!.settings
+      : (blendSnapshot?.styleSettings ?? activeStyle?.settings ?? { contrast: 1, saturation: 1, paletteShift: 0 });
+
+    const effects = (!isBlendTarget && renderScene?.look?.effects)
+      ? renderScene.look.effects
+      : (blendSnapshot?.effects ?? currentProject.effects ?? {
+          enabled: true, bloom: 0.2, blur: 0, chroma: 0.1, posterize: 0, kaleidoscope: 0, feedback: 0, persistence: 0
+        });
+
+    const particles = (!isBlendTarget && renderScene?.look?.particles)
+      ? renderScene.look.particles
+      : (blendSnapshot?.particles ?? currentProject.particles ?? { enabled: true, density: 0.35, speed: 0.3, size: 0.45, glow: 0.6 });
+
+    const sdf = (!isBlendTarget && renderScene?.look?.sdf)
+      ? renderScene.look.sdf
+      : (blendSnapshot?.sdf ?? currentProject.sdf ?? { enabled: false, shape: 'circle' as const, scale: 0, edge: 0, glow: 0, rotation: 0, fill: 0 });
+
+    const effectiveMacros = (!isBlendTarget && renderScene?.look?.macros)
+      ? renderScene.look.macros
+      : (blendSnapshot?.macros ?? currentProject.macros);
+
+    const modMatrix = (!isBlendTarget && renderScene?.look?.modMatrix)
+      ? renderScene.look.modMatrix
+      : currentProject.modMatrix;
+
+    const modSources = buildModSources(activeBpm, effectiveMacros);
+    const modValue = (target: string, base: number) =>
+      applyModMatrix(base, target, modSources, modMatrix);
+
+    const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
+    const macroSum = effectiveMacros.reduce((acc, macro) => {
+      macro.targets.forEach((target) => {
+        const rawTarget = target.target as string | { type?: string; layerType?: string; param: string };
+        let key: string | null = null;
+        if (typeof rawTarget === 'string') { key = rawTarget; } 
+        else if (rawTarget && rawTarget.param) {
+          const layerType = rawTarget.type ?? rawTarget.layerType;
+          if (layerType) key = buildLegacyTarget(layerType, rawTarget.param);
+        }
+        if (!key) return;
+        acc[key] = (acc[key] ?? 0) + macro.value * target.amount;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+    const macroVal = (target: string) => macroSum[target] ?? 0;
+
+    const moddedStyle = {
+      contrast: modValue('style.contrast', effectiveStyleSettings.contrast + macroVal('style.contrast')),
+      saturation: modValue('style.saturation', effectiveStyleSettings.saturation + macroVal('style.saturation')),
+      paletteShift: modValue('style.paletteShift', effectiveStyleSettings.paletteShift + portalShift + macroVal('style.paletteShift'))
+    };
+
+    const effectsActive = effects.enabled;
+    let moddedEffects = effectsActive
+      ? {
+          bloom: modValue('effects.bloom', effects.bloom + macroVal('effects.bloom')),
+          blur: modValue('effects.blur', effects.blur + macroVal('effects.blur')),
+          chroma: modValue('effects.chroma', effects.chroma + macroVal('effects.chroma')),
+          posterize: modValue('effects.posterize', effects.posterize + macroVal('effects.posterize')),
+          kaleidoscope: modValue('effects.kaleidoscope', effects.kaleidoscope + macroVal('effects.kaleidoscope')),
+          kaleidoscopeRotation: modValue('effects.kaleidoscopeRotation', macroVal('effects.kaleidoscopeRotation')),
+          feedback: modValue('effects.feedback', effects.feedback + macroVal('effects.feedback')),
+          persistence: modValue('effects.persistence', effects.persistence + macroVal('effects.persistence'))
+        }
+      : {
+          bloom: 0, blur: 0, chroma: 0, posterize: 0, kaleidoscope: 0, kaleidoscopeRotation: 0, feedback: 0, persistence: 0
+        };
+
+    let moddedFeedbackZoom = modValue('fx-feedback.zoom', macroVal('fx-feedback.zoom'));
+    let moddedFeedbackRotation = modValue('fx-feedback.rotation', macroVal('fx-feedback.rotation'));
+    if (!effectsActive) {
+      moddedFeedbackZoom = 0;
+      moddedFeedbackRotation = 0;
+    }
+
+    let moddedParticles = {
+      density: modValue('particles.density', particles.density + macroVal('particles.density')),
+      speed: modValue('particles.speed', particles.speed + macroVal('particles.speed')),
+      size: modValue('particles.size', particles.size + macroVal('particles.size')),
+      glow: modValue('particles.glow', particles.glow + macroVal('particles.glow')),
+      turbulence: modValue('particles.turbulence', (particles.turbulence ?? 0.3) + macroVal('particles.turbulence')),
+      audioLift: modValue('particles.audioLift', (particles.audioLift ?? 0.5) + macroVal('particles.audioLift'))
+    };
+
+    let moddedSdf = {
+      scale: modValue('sdf.scale', sdf.scale + macroVal('sdf.scale')),
+      edge: modValue('sdf.edge', sdf.edge + macroVal('sdf.edge')),
+      glow: modValue('sdf.glow', sdf.glow + macroVal('sdf.glow')),
+      rotation: modValue('sdf.rotation', sdf.rotation + macroVal('sdf.rotation')),
+      fill: modValue('sdf.fill', sdf.fill + macroVal('sdf.fill'))
+    };
+
     const getGeneratorLayers = (scene: typeof renderScene | undefined, generatorId: string) =>
       scene?.layers.filter((layer) => layer.generatorId === generatorId) ?? [];
     type SceneLayers = NonNullable<typeof renderScene>['layers'];
@@ -10472,105 +11296,6 @@ const render = (time: number) => {
     const portalLayer = findLayerById(renderScene?.layers, 'layer-portal');
     const mediaLayer = findLayerById(renderScene?.layers, 'layer-media');
     const oscilloLayer = findLayerById(renderScene?.layers, 'layer-oscillo');
-    // EDM Generators
-    const laserLayer = findLayerById(renderScene?.layers, 'gen-laser-beam');
-    const strobeLayer = findLayerById(renderScene?.layers, 'gen-strobe');
-    const shapeBurstLayer = findLayerById(renderScene?.layers, 'gen-shape-burst');
-    const gridTunnelLayer = findLayerById(renderScene?.layers, 'gen-grid-tunnel');
-    
-    // Rock Generator Layers
-    const lightningLayer = findLayerById(renderScene?.layers, 'gen-lightning');
-    const analogOscilloLayer = findLayerById(renderScene?.layers, 'gen-analog-oscillo');
-    const speakerConeLayer = findLayerById(renderScene?.layers, 'gen-speaker-cone');
-    const glitchScanlineLayer = findLayerById(renderScene?.layers, 'gen-glitch-scanline');
-    const laserStarfieldLayer = findLayerById(renderScene?.layers, 'gen-laser-starfield');
-    const pulsingRibbonsLayer = findLayerById(renderScene?.layers, 'gen-pulsing-ribbons');
-    const electricArcLayer = findLayerById(renderScene?.layers, 'gen-electric-arc');
-    const pyroBurstLayer = findLayerById(renderScene?.layers, 'gen-pyro-burst');
-    const geoWireframeLayer = findLayerById(renderScene?.layers, 'gen-geo-wireframe');
-    const signalNoiseLayer = findLayerById(renderScene?.layers, 'gen-signal-noise');
-    
-    // Tunnel Generator Layers
-    const wormholeLayer = findLayerById(renderScene?.layers, 'gen-infinite-wormhole');
-    const ribbonTunnelLayer = findLayerById(renderScene?.layers, 'gen-ribbon-tunnel');
-    const fractalTunnelLayer = findLayerById(renderScene?.layers, 'gen-fractal-tunnel');
-    const circuitConduitLayer = findLayerById(renderScene?.layers, 'gen-circuit-conduit');
-  
-  // Unique Generator Layers
-  const auraPortalLayer = findLayerById(renderScene?.layers, 'gen-aura-portal');
-  const freqTerrainLayer = findLayerById(renderScene?.layers, 'gen-freq-terrain');
-  const dataStreamLayer = findLayerById(renderScene?.layers, 'gen-data-stream');
-  const causticLiquidLayer = findLayerById(renderScene?.layers, 'gen-caustic-liquid');
-  const shimmerVeilLayer = findLayerById(renderScene?.layers, 'gen-shimmer-veil');
-
-  // Showcase Suite Layers
-  const nebulaCloudLayer = findLayerById(renderScene?.layers, 'gen-nebula-cloud');
-  const circuitBoardLayer = findLayerById(renderScene?.layers, 'gen-circuit-board');
-  const lorenzLayer = findLayerById(renderScene?.layers, 'gen-lorenz-attractor');
-  const mandalaLayer = findLayerById(renderScene?.layers, 'gen-mandala-spinner');
-  const starburstLayer = findLayerById(renderScene?.layers, 'gen-starburst-galaxy');
-  const rainV2Layer = findLayerById(renderScene?.layers, 'gen-digital-rain-v2');
-  const lavaLayer = findLayerById(renderScene?.layers, 'gen-lava-flow');
-  const crystalGrowthLayer = findLayerById(renderScene?.layers, 'gen-crystal-growth');
-  const technoGridLayer = findLayerById(renderScene?.layers, 'gen-techno-grid');
-  const magneticLayer = findLayerById(renderScene?.layers, 'gen-magnetic-field');
-  const prismShardsLayer = findLayerById(renderScene?.layers, 'gen-prism-shards');
-  const neuralNetLayer = findLayerById(renderScene?.layers, 'gen-neural-net');
-  const auroraChordLayer = findLayerById(renderScene?.layers, 'gen-aurora-chord');
-  const vhsGlitchLayer = findLayerById(renderScene?.layers, 'gen-vhs-glitch');
-  const moireLayer = findLayerById(renderScene?.layers, 'gen-moire-pattern');
-  const hypercubeLayer = findLayerById(renderScene?.layers, 'gen-hypercube');
-  const fluidSwirlLayer = findLayerById(renderScene?.layers, 'gen-fluid-swirl');
-
-  // New Unique Generator Layers
-  const cellularGrowthLayer = findLayerById(renderScene?.layers, 'gen-cellular-growth');
-  const bioLuminescentForestLayer = findLayerById(renderScene?.layers, 'gen-bio-luminescent-forest');
-  const crystallineLayer = findLayerById(renderScene?.layers, 'gen-crystalline');
-  const audioDnaLayer = findLayerById(renderScene?.layers, 'gen-audio-dna');
-  const liquidMetalLayer = findLayerById(renderScene?.layers, 'gen-liquid-metal');
-  const neonCityscapeLayer = findLayerById(renderScene?.layers, 'gen-neon-cityscape');
-  const cosmicNebulaLayer = findLayerById(renderScene?.layers, 'gen-cosmic-nebula');
-  const sonicRainLayer = findLayerById(renderScene?.layers, 'gen-sonic-rain');
-  const morphingGeometryLayer = findLayerById(renderScene?.layers, 'gen-morphing-geometry');
-  const urbanRhythmLayer = findLayerById(renderScene?.layers, 'gen-urban-rhythm');
-  const asciiLayer = findLayerById(renderScene?.layers, 'gen-ascii-stream');
-  const retroWaveLayer = findLayerById(renderScene?.layers, 'gen-retro-wave');
-  const bubblePopLayer = findLayerById(renderScene?.layers, 'gen-bubble-pop');
-  const soundWave3DLayer = findLayerById(renderScene?.layers, 'gen-sound-wave-3d');
-  const particleVortexLayer = findLayerById(renderScene?.layers, 'gen-particle-vortex');
-  const glowWormsLayer = findLayerById(renderScene?.layers, 'gen-glow-worms');
-  const mirrorMazeLayer = findLayerById(renderScene?.layers, 'gen-mirror-maze');
-  const pulseHeartLayer = findLayerById(renderScene?.layers, 'gen-pulse-heart');
-  const dataShardsLayer = findLayerById(renderScene?.layers, 'gen-data-shards');
-  const hexCellLayer = findLayerById(renderScene?.layers, 'gen-hex-cell');
-  const plasmaBallLayer = findLayerById(renderScene?.layers, 'gen-plasma-ball');
-  const warpDriveLayer = findLayerById(renderScene?.layers, 'gen-warp-drive');
-  const myceliumLayer = findLayerById(renderScene?.layers, 'gen-mycelium-growth');
-  const feedbackLayer = findLayerById(renderScene?.layers, 'gen-visual-feedback');
-  const crimsonVeilLayer = findLayerById(renderScene?.layers, 'gen-crimson-veil');
-  const victorianCryptLayer = findLayerById(renderScene?.layers, 'gen-victorian-crypt');
-  const spectralApparitionLayer = findLayerById(renderScene?.layers, 'gen-spectral-apparition');
-  const gothicCobwebsLayer = findLayerById(renderScene?.layers, 'gen-gothic-cobwebs');
-  const bloodMoonRiseLayer = findLayerById(renderScene?.layers, 'gen-blood-moon-rise');
-  const candlelightVigilLayer = findLayerById(renderScene?.layers, 'gen-candlelight-vigil');
-  const gargoylesAwakeLayer = findLayerById(renderScene?.layers, 'gen-gargoyles-awake');
-  const cryptShadowsLayer = findLayerById(renderScene?.layers, 'gen-crypt-shadows');
-  const gothicRoseLayer = findLayerById(renderScene?.layers, 'gen-gothic-rose');
-  const eternalDarknessLayer = findLayerById(renderScene?.layers, 'gen-eternal-darkness');
-  const pixelDustLayer = findLayerById(renderScene?.layers, 'gen-pixel-dust');
-  const retroStarfieldLayer = findLayerById(renderScene?.layers, 'gen-retro-starfield');
-  const eightBitGridLayer = findLayerById(renderScene?.layers, 'gen-8bit-grid');
-  const arcadeInvadersLayer = findLayerById(renderScene?.layers, 'gen-arcade-invaders');
-  const powerUpPulseLayer = findLayerById(renderScene?.layers, 'gen-power-up-pulse');
-  const dungeonTilesLayer = findLayerById(renderScene?.layers, 'gen-dungeon-tiles');
-  const chiptuneWaveLayer = findLayerById(renderScene?.layers, 'gen-chiptune-wave');
-  const scoreCounterLayer = findLayerById(renderScene?.layers, 'gen-score-counter');
-  const pixelRainLayer = findLayerById(renderScene?.layers, 'gen-pixel-rain');
-  const milkwaveLayer =
-    findLayerById(renderScene?.layers, 'gen-milkwave') ??
-    findLayerById(renderScene?.layers, 'layer-milkwave') ??
-    findLayerById(renderScene?.layers, 'layer-milkwave-effects');
-  const bossHealthLayer = findLayerById(renderScene?.layers, 'gen-boss-health');
 
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);
@@ -10624,6 +11349,16 @@ const render = (time: number) => {
     const value = layer?.params?.[key];
     return typeof value === 'number' ? value : fallback;
   };
+
+  // Dynamic gen-* uniform resolution — replaces hundreds of explicit extraction lines
+  const genUniforms = resolveGenUniforms({
+    layers: renderScene?.layers ?? [],
+    modValue,
+    midiSum,
+    getLayerParamNumber,
+    findLayerById: (layers, id) => findLayerById(layers as LayerConfig[], id),
+    buildLegacyTarget,
+  });
   const plasmaOpacity = Math.min(
     1,
     Math.max(0, (plasmaLayer?.opacity ?? 1) * (1 + (macroSum['layer-plasma.opacity'] ?? 0)))
@@ -10827,156 +11562,6 @@ const render = (time: number) => {
   const portalEnabled = portalLayer?.enabled ?? false;
   const mediaEnabled = mediaLayer?.enabled ?? false;
   const oscilloEnabled = oscilloLayer?.enabled ?? false;
-  const laserEnabled = laserLayer?.enabled ?? false;
-  const strobeEnabled = strobeLayer?.enabled ?? false;
-  const shapeBurstEnabled = shapeBurstLayer?.enabled ?? false;
-  const gridTunnelEnabled = gridTunnelLayer?.enabled ?? false;
-  const laserMidiOpacity = midiSum['gen-laser-beam.opacity'];
-  const laserMidiWidth = midiSum['gen-laser-beam.beamWidth'];
-  const laserMidiSpeed = midiSum['gen-laser-beam.rotationSpeed'];
-  const laserMidiColorShift = midiSum['gen-laser-beam.colorShift'];
-  const laserOpacity = Math.min(
-    1,
-    Math.max(
-      0,
-      (laserLayer?.opacity ?? 1) *
-        getLayerParamNumber(laserLayer, 'opacity', 1.0) *
-        (laserMidiOpacity ?? 1)
-    )
-  );
-  const laserBeamCount = getLayerParamNumber(laserLayer, 'beamCount', 4);
-  const laserBeamWidth = getLayerParamNumber(laserLayer, 'beamWidth', 0.02) * (laserMidiWidth ?? 1);
-  const laserBeamLength = getLayerParamNumber(laserLayer, 'beamLength', 1.0);
-  const laserRotation = getLayerParamNumber(laserLayer, 'rotation', 0);
-  const laserRotationSpeed =
-    getLayerParamNumber(laserLayer, 'rotationSpeed', 0.5) * (laserMidiSpeed ?? 1);
-  const laserSpread = getLayerParamNumber(laserLayer, 'spread', 1.57);
-  const laserMode = getLayerParamNumber(laserLayer, 'mode', 0);
-  const laserColorShift = Math.min(
-    1,
-    Math.max(0, getLayerParamNumber(laserLayer, 'colorShift', 0) + (laserMidiColorShift ?? 0))
-  );
-  const laserAudioReact = getLayerParamNumber(laserLayer, 'audioReact', 0.7);
-  const laserGlow = getLayerParamNumber(laserLayer, 'glow', 0.5);
-  const strobeOpacity =
-    (strobeLayer?.opacity ?? 1) * getLayerParamNumber(strobeLayer, 'opacity', 1.0);
-  const strobeRate = getLayerParamNumber(strobeLayer, 'rate', 4);
-  const strobeDutyCycle = getLayerParamNumber(strobeLayer, 'dutyCycle', 0.1);
-  const strobeMode = getLayerParamNumber(strobeLayer, 'mode', 0);
-  const strobePattern = getLayerParamNumber(strobeLayer, 'pattern', 0);
-  const strobeThreshold = getLayerParamNumber(strobeLayer, 'threshold', 0.6);
-  const strobeFadeOut = getLayerParamNumber(strobeLayer, 'fadeOut', 0.1);
-  const strobeAudioTrigger = (strobeLayer?.params as any)?.audioTrigger ?? true;
-  const shapeBurstOpacity =
-    (shapeBurstLayer?.opacity ?? 1) * getLayerParamNumber(shapeBurstLayer, 'opacity', 1.0);
-  const shapeBurstShape = getLayerParamNumber(shapeBurstLayer, 'shape', 0);
-  const shapeBurstExpandSpeed = getLayerParamNumber(shapeBurstLayer, 'expandSpeed', 2);
-  const shapeBurstStartSize = getLayerParamNumber(shapeBurstLayer, 'startSize', 0.05);
-  const shapeBurstMaxSize = getLayerParamNumber(shapeBurstLayer, 'maxSize', 1.5);
-  const shapeBurstThickness = getLayerParamNumber(shapeBurstLayer, 'thickness', 0.03);
-  const shapeBurstFadeMode = getLayerParamNumber(shapeBurstLayer, 'fadeMode', 2);
-  const gridTunnelOpacity =
-    (gridTunnelLayer?.opacity ?? 1) * getLayerParamNumber(gridTunnelLayer, 'opacity', 1.0);
-  const gridTunnelSpeed = getLayerParamNumber(gridTunnelLayer, 'speed', 1);
-  const gridTunnelGridSize = getLayerParamNumber(gridTunnelLayer, 'gridSize', 20);
-  const gridTunnelLineWidth = getLayerParamNumber(gridTunnelLayer, 'lineWidth', 0.02);
-  const gridTunnelPerspective = getLayerParamNumber(gridTunnelLayer, 'perspective', 1);
-  const gridTunnelHorizonY = getLayerParamNumber(gridTunnelLayer, 'horizonY', 0.5);
-  const gridTunnelGlow = getLayerParamNumber(gridTunnelLayer, 'glow', 0.5);
-  const gridTunnelAudioReact = getLayerParamNumber(gridTunnelLayer, 'audioReact', 0.3);
-  const gridTunnelMode = getLayerParamNumber(gridTunnelLayer, 'mode', 0);
-
-  // Rock Generator Extractions
-  const lightningEnabled = lightningLayer?.enabled ?? false;
-  const lightningOpacity = (lightningLayer?.opacity ?? 1) * getLayerParamNumber(lightningLayer, 'opacity', 1.0);
-  const lightningSpeed = getLayerParamNumber(lightningLayer, 'speed', 1.0);
-  const lightningBranches = getLayerParamNumber(lightningLayer, 'branches', 3.0);
-  const lightningThickness = getLayerParamNumber(lightningLayer, 'thickness', 0.02);
-  const lightningColor = getLayerParamNumber(lightningLayer, 'color', 0);
-
-  const analogOscilloEnabled = analogOscilloLayer?.enabled ?? false;
-  const analogOscilloOpacity = (analogOscilloLayer?.opacity ?? 1) * getLayerParamNumber(analogOscilloLayer, 'opacity', 1.0);
-  const analogOscilloThickness = getLayerParamNumber(analogOscilloLayer, 'thickness', 0.01);
-  const analogOscilloGlow = getLayerParamNumber(analogOscilloLayer, 'glow', 0.5);
-  const analogOscilloColor = getLayerParamNumber(analogOscilloLayer, 'color', 0);
-  const analogOscilloMode = getLayerParamNumber(analogOscilloLayer, 'mode', 0);
-
-  const speakerConeEnabled = speakerConeLayer?.enabled ?? false;
-  const speakerConeOpacity = (speakerConeLayer?.opacity ?? 1) * getLayerParamNumber(speakerConeLayer, 'opacity', 1.0);
-  const speakerConeForce = getLayerParamNumber(speakerConeLayer, 'force', 1.0);
-
-  const glitchScanlineEnabled = glitchScanlineLayer?.enabled ?? false;
-  const glitchScanlineOpacity = (glitchScanlineLayer?.opacity ?? 1) * getLayerParamNumber(glitchScanlineLayer, 'opacity', 1.0);
-  const glitchScanlineSpeed = getLayerParamNumber(glitchScanlineLayer, 'speed', 1.0);
-  const glitchScanlineCount = getLayerParamNumber(glitchScanlineLayer, 'count', 1.0);
-
-  const laserStarfieldEnabled = laserStarfieldLayer?.enabled ?? false;
-  const laserStarfieldOpacity = (laserStarfieldLayer?.opacity ?? 1) * getLayerParamNumber(laserStarfieldLayer, 'opacity', 1.0);
-  const laserStarfieldSpeed = getLayerParamNumber(laserStarfieldLayer, 'speed', 1.0);
-  const laserStarfieldDensity = getLayerParamNumber(laserStarfieldLayer, 'density', 1.0);
-
-  const pulsingRibbonsEnabled = pulsingRibbonsLayer?.enabled ?? false;
-  const pulsingRibbonsOpacity = (pulsingRibbonsLayer?.opacity ?? 1) * getLayerParamNumber(pulsingRibbonsLayer, 'opacity', 1.0);
-  const pulsingRibbonsCount = getLayerParamNumber(pulsingRibbonsLayer, 'count', 3.0);
-  const pulsingRibbonsWidth = getLayerParamNumber(pulsingRibbonsLayer, 'width', 0.05);
-
-  const electricArcEnabled = electricArcLayer?.enabled ?? false;
-  const electricArcOpacity = (electricArcLayer?.opacity ?? 1) * getLayerParamNumber(electricArcLayer, 'opacity', 1.0);
-  const electricArcRadius = getLayerParamNumber(electricArcLayer, 'radius', 0.5);
-  const electricArcChaos = getLayerParamNumber(electricArcLayer, 'chaos', 1.0);
-
-  const pyroBurstEnabled = pyroBurstLayer?.enabled ?? false;
-  const pyroBurstOpacity = (pyroBurstLayer?.opacity ?? 1) * getLayerParamNumber(pyroBurstLayer, 'opacity', 1.0);
-  const pyroBurstForce = getLayerParamNumber(pyroBurstLayer, 'force', 1.0);
-
-  const geoWireframeEnabled = geoWireframeLayer?.enabled ?? false;
-  const geoWireframeOpacity = (geoWireframeLayer?.opacity ?? 1) * getLayerParamNumber(geoWireframeLayer, 'opacity', 1.0);
-  const geoWireframeShape = getLayerParamNumber(geoWireframeLayer, 'shape', 0);
-  const geoWireframeScale = getLayerParamNumber(geoWireframeLayer, 'scale', 0.5);
-
-  const signalNoiseEnabled = signalNoiseLayer?.enabled ?? false;
-  const signalNoiseOpacity = (signalNoiseLayer?.opacity ?? 1) * getLayerParamNumber(signalNoiseLayer, 'opacity', 1.0);
-  const signalNoiseAmount = getLayerParamNumber(signalNoiseLayer, 'amount', 1.0);
-
-  const wormholeEnabled = wormholeLayer?.enabled ?? false;
-  const wormholeOpacity = (wormholeLayer?.opacity ?? 1) * getLayerParamNumber(wormholeLayer, 'opacity', 1.0);
-  const wormholeSpeed = getLayerParamNumber(wormholeLayer, 'speed', 1.0);
-  const wormholeWeave = getLayerParamNumber(wormholeLayer, 'weave', 0.2);
-  const wormholeIter = getLayerParamNumber(wormholeLayer, 'iter', 3.0);
-
-  const ribbonTunnelEnabled = ribbonTunnelLayer?.enabled ?? false;
-  const ribbonTunnelOpacity = (ribbonTunnelLayer?.opacity ?? 1) * getLayerParamNumber(ribbonTunnelLayer, 'opacity', 1.0);
-  const ribbonTunnelSpeed = getLayerParamNumber(ribbonTunnelLayer, 'speed', 1.0);
-  const ribbonTunnelTwist = getLayerParamNumber(ribbonTunnelLayer, 'twist', 1.0);
-
-  const fractalTunnelEnabled = fractalTunnelLayer?.enabled ?? false;
-  const fractalTunnelOpacity = (fractalTunnelLayer?.opacity ?? 1) * getLayerParamNumber(fractalTunnelLayer, 'opacity', 1.0);
-  const fractalTunnelSpeed = getLayerParamNumber(fractalTunnelLayer, 'speed', 1.0);
-  const fractalTunnelComplexity = getLayerParamNumber(fractalTunnelLayer, 'complexity', 3.0);
-
-  const circuitConduitEnabled = circuitConduitLayer?.enabled ?? false;
-  const circuitConduitOpacity = (circuitConduitLayer?.opacity ?? 1) * getLayerParamNumber(circuitConduitLayer, 'opacity', 1.0);
-  const circuitConduitSpeed = getLayerParamNumber(circuitConduitLayer, 'speed', 1.0);
-
-  const auraPortalEnabled = auraPortalLayer?.enabled ?? false;
-  const auraPortalOpacity = (auraPortalLayer?.opacity ?? 1) * getLayerParamNumber(auraPortalLayer, 'opacity', 1.0);
-  const auraPortalColor = getLayerParamNumber(auraPortalLayer, 'color', 0);
-
-  const freqTerrainEnabled = freqTerrainLayer?.enabled ?? false;
-  const freqTerrainOpacity = (freqTerrainLayer?.opacity ?? 1) * getLayerParamNumber(freqTerrainLayer, 'opacity', 1.0);
-  const freqTerrainScale = getLayerParamNumber(freqTerrainLayer, 'scale', 1.0);
-
-  const dataStreamEnabled = dataStreamLayer?.enabled ?? false;
-  const dataStreamOpacity = (dataStreamLayer?.opacity ?? 1) * getLayerParamNumber(dataStreamLayer, 'opacity', 1.0);
-  const dataStreamSpeed = getLayerParamNumber(dataStreamLayer, 'speed', 1.0);
-
-  const causticLiquidEnabled = causticLiquidLayer?.enabled ?? false;
-  const causticLiquidOpacity = (causticLiquidLayer?.opacity ?? 1) * getLayerParamNumber(causticLiquidLayer, 'opacity', 1.0);
-  const causticLiquidSpeed = getLayerParamNumber(causticLiquidLayer, 'speed', 1.0);
-
-  const shimmerVeilEnabled = shimmerVeilLayer?.enabled ?? false;
-  const shimmerVeilOpacity = (shimmerVeilLayer?.opacity ?? 1) * getLayerParamNumber(shimmerVeilLayer, 'opacity', 1.0);
-  const shimmerVeilComplexity = getLayerParamNumber(shimmerVeilLayer, 'complexity', 10.0);
 
   if (oscilloFreeze < 0.5) {
     oscilloCapture.set(audioState.waveform);
@@ -11037,369 +11622,10 @@ const render = (time: number) => {
     portalEnabled,
     mediaEnabled,
     oscilloEnabled,
-    // EDM Generators
-    laserEnabled,
-    laserOpacity,
-    laserBeamCount,
-    laserBeamWidth,
-    laserBeamLength,
-    laserRotation,
-    laserRotationSpeed,
-    laserSpread,
-    laserMode,
-    laserColorShift,
-    laserAudioReact,
-    laserGlow,
-    strobeEnabled,
-    strobeOpacity,
-    strobeRate,
-    strobeDutyCycle,
-    strobeMode,
-    strobePattern,
-    strobeAudioTrigger,
-    strobeThreshold,
-    strobeFadeOut,
-    shapeBurstEnabled,
-    shapeBurstOpacity,
-    shapeBurstShape,
-    shapeBurstExpandSpeed,
-    shapeBurstStartSize,
-    shapeBurstMaxSize,
-    shapeBurstThickness,
-    shapeBurstFadeMode,
+    // Special-case array uniforms not handled by genUniforms
     shapeBurstSpawnTimes,
     shapeBurstActives,
-    gridTunnelEnabled,
-    gridTunnelOpacity,
-    gridTunnelSpeed,
-    gridTunnelGridSize,
-    gridTunnelLineWidth,
-    gridTunnelPerspective,
-    gridTunnelHorizonY,
-    gridTunnelGlow,
-    gridTunnelAudioReact,
-    gridTunnelMode,
-    // Rock Generators
-    lightningEnabled,
-    lightningOpacity,
-    lightningSpeed,
-    lightningBranches,
-    lightningThickness,
-    lightningColor,
-    analogOscilloEnabled,
-    analogOscilloOpacity,
-    analogOscilloThickness,
-    analogOscilloGlow,
-    analogOscilloColor,
-    analogOscilloMode,
-    speakerConeEnabled,
-    speakerConeOpacity,
-    speakerConeForce,
-    glitchScanlineEnabled,
-    glitchScanlineOpacity,
-    glitchScanlineSpeed,
-    glitchScanlineCount,
-    laserStarfieldEnabled,
-    laserStarfieldOpacity,
-    laserStarfieldSpeed,
-    laserStarfieldDensity,
-    pulsingRibbonsEnabled,
-    pulsingRibbonsOpacity,
-    pulsingRibbonsCount,
-    pulsingRibbonsWidth,
-    electricArcEnabled,
-    electricArcOpacity,
-    electricArcRadius,
-    electricArcChaos,
-    pyroBurstEnabled,
-    pyroBurstOpacity,
-    pyroBurstForce,
-    geoWireframeEnabled,
-    geoWireframeOpacity,
-    geoWireframeShape,
-    geoWireframeScale,
-    signalNoiseEnabled,
-    signalNoiseOpacity,
-    signalNoiseAmount,
-    wormholeEnabled,
-    wormholeOpacity,
-    wormholeSpeed,
-    wormholeWeave,
-    wormholeIter,
-    ribbonTunnelEnabled,
-    ribbonTunnelOpacity,
-    ribbonTunnelSpeed,
-    ribbonTunnelTwist,
-    fractalTunnelEnabled,
-    fractalTunnelOpacity,
-    fractalTunnelSpeed,
-    fractalTunnelComplexity,
-    circuitConduitEnabled,
-    circuitConduitOpacity,
-    circuitConduitSpeed,
-    auraPortalEnabled,
-    auraPortalOpacity,
-    auraPortalColor,
-    freqTerrainEnabled,
-    freqTerrainOpacity,
-    freqTerrainScale,
-    dataStreamEnabled,
-    dataStreamOpacity,
-    dataStreamSpeed,
-    causticLiquidEnabled,
-    causticLiquidOpacity,
-    causticLiquidSpeed,
-    shimmerVeilEnabled,
-    shimmerVeilOpacity,
-    shimmerVeilComplexity,
-    // New 31 Generators Parameters
-    nebulaCloudEnabled: nebulaCloudLayer?.enabled ?? false,
-    nebulaCloudOpacity: getLayerParamNumber(nebulaCloudLayer, 'opacity', 1.0),
-    nebulaCloudDensity: getLayerParamNumber(nebulaCloudLayer, 'density', 1.0),
-    nebulaCloudSpeed: getLayerParamNumber(nebulaCloudLayer, 'speed', 0.5),
-    circuitBoardEnabled: circuitBoardLayer?.enabled ?? false,
-    circuitBoardOpacity: getLayerParamNumber(circuitBoardLayer, 'opacity', 1.0),
-    circuitBoardGrowth: getLayerParamNumber(circuitBoardLayer, 'growth', 1.0),
-    circuitBoardComplexity: getLayerParamNumber(circuitBoardLayer, 'complexity', 5.0),
-    lorenzAttractorEnabled: lorenzLayer?.enabled ?? false,
-    lorenzAttractorOpacity: getLayerParamNumber(lorenzLayer, 'opacity', 1.0),
-    lorenzAttractorSpeed: getLayerParamNumber(lorenzLayer, 'speed', 1.0),
-    lorenzAttractorChaos: getLayerParamNumber(lorenzLayer, 'chaos', 1.0),
-    mandalaSpinnerEnabled: mandalaLayer?.enabled ?? false,
-    mandalaSpinnerOpacity: getLayerParamNumber(mandalaLayer, 'opacity', 1.0),
-    mandalaSpinnerSides: getLayerParamNumber(mandalaLayer, 'sides', 6.0),
-    mandalaSpinnerSpeed: getLayerParamNumber(mandalaLayer, 'speed', 1.0),
-    starburstGalaxyEnabled: starburstLayer?.enabled ?? false,
-    starburstGalaxyOpacity: getLayerParamNumber(starburstLayer, 'opacity', 1.0),
-    starburstGalaxyForce: getLayerParamNumber(starburstLayer, 'force', 1.0),
-    starburstGalaxyCount: getLayerParamNumber(starburstLayer, 'count', 100.0),
-    digitalRainV2Enabled: rainV2Layer?.enabled ?? false,
-    digitalRainV2Opacity: getLayerParamNumber(rainV2Layer, 'opacity', 1.0),
-    digitalRainV2Speed: getLayerParamNumber(rainV2Layer, 'speed', 1.0),
-    digitalRainV2Density: getLayerParamNumber(rainV2Layer, 'density', 1.0),
-    lavaFlowEnabled: lavaLayer?.enabled ?? false,
-    lavaFlowOpacity: getLayerParamNumber(lavaLayer, 'opacity', 1.0),
-    lavaFlowHeat: getLayerParamNumber(lavaLayer, 'heat', 1.0),
-    lavaFlowViscosity: getLayerParamNumber(lavaLayer, 'viscosity', 1.0),
-    crystalGrowthEnabled: crystalGrowthLayer?.enabled ?? false,
-    crystalGrowthOpacity: getLayerParamNumber(crystalGrowthLayer, 'opacity', 1.0),
-    crystalGrowthRate: getLayerParamNumber(crystalGrowthLayer, 'rate', 0.5),
-    crystalGrowthSharpness: getLayerParamNumber(crystalGrowthLayer, 'sharpness', 0.8),
-    technoGridEnabled: technoGridLayer?.enabled ?? false,
-    technoGridOpacity: getLayerParamNumber(technoGridLayer, 'opacity', 1.0),
-    technoGridHeight: getLayerParamNumber(technoGridLayer, 'height', 1.0),
-    technoGridSpeed: getLayerParamNumber(technoGridLayer, 'speed', 1.0),
-    magneticFieldEnabled: magneticLayer?.enabled ?? false,
-    magneticFieldOpacity: getLayerParamNumber(magneticLayer, 'opacity', 1.0),
-    magneticFieldStrength: getLayerParamNumber(magneticLayer, 'strength', 1.0),
-    magneticFieldDensity: getLayerParamNumber(magneticLayer, 'density', 20.0),
-    prismShardsEnabled: prismShardsLayer?.enabled ?? false,
-    prismShardsOpacity: getLayerParamNumber(prismShardsLayer, 'opacity', 1.0),
-    prismShardsRefraction: getLayerParamNumber(prismShardsLayer, 'refraction', 0.5),
-    prismShardsCount: getLayerParamNumber(prismShardsLayer, 'count', 5.0),
-    neuralNetEnabled: neuralNetLayer?.enabled ?? false,
-    neuralNetOpacity: getLayerParamNumber(neuralNetLayer, 'opacity', 1.0),
-    neuralNetActivity: getLayerParamNumber(neuralNetLayer, 'activity', 1.0),
-    neuralNetDensity: getLayerParamNumber(neuralNetLayer, 'density', 1.0),
-    auroraChordEnabled: auroraChordLayer?.enabled ?? false,
-    auroraChordOpacity: getLayerParamNumber(auroraChordLayer, 'opacity', 1.0),
-    auroraChordWaviness: getLayerParamNumber(auroraChordLayer, 'waviness', 1.0),
-    auroraChordColorRange: getLayerParamNumber(auroraChordLayer, 'colorRange', 1.0),
-    vhsGlitchEnabled: vhsGlitchLayer?.enabled ?? false,
-    vhsGlitchOpacity: getLayerParamNumber(vhsGlitchLayer, 'opacity', 1.0),
-    vhsGlitchJitter: getLayerParamNumber(vhsGlitchLayer, 'jitter', 0.2),
-    vhsGlitchNoise: getLayerParamNumber(vhsGlitchLayer, 'noise', 0.3),
-    moirePatternEnabled: moireLayer?.enabled ?? false,
-    moirePatternOpacity: getLayerParamNumber(moireLayer, 'opacity', 1.0),
-    moirePatternScale: getLayerParamNumber(moireLayer, 'scale', 5.0),
-    moirePatternSpeed: getLayerParamNumber(moireLayer, 'speed', 1.0),
-    hypercubeEnabled: hypercubeLayer?.enabled ?? false,
-    hypercubeOpacity: getLayerParamNumber(hypercubeLayer, 'opacity', 1.0),
-    hypercubeProjection: getLayerParamNumber(hypercubeLayer, 'projection', 1.0),
-    hypercubeSpeed: getLayerParamNumber(hypercubeLayer, 'speed', 1.0),
-    fluidSwirlEnabled: fluidSwirlLayer?.enabled ?? false,
-    fluidSwirlOpacity: getLayerParamNumber(fluidSwirlLayer, 'opacity', 1.0),
-    fluidSwirlVorticity: getLayerParamNumber(fluidSwirlLayer, 'vorticity', 1.0),
-    fluidSwirlColorMix: getLayerParamNumber(fluidSwirlLayer, 'colorMix', 1.0),
-    // New Unique Generator Parameters
-    cellularGrowthEnabled: cellularGrowthLayer?.enabled ?? false,
-    cellularGrowthOpacity: getLayerParamNumber(cellularGrowthLayer, 'opacity', 1.0),
-    cellularGrowthRate: getLayerParamNumber(cellularGrowthLayer, 'rate', 1.0),
-    cellularGrowthDensity: getLayerParamNumber(cellularGrowthLayer, 'density', 0.8),
-    bioLuminescentForestEnabled: bioLuminescentForestLayer?.enabled ?? false,
-    bioLuminescentForestOpacity: getLayerParamNumber(bioLuminescentForestLayer, 'opacity', 1.0),
-    bioLuminescentForestPulse: getLayerParamNumber(bioLuminescentForestLayer, 'pulse', 1.0),
-    bioLuminescentForestDensity: getLayerParamNumber(bioLuminescentForestLayer, 'density', 0.7),
-    crystallineEnabled: crystallineLayer?.enabled ?? false,
-    crystallineOpacity: getLayerParamNumber(crystallineLayer, 'opacity', 1.0),
-    crystallineRotation: getLayerParamNumber(crystallineLayer, 'rotation', 1.0),
-    crystallineRefraction: getLayerParamNumber(crystallineLayer, 'refraction', 0.5),
-    audioDnaEnabled: audioDnaLayer?.enabled ?? false,
-    audioDnaOpacity: getLayerParamNumber(audioDnaLayer, 'opacity', 1.0),
-    audioDnaRotation: getLayerParamNumber(audioDnaLayer, 'rotation', 1.0),
-    audioDnaSegments: getLayerParamNumber(audioDnaLayer, 'segments', 20.0),
-    liquidMetalEnabled: liquidMetalLayer?.enabled ?? false,
-    liquidMetalOpacity: getLayerParamNumber(liquidMetalLayer, 'opacity', 1.0),
-    liquidMetalFlow: getLayerParamNumber(liquidMetalLayer, 'flow', 1.0),
-    liquidMetalShimmer: getLayerParamNumber(liquidMetalLayer, 'shimmer', 0.5),
-    neonCityscapeEnabled: neonCityscapeLayer?.enabled ?? false,
-    neonCityscapeOpacity: getLayerParamNumber(neonCityscapeLayer, 'opacity', 1.0),
-    neonCityscapeSpeed: getLayerParamNumber(neonCityscapeLayer, 'speed', 1.0),
-    neonCityscapeDensity: getLayerParamNumber(neonCityscapeLayer, 'density', 0.6),
-    cosmicNebulaEnabled: cosmicNebulaLayer?.enabled ?? false,
-    cosmicNebulaOpacity: getLayerParamNumber(cosmicNebulaLayer, 'opacity', 1.0),
-    cosmicNebulaExpansion: getLayerParamNumber(cosmicNebulaLayer, 'expansion', 1.0),
-    cosmicNebulaTurbulence: getLayerParamNumber(cosmicNebulaLayer, 'turbulence', 0.5),
-    sonicRainEnabled: sonicRainLayer?.enabled ?? false,
-    sonicRainOpacity: getLayerParamNumber(sonicRainLayer, 'opacity', 1.0),
-    sonicRainSpeed: getLayerParamNumber(sonicRainLayer, 'speed', 1.0),
-    sonicRainDensity: getLayerParamNumber(sonicRainLayer, 'density', 0.8),
-    morphingGeometryEnabled: morphingGeometryLayer?.enabled ?? false,
-    morphingGeometryOpacity: getLayerParamNumber(morphingGeometryLayer, 'opacity', 1.0),
-    morphingGeometrySpeed: getLayerParamNumber(morphingGeometryLayer, 'speed', 1.0),
-    morphingGeometryComplexity: getLayerParamNumber(morphingGeometryLayer, 'complexity', 0.7),
-    urbanRhythmEnabled: urbanRhythmLayer?.enabled ?? false,
-    urbanRhythmOpacity: getLayerParamNumber(urbanRhythmLayer, 'opacity', 1.0),
-    urbanRhythmBpm: getLayerParamNumber(urbanRhythmLayer, 'bpm', 1.0),
-    urbanRhythmIntensity: getLayerParamNumber(urbanRhythmLayer, 'intensity', 0.6),
-    asciiStreamEnabled: asciiLayer?.enabled ?? false,
-    asciiStreamOpacity: getLayerParamNumber(asciiLayer, 'opacity', 1.0),
-    asciiStreamResolution: getLayerParamNumber(asciiLayer, 'resolution', 40.0),
-    asciiStreamContrast: getLayerParamNumber(asciiLayer, 'contrast', 1.0),
-    retroWaveEnabled: retroWaveLayer?.enabled ?? false,
-    retroWaveOpacity: getLayerParamNumber(retroWaveLayer, 'opacity', 1.0),
-    retroWaveSunSize: getLayerParamNumber(retroWaveLayer, 'sunSize', 1.0),
-    retroWaveGridSpeed: getLayerParamNumber(retroWaveLayer, 'gridSpeed', 1.0),
-    bubblePopEnabled: bubblePopLayer?.enabled ?? false,
-    bubblePopOpacity: getLayerParamNumber(bubblePopLayer, 'opacity', 1.0),
-    bubblePopPopRate: getLayerParamNumber(bubblePopLayer, 'popRate', 1.0),
-    bubblePopSize: getLayerParamNumber(bubblePopLayer, 'size', 0.5),
-    soundWave3DEnabled: soundWave3DLayer?.enabled ?? false,
-    soundWave3DOpacity: getLayerParamNumber(soundWave3DLayer, 'opacity', 1.0),
-    soundWave3DAmplitude: getLayerParamNumber(soundWave3DLayer, 'amplitude', 1.0),
-    soundWave3DSmoothness: getLayerParamNumber(soundWave3DLayer, 'smoothness', 1.0),
-    particleVortexEnabled: particleVortexLayer?.enabled ?? false,
-    particleVortexOpacity: getLayerParamNumber(particleVortexLayer, 'opacity', 1.0),
-    particleVortexSuction: getLayerParamNumber(particleVortexLayer, 'suction', 1.0),
-    particleVortexSpin: getLayerParamNumber(particleVortexLayer, 'spin', 1.0),
-    glowWormsEnabled: glowWormsLayer?.enabled ?? false,
-    glowWormsOpacity: getLayerParamNumber(glowWormsLayer, 'opacity', 1.0),
-    glowWormsLength: getLayerParamNumber(glowWormsLayer, 'length', 1.0),
-    glowWormsSpeed: getLayerParamNumber(glowWormsLayer, 'speed', 1.0),
-    mirrorMazeEnabled: mirrorMazeLayer?.enabled ?? false,
-    mirrorMazeOpacity: getLayerParamNumber(mirrorMazeLayer, 'opacity', 1.0),
-    mirrorMazeRecursion: getLayerParamNumber(mirrorMazeLayer, 'recursion', 4.0),
-    mirrorMazeAngle: getLayerParamNumber(mirrorMazeLayer, 'angle', 0.78),
-    pulseHeartEnabled: pulseHeartLayer?.enabled ?? false,
-    pulseHeartOpacity: getLayerParamNumber(pulseHeartLayer, 'opacity', 1.0),
-    pulseHeartBeats: getLayerParamNumber(pulseHeartLayer, 'beats', 1.0),
-    pulseHeartLayers: getLayerParamNumber(pulseHeartLayer, 'layers', 5.0),
-    dataShardsEnabled: dataShardsLayer?.enabled ?? false,
-    dataShardsOpacity: getLayerParamNumber(dataShardsLayer, 'opacity', 1.0),
-    dataShardsSpeed: getLayerParamNumber(dataShardsLayer, 'speed', 1.0),
-    dataShardsSharpness: getLayerParamNumber(dataShardsLayer, 'sharpness', 1.0),
-    hexCellEnabled: hexCellLayer?.enabled ?? false,
-    hexCellOpacity: getLayerParamNumber(hexCellLayer, 'opacity', 1.0),
-    hexCellPulse: getLayerParamNumber(hexCellLayer, 'pulse', 1.0),
-    hexCellScale: getLayerParamNumber(hexCellLayer, 'scale', 1.0),
-    plasmaBallEnabled: plasmaBallLayer?.enabled ?? false,
-    plasmaBallOpacity: getLayerParamNumber(plasmaBallLayer, 'opacity', 1.0),
-    plasmaBallVoltage: getLayerParamNumber(plasmaBallLayer, 'voltage', 1.0),
-    plasmaBallFilaments: getLayerParamNumber(plasmaBallLayer, 'filaments', 5.0),
-    warpDriveEnabled: warpDriveLayer?.enabled ?? false,
-    warpDriveOpacity: getLayerParamNumber(warpDriveLayer, 'opacity', 1.0),
-    warpDriveWarp: getLayerParamNumber(warpDriveLayer, 'warp', 1.0),
-    warpDriveGlow: getLayerParamNumber(warpDriveLayer, 'glow', 1.0),
-    visualFeedbackEnabled: feedbackLayer?.enabled ?? false,
-    visualFeedbackOpacity: getLayerParamNumber(feedbackLayer, 'opacity', 1.0),
-    visualFeedbackZoom: getLayerParamNumber(feedbackLayer, 'zoom', 1.01),
-    visualFeedbackRotation: getLayerParamNumber(feedbackLayer, 'rotation', 0.01),
-    myceliumGrowthEnabled: myceliumLayer?.enabled ?? false,
-    myceliumGrowthOpacity: getLayerParamNumber(myceliumLayer, 'opacity', 1.0),
-    myceliumGrowthSpread: getLayerParamNumber(myceliumLayer, 'spread', 1.0),
-    myceliumGrowthDecay: getLayerParamNumber(myceliumLayer, 'decay', 0.5),
-    crimsonVeilEnabled: crimsonVeilLayer?.enabled ?? false,
-    crimsonVeilOpacity: getLayerParamNumber(crimsonVeilLayer, 'opacity', 1.0),
-    crimsonVeilFlow: getLayerParamNumber(crimsonVeilLayer, 'flow', 1.0),
-    crimsonVeilDarkness: getLayerParamNumber(crimsonVeilLayer, 'darkness', 0.5),
-    victorianCryptEnabled: victorianCryptLayer?.enabled ?? false,
-    victorianCryptOpacity: getLayerParamNumber(victorianCryptLayer, 'opacity', 1.0),
-    victorianCryptComplexity: getLayerParamNumber(victorianCryptLayer, 'complexity', 0.5),
-    victorianCryptDecay: getLayerParamNumber(victorianCryptLayer, 'decay', 0.5),
-    spectralApparitionEnabled: spectralApparitionLayer?.enabled ?? false,
-    spectralApparitionOpacity: getLayerParamNumber(spectralApparitionLayer, 'opacity', 1.0),
-    spectralApparitionDensity: getLayerParamNumber(spectralApparitionLayer, 'density', 0.5),
-    spectralApparitionFade: getLayerParamNumber(spectralApparitionLayer, 'fade', 0.5),
-    gothicCobwebsEnabled: gothicCobwebsLayer?.enabled ?? false,
-    gothicCobwebsOpacity: getLayerParamNumber(gothicCobwebsLayer, 'opacity', 1.0),
-    gothicCobwebsDensity: getLayerParamNumber(gothicCobwebsLayer, 'density', 0.5),
-    gothicCobwebsDecay: getLayerParamNumber(gothicCobwebsLayer, 'decay', 0.5),
-    bloodMoonRiseEnabled: bloodMoonRiseLayer?.enabled ?? false,
-    bloodMoonRiseOpacity: getLayerParamNumber(bloodMoonRiseLayer, 'opacity', 1.0),
-    bloodMoonRiseEclipse: getLayerParamNumber(bloodMoonRiseLayer, 'eclipse', 0.5),
-    bloodMoonRiseGlow: getLayerParamNumber(bloodMoonRiseLayer, 'glow', 0.5),
-    candlelightVigilEnabled: candlelightVigilLayer?.enabled ?? false,
-    candlelightVigilOpacity: getLayerParamNumber(candlelightVigilLayer, 'opacity', 1.0),
-    candlelightVigilFlicker: getLayerParamNumber(candlelightVigilLayer, 'flicker', 0.5),
-    candlelightVigilDecay: getLayerParamNumber(candlelightVigilLayer, 'decay', 0.5),
-    gargoylesAwakeEnabled: gargoylesAwakeLayer?.enabled ?? false,
-    gargoylesAwakeOpacity: getLayerParamNumber(gargoylesAwakeLayer, 'opacity', 1.0),
-    gargoylesAwakeAnimation: getLayerParamNumber(gargoylesAwakeLayer, 'animation', 0.5),
-    gargoylesAwakeShadow: getLayerParamNumber(gargoylesAwakeLayer, 'shadow', 0.5),
-    cryptShadowsEnabled: cryptShadowsLayer?.enabled ?? false,
-    cryptShadowsOpacity: getLayerParamNumber(cryptShadowsLayer, 'opacity', 1.0),
-    cryptShadowsDepth: getLayerParamNumber(cryptShadowsLayer, 'depth', 0.5),
-    cryptShadowsMovement: getLayerParamNumber(cryptShadowsLayer, 'movement', 0.5),
-    gothicRoseEnabled: gothicRoseLayer?.enabled ?? false,
-    gothicRoseOpacity: getLayerParamNumber(gothicRoseLayer, 'opacity', 1.0),
-    gothicRoseDecay: getLayerParamNumber(gothicRoseLayer, 'decay', 0.5),
-    gothicRoseThorns: getLayerParamNumber(gothicRoseLayer, 'thorns', 0.5),
-    eternalDarknessEnabled: eternalDarknessLayer?.enabled ?? false,
-    eternalDarknessOpacity: getLayerParamNumber(eternalDarknessLayer, 'opacity', 1.0),
-    eternalDarknessVoid: getLayerParamNumber(eternalDarknessLayer, 'void', 0.5),
-    eternalDarknessTraces: getLayerParamNumber(eternalDarknessLayer, 'traces', 0.5),
-    pixelDustEnabled: pixelDustLayer?.enabled ?? false,
-    pixelDustOpacity: getLayerParamNumber(pixelDustLayer, 'opacity', 1.0),
-    pixelDustDensity: getLayerParamNumber(pixelDustLayer, 'density', 0.5),
-    pixelDustPixelSize: getLayerParamNumber(pixelDustLayer, 'pixelSize', 0.02),
-    retroStarfieldEnabled: retroStarfieldLayer?.enabled ?? false,
-    retroStarfieldOpacity: getLayerParamNumber(retroStarfieldLayer, 'opacity', 1.0),
-    retroStarfieldSpeed: getLayerParamNumber(retroStarfieldLayer, 'speed', 1.0),
-    retroStarfieldSize: getLayerParamNumber(retroStarfieldLayer, 'size', 0.01),
-    eightBitGridEnabled: eightBitGridLayer?.enabled ?? false,
-    eightBitGridOpacity: getLayerParamNumber(eightBitGridLayer, 'opacity', 1.0),
-    eightBitGridSpeed: getLayerParamNumber(eightBitGridLayer, 'speed', 1.0),
-    eightBitGridPixelSize: getLayerParamNumber(eightBitGridLayer, 'pixelSize', 0.02),
-    arcadeInvadersEnabled: arcadeInvadersLayer?.enabled ?? false,
-    arcadeInvadersOpacity: getLayerParamNumber(arcadeInvadersLayer, 'opacity', 1.0),
-    arcadeInvadersDensity: getLayerParamNumber(arcadeInvadersLayer, 'density', 0.5),
-    arcadeInvadersAnimation: getLayerParamNumber(arcadeInvadersLayer, 'animation', 0.5),
-    powerUpPulseEnabled: powerUpPulseLayer?.enabled ?? false,
-    powerUpPulseOpacity: getLayerParamNumber(powerUpPulseLayer, 'opacity', 1.0),
-    powerUpPulseIntensity: getLayerParamNumber(powerUpPulseLayer, 'intensity', 0.5),
-    powerUpPulseSpeed: getLayerParamNumber(powerUpPulseLayer, 'speed', 1.0),
-    dungeonTilesEnabled: dungeonTilesLayer?.enabled ?? false,
-    dungeonTilesOpacity: getLayerParamNumber(dungeonTilesLayer, 'opacity', 1.0),
-    dungeonTilesPattern: getLayerParamNumber(dungeonTilesLayer, 'pattern', 0.5),
-    dungeonTilesAnimation: getLayerParamNumber(dungeonTilesLayer, 'animation', 0.5),
-    chiptuneWaveEnabled: chiptuneWaveLayer?.enabled ?? false,
-    chiptuneWaveOpacity: getLayerParamNumber(chiptuneWaveLayer, 'opacity', 1.0),
-    chiptuneWaveBits: getLayerParamNumber(chiptuneWaveLayer, 'bits', 4.0),
-    chiptuneWaveSpeed: getLayerParamNumber(chiptuneWaveLayer, 'speed', 1.0),
-    scoreCounterEnabled: scoreCounterLayer?.enabled ?? false,
-    scoreCounterOpacity: getLayerParamNumber(scoreCounterLayer, 'opacity', 1.0),
-    scoreCounterDigits: getLayerParamNumber(scoreCounterLayer, 'digits', 6.0),
-    scoreCounterAnimation: getLayerParamNumber(scoreCounterLayer, 'animation', 1.0),
-    pixelRainEnabled: pixelRainLayer?.enabled ?? false,
-    pixelRainOpacity: getLayerParamNumber(pixelRainLayer, 'opacity', 1.0),
-    pixelRainDensity: getLayerParamNumber(pixelRainLayer, 'density', 0.5),
-    pixelRainSpeed: getLayerParamNumber(pixelRainLayer, 'speed', 1.0),
-    milkwaveEnabled: milkwaveLayer?.enabled ?? false,
-    milkwaveOpacity: getLayerParamNumber(milkwaveLayer, 'opacity', milkwaveLayer?.opacity ?? 1.0),
-    bossHealthEnabled: bossHealthLayer?.enabled ?? false,
-    bossHealthOpacity: getLayerParamNumber(bossHealthLayer, 'opacity', 1.0),
-    bossHealthValue: getLayerParamNumber(bossHealthLayer, 'value', 0.5),
-    bossHealthBars: getLayerParamNumber(bossHealthLayer, 'bars', 3.0),
+    milkDropShaderData: renderScene?._shaderData ?? null,
     spectrum: audioState.spectrum,
     contrast: moddedStyle.contrast,
     saturation: moddedStyle.saturation,
@@ -11532,12 +11758,10 @@ const render = (time: number) => {
     gravityStrengths,
     gravityPolarities,
     gravityActives,
-    gravityCollapse
+    gravityCollapse,
+    genUniforms,
   };
-    return {
-      renderState,
-      laserLayer
-    };
+    return { renderState };
   };
 
   const activeSceneData = buildRenderStateForScene(activeScene);
@@ -11546,7 +11770,8 @@ const render = (time: number) => {
     outputOpen && outputScene?.id && outputScene?.id !== previewScene?.id
       ? buildRenderStateForScene(outputScene)
       : activeSceneData;
-  const renderState = activeSceneData.renderState;
+  lastOutputRenderState = outputData.renderState;
+  const renderState = previewData.renderState;
   latestCaptureRenderSnapshot = {
     timeMs: renderState.timeMs,
     rms: renderState.rms,
@@ -11591,28 +11816,26 @@ const render = (time: number) => {
     chroma: renderState.chroma,
     feedback: renderState.feedback,
     kaleidoscope: renderState.kaleidoscope,
-    posterize: renderState.posterize
+    posterize: renderState.posterize,
   };
-  
+
   if (renderState.milkDropShaderData) {
     renderer.updateMilkDropShaders?.(renderState.milkDropShaderData);
   }
-  
-  console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
+   
+  // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
   renderer.render(renderState);
   resizeCanvasToDisplaySize(visualizerCanvas);
   updateSceneTimelineProgress(blendSnapshot);
   drawVisualizer(blendSnapshot?.visualizer ?? currentProject.visualizer);
+  overlayRenderer.draw();
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // Debug Overlay Update - Shows layer/FX execution status
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const debugActiveScene = outputScene ?? currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
-  const laserIdRaw = outputData.laserLayer?.id ?? '';
-  const laserIdBytes = laserIdRaw
-    ? Array.from(laserIdRaw).map((ch) => ch.charCodeAt(0)).join(' ')
-    : '';
+  const gu = outputData.renderState.genUniforms;
   debugOverlay.update(
     {
       frameId: Math.floor(time),
@@ -11684,18 +11907,18 @@ const render = (time: number) => {
       masterBusFrameId: Math.floor(time),
       uniformsUpdatedFrameId: Math.floor(time),
       laser: {
-        enabled: outputData.renderState.laserEnabled,
-        opacity: outputData.renderState.laserOpacity,
-        beamCount: outputData.renderState.laserBeamCount,
-        beamWidth: outputData.renderState.laserBeamWidth,
-        beamLength: outputData.renderState.laserBeamLength,
-        glow: outputData.renderState.laserGlow,
-        present: Boolean(outputData.laserLayer),
-        enabledInScene: outputData.laserLayer?.enabled ?? false,
-        idRaw: laserIdRaw,
-        idBytes: laserIdBytes,
+        enabled: (gu.LaserEnabled ?? 0) > 0,
+        opacity: gu.LaserOpacity ?? 0,
+        beamCount: gu.LaserBeamCount ?? 0,
+        beamWidth: gu.LaserBeamWidth ?? 0,
+        beamLength: gu.LaserBeamLength ?? 0,
+        glow: gu.LaserGlow ?? 0,
+        present: (gu.LaserEnabled ?? 0) > 0,
+        enabledInScene: (gu.LaserEnabled ?? 0) > 0,
+        idRaw: 'gen-laser-beam',
+        idBytes: '',
         matchTarget: 'gen-laser-beam',
-        matchNormalized: laserIdRaw
+        matchNormalized: 'gen-laser-beam'
       },
       generators: []
     },

@@ -97,7 +97,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "pyro-1",
+        "type": "pyro-burst",
         "param": "opacity"
       },
       "amount": 0.3,

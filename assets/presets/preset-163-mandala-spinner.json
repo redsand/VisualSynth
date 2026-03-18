@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-mandala-spinner-1",
+          "id": "gen-mandala-spinner",
           "name": "Mandala Spinner",
           "role": "core",
           "enabled": true,

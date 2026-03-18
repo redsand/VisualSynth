@@ -1,5 +1,5 @@
 import type { RenderState } from '../glRenderer';
-import type { AssetItem, SceneConfig, VisualSynthProject } from '../../shared/project';
+import type { AssetItem, OverlayConfig, SceneConfig, VisualSynthProject } from '../../shared/project';
 
 type ExcludedOutputField = 'sdfScene' | 'debugTint';
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
@@ -20,6 +20,7 @@ export interface RendererOutputBroadcastPayload extends RendererOutputPayload {
   paletteColors?: string[];
   layerAssets?: Partial<Record<AssetLayerId, SerializedOutputAsset | null>>;
   activeGeneratorIds?: string[];
+  overlays?: OverlayConfig[];
 }
 
 export const buildRendererOutputPayload = (
@@ -89,6 +90,7 @@ export const buildRendererOutputBroadcastPayload = ({
       'layer-spectrum': resolveLayerAsset(project, scene, 'layer-spectrum'),
       'layer-media': resolveLayerAsset(project, scene, 'layer-media')
     },
-    activeGeneratorIds
+    activeGeneratorIds,
+    overlays: project.overlays ?? []
   };
 };

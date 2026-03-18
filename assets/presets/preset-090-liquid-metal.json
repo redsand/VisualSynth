@@ -47,14 +47,14 @@
       "assigned_layers": {
         "core": [],
         "support": [
-          "layer-plasma"
+          "layer-liquid-metal"
         ],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-plasma",
-          "name": "Plasma",
+          "id": "layer-liquid-metal",
+          "name": "Liquid Metal",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
@@ -74,10 +74,10 @@
               "scale": 1,
               "rotation": 0
             },
-            "speed": 1,
-            "scale": 1,
-            "complexity": 0.5
-          }
+            "flow": 1.4,
+            "shimmer": 0.85
+          },
+          "generatorId": "gen-liquid-metal"
         }
       ]
     }
@@ -96,12 +96,12 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "plasma",
-        "param": "speed"
+        "type": "liquid-metal",
+        "param": "flow"
       },
       "amount": 0.54,
-      "min": 1.19,
-      "max": 1.73,
+      "min": 1.1,
+      "max": 1.9,
       "curve": "linear",
       "smoothing": 0.5,
       "bipolar": false
@@ -110,18 +110,18 @@
   "macros": [
     {
       "id": "macro-1",
-      "name": "Shader Plasma scale",
+      "name": "Liquid Metal shimmer",
       "value": 0.5,
       "targets": [
         {
           "target": {
-            "type": "plasma",
-            "param": "scale"
+            "type": "liquid-metal",
+            "param": "shimmer"
           },
-          "amount": 1.5
+          "amount": 0.6
         }
       ],
-      "description": "Controls: Shader Plasma scale"
+      "description": "Controls: Liquid Metal shimmer"
     },
     {
       "id": "macro-2",

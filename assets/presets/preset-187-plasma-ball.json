@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-plasma-ball-1",
+          "id": "gen-plasma-ball",
           "name": "Plasma Ball",
           "role": "core",
           "enabled": true,

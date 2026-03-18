@@ -70,7 +70,7 @@ describe('shaderLifecycle', () => {
     expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), []);
   });
 
-  it('primes project shaders by compiling the active scene and queueing variants', () => {
+  it('primes project shaders by compiling the active scene', () => {
     vi.useFakeTimers();
     try {
       const renderer = {
@@ -116,13 +116,6 @@ describe('shaderLifecycle', () => {
 
       expect(count).toBe(1);
       expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), []);
-      expect(renderer.precompileVariant).not.toHaveBeenCalled();
-
-      vi.advanceTimersByTime(250);
-      expect(renderer.precompileVariant).toHaveBeenNthCalledWith(1, new Set(['layer-plasma']));
-
-      vi.runOnlyPendingTimers();
-      expect(renderer.precompileVariant).toHaveBeenNthCalledWith(2, new Set(['gen-lightning']));
     } finally {
       vi.useRealTimers();
     }

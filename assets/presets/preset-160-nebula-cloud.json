@@ -36,7 +36,7 @@
       "intent": "chaos",
       "layers": [
         {
-          "id": "layer-gen-nebula-cloud-1",
+          "id": "gen-nebula-cloud",
           "name": "Nebula Cloud",
           "role": "core",
           "enabled": true,
