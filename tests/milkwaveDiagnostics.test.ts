@@ -46,7 +46,7 @@ shader_body {
     expect(summarizeMilkwaveShaderDiagnostics(diagnostics)).toContain('q-vars');
   });
 
-  it('detects preserved HLSL aliases even after current transpilation', () => {
+  it('transpiles float1 to float so no hlsl-float1 remains in GLSL output', () => {
     const result = transpileMilkDropShader(
       'shader_body { float1 d = 0.005; ret = tex2D(sampler_main, uv).xyz; }',
       'warp'
@@ -58,6 +58,7 @@ shader_body {
     });
 
     expect(diagnostics.version300esDetected).toBe(true);
-    expect(diagnostics.issues.some((issue) => issue.code === 'hlsl-float1')).toBe(true);
+    // float1 is now converted to float by the transpiler — no residual hlsl-float1 issue expected
+    expect(diagnostics.issues.some((issue) => issue.code === 'hlsl-float1')).toBe(false);
   });
 });

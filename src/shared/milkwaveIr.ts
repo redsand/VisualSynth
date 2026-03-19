@@ -70,6 +70,7 @@ export interface MilkwaveFeatureRequirements {
   hasCustomShapes: boolean;
   hasCustomShapeInitCode: boolean;
   hasCustomShapePointCode: boolean;
+  hasTexturedShapes: boolean;
   requiresVolumeNoise: boolean;
   requiresBlurSamplers: boolean;
   requiresCustomSamplers: boolean;
@@ -176,6 +177,7 @@ const inferFeatureRequirements = ({
   const shapePointCode = shapes.some((shape) =>
     shape.expressionBlocks.some((block) => block.kind === 'shape-point' && block.lines.length > 0)
   );
+  const texturedShapes = shapes.some((shape) => shape.config.textured);
   const customTextureSlots =
     warp.requiresCustomSamplers ||
     comp.requiresCustomSamplers ||
@@ -195,6 +197,7 @@ const inferFeatureRequirements = ({
     hasCustomShapes: shapes.length > 0,
     hasCustomShapeInitCode: shapeInitCode,
     hasCustomShapePointCode: shapePointCode,
+    hasTexturedShapes: texturedShapes,
     requiresVolumeNoise: warp.requiresVolumeNoise || comp.requiresVolumeNoise,
     requiresBlurSamplers: warp.requiresBlurSamplers || comp.requiresBlurSamplers,
     requiresCustomSamplers: warp.requiresCustomSamplers || comp.requiresCustomSamplers,

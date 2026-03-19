@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { AssetImportResult } from '../shared/assets';
 import { OutputConfig } from '../shared/project';
+import type {
+  NowPlayingRecognitionRequest,
+  NowPlayingRecognitionResponse,
+  NowPlayingSettings
+} from '../shared/nowPlaying';
 
 contextBridge.exposeInMainWorld('visualSynth', {
   saveProject: (payload: string) => ipcRenderer.invoke('project:save', payload),
@@ -55,6 +60,18 @@ contextBridge.exposeInMainWorld('visualSynth', {
   relinkAsset: (assetId: string, kind: string) =>
     ipcRenderer.invoke('assets:relink', assetId, kind) as Promise<AssetImportResult & { assetId?: string }>,
   importPlugin: () => ipcRenderer.invoke('plugins:import'),
+  getNowPlayingSettings: () =>
+    ipcRenderer.invoke('now-playing:settings:get') as Promise<NowPlayingSettings>,
+  saveNowPlayingSettings: (settings: Partial<NowPlayingSettings>) =>
+    ipcRenderer.invoke('now-playing:settings:set', settings) as Promise<NowPlayingSettings>,
+  identifyNowPlaying: (request: NowPlayingRecognitionRequest) =>
+    ipcRenderer.invoke('now-playing:identify', request) as Promise<NowPlayingRecognitionResponse>,
+  cacheRemoteArtwork: (imageUrl: string) =>
+    ipcRenderer.invoke('now-playing:cache-artwork', imageUrl) as Promise<{
+      cached: boolean;
+      filePath?: string;
+      error?: string;
+    }>,
   openAssetFolder: (filePath: string) => ipcRenderer.invoke('assets:open-folder', filePath),
   captureAutomatedScreenshot: (data: Uint8Array, filePath: string) =>
     ipcRenderer.invoke('screenshot:capture-automated', data, filePath),

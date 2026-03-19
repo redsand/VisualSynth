@@ -1004,6 +1004,6 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   activeEngineId: 'engine-radial-core',
   colorChemistry: ['analog', 'balanced'],
   roleWeights: { core: 1, support: 1, atmosphere: 1 },
-  tempoSync: { bpm: 120, source: 'manual' },
+  tempoSync: { bpm: 120, source: 'auto' },
   customShaderBlocks: []
 };

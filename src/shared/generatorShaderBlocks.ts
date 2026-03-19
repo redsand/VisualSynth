@@ -438,7 +438,7 @@ uniform float uLightningColor;
     mainCall: `  if (uLightningEnabled > 0.5) {
     float lightningVal = lightningBolt(effectUv, uTime, high);
     vec3 lightningCol = palette(uLightningColor < 0.5 ? 0.2 : (uLightningColor < 1.5 ? 0.5 : 0.8));
-    color += lightningCol * lightningVal * uRoleWeights.y;
+    color += lightningCol * lightningVal;
   }
 `,
   },
@@ -478,7 +478,7 @@ uniform float uAnalogOscilloColor;
     mainCall: `  if (uAnalogOscilloEnabled > 0.5) {
     float oscVal = analogOscillo(effectUv, uTime, mid);
     vec3 oscCol = palette(uAnalogOscilloColor < 0.5 ? 0.1 : (uAnalogOscilloColor < 1.5 ? 0.4 : 0.7));
-    color += oscCol * oscVal * uRoleWeights.x;
+    color += oscCol * oscVal;
   }
 `,
   },
@@ -504,7 +504,7 @@ uniform float uSpeakerConeForce;
   return col * (ring + glow + cone) * uSpeakerConeOpacity;
 }`,
     mainCall: `  if (uSpeakerConeEnabled > 0.5) {
-    color += speakerPulse(effectUv, low) * uRoleWeights.y;
+    color += speakerPulse(effectUv, low);
   }
 `,
   },
@@ -543,7 +543,7 @@ uniform float uGlitchScanlineOpacity;
   return col * uGlitchScanlineOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uGlitchScanlineEnabled > 0.5) {
-    color += glitchScanline(effectUv, uTime, low) * uRoleWeights.z;
+    color += glitchScanline(effectUv, uTime, low);
   }
 `,
   },
@@ -576,7 +576,7 @@ uniform float uLaserStarfieldOpacity;
   return col * uLaserStarfieldOpacity * (1.0 + audio * 0.5);
 }`,
     mainCall: `  if (uLaserStarfieldEnabled > 0.5) {
-    color += laserStarfield(effectUv, uTime, high) * uRoleWeights.x;
+    color += laserStarfield(effectUv, uTime, high);
   }
 `,
   },
@@ -601,7 +601,7 @@ uniform float uPulsingRibbonsOpacity;
   return col * uPulsingRibbonsOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uPulsingRibbonsEnabled > 0.5) {
-    color += pulsingRibbons(effectUv, uTime, mid) * uRoleWeights.y;
+    color += pulsingRibbons(effectUv, uTime, mid);
   }
 `,
   },
@@ -622,7 +622,7 @@ uniform float uElectricArcOpacity;
   return palette(fract(t * 0.1 + noise)) * val * uElectricArcOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uElectricArcEnabled > 0.5) {
-    color += electricArc(effectUv, uTime, mid) * uRoleWeights.z;
+    color += electricArc(effectUv, uTime, mid);
   }
 `,
   },
@@ -642,7 +642,7 @@ uniform float uPyroBurstOpacity;
   return palette(fract(t * 0.5 + d)) * burst * uPyroBurstOpacity;
 }`,
     mainCall: `  if (uPyroBurstEnabled > 0.5) {
-    color += pyroBurst(effectUv, uTime, uPeak) * uRoleWeights.y;
+    color += pyroBurst(effectUv, uTime, uPeak);
   }
 `,
   },
@@ -664,7 +664,7 @@ uniform float uGeoWireframeOpacity;
   return palette(fract(t * 0.1)) * val * uGeoWireframeOpacity * (1.0 + audio * 0.5);
 }`,
     mainCall: `  if (uGeoWireframeEnabled > 0.5) {
-    color += geoWireframe(effectUv, uTime, low) * uRoleWeights.x;
+    color += geoWireframe(effectUv, uTime, low);
   }
 `,
   },
@@ -690,7 +690,7 @@ uniform float uSignalNoiseAmount;
   return col * uSignalNoiseOpacity * uSignalNoiseAmount;
 }`,
     mainCall: `  if (uSignalNoiseEnabled > 0.5) {
-    color += signalNoise(effectUv, uTime) * uRoleWeights.z;
+    color += signalNoise(effectUv, uTime);
   }
 `,
   },
@@ -727,7 +727,7 @@ uniform float uRibbonTunnelOpacity;
   return col * uRibbonTunnelOpacity * (1.0 + audio * 0.8);
 }`,
     mainCall: `  if (uRibbonTunnelEnabled > 0.5) {
-    color += ribbonTunnel(effectUv, uTime, mid) * uRoleWeights.y;
+    color += ribbonTunnel(effectUv, uTime, mid);
   }
 `,
   },
@@ -764,7 +764,7 @@ uniform float uFractalTunnelOpacity;
   return c * uFractalTunnelOpacity * (1.0 + audio * 0.8);
 }`,
     mainCall: `  if (uFractalTunnelEnabled > 0.5) {
-    color += fractalTunnel(effectUv, uTime, low) * uRoleWeights.x;
+    color += fractalTunnel(effectUv, uTime, low);
   }
 `,
   },
@@ -787,7 +787,7 @@ uniform float uCircuitConduitOpacity;
   return palette(fract(z * 0.1)) * (grid + pulses * 2.0) * uCircuitConduitOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uCircuitConduitEnabled > 0.5) {
-    color += circuitConduit(effectUv, uTime, low) * uRoleWeights.z;
+    color += circuitConduit(effectUv, uTime, low);
   }
 `,
   },
@@ -823,7 +823,7 @@ uniform float uAuraPortalOpacity;
   return (coreCol + ringCol + pulseCol + rayCol) * uAuraPortalOpacity;
 }`,
     mainCall: `  if (uAuraPortalEnabled > 0.5) {
-    color += auraPortal(effectUv, uTime, low) * uRoleWeights.x;
+    color += auraPortal(effectUv, uTime, low);
   }
 `,
   },
@@ -864,7 +864,7 @@ uniform float uFreqTerrainOpacity;
   return col * uFreqTerrainOpacity;
 }`,
     mainCall: `  if (uFreqTerrainEnabled > 0.5) {
-    color += frequencyTerrain(effectUv, uTime, mid) * uRoleWeights.y;
+    color += frequencyTerrain(effectUv, uTime, mid);
   }
 `,
   },
@@ -882,7 +882,7 @@ uniform float uDataStreamOpacity;
   return palette(fract(uv.x * 0.1 + t * 0.05)) * (line + bits) * uDataStreamOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uDataStreamEnabled > 0.5) {
-    color += dataStream(effectUv, uTime, low) * uRoleWeights.z;
+    color += dataStream(effectUv, uTime, low);
   }
 `,
   },
@@ -905,7 +905,7 @@ uniform float uCausticLiquidOpacity;
   return palette(c) * smoothstep(0.0, 1.0, c) * uCausticLiquidOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uCausticLiquidEnabled > 0.5) {
-    color += causticLiquid(effectUv, uTime, mid) * uRoleWeights.x;
+    color += causticLiquid(effectUv, uTime, mid);
   }
 `,
   },
@@ -922,7 +922,7 @@ uniform float uShimmerVeilOpacity;
   return palette(fract(t * 0.1)) * pattern * uShimmerVeilOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uShimmerVeilEnabled > 0.5) {
-    color += shimmerVeil(effectUv, uTime, high) * uRoleWeights.y;
+    color += shimmerVeil(effectUv, uTime, high);
   }
 `,
   },
@@ -941,7 +941,7 @@ uniform float uNebulaCloudOpacity;
   vec3 col = palette(n + n2 + audio * 0.2);
   return col * pow(n, 3.0) * uNebulaCloudOpacity;
 }`,
-    mainCall: `  if (uNebulaCloudEnabled > 0.5) color += nebulaCloud(effectUv, uTime, high) * uRoleWeights.z;
+    mainCall: `  if (uNebulaCloudEnabled > 0.5) color += nebulaCloud(effectUv, uTime, high);
 `
   },
 
@@ -962,7 +962,7 @@ uniform float uCircuitBoardOpacity;
   float node = smoothstep(0.2, 0.0, length(f - 0.5)) * step(0.9, h);
   return palette(h) * (line + node * (1.0 + audio)) * uCircuitBoardOpacity;
 }`,
-    mainCall: `  if (uCircuitBoardEnabled > 0.5) color += circuitBoard(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uCircuitBoardEnabled > 0.5) color += circuitBoard(effectUv, uTime, mid);
 `
   },
 
@@ -994,7 +994,7 @@ uniform float uLorenzAttractorOpacity;
   }
   return palette(t * 0.1) * smoothstep(0.05, 0.0, d) * uLorenzAttractorOpacity;
 }`,
-    mainCall: `  if (uLorenzAttractorEnabled > 0.5) color += lorenzAttractor(effectUv, uTime, low) * uRoleWeights.y;
+    mainCall: `  if (uLorenzAttractorEnabled > 0.5) color += lorenzAttractor(effectUv, uTime, low);
 `
   },
 
@@ -1016,7 +1016,7 @@ uniform float uMandalaSpinnerOpacity;
   float mask = smoothstep(0.02, 0.0, abs(p.y - sin(p.x * 10.0 + t) * 0.1));
   return palette(r + audio) * mask * uMandalaSpinnerOpacity;
 }`,
-    mainCall: `  if (uMandalaSpinnerEnabled > 0.5) color += mandalaSpinner(effectUv, uTime, mid) * uRoleWeights.y;
+    mainCall: `  if (uMandalaSpinnerEnabled > 0.5) color += mandalaSpinner(effectUv, uTime, mid);
 `
   },
 
@@ -1048,7 +1048,7 @@ uniform float uStarburstGalaxyOpacity;
   }
   return col * uStarburstGalaxyOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uStarburstGalaxyEnabled > 0.5) color += starburstGalaxy(effectUv, uTime, high) * uRoleWeights.y;
+    mainCall: `  if (uStarburstGalaxyEnabled > 0.5) color += starburstGalaxy(effectUv, uTime, high);
 `
   },
 
@@ -1071,7 +1071,7 @@ uniform float uDigitalRainV2Opacity;
   mask *= mix(0.7, 1.2, density);
   return palette(h) * mask * uDigitalRainV2Opacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uDigitalRainV2Enabled > 0.5) color += digitalRainV2(effectUv, uTime, low) * uRoleWeights.z;
+    mainCall: `  if (uDigitalRainV2Enabled > 0.5) color += digitalRainV2(effectUv, uTime, low);
 `
   },
 
@@ -1088,7 +1088,7 @@ uniform float uLavaFlowOpacity;
   float heat = clamp(n * uLavaFlowHeat + audio * 0.2, 0.0, 1.0);
   return palette(heat) * heat * uLavaFlowOpacity;
 }`,
-    mainCall: `  if (uLavaFlowEnabled > 0.5) color += lavaFlow(effectUv, uTime, low) * uRoleWeights.z;
+    mainCall: `  if (uLavaFlowEnabled > 0.5) color += lavaFlow(effectUv, uTime, low);
 `
   },
 
@@ -1112,7 +1112,7 @@ uniform float uCrystalGrowthOpacity;
   float glow = smoothstep(0.15 * uCrystalGrowthSharpness, 0.0, d) * 0.5;
   return (palette(audio) * edge + palette(audio + 0.3) * glow) * uCrystalGrowthOpacity * (1.0 + audio * 0.5);
 }`,
-    mainCall: `  if (uCrystalGrowthEnabled > 0.5) color += crystalGrowth(effectUv, uTime, high) * uRoleWeights.z;
+    mainCall: `  if (uCrystalGrowthEnabled > 0.5) color += crystalGrowth(effectUv, uTime, high);
 `
   },
 
@@ -1131,7 +1131,7 @@ uniform float uTechnoGridOpacity;
   float towers = step(0.98, hash21(floor(grid_uv * 5.0))) * z * uTechnoGridHeight * 0.1;
   return palette(fract(z * 0.1 + t * 0.05)) * (grid + towers) * uTechnoGridOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uTechnoGridEnabled > 0.5) color += technoGrid3D(effectUv, uTime, low) * uRoleWeights.z;
+    mainCall: `  if (uTechnoGridEnabled > 0.5) color += technoGrid3D(effectUv, uTime, low);
 `
   },
 
@@ -1155,7 +1155,7 @@ uniform float uMagneticFieldOpacity;
   }
   return col * uMagneticFieldOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uMagneticFieldEnabled > 0.5) color += magneticField(effectUv, uTime, high) * uRoleWeights.z;
+    mainCall: `  if (uMagneticFieldEnabled > 0.5) color += magneticField(effectUv, uTime, high);
 `
   },
 
@@ -1183,7 +1183,7 @@ uniform float uPrismShardsOpacity;
   }
   return col * uPrismShardsOpacity * (1.0 + audio * 0.5);
 }`,
-    mainCall: `  if (uPrismShardsEnabled > 0.5) color += prismShards(effectUv, uTime, high) * uRoleWeights.y;
+    mainCall: `  if (uPrismShardsEnabled > 0.5) color += prismShards(effectUv, uTime, high);
 `
   },
 
@@ -1217,7 +1217,7 @@ uniform float uNeuralNetOpacity;
   }
   return palette(audio + t * 0.05) * (node + connections * 0.8) * uNeuralNetOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uNeuralNetEnabled > 0.5) color += neuralNet(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uNeuralNetEnabled > 0.5) color += neuralNet(effectUv, uTime, mid);
 `
   },
 
@@ -1243,7 +1243,7 @@ uniform float uAuroraChordOpacity;
   float glow = smoothstep(0.8, 0.2, length(p)) * 0.3;
   return palette(v * 0.3 + t * 0.05 + audio * 0.2) * (abs(v - 0.5) * 2.0 + glow) * uAuroraChordOpacity;
 }`,
-    mainCall: `  if (uAuroraChordEnabled > 0.5) color += auroraChord(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uAuroraChordEnabled > 0.5) color += auroraChord(effectUv, uTime, mid);
 `
   },
 
@@ -1262,7 +1262,7 @@ uniform float uVhsGlitchOpacity;
   if (abs(uv.y - fract(t)) < 0.01) col.r = 1.0;
   return col * uVhsGlitchOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uVhsGlitchEnabled > 0.5) color += vhsGlitch(effectUv, uTime, low) * uRoleWeights.z;
+    mainCall: `  if (uVhsGlitchEnabled > 0.5) color += vhsGlitch(effectUv, uTime, low);
 `
   },
 
@@ -1294,7 +1294,7 @@ uniform float uMoirePatternOpacity;
 
   return palette(moire) * uMoirePatternOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uMoirePatternEnabled > 0.5) color += moirePattern(effectUv, uTime, high) * uRoleWeights.y;
+    mainCall: `  if (uMoirePatternEnabled > 0.5) color += moirePattern(effectUv, uTime, high);
 `
   },
 
@@ -1322,7 +1322,7 @@ uniform float uHypercubeOpacity;
   mask += corners * 0.3;
   return palette(rot + audio * 0.2) * mask * uHypercubeOpacity * (1.0 + audio * 0.5);
 }`,
-    mainCall: `  if (uHypercubeEnabled > 0.5) color += hypercube(effectUv, uTime, mid) * uRoleWeights.x;
+    mainCall: `  if (uHypercubeEnabled > 0.5) color += hypercube(effectUv, uTime, mid);
 `
   },
 
@@ -1341,7 +1341,7 @@ uniform float uFluidSwirlOpacity;
   float swirl = length(p - uv);
   return palette(swirl * uFluidSwirlColorMix) * swirl * 10.0 * uFluidSwirlOpacity;
 }`,
-    mainCall: `  if (uFluidSwirlEnabled > 0.5) color += fluidSwirl(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uFluidSwirlEnabled > 0.5) color += fluidSwirl(effectUv, uTime, mid);
 `
   },
 
@@ -1359,7 +1359,7 @@ uniform float uAsciiStreamOpacity;
   float mask = step(0.5, fract(h * 10.0));
   return palette(h) * mask * bright * uAsciiStreamContrast * uAsciiStreamOpacity;
 }`,
-    mainCall: `  if (uAsciiStreamEnabled > 0.5) color += asciiStream(effectUv, uTime, high) * uRoleWeights.z;
+    mainCall: `  if (uAsciiStreamEnabled > 0.5) color += asciiStream(effectUv, uTime, high);
 `
   },
 
@@ -1391,7 +1391,7 @@ uniform float uRetroWaveOpacity;
   
   return (sunCol * sun + gridCol * grid) * uRetroWaveOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uRetroWaveEnabled > 0.5) color += retroWave(effectUv, uTime, low) * uRoleWeights.x;
+    mainCall: `  if (uRetroWaveEnabled > 0.5) color += retroWave(effectUv, uTime, low);
 `
   },
 
@@ -1411,7 +1411,7 @@ uniform float uBubblePopOpacity;
   float bubble = smoothstep(size, size - 0.02, length(f - 0.5));
   return palette(h) * bubble * uBubblePopOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uBubblePopEnabled > 0.5) color += bubblePop(effectUv, uTime, uPeak) * uRoleWeights.y;
+    mainCall: `  if (uBubblePopEnabled > 0.5) color += bubblePop(effectUv, uTime, uPeak);
 `
   },
 
@@ -1441,7 +1441,7 @@ uniform float uSoundWave3DOpacity;
   col *= (0.6 + depth * 0.7);
   return col * line * uSoundWave3DOpacity;
 }`,
-    mainCall: `  if (uSoundWave3DEnabled > 0.5) color += soundWave3D(effectUv, uTime, mid) * uRoleWeights.y;
+    mainCall: `  if (uSoundWave3DEnabled > 0.5) color += soundWave3D(effectUv, uTime, mid);
 `
   },
 
@@ -1486,7 +1486,7 @@ uniform float uParticleVortexOpacity;
 
   return (palette(r + audio * 0.2) * particles + palette(r + 0.3) * trail) * uParticleVortexOpacity * (1.0 + audio * 0.5);
 }`,
-    mainCall: `  if (uParticleVortexEnabled > 0.5) color += particleVortex(effectUv, uTime, low) * uRoleWeights.z;
+    mainCall: `  if (uParticleVortexEnabled > 0.5) color += particleVortex(effectUv, uTime, low);
 `
   },
 
@@ -1537,7 +1537,7 @@ uniform float uGlowWormsOpacity;
 
   return col * uGlowWormsOpacity * (1.0 + audio * 0.4);
 }`,
-    mainCall: `  if (uGlowWormsEnabled > 0.5) color += glowWorms(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uGlowWormsEnabled > 0.5) color += glowWorms(effectUv, uTime, mid);
 `
   },
 
@@ -1573,7 +1573,7 @@ uniform float uMirrorMazeOpacity;
   col *= 1.0 + audio * 0.5;
   return palette(d + t + audio * 0.3) * col * uMirrorMazeOpacity;
 }`,
-    mainCall: `  if (uMirrorMazeEnabled > 0.5) color += mirrorMaze(effectUv, uTime, high) * uRoleWeights.y;
+    mainCall: `  if (uMirrorMazeEnabled > 0.5) color += mirrorMaze(effectUv, uTime, high);
 `
   },
 
@@ -1596,7 +1596,7 @@ uniform float uPulseHeartOpacity;
   }
   return palette(fract(pulse * 0.2 + audio)) * heart * uPulseHeartOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uPulseHeartEnabled > 0.5) color += pulseHeart(effectUv, uTime, low) * uRoleWeights.x;
+    mainCall: `  if (uPulseHeartEnabled > 0.5) color += pulseHeart(effectUv, uTime, low);
 `
   },
 
@@ -1618,7 +1618,7 @@ uniform float uDataShardsOpacity;
   }
   return col * uDataShardsOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uDataShardsEnabled > 0.5) color += dataShards(effectUv, uTime, high) * uRoleWeights.z;
+    mainCall: `  if (uDataShardsEnabled > 0.5) color += dataShards(effectUv, uTime, high);
 `
   },
 
@@ -1641,7 +1641,7 @@ uniform float uHexCellOpacity;
   float hex = smoothstep(pulse, pulse - 0.05, d);
   return palette(d) * hex * uHexCellOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uHexCellEnabled > 0.5) color += hexCell(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uHexCellEnabled > 0.5) color += hexCell(effectUv, uTime, mid);
 `
   },
 
@@ -1664,7 +1664,7 @@ uniform float uPlasmaBallOpacity;
   }
   return palette(fract(t * 0.1 + audio)) * col * uPlasmaBallVoltage * uPlasmaBallOpacity;
 }`,
-    mainCall: `  if (uPlasmaBallEnabled > 0.5) color += plasmaBall(effectUv, uTime, uPeak) * uRoleWeights.z;
+    mainCall: `  if (uPlasmaBallEnabled > 0.5) color += plasmaBall(effectUv, uTime, uPeak);
 `
   },
 
@@ -1683,7 +1683,7 @@ uniform float uWarpDriveOpacity;
   float star = streaks * smoothstep(1.0, 0.0, fract(r - t * uWarpDriveWarp));
   return palette(fract(a * 0.1 + t * 0.05)) * star * uWarpDriveGlow * uWarpDriveOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uWarpDriveEnabled > 0.5) color += warpDrive(effectUv, uTime, high) * uRoleWeights.x;
+    mainCall: `  if (uWarpDriveEnabled > 0.5) color += warpDrive(effectUv, uTime, high);
 `
   },
 
@@ -1705,7 +1705,7 @@ uniform float uVisualFeedbackOpacity;
     f += fbm(p * 5.0 + t);
   }  return palette(f * 0.2) * f * 0.5 * uVisualFeedbackOpacity;
 }`,
-    mainCall: `  if (uVisualFeedbackEnabled > 0.5) color += visualFeedback(effectUv, uTime, mid) * uRoleWeights.y;
+    mainCall: `  if (uVisualFeedbackEnabled > 0.5) color += visualFeedback(effectUv, uTime, mid);
 `
   },
 
@@ -1727,7 +1727,7 @@ uniform float uMyceliumGrowthOpacity;
   float energy = mix(0.7, 1.3, clamp(audio, 0.0, 1.0));
   return palette(n + audio) * pattern * life * pulse * energy * uMyceliumGrowthOpacity;
 }`,
-    mainCall: `  if (uMyceliumGrowthEnabled > 0.5) color += myceliumGrowth(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uMyceliumGrowthEnabled > 0.5) color += myceliumGrowth(effectUv, uTime, mid);
 `
   },
 
@@ -1816,7 +1816,7 @@ uniform float uLaserAudioReact;
 }`,
     mainCall: `  if (uLaserEnabled > 0.5) {
     float audio = uRms * 0.5 + uPeak * 0.5;
-    color += laserBeam(effectUv, uTime, audio) * uRoleWeights.y;
+    color += laserBeam(effectUv, uTime, audio);
   }
 `,
   },
@@ -1871,7 +1871,7 @@ uniform float uLaserAudioReact;
   return color * flash * uStrobeOpacity;
 }`,
     mainCall: `  if (uStrobeEnabled > 0.5) {
-    color += strobeFlash(effectUv, uTime, uRms * 0.5 + uPeak * 0.5, uPeak) * uRoleWeights.z;
+    color += strobeFlash(effectUv, uTime, uRms * 0.5 + uPeak * 0.5, uPeak);
   }
 `,
   },
@@ -1945,7 +1945,7 @@ uniform float uShapeBurstThickness;
   return color * uShapeBurstOpacity;
 }`,
     mainCall: `  if (uShapeBurstEnabled > 0.5) {
-    color += shapeBurst(effectUv, uTime) * uRoleWeights.y;
+    color += shapeBurst(effectUv, uTime);
   }
 `,
   },
@@ -2040,7 +2040,7 @@ uniform float uGridTunnelGlow;
 }`,
     mainCall: `  if (uGridTunnelEnabled > 0.5) {
     float audio = low; // Bass drives grid
-    color += gridTunnel(effectUv, uTime, audio) * uRoleWeights.z;
+    color += gridTunnel(effectUv, uTime, audio);
   }
 `,
   },
@@ -2085,7 +2085,7 @@ uniform float uCellularGrowthOpacity;
 
   return palette(fract(id.x * 0.1 + id.y * 0.1 + t * 0.1)) * col * uCellularGrowthOpacity * (1.0 + audio);
 }`,
-    mainCall: `  if (uCellularGrowthEnabled > 0.5) color += cellularGrowth(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uCellularGrowthEnabled > 0.5) color += cellularGrowth(effectUv, uTime, mid);
 `
   },
 
@@ -2129,7 +2129,7 @@ uniform float uBioLuminescentForestOpacity;
 
   return col * uBioLuminescentForestOpacity * (1.0 + audio * 0.5);
 }`,
-    mainCall: `  if (uBioLuminescentForestEnabled > 0.5) color += bioLuminescentForest(effectUv, uTime, high) * uRoleWeights.y;
+    mainCall: `  if (uBioLuminescentForestEnabled > 0.5) color += bioLuminescentForest(effectUv, uTime, high);
 `
   },
 
@@ -2174,7 +2174,7 @@ uniform float uCrystallineOpacity;
 
   return col * uCrystallineOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uCrystallineEnabled > 0.5) color += crystalline(effectUv, uTime, mid) * uRoleWeights.x;
+    mainCall: `  if (uCrystallineEnabled > 0.5) color += crystalline(effectUv, uTime, mid);
 `
   },
 
@@ -2232,7 +2232,7 @@ uniform float uAudioDnaOpacity;
 
   return col * uAudioDnaOpacity * (1.0 + audio * 0.5);
 }`,
-    mainCall: `  if (uAudioDnaEnabled > 0.5) color += audioDna(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uAudioDnaEnabled > 0.5) color += audioDna(effectUv, uTime, mid);
 `
   },
 
@@ -2273,7 +2273,7 @@ uniform float uLiquidMetalOpacity;
 
   return col * uLiquidMetalOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uLiquidMetalEnabled > 0.5) color += liquidMetal(effectUv, uTime, mid) * uRoleWeights.y;
+    mainCall: `  if (uLiquidMetalEnabled > 0.5) color += liquidMetal(effectUv, uTime, mid);
 `
   },
 
@@ -2323,7 +2323,7 @@ uniform float uNeonCityscapeOpacity;
 
   return col * uNeonCityscapeOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uNeonCityscapeEnabled > 0.5) color += neonCityscape(effectUv, uTime, low) * uRoleWeights.x;
+    mainCall: `  if (uNeonCityscapeEnabled > 0.5) color += neonCityscape(effectUv, uTime, low);
 `
   },
 
@@ -2370,7 +2370,7 @@ uniform float uCosmicNebulaOpacity;
 
   return col * uCosmicNebulaOpacity * (1.0 + audio * 0.2);
 }`,
-    mainCall: `  if (uCosmicNebulaEnabled > 0.5) color += cosmicNebula(effectUv, uTime, high) * uRoleWeights.z;
+    mainCall: `  if (uCosmicNebulaEnabled > 0.5) color += cosmicNebula(effectUv, uTime, high);
 `
   },
 
@@ -2426,7 +2426,7 @@ uniform float uSonicRainOpacity;
 
   return col * uSonicRainOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uSonicRainEnabled > 0.5) color += sonicRain(effectUv, uTime, high) * uRoleWeights.y;
+    mainCall: `  if (uSonicRainEnabled > 0.5) color += sonicRain(effectUv, uTime, high);
 `
   },
 
@@ -2493,7 +2493,7 @@ uniform float uMorphingGeometryOpacity;
 
   return col * uMorphingGeometryOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uMorphingGeometryEnabled > 0.5) color += morphingGeometry(effectUv, uTime, mid) * uRoleWeights.x;
+    mainCall: `  if (uMorphingGeometryEnabled > 0.5) color += morphingGeometry(effectUv, uTime, mid);
 `
   },
 
@@ -2549,7 +2549,7 @@ uniform float uUrbanRhythmOpacity;
 
   return col * uUrbanRhythmOpacity * (1.0 + audio * 0.4);
 }`,
-    mainCall: `  if (uUrbanRhythmEnabled > 0.5) color += urbanRhythm(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uUrbanRhythmEnabled > 0.5) color += urbanRhythm(effectUv, uTime, mid);
 `
   },
 
@@ -2599,7 +2599,7 @@ uniform float uCrimsonVeilOpacity;
 
   return col * uCrimsonVeilOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uCrimsonVeilEnabled > 0.5) color += crimsonVeil(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uCrimsonVeilEnabled > 0.5) color += crimsonVeil(effectUv, uTime, mid);
 `
   },
 
@@ -2658,7 +2658,7 @@ uniform float uVictorianCryptOpacity;
 
   return col * uVictorianCryptOpacity * (1.0 + audio * 0.2);
 }`,
-    mainCall: `  if (uVictorianCryptEnabled > 0.5) color += victorianCrypt(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uVictorianCryptEnabled > 0.5) color += victorianCrypt(effectUv, uTime, mid);
 `
   },
 
@@ -2719,7 +2719,7 @@ uniform float uSpectralApparitionOpacity;
 
   return col * uSpectralApparitionOpacity * (1.0 + audio * 0.4);
 }`,
-    mainCall: `  if (uSpectralApparitionEnabled > 0.5) color += spectralApparition(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uSpectralApparitionEnabled > 0.5) color += spectralApparition(effectUv, uTime, mid);
 `
   },
 
@@ -2790,7 +2790,7 @@ uniform float uGothicCobwebsOpacity;
 
   return col * uGothicCobwebsOpacity * (1.0 + audio * 0.2);
 }`,
-    mainCall: `  if (uGothicCobwebsEnabled > 0.5) color += gothicCobwebs(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uGothicCobwebsEnabled > 0.5) color += gothicCobwebs(effectUv, uTime, mid);
 `
   },
 
@@ -2857,7 +2857,7 @@ uniform float uBloodMoonRiseOpacity;
 
   return col * uBloodMoonRiseOpacity * (1.0 + audio * 0.2);
 }`,
-    mainCall: `  if (uBloodMoonRiseEnabled > 0.5) color += bloodMoonRise(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uBloodMoonRiseEnabled > 0.5) color += bloodMoonRise(effectUv, uTime, mid);
 `
   },
 
@@ -2928,7 +2928,7 @@ uniform float uCandlelightVigilOpacity;
 
   return col * uCandlelightVigilOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uCandlelightVigilEnabled > 0.5) color += candlelightVigil(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uCandlelightVigilEnabled > 0.5) color += candlelightVigil(effectUv, uTime, mid);
 `
   },
 
@@ -2991,7 +2991,7 @@ uniform float uGargoylesAwakeOpacity;
 
   return col * uGargoylesAwakeOpacity * (1.0 + audio * 0.4);
 }`,
-    mainCall: `  if (uGargoylesAwakeEnabled > 0.5) color += gargoylesAwake(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uGargoylesAwakeEnabled > 0.5) color += gargoylesAwake(effectUv, uTime, mid);
 `
   },
 
@@ -3073,7 +3073,7 @@ uniform float uCryptShadowsOpacity;
 
   return col * uCryptShadowsOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uCryptShadowsEnabled > 0.5) color += cryptShadows(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uCryptShadowsEnabled > 0.5) color += cryptShadows(effectUv, uTime, mid);
 `
   },
 
@@ -3156,7 +3156,7 @@ uniform float uGothicRoseOpacity;
 
   return col * uGothicRoseOpacity * (1.0 + audio * 0.2);
 }`,
-    mainCall: `  if (uGothicRoseEnabled > 0.5) color += gothicRose(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uGothicRoseEnabled > 0.5) color += gothicRose(effectUv, uTime, mid);
 `
   },
 
@@ -3213,7 +3213,7 @@ uniform float uEternalDarknessOpacity;
 
   return col * uEternalDarknessOpacity * (1.0 + audio * 0.1);
 }`,
-    mainCall: `  if (uEternalDarknessEnabled > 0.5) color += eternalDarkness(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uEternalDarknessEnabled > 0.5) color += eternalDarkness(effectUv, uTime, mid);
 `
   },
 
@@ -3275,7 +3275,7 @@ uniform float uPixelDustOpacity;
 
   return col * uPixelDustOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uPixelDustEnabled > 0.5) color += pixelDust(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uPixelDustEnabled > 0.5) color += pixelDust(effectUv, uTime, mid);
 `
   },
 
@@ -3336,7 +3336,7 @@ uniform float uRetroStarfieldOpacity;
 
   return col * uRetroStarfieldOpacity * (1.0 + audio * 0.2);
 }`,
-    mainCall: `  if (uRetroStarfieldEnabled > 0.5) color += retroStarfield(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uRetroStarfieldEnabled > 0.5) color += retroStarfield(effectUv, uTime, mid);
 `
   },
 
@@ -3397,7 +3397,7 @@ uniform float u8BitGridPixelSize;
 
   return col * u8BitGridOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (u8BitGridEnabled > 0.5) color += eightBitGrid(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (u8BitGridEnabled > 0.5) color += eightBitGrid(effectUv, uTime, mid);
 `,
   },
 
@@ -3466,7 +3466,7 @@ uniform float uArcadeInvadersOpacity;
 
   return col * uArcadeInvadersOpacity * (1.0 + audio * 0.4);
 }`,
-    mainCall: `  if (uArcadeInvadersEnabled > 0.5) color += arcadeInvaders(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uArcadeInvadersEnabled > 0.5) color += arcadeInvaders(effectUv, uTime, mid);
 `
   },
 
@@ -3525,7 +3525,7 @@ uniform float uPowerUpPulseOpacity;
 
   return col * uPowerUpPulseOpacity * (1.0 + audio * 0.4);
 }`,
-    mainCall: `  if (uPowerUpPulseEnabled > 0.5) color += powerUpPulse(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uPowerUpPulseEnabled > 0.5) color += powerUpPulse(effectUv, uTime, mid);
 `
   },
 
@@ -3600,7 +3600,7 @@ uniform float uDungeonTilesOpacity;
 
   return col * uDungeonTilesOpacity * (1.0 + audio * 0.2);
 }`,
-    mainCall: `  if (uDungeonTilesEnabled > 0.5) color += dungeonTiles(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uDungeonTilesEnabled > 0.5) color += dungeonTiles(effectUv, uTime, mid);
 `
   },
 
@@ -3655,7 +3655,7 @@ uniform float uChiptuneWaveOpacity;
 
   return col * uChiptuneWaveOpacity * (1.0 + audio * 0.5);
 }`,
-    mainCall: `  if (uChiptuneWaveEnabled > 0.5) color += chiptuneWave(effectUv, uTime, high) * uRoleWeights.y;
+    mainCall: `  if (uChiptuneWaveEnabled > 0.5) color += chiptuneWave(effectUv, uTime, high);
 `
   },
 
@@ -3719,7 +3719,7 @@ uniform float uScoreCounterOpacity;
 
   return col * uScoreCounterOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uScoreCounterEnabled > 0.5) color += scoreCounter(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uScoreCounterEnabled > 0.5) color += scoreCounter(effectUv, uTime, mid);
 `
   },
 
@@ -3779,7 +3779,7 @@ uniform float uPixelRainOpacity;
 
   return col * uPixelRainOpacity * (1.0 + audio * 0.4);
 }`,
-    mainCall: `  if (uPixelRainEnabled > 0.5) color += pixelRain(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uPixelRainEnabled > 0.5) color += pixelRain(effectUv, uTime, mid);
 `
   },
 
@@ -3816,7 +3816,7 @@ uniform float uParticleAudioLift;
   return spark * twinkle;
 }
 `,
-    mainCall: `  if (uParticlesEnabled > 0.5) color += palette(0.5) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8) * uRoleWeights.z;
+    mainCall: `  if (uParticlesEnabled > 0.5) color += palette(0.5) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8);
 `,
   },
 
@@ -3869,7 +3869,7 @@ uniform float uSdfShadowsEnabled;
             baseCol = mix(baseCol, vec3(sampleVal), 0.5);
         }
         baseCol *= uSdfColor;
-        color += (baseCol * lighting + spec + smoothstep(0.1, 0.0, res.x) * uSdfGlow) * uSdfFill * uRoleWeights.y;
+        color += (baseCol * lighting + spec + smoothstep(0.1, 0.0, res.x) * uSdfGlow) * uSdfFill;
       }
     } else {
       centered = rotate2d(centered, uSdfRotation);
@@ -3881,7 +3881,7 @@ uniform float uSdfShadowsEnabled;
       else if (uSdfShape < 3.5) sdfValue = sdHexagon(centered, scale);
       else if (uSdfShape < 4.5) sdfValue = sdStar(centered, scale, 5, 2.0);
       else sdfValue = sdRing(centered, scale, uSdfEdge * 0.5);
-      color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6) * uRoleWeights.y;
+      color += uSdfColor * max(smoothstep(0.02, -0.02, sdfValue) * uSdfFill, smoothstep(uSdfEdge + 0.02, 0.0, abs(sdfValue)) * uSdfGlow) * (0.85 + uPeak * 0.6);
     }
   }
 `,
@@ -3926,7 +3926,7 @@ uniform float uWormholeIter;
 }
 `,
     mainCall: `  if (uWormholeEnabled > 0.5) {
-    color += infiniteWormhole(effectUv, uTime, low) * uRoleWeights.x;
+    color += infiniteWormhole(effectUv, uTime, low);
   }
 `,
   },
@@ -3940,7 +3940,7 @@ uniform float uVariantPlasmaVortexOpacity;
 `,
     functions: `vec3 variantPlasmaVortex(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantPlasmaVortexEnabled > 0.5) color += variantPlasmaVortex(effectUv, uTime, mid) * uVariantPlasmaVortexOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantPlasmaVortexEnabled > 0.5) color += variantPlasmaVortex(effectUv, uTime, mid) * uVariantPlasmaVortexOpacity;
 `,
   },
 
@@ -3951,7 +3951,7 @@ uniform float uVariantPlasmaLiquidOpacity;
 `,
     functions: `vec3 variantPlasmaLiquid(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantPlasmaLiquidEnabled > 0.5) color += variantPlasmaLiquid(effectUv, uTime, mid) * uVariantPlasmaLiquidOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantPlasmaLiquidEnabled > 0.5) color += variantPlasmaLiquid(effectUv, uTime, mid) * uVariantPlasmaLiquidOpacity;
 `,
   },
 
@@ -3962,7 +3962,7 @@ uniform float uVariantSpectrumNeonOpacity;
 `,
     functions: `vec3 variantSpectrumNeon(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantSpectrumNeonEnabled > 0.5) color += variantSpectrumNeon(effectUv, uTime, mid) * uVariantSpectrumNeonOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantSpectrumNeonEnabled > 0.5) color += variantSpectrumNeon(effectUv, uTime, mid) * uVariantSpectrumNeonOpacity;
 `,
   },
 
@@ -3973,7 +3973,7 @@ uniform float uVariantOrigamiCanyonOpacity;
 `,
     functions: `vec3 variantOrigamiCanyon(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantOrigamiCanyonEnabled > 0.5) color += variantOrigamiCanyon(effectUv, uTime, mid) * uVariantOrigamiCanyonOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantOrigamiCanyonEnabled > 0.5) color += variantOrigamiCanyon(effectUv, uTime, mid) * uVariantOrigamiCanyonOpacity;
 `,
   },
 
@@ -3984,7 +3984,7 @@ uniform float uVariantGlyphOrbitOpacity;
 `,
     functions: `vec3 variantGlyphOrbit(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantGlyphOrbitEnabled > 0.5) color += variantGlyphOrbit(effectUv, uTime, mid) * uVariantGlyphOrbitOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantGlyphOrbitEnabled > 0.5) color += variantGlyphOrbit(effectUv, uTime, mid) * uVariantGlyphOrbitOpacity;
 `,
   },
 
@@ -3995,7 +3995,7 @@ uniform float uVariantCrystalFractureOpacity;
 `,
     functions: `vec3 variantCrystalFracture(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantCrystalFractureEnabled > 0.5) color += variantCrystalFracture(effectUv, uTime, mid) * uVariantCrystalFractureOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantCrystalFractureEnabled > 0.5) color += variantCrystalFracture(effectUv, uTime, mid) * uVariantCrystalFractureOpacity;
 `,
   },
 
@@ -4006,7 +4006,7 @@ uniform float uVariantInkNeonOpacity;
 `,
     functions: `vec3 variantInkNeon(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantInkNeonEnabled > 0.5) color += variantInkNeon(effectUv, uTime, mid) * uVariantInkNeonOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantInkNeonEnabled > 0.5) color += variantInkNeon(effectUv, uTime, mid) * uVariantInkNeonOpacity;
 `,
   },
 
@@ -4017,7 +4017,7 @@ uniform float uVariantTopoRiftOpacity;
 `,
     functions: `vec3 variantTopoRift(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantTopoRiftEnabled > 0.5) color += variantTopoRift(effectUv, uTime, mid) * uVariantTopoRiftOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantTopoRiftEnabled > 0.5) color += variantTopoRift(effectUv, uTime, mid) * uVariantTopoRiftOpacity;
 `,
   },
 
@@ -4028,7 +4028,7 @@ uniform float uVariantWeatherStormcellsOpacity;
 `,
     functions: `vec3 variantWeatherStormcells(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantWeatherStormcellsEnabled > 0.5) color += variantWeatherStormcells(effectUv, uTime, mid) * uVariantWeatherStormcellsOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantWeatherStormcellsEnabled > 0.5) color += variantWeatherStormcells(effectUv, uTime, mid) * uVariantWeatherStormcellsOpacity;
 `,
   },
 
@@ -4039,7 +4039,7 @@ uniform float uVariantPortalEchoOpacity;
 `,
     functions: `vec3 variantPortalEcho(vec2 uv, float t, float audio) { return vec3(0.0); }
 `,
-    mainCall: `  if (uVariantPortalEchoEnabled > 0.5) color += variantPortalEcho(effectUv, uTime, mid) * uVariantPortalEchoOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantPortalEchoEnabled > 0.5) color += variantPortalEcho(effectUv, uTime, mid) * uVariantPortalEchoOpacity;
 `,
   },
 
@@ -4071,7 +4071,7 @@ uniform float uAudioGeometryOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uAudioGeometryEnabled > 0.5) color += audioGeometry(effectUv, uTime, mid) * uAudioGeometryOpacity * uRoleWeights.z;
+    mainCall: `  if (uAudioGeometryEnabled > 0.5) color += audioGeometry(effectUv, uTime, mid) * uAudioGeometryOpacity;
 `,
   },
 
@@ -4103,7 +4103,7 @@ uniform float uVariantAudioGeometryPrismOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantAudioGeometryPrismEnabled > 0.5) color += variantAudioGeometryPrism(effectUv, uTime, mid) * uVariantAudioGeometryPrismOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantAudioGeometryPrismEnabled > 0.5) color += variantAudioGeometryPrism(effectUv, uTime, mid) * uVariantAudioGeometryPrismOpacity;
 `,
   },
 
@@ -4127,7 +4127,7 @@ uniform float uOrganicFluidOpacity;
   return col * f * (0.8 + audio * 0.4);
 }
 `,
-    mainCall: `  if (uOrganicFluidEnabled > 0.5) color += organicFluid(effectUv, uTime, mid) * uOrganicFluidOpacity * uRoleWeights.z;
+    mainCall: `  if (uOrganicFluidEnabled > 0.5) color += organicFluid(effectUv, uTime, mid) * uOrganicFluidOpacity;
 `,
   },
 
@@ -4149,7 +4149,7 @@ uniform float uVariantOrganicFluidInkOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantOrganicFluidInkEnabled > 0.5) color += variantOrganicFluidInk(effectUv, uTime, mid) * uVariantOrganicFluidInkOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantOrganicFluidInkEnabled > 0.5) color += variantOrganicFluidInk(effectUv, uTime, mid) * uVariantOrganicFluidInkOpacity;
 `,
   },
 
@@ -4186,7 +4186,7 @@ uniform float uNeonWireframeOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uNeonWireframeEnabled > 0.5) color += neonWireframe(effectUv, uTime, mid) * uNeonWireframeOpacity * uRoleWeights.z;
+    mainCall: `  if (uNeonWireframeEnabled > 0.5) color += neonWireframe(effectUv, uTime, mid) * uNeonWireframeOpacity;
 `,
   },
 
@@ -4213,7 +4213,7 @@ uniform float uVariantNeonWireframeGridOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantNeonWireframeGridEnabled > 0.5) color += variantNeonWireframeGrid(effectUv, uTime, mid) * uVariantNeonWireframeGridOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantNeonWireframeGridEnabled > 0.5) color += variantNeonWireframeGrid(effectUv, uTime, mid) * uVariantNeonWireframeGridOpacity;
 `,
   },
 
@@ -4240,7 +4240,7 @@ uniform float uGlitchDatamoshOpacity;
   return col * (0.5 + audio * 0.6);
 }
 `,
-    mainCall: `  if (uGlitchDatamoshEnabled > 0.5) color += glitchDatamosh(effectUv, uTime, mid) * uGlitchDatamoshOpacity * uRoleWeights.z;
+    mainCall: `  if (uGlitchDatamoshEnabled > 0.5) color += glitchDatamosh(effectUv, uTime, mid) * uGlitchDatamoshOpacity;
 `,
   },
 
@@ -4264,7 +4264,7 @@ uniform float uVariantGlitchDatamoshHardOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantGlitchDatamoshHardEnabled > 0.5) color += variantGlitchDatamoshHard(effectUv, uTime, mid) * uVariantGlitchDatamoshHardOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantGlitchDatamoshHardEnabled > 0.5) color += variantGlitchDatamoshHard(effectUv, uTime, mid) * uVariantGlitchDatamoshHardOpacity;
 `,
   },
 
@@ -4291,7 +4291,7 @@ uniform float uParticleSwarmOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uParticleSwarmEnabled > 0.5) color += particleSwarm(effectUv, uTime, mid) * uParticleSwarmOpacity * uRoleWeights.z;
+    mainCall: `  if (uParticleSwarmEnabled > 0.5) color += particleSwarm(effectUv, uTime, mid) * uParticleSwarmOpacity;
 `,
   },
 
@@ -4321,7 +4321,7 @@ uniform float uVariantParticleSwarmBloomOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantParticleSwarmBloomEnabled > 0.5) color += variantParticleSwarmBloom(effectUv, uTime, mid) * uVariantParticleSwarmBloomOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantParticleSwarmBloomEnabled > 0.5) color += variantParticleSwarmBloom(effectUv, uTime, mid) * uVariantParticleSwarmBloomOpacity;
 `,
   },
 
@@ -4355,7 +4355,7 @@ uniform float uTypographyRevealOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uTypographyRevealEnabled > 0.5) color += typographyReveal(effectUv, uTime, mid) * uTypographyRevealOpacity * uRoleWeights.z;
+    mainCall: `  if (uTypographyRevealEnabled > 0.5) color += typographyReveal(effectUv, uTime, mid) * uTypographyRevealOpacity;
 `,
   },
 
@@ -4384,7 +4384,7 @@ uniform float uVariantTypographyRevealGlowOpacity;
   return c * (outline + glow) * activeVal * (0.5 + audio * 0.8);
 }
 `,
-    mainCall: `  if (uVariantTypographyRevealGlowEnabled > 0.5) color += variantTypographyRevealGlow(effectUv, uTime, mid) * uVariantTypographyRevealGlowOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantTypographyRevealGlowEnabled > 0.5) color += variantTypographyRevealGlow(effectUv, uTime, mid) * uVariantTypographyRevealGlowOpacity;
 `,
   },
 
@@ -4418,7 +4418,7 @@ uniform float uKaleidoShardOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uKaleidoShardEnabled > 0.5) color += kaleidoShard(effectUv, uTime, mid) * uKaleidoShardOpacity * uRoleWeights.z;
+    mainCall: `  if (uKaleidoShardEnabled > 0.5) color += kaleidoShard(effectUv, uTime, mid) * uKaleidoShardOpacity;
 `,
   },
 
@@ -4446,7 +4446,7 @@ uniform float uVariantKaleidoShardIrisOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantKaleidoShardIrisEnabled > 0.5) color += variantKaleidoShardIris(effectUv, uTime, mid) * uVariantKaleidoShardIrisOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantKaleidoShardIrisEnabled > 0.5) color += variantKaleidoShardIris(effectUv, uTime, mid) * uVariantKaleidoShardIrisOpacity;
 `,
   },
 
@@ -4484,7 +4484,7 @@ uniform float uRadarHudOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uRadarHudEnabled > 0.5) color += radarHud(effectUv, uTime, mid) * uRadarHudOpacity * uRoleWeights.z;
+    mainCall: `  if (uRadarHudEnabled > 0.5) color += radarHud(effectUv, uTime, mid) * uRadarHudOpacity;
 `,
   },
 
@@ -4514,7 +4514,7 @@ uniform float uVariantRadarHudDeepOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantRadarHudDeepEnabled > 0.5) color += variantRadarHudDeep(effectUv, uTime, mid) * uVariantRadarHudDeepOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantRadarHudDeepEnabled > 0.5) color += variantRadarHudDeep(effectUv, uTime, mid) * uVariantRadarHudDeepOpacity;
 `,
   },
 
@@ -4541,7 +4541,7 @@ uniform float uFractalBloomOpacity;
   return col * (0.8 + audio * 0.5);
 }
 `,
-    mainCall: `  if (uFractalBloomEnabled > 0.5) color += fractalBloom(effectUv, uTime, mid) * uFractalBloomOpacity * uRoleWeights.z;
+    mainCall: `  if (uFractalBloomEnabled > 0.5) color += fractalBloom(effectUv, uTime, mid) * uFractalBloomOpacity;
 `,
   },
 
@@ -4570,7 +4570,7 @@ uniform float uVariantFractalBloomEmberOpacity;
   return ember * (0.6 + audio * 0.8);
 }
 `,
-    mainCall: `  if (uVariantFractalBloomEmberEnabled > 0.5) color += variantFractalBloomEmber(effectUv, uTime, mid) * uVariantFractalBloomEmberOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantFractalBloomEmberEnabled > 0.5) color += variantFractalBloomEmber(effectUv, uTime, mid) * uVariantFractalBloomEmberOpacity;
 `,
   },
 
@@ -4597,7 +4597,7 @@ uniform float uVhsScanlineGenOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVhsScanlineGenEnabled > 0.5) color += vhsScanlineGen(effectUv, uTime, mid) * uVhsScanlineGenOpacity * uRoleWeights.z;
+    mainCall: `  if (uVhsScanlineGenEnabled > 0.5) color += vhsScanlineGen(effectUv, uTime, mid) * uVhsScanlineGenOpacity;
 `,
   },
 
@@ -4620,7 +4620,7 @@ uniform float uVariantVhsScanlineWarpOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantVhsScanlineWarpEnabled > 0.5) color += variantVhsScanlineWarp(effectUv, uTime, mid) * uVariantVhsScanlineWarpOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantVhsScanlineWarpEnabled > 0.5) color += variantVhsScanlineWarp(effectUv, uTime, mid) * uVariantVhsScanlineWarpOpacity;
 `,
   },
 
@@ -4648,7 +4648,7 @@ uniform float uTunnelWarpOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uTunnelWarpEnabled > 0.5) color += tunnelWarp(effectUv, uTime, mid) * uTunnelWarpOpacity * uRoleWeights.z;
+    mainCall: `  if (uTunnelWarpEnabled > 0.5) color += tunnelWarp(effectUv, uTime, mid) * uTunnelWarpOpacity;
 `,
   },
 
@@ -4674,7 +4674,7 @@ uniform float uVariantTunnelWarpSpiralOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantTunnelWarpSpiralEnabled > 0.5) color += variantTunnelWarpSpiral(effectUv, uTime, mid) * uVariantTunnelWarpSpiralOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantTunnelWarpSpiralEnabled > 0.5) color += variantTunnelWarpSpiral(effectUv, uTime, mid) * uVariantTunnelWarpSpiralOpacity;
 `,
   },
 
@@ -4701,7 +4701,7 @@ uniform float uWormholeCoreOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uWormholeCoreEnabled > 0.5) color += wormholeCore(effectUv, uTime, mid) * uWormholeCoreOpacity * uRoleWeights.z;
+    mainCall: `  if (uWormholeCoreEnabled > 0.5) color += wormholeCore(effectUv, uTime, mid) * uWormholeCoreOpacity;
 `,
   },
 
@@ -4729,7 +4729,7 @@ uniform float uVariantWormholeCoreEchoOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uVariantWormholeCoreEchoEnabled > 0.5) color += variantWormholeCoreEcho(effectUv, uTime, mid) * uVariantWormholeCoreEchoOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantWormholeCoreEchoEnabled > 0.5) color += variantWormholeCoreEcho(effectUv, uTime, mid) * uVariantWormholeCoreEchoOpacity;
 `,
   },
 
@@ -4758,7 +4758,7 @@ uniform float uNebulaDriftOpacity;
   return col;
 }
 `,
-    mainCall: `  if (uNebulaDriftEnabled > 0.5) color += nebulaDrift(effectUv, uTime, mid) * uNebulaDriftOpacity * uRoleWeights.z;
+    mainCall: `  if (uNebulaDriftEnabled > 0.5) color += nebulaDrift(effectUv, uTime, mid) * uNebulaDriftOpacity;
 `,
   },
 
@@ -4785,7 +4785,7 @@ uniform float uVariantNebulaDriftColdOpacity;
   return cold * (0.8 + audio * 0.4);
 }
 `,
-    mainCall: `  if (uVariantNebulaDriftColdEnabled > 0.5) color += variantNebulaDriftCold(effectUv, uTime, mid) * uVariantNebulaDriftColdOpacity * uRoleWeights.z;
+    mainCall: `  if (uVariantNebulaDriftColdEnabled > 0.5) color += variantNebulaDriftCold(effectUv, uTime, mid) * uVariantNebulaDriftColdOpacity;
 `,
   },
 
@@ -4919,7 +4919,7 @@ uniform float uMilkwaveOpacity;
   return col * (0.35 + haze * 0.85);
 }
 `,
-    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity * uRoleWeights.y;
+    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity;
 `,
   },
 
@@ -4999,7 +4999,7 @@ uniform float uBossHealthOpacity;
 
   return col * uBossHealthOpacity * (1.0 + audio * 0.3);
 }`,
-    mainCall: `  if (uBossHealthEnabled > 0.5) color += bossHealth(effectUv, uTime, mid) * uRoleWeights.z;
+    mainCall: `  if (uBossHealthEnabled > 0.5) color += bossHealth(effectUv, uTime, mid);
 `
   },
 

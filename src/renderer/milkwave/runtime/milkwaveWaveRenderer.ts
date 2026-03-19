@@ -20,6 +20,8 @@ interface MilkwaveWaveRuntimeMemory {
   initRan: boolean;
   tVars: number[];
   qVars: number[];
+  /** samples count persisted after init code runs (init may modify it) */
+  samples?: number;
 }
 
 interface MilkwaveWaveRenderVertex {
@@ -267,6 +269,10 @@ export const createMilkwaveWaveRenderer = (gl: WebGL2RenderingContext) => {
       runtimeMemory.set(memoryKey, memory);
 
       let frameCtx = createBaseWaveContext({ wave, runtime, memory });
+      // Restore persisted samples count from init (if init already ran)
+      if (memory.initRan && memory.samples != null) {
+        frameCtx = { ...frameCtx, samples: memory.samples };
+      }
       if (!memory.initRan && wave.initCode?.length) {
         frameCtx = executeMilkwaveWaveCode({
           lines: wave.initCode,
@@ -278,6 +284,7 @@ export const createMilkwaveWaveRenderer = (gl: WebGL2RenderingContext) => {
           ]
         });
         memory.initRan = true;
+        memory.samples = Number(frameCtx.samples ?? wave.samples);
       }
       if (wave.perFrameCode?.length) {
         frameCtx = executeMilkwaveWaveCode({

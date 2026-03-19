@@ -796,8 +796,8 @@ export const projectSchema = z.object({
   }).default({ core: 1, support: 1, atmosphere: 1 }),
   tempoSync: z.object({
     bpm: z.number().default(120),
-    source: z.enum(['manual', 'auto', 'network']).default('manual')
-  }).default({ bpm: 120, source: 'manual' }),
+    source: z.enum(['manual', 'auto', 'network']).default('auto')
+  }).default({ bpm: 120, source: 'auto' }),
   customShaderBlocks: z.array(customShaderBlockSchema).default([]),
   overlays: z.array(z.object({
     id: z.string(),

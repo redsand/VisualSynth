@@ -8,6 +8,7 @@ import {
 import { bindMilkwaveBuiltins } from './milkwave/runtime/milkwaveBuiltins';
 import { bindMilkwaveSamplers } from './milkwave/runtime/milkwaveSamplers';
 import { createMilkwaveShapeRenderer } from './milkwave/runtime/milkwaveShapeRenderer';
+import { createMilkwaveWaveRenderer } from './milkwave/runtime/milkwaveWaveRenderer';
 
 export interface MilkDropShaderData {
   warp: string;
@@ -187,6 +188,13 @@ const patchMilkDropGlsl = (source: string): string => {
     additions.push(`vec2 multiply(vec2 v, mat2 m) { return m * v; }`);
     additions.push(`vec3 multiply(vec3 v, mat3 m) { return m * v; }`);
     additions.push(`vec4 multiply(vec4 v, mat4 m) { return m * v; }`);
+  }
+
+  // textureBias is how tex2Dbias is transpiled by hlslToGlsl — inject a bridge helper
+  // HLSL: tex2Dbias(s, float4(u, v, 0, lod)) → textureBias(s, vec4(u, v, 0, lod))
+  // GLSL: textureLod(s, uv.xy, uv.w)
+  if (/\btextureBias\s*\(/.test(source) && !beforeMain.includes('vec4 textureBias(')) {
+    additions.push(`vec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }`);
   }
 
   // MilkDrop #define shortcuts that may appear in shader bodies
@@ -714,6 +722,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const gmegabufData: Record<number, number> = {};
   let perFrameInitRun = false;
   const shapeRenderer = createMilkwaveShapeRenderer(gl);
+  const waveRenderer = createMilkwaveWaveRenderer(gl);
   
   const positionBuffer = gl.createBuffer();
   if (!positionBuffer) throw new Error('[MilkDrop] Buffer creation failed');
@@ -1101,6 +1110,27 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       });
     }
 
+    if (shaderData.waves?.length) {
+      waveRenderer.render({
+        waves: shaderData.waves,
+        runtime: {
+          timeSeconds: variables.time,
+          frame: variables.frame,
+          fps: variables.fps,
+          progress: 0,
+          bass: variables.bass,
+          mid: variables.mid,
+          treb: variables.treb,
+          bassAtt: variables.bass_att,
+          midAtt: variables.mid_att,
+          trebAtt: variables.treb_att,
+          qVars,
+          waveform: state.oscilloData,
+          spectrum: state.spectrum
+        }
+      });
+    }
+
     if (blurProgram && warpFbo) {
       // Blur1: half resolution
       const bw1 = Math.max(1, Math.floor(width / 2));
@@ -1250,6 +1280,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (warpProgram) gl.deleteProgram(warpProgram);
     if (compProgram) gl.deleteProgram(compProgram);
     shapeRenderer.clear();
+    waveRenderer.clear();
     warpProgram = null;
     compProgram = null;
   };

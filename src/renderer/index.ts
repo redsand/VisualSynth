@@ -70,6 +70,15 @@ import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
+import {
+  DEFAULT_NOW_PLAYING_SETTINGS,
+  isNowPlayingLookupConfigured,
+  type NowPlayingRecognitionRequest,
+  type NowPlayingRecognitionResponse,
+  type NowPlayingSettings
+} from '../shared/nowPlaying';
+import { createSongChangeDetector } from './audio/songChangeDetector';
+import { createRollingAudioCapture } from './audio/rollingAudioCapture';
 
 declare global {
   interface Window {
@@ -130,6 +139,14 @@ declare global {
       checkAssetPaths: (paths: string[]) => Promise<Record<string, boolean>>;
       relinkAsset: (assetId: string, kind: string) => Promise<AssetImportResult & { assetId?: string }>;
       importPlugin: () => Promise<{ canceled: boolean; filePath?: string; payload?: string }>;
+      getNowPlayingSettings: () => Promise<NowPlayingSettings>;
+      saveNowPlayingSettings: (settings: Partial<NowPlayingSettings>) => Promise<NowPlayingSettings>;
+      identifyNowPlaying: (
+        request: NowPlayingRecognitionRequest
+      ) => Promise<NowPlayingRecognitionResponse>;
+      cacheRemoteArtwork: (
+        imageUrl: string
+      ) => Promise<{ cached: boolean; filePath?: string; error?: string }>;
       openAssetFolder: (filePath: string) => Promise<{ opened: boolean }>;
       // Spout/NDI output integration
       spoutIsAvailable: () => Promise<boolean>;
@@ -156,6 +173,26 @@ const audioSelect = document.getElementById('audio-device') as HTMLSelectElement
 const requestMicPermissionButton = document.getElementById('request-mic-permission') as HTMLButtonElement;
 const midiSelect = document.getElementById('midi-device') as HTMLSelectElement;
 const toggleMidiButton = document.getElementById('toggle-midi') as HTMLButtonElement;
+const nowPlayingStatus = document.getElementById('now-playing-status') as HTMLDivElement;
+const nowPlayingConfigureButton = document.getElementById('now-playing-configure') as HTMLButtonElement;
+const nowPlayingModal = document.getElementById('now-playing-modal') as HTMLDivElement;
+const nowPlayingEnabledInput = document.getElementById('now-playing-enabled') as HTMLInputElement;
+const nowPlayingProviderSelect = document.getElementById('now-playing-provider') as HTMLSelectElement;
+const nowPlayingEndpointGroup = document.getElementById('now-playing-endpoint-group') as HTMLLabelElement;
+const nowPlayingEndpointInput = document.getElementById('now-playing-endpoint') as HTMLInputElement;
+const nowPlayingHostGroup = document.getElementById('now-playing-host-group') as HTMLLabelElement;
+const nowPlayingHostInput = document.getElementById('now-playing-host') as HTMLInputElement;
+const nowPlayingApiKeyGroup = document.getElementById('now-playing-api-key-group') as HTMLLabelElement;
+const nowPlayingApiKeyInput = document.getElementById('now-playing-api-key') as HTMLInputElement;
+const nowPlayingApiSecretGroup = document.getElementById('now-playing-api-secret-group') as HTMLLabelElement;
+const nowPlayingApiSecretInput = document.getElementById('now-playing-api-secret') as HTMLInputElement;
+const nowPlayingClipDurationInput = document.getElementById('now-playing-clip-duration') as HTMLInputElement;
+const nowPlayingCooldownInput = document.getElementById('now-playing-cooldown') as HTMLInputElement;
+const nowPlayingArtworkPreferenceSelect = document.getElementById('now-playing-artwork-preference') as HTMLSelectElement;
+const nowPlayingAutoOverlaysInput = document.getElementById('now-playing-auto-overlays') as HTMLInputElement;
+const nowPlayingProviderHint = document.getElementById('now-playing-provider-hint') as HTMLDivElement;
+const nowPlayingCancelButton = document.getElementById('now-playing-cancel') as HTMLButtonElement;
+const nowPlayingSaveButton = document.getElementById('now-playing-save') as HTMLButtonElement;
 const saveButton = document.getElementById('btn-save') as HTMLButtonElement;
 const savePerfButton = document.getElementById('btn-save-perf') as HTMLButtonElement;
 const loadButton = document.getElementById('btn-load') as HTMLButtonElement;
@@ -281,6 +318,7 @@ const padMapGrid = document.getElementById('pad-map-grid') as HTMLDivElement;
 const padMapBank = document.getElementById('pad-map-bank') as HTMLDivElement;
 const sceneSelect = document.getElementById('scene-select') as HTMLSelectElement | null;
 const tempoInput = document.getElementById('tempo-input') as HTMLInputElement;
+const manualBpmRow = document.getElementById('manual-bpm-row') as HTMLLabelElement;
 const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement | null;
 const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonElement | null;
 const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement | null;
@@ -550,12 +588,12 @@ let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, 
 let autoBpm: number | null = null;
 let networkBpm: number | null = null;
 let bpmRange: BpmRange = { min: 80, max: 150 };
-let bpmSource: 'manual' | 'auto' | 'network' = 'manual';
+let bpmSource: 'manual' | 'auto' | 'network' = 'auto';
 let bpmNetworkActive = false;
 let lastTempoEstimateTime = 0;
 let beatSensitivity = 1.5;
-let beatFilterRange: 'full' | 'bass' | 'mids' = 'full';
-let beatHoldOffMs = 0;
+let beatFilterRange: 'full' | 'bass' | 'mids' = 'bass';
+let beatHoldOffMs = 200;
 let lastBeatTime = 0;
 let fluxPrev = 0;
 let fluxPrevPrev = 0;
@@ -791,11 +829,16 @@ const audioState = {
   peak: 0,
   bands: new Float32Array(8),
   spectrum: new Float32Array(64),
-  waveform: new Float32Array(128),
+  waveform: new Float32Array(256),
   energyLow: 0,
   energyMid: 0,
   energyHigh: 0
 };
+
+const nowPlayingSettings = { ...DEFAULT_NOW_PLAYING_SETTINGS };
+const rollingAudioCapture = createRollingAudioCapture(30000);
+let nowPlayingLookupInFlight = false;
+let lastNowPlayingLookupAt = 0;
 
 const gravityWells = Array.from({ length: 8 }, () => ({
   x: 0,
@@ -1308,7 +1351,23 @@ const setMode = (mode: UiMode) => {
 const syncTempoInputs = (value: number) => {
   const normalized = Number.isFinite(value) ? value : 120;
   tempoInput.value = String(normalized);
-  transportBpmInput.value = String(normalized);
+  if (bpmSource === 'manual') {
+    transportBpmInput.value = String(normalized);
+  }
+};
+
+const updateBpmSourceUI = () => {
+  const isManual = bpmSource === 'manual';
+  manualBpmRow.classList.toggle('hidden', !isManual);
+  transportBpmInput.readOnly = !isManual;
+  transportBpmInput.disabled = false;
+  transportTap.classList.toggle('hidden', !isManual);
+  if (!isManual) {
+    const liveBpm = bpmSource === 'network' ? networkBpm : autoBpm;
+    transportBpmInput.value = liveBpm ? liveBpm.toFixed(1) : '';
+  } else {
+    transportBpmInput.value = tempoInput.value;
+  }
 };
 
 const loadPlaylist = () => {
@@ -2156,6 +2215,13 @@ const syncPerformanceToggles = () => {
   if (!scene) return;
   const spectrumLayer = scene.layers.find((layer) => layer.id === 'layer-spectrum');
   if (spectrumLayer && perfToggleSpectrum) perfToggleSpectrum.checked = spectrumLayer.enabled;
+
+  // Show/hide each role slider based on whether the active scene has any layer with that role
+  const roleHasLayers = (role: string) =>
+    scene.layers.some((layer) => (layer.role ?? 'support') === role);
+  mixRoleCore.closest('label')?.classList.toggle('hidden', !roleHasLayers('core'));
+  mixRoleSupport.closest('label')?.classList.toggle('hidden', !roleHasLayers('support'));
+  mixRoleAtmosphere.closest('label')?.classList.toggle('hidden', !roleHasLayers('atmosphere'));
 };
 
 const initSpectrumHint = () => {
@@ -3168,15 +3234,7 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   menu.style.minWidth = '180px';
 
   makeSubmenuItem(menu, 'Activate Now', (transition) => {
-    const targetScene = currentProject.scenes.find((s) => s.id === sceneId);
-    if (targetScene && transition !== undefined) {
-      const orig = targetScene.transition_in;
-      targetScene.transition_in = transition ?? { durationMs: 0, curve: 'linear' };
-      applyScene(sceneId);
-      targetScene.transition_in = orig;
-    } else {
-      applyScene(sceneId);
-    }
+    applySceneWithTransitionOverride(sceneId, transition);
   });
 
   makeSubmenuItem(menu, 'Queue in 4 beats', (transition) => {
@@ -3641,109 +3699,10 @@ const renderLayerList = () => {
     if (layer.id === 'layer-weather') weatherToggle = layerList.querySelector(`[data-learn-target="layer-weather.enabled"]`) as HTMLInputElement;
     if (layer.id === 'layer-portal') portalToggle = layerList.querySelector(`[data-learn-target="layer-portal.enabled"]`) as HTMLInputElement;
     if (layer.id === 'layer-oscillo') oscilloToggle = layerList.querySelector(`[data-learn-target="layer-oscillo.enabled"]`) as HTMLInputElement;
-
-    syncLayerAsset(layer);
   });
-
-  // Add visualizer row to all lists
-  const createVisualizerRow = (targetList: HTMLDivElement) => {
-    const visualizerRow = document.createElement('div');
-    visualizerRow.className = 'layer-row';
-    const vizLabel = document.createElement('label');
-    const vizToggle = document.createElement('input');
-    vizToggle.type = 'checkbox';
-    vizToggle.checked = currentProject.visualizer.enabled;
-    vizToggle.addEventListener('change', () => {
-      currentProject.visualizer.enabled = vizToggle.checked;
-      visualizerEnabledToggle.checked = vizToggle.checked;
-      visualizerCanvas.classList.toggle(
-        'hidden',
-        visualizerMode === 'off' || !currentProject.visualizer.enabled
-      );
-      setStatus(`Visualizer ${vizToggle.checked ? 'enabled' : 'disabled'}`);
-    });
-    const vizText = document.createElement('span');
-    vizText.textContent = 'Visualizer Overlay';
-    vizLabel.appendChild(vizToggle);
-    vizLabel.appendChild(vizText);
-    
-    const vizControls = document.createElement('div');
-    vizControls.className = 'layer-controls';
-    visualizerRow.appendChild(vizLabel);
-    visualizerRow.appendChild(vizControls);
-    targetList.appendChild(visualizerRow);
-
-    // Editing Box for Visualizer
-    const vizAssetControl = document.createElement('div');
-    vizAssetControl.className = 'layer-asset-control';
-    
-    // Mode Select
-    const modeRow = document.createElement('div');
-    modeRow.className = 'layer-opacity-row';
-    const modeLabel = document.createElement('span');
-    modeLabel.className = 'layer-opacity-label';
-    modeLabel.textContent = 'Mode';
-    const modeSelect = document.createElement('select');
-    modeSelect.className = 'layer-asset-select';
-    ['off', 'spectrum', 'waveform', 'oscilloscope'].forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m;
-        opt.textContent = m.toUpperCase();
-        modeSelect.appendChild(opt);
-    });
-    modeSelect.value = currentProject.visualizer.mode;
-    modeSelect.addEventListener('change', () => {
-        currentProject.visualizer.mode = modeSelect.value as any;
-        setVisualizerMode(modeSelect.value as any);
-        visualizerModeSelect.value = modeSelect.value;
-    });
-    modeRow.appendChild(modeLabel);
-    modeRow.appendChild(modeSelect);
-    vizAssetControl.appendChild(modeRow);
-
-    // Opacity Slider
-    const opacityRow = document.createElement('div');
-    opacityRow.className = 'layer-opacity-row';
-    const opacityLabel = document.createElement('span');
-    opacityLabel.className = 'layer-opacity-label';
-    opacityLabel.textContent = 'Opacity';
-    const opacityInput = document.createElement('input');
-    opacityInput.type = 'range';
-    opacityInput.min = '0';
-    opacityInput.max = '1';
-    opacityInput.step = '0.01';
-    opacityInput.value = String(currentProject.visualizer.opacity);
-    opacityInput.className = 'layer-opacity';
-    opacityInput.addEventListener('input', () => {
-        currentProject.visualizer.opacity = Number(opacityInput.value);
-        visualizerOpacityInput.value = opacityInput.value;
-    });
-    opacityRow.appendChild(opacityLabel);
-    opacityRow.appendChild(opacityInput);
-    vizAssetControl.appendChild(opacityRow);
-
-    targetList.appendChild(vizAssetControl);
-  };
-
-  createVisualizerRow(layerList);
-  createVisualizerRow(layerListScene);
-  if (layerListDesign) createVisualizerRow(layerListDesign);
-
-  updateSdfAdvancedVisibility();
-  initLearnables();
 };
 
 const renderModMatrix = () => {
-  modMatrixList.innerHTML = '';
-  if (currentProject.modMatrix.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'matrix-empty';
-    empty.textContent = 'No mod connections yet.';
-    modMatrixList.appendChild(empty);
-    renderLayerList();
-    return;
-  }
-
   currentProject.modMatrix.forEach((connection, index) => {
     const row = document.createElement('div');
     row.className = 'matrix-row';
@@ -5859,6 +5818,35 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
   void applyPlasmaShaderFromScene(scene);
 };
 
+/**
+ * Apply a scene with a one-shot transition override.
+ * Temporarily patches both the to-scene's transition_in and the from-scene's transition_out
+ * so that resolveTransitionDuration returns the correct duration, then restores both.
+ * Pass null for an instant cut (suppresses all blending and visual transitions).
+ */
+const applySceneWithTransitionOverride = (sceneId: string, transition: SceneTransition | null) => {
+  const toScene = currentProject.scenes.find((s) => s.id === sceneId);
+  if (!toScene) { applyScene(sceneId); return; }
+
+  const fromScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+  const origToIn = toScene.transition_in;
+  const origFromOut = fromScene?.transition_out;
+
+  if (transition === null) {
+    // Cut: zero both sides so blend duration = max(0,0) = 0 and no visual transition fires
+    toScene.transition_in = { durationMs: 0, curve: 'linear' };
+    if (fromScene) fromScene.transition_out = { durationMs: 0, curve: 'linear' };
+  } else {
+    toScene.transition_in = transition;
+    if (fromScene) fromScene.transition_out = { durationMs: transition.durationMs, curve: transition.curve };
+  }
+
+  applyScene(sceneId);
+
+  toScene.transition_in = origToIn;
+  if (fromScene) fromScene.transition_out = origFromOut;
+};
+
 const addSceneFromPreset = async (presetPath: string) => {
   const traceId = createPresetTraceId();
   logPresetDebug(traceId, 'Loading preset for scene', { presetPath });
@@ -6000,6 +5988,11 @@ const updateBpmDisplay = () => {
       : bpmSource === 'auto'
         ? autoBpm ?? 0
         : networkBpm ?? 0;
+  if (bpmSource === 'manual') {
+    transportBpmInput.value = String(Number(tempoInput.value) || 120);
+  } else {
+    transportBpmInput.value = value > 0 ? value.toFixed(1) : '';
+  }
   if (bpmDisplay) {
     bpmDisplay.innerHTML =
       value > 0
@@ -8943,10 +8936,232 @@ const initAudioDevices = async () => {
   });
 };
 
+const updateNowPlayingStatusText = () => {
+  if (!nowPlayingSettings.enabled) {
+    nowPlayingStatus.textContent = 'Disabled';
+    return;
+  }
+
+  if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
+    nowPlayingStatus.textContent = `Enabled, but ${nowPlayingSettings.provider} is not fully configured.`;
+    return;
+  }
+
+  const providerLabel =
+    nowPlayingSettings.provider === 'audd'
+      ? 'AudD'
+      : nowPlayingSettings.provider === 'acrcloud'
+        ? 'ACRCloud'
+        : nowPlayingSettings.provider === 'shazam'
+          ? 'Shazam Proxy'
+          : 'Custom Webhook';
+  nowPlayingStatus.textContent = `Enabled via ${providerLabel}.`;
+};
+
+const syncNowPlayingProviderFields = () => {
+  const provider = nowPlayingProviderSelect.value as NowPlayingSettings['provider'];
+  const showEndpoint = provider === 'custom' || provider === 'shazam';
+  const showHost = provider === 'acrcloud';
+  const showSecret = provider === 'acrcloud';
+  const showApiKey = provider !== 'shazam';
+
+  nowPlayingEndpointGroup.classList.toggle('hidden', !showEndpoint);
+  nowPlayingHostGroup.classList.toggle('hidden', !showHost);
+  nowPlayingApiSecretGroup.classList.toggle('hidden', !showSecret);
+  nowPlayingApiKeyGroup.classList.toggle('hidden', !showApiKey);
+
+  nowPlayingProviderHint.textContent =
+    provider === 'audd'
+      ? 'AudD uses your API token directly from the app.'
+      : provider === 'acrcloud'
+        ? 'ACRCloud requires host, access key, and access secret.'
+        : provider === 'shazam'
+          ? 'Shazam mode expects your own proxy endpoint because ShazamKit is not a direct Electron HTTP API.'
+          : 'Custom mode posts the captured clip to your own lookup endpoint.';
+};
+
+const openNowPlayingModal = () => {
+  nowPlayingEnabledInput.checked = nowPlayingSettings.enabled;
+  nowPlayingProviderSelect.value = nowPlayingSettings.provider;
+  nowPlayingEndpointInput.value = nowPlayingSettings.endpoint;
+  nowPlayingHostInput.value = nowPlayingSettings.host;
+  nowPlayingApiKeyInput.value = nowPlayingSettings.apiKey;
+  nowPlayingApiSecretInput.value = nowPlayingSettings.apiSecret;
+  nowPlayingClipDurationInput.value = String(nowPlayingSettings.clipDurationMs);
+  nowPlayingCooldownInput.value = String(nowPlayingSettings.cooldownMs);
+  nowPlayingArtworkPreferenceSelect.value = nowPlayingSettings.artworkPreference;
+  nowPlayingAutoOverlaysInput.checked = nowPlayingSettings.autoCreateOverlays;
+  syncNowPlayingProviderFields();
+  nowPlayingModal.classList.remove('hidden');
+};
+
+const closeNowPlayingModal = () => {
+  nowPlayingModal.classList.add('hidden');
+};
+
+const applyNowPlayingSettings = (settings: Partial<NowPlayingSettings>) => {
+  Object.assign(nowPlayingSettings, DEFAULT_NOW_PLAYING_SETTINGS, settings);
+  updateNowPlayingStatusText();
+};
+
+const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): OverlayConfig => {
+  if (!currentProject.overlays) currentProject.overlays = [];
+  let overlay = currentProject.overlays.find((item) => item.id === overlayId);
+  if (overlay) return overlay;
+
+  overlay =
+    type === 'text'
+      ? {
+          id: overlayId,
+          name: 'Now Playing',
+          type: 'text',
+          enabled: true,
+          x: 0.03,
+          y: 0.82,
+          width: 0.38,
+          height: 0.13,
+          opacity: 1,
+          rotation: 0,
+          includeInFx: false,
+          text: 'Listening...',
+          fontSize: 30,
+          fontColor: '#ffffff',
+          fontWeight: 'bold',
+          textShadow: true
+        }
+      : {
+          id: overlayId,
+          name: 'Now Playing Artwork',
+          type: 'image',
+          enabled: true,
+          x: 0.03,
+          y: 0.62,
+          width: 0.14,
+          height: 0.18,
+          opacity: 0.95,
+          rotation: 0,
+          includeInFx: false
+        };
+
+  currentProject.overlays.push(overlay);
+  renderOverlayList();
+  return overlay;
+};
+
+const updateNowPlayingOverlays = (track: {
+  title?: string;
+  artist?: string;
+  album?: string;
+  artworkPath?: string;
+}) => {
+  if (!nowPlayingSettings.autoCreateOverlays) return;
+
+  const titleOverlay = ensureNowPlayingOverlay('text', nowPlayingSettings.titleOverlayId);
+  const title = track.title?.trim() || 'Unknown Track';
+  const artist = track.artist?.trim() || 'Unknown Artist';
+  const albumLine = track.album?.trim() ? `\n${track.album.trim()}` : '';
+  titleOverlay.text = `${title}\n${artist}${albumLine}`;
+
+  const artworkOverlay = ensureNowPlayingOverlay('image', nowPlayingSettings.artworkOverlayId);
+  if (track.artworkPath) {
+    artworkOverlay.assetPath = track.artworkPath;
+    artworkOverlay.enabled = true;
+  }
+};
+
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+  const arrayBuffer = await blob.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(arrayBuffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+};
+
+const runNowPlayingLookup = async (detectedAt: number) => {
+  if (!isNowPlayingLookupConfigured(nowPlayingSettings)) return;
+  if (nowPlayingLookupInFlight) return;
+  if (detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) return;
+
+  const clip = await rollingAudioCapture.exportRecentClip(nowPlayingSettings.clipDurationMs);
+  if (!clip) {
+    setStatus('Song change detected, but no recent audio clip was available.');
+    return;
+  }
+
+  nowPlayingLookupInFlight = true;
+  lastNowPlayingLookupAt = detectedAt;
+
+  try {
+    const audioBase64 = await blobToBase64(clip.blob);
+    const result = await window.visualSynth.identifyNowPlaying({
+      provider: nowPlayingSettings.provider,
+      endpoint: nowPlayingSettings.endpoint,
+      apiKey: nowPlayingSettings.apiKey || undefined,
+      apiSecret: nowPlayingSettings.apiSecret || undefined,
+      host: nowPlayingSettings.host || undefined,
+      market: nowPlayingSettings.market || undefined,
+      audioBase64,
+      mimeType: clip.mimeType,
+      durationMs: clip.endedAt - clip.startedAt,
+      detectedAt
+    });
+
+    if (!result.matched) {
+      setStatus(result.error ? `Song lookup failed: ${result.error}` : 'Song change detected, but no match was found.');
+      return;
+    }
+
+    const preferredArtworkUrl =
+      nowPlayingSettings.artworkPreference === 'artist'
+        ? result.artistImageUrl || result.artworkUrl
+        : result.artworkUrl || result.artistImageUrl;
+    let artworkPath: string | undefined;
+    if (preferredArtworkUrl) {
+      const cached = await window.visualSynth.cacheRemoteArtwork(preferredArtworkUrl);
+      if (cached.cached) {
+        artworkPath = cached.filePath;
+      }
+    }
+
+    updateNowPlayingOverlays({
+      title: result.title,
+      artist: result.artist,
+      album: result.album,
+      artworkPath
+    });
+
+    const songLabel = [result.title, result.artist].filter(Boolean).join(' - ');
+    setStatus(songLabel ? `Now playing: ${songLabel}` : 'Now playing updated.');
+  } finally {
+    nowPlayingLookupInFlight = false;
+  }
+};
+
+const songChangeDetector = createSongChangeDetector({
+  minTrackMs: nowPlayingSettings.minTrackMs,
+  silenceThreshold: nowPlayingSettings.silenceThreshold,
+  changeThreshold: nowPlayingSettings.changeThreshold,
+  confirmWindows: nowPlayingSettings.confirmWindows,
+  cooldownMs: nowPlayingSettings.cooldownMs,
+  onSongChange: ({ detectedAt }) => {
+    if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
+      setStatus('Song change detected. Configure Now Playing in the System tab to enable lookup.');
+      return;
+    }
+    void runNowPlayingLookup(detectedAt);
+  }
+});
+updateNowPlayingStatusText();
+
 const setupAudio = async (deviceId?: string) => {
   if (mediaStream) {
     mediaStream.getTracks().forEach((track) => track.stop());
   }
+  rollingAudioCapture.stop();
   audioContext?.close();
 
   // Remove any existing audio-related safe mode reasons
@@ -8963,6 +9178,8 @@ const setupAudio = async (deviceId?: string) => {
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.7;
     source.connect(analyser);
+    songChangeDetector.reset();
+    rollingAudioCapture.attach(stream);
     latencyLabel.textContent = `Audio Latency: ${Math.round(audioContext.baseLatency * 1000)}ms`;
     const outputLatency = audioContext.outputLatency ?? 0;
     outputLatencyLabel.textContent = outputLatency
@@ -8977,6 +9194,8 @@ const setupAudio = async (deviceId?: string) => {
   } catch (error) {
     analyser = null;
     audioContext = null;
+    rollingAudioCapture.stop();
+    songChangeDetector.reset();
 
     // Provide helpful error message for desktop app
     let errorMsg = 'AUDIO INPUT UNAVAILABLE';
@@ -9032,6 +9251,13 @@ const updateAudioAnalysis = () => {
     const sample = timeData[Math.floor((i / audioState.waveform.length) * timeData.length)];
     audioState.waveform[i] = (sample - 128) / 128;
   }
+
+  songChangeDetector.update({
+    nowMs: performance.now(),
+    rms: audioState.rms,
+    spectrum: audioState.spectrum,
+    bands: audioState.bands
+  });
 
   // Engine Grammar: Inertial Energy Accumulation
   const engine = ENGINE_REGISTRY[currentProject.activeEngineId as EngineId];
@@ -9366,6 +9592,8 @@ const applyProject = async (project: VisualSynthProject) => {
     syncTempoInputs(currentProject.tempoSync.bpm);
     bpmSource = currentProject.tempoSync.source;
     if (bpmSourceSelect) bpmSourceSelect.value = bpmSource;
+    updateBpmSourceUI();
+    updateBpmDisplay();
   }
   initModulators();
   renderModulators();
@@ -9596,6 +9824,7 @@ if (activateSceneButton) {
 
 bpmSourceSelect.addEventListener('change', () => {
   bpmSource = bpmSourceSelect.value as typeof bpmSource;
+  updateBpmSourceUI();
   updateBpmDisplay();
 });
 
@@ -9976,6 +10205,44 @@ audioSelect.addEventListener('change', async () => {
   await setupAudio(audioSelect.value);
 });
 
+nowPlayingConfigureButton.addEventListener('click', () => {
+  openNowPlayingModal();
+});
+
+nowPlayingProviderSelect.addEventListener('change', () => {
+  syncNowPlayingProviderFields();
+});
+
+nowPlayingCancelButton.addEventListener('click', () => {
+  closeNowPlayingModal();
+});
+
+nowPlayingSaveButton.addEventListener('click', async () => {
+  nowPlayingSettings.enabled = nowPlayingEnabledInput.checked;
+  nowPlayingSettings.provider = nowPlayingProviderSelect.value as NowPlayingSettings['provider'];
+  nowPlayingSettings.endpoint = nowPlayingEndpointInput.value.trim();
+  nowPlayingSettings.host = nowPlayingHostInput.value.trim();
+  nowPlayingSettings.apiKey = nowPlayingApiKeyInput.value.trim();
+  nowPlayingSettings.apiSecret = nowPlayingApiSecretInput.value.trim();
+  nowPlayingSettings.clipDurationMs = Math.max(4000, Number(nowPlayingClipDurationInput.value) || 12000);
+  nowPlayingSettings.cooldownMs = Math.max(5000, Number(nowPlayingCooldownInput.value) || 15000);
+  nowPlayingSettings.artworkPreference =
+    nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'];
+  nowPlayingSettings.autoCreateOverlays = nowPlayingAutoOverlaysInput.checked;
+
+  const savedSettings = await window.visualSynth.saveNowPlayingSettings({ ...nowPlayingSettings });
+  applyNowPlayingSettings(savedSettings);
+  songChangeDetector.reset();
+  closeNowPlayingModal();
+  setStatus('Now Playing configuration saved.');
+});
+
+nowPlayingModal.addEventListener('click', (event) => {
+  if (event.target === nowPlayingModal) {
+    closeNowPlayingModal();
+  }
+});
+
 requestMicPermissionButton.addEventListener('click', async () => {
   try {
     // Request microphone permission explicitly
@@ -10169,6 +10436,10 @@ modeButtons.forEach((button) => {
 
 
 transportTap.addEventListener('click', () => {
+  if (bpmSource !== 'manual') {
+    setStatus('Tap tempo is only available in Manual BPM mode.');
+    return;
+  }
   setStatus('Tap tempo (placeholder).');
 });
 
@@ -10183,6 +10454,10 @@ webglCopyButton.addEventListener('click', async () => {
 });
 
 transportBpmInput.addEventListener('change', () => {
+  if (bpmSource !== 'manual') {
+    updateBpmDisplay();
+    return;
+  }
   syncTempoInputs(Number(transportBpmInput.value));
   setStatus(`Tempo set to ${transportBpmInput.value} BPM`);
 });
@@ -10200,6 +10475,7 @@ transportPauseButton.addEventListener('click', () => {
 
 tempoInput.addEventListener('change', () => {
   syncTempoInputs(Number(tempoInput.value));
+  updateBpmDisplay();
 });
 
 outputRouteSelect.addEventListener('change', async () => {
@@ -10512,8 +10788,10 @@ const initBpmNetworking = async () => {
     prolinkOption?.remove();
     bpmNetworkToggle.disabled = true;
     if (bpmSource === 'network') {
-      bpmSource = 'manual';
-      bpmSourceSelect.value = 'manual';
+      bpmSource = 'auto';
+      bpmSourceSelect.value = 'auto';
+      updateBpmSourceUI();
+      updateBpmDisplay();
     }
   }
 
@@ -11041,15 +11319,7 @@ const render = (time: number) => {
   if (sceneSwitch.shouldApplyScene && pendingSceneSwitch) {
     const { targetSceneId, transitionOverride } = pendingSceneSwitch;
     if (transitionOverride !== undefined) {
-      const targetScene = currentProject.scenes.find((s) => s.id === targetSceneId);
-      if (targetScene) {
-        const orig = targetScene.transition_in;
-        targetScene.transition_in = transitionOverride ?? { durationMs: 0, curve: 'linear' };
-        applyScene(targetSceneId);
-        targetScene.transition_in = orig;
-      } else {
-        applyScene(targetSceneId);
-      }
+      applySceneWithTransitionOverride(targetSceneId, transitionOverride);
     } else {
       applyScene(targetSceneId);
     }
@@ -11353,9 +11623,11 @@ const render = (time: number) => {
     layers: renderScene?.layers ?? [],
     modValue,
     midiSum,
+    macroSum,
     getLayerParamNumber,
     findLayerById: (layers, id) => findLayerById(layers as LayerConfig[], id),
     buildLegacyTarget,
+    roleWeights: currentProject.roleWeights ?? { core: 1, support: 1, atmosphere: 1 },
   });
   const plasmaOpacity = Math.min(
     1,
@@ -11974,6 +12246,13 @@ const init = async () => {
 
   ensureVisualSynthBridge(window);
 
+  try {
+    const savedNowPlayingSettings = await window.visualSynth.getNowPlayingSettings();
+    applyNowPlayingSettings(savedNowPlayingSettings);
+  } catch {
+    updateNowPlayingStatusText();
+  }
+
   updateLoadingProgress(5, 'Setting up interface...');
   initPads();
   initShortcuts();
@@ -12035,6 +12314,12 @@ const init = async () => {
   console.log('[Init] loadGeneratorLibrary completed');
 
   updateLoadingProgress(70, 'Building user interface...');
+  bpmSourceSelect.value = bpmSource;
+  beatSensitivityInput.value = String(beatSensitivity);
+  beatFilterSelect.value = beatFilterRange;
+  beatHoldOffInput.value = String(beatHoldOffMs);
+  updateBpmSourceUI();
+  updateBpmDisplay();
   refreshGeneratorUI();
   initStylePresets();
   initPalettes();

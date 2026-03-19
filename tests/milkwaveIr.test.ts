@@ -57,6 +57,7 @@ describe('Milkwave IR', () => {
       hasCustomShapes: false,
       hasCustomShapeInitCode: false,
       hasCustomShapePointCode: false,
+      hasTexturedShapes: false,
       requiresVolumeNoise: false,
       requiresBlurSamplers: false,
       requiresCustomSamplers: false,
@@ -98,5 +99,57 @@ describe('Milkwave IR', () => {
     expect(ir.featureRequirements.hasCustomShapePointCode).toBe(true);
     expect(ir.waves[0]?.expressionBlocks.some((block) => block.kind === 'wave-init' && block.lines[0] === 't1 = 0.5;')).toBe(true);
     expect(ir.shapes[0]?.expressionBlocks.some((block) => block.kind === 'shape-point' && block.lines[0] === 'x = x + 0.01;')).toBe(true);
+  });
+
+  it('includes hasTexturedShapes in the feature requirements object', () => {
+    const parsed = parseMilkFile(
+      [
+        'MILKDROP_PRESET_VERSION=201',
+        '[preset00]'
+      ].join('\n'),
+      'Author - Simple.milk',
+      'TestFolder'
+    );
+    expect(parsed).not.toBeNull();
+
+    const ir = buildMilkwaveIR(parsed!);
+    expect(ir.featureRequirements).toHaveProperty('hasTexturedShapes');
+    expect(typeof ir.featureRequirements.hasTexturedShapes).toBe('boolean');
+  });
+
+  it('detects hasTexturedShapes: false when shapes have textured: false', () => {
+    const parsed = parseMilkFile(
+      [
+        'MILKDROP_PRESET_VERSION=201',
+        '[preset00]',
+        'shapecode_0_enabled=1',
+        'shapecode_0_textured=0',
+        'shape_0_per_frame1=ang = ang + 0.01;'
+      ].join('\n'),
+      'Author - NonTexturedShape.milk',
+      'TestFolder'
+    );
+    expect(parsed).not.toBeNull();
+
+    const ir = buildMilkwaveIR(parsed!);
+    expect(ir.featureRequirements.hasTexturedShapes).toBe(false);
+  });
+
+  it('detects hasTexturedShapes: true when shapes have textured: true', () => {
+    const parsed = parseMilkFile(
+      [
+        'MILKDROP_PRESET_VERSION=201',
+        '[preset00]',
+        'shapecode_0_enabled=1',
+        'shapecode_0_textured=1',
+        'shape_0_per_frame1=ang = ang + 0.01;'
+      ].join('\n'),
+      'Author - TexturedShape.milk',
+      'TestFolder'
+    );
+    expect(parsed).not.toBeNull();
+
+    const ir = buildMilkwaveIR(parsed!);
+    expect(ir.featureRequirements.hasTexturedShapes).toBe(true);
   });
 });

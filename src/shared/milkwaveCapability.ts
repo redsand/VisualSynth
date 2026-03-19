@@ -38,6 +38,7 @@ const summarizeFeatures = (features: MilkwaveFeatureRequirements): string[] => {
   if (features.hasCustomShapes) summary.push('custom-shapes');
   if (features.hasCustomShapeInitCode) summary.push('shape-init');
   if (features.hasCustomShapePointCode) summary.push('shape-point');
+  if (features.hasTexturedShapes) summary.push('textured-shapes');
   if (features.requiresBlurSamplers) summary.push('blur-samplers');
   if (features.requiresPreviousFrameAliases) summary.push('prev-frame-aliases');
   if (features.requiresCustomTextureSlots) summary.push('custom-texture-slots');
@@ -111,43 +112,11 @@ export const classifyMilkwaveFeatures = (
       'degrade'
     );
   }
-  if (features.hasCustomWavePointCode) {
+  if (features.hasTexturedShapes) {
     pushReason(
       reasonsDetailed,
-      'wave_point',
-      'Uses custom wave per-point code.',
-      'degrade'
-    );
-  }
-  if (features.hasCustomWaveInitCode) {
-    pushReason(
-      reasonsDetailed,
-      'wave_init',
-      'Uses custom wave init code, which is not yet mapped into native execution.',
-      'degrade'
-    );
-  }
-  if (features.hasCustomShapes) {
-    pushReason(
-      reasonsDetailed,
-      'custom_shapes',
-      'Uses custom shapes that require a native geometry/rendering path.',
-      'degrade'
-    );
-  }
-  if (features.hasCustomShapeInitCode) {
-    pushReason(
-      reasonsDetailed,
-      'shape_init',
-      'Uses custom shape init code, which is not yet mapped into native execution.',
-      'degrade'
-    );
-  }
-  if (features.hasCustomShapePointCode) {
-    pushReason(
-      reasonsDetailed,
-      'shape_point',
-      'Uses custom shape per-point code, which requires per-instance/per-vertex native execution.',
+      'textured_shapes',
+      'Uses textured custom shapes; texture sampling on shapes is not yet supported — shapes render as flat-color geometry.',
       'degrade'
     );
   }

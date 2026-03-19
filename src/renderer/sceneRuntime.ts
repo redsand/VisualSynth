@@ -99,7 +99,7 @@ export const resolveSceneActivationRuntime = (
   }
 
   let visualTransition: SceneVisualTransition | null = null;
-  if (scene.transition_in) {
+  if (scene.transition_in && scene.transition_in.durationMs > 0) {
     const typeMap: Record<string, number> = {
       fade: 1,
       crossfade: 1,
@@ -110,7 +110,7 @@ export const resolveSceneActivationRuntime = (
     visualTransition = {
       type: typeMap[scene.transition_in.type || 'fade'] || 1,
       amount: 1.0,
-      decay: 1.0 / (scene.transition_in.durationMs || 600)
+      decay: 1.0 / scene.transition_in.durationMs
     };
   }
 

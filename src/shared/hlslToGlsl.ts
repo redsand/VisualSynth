@@ -20,6 +20,7 @@ const TYPE_CONVERSIONS: Record<string, string> = {
   'float2': 'vec2',
   'float3': 'vec3',
   'float4': 'vec4',
+  'float1': 'float',
   'float2x2': 'mat2',
   'float3x3': 'mat3',
   'float4x4': 'mat4',

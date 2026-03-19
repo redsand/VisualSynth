@@ -17,6 +17,9 @@ import { deserializeProject } from '../shared/serialization';
 import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
 import { buildPresetIndexEntry } from '../shared/presetIndex';
 import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
+import { cacheRemoteArtwork, identifyNowPlaying } from './nowPlayingLookup';
+import type { NowPlayingRecognitionRequest, NowPlayingSettings } from '../shared/nowPlaying';
+import { loadNowPlayingSettings, saveNowPlayingSettings } from './nowPlayingSettingsStore';
 
 const isDev = !app.isPackaged;
 
@@ -527,6 +530,22 @@ ipcMain.handle('plugins:import', async () => {
   const filePath = result.filePaths[0];
   const payload = fs.readFileSync(filePath, 'utf-8');
   return { canceled: false, filePath, payload };
+});
+
+ipcMain.handle('now-playing:settings:get', () => {
+  return loadNowPlayingSettings();
+});
+
+ipcMain.handle('now-playing:settings:set', (_event, settings: Partial<NowPlayingSettings>) => {
+  return saveNowPlayingSettings(settings);
+});
+
+ipcMain.handle('now-playing:identify', async (_event, request: NowPlayingRecognitionRequest) => {
+  return identifyNowPlaying(request);
+});
+
+ipcMain.handle('now-playing:cache-artwork', async (_event, imageUrl: string) => {
+  return cacheRemoteArtwork(imageUrl, ASSET_STORAGE);
 });
 
 ipcMain.handle('assets:open-folder', async (_event, filePath: string) => {

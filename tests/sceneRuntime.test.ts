@@ -137,3 +137,123 @@ describe('applySceneLookToProject', () => {
     expect(calls).toEqual(['visual', 'start-blend', 'mark-activated', 'set-palette', 'compile']);
   });
 });
+
+describe('resolveSceneActivationRuntime — transition type mapping', () => {
+  const makeProject = (transitionType: string, durationMs = 600) => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.scenes = [
+      { ...project.scenes[0], id: 'scene-a', scene_id: 'scene-a', name: 'A' },
+      {
+        ...project.scenes[0],
+        id: 'scene-b',
+        scene_id: 'scene-b',
+        name: 'B',
+        transition_in: { durationMs, curve: 'easeInOut', type: transitionType }
+      }
+    ];
+    project.activeSceneId = 'scene-a';
+    return project;
+  };
+
+  it.each([
+    ['fade',      1],
+    ['crossfade', 1],
+    ['warp',      2],
+    ['glitch',    3],
+    ['dissolve',  4],
+  ])('maps transition type "%s" → numeric type %i', (type, expected) => {
+    const result = resolveSceneActivationRuntime(makeProject(type), 'scene-b');
+    expect(result?.visualTransition?.type).toBe(expected);
+  });
+
+  it('sets amount=1 and decay=1/durationMs for all transitions', () => {
+    const result = resolveSceneActivationRuntime(makeProject('warp', 800), 'scene-b');
+    expect(result?.visualTransition?.amount).toBe(1.0);
+    expect(result?.visualTransition?.decay).toBeCloseTo(1 / 800);
+  });
+
+  it('produces no visual transition when transition_in is absent', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.scenes = [
+      { ...project.scenes[0], id: 'scene-a', scene_id: 'scene-a', name: 'A' },
+      { ...project.scenes[0], id: 'scene-b', scene_id: 'scene-b', name: 'B', transition_in: undefined }
+    ];
+    project.activeSceneId = 'scene-a';
+    const result = resolveSceneActivationRuntime(project, 'scene-b');
+    expect(result?.visualTransition).toBeNull();
+  });
+
+  it('produces no visual transition when durationMs is 0 (cut)', () => {
+    const project = makeProject('fade', 0);
+    const result = resolveSceneActivationRuntime(project, 'scene-b');
+    expect(result?.visualTransition).toBeNull();
+  });
+
+  it('blend duration is max(from_out, to_in)', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.scenes = [
+      {
+        ...project.scenes[0],
+        id: 'scene-a',
+        scene_id: 'scene-a',
+        name: 'A',
+        transition_out: { durationMs: 800, curve: 'linear' }
+      },
+      {
+        ...project.scenes[0],
+        id: 'scene-b',
+        scene_id: 'scene-b',
+        name: 'B',
+        transition_in: { durationMs: 400, curve: 'easeInOut', type: 'fade' }
+      }
+    ];
+    project.activeSceneId = 'scene-a';
+    const result = resolveSceneActivationRuntime(project, 'scene-b');
+    expect(result?.blendTransition?.durationMs).toBe(800);
+  });
+
+  it('produces no blend when both sides have durationMs=0 (cut)', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.scenes = [
+      {
+        ...project.scenes[0],
+        id: 'scene-a',
+        scene_id: 'scene-a',
+        name: 'A',
+        transition_out: { durationMs: 0, curve: 'linear' }
+      },
+      {
+        ...project.scenes[0],
+        id: 'scene-b',
+        scene_id: 'scene-b',
+        name: 'B',
+        transition_in: { durationMs: 0, curve: 'linear' }
+      }
+    ];
+    project.activeSceneId = 'scene-a';
+    const result = resolveSceneActivationRuntime(project, 'scene-b');
+    // blend duration should be 0 → SceneManager.startTransition will clear immediately
+    expect(result?.blendTransition?.durationMs).toBe(0);
+    // no visual transition
+    expect(result?.visualTransition).toBeNull();
+  });
+
+  it('clearBlendTransition is called (not startBlendTransition) when switching to the same scene', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.activeSceneId = project.scenes[0].id;
+    const activation = resolveSceneActivationRuntime(project, project.scenes[0].id);
+    expect(activation).toBeTruthy();
+    if (!activation) return;
+    const calls: string[] = [];
+    applySceneActivationRuntime(activation, {
+      transportTimeMs: 0,
+      onVisualTransition: () => calls.push('visual'),
+      startBlendTransition: () => calls.push('start-blend'),
+      clearBlendTransition: () => calls.push('clear-blend'),
+      markSceneActivated: () => calls.push('mark-activated'),
+      setPaletteApplied: () => calls.push('set-palette'),
+    });
+    expect(calls).not.toContain('start-blend');
+    expect(calls).toContain('clear-blend');
+  });
+});

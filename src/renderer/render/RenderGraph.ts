@@ -1595,9 +1595,11 @@ export class RenderGraph {
       layers: activeScene?.layers ?? [],
       modValue,
       midiSum: this.midiSum,
+      macroSum,
       getLayerParamNumber,
       findLayerById: (layers, id) => findLayerById(layers as LayerConfig[], id),
-      buildLegacyTarget
+      buildLegacyTarget,
+      roleWeights
     });
 
     const plasmaBaseSpeed = getLayerParamNumber(plasmaLayer, 'speed', 1.0);

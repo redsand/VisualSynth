@@ -124,13 +124,21 @@ void main() {
   let previousFrameHeight = 0;
 
   const initInternalTextures = () => {
-    [waveformTexture, spectrumTexture, modulatorTexture, midiTexture, previousFrameTexture].forEach(tex => {
+    // R32F textures (waveform, spectrum, modulators, midi) are not linearly filterable in WebGL2
+    // without OES_texture_float_linear — use NEAREST to avoid silent zeros.
+    [waveformTexture, spectrumTexture, modulatorTexture, midiTexture].forEach(tex => {
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     });
+    // previousFrame is RGBA UNSIGNED_BYTE — linear filtering is fine
+    gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   };
   initInternalTextures();
 

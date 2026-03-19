@@ -126,12 +126,16 @@ export interface ResolverDeps {
   modValue: (target: string, base: number) => number;
   /** MIDI sum record, keyed by legacy target id e.g. 'gen-laser-beam.opacity' */
   midiSum: Record<string, number>;
+  /** Macro sum record, keyed by legacy target id e.g. 'layer-laser-beam.opacity' */
+  macroSum: Record<string, number>;
   /** Helper to read a numeric param from a layer */
   getLayerParamNumber: (layer: any, param: string, fallback: number) => number;
   /** Helper to find a layer by its generatorId */
   findLayerById: (layers: any[] | undefined, genId: string) => any | undefined;
   /** Build legacy mod target string: e.g. (layerType, param) → 'layer-laser-beam.opacity' */
   buildLegacyTarget: (layerType: string, param: string) => string;
+  /** Role weight multipliers — applied to opacity for each layer's role */
+  roleWeights: { core: number; support: number; atmosphere: number };
 }
 
 /**
@@ -173,7 +177,7 @@ export const resolveGenUniforms = (deps: ResolverDeps): Record<string, number> =
       const uniformName = paramToUniformName(prefix, param.id);
       const baseValue = deps.getLayerParamNumber(layer, param.id, param.default ?? 0);
 
-      // Opacity gets multiplied by layer.opacity
+      // Opacity gets multiplied by layer.opacity and role weight
       let value: number;
       if (
         param.id === 'opacity' &&
@@ -184,7 +188,10 @@ export const resolveGenUniforms = (deps: ResolverDeps): Record<string, number> =
         value = layer?.opacity ?? baseValue;
       } else if (param.id === 'opacity') {
         const layerOpacity = layer?.opacity ?? 1;
-        value = layerOpacity * baseValue;
+        const role: string = layer?.role ?? 'support';
+        const rw = deps.roleWeights ?? { core: 1, support: 1, atmosphere: 1 };
+        const roleWeight = role === 'core' ? rw.core : role === 'atmosphere' ? rw.atmosphere : rw.support;
+        value = layerOpacity * baseValue * roleWeight;
       } else {
         value = baseValue;
       }
@@ -203,6 +210,17 @@ export const resolveGenUniforms = (deps: ResolverDeps): Record<string, number> =
           value *= midiVal;
         } else {
           value += midiVal;
+        }
+      }
+
+      // Apply macro sum (opacity: multiplicative via (1 + macroVal), others: additive)
+      const macroKey = `${legacyPrefix}.${param.id}`;
+      const macroVal = deps.macroSum[macroKey];
+      if (macroVal != null && macroVal !== 0) {
+        if (param.id === 'opacity') {
+          value *= (1 + macroVal);
+        } else {
+          value += macroVal;
         }
       }
 

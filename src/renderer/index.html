@@ -34,13 +34,13 @@
             <button type="button" class="mode-button secondary-mode" data-mode="design">Design</button>
             <button type="button" class="mode-button secondary-mode" data-mode="system">System</button>
           </div>
-          <div class="transport">
-            <label class="transport-label">
-              BPM
-              <input id="transport-bpm" type="number" min="40" max="240" step="1" value="120" />
-            </label>
-            <button type="button" id="transport-tap">Tap</button>
-            <button type="button" id="transport-pause">Pause</button>
+            <div class="transport">
+              <label class="transport-label">
+                BPM
+              <input id="transport-bpm" type="number" min="40" max="240" step="0.1" value="120" />
+              </label>
+              <button type="button" id="transport-tap">Tap</button>
+              <button type="button" id="transport-pause">Pause</button>
           </div>
           <label class="output-route">
             Output
@@ -690,7 +690,7 @@
                 BPM Source
                 <select id="bpm-source">
                   <option value="manual">Manual</option>
-                  <option value="auto">Auto Detect</option>
+                  <option value="auto" selected>Auto Detect</option>
                   <option value="network">Prolink Connect</option>
                 </select>
               </label>
@@ -713,7 +713,7 @@
                   <input id="bpm-max" type="number" min="40" max="300" step="1" value="150" />
                 </label>
               </div>
-              <label class="scene-label">
+              <label id="manual-bpm-row" class="scene-label">
                 Manual BPM
                 <input id="tempo-input" type="number" min="40" max="240" step="1" value="120" />
               </label>
@@ -1168,6 +1168,13 @@
               <div id="plugin-list" class="marker-list"></div>
             </div>
             <div class="panel-block">
+              <h3>Now Playing</h3>
+              <div id="now-playing-status" class="output-hint">Disabled</div>
+              <div class="scene-row">
+                <button id="now-playing-configure" type="button">Configure...</button>
+              </div>
+            </div>
+            <div class="panel-block">
               <h3>Project Diff/Merge</h3>
               <div class="scene-row">
                 <button id="diff-use-current">Use Current as Base</button>
@@ -1228,6 +1235,73 @@
         <div class="scene-row modal-actions">
           <button id="webcam-picker-cancel" type="button">Cancel</button>
           <button id="webcam-picker-confirm" type="button">Use Camera</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="now-playing-modal" class="modal-overlay hidden">
+      <div class="modal-card modal-card-wide">
+        <h3>Now Playing Configuration</h3>
+        <label class="scene-inline modal-checkbox">
+          Enable song identification
+          <input id="now-playing-enabled" type="checkbox" />
+        </label>
+        <label class="scene-label">
+          Provider
+          <select id="now-playing-provider">
+            <option value="custom">Custom Webhook</option>
+            <option value="audd">AudD</option>
+            <option value="acrcloud">ACRCloud</option>
+            <option value="shazam">Shazam Proxy</option>
+          </select>
+        </label>
+        <label id="now-playing-endpoint-group" class="scene-label">
+          Endpoint
+          <input id="now-playing-endpoint" type="text" placeholder="http://127.0.0.1:3001/identify" />
+        </label>
+        <label id="now-playing-host-group" class="scene-label hidden">
+          ACRCloud Host
+          <input id="now-playing-host" type="text" placeholder="identify-eu-west-1.acrcloud.com" />
+        </label>
+        <label id="now-playing-api-key-group" class="scene-label">
+          API Key / Token
+          <input id="now-playing-api-key" type="password" />
+        </label>
+        <label id="now-playing-api-secret-group" class="scene-label hidden">
+          API Secret
+          <input id="now-playing-api-secret" type="password" />
+        </label>
+        <div class="scene-row">
+          <label class="scene-inline">
+            Clip Length (ms)
+            <input id="now-playing-clip-duration" type="number" min="4000" max="20000" step="1000" value="12000" />
+          </label>
+          <label class="scene-inline">
+            Cooldown (ms)
+            <input id="now-playing-cooldown" type="number" min="5000" max="120000" step="1000" value="15000" />
+          </label>
+        </div>
+        <div class="scene-row">
+          <label class="scene-inline">
+            Artwork
+            <select id="now-playing-artwork-preference">
+              <option value="album">Album Art First</option>
+              <option value="artist">Artist Art First</option>
+            </select>
+          </label>
+          <label class="scene-inline modal-checkbox">
+            Auto-create overlays
+            <input id="now-playing-auto-overlays" type="checkbox" checked />
+          </label>
+        </div>
+        <div id="now-playing-provider-hint" class="output-hint">
+          Custom mode posts the captured clip to your own lookup endpoint.
+        </div>
+        <div id="now-playing-test-status" class="output-hint">No lookup test run yet.</div>
+        <div class="scene-row modal-actions">
+          <button id="now-playing-test" type="button">Test Lookup...</button>
+          <button id="now-playing-cancel" type="button">Cancel</button>
+          <button id="now-playing-save" type="button">Save</button>
         </div>
       </div>
     </div>
