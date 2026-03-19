@@ -59,56 +59,42 @@ export const classifyMilkwaveFeatures = (
     pushReason(
       reasonsDetailed,
       'sampler_state',
-      'Uses HLSL sampler_state declarations that require a non-WebGL binding model.',
-      'fallback'
+      'Uses HLSL sampler_state blocks; the offline translator strips these — texture state is implicit in GLSL sampler objects.',
+      'degrade'
     );
   }
   if (features.requiresVolumeNoise) {
     pushReason(
       reasonsDetailed,
       'volume_noise',
-      'Requires Milkwave volume-noise samplers that are not currently provided by the native runtime.',
-      'fallback'
+      'References volume-noise samplers; these are stubbed to sampler_noise_lq — visual quality degrades but shader compiles.',
+      'degrade'
     );
   }
   if (features.requiresCustomTextureSlots) {
     pushReason(
       reasonsDetailed,
       'custom_texture_slots',
-      'Requires custom texture-slot sampler binding and texture-manager evaluation.',
-      'fallback'
+      'References custom texture-slot samplers; the offline translator stubs these to sampler_noise_lq — textures render as noise.',
+      'degrade'
     );
   }
 
-  if (features.usesFloat1) {
-    pushReason(
-      reasonsDetailed,
-      'float1',
-      'Uses HLSL scalar aliases that must be normalized before GLSL generation.',
-      'degrade'
-    );
-  }
-  if (features.usesFloat4x3) {
-    pushReason(
-      reasonsDetailed,
-      'float4x3',
-      'Uses MilkDrop rotation matrices requiring explicit matrix conversion rules.',
-      'degrade'
-    );
-  }
-  if (features.usesTex2Dbias) {
-    pushReason(
-      reasonsDetailed,
-      'tex2Dbias',
-      'Uses biased texture sampling that needs GLSL-specific translation semantics.',
-      'degrade'
-    );
-  }
-  if (features.hasPresetPixel) {
+  // float1, float4x3, tex2Dbias, and sampler_state are all handled by the offline translator:
+  // - float1 → float (type rewrite)
+  // - float4x3 → mat4 (type rewrite)
+  // - tex2Dbias → textureBias bridge helper
+  // - sampler_state blocks → stripped
+  // These no longer need to cause degradation; they are tracked in the feature summary only.
+
+  // preset_pixel only degrades when there is no custom GLSL warp shader.
+  // When hasCustomWarp is true, the GLSL warp shader completely replaces the per-pixel EEL
+  // warp mesh — MilkDrop2 never executes per_pixel EEL code when a custom warp GLSL is present.
+  if (features.hasPresetPixel && !features.hasCustomWarp) {
     pushReason(
       reasonsDetailed,
       'preset_pixel',
-      'Uses preset per-pixel expression code, which is not yet mapped into native execution.',
+      'Uses per-pixel EEL expression code for warp mesh but has no custom GLSL warp shader; EEL warp mesh execution is not yet implemented — the default warp transform is used instead.',
       'degrade'
     );
   }

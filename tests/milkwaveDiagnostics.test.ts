@@ -87,6 +87,27 @@ void main() {
     expect(diagnostics.issues.some((issue) => issue.code === 'varying-write')).toBe(true);
   });
 
+  it('flags textureLod called with vec4 argument (remnant of broken tex2Dlod rewrite)', () => {
+    const diagnostics = analyzeMilkwaveShaderSource({
+      source: '#version 300 es\nvoid main() { vec4 c = textureLod(sampler_main, vec4(uv, 0.0, 2.0)); }',
+      pass: 'warp',
+      stage: 'glsl'
+    });
+
+    expect(diagnostics.issues.some((issue) => issue.code === 'texturelod-vec4-arg')).toBe(true);
+    expect(diagnostics.issues.find((issue) => issue.code === 'texturelod-vec4-arg')?.severity).toBe('error');
+  });
+
+  it('does not flag textureLod with correct vec2+float signature', () => {
+    const diagnostics = analyzeMilkwaveShaderSource({
+      source: '#version 300 es\nvoid main() { vec4 c = textureLod(sampler_main, uv, 2.0); }',
+      pass: 'warp',
+      stage: 'glsl'
+    });
+
+    expect(diagnostics.issues.some((issue) => issue.code === 'texturelod-vec4-arg')).toBe(false);
+  });
+
   it('flags saturate macro aliases that would bypass GLSL helpers', () => {
     const diagnostics = analyzeMilkwaveShaderSource({
       source: '#version 300 es\n#define sat saturate\nvoid main() {}',

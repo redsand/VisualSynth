@@ -80,10 +80,13 @@ uniform float uAspectX;
 uniform float uAspectY;
 uniform vec2 uAspect;
 uniform vec2 uTexSize;
+#define texsize vec4(uTexSize, 1.0/uTexSize)
 
 // Random values
 uniform vec2 uRandomPreset;
 uniform vec2 uRandomFrame;
+uniform vec4 rand_preset;
+uniform vec4 rand_frame;
 
 // Input from vertex shader
 in vec2 vUv;
@@ -102,6 +105,40 @@ uniform sampler2D sampler_noise_hq;
 uniform sampler2D sampler_blur1;
 uniform sampler2D sampler_blur2;
 uniform sampler2D sampler_blur3;
+#define sampler_fc_main sampler_main
+#define sampler_pc_main sampler_main
+#define sampler_fw_main sampler_main
+#define sampler_pw_main sampler_main
+#define sampler_noise_lq_lite sampler_noise_lq
+#define sampler_noisevol_lq sampler_noise_lq
+#define sampler_noisevol_hq sampler_noise_hq
+
+// MilkDrop q-variable uniforms (q1–q32)
+uniform float q1; uniform float q2; uniform float q3; uniform float q4;
+uniform float q5; uniform float q6; uniform float q7; uniform float q8;
+uniform float q9; uniform float q10; uniform float q11; uniform float q12;
+uniform float q13; uniform float q14; uniform float q15; uniform float q16;
+uniform float q17; uniform float q18; uniform float q19; uniform float q20;
+uniform float q21; uniform float q22; uniform float q23; uniform float q24;
+uniform float q25; uniform float q26; uniform float q27; uniform float q28;
+uniform float q29; uniform float q30; uniform float q31; uniform float q32;
+
+// MilkDrop _c / _q matrix uniforms
+uniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;
+uniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;
+uniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;
+uniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;
+uniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;
+uniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;
+uniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;
+
+// MilkDrop rotation matrices
+uniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;
+uniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;
+uniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;
+uniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;
+uniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;
+uniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;
 
 float clamp01(float x) { return clamp(x, 0.0, 1.0); }
 vec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }
@@ -124,19 +161,20 @@ vec2 multiply(vec2 v, mat2 m) { return m * v; }
 vec3 multiply(vec3 v, mat3 m) { return m * v; }
 vec4 multiply(vec4 v, mat4 m) { return m * v; }
 vec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }
+vec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }
 `;
 
 const generateMilkwaveMain = (prelude: string, body: string) => {
   const outerPrelude = prelude.trim();
   const mainBody = body.trim();
   return `${outerPrelude ? `${outerPrelude}\n\n` : ''}void main() {
-  vec4 ret = vec4(0.0);
+  vec3 ret = vec3(0.0);
   vec2 uv = vUv;
   vec2 uv_orig = vUvOriginal;
   float rad = vRadius;
   float ang = vAngle;
   ${mainBody}
-  fragColor = ret;
+  fragColor = vec4(ret, 1.0);
 }`;
 };
 
@@ -145,6 +183,10 @@ const MILKWAVE_DIALECT_TYPE_REWRITES: Array<[RegExp, string]> = [
   [/\bfloat2\b/g, 'vec2'],
   [/\bfloat3\b/g, 'vec3'],
   [/\bfloat4\b/g, 'vec4'],
+  [/\bfloat2x2\b/g, 'mat2'],
+  [/\bfloat3x3\b/g, 'mat3'],
+  [/\bfloat4x4\b/g, 'mat4'],
+  [/\bfloat4x3\b/g, 'mat4'],
   [/\bhalf\b/g, 'float'],
   [/\bhalf2\b/g, 'vec2'],
   [/\bhalf3\b/g, 'vec3'],
@@ -152,17 +194,34 @@ const MILKWAVE_DIALECT_TYPE_REWRITES: Array<[RegExp, string]> = [
   [/\bfixed\b/g, 'float'],
   [/\bfixed2\b/g, 'vec2'],
   [/\bfixed3\b/g, 'vec3'],
-  [/\bfixed4\b/g, 'vec4']
+  [/\bfixed4\b/g, 'vec4'],
+  [/\bint2\b/g, 'ivec2'],
+  [/\bint3\b/g, 'ivec3'],
+  [/\bint4\b/g, 'ivec4'],
+  [/\buint2\b/g, 'uvec2'],
+  [/\buint3\b/g, 'uvec3'],
+  [/\buint4\b/g, 'uvec4'],
+  [/\bbool2\b/g, 'bvec2'],
+  [/\bbool3\b/g, 'bvec3'],
+  [/\bbool4\b/g, 'bvec4']
 ];
 
 const MILKWAVE_DIALECT_FUNCTION_REWRITES: Array<[RegExp, string]> = [
   [/\btex2D\s*\(/g, 'texture('],
   [/\btex2Dbias\s*\(/g, 'textureBias('],
-  [/\btex2Dlod\s*\(/g, 'textureLod('],
+  [/\btex2Dlod\s*\(/g, 'textureLod4('],
+  [/\btex2Dgrad\s*\(/g, 'textureGrad('],
+  [/\btex2Dproj\s*\(/g, 'textureProj('],
+  [/\btexCUBE\s*\(/g, 'texture('],
   [/\blerp\s*\(/g, 'mix('],
   [/\bfrac\s*\(/g, 'fract('],
+  [/\bfmod\s*\(/g, 'mod('],
   [/\bsaturate\s*\(/g, 'clamp01('],
-  [/\bmul\s*\(/g, 'multiply(']
+  [/\bmul\s*\(/g, 'multiply('],
+  [/\bddx\s*\(/g, 'dFdx('],
+  [/\bddy\s*\(/g, 'dFdy('],
+  [/\brsqrt\s*\(/g, 'inversesqrt('],
+  [/\batan2\s*\(/g, 'atan(']
 ];
 
 const applyMilkwaveDialectRewrites = (source: string): string => {
@@ -198,6 +257,28 @@ const processMilkwaveCode = (code: string): string => {
   result = result.replace(/\baspectx\b/g, 'uAspectX');
   result = result.replace(/\baspecty\b/g, 'uAspectY');
   result = result.replace(/\baspect\b/g, 'uAspect');
+
+  // Strip unsupported preprocessor directives
+  result = result.replace(/^\s*#pragma\s+.*$/gm, '');
+  result = result.replace(/^\s*#define\s+HLSLPROGRAM\b.*$/gm, '');
+
+  // Strip HLSL sampler_state blocks (no GLSL equivalent — texture state is implicit in sampler objects)
+  result = result.replace(/\bsampler_state\s*\{[^}]*\}/gs, '');
+
+  // Expand sincos(angle, s, c) to two separate assignments before they hit the compiler
+  result = result.replace(
+    /\bsincos\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^)]+?)\s*\)/g,
+    (_match, angle, s, c) => `((${s}) = sin(${angle}), (${c}) = cos(${angle}))`
+  );
+
+  // uTexSize is vec2 but MilkDrop texsize is vec4(w,h,1/w,1/h) — fix .z/.w/.zw swizzle
+  result = result.replace(/\buTexSize\.zw\b/g, '(vec2(1.0)/uTexSize)');
+  result = result.replace(/\buTexSize\.z\b/g, '(1.0/uTexSize.x)');
+  result = result.replace(/\buTexSize\.w\b/g, '(1.0/uTexSize.y)');
+  result = result.replace(/\buTexSize\.xyzw\b/g, 'vec4(uTexSize, 1.0/uTexSize)');
+
+  // Boolean NOT on floats: !var → (var == 0.0 ? 1.0 : 0.0)
+  result = result.replace(/(?<![!=<>])!([a-zA-Z_]\w*)(?!\s*=)/g, '($1 == 0.0 ? 1.0 : 0.0)');
 
   result = result.replace(
     /\bvec2\s+(\w+)\s*\(([^)]*)\)\s*\{\s*return\s*\(([\s\S]*?)\);\s*\}/g,
@@ -253,6 +334,12 @@ const processMilkwaveCode = (code: string): string => {
   result = result
     .split('\n')
     .map((line) => {
+      const trimmed = line.trim();
+      // Skip int declarations, for-loop headers, and preprocessor directives
+      if (/^\s*int\s/.test(line) || /^\s*for\s*\(/.test(line) || /^\s*ivec/.test(line) || trimmed.startsWith('#')) {
+        return line;
+      }
+
       if (/\bvec2\s+\w+\s*=/.test(line) || /\buv2?\s*(?:[+\-*/]?=)/.test(line)) {
         line = line.replace(
           /\b(?:GetPixel|GetBlur[123]|GetMain)\((?:[^()]|\([^()]*\))*\)(?!\s*\.xy)/g,
@@ -260,6 +347,20 @@ const processMilkwaveCode = (code: string): string => {
         );
       }
       line = line.replace(/(\bmix\([^;\n]*?),\s*(-?\d+)\s*\)/g, '$1, $2.0)');
+
+      // Integer literal coercion: expr OP N → expr OP N.0 (where N is a bare int)
+      line = line.replace(
+        /([a-zA-Z_)\]]\w*(?:\.[xyzwrgba]+)?)\s*([*\/+\-])\s*(-?\d+)(?!\.|\d|\s*\[)/g,
+        (_m, id, op, num) => `${id} ${op} ${num}.0`
+      );
+      // N OP expr → N.0 OP expr
+      line = line.replace(
+        /(?<=[\s(,=])(\d+)(?!\.\d)\s*([*\/+\-])\s*([a-zA-Z_(])/g,
+        (_m, num, op, id) => `${num}.0 ${op} ${id}`
+      );
+      // Inside vec/mat constructors: vec3(x, 0) → vec3(x, 0.0)
+      line = line.replace(/(?<=[,(])\s*(\d+)\s*(?=[,)])/g, (_m, num) => ` ${num}.0 `);
+
       return line;
     })
     .join('\n');
@@ -298,7 +399,28 @@ const translatePass = (
     ? processMilkwaveCode(normalized.bodyLines.join('\n'))
     : dialectSource;
 
-  const glsl = generateMilkwaveGlslHeader() + generateMilkwaveMain(processedPrelude, processedBody);
+  // Inject #define stubs for any unknown custom samplers (map to noise texture so shader compiles)
+  const knownSamplers = new Set([
+    'main', 'fc_main', 'pc_main', 'fw_main', 'pw_main',
+    'noise_lq', 'noise_lq_lite', 'noise_mq', 'noise_hq',
+    'noisevol_lq', 'noisevol_hq', 'blur1', 'blur2', 'blur3'
+  ]);
+  const customSamplerRe = /\bsampler_([a-z0-9_]+)\b/gi;
+  const customSamplerStubs: string[] = [];
+  let m: RegExpExecArray | null;
+  const fullSource = (processedPrelude + '\n' + processedBody);
+  while ((m = customSamplerRe.exec(fullSource)) !== null) {
+    const name = m[1].toLowerCase();
+    if (!knownSamplers.has(name)) {
+      knownSamplers.add(name); // avoid duplicates
+      customSamplerStubs.push(`#define sampler_${name} sampler_noise_lq`);
+    }
+  }
+  const customSamplerHeader = customSamplerStubs.length > 0
+    ? `// Custom sampler stubs (mapped to noise texture)\n${customSamplerStubs.join('\n')}\n`
+    : '';
+
+  const glsl = generateMilkwaveGlslHeader() + customSamplerHeader + generateMilkwaveMain(processedPrelude, processedBody);
   const diagnostics = analyzeMilkwaveShaderSource({
     source: glsl,
     pass: kind,
@@ -344,7 +466,7 @@ export const translateMilkwaveIROffline = (
   const runtimePatchRecommended =
     [warp, comp].some((pass) => pass.diagnostics?.issueCount || pass.errors.length > 0) ||
     capability.featureSummary.some((feature) =>
-      ['float1', 'float4x3', 'tex2Dbias', 'sampler_state'].includes(feature)
+      ['float1', 'float4x3', 'tex2Dbias', 'tex2Dlod', 'sampler_state'].includes(feature)
     );
 
   return {

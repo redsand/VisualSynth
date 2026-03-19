@@ -40,11 +40,12 @@ describe('Milkwave IR', () => {
     const ir = buildMilkwaveIR(parsed!);
     expect(ir.featureRequirements.usesFloat1).toBe(true);
     expect(ir.featureRequirements.requiresVolumeNoise).toBe(false);
-    expect(ir.capability.tier).toBe('supported-with-degradation');
-    expect(ir.capability.reasons.some((reason) => reason.includes('scalar aliases'))).toBe(true);
+    // float1 is handled by offline translator (float1→float) — no longer a degrade reason
+    expect(ir.capability.tier).toBe('native-supported');
+    expect(ir.capability.reasons).toHaveLength(0);
   });
 
-  it('classifies sampler-state driven presets as fallback-only', () => {
+  it('classifies sampler-state driven presets as supported-with-degradation (offline translator strips sampler_state blocks)', () => {
     const tier = assessMilkwaveSupportTier({
       hasCustomWarp: true,
       hasCustomComp: false,
@@ -69,7 +70,7 @@ describe('Milkwave IR', () => {
       usesSamplerState: true
     });
 
-    expect(tier.tier).toBe('fallback-only');
+    expect(tier.tier).toBe('supported-with-degradation');
     expect(tier.reasons.some((reason) => reason.includes('sampler_state'))).toBe(true);
   });
 

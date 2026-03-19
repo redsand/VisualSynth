@@ -172,6 +172,26 @@ export const analyzeMilkwaveShaderSource = ({
     );
   }
 
+  if (stage === 'glsl' && /\bvec4\s+ret\s*=\s*vec4\(0\.0\)/.test(normalized)) {
+    pushIssue(
+      issues,
+      'warning',
+      'vec4-ret-template',
+      'Shader uses `vec4 ret = vec4(0.0)` from the old template; MilkDrop shaders assign vec3 to ret — use `vec3 ret` with `fragColor = vec4(ret, 1.0)` output.'
+    );
+  }
+
+  const textureLodVec4 = firstMatch(normalized, /\btextureLod\s*\(\s*\w+\s*,\s*vec4\s*\(/);
+  if (textureLodVec4) {
+    pushIssue(
+      issues,
+      'error',
+      'texturelod-vec4-arg',
+      '`textureLod` called with a `vec4` UV argument; GLSL ES requires `textureLod(sampler2D, vec2, float)`. Use `textureLod4` bridge helper instead.',
+      textureLodVec4
+    );
+  }
+
   const varyingWrite = firstMatch(normalized, /\bv(?:Uv|UvOriginal|Radius|Angle)\s*(?:[+\-*/]?=|\+\+|--)/);
   if (varyingWrite) {
     pushIssue(

@@ -32,9 +32,9 @@ describe('Milkwave capability classifier', () => {
     expect(result.featureSummary).toContain('custom-warp');
   });
 
-  it('downgrades presets with degradable features', () => {
+  it('degrades presets with per-pixel EEL code and no custom warp shader', () => {
     const result = classifyMilkwaveFeatures({
-      hasCustomWarp: true,
+      hasCustomWarp: false,
       hasCustomComp: true,
       hasPresetInit: true,
       hasPresetFrame: true,
@@ -58,10 +58,13 @@ describe('Milkwave capability classifier', () => {
     });
 
     expect(result.tier).toBe('supported-with-degradation');
-    expect(result.reasonsDetailed.some((reason) => reason.key === 'float1')).toBe(true);
+    // float1, tex2Dbias handled by offline translator — no longer degrade reasons
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'float1')).toBe(false);
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'tex2Dbias')).toBe(false);
+    // preset_pixel degrades when there is no custom warp GLSL (EEL warp mesh not yet implemented)
     expect(result.reasonsDetailed.some((reason) => reason.key === 'preset_pixel')).toBe(true);
     expect(result.reasonsDetailed.some((reason) => reason.severity === 'degrade')).toBe(true);
-    // wave_init, wave_point, custom_shapes, shape_init, shape_point are now implemented — no longer degrade reasons
+    // wave_init, wave_point, custom_shapes, shape_init, shape_point, float1 are now implemented/handled
     expect(result.reasonsDetailed.some((reason) => reason.key === 'wave_init')).toBe(false);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'wave_point')).toBe(false);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'custom_shapes')).toBe(false);
@@ -69,7 +72,37 @@ describe('Milkwave capability classifier', () => {
     expect(result.reasonsDetailed.some((reason) => reason.key === 'shape_point')).toBe(false);
   });
 
-  it('marks runtime-contract blockers as fallback-only', () => {
+  it('does NOT degrade preset_pixel when a custom warp GLSL shader is present', () => {
+    const result = classifyMilkwaveFeatures({
+      hasCustomWarp: true,
+      hasCustomComp: true,
+      hasPresetInit: true,
+      hasPresetFrame: true,
+      hasPresetPixel: true,
+      hasCustomWaves: false,
+      hasCustomWaveInitCode: false,
+      hasCustomWavePointCode: false,
+      hasCustomShapes: false,
+      hasCustomShapeInitCode: false,
+      hasCustomShapePointCode: false,
+      hasTexturedShapes: false,
+      requiresVolumeNoise: false,
+      requiresBlurSamplers: false,
+      requiresCustomSamplers: false,
+      requiresPreviousFrameAliases: false,
+      requiresCustomTextureSlots: false,
+      usesFloat1: false,
+      usesFloat4x3: false,
+      usesTex2Dbias: false,
+      usesSamplerState: false
+    });
+
+    // GLSL warp shader completely replaces per-pixel EEL code in MilkDrop2 — no degrade
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'preset_pixel')).toBe(false);
+    expect(result.tier).toBe('native-supported');
+  });
+
+  it('marks sampler_state, volume_noise, and custom_texture_slots as supported-with-degradation (all now handled by offline translator)', () => {
     const result = classifyMilkwaveFeatures({
       hasCustomWarp: true,
       hasCustomComp: false,
@@ -94,8 +127,8 @@ describe('Milkwave capability classifier', () => {
       usesSamplerState: true
     });
 
-    expect(result.tier).toBe('fallback-only');
-    expect(result.reasonsDetailed.some((reason) => reason.severity === 'fallback')).toBe(true);
+    expect(result.tier).toBe('supported-with-degradation');
+    expect(result.reasonsDetailed.some((reason) => reason.severity === 'degrade')).toBe(true);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'sampler_state')).toBe(true);
   });
 
