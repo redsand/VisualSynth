@@ -16,8 +16,25 @@ const { analyzeMilkwaveShaderSource } = require('../dist/main/shared/milkwaveDia
 
 const repoRoot = path.resolve(__dirname, '..');
 const presetsDir = path.join(repoRoot, 'assets', 'presets');
-const outputPath = path.join(repoRoot, 'milkwave-confirmed-manual-test.project.json');
 const BANK_SIZE = 250;
+const args = process.argv.slice(2);
+
+const readNumberArg = (flag, fallback) => {
+  const idx = args.indexOf(flag);
+  if (idx === -1 || idx + 1 >= args.length) return fallback;
+  const value = Number.parseInt(args[idx + 1], 10);
+  return Number.isFinite(value) ? value : fallback;
+};
+
+const fromPreset = Math.max(0, readNumberArg('--from', 0));
+const toPreset = Math.max(0, readNumberArg('--to', Number.MAX_SAFE_INTEGER));
+const outputLabelIdx = args.indexOf('--label');
+const outputLabel = outputLabelIdx !== -1 && outputLabelIdx + 1 < args.length
+  ? args[outputLabelIdx + 1]
+  : null;
+
+const labelSuffix = outputLabel ? `-${outputLabel}` : '';
+const outputPath = path.join(repoRoot, `milkwave-confirmed-manual-test${labelSuffix}.project.json`);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -67,6 +84,12 @@ const sanitizeShape = (shape) => ({
 const milkwavePresetFiles = fs
   .readdirSync(presetsDir)
   .filter((file) => file.includes('-milkwave-') && file.endsWith('.json'))
+  .filter((file) => {
+    const match = file.match(/^preset-(\d+)-/i);
+    const presetNumber = match ? Number.parseInt(match[1], 10) : NaN;
+    if (!Number.isFinite(presetNumber)) return false;
+    return presetNumber >= fromPreset && presetNumber <= toPreset;
+  })
   .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
 const deriveMilkwaveSupportTier = (preset) => {
@@ -138,7 +161,9 @@ const applyPresetToProject = (preset) => {
 };
 
 const project = clone(DEFAULT_PROJECT);
-project.name = 'Milkwave Native Supported Manual Test';
+project.name = outputLabel
+  ? `Milkwave Native Supported Manual Test ${outputLabel}`
+  : 'Milkwave Native Supported Manual Test';
 project.createdAt = new Date().toISOString();
 project.updatedAt = project.createdAt;
 project.scenes = [];
@@ -188,6 +213,9 @@ for (let bankIndex = 0; bankIndex < bankCount; bankIndex += 1) {
   const end = Math.min(start + BANK_SIZE, project.scenes.length);
   const bankProject = clone(DEFAULT_PROJECT);
   bankProject.name = `Milkwave Native Supported Bank ${bankIndex + 1} (${start + 1}-${end})`;
+  if (outputLabel) {
+    bankProject.name += ` ${outputLabel}`;
+  }
   bankProject.createdAt = project.createdAt;
   bankProject.updatedAt = project.updatedAt;
   bankProject.scenes = clone(project.scenes.slice(start, end));
@@ -201,7 +229,7 @@ for (let bankIndex = 0; bankIndex < bankCount; bankIndex += 1) {
 
   const bankPath = path.join(
     bankDir,
-    `milkwave-native-supported-bank-${String(bankIndex + 1).padStart(2, '0')}.project.json`
+    `milkwave-native-supported-bank-${String(bankIndex + 1).padStart(2, '0')}${labelSuffix}.project.json`
   );
   fs.writeFileSync(bankPath, `${JSON.stringify(bankProject, null, 2)}\n`, 'utf-8');
 }

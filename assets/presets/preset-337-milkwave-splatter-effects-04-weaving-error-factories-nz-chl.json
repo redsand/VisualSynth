@@ -6,8 +6,8 @@
     "author": "Flexi",
     "source": "Flexi - splatter effects 04 weaving error factories nz chloe jones.milk",
     "importedFrom": "Milkwave",
-    "createdAt": "2026-03-19T20:29:24.364Z",
-    "updatedAt": "2026-03-19T20:29:24.364Z",
+    "createdAt": "2026-03-19T21:49:24.301Z",
+    "updatedAt": "2026-03-19T21:49:24.301Z",
     "category": "Audio Reactive",
     "compatibility": {
       "minVersion": "1.4.0"
@@ -32,7 +32,15 @@
           "message": "Requires Milkwave volume-noise samplers that are not currently provided by the native runtime.",
           "severity": "fallback"
         }
-      ]
+      ],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": true,
+        "generatedPasses": [
+          "warp",
+          "comp"
+        ]
+      }
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -125,8 +133,8 @@
   "modulations": [],
   "macros": [],
   "_shaderData": {
-    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  vec2 d = uTexSize.zw*4;\n    vec3 dx = ( 2*GetBlur1(uv+vec2(1,0)*d)-2*GetBlur1(uv-vec2(1,0)*d) );\n    vec3 dy = ( 2*GetBlur1(uv+vec2(0,1)*d)-2*GetBlur1(uv-vec2(0,1)*d) );\nvec2 dz = -vec2(dx.x,dy.x)*uTexSize.zw*1;\n\n//ret = GetPixel(uv);\nret = 0;\nret.x = tex2d(sampler_fw_main,uv - dz).x - 0.0 - (GetBlur3(uv).x-GetBlur1(uv+dz).x) ;\nvec4 noise2 = texture3D(sampler_noisevol_hq,\n                      ((uv.xyy+vec3(lum(roam_sin.xy),\n                                           lum(roam_cos.yx),\n                                           0)*0.5\n                       )*uTexSize.xyy*texsize_noisevol_hq.zww\n                      ).xyz*\n                      vec3(1,1,0)*0.05 +\n                      uTime*vec3(0,0,1)*0.2\n                     );\nret += (noise2)*.2;\n  fragColor = ret;\n}",
-    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  ret = GetPixel(uv).x*(1-GetBlur2(uv).x);\nvec4 noise2 = texture3D(sampler_noisevol_hq,\n                      ((uv.xyy+vec3(lum(roam_sin.xy),\n                                           lum(roam_cos.yx),\n                                           0)*0.5\n                       )*uTexSize.xyy*texsize_noisevol_hq.zww\n                      ).xyz*\n                      vec3(1,1,0)*0.05 +\n                      uTime*vec3(0,0,1)*0.2\n                     );\nret *= (noise2)*2.31;\nret += (1-GetPixel(uv).x)*GetBlur1(uv).x*vec3(2,1.2,0);\n  fragColor = ret;\n}",
+    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nshader_body\n{\nvec2 d = uTexSize.zw*4;\nvec3 dx = ( 2*GetBlur1(uv+vec2(1,0)*d)-2*GetBlur1(uv-vec2(1,0)*d).xy );\nvec3 dy = ( 2*GetBlur1(uv+vec2(0,1)*d)-2*GetBlur1(uv-vec2(0,1)*d).xy );\nvec2 dz = -vec2(dx.x,dy.x)*uTexSize.zw*1;\n//ret = GetPixel(uv);\nret = 0;\nret.x = tex2d(sampler_fw_main,uv - dz).x - 0.0 - (GetBlur3(uv).x-GetBlur1(uv+dz).x) ;\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret += (noise2)*.2;\n}\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  shader_body\n{\nvec2 d = uTexSize.zw*4;\nvec3 dx = ( 2*GetBlur1(uv+vec2(1,0)*d)-2*GetBlur1(uv-vec2(1,0)*d).xy );\nvec3 dy = ( 2*GetBlur1(uv+vec2(0,1)*d)-2*GetBlur1(uv-vec2(0,1)*d).xy );\nvec2 dz = -vec2(dx.x,dy.x)*uTexSize.zw*1;\n//ret = GetPixel(uv);\nret = 0;\nret.x = tex2d(sampler_fw_main,uv - dz).x - 0.0 - (GetBlur3(uv).x-GetBlur1(uv+dz).x) ;\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret += (noise2)*.2;\n}\n  fragColor = ret;\n}",
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nshader_body\n{\nret = GetPixel(uv).x*(1-GetBlur2(uv).x);\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret *= (noise2)*2.31;\nret += (1-GetPixel(uv).x)*GetBlur1(uv).x*vec3(2,1.2,0);\n}\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  shader_body\n{\nret = GetPixel(uv).x*(1-GetBlur2(uv).x);\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret *= (noise2)*2.31;\nret += (1-GetPixel(uv).x)*GetBlur1(uv).x*vec3(2,1.2,0);\n}\n  fragColor = ret;\n}",
     "perFrameCode": [
       "zoom = 1;//0.999;",
       "warp = 0;",
@@ -258,6 +266,81 @@
       "b2x": false,
       "b3x": false,
       "b1ed": false
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "fallback-only",
+      "featureSummary": [
+        "custom-warp",
+        "custom-comp",
+        "preset-init",
+        "preset-frame",
+        "custom-shapes",
+        "blur-samplers",
+        "prev-frame-aliases",
+        "volume-noise"
+      ],
+      "runtimePatchRecommended": true,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": true,
+          "generated": true,
+          "source": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nshader_body\n{\nvec2 d = uTexSize.zw*4;\nvec3 dx = ( 2*GetBlur1(uv+vec2(1,0)*d)-2*GetBlur1(uv-vec2(1,0)*d).xy );\nvec3 dy = ( 2*GetBlur1(uv+vec2(0,1)*d)-2*GetBlur1(uv-vec2(0,1)*d).xy );\nvec2 dz = -vec2(dx.x,dy.x)*uTexSize.zw*1;\n//ret = GetPixel(uv);\nret = 0;\nret.x = tex2d(sampler_fw_main,uv - dz).x - 0.0 - (GetBlur3(uv).x-GetBlur1(uv+dz).x) ;\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret += (noise2)*.2;\n}\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  shader_body\n{\nvec2 d = uTexSize.zw*4;\nvec3 dx = ( 2*GetBlur1(uv+vec2(1,0)*d)-2*GetBlur1(uv-vec2(1,0)*d).xy );\nvec3 dy = ( 2*GetBlur1(uv+vec2(0,1)*d)-2*GetBlur1(uv-vec2(0,1)*d).xy );\nvec2 dz = -vec2(dx.x,dy.x)*uTexSize.zw*1;\n//ret = GetPixel(uv);\nret = 0;\nret.x = tex2d(sampler_fw_main,uv - dz).x - 0.0 - (GetBlur3(uv).x-GetBlur1(uv+dz).x) ;\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret += (noise2)*.2;\n}\n  fragColor = ret;\n}",
+          "backend": "milkwave-direct-v2",
+          "normalized": {
+            "preludeLineCount": 20,
+            "bodyLineCount": 0,
+            "helperLineCount": 0,
+            "hasShaderBodyBlock": false,
+            "source": "shader_body\n{\nfloat2 d = texsize.zw*4;\nfloat3 dx = ( 2*GetBlur1(uv+float2(1,0)*d)-2*GetBlur1(uv-float2(1,0)*d) );\nfloat3 dy = ( 2*GetBlur1(uv+float2(0,1)*d)-2*GetBlur1(uv-float2(0,1)*d) );\nfloat2 dz = -float2(dx.x,dy.x)*texsize.zw*1;\n//ret = GetPixel(uv);\nret = 0;\nret.x = tex2d(sampler_fw_main,uv - dz).x - 0.0 - (GetBlur3(uv).x-GetBlur1(uv+dz).x) ;\nfloat4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+float3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*texsize.xyy*texsize_noisevol_hq.zww\n).xyz*\nfloat3(1,1,0)*0.05 +\ntime*float3(0,0,1)*0.2\n);\nret += (noise2)*.2;\n}",
+            "dialectSource": "shader_body\n{\nvec2 d = uTexSize.zw*4;\nvec3 dx = ( 2*GetBlur1(uv+vec2(1,0)*d)-2*GetBlur1(uv-vec2(1,0)*d).xy );\nvec3 dy = ( 2*GetBlur1(uv+vec2(0,1)*d)-2*GetBlur1(uv-vec2(0,1)*d).xy );\nvec2 dz = -vec2(dx.x,dy.x)*uTexSize.zw*1;\n//ret = GetPixel(uv);\nret = 0;\nret.x = tex2d(sampler_fw_main,uv - dz).x - 0.0 - (GetBlur3(uv).x-GetBlur1(uv+dz).x) ;\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret += (noise2)*.2;\n}"
+          },
+          "warnings": [],
+          "errors": [],
+          "diagnostics": {
+            "lineCount": 115,
+            "sourceLength": 3371,
+            "issueCount": 1,
+            "issues": [
+              {
+                "severity": "warning",
+                "code": "noise-volume-sampler",
+                "message": "References Milkwave volume-noise samplers that are not currently bound by the runtime."
+              }
+            ]
+          }
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": true,
+          "generated": true,
+          "source": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nshader_body\n{\nret = GetPixel(uv).x*(1-GetBlur2(uv).x);\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret *= (noise2)*2.31;\nret += (1-GetPixel(uv).x)*GetBlur1(uv).x*vec3(2,1.2,0);\n}\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  shader_body\n{\nret = GetPixel(uv).x*(1-GetBlur2(uv).x);\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret *= (noise2)*2.31;\nret += (1-GetPixel(uv).x)*GetBlur1(uv).x*vec3(2,1.2,0);\n}\n  fragColor = ret;\n}",
+          "backend": "milkwave-direct-v2",
+          "normalized": {
+            "preludeLineCount": 15,
+            "bodyLineCount": 0,
+            "helperLineCount": 0,
+            "hasShaderBodyBlock": false,
+            "source": "shader_body\n{\nret = GetPixel(uv).x*(1-GetBlur2(uv).x);\nfloat4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+float3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*texsize.xyy*texsize_noisevol_hq.zww\n).xyz*\nfloat3(1,1,0)*0.05 +\ntime*float3(0,0,1)*0.2\n);\nret *= (noise2)*2.31;\nret += (1-GetPixel(uv).x)*GetBlur1(uv).x*float3(2,1.2,0);\n}",
+            "dialectSource": "shader_body\n{\nret = GetPixel(uv).x*(1-GetBlur2(uv).x);\nvec4 noise2 = tex3D(sampler_noisevol_hq,\n((uv.xyy+vec3(lum(roam_sin.xy),\nlum(roam_cos.yx),\n0)*0.5\n)*uTexSize.xyy*texsize_noisevol_hq.zww\n).xyz*\nvec3(1,1,0)*0.05 +\nuTime*vec3(0,0,1)*0.2\n);\nret *= (noise2)*2.31;\nret += (1-GetPixel(uv).x)*GetBlur1(uv).x*vec3(2,1.2,0);\n}"
+          },
+          "warnings": [],
+          "errors": [],
+          "diagnostics": {
+            "lineCount": 105,
+            "sourceLength": 2915,
+            "issueCount": 1,
+            "issues": [
+              {
+                "severity": "warning",
+                "code": "noise-volume-sampler",
+                "message": "References Milkwave volume-noise samplers that are not currently bound by the runtime."
+              }
+            ]
+          }
+        }
+      }
     }
   }
 }

@@ -385,7 +385,69 @@ const milkDropShaderDataSchema = z.object({
   perPixelCode: z.array(z.string()).optional(),
   waves: z.array(milkWaveConfigSchema).optional(),
   shapes: z.array(milkShapeConfigSchema).optional(),
-  originalParameters: z.record(z.union([z.number(), z.boolean()]))
+  originalParameters: z.record(z.union([z.number(), z.boolean()])),
+  translation: z.object({
+    pipeline: z.literal('milkwave-offline-v1'),
+    supportTier: z.enum(['native-supported', 'supported-with-degradation', 'fallback-only', 'unsupported']),
+    featureSummary: z.array(z.string()),
+    runtimePatchRecommended: z.boolean(),
+    passes: z.object({
+      warp: z.object({
+        kind: z.enum(['warp', 'comp']),
+        requested: z.boolean(),
+        generated: z.boolean(),
+        source: z.string(),
+        backend: z.literal('milkwave-direct-v2'),
+        normalized: z.object({
+          preludeLineCount: z.number(),
+          bodyLineCount: z.number(),
+          helperLineCount: z.number(),
+          hasShaderBodyBlock: z.boolean(),
+          source: z.string(),
+          dialectSource: z.string()
+        }).nullable(),
+        warnings: z.array(z.string()),
+        errors: z.array(z.string()),
+        diagnostics: z.object({
+          lineCount: z.number(),
+          sourceLength: z.number(),
+          issueCount: z.number(),
+          issues: z.array(z.object({
+            severity: z.enum(['warning', 'error']),
+            code: z.string(),
+            message: z.string()
+          }))
+        }).nullable()
+      }),
+      comp: z.object({
+        kind: z.enum(['warp', 'comp']),
+        requested: z.boolean(),
+        generated: z.boolean(),
+        source: z.string(),
+        backend: z.literal('milkwave-direct-v2'),
+        normalized: z.object({
+          preludeLineCount: z.number(),
+          bodyLineCount: z.number(),
+          helperLineCount: z.number(),
+          hasShaderBodyBlock: z.boolean(),
+          source: z.string(),
+          dialectSource: z.string()
+        }).nullable(),
+        warnings: z.array(z.string()),
+        errors: z.array(z.string()),
+        diagnostics: z.object({
+          lineCount: z.number(),
+          sourceLength: z.number(),
+          issueCount: z.number(),
+          issues: z.array(z.object({
+            severity: z.enum(['warning', 'error']),
+            code: z.string(),
+            message: z.string()
+          }))
+        }).nullable()
+      })
+    })
+  }).optional()
 });
 
 const sceneSchema = z.object({

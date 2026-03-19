@@ -17,6 +17,7 @@ This document is the handoff source of truth for Milkwave migration work until n
 
 - Parsing: `src/shared/milkwaveParser.ts`
 - Import-time conversion: `src/shared/hlslToGlsl.ts`
+- Offline translation pipeline: `src/shared/milkwaveOfflineTranslation.ts`
 - Preset import script: `scripts/importMilkwavePresets.ts`
 - Preset migration / `_shaderData` preservation: `src/shared/presetMigration.ts`
 - Runtime compile / render path: `src/renderer/milkdropRenderer.ts`
@@ -37,6 +38,23 @@ Imported Milkwave presets currently work like this:
 5. If that fails, VisualSynth falls back to a simple `gen-milkwave` generator effect.
 
 That means the imported preset library was generated from a weak compatibility layer, not from a real Milkwave runtime contract.
+
+### Current migration baseline
+
+The first Milkwave-specific offline translation pipeline is now in place.
+
+Current behavior:
+
+1. `.milk` parses into Milkwave IR via `buildMilkwaveIR(...)`
+2. `translateMilkwavePresetOffline(...)` builds an offline translation artifact
+3. The artifact persists:
+   - generated offline GLSL for `warp` / `comp`
+   - per-pass diagnostics / warnings / errors
+   - `runtimePatchRecommended`
+   - translation pipeline identifier
+4. `scripts/importMilkwavePresets.ts` now writes presets from that shared artifact instead of calling `transpileMilkDropShader(...)` directly
+
+This is still using the legacy transpiler backend internally (`legacy-hlsl-to-glsl`), but the architectural control point has moved into a shared Milkwave-specific pipeline that can be upgraded without rewriting the importer again.
 
 ### Why the current implementation is insufficient
 
@@ -258,6 +276,10 @@ Goal:
 Status:
 
 - In progress, foundation implemented.
+- Offline translation layer now added on top of IR:
+  - `src/shared/milkwaveOfflineTranslation.ts`
+  - importer persists `_shaderData.translation`
+  - preset metadata persists `metadata.milkwave.translation`
 - `src/shared/milkwaveIr.ts` exists and normalizes parsed presets into IR.
 - IR currently captures metadata, shader passes, expression blocks, waves, shapes, feature requirements, and initial capability assessment.
 

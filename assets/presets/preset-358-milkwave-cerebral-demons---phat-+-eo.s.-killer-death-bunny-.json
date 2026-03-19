@@ -6,8 +6,8 @@
     "author": "Krash & Rovastar",
     "source": "Krash & Rovastar - Cerebral Demons - Phat + Eo.S. Killer Death Bunny Remix.milk",
     "importedFrom": "Milkwave",
-    "createdAt": "2026-03-19T20:29:24.411Z",
-    "updatedAt": "2026-03-19T20:29:24.411Z",
+    "createdAt": "2026-03-19T21:49:24.338Z",
+    "updatedAt": "2026-03-19T21:49:24.338Z",
     "category": "Imported",
     "compatibility": {
       "minVersion": "1.4.0"
@@ -29,7 +29,12 @@
           "message": "Uses preset per-pixel expression code, which is not yet mapped into native execution.",
           "severity": "degrade"
         }
-      ]
+      ],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": false,
+        "generatedPasses": []
+      }
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -122,8 +127,8 @@
   "modulations": [],
   "macros": [],
   "_shaderData": {
-    "warp": null,
-    "comp": null,
+    "warp": "",
+    "comp": "",
     "perFrameCode": [
       "warp=0;",
       "wave_r = wave_r + 0.45*(0.5*sin(time*0.701)+ 0.3*cos(time*0.438));",
@@ -1124,6 +1129,42 @@
       "b2x": false,
       "b3x": false,
       "b1ed": false
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "supported-with-degradation",
+      "featureSummary": [
+        "preset-frame",
+        "preset-pixel",
+        "custom-waves",
+        "wave-point",
+        "custom-shapes"
+      ],
+      "runtimePatchRecommended": false,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        }
+      }
     }
   }
 }

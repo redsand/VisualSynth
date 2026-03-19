@@ -6,8 +6,8 @@
     "author": "ZachjuKamashi",
     "source": "ZachjuKamashi - Waves of sound.milk",
     "importedFrom": "Milkwave",
-    "createdAt": "2026-03-19T20:29:24.455Z",
-    "updatedAt": "2026-03-19T20:29:24.455Z",
+    "createdAt": "2026-03-19T21:49:24.366Z",
+    "updatedAt": "2026-03-19T21:49:24.366Z",
     "category": "Audio Reactive",
     "compatibility": {
       "minVersion": "1.4.0"
@@ -28,7 +28,12 @@
           "message": "Uses preset per-pixel expression code, which is not yet mapped into native execution.",
           "severity": "degrade"
         }
-      ]
+      ],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": false,
+        "generatedPasses": []
+      }
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -121,8 +126,8 @@
   "modulations": [],
   "macros": [],
   "_shaderData": {
-    "warp": null,
-    "comp": null,
+    "warp": "",
+    "comp": "",
     "perFrameCode": [
       "wave_r = 0.500/( 0.3/sin(0.3*time+0));",
       "wave_g = 0.500/( 0.3/sin(0.3*time+4));",
@@ -960,6 +965,41 @@
       "b2x": false,
       "b3x": false,
       "b1ed": false
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "supported-with-degradation",
+      "featureSummary": [
+        "preset-frame",
+        "preset-pixel",
+        "custom-waves",
+        "custom-shapes"
+      ],
+      "runtimePatchRecommended": false,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        }
+      }
     }
   }
 }

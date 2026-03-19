@@ -1,5 +1,6 @@
 import type { CustomShaderBlock } from './customShaderBlock';
 import type { MilkShapeConfig, MilkWaveConfig } from './milkwaveParser';
+import type { MilkwaveOfflineTranslationReport } from './milkwaveOfflineTranslation';
 
 export interface MilkDropShaderData {
   warp: string;
@@ -10,6 +11,7 @@ export interface MilkDropShaderData {
   waves?: MilkWaveConfig[];
   shapes?: MilkShapeConfig[];
   originalParameters: Record<string, number | boolean>;
+  translation?: MilkwaveOfflineTranslationReport;
 }
 
 export type LayerBlendMode = 'normal' | 'add' | 'multiply' | 'screen' | 'overlay' | 'difference';

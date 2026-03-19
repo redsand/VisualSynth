@@ -6,8 +6,8 @@
     "author": "Eo.S.",
     "source": "Eo.S. - nematodes E daemon.milk",
     "importedFrom": "Milkwave",
-    "createdAt": "2026-03-19T20:29:24.291Z",
-    "updatedAt": "2026-03-19T20:29:24.291Z",
+    "createdAt": "2026-03-19T21:49:24.247Z",
+    "updatedAt": "2026-03-19T21:49:24.247Z",
     "category": "Imported",
     "compatibility": {
       "minVersion": "1.4.0"
@@ -36,7 +36,12 @@
           "message": "Uses textured custom shapes; texture sampling on shapes is not yet supported — shapes render as flat-color geometry.",
           "severity": "degrade"
         }
-      ]
+      ],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": false,
+        "generatedPasses": []
+      }
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -129,8 +134,8 @@
   "modulations": [],
   "macros": [],
   "_shaderData": {
-    "warp": null,
-    "comp": null,
+    "warp": "",
+    "comp": "",
     "perFrameCode": [
       "decay=0.98;",
       "zoom=1.000;",
@@ -1128,6 +1133,44 @@
       "b2x": false,
       "b3x": false,
       "b1ed": false
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "supported-with-degradation",
+      "featureSummary": [
+        "preset-init",
+        "preset-frame",
+        "preset-pixel",
+        "custom-waves",
+        "wave-point",
+        "custom-shapes",
+        "textured-shapes"
+      ],
+      "runtimePatchRecommended": false,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        }
+      }
     }
   }
 }

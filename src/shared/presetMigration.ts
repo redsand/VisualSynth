@@ -80,7 +80,11 @@ const normalizeMilkDropShaderData = (shaderData: any) => {
     originalParameters:
       shaderData.originalParameters && typeof shaderData.originalParameters === 'object'
         ? shaderData.originalParameters
-        : {}
+        : {},
+    translation:
+      shaderData.translation && typeof shaderData.translation === 'object'
+        ? cloneJson(shaderData.translation)
+        : undefined
   };
 };
 
@@ -169,6 +173,11 @@ export interface PresetMetadataV6 extends PresetMetadata {
       message: string;
       severity: 'degrade' | 'fallback' | 'block';
     }>;
+    translation?: {
+      pipeline: 'milkwave-offline-v1';
+      runtimePatchRecommended: boolean;
+      generatedPasses: Array<'warp' | 'comp'>;
+    };
   };
 }
 
@@ -354,7 +363,12 @@ export const presetV6Schema = z.object({
         key: z.string(),
         message: z.string(),
         severity: z.enum(['degrade', 'fallback', 'block'])
-      }))
+      })),
+      translation: z.object({
+        pipeline: z.literal('milkwave-offline-v1'),
+        runtimePatchRecommended: z.boolean(),
+        generatedPasses: z.array(z.enum(['warp', 'comp']))
+      }).optional()
     }).optional()
   }),
   scenes: projectSchema.shape.scenes,

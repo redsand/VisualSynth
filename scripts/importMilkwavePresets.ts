@@ -15,9 +15,10 @@ import {
   extractNameFromFilename,
   MilkPresetData
 } from '../src/shared/milkwaveParser';
-import { transpileMilkDropShader, inferPresetCategory } from '../src/shared/hlslToGlsl';
-import { buildMilkwaveIR } from '../src/shared/milkwaveIr';
-import { classifyMilkwaveIR } from '../src/shared/milkwaveCapability';
+import { inferPresetCategory } from '../src/shared/hlslToGlsl';
+import { translateMilkwavePresetOffline, type MilkwaveOfflineTranslationReport } from '../src/shared/milkwaveOfflineTranslation';
+import type { MilkwaveIR } from '../src/shared/milkwaveIr';
+import type { MilkwaveCapabilityReport } from '../src/shared/milkwaveCapability';
 
 const MILKWAVE_PATH = path.resolve(__dirname, '../../Milkwave/Visualizer/resources/presets');
 const OUTPUT_PATH = path.resolve(__dirname, '../assets/presets');
@@ -43,14 +44,18 @@ interface ImportResult {
 // Default preset structure for Milkwave imports
 function createMilkwavePreset(
   milkData: MilkPresetData,
-  glslWarp: string | null,
-  glslComp: string | null,
+  translated: {
+    ir: MilkwaveIR;
+    capability: MilkwaveCapabilityReport;
+    translation: MilkwaveOfflineTranslationReport;
+  },
   presetNumber: number
 ): any {
   const now = new Date().toISOString();
-  const category = inferPresetCategory(milkData.metadata.name, (glslWarp || '') + (glslComp || ''));
-  const ir = buildMilkwaveIR(milkData);
-  const capability = classifyMilkwaveIR(ir);
+  const { ir, capability, translation } = translated;
+  const translatedWarp = translation.passes.warp.source;
+  const translatedComp = translation.passes.comp.source;
+  const category = inferPresetCategory(milkData.metadata.name, translatedWarp + translatedComp);
 
   return {
     version: 6,
@@ -71,7 +76,12 @@ function createMilkwavePreset(
         version: ir.version,
         supportTier: capability.tier,
         featureSummary: capability.featureSummary,
-        reasons: capability.reasonsDetailed
+        reasons: capability.reasonsDetailed,
+        translation: {
+          pipeline: translation.pipeline,
+          runtimePatchRecommended: translation.runtimePatchRecommended,
+          generatedPasses: (['warp', 'comp'] as const).filter((kind) => translation.passes[kind].generated)
+        }
       },
       activeEngineId: 'engine-radial-core',
       activeModeId: 'mode-cosmic',
@@ -132,14 +142,15 @@ function createMilkwavePreset(
     macros: [],
     // Store shader code for later use
     _shaderData: {
-      warp: glslWarp,
-      comp: glslComp,
+      warp: translatedWarp,
+      comp: translatedComp,
       perFrameCode: milkData.perFrameCode,
       perFrameInitCode: milkData.perFrameInitCode,
       perPixelCode: milkData.perPixelCode,
       waves: milkData.waves,
       shapes: milkData.shapes,
-      originalParameters: milkData.parameters
+      originalParameters: milkData.parameters,
+      translation
     }
   };
 }
@@ -205,30 +216,20 @@ async function importMilkwavePresets(options: ImportOptions): Promise<ImportResu
           continue;
         }
 
-        // Transpile shaders
-        let glslWarp: string | null = null;
-        let glslComp: string | null = null;
+        const translated = translateMilkwavePresetOffline(milkData);
+        const { capability, translation } = translated;
 
-        if (milkData.warpShader) {
-          const result = transpileMilkDropShader(milkData.warpShader, 'warp');
-          glslWarp = result.glsl;
-          if (result.errors.length > 0) {
-            console.warn(`  Warp shader errors in ${file}:`, result.errors);
-          }
+        if (translation.passes.warp.errors.length > 0) {
+          console.warn(`  Warp translation errors in ${file}:`, translation.passes.warp.errors);
         }
-
-        if (milkData.compShader) {
-          const result = transpileMilkDropShader(milkData.compShader, 'comp');
-          glslComp = result.glsl;
-          if (result.errors.length > 0) {
-            console.warn(`  Comp shader errors in ${file}:`, result.errors);
-          }
+        if (translation.passes.comp.errors.length > 0) {
+          console.warn(`  Comp translation errors in ${file}:`, translation.passes.comp.errors);
         }
 
         // Create preset
-        const preset = createMilkwavePreset(milkData, glslWarp, glslComp, presetNumber);
-        const supportTier = preset.metadata?.milkwave?.supportTier;
-        const featureSummary = preset.metadata?.milkwave?.featureSummary;
+        const preset = createMilkwavePreset(milkData, translated, presetNumber);
+        const supportTier = capability.tier;
+        const featureSummary = capability.featureSummary;
 
         // Generate output filename
         const sanitizedName = sanitizeFilename(milkData.metadata.name);

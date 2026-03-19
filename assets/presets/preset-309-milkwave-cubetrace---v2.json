@@ -6,8 +6,8 @@
     "author": "Eo.S. + Phat",
     "source": "Eo.S. + Phat - cubetrace - v2.milk",
     "importedFrom": "Milkwave",
-    "createdAt": "2026-03-19T20:29:24.285Z",
-    "updatedAt": "2026-03-19T20:29:24.285Z",
+    "createdAt": "2026-03-19T21:49:24.243Z",
+    "updatedAt": "2026-03-19T21:49:24.243Z",
     "category": "Imported",
     "compatibility": {
       "minVersion": "1.4.0"
@@ -24,7 +24,12 @@
         "custom-shapes",
         "shape-init"
       ],
-      "reasons": []
+      "reasons": [],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": false,
+        "generatedPasses": []
+      }
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -117,8 +122,8 @@
   "modulations": [],
   "macros": [],
   "_shaderData": {
-    "warp": null,
-    "comp": null,
+    "warp": "",
+    "comp": "",
     "perFrameCode": [
       "decay=0.95;",
       "zoom=1.005;",
@@ -1298,6 +1303,43 @@
       "b2x": false,
       "b3x": false,
       "b1ed": false
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "native-supported",
+      "featureSummary": [
+        "preset-init",
+        "preset-frame",
+        "custom-waves",
+        "wave-point",
+        "custom-shapes",
+        "shape-init"
+      ],
+      "runtimePatchRecommended": false,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        }
+      }
     }
   }
 }

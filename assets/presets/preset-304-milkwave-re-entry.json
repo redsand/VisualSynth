@@ -6,8 +6,8 @@
     "author": "BrainStain",
     "source": "BrainStain-re entry.milk",
     "importedFrom": "Milkwave",
-    "createdAt": "2026-03-19T20:29:24.272Z",
-    "updatedAt": "2026-03-19T20:29:24.272Z",
+    "createdAt": "2026-03-19T21:49:24.232Z",
+    "updatedAt": "2026-03-19T21:49:24.232Z",
     "category": "Imported",
     "compatibility": {
       "minVersion": "1.4.0"
@@ -28,7 +28,12 @@
           "message": "Uses textured custom shapes; texture sampling on shapes is not yet supported — shapes render as flat-color geometry.",
           "severity": "degrade"
         }
-      ]
+      ],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": false,
+        "generatedPasses": []
+      }
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -121,8 +126,8 @@
   "modulations": [],
   "macros": [],
   "_shaderData": {
-    "warp": null,
-    "comp": null,
+    "warp": "",
+    "comp": "",
     "perFrameCode": [
       "wave_x = wave_x + 0.000*( 0.00*sin(2.121*time) + 0.00*sin(1.621*time) );",
       "wave_y = wave_y + 0.000*( 0.00*sin(1.742*time) + 0.00*sin(2.322*time) );",
@@ -965,6 +970,41 @@
       "b2x": false,
       "b3x": false,
       "b1ed": false
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "supported-with-degradation",
+      "featureSummary": [
+        "preset-frame",
+        "custom-waves",
+        "custom-shapes",
+        "textured-shapes"
+      ],
+      "runtimePatchRecommended": false,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        }
+      }
     }
   }
 }

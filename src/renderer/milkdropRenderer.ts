@@ -1,5 +1,6 @@
 import type { RenderState } from './renderState';
 import type { MilkShapeConfig, MilkWaveConfig } from '../shared/milkwaveParser';
+import type { MilkwaveOfflineTranslationReport } from '../shared/milkwaveOfflineTranslation';
 import {
   analyzeMilkwaveShaderSource,
   summarizeMilkwaveShaderDiagnostics,
@@ -19,6 +20,7 @@ export interface MilkDropShaderData {
   waves?: MilkWaveConfig[];
   shapes?: MilkShapeConfig[];
   originalParameters: Record<string, number | boolean>;
+  translation?: MilkwaveOfflineTranslationReport;
 }
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
@@ -118,6 +120,7 @@ export interface MilkDropNativeRuntimeReport {
  */
 export const patchMilkDropGlsl = (source: string): string => {
   if (!source || !source.includes('#version 300 es')) return source;
+  const helperCallPattern = String.raw`\b(?:GetPixel|GetBlur[123]|GetMain)\((?:[^()]|\([^()]*\))*\)`;
 
   // ── 1. Inject missing helpers + uniforms after the header block ──
   // Find the spot right before `void main()` to inject our additions
@@ -471,6 +474,15 @@ export const patchMilkDropGlsl = (source: string): string => {
       (m, num) => ` ${num}.0 `
     );
 
+    const vec2Context = /\bvec2\s+\w+\s*=/.test(line) || /\b(?:uv|uv2|delta|offset|coord)\w*\s*(?:[+\-*/]?=)/.test(line);
+    if (vec2Context) {
+      line = line.replace(new RegExp(`(${helperCallPattern})(?!\\s*\\.)`, 'g'), '$1.xy');
+      line = line.replace(
+        new RegExp(String.raw`(?<=[=(,])\s*(-?(?:\d+\.\d+|\d+|\.\d+))\s*([+\-])\s*((?:\d*\.?\d+\s*\*\s*)${helperCallPattern}\.xy)`, 'g'),
+        (_m, scalarLiteral, op, rhs) => ` vec2(${scalarLiteral}) ${op} ${rhs}`
+      );
+    }
+
     return line;
   }).join('\n');
 
@@ -492,29 +504,18 @@ export const patchMilkDropGlsl = (source: string): string => {
 
   // If mix() blends a scalar dot() result into a color vector, promote the scalar to vec3.
   patched = patched.replace(
-    /\bmix\s*\(\s*(dot\s*\([^)]*\))\s*,\s*((?:vec3\s*\([^)]*\))|(?:[a-zA-Z_]\w*))\s*,/g,
+    /\bmix\s*\(\s*(dot\([^\n;]+?\))\s*,\s*((?:vec3\s*\([^)]*\))|(?:[a-zA-Z_]\w*))\s*,/g,
     (_match, dotExpr, vecExpr) => `mix(vec3(${dotExpr}), ${vecExpr},`
+  );
+  patched = patched.replace(
+    /\bmix\s*\(\s*([^,]+?)\s*,\s*(lum\s*\([^)]*\))\s*,/g,
+    (_match, vecExpr, lumExpr) => `mix(${vecExpr}, vec3(${lumExpr}),`
   );
 
   // vec3 ret frequently receives scalar-leading subtraction in imported comp passes.
   patched = patched.replace(
     /\bret\s*=\s*(-?(?:\d+\.\d+|\d+|\.\d+))\s*-\s*([^;]+);/g,
     (_match, scalarLiteral, rhs) => `ret = vec3(${scalarLiteral}) - ${rhs};`
-  );
-
-  // Some imported presets use color helpers in vec2 UV math. Truncate to xy in vec2 contexts.
-  patched = patched.replace(
-    /(\bvec2\s+\w+\s*=\s*[^;]*?)(\b(?:GetPixel|GetBlur[123]|GetMain)\s*\([^)]*\))(?!\s*\.)/g,
-    (_match, prefix, helperCall) => `${prefix}${helperCall}.xy`
-  );
-  patched = patched.replace(
-    /(\b[a-zA-Z_]\w*\s*(?:[+\-*/]?=)\s*[^;]*?)(\b(?:GetPixel|GetBlur[123]|GetMain)\s*\([^)]*\))(?!\s*\.)/g,
-    (_match, prefix, helperCall) => {
-      if (!/\b(?:uv|uv2|delta|offset|coord)\w*\b/.test(prefix)) {
-        return `${prefix}${helperCall}`;
-      }
-      return `${prefix}${helperCall}.xy`;
-    }
   );
 
   // Fix ret type mismatch: the template declares `vec4 ret` but MilkDrop shaders

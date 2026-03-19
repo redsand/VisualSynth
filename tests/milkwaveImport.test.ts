@@ -11,6 +11,7 @@ import { applyPresetV6, presetV6Schema } from '../src/shared/presetMigration';
 import { DEFAULT_PROJECT } from '../src/shared/project';
 import { buildMilkwaveIR } from '../src/shared/milkwaveIr';
 import { classifyMilkwaveIR } from '../src/shared/milkwaveCapability';
+import { translateMilkwavePresetOffline } from '../src/shared/milkwaveOfflineTranslation';
 
 const fixturesDir = join(__dirname, 'fixtures', 'milkwave');
 const milkwavePath = join(__dirname, '..', '..', 'Milkwave', 'Visualizer', 'resources', 'presets');
@@ -314,6 +315,87 @@ describe('Milkwave Import Pipeline', () => {
       expect(result.project.scenes[0]._shaderData?.perPixelCode).toEqual(['rot = rot + 0.01;']);
       expect(result.project.scenes[0]._shaderData?.waves?.[0]?.initCode).toEqual(['t1 = 0.2;']);
       expect(result.project.scenes[0]._shaderData?.shapes?.[0]?.perPointCode).toEqual(['x = x + 0.05;']);
+    });
+
+    it('accepts offline translation metadata on imported shader payloads', () => {
+      const content = readFileSync(join(fixturesDir, 'with-shader.milk'), 'utf-8');
+      const milkData = parseMilkFile(content, 'Test - Shader.milk', 'TestFolder');
+
+      expect(milkData).not.toBeNull();
+
+      const translated = translateMilkwavePresetOffline(milkData!);
+      const preset = {
+        version: 6,
+        metadata: {
+          version: 6,
+          name: milkData!.metadata.name,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          category: 'Imported',
+          compatibility: { minVersion: '1.4.0' },
+          importedFrom: 'Milkwave',
+          milkwave: {
+            format: translated.ir.format,
+            version: translated.ir.version,
+            supportTier: translated.capability.tier,
+            featureSummary: translated.capability.featureSummary,
+            reasons: translated.capability.reasonsDetailed,
+            translation: {
+              pipeline: translated.translation.pipeline,
+              runtimePatchRecommended: translated.translation.runtimePatchRecommended,
+              generatedPasses: (['warp', 'comp'] as const).filter(
+                (kind) => translated.translation.passes[kind].generated
+              )
+            }
+          },
+          activeEngineId: 'engine-radial-core',
+          activeModeId: 'mode-cosmic',
+          intendedMusicStyle: 'Electronic',
+          visualIntentTags: ['imported', 'milkwave'],
+          colorChemistry: ['analog'],
+          defaultTransition: { durationMs: 600, curve: 'easeInOut' }
+        },
+        scenes: [{
+          id: 'scene-1',
+          scene_id: 'scene-1',
+          name: 'Main',
+          intent: 'ambient',
+          duration: 0,
+          transition_in: { durationMs: 600, curve: 'easeInOut' },
+          transition_out: { durationMs: 600, curve: 'easeInOut' },
+          trigger: { type: 'manual' },
+          assigned_layers: { core: [], support: ['layer-milkwave'], atmosphere: [] },
+          layers: [{
+            id: 'layer-milkwave',
+            name: 'Milkwave',
+            role: 'support',
+            enabled: true,
+            opacity: 1,
+            blendMode: 'screen',
+            transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+            params: { opacity: 1, enabled: true }
+          }]
+        }],
+        activeSceneId: 'scene-1',
+        roleWeights: { core: 1, support: 1, atmosphere: 1 },
+        tempoSync: { bpm: 120, source: 'manual' },
+        _shaderData: {
+          warp: translated.translation.passes.warp.source,
+          comp: translated.translation.passes.comp.source,
+          perFrameCode: milkData!.perFrameCode,
+          perFrameInitCode: milkData!.perFrameInitCode,
+          perPixelCode: milkData!.perPixelCode,
+          waves: milkData!.waves,
+          shapes: milkData!.shapes,
+          originalParameters: milkData!.parameters,
+          translation: translated.translation
+        }
+      };
+
+      const result = presetV6Schema.safeParse(preset);
+      expect(result.success).toBe(true);
+      expect(result.success ? (result.data as any)._shaderData.translation.pipeline : null).toBe('milkwave-offline-v1');
+      expect(result.success ? (result.data as any).metadata.milkwave.translation.generatedPasses : null).toContain('warp');
     });
 
     it('accepts persisted Milkwave capability metadata on imported presets', () => {
