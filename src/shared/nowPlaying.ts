@@ -26,6 +26,10 @@ export interface NowPlayingRecognitionResponse {
 
 export interface NowPlayingSettings {
   enabled: boolean;
+  metadataSourceEnabled: boolean;
+  metadataSourceUrl: string;
+  metadataSourceSecret: string;
+  metadataSourcePollMs: number;
   provider: 'custom' | 'audd' | 'acrcloud' | 'shazam';
   endpoint: string;
   apiKey: string;
@@ -46,6 +50,10 @@ export interface NowPlayingSettings {
 
 export const DEFAULT_NOW_PLAYING_SETTINGS: NowPlayingSettings = {
   enabled: false,
+  metadataSourceEnabled: false,
+  metadataSourceUrl: 'http://127.0.0.1:8899/v1/last',
+  metadataSourceSecret: '',
+  metadataSourcePollMs: 1500,
   provider: 'custom',
   endpoint: '',
   apiKey: '',
@@ -84,3 +92,6 @@ export const isNowPlayingLookupConfigured = (settings: NowPlayingSettings): bool
     ) ||
     (settings.provider === 'shazam' && settings.endpoint.trim().length > 0)
   );
+
+export const isNowPlayingMetadataSourceConfigured = (settings: NowPlayingSettings): boolean =>
+  settings.enabled && settings.metadataSourceEnabled && settings.metadataSourceUrl.trim().length > 0;

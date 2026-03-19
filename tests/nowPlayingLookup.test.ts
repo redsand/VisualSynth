@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cacheRemoteArtwork, identifyNowPlaying } from '../src/main/nowPlayingLookup';
+import {
+  cacheRemoteArtwork,
+  enrichNowPlayingArtwork,
+  fetchNowPlayingMetadataBridge,
+  identifyNowPlaying
+} from '../src/main/nowPlayingLookup';
 
 describe('identifyNowPlaying', () => {
   it('normalizes a successful webhook response', async () => {
@@ -139,5 +144,101 @@ describe('cacheRemoteArtwork', () => {
 
     expect(result.cached).toBe(false);
     expect(result.error).toContain('404');
+  });
+});
+
+describe('fetchNowPlayingMetadataBridge', () => {
+  it('normalizes a bridge response', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        artist: 'Daft Punk',
+        title: 'Around the World',
+        album: 'Homework',
+        coverurl: '/artwork/homework.jpg'
+      })
+    });
+
+    const result = await fetchNowPlayingMetadataBridge(
+      'http://127.0.0.1:8899/v1/last',
+      '',
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.matched).toBe(true);
+    expect(result.artist).toBe('Daft Punk');
+    expect(result.artworkUrl).toBe('http://127.0.0.1:8899/artwork/homework.jpg');
+  });
+});
+
+describe('enrichNowPlayingArtwork', () => {
+  it('uses Cover Art Archive when MusicBrainz returns a matching release with art', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          releases: [
+            {
+              id: 'release-123',
+              title: 'Discovery',
+              score: 100,
+              'artist-credit': [{ name: 'Daft Punk' }]
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true
+      });
+
+    const result = await enrichNowPlayingArtwork(
+      {
+        artist: 'Daft Punk',
+        album: 'Discovery',
+        title: 'One More Time'
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.provider).toBe('Cover Art Archive');
+    expect(result.artworkUrl).toBe('https://coverartarchive.org/release/release-123/front-500');
+  });
+
+  it('falls back to iTunes search when MusicBrainz does not return usable art', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          releases: []
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              trackName: 'Titanium',
+              artistName: 'David Guetta feat. Sia',
+              collectionName: 'Nothing but the Beat',
+              artworkUrl100: 'https://example.com/titanium-100.jpg'
+            }
+          ]
+        })
+      });
+
+    const result = await enrichNowPlayingArtwork(
+      {
+        artist: 'David Guetta feat. Sia',
+        title: 'Titanium',
+        album: 'Nothing but the Beat',
+        market: 'us'
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.provider).toBe('iTunes Search');
+    expect(result.artworkUrl).toBe('https://example.com/titanium-100.jpg');
   });
 });

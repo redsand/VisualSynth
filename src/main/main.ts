@@ -17,9 +17,15 @@ import { deserializeProject } from '../shared/serialization';
 import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
 import { buildPresetIndexEntry } from '../shared/presetIndex';
 import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
-import { cacheRemoteArtwork, identifyNowPlaying } from './nowPlayingLookup';
+import {
+  cacheRemoteArtwork,
+  enrichNowPlayingArtwork,
+  fetchNowPlayingMetadataBridge,
+  identifyNowPlaying
+} from './nowPlayingLookup';
 import type { NowPlayingRecognitionRequest, NowPlayingSettings } from '../shared/nowPlaying';
 import { loadNowPlayingSettings, saveNowPlayingSettings } from './nowPlayingSettingsStore';
+import { installAndLaunchWhatsNowPlaying, openWhatsNowPlayingFolder } from './companionTools';
 
 const isDev = !app.isPackaged;
 
@@ -540,12 +546,86 @@ ipcMain.handle('now-playing:settings:set', (_event, settings: Partial<NowPlaying
   return saveNowPlayingSettings(settings);
 });
 
+ipcMain.handle('now-playing:metadata:get', (_event, endpoint: string, secret?: string) => {
+  return fetchNowPlayingMetadataBridge(endpoint, secret);
+});
+
+ipcMain.handle(
+  'now-playing:test-file',
+  async (
+    _event,
+    request: Omit<NowPlayingRecognitionRequest, 'audioBase64' | 'mimeType' | 'durationMs' | 'detectedAt'> & {
+      initialPath?: string;
+    }
+  ) => {
+    if (!mainWindow) return { matched: false, canceled: true, error: 'Main window unavailable.' };
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Audio File For Song Lookup',
+      defaultPath: request.initialPath,
+      filters: [
+        {
+          name: 'Audio',
+          extensions: ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'webm']
+        }
+      ],
+      properties: ['openFile']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { matched: false, canceled: true };
+    }
+
+    const filePath = result.filePaths[0];
+    const buffer = fs.readFileSync(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.flac': 'audio/flac',
+      '.ogg': 'audio/ogg',
+      '.opus': 'audio/ogg',
+      '.webm': 'audio/webm'
+    };
+
+    const lookup = await identifyNowPlaying({
+      ...request,
+      audioBase64: buffer.toString('base64'),
+      mimeType: mimeMap[ext] ?? 'application/octet-stream',
+      durationMs: 0,
+      detectedAt: Date.now()
+    });
+
+    return {
+      ...lookup,
+      selectedFilePath: filePath,
+      canceled: false
+    };
+  }
+);
+
 ipcMain.handle('now-playing:identify', async (_event, request: NowPlayingRecognitionRequest) => {
   return identifyNowPlaying(request);
 });
 
 ipcMain.handle('now-playing:cache-artwork', async (_event, imageUrl: string) => {
   return cacheRemoteArtwork(imageUrl, ASSET_STORAGE);
+});
+
+ipcMain.handle(
+  'now-playing:artwork:enrich',
+  async (_event, request: { title?: string; artist?: string; album?: string; market?: string }) => {
+    return enrichNowPlayingArtwork(request);
+  }
+);
+
+ipcMain.handle('companion:whats-now-playing:launch', async () => {
+  return installAndLaunchWhatsNowPlaying();
+});
+
+ipcMain.handle('companion:whats-now-playing:open-folder', async () => {
+  return openWhatsNowPlayingFolder();
 });
 
 ipcMain.handle('assets:open-folder', async (_event, filePath: string) => {

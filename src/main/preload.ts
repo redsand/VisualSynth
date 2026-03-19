@@ -64,12 +64,43 @@ contextBridge.exposeInMainWorld('visualSynth', {
     ipcRenderer.invoke('now-playing:settings:get') as Promise<NowPlayingSettings>,
   saveNowPlayingSettings: (settings: Partial<NowPlayingSettings>) =>
     ipcRenderer.invoke('now-playing:settings:set', settings) as Promise<NowPlayingSettings>,
+  fetchNowPlayingMetadata: (endpoint: string, secret?: string) =>
+    ipcRenderer.invoke('now-playing:metadata:get', endpoint, secret) as Promise<NowPlayingRecognitionResponse>,
+  testNowPlayingFile: (request: Omit<NowPlayingRecognitionRequest, 'audioBase64' | 'mimeType' | 'durationMs' | 'detectedAt'> & {
+    initialPath?: string;
+  }) =>
+    ipcRenderer.invoke('now-playing:test-file', request) as Promise<
+      NowPlayingRecognitionResponse & { selectedFilePath?: string; canceled?: boolean }
+    >,
   identifyNowPlaying: (request: NowPlayingRecognitionRequest) =>
     ipcRenderer.invoke('now-playing:identify', request) as Promise<NowPlayingRecognitionResponse>,
   cacheRemoteArtwork: (imageUrl: string) =>
     ipcRenderer.invoke('now-playing:cache-artwork', imageUrl) as Promise<{
       cached: boolean;
       filePath?: string;
+      error?: string;
+    }>,
+  enrichNowPlayingArtwork: (request: { title?: string; artist?: string; album?: string; market?: string }) =>
+    ipcRenderer.invoke('now-playing:artwork:enrich', request) as Promise<{
+      artworkUrl?: string;
+      artistImageUrl?: string;
+      provider?: string;
+      error?: string;
+    }>,
+  launchWhatsNowPlayingCompanion: () =>
+    ipcRenderer.invoke('companion:whats-now-playing:launch') as Promise<{
+      available: boolean;
+      installed: boolean;
+      launched: boolean;
+      extractedPath?: string;
+      executablePath?: string;
+      message?: string;
+      error?: string;
+    }>,
+  openWhatsNowPlayingCompanionFolder: () =>
+    ipcRenderer.invoke('companion:whats-now-playing:open-folder') as Promise<{
+      opened: boolean;
+      path?: string;
       error?: string;
     }>,
   openAssetFolder: (filePath: string) => ipcRenderer.invoke('assets:open-folder', filePath),

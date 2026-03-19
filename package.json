@@ -51,6 +51,10 @@
         "to": "templates"
       },
       {
+        "from": "third_party/whats-now-playing",
+        "to": "companion-tools/whats-now-playing"
+      },
+      {
         "from": "showcase-performance.project.json",
         "to": "projects/showcase-performance.project.json"
       }

@@ -37,11 +37,12 @@
             <div class="transport">
               <label class="transport-label">
                 BPM
-              <input id="transport-bpm" type="number" min="40" max="240" step="0.1" value="120" />
+                <input id="transport-bpm" type="number" min="40" max="240" step="0.1" value="120" />
               </label>
+              <span id="transport-bpm-state" class="transport-state transport-state-learning">Learning</span>
               <button type="button" id="transport-tap">Tap</button>
               <button type="button" id="transport-pause">Pause</button>
-          </div>
+            </div>
           <label class="output-route">
             Output
             <select id="output-route">
@@ -672,19 +673,6 @@
               </div>
             </div>
             <div class="panel-block">
-              <h3>Project</h3>
-              <div class="scene-row">
-                <button id="btn-save">Save Project</button>
-                <button id="btn-save-perf">Save Performance</button>
-                <button id="btn-load">Load</button>
-              </div>
-              <label class="scene-label">
-                Template
-                <select id="template-select"></select>
-              </label>
-              <button id="btn-apply-template">Apply Template</button>
-            </div>
-            <div class="panel-block">
               <h3>Clock</h3>
               <label class="scene-label">
                 BPM Source
@@ -1098,18 +1086,11 @@
               <div id="asset-list" class="marker-list"></div>
             </div>
             <div class="panel-block">
-              <h3>Render Graph</h3>
-              <div id="render-graph" class="render-graph">
-                Graph view placeholder - full routing UI lives here.
-              </div>
-            </div>
-            <div class="panel-block">
               <h3>Shader Editor</h3>
               <label class="scene-label">
                 Target
                 <select id="shader-target">
-                  <option value="layer-plasma">Shader Plasma</option>
-                  <option value="layer-spectrum">Spectrum Bars</option>
+                  <option value="layer-plasma">Plasma Layer</option>
                 </select>
               </label>
               <textarea id="shader-editor" class="shader-editor" rows="8" placeholder="Paste GLSL here (define vec3 customPlasma(vec2 uv, float t))..."></textarea>
@@ -1118,10 +1099,6 @@
                 <button id="shader-save" type="button">Save Draft</button>
               </div>
               <div id="shader-status" class="output-hint">Drafts compile in-session. Save stores a shader asset in the project.</div>
-            </div>
-            <div class="panel-block">
-              <h3>Parameter Search</h3>
-              <input id="design-search" class="search-input" type="text" placeholder="Search parameters, nodes, targets..." />
             </div>
             <div class="panel-block">
               <h3>Pad Mapping</h3>
@@ -1246,6 +1223,18 @@
           Enable song identification
           <input id="now-playing-enabled" type="checkbox" />
         </label>
+        <label class="scene-inline modal-checkbox">
+          Use metadata bridge first
+          <input id="now-playing-metadata-enabled" type="checkbox" />
+        </label>
+        <label id="now-playing-metadata-url-group" class="scene-label">
+          Metadata Bridge URL
+          <input id="now-playing-metadata-url" type="text" placeholder="http://127.0.0.1:8899/v1/last" />
+        </label>
+        <label id="now-playing-metadata-secret-group" class="scene-label">
+          Metadata Bridge Secret
+          <input id="now-playing-metadata-secret" type="password" />
+        </label>
         <label class="scene-label">
           Provider
           <select id="now-playing-provider">
@@ -1297,9 +1286,20 @@
         <div id="now-playing-provider-hint" class="output-hint">
           Custom mode posts the captured clip to your own lookup endpoint.
         </div>
+        <div class="scene-row">
+          <button id="now-playing-apply-companion-preset" type="button">Use WNP Defaults</button>
+          <button id="now-playing-test-bridge" type="button">Test Bridge</button>
+          <button id="now-playing-open-bridge-docs" type="button">Open WNP Docs</button>
+          <button id="now-playing-open-bridge-download" type="button">Open WNP Download</button>
+        </div>
+        <div class="scene-row">
+          <button id="now-playing-launch-companion" type="button">Install / Launch WNP</button>
+          <button id="now-playing-open-companion-folder" type="button">Open Companion Folder</button>
+        </div>
         <div id="now-playing-test-status" class="output-hint">No lookup test run yet.</div>
         <div class="scene-row modal-actions">
-          <button id="now-playing-test" type="button">Test Lookup...</button>
+          <button id="now-playing-test-live" type="button">Test Live Input</button>
+          <button id="now-playing-test" type="button">Test File...</button>
           <button id="now-playing-cancel" type="button">Cancel</button>
           <button id="now-playing-save" type="button">Save</button>
         </div>

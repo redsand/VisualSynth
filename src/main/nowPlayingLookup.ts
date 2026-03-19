@@ -9,6 +9,191 @@ const IMAGE_EXTENSIONS: Record<string, string> = {
   'image/webp': '.webp'
 };
 
+const MUSICBRAINZ_HEADERS = {
+  accept: 'application/json',
+  'user-agent': 'VisualSynth/0.9.0 (Now Playing Artwork Lookup)'
+};
+
+export interface NowPlayingArtworkLookupRequest {
+  title?: string;
+  artist?: string;
+  album?: string;
+  market?: string;
+}
+
+export interface NowPlayingArtworkLookupResponse {
+  artworkUrl?: string;
+  artistImageUrl?: string;
+  provider?: string;
+  error?: string;
+}
+
+const normalizeComparable = (value: string | undefined): string =>
+  (value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const scoreCandidate = (
+  candidate: { title?: string; artist?: string; album?: string },
+  request: NowPlayingArtworkLookupRequest
+): number => {
+  let score = 0;
+  const candidateTitle = normalizeComparable(candidate.title);
+  const candidateArtist = normalizeComparable(candidate.artist);
+  const candidateAlbum = normalizeComparable(candidate.album);
+  const requestTitle = normalizeComparable(request.title);
+  const requestArtist = normalizeComparable(request.artist);
+  const requestAlbum = normalizeComparable(request.album);
+
+  if (requestTitle && candidateTitle === requestTitle) score += 6;
+  else if (requestTitle && candidateTitle.includes(requestTitle)) score += 3;
+
+  if (requestArtist && candidateArtist === requestArtist) score += 6;
+  else if (requestArtist && candidateArtist.includes(requestArtist)) score += 3;
+
+  if (requestAlbum && candidateAlbum === requestAlbum) score += 4;
+  else if (requestAlbum && candidateAlbum.includes(requestAlbum)) score += 2;
+
+  return score;
+};
+
+const imageUrlIsReachable = async (imageUrl: string, fetchImpl: typeof fetch): Promise<boolean> => {
+  try {
+    const response = await fetchImpl(imageUrl, { method: 'HEAD' });
+    if (response.ok) {
+      return true;
+    }
+  } catch {
+    // Fall back to GET if HEAD is unsupported by the host.
+  }
+
+  try {
+    const response = await fetchImpl(imageUrl, { method: 'GET' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
+const lookupMusicBrainzArtwork = async (
+  request: NowPlayingArtworkLookupRequest,
+  fetchImpl: typeof fetch
+): Promise<NowPlayingArtworkLookupResponse | null> => {
+  if (!request.artist?.trim() || !request.album?.trim()) {
+    return null;
+  }
+
+  const query = `release:"${request.album.trim()}" AND artist:"${request.artist.trim()}"`;
+  const url = `https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(query)}&fmt=json&limit=5`;
+  const response = await fetchImpl(url, {
+    method: 'GET',
+    headers: MUSICBRAINZ_HEADERS
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json() as {
+    releases?: Array<{
+      id?: string;
+      title?: string;
+      score?: number | string;
+      'artist-credit'?: Array<{ name?: string }>;
+    }>;
+  };
+
+  const releases = payload.releases ?? [];
+  const ranked = releases
+    .map((release) => ({
+      release,
+      score:
+        Number(release.score ?? 0) +
+        scoreCandidate(
+          {
+            title: release.title,
+            artist: release['artist-credit']?.map((artist) => artist.name).filter(Boolean).join(', '),
+            album: release.title
+          },
+          request
+        )
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  for (const item of ranked) {
+    if (!item.release.id) continue;
+    const artworkUrl = `https://coverartarchive.org/release/${item.release.id}/front-500`;
+    if (await imageUrlIsReachable(artworkUrl, fetchImpl)) {
+      return {
+        artworkUrl,
+        provider: 'Cover Art Archive'
+      };
+    }
+  }
+
+  return null;
+};
+
+const lookupItunesArtwork = async (
+  request: NowPlayingArtworkLookupRequest,
+  fetchImpl: typeof fetch
+): Promise<NowPlayingArtworkLookupResponse | null> => {
+  const term = [request.artist, request.title, request.album].filter(Boolean).join(' ').trim();
+  if (!term) {
+    return null;
+  }
+
+  const url = new URL('https://itunes.apple.com/search');
+  url.searchParams.set('term', term);
+  url.searchParams.set('media', 'music');
+  url.searchParams.set('entity', 'song');
+  url.searchParams.set('limit', '5');
+  url.searchParams.set('country', (request.market || 'us').toLowerCase());
+
+  const response = await fetchImpl(url.toString(), {
+    method: 'GET',
+    headers: { accept: 'application/json' }
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json() as {
+    results?: Array<{
+      trackName?: string;
+      artistName?: string;
+      collectionName?: string;
+      artworkUrl100?: string;
+    }>;
+  };
+
+  const ranked = (payload.results ?? [])
+    .map((item) => ({
+      item,
+      score: scoreCandidate(
+        {
+          title: item.trackName,
+          artist: item.artistName,
+          album: item.collectionName
+        },
+        request
+      )
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  const best = ranked[0]?.item;
+  if (!best?.artworkUrl100) {
+    return null;
+  }
+
+  return {
+    artworkUrl: best.artworkUrl100,
+    provider: 'iTunes Search'
+  };
+};
+
 const decodeAudioBlob = (request: NowPlayingRecognitionRequest): Blob =>
   new Blob([Buffer.from(request.audioBase64, 'base64')], {
     type: request.mimeType || 'audio/webm'
@@ -218,6 +403,63 @@ const postShazamLookup = async (
   return postCustomLookup(request, fetchImpl);
 };
 
+export const fetchNowPlayingMetadataBridge = async (
+  endpoint: string,
+  secret: string | undefined,
+  fetchImpl: typeof fetch = fetch
+): Promise<NowPlayingRecognitionResponse> => {
+  try {
+    const url = new URL(endpoint);
+    if (secret?.trim()) {
+      url.searchParams.set('token', secret);
+    }
+
+    const response = await fetchImpl(url.toString(), {
+      method: 'GET',
+      headers: { accept: 'application/json' }
+    });
+
+    if (!response.ok) {
+      return { matched: false, error: `Metadata bridge failed with HTTP ${response.status}` };
+    }
+
+    const payload = await response.json() as Record<string, unknown>;
+    const title = typeof payload.title === 'string' ? payload.title : undefined;
+    const artist = typeof payload.artist === 'string' ? payload.artist : undefined;
+    const album = typeof payload.album === 'string' ? payload.album : undefined;
+    const artworkUrlRaw =
+      typeof payload.coverurl === 'string'
+        ? payload.coverurl
+        : typeof payload.artworkUrl === 'string'
+          ? payload.artworkUrl
+          : typeof payload.image === 'string'
+            ? payload.image
+            : undefined;
+    const artworkUrl = artworkUrlRaw
+      ? new URL(artworkUrlRaw, url).toString()
+      : undefined;
+
+    if (!title && !artist) {
+      return { matched: false, provider: 'Metadata Bridge', raw: payload };
+    }
+
+    return {
+      matched: true,
+      title,
+      artist,
+      album,
+      artworkUrl,
+      provider: 'Metadata Bridge',
+      raw: payload
+    };
+  } catch (error) {
+    return {
+      matched: false,
+      error: (error as Error).message
+    };
+  }
+};
+
 export const identifyNowPlaying = async (
   request: NowPlayingRecognitionRequest,
   fetchImpl: typeof fetch = fetch
@@ -236,6 +478,29 @@ export const identifyNowPlaying = async (
   } catch (error) {
     return {
       matched: false,
+      error: (error as Error).message
+    };
+  }
+};
+
+export const enrichNowPlayingArtwork = async (
+  request: NowPlayingArtworkLookupRequest,
+  fetchImpl: typeof fetch = fetch
+): Promise<NowPlayingArtworkLookupResponse> => {
+  try {
+    const musicBrainzResult = await lookupMusicBrainzArtwork(request, fetchImpl);
+    if (musicBrainzResult?.artworkUrl || musicBrainzResult?.artistImageUrl) {
+      return musicBrainzResult;
+    }
+
+    const itunesResult = await lookupItunesArtwork(request, fetchImpl);
+    if (itunesResult?.artworkUrl || itunesResult?.artistImageUrl) {
+      return itunesResult;
+    }
+
+    return {};
+  } catch (error) {
+    return {
       error: (error as Error).message
     };
   }

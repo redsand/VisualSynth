@@ -1,0 +1,31 @@
+{
+  "name": "What's Now Playing",
+  "vendor": "whatsnowplaying",
+  "version": "5.0.1",
+  "license": "MIT",
+  "sourceRepository": "https://github.com/whatsnowplaying/whats-now-playing",
+  "releasePage": "https://github.com/whatsnowplaying/whats-now-playing/releases/tag/5.0.1",
+  "artifacts": [
+    {
+      "platform": "windows",
+      "arch": "x64",
+      "filename": "WhatsNowPlaying-5.0.1-Windows.zip",
+      "downloadUrl": "https://github.com/whatsnowplaying/whats-now-playing/releases/download/5.0.1/WhatsNowPlaying-5.0.1-Windows.zip",
+      "sha256": "808EB52699CB0EEB6902D8C1A74F38E37BAA2C4F18A1F81162A5C4625BEFBDD9"
+    },
+    {
+      "platform": "macos",
+      "arch": "x64",
+      "filename": "WhatsNowPlaying-5.0.1-macOS10-Intel.zip",
+      "downloadUrl": "https://github.com/whatsnowplaying/whats-now-playing/releases/download/5.0.1/WhatsNowPlaying-5.0.1-macOS10-Intel.zip",
+      "sha256": "D3BFA646CEF57AABCCDD8838F90622749B95702D04A2EA6F104FD2B41C7894B4"
+    },
+    {
+      "platform": "macos",
+      "arch": "arm64",
+      "filename": "WhatsNowPlaying-5.0.1-macOS12-AppleSilicon.zip",
+      "downloadUrl": "https://github.com/whatsnowplaying/whats-now-playing/releases/download/5.0.1/WhatsNowPlaying-5.0.1-macOS12-AppleSilicon.zip",
+      "sha256": "AA09B561508A80E96A5C8AFB82A9AE3A1844E01D57673729B0010B8B8796C093"
+    }
+  ]
+}

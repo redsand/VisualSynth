@@ -72,6 +72,7 @@ import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
 import {
   DEFAULT_NOW_PLAYING_SETTINGS,
+  isNowPlayingMetadataSourceConfigured,
   isNowPlayingLookupConfigured,
   type NowPlayingRecognitionRequest,
   type NowPlayingRecognitionResponse,
@@ -141,12 +142,39 @@ declare global {
       importPlugin: () => Promise<{ canceled: boolean; filePath?: string; payload?: string }>;
       getNowPlayingSettings: () => Promise<NowPlayingSettings>;
       saveNowPlayingSettings: (settings: Partial<NowPlayingSettings>) => Promise<NowPlayingSettings>;
+      fetchNowPlayingMetadata: (endpoint: string, secret?: string) => Promise<NowPlayingRecognitionResponse>;
+      testNowPlayingFile: (
+        request: Omit<NowPlayingRecognitionRequest, 'audioBase64' | 'mimeType' | 'durationMs' | 'detectedAt'> & {
+          initialPath?: string;
+        }
+      ) => Promise<NowPlayingRecognitionResponse & { selectedFilePath?: string; canceled?: boolean }>;
       identifyNowPlaying: (
         request: NowPlayingRecognitionRequest
       ) => Promise<NowPlayingRecognitionResponse>;
       cacheRemoteArtwork: (
         imageUrl: string
       ) => Promise<{ cached: boolean; filePath?: string; error?: string }>;
+      enrichNowPlayingArtwork: (request: {
+        title?: string;
+        artist?: string;
+        album?: string;
+        market?: string;
+      }) => Promise<{
+        artworkUrl?: string;
+        artistImageUrl?: string;
+        provider?: string;
+        error?: string;
+      }>;
+      launchWhatsNowPlayingCompanion: () => Promise<{
+        available: boolean;
+        installed: boolean;
+        launched: boolean;
+        extractedPath?: string;
+        executablePath?: string;
+        message?: string;
+        error?: string;
+      }>;
+      openWhatsNowPlayingCompanionFolder: () => Promise<{ opened: boolean; path?: string; error?: string }>;
       openAssetFolder: (filePath: string) => Promise<{ opened: boolean }>;
       // Spout/NDI output integration
       spoutIsAvailable: () => Promise<boolean>;
@@ -177,6 +205,11 @@ const nowPlayingStatus = document.getElementById('now-playing-status') as HTMLDi
 const nowPlayingConfigureButton = document.getElementById('now-playing-configure') as HTMLButtonElement;
 const nowPlayingModal = document.getElementById('now-playing-modal') as HTMLDivElement;
 const nowPlayingEnabledInput = document.getElementById('now-playing-enabled') as HTMLInputElement;
+const nowPlayingMetadataEnabledInput = document.getElementById('now-playing-metadata-enabled') as HTMLInputElement;
+const nowPlayingMetadataUrlGroup = document.getElementById('now-playing-metadata-url-group') as HTMLLabelElement;
+const nowPlayingMetadataUrlInput = document.getElementById('now-playing-metadata-url') as HTMLInputElement;
+const nowPlayingMetadataSecretGroup = document.getElementById('now-playing-metadata-secret-group') as HTMLLabelElement;
+const nowPlayingMetadataSecretInput = document.getElementById('now-playing-metadata-secret') as HTMLInputElement;
 const nowPlayingProviderSelect = document.getElementById('now-playing-provider') as HTMLSelectElement;
 const nowPlayingEndpointGroup = document.getElementById('now-playing-endpoint-group') as HTMLLabelElement;
 const nowPlayingEndpointInput = document.getElementById('now-playing-endpoint') as HTMLInputElement;
@@ -191,6 +224,15 @@ const nowPlayingCooldownInput = document.getElementById('now-playing-cooldown') 
 const nowPlayingArtworkPreferenceSelect = document.getElementById('now-playing-artwork-preference') as HTMLSelectElement;
 const nowPlayingAutoOverlaysInput = document.getElementById('now-playing-auto-overlays') as HTMLInputElement;
 const nowPlayingProviderHint = document.getElementById('now-playing-provider-hint') as HTMLDivElement;
+const nowPlayingApplyCompanionPresetButton = document.getElementById('now-playing-apply-companion-preset') as HTMLButtonElement;
+const nowPlayingTestBridgeButton = document.getElementById('now-playing-test-bridge') as HTMLButtonElement;
+const nowPlayingOpenBridgeDocsButton = document.getElementById('now-playing-open-bridge-docs') as HTMLButtonElement;
+const nowPlayingOpenBridgeDownloadButton = document.getElementById('now-playing-open-bridge-download') as HTMLButtonElement;
+const nowPlayingLaunchCompanionButton = document.getElementById('now-playing-launch-companion') as HTMLButtonElement;
+const nowPlayingOpenCompanionFolderButton = document.getElementById('now-playing-open-companion-folder') as HTMLButtonElement;
+const nowPlayingTestStatus = document.getElementById('now-playing-test-status') as HTMLDivElement;
+const nowPlayingTestLiveButton = document.getElementById('now-playing-test-live') as HTMLButtonElement;
+const nowPlayingTestButton = document.getElementById('now-playing-test') as HTMLButtonElement;
 const nowPlayingCancelButton = document.getElementById('now-playing-cancel') as HTMLButtonElement;
 const nowPlayingSaveButton = document.getElementById('now-playing-save') as HTMLButtonElement;
 const saveButton = document.getElementById('btn-save') as HTMLButtonElement;
@@ -245,6 +287,7 @@ const sceneStripViewButtons = sceneStrip
 const addBlankSceneButton = document.getElementById('scene-add-blank') as HTMLButtonElement | null;
 const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
 const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
+const transportBpmState = document.getElementById('transport-bpm-state') as HTMLSpanElement;
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
 const visualModeSelect = document.getElementById('visual-mode-select') as HTMLSelectElement;
@@ -839,6 +882,11 @@ const nowPlayingSettings = { ...DEFAULT_NOW_PLAYING_SETTINGS };
 const rollingAudioCapture = createRollingAudioCapture(30000);
 let nowPlayingLookupInFlight = false;
 let lastNowPlayingLookupAt = 0;
+let nowPlayingMetadataPollInFlight = false;
+let lastMetadataTrackKey: string | null = null;
+let lastMetadataTrackAt = 0;
+let lastMetadataPollAt = 0;
+let tapTempoTimes: number[] = [];
 
 const gravityWells = Array.from({ length: 8 }, () => ({
   x: 0,
@@ -4456,11 +4504,27 @@ const renderAssets = () => {
       meta.textContent = metaParts.join(' • ');
       info.appendChild(meta);
     }
-    const tags = document.createElement('div');
-    tags.className = 'asset-tags';
-    tags.textContent = asset.tags.length === 0 ? '—' : asset.tags.join(', ');
     const actions = document.createElement('div');
     actions.className = 'asset-actions';
+    const remove = document.createElement('button');
+    remove.className = 'asset-remove-btn';
+    remove.textContent = 'Delete';
+    remove.title = 'Remove asset';
+    remove.addEventListener('click', () => {
+      stopLiveAssetStream(asset.id);
+      unassignAssetFromLayers(asset.id);
+      currentProject.assets = currentProject.assets.filter((item) => item.id !== asset.id);
+      renderAssets();
+      renderLayerList();
+      setStatus(`Asset removed: ${asset.name}`);
+    });
+    actions.appendChild(remove);
+    if (asset.options?.liveSource) {
+      const liveBadge = document.createElement('span');
+      liveBadge.className = 'asset-live-badge';
+      liveBadge.textContent = asset.options.liveSource.toUpperCase();
+      actions.appendChild(liveBadge);
+    }
     if (asset.path) {
       const revealBtn = document.createElement('button');
       revealBtn.textContent = 'Open Folder';
@@ -4478,29 +4542,9 @@ const renderAssets = () => {
       });
       actions.appendChild(relinkBtn);
     }
-    if (asset.options?.liveSource) {
-      const liveBadge = document.createElement('span');
-      liveBadge.className = 'asset-live-badge';
-      liveBadge.textContent = asset.options.liveSource.toUpperCase();
-      actions.appendChild(liveBadge);
-    }
-    const remove = document.createElement('button');
-    remove.className = 'asset-remove-btn';
-    remove.textContent = '✕';
-    remove.title = 'Remove asset';
-    remove.addEventListener('click', () => {
-      stopLiveAssetStream(asset.id);
-      unassignAssetFromLayers(asset.id);
-      currentProject.assets = currentProject.assets.filter((item) => item.id !== asset.id);
-      renderAssets();
-      renderLayerList();
-      setStatus(`Asset removed: ${asset.name}`);
-    });
-    actions.appendChild(remove);
 
     row.appendChild(preview);
     row.appendChild(info);
-    row.appendChild(tags);
     row.appendChild(actions);
 
     wrapper.appendChild(row);
@@ -5999,6 +6043,45 @@ const updateBpmDisplay = () => {
         ? `BPM: <strong>${value.toFixed(1)}</strong> (${sourceLabel})`
         : `BPM: -- (${sourceLabel})`;
   }
+
+  const now = performance.now();
+  const recentOnsets = onsetTimes.filter((time) => now - time < 8000);
+  let stateLabel = 'Idle';
+  let stateClass = 'transport-state-idle';
+  if (bpmSource === 'manual') {
+    stateLabel = 'Manual';
+    stateClass = 'transport-state-idle';
+  } else if (bpmSource === 'network') {
+    stateLabel = networkBpm ? 'Network' : 'Waiting';
+    stateClass = networkBpm ? 'transport-state-stable' : 'transport-state-learning';
+  } else if (audioState.rms < 0.02) {
+    stateLabel = 'Listening';
+    stateClass = 'transport-state-idle';
+  } else if (!autoBpm || recentOnsets.length < 4) {
+    stateLabel = 'Learning';
+    stateClass = 'transport-state-learning';
+  } else {
+    const intervals: number[] = [];
+    for (let i = 1; i < recentOnsets.length; i += 1) {
+      intervals.push(recentOnsets[i] - recentOnsets[i - 1]);
+    }
+    const mean =
+      intervals.reduce((sum, interval) => sum + interval, 0) / Math.max(1, intervals.length);
+    const variance =
+      intervals.reduce((sum, interval) => sum + (interval - mean) ** 2, 0) /
+      Math.max(1, intervals.length);
+    const stability = mean > 0 ? Math.sqrt(variance) / mean : 1;
+    const estimateAgeMs = now - lastTempoEstimateTime;
+    if (recentOnsets.length >= 6 && stability < 0.12 && estimateAgeMs < 2500) {
+      stateLabel = 'Stable';
+      stateClass = 'transport-state-stable';
+    } else {
+      stateLabel = 'Weak';
+      stateClass = 'transport-state-weak';
+    }
+  }
+  transportBpmState.textContent = stateLabel;
+  transportBpmState.className = `transport-state ${stateClass}`;
 };
 
 const formatDurationMs = (ms: number) => {
@@ -8942,6 +9025,14 @@ const updateNowPlayingStatusText = () => {
     return;
   }
 
+  if (isNowPlayingMetadataSourceConfigured(nowPlayingSettings)) {
+    const fallbackLabel = isNowPlayingLookupConfigured(nowPlayingSettings)
+      ? ' with recognition fallback'
+      : '';
+    nowPlayingStatus.textContent = `Metadata bridge primary${fallbackLabel}.`;
+    return;
+  }
+
   if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
     nowPlayingStatus.textContent = `Enabled, but ${nowPlayingSettings.provider} is not fully configured.`;
     return;
@@ -8969,9 +9060,13 @@ const syncNowPlayingProviderFields = () => {
   nowPlayingHostGroup.classList.toggle('hidden', !showHost);
   nowPlayingApiSecretGroup.classList.toggle('hidden', !showSecret);
   nowPlayingApiKeyGroup.classList.toggle('hidden', !showApiKey);
+  nowPlayingMetadataUrlGroup.classList.toggle('hidden', !nowPlayingMetadataEnabledInput.checked);
+  nowPlayingMetadataSecretGroup.classList.toggle('hidden', !nowPlayingMetadataEnabledInput.checked);
 
   nowPlayingProviderHint.textContent =
-    provider === 'audd'
+    nowPlayingMetadataEnabledInput.checked
+      ? 'Metadata bridge mode polls a local service like What\'s Now Playing first, then falls back to audio recognition if configured.'
+      : provider === 'audd'
       ? 'AudD uses your API token directly from the app.'
       : provider === 'acrcloud'
         ? 'ACRCloud requires host, access key, and access secret.'
@@ -8982,6 +9077,9 @@ const syncNowPlayingProviderFields = () => {
 
 const openNowPlayingModal = () => {
   nowPlayingEnabledInput.checked = nowPlayingSettings.enabled;
+  nowPlayingMetadataEnabledInput.checked = nowPlayingSettings.metadataSourceEnabled;
+  nowPlayingMetadataUrlInput.value = nowPlayingSettings.metadataSourceUrl;
+  nowPlayingMetadataSecretInput.value = nowPlayingSettings.metadataSourceSecret;
   nowPlayingProviderSelect.value = nowPlayingSettings.provider;
   nowPlayingEndpointInput.value = nowPlayingSettings.endpoint;
   nowPlayingHostInput.value = nowPlayingSettings.host;
@@ -8991,6 +9089,7 @@ const openNowPlayingModal = () => {
   nowPlayingCooldownInput.value = String(nowPlayingSettings.cooldownMs);
   nowPlayingArtworkPreferenceSelect.value = nowPlayingSettings.artworkPreference;
   nowPlayingAutoOverlaysInput.checked = nowPlayingSettings.autoCreateOverlays;
+  nowPlayingTestStatus.textContent = 'No lookup test run yet.';
   syncNowPlayingProviderFields();
   nowPlayingModal.classList.remove('hidden');
 };
@@ -8999,9 +9098,95 @@ const closeNowPlayingModal = () => {
   nowPlayingModal.classList.add('hidden');
 };
 
+const applyWhatsNowPlayingDraftPreset = () => {
+  nowPlayingEnabledInput.checked = true;
+  nowPlayingMetadataEnabledInput.checked = true;
+  if (!nowPlayingMetadataUrlInput.value.trim()) {
+    nowPlayingMetadataUrlInput.value = DEFAULT_NOW_PLAYING_SETTINGS.metadataSourceUrl;
+  }
+  if (!nowPlayingProviderSelect.value) {
+    nowPlayingProviderSelect.value = DEFAULT_NOW_PLAYING_SETTINGS.provider;
+  }
+  if (!nowPlayingArtworkPreferenceSelect.value) {
+    nowPlayingArtworkPreferenceSelect.value = DEFAULT_NOW_PLAYING_SETTINGS.artworkPreference;
+  }
+  nowPlayingAutoOverlaysInput.checked = true;
+  syncNowPlayingProviderFields();
+};
+
 const applyNowPlayingSettings = (settings: Partial<NowPlayingSettings>) => {
   Object.assign(nowPlayingSettings, DEFAULT_NOW_PLAYING_SETTINGS, settings);
   updateNowPlayingStatusText();
+};
+
+const buildNowPlayingDraftSettings = (): NowPlayingSettings => ({
+  ...nowPlayingSettings,
+  enabled: nowPlayingEnabledInput.checked,
+  metadataSourceEnabled: nowPlayingMetadataEnabledInput.checked,
+  metadataSourceUrl: nowPlayingMetadataUrlInput.value.trim(),
+  metadataSourceSecret: nowPlayingMetadataSecretInput.value.trim(),
+  provider: nowPlayingProviderSelect.value as NowPlayingSettings['provider'],
+  endpoint: nowPlayingEndpointInput.value.trim(),
+  host: nowPlayingHostInput.value.trim(),
+  apiKey: nowPlayingApiKeyInput.value.trim(),
+  apiSecret: nowPlayingApiSecretInput.value.trim(),
+  clipDurationMs: Math.max(4000, Number(nowPlayingClipDurationInput.value) || 12000),
+  cooldownMs: Math.max(5000, Number(nowPlayingCooldownInput.value) || 15000),
+  artworkPreference: nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'],
+  autoCreateOverlays: nowPlayingAutoOverlaysInput.checked
+});
+
+const consumeNowPlayingResult = async (
+  result: NowPlayingRecognitionResponse,
+  statusPrefix: string
+) => {
+  if (!result.matched) {
+    setStatus(result.error ? `${statusPrefix}: ${result.error}` : `${statusPrefix}: no match found.`);
+    return;
+  }
+
+  let artworkResult = result;
+  const missingArtwork =
+    !result.artworkUrl ||
+    (nowPlayingSettings.artworkPreference === 'artist' && !result.artistImageUrl);
+
+  if (missingArtwork && (result.title || result.artist || result.album)) {
+    const enrichedArtwork = await window.visualSynth.enrichNowPlayingArtwork({
+      title: result.title,
+      artist: result.artist,
+      album: result.album,
+      market: nowPlayingSettings.market || undefined
+    });
+
+    artworkResult = {
+      ...result,
+      artworkUrl: result.artworkUrl || enrichedArtwork.artworkUrl,
+      artistImageUrl: result.artistImageUrl || enrichedArtwork.artistImageUrl,
+      provider: result.provider || enrichedArtwork.provider
+    };
+  }
+
+  const preferredArtworkUrl =
+    nowPlayingSettings.artworkPreference === 'artist'
+      ? artworkResult.artistImageUrl || artworkResult.artworkUrl
+      : artworkResult.artworkUrl || artworkResult.artistImageUrl;
+  let artworkPath: string | undefined;
+  if (preferredArtworkUrl) {
+    const cached = await window.visualSynth.cacheRemoteArtwork(preferredArtworkUrl);
+    if (cached.cached) {
+      artworkPath = cached.filePath;
+    }
+  }
+
+  updateNowPlayingOverlays({
+    title: artworkResult.title,
+    artist: artworkResult.artist,
+    album: artworkResult.album,
+    artworkPath
+  });
+
+  const songLabel = [artworkResult.title, artworkResult.artist].filter(Boolean).join(' - ');
+  setStatus(songLabel ? `${statusPrefix}: ${songLabel}` : `${statusPrefix} updated.`);
 };
 
 const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): OverlayConfig => {
@@ -9081,10 +9266,50 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
   return btoa(binary);
 };
 
+const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
+  if (!isNowPlayingLookupConfigured(settings)) {
+    nowPlayingTestStatus.textContent = 'Provider settings are incomplete.';
+    return;
+  }
+
+  const clip = await rollingAudioCapture.exportRecentClip(settings.clipDurationMs);
+  if (!clip) {
+    nowPlayingTestStatus.textContent = 'No recent live audio buffer is available. Start audio input and let it listen for a few seconds.';
+    return;
+  }
+
+  nowPlayingTestStatus.textContent = 'Running live lookup...';
+  const audioBase64 = await blobToBase64(clip.blob);
+  const result = await window.visualSynth.identifyNowPlaying({
+    provider: settings.provider,
+    endpoint: settings.endpoint || undefined,
+    host: settings.host || undefined,
+    apiKey: settings.apiKey || undefined,
+    apiSecret: settings.apiSecret || undefined,
+    market: settings.market || undefined,
+    audioBase64,
+    mimeType: clip.mimeType,
+    durationMs: Math.max(0, clip.endedAt - clip.startedAt),
+    detectedAt: Date.now()
+  });
+
+  if (!result.matched) {
+    nowPlayingTestStatus.textContent = result.error || 'No match found from live input.';
+    return;
+  }
+
+  const label = [result.title, result.artist].filter(Boolean).join(' - ');
+  nowPlayingTestStatus.textContent = label || 'Live lookup succeeded.';
+  await consumeNowPlayingResult(result, 'Live now playing test');
+};
+
 const runNowPlayingLookup = async (detectedAt: number) => {
   if (!isNowPlayingLookupConfigured(nowPlayingSettings)) return;
   if (nowPlayingLookupInFlight) return;
   if (detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) return;
+  if (isNowPlayingMetadataSourceConfigured(nowPlayingSettings) && detectedAt - lastMetadataTrackAt < 5000) {
+    return;
+  }
 
   const clip = await rollingAudioCapture.exportRecentClip(nowPlayingSettings.clipDurationMs);
   if (!clip) {
@@ -9109,35 +9334,40 @@ const runNowPlayingLookup = async (detectedAt: number) => {
       durationMs: clip.endedAt - clip.startedAt,
       detectedAt
     });
-
-    if (!result.matched) {
-      setStatus(result.error ? `Song lookup failed: ${result.error}` : 'Song change detected, but no match was found.');
-      return;
-    }
-
-    const preferredArtworkUrl =
-      nowPlayingSettings.artworkPreference === 'artist'
-        ? result.artistImageUrl || result.artworkUrl
-        : result.artworkUrl || result.artistImageUrl;
-    let artworkPath: string | undefined;
-    if (preferredArtworkUrl) {
-      const cached = await window.visualSynth.cacheRemoteArtwork(preferredArtworkUrl);
-      if (cached.cached) {
-        artworkPath = cached.filePath;
-      }
-    }
-
-    updateNowPlayingOverlays({
-      title: result.title,
-      artist: result.artist,
-      album: result.album,
-      artworkPath
-    });
-
-    const songLabel = [result.title, result.artist].filter(Boolean).join(' - ');
-    setStatus(songLabel ? `Now playing: ${songLabel}` : 'Now playing updated.');
+    await consumeNowPlayingResult(result, 'Now playing');
   } finally {
     nowPlayingLookupInFlight = false;
+  }
+};
+
+const pollNowPlayingMetadataSource = async () => {
+  if (!isNowPlayingMetadataSourceConfigured(nowPlayingSettings)) return;
+  if (nowPlayingMetadataPollInFlight) return;
+  const now = Date.now();
+  if (now - lastMetadataPollAt < Math.max(500, nowPlayingSettings.metadataSourcePollMs || 1500)) return;
+  lastMetadataPollAt = now;
+  nowPlayingMetadataPollInFlight = true;
+  try {
+    const result = await window.visualSynth.fetchNowPlayingMetadata(
+      nowPlayingSettings.metadataSourceUrl,
+      nowPlayingSettings.metadataSourceSecret || undefined
+    );
+    if (!result.matched) {
+      return;
+    }
+    const trackKey = [result.artist ?? '', result.title ?? '', result.album ?? ''].join('::');
+    if (!trackKey.trim()) {
+      return;
+    }
+    if (trackKey === lastMetadataTrackKey) {
+      lastMetadataTrackAt = Date.now();
+      return;
+    }
+    lastMetadataTrackKey = trackKey;
+    lastMetadataTrackAt = Date.now();
+    await consumeNowPlayingResult(result, 'Metadata bridge');
+  } finally {
+    nowPlayingMetadataPollInFlight = false;
   }
 };
 
@@ -9615,32 +9845,42 @@ const applyProject = async (project: VisualSynthProject) => {
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
-saveButton.addEventListener('click', async () => {
-  const payload = serializeProject();
-  await window.visualSynth.saveProject(payload);
-});
+if (saveButton) {
+  saveButton.addEventListener('click', async () => {
+    const payload = serializeProject();
+    await window.visualSynth.saveProject(payload);
+  });
+}
 
-savePerfButton.addEventListener('click', async () => {
-  const payload = serializePerformance();
-  await window.visualSynth.saveProject(payload);
-});
+if (savePerfButton) {
+  savePerfButton.addEventListener('click', async () => {
+    const payload = serializePerformance();
+    await window.visualSynth.saveProject(payload);
+  });
+}
 
-loadButton.addEventListener('click', async () => {
-  const result = await window.visualSynth.openProject();
-  if (!result.canceled && result.project) {
-    await applyProject(result.project);
-  }
-});
+if (loadButton) {
+  loadButton.addEventListener('click', async () => {
+    const result = await window.visualSynth.openProject();
+    if (!result.canceled && result.project) {
+      await applyProject(result.project);
+    }
+  });
+}
 
 if (topbarSaveProjectButton) {
   topbarSaveProjectButton.addEventListener('click', () => {
-    void saveButton.click();
+    if (saveButton) {
+      void saveButton.click();
+    }
   });
 }
 
 if (topbarOpenProjectButton) {
   topbarOpenProjectButton.addEventListener('click', () => {
-    void loadButton.click();
+    if (loadButton) {
+      void loadButton.click();
+    }
   });
 }
 
@@ -10213,28 +10453,142 @@ nowPlayingProviderSelect.addEventListener('change', () => {
   syncNowPlayingProviderFields();
 });
 
+nowPlayingMetadataEnabledInput.addEventListener('change', () => {
+  syncNowPlayingProviderFields();
+});
+
+nowPlayingApplyCompanionPresetButton.addEventListener('click', async () => {
+  applyWhatsNowPlayingDraftPreset();
+  const draftSettings: NowPlayingSettings = {
+    ...nowPlayingSettings,
+    enabled: nowPlayingEnabledInput.checked,
+    metadataSourceEnabled: nowPlayingMetadataEnabledInput.checked,
+    metadataSourceUrl: nowPlayingMetadataUrlInput.value.trim(),
+    metadataSourceSecret: nowPlayingMetadataSecretInput.value.trim(),
+    provider: nowPlayingProviderSelect.value as NowPlayingSettings['provider'],
+    endpoint: nowPlayingEndpointInput.value.trim(),
+    host: nowPlayingHostInput.value.trim(),
+    apiKey: nowPlayingApiKeyInput.value.trim(),
+    apiSecret: nowPlayingApiSecretInput.value.trim(),
+    clipDurationMs: Math.max(4000, Number(nowPlayingClipDurationInput.value) || 12000),
+    cooldownMs: Math.max(5000, Number(nowPlayingCooldownInput.value) || 15000),
+    artworkPreference: nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'],
+    autoCreateOverlays: nowPlayingAutoOverlaysInput.checked
+  };
+  const savedSettings = await window.visualSynth.saveNowPlayingSettings(draftSettings);
+  applyNowPlayingSettings(savedSettings);
+  nowPlayingTestStatus.textContent = `WNP defaults applied: ${savedSettings.metadataSourceUrl}`;
+});
+
+nowPlayingTestBridgeButton.addEventListener('click', async () => {
+  const metadataEnabled = nowPlayingMetadataEnabledInput.checked;
+  const metadataUrl = nowPlayingMetadataUrlInput.value.trim();
+  const metadataSecret = nowPlayingMetadataSecretInput.value.trim();
+
+  if (!metadataEnabled || !metadataUrl) {
+    nowPlayingTestStatus.textContent = 'Metadata bridge is not enabled or URL is empty.';
+    return;
+  }
+
+  nowPlayingTestStatus.textContent = 'Testing metadata bridge...';
+  const result = await window.visualSynth.fetchNowPlayingMetadata(
+    metadataUrl,
+    metadataSecret || undefined
+  );
+
+  if (!result.matched) {
+    nowPlayingTestStatus.textContent = result.error || 'Bridge reachable, but no current track was reported.';
+    return;
+  }
+
+  const label = [result.title, result.artist].filter(Boolean).join(' - ');
+  nowPlayingTestStatus.textContent = label || 'Metadata bridge returned a track.';
+  await consumeNowPlayingResult(result, 'Metadata bridge');
+});
+
+nowPlayingOpenBridgeDocsButton.addEventListener('click', () => {
+  window.open('https://whatsnowplaying.github.io/whats-now-playing/latest/', '_blank', 'noopener,noreferrer');
+});
+
+nowPlayingOpenBridgeDownloadButton.addEventListener('click', () => {
+  window.open('https://github.com/whatsnowplaying/whats-now-playing/releases', '_blank', 'noopener,noreferrer');
+});
+
+nowPlayingLaunchCompanionButton.addEventListener('click', async () => {
+  nowPlayingTestStatus.textContent = 'Installing / launching What\'s Now Playing...';
+  const result = await window.visualSynth.launchWhatsNowPlayingCompanion();
+  if (!result.error) {
+    applyWhatsNowPlayingDraftPreset();
+    const savedSettings = await window.visualSynth.saveNowPlayingSettings({
+      ...nowPlayingSettings,
+      enabled: true,
+      metadataSourceEnabled: true,
+      metadataSourceUrl: nowPlayingMetadataUrlInput.value.trim() || DEFAULT_NOW_PLAYING_SETTINGS.metadataSourceUrl,
+      metadataSourceSecret: nowPlayingMetadataSecretInput.value.trim(),
+      autoCreateOverlays: true
+    });
+    applyNowPlayingSettings(savedSettings);
+  }
+  nowPlayingTestStatus.textContent =
+    result.error ||
+    `${result.message || 'What\'s Now Playing launched.'} Bridge preset is enabled at ${nowPlayingMetadataUrlInput.value.trim() || DEFAULT_NOW_PLAYING_SETTINGS.metadataSourceUrl}.`;
+});
+
+nowPlayingOpenCompanionFolderButton.addEventListener('click', async () => {
+  const result = await window.visualSynth.openWhatsNowPlayingCompanionFolder();
+  nowPlayingTestStatus.textContent = result.error || (result.opened ? `Opened ${result.path}` : 'Failed to open companion folder.');
+});
+
 nowPlayingCancelButton.addEventListener('click', () => {
   closeNowPlayingModal();
 });
 
 nowPlayingSaveButton.addEventListener('click', async () => {
-  nowPlayingSettings.enabled = nowPlayingEnabledInput.checked;
-  nowPlayingSettings.provider = nowPlayingProviderSelect.value as NowPlayingSettings['provider'];
-  nowPlayingSettings.endpoint = nowPlayingEndpointInput.value.trim();
-  nowPlayingSettings.host = nowPlayingHostInput.value.trim();
-  nowPlayingSettings.apiKey = nowPlayingApiKeyInput.value.trim();
-  nowPlayingSettings.apiSecret = nowPlayingApiSecretInput.value.trim();
-  nowPlayingSettings.clipDurationMs = Math.max(4000, Number(nowPlayingClipDurationInput.value) || 12000);
-  nowPlayingSettings.cooldownMs = Math.max(5000, Number(nowPlayingCooldownInput.value) || 15000);
-  nowPlayingSettings.artworkPreference =
-    nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'];
-  nowPlayingSettings.autoCreateOverlays = nowPlayingAutoOverlaysInput.checked;
-
+  Object.assign(nowPlayingSettings, buildNowPlayingDraftSettings());
   const savedSettings = await window.visualSynth.saveNowPlayingSettings({ ...nowPlayingSettings });
   applyNowPlayingSettings(savedSettings);
   songChangeDetector.reset();
   closeNowPlayingModal();
   setStatus('Now Playing configuration saved.');
+});
+
+nowPlayingTestLiveButton.addEventListener('click', async () => {
+  const draftSettings = buildNowPlayingDraftSettings();
+  await testNowPlayingLiveInput(draftSettings);
+});
+
+nowPlayingTestButton.addEventListener('click', async () => {
+  const draftSettings = buildNowPlayingDraftSettings();
+
+  if (!isNowPlayingLookupConfigured(draftSettings)) {
+    nowPlayingTestStatus.textContent = 'Provider settings are incomplete.';
+    return;
+  }
+
+  nowPlayingTestStatus.textContent = 'Running lookup...';
+  const result = await window.visualSynth.testNowPlayingFile({
+    provider: draftSettings.provider,
+    endpoint: draftSettings.endpoint || undefined,
+    host: draftSettings.host || undefined,
+    apiKey: draftSettings.apiKey || undefined,
+    apiSecret: draftSettings.apiSecret || undefined,
+    market: draftSettings.market || undefined,
+    initialPath: 'C:\\Users\\TimShelton\\Dropbox\\Music'
+  });
+
+  if (result.canceled) {
+    nowPlayingTestStatus.textContent = 'Lookup test canceled.';
+    return;
+  }
+
+  if (!result.matched) {
+    nowPlayingTestStatus.textContent = result.error || 'No match found.';
+    return;
+  }
+
+  const label = [result.title, result.artist].filter(Boolean).join(' - ');
+  nowPlayingTestStatus.textContent = label || 'Lookup succeeded.';
+  await consumeNowPlayingResult(result, 'Now playing test');
 });
 
 nowPlayingModal.addEventListener('click', (event) => {
@@ -10440,7 +10794,24 @@ transportTap.addEventListener('click', () => {
     setStatus('Tap tempo is only available in Manual BPM mode.');
     return;
   }
-  setStatus('Tap tempo (placeholder).');
+  const now = performance.now();
+  tapTempoTimes = tapTempoTimes.filter((time) => now - time < 4000);
+  tapTempoTimes.push(now);
+  if (tapTempoTimes.length < 2) {
+    setStatus('Tap tempo started...');
+    return;
+  }
+
+  const intervals: number[] = [];
+  for (let i = 1; i < tapTempoTimes.length; i += 1) {
+    intervals.push(tapTempoTimes[i] - tapTempoTimes[i - 1]);
+  }
+  const averageInterval =
+    intervals.reduce((sum, interval) => sum + interval, 0) / Math.max(1, intervals.length);
+  const bpm = Math.min(240, Math.max(40, 60000 / averageInterval));
+  syncTempoInputs(Number(bpm.toFixed(1)));
+  updateBpmDisplay();
+  setStatus(`Tap tempo: ${bpm.toFixed(1)} BPM`);
 });
 
 webglCopyButton.addEventListener('click', async () => {
@@ -10708,7 +11079,7 @@ const updateMediaBursts = (time: number, dt: number) => {
 };
 
 const initTemplates = async () => {
-  // Check if the visualSynth API is available
+  if (!templateSelect) return;
   if (!window.visualSynth || !window.visualSynth.listTemplates) {
     console.log('Template API not available - skipping template initialization');
     return;
@@ -10716,7 +11087,6 @@ const initTemplates = async () => {
 
   const templates = await window.visualSynth.listTemplates();
   
-  // Sort templates alphabetically by name
   templates.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
   templateSelect.innerHTML = '';
@@ -12252,6 +12622,9 @@ const init = async () => {
   } catch {
     updateNowPlayingStatusText();
   }
+  window.setInterval(() => {
+    void pollNowPlayingMetadataSource();
+  }, 1000);
 
   updateLoadingProgress(5, 'Setting up interface...');
   initPads();
