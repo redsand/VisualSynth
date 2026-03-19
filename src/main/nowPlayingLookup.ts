@@ -34,6 +34,61 @@ const normalizeComparable = (value: string | undefined): string =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+const summarizeAudDError = (message: string | undefined): string => {
+  const normalized = (message ?? '').toLowerCase();
+  if (!normalized) {
+    return 'AudD did not return a match.';
+  }
+  if (normalized.includes('audio fingerprint')) {
+    return 'AudD could not fingerprint this clip. Try a cleaner 6-12 second section.';
+  }
+  if (normalized.includes('too large') || normalized.includes('large audio files')) {
+    return 'AudD rejected the clip size. Use a shorter clip.';
+  }
+  if (normalized.includes('api token') || normalized.includes('token')) {
+    return 'AudD authentication failed. Check the API token.';
+  }
+  if (normalized.includes('limit') || normalized.includes('quota')) {
+    return 'AudD rate limit reached.';
+  }
+  return 'AudD recognition failed.';
+};
+
+const summarizeCustomHttpError = (status: number): string => {
+  if (status === 400) return 'Custom endpoint rejected the request.';
+  if (status === 401 || status === 403) return 'Custom endpoint authorization failed.';
+  if (status === 404) return 'Custom endpoint not found.';
+  if (status === 413) return 'Custom endpoint rejected the clip size.';
+  if (status === 429) return 'Custom endpoint rate limit reached.';
+  if (status >= 500) return 'Custom endpoint is unavailable.';
+  return `Custom endpoint failed (${status}).`;
+};
+
+const summarizeAcrCloudError = (status: number | undefined, message: string | undefined): string => {
+  const normalized = (message ?? '').toLowerCase();
+  if (status === 3003 || normalized.includes('no result')) {
+    return 'ACRCloud found no match.';
+  }
+  if (status === 1001 || normalized.includes('access key')) {
+    return 'ACRCloud authentication failed.';
+  }
+  if (status === 3015 || normalized.includes('limit')) {
+    return 'ACRCloud rate limit reached.';
+  }
+  if (normalized.includes('fingerprint')) {
+    return 'ACRCloud could not fingerprint this clip.';
+  }
+  return 'ACRCloud recognition failed.';
+};
+
+const summarizeMetadataBridgeError = (status: number): string => {
+  if (status === 401 || status === 403) return 'Metadata bridge authorization failed.';
+  if (status === 404) return 'Metadata bridge endpoint not found.';
+  if (status === 429) return 'Metadata bridge rate limit reached.';
+  if (status >= 500) return 'Metadata bridge is unavailable.';
+  return `Metadata bridge failed (${status}).`;
+};
+
 const scoreCandidate = (
   candidate: { title?: string; artist?: string; album?: string },
   request: NowPlayingArtworkLookupRequest
@@ -224,7 +279,10 @@ const postCustomLookup = async (
   });
 
   if (!response.ok) {
-    return { matched: false, error: `Lookup failed with HTTP ${response.status}` };
+    return {
+      matched: false,
+      error: summarizeCustomHttpError(response.status)
+    };
   }
 
   const payload = (await response.json()) as NowPlayingRecognitionResponse;
@@ -260,7 +318,17 @@ const postAudDLookup = async (
   });
 
   if (!response.ok) {
-    return { matched: false, error: `AudD failed with HTTP ${response.status}` };
+    return {
+      matched: false,
+      error:
+        response.status === 401 || response.status === 403
+          ? 'AudD authentication failed. Check the API token.'
+          : response.status === 429
+            ? 'AudD rate limit reached.'
+            : response.status >= 500
+              ? 'AudD is unavailable.'
+              : `AudD request failed (${response.status}).`
+    };
   }
 
   const payload = await response.json() as {
@@ -279,7 +347,8 @@ const postAudDLookup = async (
   if (payload.status !== 'success' || !payload.result) {
     return {
       matched: false,
-      error: payload.error?.error_message || 'AudD did not return a match.'
+      error: summarizeAudDError(payload.error?.error_message),
+      raw: payload
     };
   }
 
@@ -349,7 +418,17 @@ const postAcrCloudLookup = async (
   });
 
   if (!response.ok) {
-    return { matched: false, error: `ACRCloud failed with HTTP ${response.status}` };
+    return {
+      matched: false,
+      error:
+        response.status === 401 || response.status === 403
+          ? 'ACRCloud authentication failed.'
+          : response.status === 429
+            ? 'ACRCloud rate limit reached.'
+            : response.status >= 500
+              ? 'ACRCloud is unavailable.'
+              : `ACRCloud request failed (${response.status}).`
+    };
   }
 
   const payload = await response.json() as {
@@ -371,7 +450,8 @@ const postAcrCloudLookup = async (
   if (!top) {
     return {
       matched: false,
-      error: payload.status?.msg || 'ACRCloud did not return a match.'
+      error: summarizeAcrCloudError(payload.status?.code, payload.status?.msg),
+      raw: payload
     };
   }
 
@@ -396,8 +476,7 @@ const postShazamLookup = async (
   if (!request.endpoint?.trim()) {
     return {
       matched: false,
-      error:
-        'Shazam support in Electron requires a proxy endpoint. Apple ShazamKit does not expose a direct Node/Electron HTTP API.'
+      error: 'Shazam proxy is not configured.'
     };
   }
   return postCustomLookup(request, fetchImpl);
@@ -420,7 +499,7 @@ export const fetchNowPlayingMetadataBridge = async (
     });
 
     if (!response.ok) {
-      return { matched: false, error: `Metadata bridge failed with HTTP ${response.status}` };
+      return { matched: false, error: summarizeMetadataBridgeError(response.status) };
     }
 
     const payload = await response.json() as Record<string, unknown>;
@@ -455,7 +534,7 @@ export const fetchNowPlayingMetadataBridge = async (
   } catch (error) {
     return {
       matched: false,
-      error: (error as Error).message
+      error: 'Metadata bridge is unavailable.'
     };
   }
 };

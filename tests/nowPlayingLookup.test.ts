@@ -37,6 +37,28 @@ describe('identifyNowPlaying', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it('returns a targeted message for HTTP 413 custom responses', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 413
+    });
+
+    const result = await identifyNowPlaying(
+      {
+        provider: 'custom',
+        endpoint: 'https://example.com/hook',
+        audioBase64: 'abc',
+        mimeType: 'audio/webm',
+        durationMs: 12000,
+        detectedAt: 123
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.matched).toBe(false);
+    expect(result.error).toBe('Custom endpoint rejected the clip size.');
+  });
+
   it('builds an AudD multipart request', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
@@ -72,6 +94,34 @@ describe('identifyNowPlaying', () => {
     expect(fetchImpl.mock.calls[0][0]).toBe('https://api.audd.io/');
   });
 
+  it('shortens verbose AudD fingerprint errors', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'error',
+        error: {
+          error_message:
+            "Recognition failed: there's been a problem with creating an audio fingerprint. Keep in mind that you should send only audio files."
+        }
+      })
+    });
+
+    const result = await identifyNowPlaying(
+      {
+        provider: 'audd',
+        apiKey: 'audd-token',
+        audioBase64: 'YWJj',
+        mimeType: 'audio/webm',
+        durationMs: 12000,
+        detectedAt: 123
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.matched).toBe(false);
+    expect(result.error).toBe('AudD could not fingerprint this clip. Try a cleaner 6-12 second section.');
+  });
+
   it('requires a proxy endpoint for shazam mode', async () => {
     const result = await identifyNowPlaying({
       provider: 'shazam',
@@ -82,7 +132,7 @@ describe('identifyNowPlaying', () => {
     });
 
     expect(result.matched).toBe(false);
-    expect(result.error).toContain('proxy endpoint');
+    expect(result.error).toBe('Shazam proxy is not configured.');
   });
 
   it('normalizes an ACRCloud match', async () => {
@@ -127,6 +177,33 @@ describe('identifyNowPlaying', () => {
     expect(result.title).toBe('One More Time');
     expect(result.provider).toBe('ACRCloud');
   });
+
+  it('shortens ACRCloud no-match responses', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: { code: 3003, msg: 'No result' },
+        metadata: {}
+      })
+    });
+
+    const result = await identifyNowPlaying(
+      {
+        provider: 'acrcloud',
+        host: 'identify-eu-west-1.acrcloud.com',
+        apiKey: 'access-key',
+        apiSecret: 'access-secret',
+        audioBase64: 'YWJj',
+        mimeType: 'audio/webm',
+        durationMs: 12000,
+        detectedAt: 123
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.matched).toBe(false);
+    expect(result.error).toBe('ACRCloud found no match.');
+  });
 });
 
 describe('cacheRemoteArtwork', () => {
@@ -168,6 +245,22 @@ describe('fetchNowPlayingMetadataBridge', () => {
     expect(result.matched).toBe(true);
     expect(result.artist).toBe('Daft Punk');
     expect(result.artworkUrl).toBe('http://127.0.0.1:8899/artwork/homework.jpg');
+  });
+
+  it('shortens metadata bridge HTTP errors', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404
+    });
+
+    const result = await fetchNowPlayingMetadataBridge(
+      'http://127.0.0.1:8899/v1/last',
+      '',
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.matched).toBe(false);
+    expect(result.error).toBe('Metadata bridge endpoint not found.');
   });
 });
 

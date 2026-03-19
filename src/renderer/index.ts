@@ -396,6 +396,7 @@ const updateMidiLearnToggle = () => {
   midiLearnToggleButton.classList.toggle('active', midiLearnEnabled);
 };
 const bpmRangeSelect = document.getElementById('bpm-range') as HTMLSelectElement;
+const bpmCustomRangeRow = document.getElementById('bpm-custom-range-row') as HTMLDivElement;
 const bpmMinInput = document.getElementById('bpm-min') as HTMLInputElement;
 const bpmMaxInput = document.getElementById('bpm-max') as HTMLInputElement;
 const bpmInterfaceSelect = document.getElementById('bpm-interface') as HTMLSelectElement;
@@ -6014,6 +6015,10 @@ const updateQuantizeHud = (message: string | null) => {
 };
 
 const updateBpmRangeUI = () => {
+  const isCustomRange = bpmRangeSelect.value === 'custom';
+  bpmCustomRangeRow.classList.toggle('hidden', !isCustomRange);
+  bpmMinInput.disabled = !isCustomRange;
+  bpmMaxInput.disabled = !isCustomRange;
   const range = clampBpmRange({
     min: Number(bpmMinInput.value) || bpmRange.min,
     max: Number(bpmMaxInput.value) || bpmRange.max
@@ -10070,16 +10075,12 @@ bpmSourceSelect.addEventListener('change', () => {
 
 bpmRangeSelect.addEventListener('change', () => {
   if (bpmRangeSelect.value === 'custom') {
-    bpmMinInput.disabled = false;
-    bpmMaxInput.disabled = false;
     updateBpmRangeUI();
     return;
   }
   const [min, max] = bpmRangeSelect.value.split('-').map((value) => Number(value));
   bpmMinInput.value = String(min);
   bpmMaxInput.value = String(max);
-  bpmMinInput.disabled = true;
-  bpmMaxInput.disabled = true;
   updateBpmRangeUI();
 });
 
@@ -10459,25 +10460,10 @@ nowPlayingMetadataEnabledInput.addEventListener('change', () => {
 
 nowPlayingApplyCompanionPresetButton.addEventListener('click', async () => {
   applyWhatsNowPlayingDraftPreset();
-  const draftSettings: NowPlayingSettings = {
-    ...nowPlayingSettings,
-    enabled: nowPlayingEnabledInput.checked,
-    metadataSourceEnabled: nowPlayingMetadataEnabledInput.checked,
-    metadataSourceUrl: nowPlayingMetadataUrlInput.value.trim(),
-    metadataSourceSecret: nowPlayingMetadataSecretInput.value.trim(),
-    provider: nowPlayingProviderSelect.value as NowPlayingSettings['provider'],
-    endpoint: nowPlayingEndpointInput.value.trim(),
-    host: nowPlayingHostInput.value.trim(),
-    apiKey: nowPlayingApiKeyInput.value.trim(),
-    apiSecret: nowPlayingApiSecretInput.value.trim(),
-    clipDurationMs: Math.max(4000, Number(nowPlayingClipDurationInput.value) || 12000),
-    cooldownMs: Math.max(5000, Number(nowPlayingCooldownInput.value) || 15000),
-    artworkPreference: nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'],
-    autoCreateOverlays: nowPlayingAutoOverlaysInput.checked
-  };
+  const draftSettings = buildNowPlayingDraftSettings();
   const savedSettings = await window.visualSynth.saveNowPlayingSettings(draftSettings);
   applyNowPlayingSettings(savedSettings);
-  nowPlayingTestStatus.textContent = `WNP defaults applied: ${savedSettings.metadataSourceUrl}`;
+  nowPlayingTestStatus.textContent = `WNP defaults applied: ${savedSettings.metadataSourceUrl} | fallback provider: ${savedSettings.provider}`;
 });
 
 nowPlayingTestBridgeButton.addEventListener('click', async () => {
@@ -10519,19 +10505,12 @@ nowPlayingLaunchCompanionButton.addEventListener('click', async () => {
   const result = await window.visualSynth.launchWhatsNowPlayingCompanion();
   if (!result.error) {
     applyWhatsNowPlayingDraftPreset();
-    const savedSettings = await window.visualSynth.saveNowPlayingSettings({
-      ...nowPlayingSettings,
-      enabled: true,
-      metadataSourceEnabled: true,
-      metadataSourceUrl: nowPlayingMetadataUrlInput.value.trim() || DEFAULT_NOW_PLAYING_SETTINGS.metadataSourceUrl,
-      metadataSourceSecret: nowPlayingMetadataSecretInput.value.trim(),
-      autoCreateOverlays: true
-    });
+    const savedSettings = await window.visualSynth.saveNowPlayingSettings(buildNowPlayingDraftSettings());
     applyNowPlayingSettings(savedSettings);
   }
   nowPlayingTestStatus.textContent =
     result.error ||
-    `${result.message || 'What\'s Now Playing launched.'} Bridge preset is enabled at ${nowPlayingMetadataUrlInput.value.trim() || DEFAULT_NOW_PLAYING_SETTINGS.metadataSourceUrl}.`;
+    `${result.message || 'What\'s Now Playing launched.'} Bridge preset is enabled at ${nowPlayingMetadataUrlInput.value.trim() || DEFAULT_NOW_PLAYING_SETTINGS.metadataSourceUrl} with ${nowPlayingProviderSelect.value} as the fallback provider.`;
 });
 
 nowPlayingOpenCompanionFolderButton.addEventListener('click', async () => {
@@ -10565,7 +10544,7 @@ nowPlayingTestButton.addEventListener('click', async () => {
     return;
   }
 
-  nowPlayingTestStatus.textContent = 'Running lookup...';
+  nowPlayingTestStatus.textContent = `Running file lookup with ${draftSettings.provider}...`;
   const result = await window.visualSynth.testNowPlayingFile({
     provider: draftSettings.provider,
     endpoint: draftSettings.endpoint || undefined,
