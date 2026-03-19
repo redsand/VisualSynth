@@ -125,17 +125,6 @@ const UNIFORM_MAPPINGS: Record<string, string> = {
   'treb_att': 'audioHighSmooth',
   'vol': 'uRms',
 
-  // Screen dimensions
-  'aspectx': 'uAspectX',
-  'aspecty': 'uAspectY',
-  'aspect': 'uAspect',
-
-  // Render state
-  'rad': 'vRadius',
-  'ang': 'vAngle',
-  'uv': 'vUv',
-  'uv_orig': 'vUvOriginal',
-
   // Resolution
   'texsize': 'uTexSize',
   'u_texsize': 'uTexSize'
@@ -217,8 +206,28 @@ function processShaderBody(code: string): string {
     result = result.replace(uniformRegex, synth);
   }
 
+  // Keep common MilkDrop render aliases as local variables in the generated main()
+  // instead of rewriting them to read-only varyings.
+  result = result.replace(/\baspectx\b/g, 'uAspectX');
+  result = result.replace(/\baspecty\b/g, 'uAspectY');
+  result = result.replace(/\baspect\b/g, 'uAspect');
+
+  // Common macro aliases seen in imported shaders.
+  result = result.replace(/#define\s+sat\s+saturate\b/g, '#define sat clamp01');
+
   // Handle static const (HLSL) -> const (GLSL)
   result = result.replace(/\bstatic\s+const\b/g, 'const');
+
+  // Texture-heavy helper functions often rely on vector swizzles from texture() results.
+  // Preserve the declared return width when the transpiler leaves a raw texture expression.
+  result = result.replace(
+    /\bvec2\s+(\w+)\s*\(([^)]*)\)\s*\{\s*return\s*\(([\s\S]*?)\);\s*\}/g,
+    (_match, name, args, expr) => `vec2 ${name}(${args}) { return (${expr}).xy; }`
+  );
+  result = result.replace(
+    /\bvec3\s+(\w+)\s*\(([^)]*)\)\s*\{\s*return\s*\(([\s\S]*?)\);\s*\}/g,
+    (_match, name, args, expr) => `vec3 ${name}(${args}) { return (${expr}).xyz; }`
+  );
 
   // Handle discard in HLSL way
   result = result.replace(/\bclip\s*\(([^)]+)\)/g, 'if ($1 < 0.0) discard');
@@ -259,6 +268,7 @@ uniform vec2 uRandomFrame;
 
 // Input from vertex shader
 in vec2 vUv;
+in vec2 vUvOriginal;
 in float vRadius;
 in float vAngle;
 
@@ -281,10 +291,10 @@ vec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }
 vec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }
 
 // Texture helper functions
-vec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }
-vec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }
-vec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }
-vec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }
+vec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }
+vec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }
+vec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }
+vec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }
 
 `;
   return header;
@@ -296,6 +306,71 @@ vec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }
 function wrapShaderBody(code: string, shaderType: 'warp' | 'comp' | 'custom'): string {
   const processedCode = processShaderBody(code);
 
+  const classifyShaderPrelude = (prelude: string) => {
+    const helperLines: string[] = [];
+    const setupLines: string[] = [];
+    const lines = prelude.split('\n');
+    let functionDepth = 0;
+
+    const looksLikeFunctionSignature = (line: string) =>
+      /^(?:const\s+)?(?:float|vec[234]|mat[234]|int|bool|void)\s+\w+\s*\([^;]*\)\s*\{?\s*$/.test(line.trim());
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+      if (!line.trim()) continue;
+
+      if (functionDepth > 0 || looksLikeFunctionSignature(line)) {
+        helperLines.push(line);
+        const opens = (line.match(/\{/g) || []).length;
+        const closes = (line.match(/\}/g) || []).length;
+        functionDepth += opens - closes;
+        continue;
+      }
+
+      setupLines.push(line);
+    }
+
+    return {
+      helperPrelude: helperLines.join('\n'),
+      setupPrelude: setupLines.join('\n')
+    };
+  };
+
+  const extractNestedFunctions = (body: string) => {
+    const helperLines: string[] = [];
+    const setupLines: string[] = [];
+    const lines = body.split('\n');
+    let functionDepth = 0;
+
+    const looksLikeFunctionSignature = (line: string) =>
+      /^(?:const\s+)?(?:float|vec[234]|mat[234]|int|bool|void)\s+\w+\s*\([^;]*\)\s*\{?\s*$/.test(line.trim()) ||
+      /^(?:const\s+)?(?:float|vec[234]|mat[234]|int|bool|void)\s+\w+\s*\([^;]*\)\s*\{.*\}\s*$/.test(line.trim());
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+      if (!line.trim()) {
+        if (functionDepth > 0) helperLines.push(line);
+        else setupLines.push(line);
+        continue;
+      }
+
+      if (functionDepth > 0 || looksLikeFunctionSignature(line)) {
+        helperLines.push(line);
+        const opens = (line.match(/\{/g) || []).length;
+        const closes = (line.match(/\}/g) || []).length;
+        functionDepth += opens - closes;
+        continue;
+      }
+
+      setupLines.push(line);
+    }
+
+    return {
+      helperBody: helperLines.join('\n').trim(),
+      setupBody: setupLines.join('\n').trim()
+    };
+  };
+
   // Check if the code already has a main function
   if (processedCode.includes('void main(')) {
     return processedCode;
@@ -303,16 +378,32 @@ function wrapShaderBody(code: string, shaderType: 'warp' | 'comp' | 'custom'): s
 
   // Check if the code has shader_body
   if (processedCode.includes('shader_body')) {
-    // Extract shader_body contents
-    const bodyMatch = processedCode.match(/shader_body\s*\{([\s\S]*)\}/);
-    if (bodyMatch) {
-      const bodyCode = bodyMatch[1];
-      return `
-void main() {
+    const shaderBodyIdx = processedCode.indexOf('shader_body');
+    const blockStart = processedCode.indexOf('{', shaderBodyIdx);
+    if (shaderBodyIdx >= 0 && blockStart >= 0) {
+      let depth = 1;
+      let cursor = blockStart + 1;
+      while (cursor < processedCode.length && depth > 0) {
+        const ch = processedCode[cursor];
+        if (ch === '{') depth += 1;
+        if (ch === '}') depth -= 1;
+        cursor += 1;
+      }
+      const prelude = processedCode.slice(0, shaderBodyIdx).trim();
+      const bodyCode = processedCode.slice(blockStart + 1, Math.max(blockStart + 1, cursor - 1)).trim();
+      const suffix = processedCode.slice(cursor).trim();
+      const { helperPrelude, setupPrelude } = classifyShaderPrelude(prelude);
+      const { helperBody, setupBody } = extractNestedFunctions(bodyCode);
+      const mainSetup = [setupPrelude, setupBody].filter(Boolean).join('\n');
+      const outerPrelude = [helperPrelude, helperBody, suffix].filter(Boolean).join('\n\n');
+
+      return `${outerPrelude ? `${outerPrelude}\n\n` : ''}void main() {
   vec4 ret = vec4(0.0);
   vec2 uv = vUv;
+  vec2 uv_orig = vUvOriginal;
   float rad = vRadius;
-  ${bodyCode}
+  float ang = vAngle;
+  ${mainSetup}
   fragColor = ret;
 }`;
     }
@@ -323,7 +414,9 @@ void main() {
 void main() {
   vec4 ret = vec4(0.0);
   vec2 uv = vUv;
+  vec2 uv_orig = vUvOriginal;
   float rad = vRadius;
+  float ang = vAngle;
   ${processedCode}
   fragColor = ret;
 }`;

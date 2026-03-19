@@ -36,6 +36,26 @@ describe('buildCaptureDiagnostics', () => {
       ],
       ['uFeedbackMix'],
       {
+        warp: { requested: true, compiled: false, fallbackUsed: true },
+        comp: { requested: true, compiled: true, fallbackUsed: false }
+      },
+      {
+        shapes: {
+          requested: 2,
+          rendered: 1,
+          borders: 1,
+          texturedFallbacks: 1,
+          evaluatedShapes: 1,
+          evaluatedPoints: 4
+        },
+        waves: {
+          requested: 1,
+          rendered: 1,
+          renderedPoints: 32,
+          evaluatedPoints: 32
+        }
+      },
+      {
         timeMs: 1000,
         rms: 0.25,
         peak: 0.5,
@@ -94,6 +114,9 @@ describe('buildCaptureDiagnostics', () => {
     expect(diagnostics.lastShaderError).toBe('[fragment] compile failed');
     expect(diagnostics.generatorDiagnostics.map((entry) => entry.name)).toEqual(['gen-bars', 'gen-spectrum']);
     expect(diagnostics.missingUniforms).toEqual(['uFeedbackMix']);
+    expect(diagnostics.milkdropCompileReport?.warp.fallbackUsed).toBe(true);
+    expect(diagnostics.milkdropNativeRuntimeReport?.shapes.texturedFallbacks).toBe(1);
+    expect(diagnostics.milkdropNativeRuntimeReport?.waves.renderedPoints).toBe(32);
     expect(diagnostics.renderSnapshot?.plasmaOpacity).toBe(0.9);
     expect(diagnostics.renderSnapshot?.activePalettePreview.length).toBeGreaterThan(0);
   });
@@ -113,6 +136,8 @@ describe('buildCaptureDiagnostics', () => {
     expect(diagnostics.activeGeneratorIds).toEqual([]);
     expect(diagnostics.safeModeReasons).toEqual([]);
     expect(diagnostics.lastShaderError).toBeNull();
+    expect(diagnostics.milkdropCompileReport).toBeNull();
+    expect(diagnostics.milkdropNativeRuntimeReport).toBeNull();
     expect(diagnostics.renderSnapshot).toBeNull();
   });
 });

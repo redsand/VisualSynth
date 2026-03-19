@@ -15,6 +15,8 @@ const createMockWebGl = () => {
     SRC_ALPHA: 0x0302,
     ONE: 1,
     ONE_MINUS_SRC_ALPHA: 0x0303,
+    TEXTURE0: 0x84c0,
+    TEXTURE_2D: 0x0de1,
     TRIANGLE_FAN: 0x0006,
     LINE_STRIP: 0x0003,
     createShader: () => ({}),
@@ -31,12 +33,16 @@ const createMockWebGl = () => {
     deleteProgram: () => {},
     createBuffer: () => ({}),
     deleteBuffer: () => {},
-    getAttribLocation: (_program: unknown, name: string) => (name === 'aPosition' ? 0 : 1),
+    getAttribLocation: (_program: unknown, name: string) => (name === 'aPosition' ? 0 : name === 'aUv' ? 1 : 2),
+    getUniformLocation: () => ({}),
     useProgram: () => {},
     bindBuffer: () => {},
     enableVertexAttribArray: () => {},
     vertexAttribPointer: () => {},
     enable: () => {},
+    activeTexture: () => {},
+    bindTexture: () => {},
+    uniform1i: () => {},
     blendFunc: () => {},
     bufferData: () => {},
     lineWidth: () => {},
@@ -94,12 +100,13 @@ describe('Milkwave shape renderer', () => {
         midAtt: 0.35,
         trebAtt: 0.45,
         qVars: new Array(32).fill(0)
-      }
+      },
+      mainTexture: {} as WebGLTexture
     });
 
     expect(stats.renderedShapes).toBe(1);
     expect(stats.renderedBorders).toBe(1);
-    expect(stats.ignoredTexturedShapes).toBe(1);
+    expect(stats.ignoredTexturedShapes).toBe(0);
     expect(stats.evaluatedShapes).toBe(1);
     expect(stats.evaluatedPoints).toBe(0);
     expect(drawCalls.some((call) => call.mode === gl.TRIANGLE_FAN)).toBe(true);

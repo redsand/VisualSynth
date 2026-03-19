@@ -157,6 +157,22 @@ describe('HLSL to GLSL Transpiler', () => {
       // saturate is converted to clamp01 (helper function defined in header)
       expect(glsl).toContain('clamp01(x)');
     });
+
+    it('keeps mutable uv aliases local instead of rewriting them to read-only varyings', () => {
+      const hlsl = `uv += float2(0.1, 0.0); rad = rad * 0.9;`;
+      const glsl = hlslToGlsl(hlsl, { wrapInShader: false });
+      expect(glsl).toContain('uv += vec2(0.1, 0.0);');
+      expect(glsl).toContain('rad = rad * 0.9;');
+      expect(glsl).not.toContain('vUv +=');
+      expect(glsl).not.toContain('vRadius =');
+    });
+
+    it('normalizes sat macros that still alias saturate', () => {
+      const hlsl = `#define sat saturate\nfloat v = sat(x);`;
+      const glsl = hlslToGlsl(hlsl, { wrapInShader: false });
+      expect(glsl).toContain('#define sat clamp01');
+      expect(glsl).not.toContain('#define sat saturate');
+    });
   });
 
   describe('transpileMilkDropShader', () => {
@@ -192,6 +208,21 @@ shader_body {
       expect(result.glsl).toContain('clamp01');
       expect(result.glsl).toContain('GetPixel');
       expect(result.glsl).toContain('GetBlur1');
+    });
+
+    it('hoists helper functions out of shader_body main blocks', () => {
+      const hlsl = `
+shader_body {
+  vec3 helper(float t) { return float3(t, t, t); }
+  ret = helper(rad);
+}`;
+      const result = transpileMilkDropShader(hlsl, 'comp');
+      const helperIdx = result.glsl.indexOf('vec3 helper');
+      const mainIdx = result.glsl.indexOf('void main()');
+      expect(helperIdx).toBeGreaterThan(-1);
+      expect(helperIdx).toBeLessThan(mainIdx);
+      expect(result.glsl).toContain('vec2 uv_orig = vUvOriginal;');
+      expect(result.glsl).toContain('float ang = vAngle;');
     });
   });
 

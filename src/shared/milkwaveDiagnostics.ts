@@ -163,6 +163,37 @@ export const analyzeMilkwaveShaderSource = ({
     );
   }
 
+  if (stage === 'glsl' && /void\s+main\s*\([\s\S]*?\{[\s\S]*?\b(?:float|vec[234]|mat[234]|int|bool|void)\s+\w+\s*\([^;]*\)\s*\{/m.test(normalized)) {
+    pushIssue(
+      issues,
+      'error',
+      'nested-function-in-main',
+      'Generated GLSL still contains helper function declarations inside main(), which GLSL ES does not allow.'
+    );
+  }
+
+  const varyingWrite = firstMatch(normalized, /\bv(?:Uv|UvOriginal|Radius|Angle)\s*(?:[+\-*/]?=|\+\+|--)/);
+  if (varyingWrite) {
+    pushIssue(
+      issues,
+      'error',
+      'varying-write',
+      'Generated GLSL writes to a vertex input/varying instead of using a mutable local alias.',
+      varyingWrite
+    );
+  }
+
+  const saturateAlias = firstMatch(normalized, /#define\s+sat\s+saturate\b/);
+  if (saturateAlias) {
+    pushIssue(
+      issues,
+      'error',
+      'saturate-macro-alias',
+      'Generated GLSL still aliases sat to saturate, which is not a GLSL ES builtin.',
+      saturateAlias
+    );
+  }
+
   return {
     stage,
     pass,

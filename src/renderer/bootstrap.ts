@@ -365,7 +365,9 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
         state.safeMode.reasons,
         renderer.getLastShaderError(),
         renderer.getGeneratorDiagnostics(),
-        renderer.getMissingUniforms()
+        renderer.getMissingUniforms(),
+        renderer.getMilkDropCompileReport(),
+        renderer.getMilkDropNativeRuntimeReport()
       );
     },
     applyScene: (sceneId: string) => {

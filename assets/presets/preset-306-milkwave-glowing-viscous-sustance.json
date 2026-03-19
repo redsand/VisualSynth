@@ -6,11 +6,32 @@
     "author": "Cynos",
     "source": "Cynos - Glowing Viscous Sustance.milk",
     "importedFrom": "Milkwave",
-    "createdAt": "2026-03-04T16:52:48.218Z",
-    "updatedAt": "2026-03-04T16:52:48.218Z",
+    "createdAt": "2026-03-19T20:29:24.276Z",
+    "updatedAt": "2026-03-19T20:29:24.276Z",
     "category": "Audio Reactive",
     "compatibility": {
       "minVersion": "1.4.0"
+    },
+    "milkwave": {
+      "format": "milkwave-ir",
+      "version": 1,
+      "supportTier": "supported-with-degradation",
+      "featureSummary": [
+        "custom-warp",
+        "custom-comp",
+        "preset-frame",
+        "preset-pixel",
+        "custom-waves",
+        "wave-point",
+        "blur-samplers"
+      ],
+      "reasons": [
+        {
+          "key": "preset_pixel",
+          "message": "Uses preset per-pixel expression code, which is not yet mapped into native execution.",
+          "severity": "degrade"
+        }
+      ]
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -103,8 +124,8 @@
   "modulations": [],
   "macros": [],
   "_shaderData": {
-    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \n    vec3 bret;\n    vec3 noise = length(texture(sampler_noise_lq,vUv));\n\n    float d = uTexSize.zw*12;\n    vec2 cx = vec2(1,0)*d;\n    vec2 cy = vec2(0,1)*d;\n    float dx = lum(GetBlur1(vUv+cx)-GetBlur1(vUv-cx));\n    float dy = lum(GetBlur1(vUv+cy)-GetBlur1(vUv-cy));\n    vec2 dz = vec2(dx,dy);\n\n    ret = texture(sampler_main,vUv+dz*d).xyz;\n    bret = GetBlur1(vUv+dz*d);\n    ret = ret*0.95+bret*0.05;\n\n    // darken (decay) over uTime\n    //ret = (ret-0.0125)*0.995;\n    ret = (ret-noise*0.015)*0.9975;\n\n  fragColor = ret;\n}",
-    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec4 GetPixel(vec2 uv) { return texture(sampler_main, uv); }\nvec4 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv); }\nvec4 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv); }\nvec4 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv); }\n\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  float rad = vRadius;\n  \n    vec3 bret;\n\n    ret = texture(sampler_main,vUv).xyz;\n    bret = GetBlur2(vUv);\n\n    float cccc = 0.225;\n    ret = abs((ret*cccc-bret*(1-cccc))*2);\n\n    ret *= 2+uRms*0.75; //gamma\n\n  fragColor = ret;\n}",
+    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  sampler noise_lq;\nvec3 bret;\n    vec3 noise = length(texture(sampler_noise_lq,uv));\n\n    float d = uTexSize.zw*12;\n    vec2 cx = vec2(1,0)*d;\n    vec2 cy = vec2(0,1)*d;\n    float dx = lum(GetBlur1(uv+cx)-GetBlur1(uv-cx));\n    float dy = lum(GetBlur1(uv+cy)-GetBlur1(uv-cy));\n    vec2 dz = vec2(dx,dy);\n\n    ret = texture(sampler_main,uv+dz*d).xyz;\n    bret = GetBlur1(uv+dz*d);\n    ret = ret*0.95+bret*0.05;\n\n    // darken (decay) over uTime\n    //ret = (ret-0.0125)*0.995;\n    ret = (ret-noise*0.015)*0.9975;\n  fragColor = ret;\n}",
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;      // bass\nuniform float audioLowSmooth; // bass_att\nuniform float audioMid;      // mid\nuniform float audioMidSmooth; // mid_att\nuniform float audioHigh;     // treb\nuniform float audioHighSmooth; // treb_att\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n\n// Helper functions\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\n// Texture helper functions\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\n\nvoid main() {\n  vec4 ret = vec4(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  vec3 bret;\n\n    ret = texture(sampler_main,uv).xyz;\n    bret = GetBlur2(uv);\n\n    float cccc = 0.225;\n    ret = abs((ret*cccc-bret*(1-cccc))*2);\n\n    ret *= 2+uRms*0.75; //gamma\n  fragColor = ret;\n}",
     "perFrameCode": [
       "warp=0;",
       "spd=0.9; sm=0.5;",
@@ -163,6 +184,59 @@
       "zoom=zoom+cos((ang+cf/3)*3*q8)*0.025+q10*0.075;",
       "rot=rot+cos(rad*3*q9)*0.025;"
     ],
+    "waves": [
+      {
+        "enabled": true,
+        "samples": 128,
+        "sep": 0,
+        "bSpectrum": false,
+        "bUseDots": false,
+        "bDrawThick": false,
+        "bAdditive": false,
+        "scaling": 1,
+        "smoothing": 0.5,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1,
+        "initCode": [],
+        "perFrameCode": [
+          null,
+          "pi=acos(-1);",
+          "",
+          "ht=q6;",
+          "",
+          "t1=cos(ht+(2*pi)/3*0)/2+0.5;",
+          "t2=cos(ht+(2*pi)/3*1)/2+0.5;",
+          "t3=cos(ht+(2*pi)/3*2)/2+0.5;"
+        ],
+        "perPointCode": [
+          null,
+          "pi=acos(-1);",
+          "",
+          "i=sample;",
+          "x=(sin(i*pi*2+q1)+cos(i*pi*4+q2)+sin(i*pi*8+q3)+cos(i*pi*16+q4)+sin(i*pi*32+q5))/6;",
+          "y=(cos(i*pi*2+q1)+sin(i*pi*4+q2)+cos(i*pi*8+q3)+sin(i*pi*16+q4)+cos(i*pi*32+q5))/6;",
+          "",
+          "ox=x; oy=y;",
+          "",
+          "x=x*0.5+0.5;",
+          "y=y*0.5+0.5;",
+          "",
+          "r=abs(sqrt(ox*ox+oy*oy+ox*oy));",
+          "g=abs(sqrt(ox*ox-oy*oy+ox/3));",
+          "b=abs(sqrt(oy*oy-ox*ox+oy/3));",
+          "",
+          "// YUV-based gray scale",
+          "bw=r*0.299+g*0.587+b*0.114;",
+          "",
+          "//r=r*t1+bw*(1-t1);",
+          "//g=g*t2+bw*(1-t2);",
+          "//b=b*t3+bw*(1-t3);"
+        ]
+      }
+    ],
+    "shapes": [],
     "originalParameters": {
       "fRating": 3,
       "fGammaAdj": 2,

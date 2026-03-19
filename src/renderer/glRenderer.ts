@@ -9,7 +9,12 @@ import SHADER_PREAMBLE from './shaders/preamble.glsl';
 import SHADER_MAIN_TEMPLATE from './shaders/mainTemplate.glsl';
 import type { RenderState } from './renderState';
 import { collectActiveUniformLookup, hasUniform } from './uniformIntrospection';
-import { createMilkDropRenderer, type MilkDropRenderer } from './milkdropRenderer';
+import {
+  createMilkDropRenderer,
+  type MilkDropRenderer,
+  type MilkDropCompileReport,
+  type MilkDropNativeRuntimeReport
+} from './milkdropRenderer';
 export type {
   RenderTelemetryState,
   RenderLayerEnabledState,
@@ -1045,6 +1050,12 @@ void main() {
 
   const getMissingUniforms = () => Array.from(missingUniforms);
 
+  const getMilkDropCompileReport = (): MilkDropCompileReport | null =>
+    milkDropRenderer?.getLastCompileReport() ?? null;
+
+  const getMilkDropNativeRuntimeReport = (): MilkDropNativeRuntimeReport | null =>
+    milkDropRenderer?.getLastNativeRuntimeReport() ?? null;
+
   const finalizeProgramSwap = (pending: NonNullable<typeof pendingProgram>) => {
     const t0 = performance.now();
     if (!gl.getProgramParameter(pending.program, gl.LINK_STATUS)) {
@@ -1176,6 +1187,8 @@ void main() {
     getLastShaderError,
     getGeneratorDiagnostics,
     getMissingUniforms,
+    getMilkDropCompileReport,
+    getMilkDropNativeRuntimeReport,
     recompileForGenerators,
     precompileVariant,
     setCustomShaderBlocks,

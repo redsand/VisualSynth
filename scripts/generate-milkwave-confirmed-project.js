@@ -12,6 +12,7 @@ const {
 const { projectSchema } = require('../dist/main/shared/projectSchema.js');
 const { buildMilkwaveIR } = require('../dist/main/shared/milkwaveIr.js');
 const { classifyMilkwaveIR } = require('../dist/main/shared/milkwaveCapability.js');
+const { analyzeMilkwaveShaderSource } = require('../dist/main/shared/milkwaveDiagnostics.js');
 
 const repoRoot = path.resolve(__dirname, '..');
 const presetsDir = path.join(repoRoot, 'assets', 'presets');
@@ -21,12 +22,12 @@ const BANK_SIZE = 250;
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 const sanitizeOriginalParameters = (shaderData) => {
-  if (!shaderData || !shaderData.originalParameters || typeof shaderData.originalParameters !== 'object') {
+  if (!shaderData || typeof shaderData !== 'object') {
     return shaderData;
   }
 
   const sanitized = {};
-  for (const [key, value] of Object.entries(shaderData.originalParameters)) {
+  for (const [key, value] of Object.entries(shaderData.originalParameters || {})) {
     if (typeof value === 'number' || typeof value === 'boolean') {
       sanitized[key] = value;
     }
@@ -34,9 +35,34 @@ const sanitizeOriginalParameters = (shaderData) => {
 
   return {
     ...shaderData,
+    perFrameCode: sanitizeCodeLines(shaderData.perFrameCode),
+    perFrameInitCode: sanitizeCodeLines(shaderData.perFrameInitCode),
+    perPixelCode: sanitizeCodeLines(shaderData.perPixelCode),
+    waves: sanitizeRuntimeCollection(shaderData.waves).map(sanitizeWave),
+    shapes: sanitizeRuntimeCollection(shaderData.shapes).map(sanitizeShape),
     originalParameters: sanitized
   };
 };
+
+const sanitizeCodeLines = (lines) =>
+  Array.isArray(lines) ? lines.filter((line) => typeof line === 'string') : [];
+
+const sanitizeRuntimeCollection = (entries) =>
+  Array.isArray(entries) ? entries.filter((entry) => entry && typeof entry === 'object') : [];
+
+const sanitizeWave = (wave) => ({
+  ...wave,
+  initCode: sanitizeCodeLines(wave?.initCode),
+  perFrameCode: sanitizeCodeLines(wave?.perFrameCode),
+  perPointCode: sanitizeCodeLines(wave?.perPointCode)
+});
+
+const sanitizeShape = (shape) => ({
+  ...shape,
+  initCode: sanitizeCodeLines(shape?.initCode),
+  perFrameCode: sanitizeCodeLines(shape?.perFrameCode),
+  perPointCode: sanitizeCodeLines(shape?.perPointCode)
+});
 
 const milkwavePresetFiles = fs
   .readdirSync(presetsDir)
@@ -61,17 +87,33 @@ const deriveMilkwaveSupportTier = (preset) => {
     psVersionWarp: 3,
     psVersionComp: 3,
     parameters: shaderData.originalParameters || {},
-    perFrameCode: shaderData.perFrameCode || [],
-    perFrameInitCode: shaderData.perFrameInitCode || [],
-    perPixelCode: shaderData.perPixelCode || [],
+    perFrameCode: sanitizeCodeLines(shaderData.perFrameCode),
+    perFrameInitCode: sanitizeCodeLines(shaderData.perFrameInitCode),
+    perPixelCode: sanitizeCodeLines(shaderData.perPixelCode),
     warpShader: shaderData.warp || null,
     compShader: shaderData.comp || null,
-    waves: shaderData.waves || [],
-    shapes: shaderData.shapes || []
+    waves: sanitizeRuntimeCollection(shaderData.waves).map(sanitizeWave),
+    shapes: sanitizeRuntimeCollection(shaderData.shapes).map(sanitizeShape)
   };
 
   const ir = buildMilkwaveIR(pseudoPreset);
   const capability = classifyMilkwaveIR(ir);
+  const warpDiagnostics = analyzeMilkwaveShaderSource({
+    source: shaderData.warp || '',
+    pass: 'warp',
+    stage: 'glsl'
+  });
+  const compDiagnostics = analyzeMilkwaveShaderSource({
+    source: shaderData.comp || '',
+    pass: 'comp',
+    stage: 'glsl'
+  });
+  const hasFatalShaderDiagnostics = [...warpDiagnostics.issues, ...compDiagnostics.issues].some(
+    (issue) => issue.severity === 'error'
+  );
+  if (hasFatalShaderDiagnostics) {
+    return 'fallback-only';
+  }
   return capability.tier;
 };
 

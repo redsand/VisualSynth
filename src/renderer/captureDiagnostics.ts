@@ -8,6 +8,36 @@ type GeneratorDiagnostic = {
   uniformsBound: boolean;
 };
 
+type MilkDropCompileReport = {
+  warp: {
+    requested: boolean;
+    compiled: boolean;
+    fallbackUsed: boolean;
+  };
+  comp: {
+    requested: boolean;
+    compiled: boolean;
+    fallbackUsed: boolean;
+  };
+};
+
+type MilkDropNativeRuntimeReport = {
+  shapes: {
+    requested: number;
+    rendered: number;
+    borders: number;
+    texturedFallbacks: number;
+    evaluatedShapes: number;
+    evaluatedPoints: number;
+  };
+  waves: {
+    requested: number;
+    rendered: number;
+    renderedPoints: number;
+    evaluatedPoints: number;
+  };
+};
+
 export type CaptureDiagnostics = {
   projectName: string;
   activeSceneId: string;
@@ -20,6 +50,8 @@ export type CaptureDiagnostics = {
   lastShaderError: string | null;
   generatorDiagnostics: GeneratorDiagnostic[];
   missingUniforms: string[];
+  milkdropCompileReport: MilkDropCompileReport | null;
+  milkdropNativeRuntimeReport: MilkDropNativeRuntimeReport | null;
   renderSnapshot: CaptureRenderSnapshot | null;
 };
 
@@ -85,6 +117,8 @@ export const buildCaptureDiagnostics = (
   lastShaderError: string | null,
   generatorDiagnostics: GeneratorDiagnostic[],
   missingUniforms: string[],
+  milkdropCompileReport: MilkDropCompileReport | null = null,
+  milkdropNativeRuntimeReport: MilkDropNativeRuntimeReport | null = null,
   renderSnapshot: Omit<CaptureRenderSnapshot, 'activePaletteId' | 'activePalettePreview'> | null = null
 ): CaptureDiagnostics => {
   const activeScene = getActiveScene(project);
@@ -112,6 +146,8 @@ export const buildCaptureDiagnostics = (
     lastShaderError,
     generatorDiagnostics: [...generatorDiagnostics].sort((a, b) => a.name.localeCompare(b.name)),
     missingUniforms: sortStrings(missingUniforms),
+    milkdropCompileReport,
+    milkdropNativeRuntimeReport,
     renderSnapshot: renderSnapshot
       ? {
           ...renderSnapshot,

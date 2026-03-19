@@ -21,6 +21,39 @@ export interface MilkDropShaderData {
   originalParameters: Record<string, number | boolean>;
 }
 
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
+export const deriveMilkDropSeedColor = (
+  params: Record<string, number | boolean>,
+  random: [number, number]
+): [number, number, number] => {
+  const numeric = (key: string, fallback = 0) => {
+    const value = params[key];
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  };
+
+  const candidates = [
+    [numeric('wave_r', -1), numeric('wave_g', -1), numeric('wave_b', -1)],
+    [numeric('ob_r', -1), numeric('ob_g', -1), numeric('ob_b', -1)],
+    [numeric('ib_r', -1), numeric('ib_g', -1), numeric('ib_b', -1)]
+  ];
+
+  for (const [r, g, b] of candidates) {
+    if (r >= 0 || g >= 0 || b >= 0) {
+      const energy = Math.max(r, g, b);
+      if (energy > 0.001) {
+        return [clamp01(r), clamp01(g), clamp01(b)];
+      }
+    }
+  }
+
+  return [
+    0.12 + random[0] * 0.25,
+    0.10 + ((random[0] + random[1]) * 0.5) * 0.2,
+    0.15 + random[1] * 0.25
+  ];
+};
+
 export interface MilkDropRendererOptions {
   canvas: HTMLCanvasElement;
   onError?: (error: string, type: 'vertex' | 'fragment' | 'link') => void;
@@ -52,6 +85,23 @@ export interface MilkDropCompileReport {
   comp: MilkDropCompileReportPass;
 }
 
+export interface MilkDropNativeRuntimeReport {
+  shapes: {
+    requested: number;
+    rendered: number;
+    borders: number;
+    texturedFallbacks: number;
+    evaluatedShapes: number;
+    evaluatedPoints: number;
+  };
+  waves: {
+    requested: number;
+    rendered: number;
+    renderedPoints: number;
+    evaluatedPoints: number;
+  };
+}
+
 /**
  * Runtime GLSL patcher for MilkDrop preset shaders.
  *
@@ -66,7 +116,7 @@ export interface MilkDropCompileReport {
  *
  * Rather than re-importing 7000+ presets, we patch at compile time.
  */
-const patchMilkDropGlsl = (source: string): string => {
+export const patchMilkDropGlsl = (source: string): string => {
   if (!source || !source.includes('#version 300 es')) return source;
 
   // ── 1. Inject missing helpers + uniforms after the header block ──
@@ -219,18 +269,39 @@ const patchMilkDropGlsl = (source: string): string => {
     const beforeBody = patched.substring(0, mainBodyStart + 1);
     let body = patched.substring(mainBodyStart + 1);
 
+    body = body.replace(/#define\s+sat\s+saturate\b/g, '#define sat clamp01');
+    body = body.replace(/\bvUv\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'uv');
+    body = body.replace(/\bvUvOriginal\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'vUvOriginalLocal');
+    body = body.replace(/\bvRadius\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'rad');
+    body = body.replace(/\bvAngle\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'ang');
+
     // Known declared/built-in names to skip
     const declared = new Set<string>();
-    // Collect all names already declared with a type
-    const declRe = /\b(float|vec[234]|mat[234]|int|bool|ivec[234]|bvec[234])\s+([a-zA-Z_]\w*)/g;
+    // Collect all names already declared with a type, including comma-separated declarations.
+    const declLineRe = /\b(float|vec[234]|mat[234]|int|bool|ivec[234]|bvec[234])\s+([^;]+);/g;
     let m: RegExpExecArray | null;
-    while ((m = declRe.exec(patched)) !== null) {
-      declared.add(m[2]);
+    while ((m = declLineRe.exec(patched)) !== null) {
+      const type = m[1];
+      const declarators = m[2];
+      if (declarators.includes('(') && declarators.includes('{')) {
+        continue;
+      }
+      for (const rawDecl of declarators.split(',')) {
+        const cleaned = rawDecl
+          .replace(/=.*$/g, '')
+          .replace(/\[.*$/g, '')
+          .trim()
+          .split(/\s+/)
+          .pop();
+        if (cleaned && cleaned !== type) {
+          declared.add(cleaned);
+        }
+      }
     }
     // Add built-in variables, uniforms, varyings, functions
     const builtins = new Set([
       'gl_FragCoord', 'gl_FrontFacing', 'gl_PointCoord',
-      'fragColor', 'vUv', 'vUvOriginal', 'vRadius', 'vAngle', 'uv', 'ret', 'rad',
+      'fragColor', 'vUv', 'vUvOriginal', 'vUvOriginalLocal', 'vRadius', 'vAngle', 'uv', 'ret', 'rad', 'ang',
       'uTime', 'uFrame', 'uFps', 'uRms', 'uAspectX', 'uAspectY', 'uAspect', 'uTexSize',
       'uRandomPreset', 'uRandomFrame',
       'audioLow', 'audioLowSmooth', 'audioMid', 'audioMidSmooth', 'audioHigh', 'audioHighSmooth',
@@ -402,6 +473,49 @@ const patchMilkDropGlsl = (source: string): string => {
 
     return line;
   }).join('\n');
+
+  // mix() third arg must be float/vec, not bare integer literal.
+  patched = patched.replace(
+    /\bmix\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*(-?\d+)\s*\)/g,
+    (_match, a, b, t) => `mix(${a}, ${b}, ${t}.0)`
+  );
+
+  // dot(vecN, scalar) is a common MilkDrop shorthand for averaging/luminance-style math.
+  patched = patched.replace(
+    /\bdot\s*\(\s*([^,]+?)\s*,\s*(-?(?:\d+\.\d+|\d+|\.\d+))\s*\)/g,
+    (_match, vecExpr, scalarLiteral) => {
+      const trimmed = vecExpr.trim();
+      const dim = /\.((?:xy|rg))(?![a-zA-Z])/i.test(trimmed) ? 'vec2' : 'vec3';
+      return `dot(${trimmed}, ${dim}(${scalarLiteral}))`;
+    }
+  );
+
+  // If mix() blends a scalar dot() result into a color vector, promote the scalar to vec3.
+  patched = patched.replace(
+    /\bmix\s*\(\s*(dot\s*\([^)]*\))\s*,\s*((?:vec3\s*\([^)]*\))|(?:[a-zA-Z_]\w*))\s*,/g,
+    (_match, dotExpr, vecExpr) => `mix(vec3(${dotExpr}), ${vecExpr},`
+  );
+
+  // vec3 ret frequently receives scalar-leading subtraction in imported comp passes.
+  patched = patched.replace(
+    /\bret\s*=\s*(-?(?:\d+\.\d+|\d+|\.\d+))\s*-\s*([^;]+);/g,
+    (_match, scalarLiteral, rhs) => `ret = vec3(${scalarLiteral}) - ${rhs};`
+  );
+
+  // Some imported presets use color helpers in vec2 UV math. Truncate to xy in vec2 contexts.
+  patched = patched.replace(
+    /(\bvec2\s+\w+\s*=\s*[^;]*?)(\b(?:GetPixel|GetBlur[123]|GetMain)\s*\([^)]*\))(?!\s*\.)/g,
+    (_match, prefix, helperCall) => `${prefix}${helperCall}.xy`
+  );
+  patched = patched.replace(
+    /(\b[a-zA-Z_]\w*\s*(?:[+\-*/]?=)\s*[^;]*?)(\b(?:GetPixel|GetBlur[123]|GetMain)\s*\([^)]*\))(?!\s*\.)/g,
+    (_match, prefix, helperCall) => {
+      if (!/\b(?:uv|uv2|delta|offset|coord)\w*\b/.test(prefix)) {
+        return `${prefix}${helperCall}`;
+      }
+      return `${prefix}${helperCall}.xy`;
+    }
+  );
 
   // Fix ret type mismatch: the template declares `vec4 ret` but MilkDrop shaders
   // assign vec3 values to it (GetPixel returns vec3 in original MilkDrop).
@@ -701,6 +815,22 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   let lastWidth = 0;
   let lastHeight = 0;
   let lastCompileReport: MilkDropCompileReport | null = null;
+  let lastNativeRuntimeReport: MilkDropNativeRuntimeReport = {
+    shapes: {
+      requested: 0,
+      rendered: 0,
+      borders: 0,
+      texturedFallbacks: 0,
+      evaluatedShapes: 0,
+      evaluatedPoints: 0
+    },
+    waves: {
+      requested: 0,
+      rendered: 0,
+      renderedPoints: 0,
+      evaluatedPoints: 0
+    }
+  };
   
   const variables: MilkDropVariables = {
     time: 0,
@@ -775,6 +905,17 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
 
     lastWidth = width;
     lastHeight = height;
+  };
+
+  const seedFeedbackFrame = (shaderData: MilkDropShaderData, width: number, height: number) => {
+    if (!mainFbo) return;
+    const [r, g, b] = deriveMilkDropSeedColor(shaderData.originalParameters ?? {}, randomPreset as [number, number]);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, mainFbo.fbo);
+    gl.viewport(0, 0, width, height);
+    gl.disable(gl.BLEND);
+    gl.clearColor(r, g, b, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   };
 
   const compileShaders = (shaderData: MilkDropShaderData): boolean => {
@@ -1056,12 +1197,33 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       return false;
     }
 
+    if (variables.frame === 0) {
+      seedFeedbackFrame(shaderData, width, height);
+    }
+
     // Run per-frame init code once on first frame
     if (!perFrameInitRun && shaderData.perFrameInitCode?.length) {
       executePerFrameCode(shaderData.perFrameInitCode, state);
       perFrameInitRun = true;
     }
     executePerFrameCode(shaderData.perFrameCode, state);
+
+    lastNativeRuntimeReport = {
+      shapes: {
+        requested: shaderData.shapes?.length ?? 0,
+        rendered: 0,
+        borders: 0,
+        texturedFallbacks: 0,
+        evaluatedShapes: 0,
+        evaluatedPoints: 0
+      },
+      waves: {
+        requested: shaderData.waves?.length ?? 0,
+        rendered: 0,
+        renderedPoints: 0,
+        evaluatedPoints: 0
+      }
+    };
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, warpFbo?.fbo ?? null);
     gl.viewport(0, 0, width, height);
@@ -1092,7 +1254,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     }
 
     if (shaderData.shapes?.length) {
-      shapeRenderer.render({
+      const shapeStats = shapeRenderer.render({
         shapes: shaderData.shapes,
         runtime: {
           timeSeconds: variables.time,
@@ -1106,12 +1268,21 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           midAtt: variables.mid_att,
           trebAtt: variables.treb_att,
           qVars
-        }
+        },
+        mainTexture: mainFbo?.texture ?? null
       });
+      lastNativeRuntimeReport.shapes = {
+        requested: shaderData.shapes.length,
+        rendered: shapeStats.renderedShapes,
+        borders: shapeStats.renderedBorders,
+        texturedFallbacks: shapeStats.ignoredTexturedShapes,
+        evaluatedShapes: shapeStats.evaluatedShapes,
+        evaluatedPoints: shapeStats.evaluatedPoints
+      };
     }
 
     if (shaderData.waves?.length) {
-      waveRenderer.render({
+      const waveStats = waveRenderer.render({
         waves: shaderData.waves,
         runtime: {
           timeSeconds: variables.time,
@@ -1129,6 +1300,12 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           spectrum: state.spectrum
         }
       });
+      lastNativeRuntimeReport.waves = {
+        requested: shaderData.waves.length,
+        rendered: waveStats.renderedWaves,
+        renderedPoints: waveStats.renderedPoints,
+        evaluatedPoints: waveStats.evaluatedPoints
+      };
     }
 
     if (blurProgram && warpFbo) {
@@ -1281,6 +1458,22 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (compProgram) gl.deleteProgram(compProgram);
     shapeRenderer.clear();
     waveRenderer.clear();
+    lastNativeRuntimeReport = {
+      shapes: {
+        requested: 0,
+        rendered: 0,
+        borders: 0,
+        texturedFallbacks: 0,
+        evaluatedShapes: 0,
+        evaluatedPoints: 0
+      },
+      waves: {
+        requested: 0,
+        rendered: 0,
+        renderedPoints: 0,
+        evaluatedPoints: 0
+      }
+    };
     warpProgram = null;
     compProgram = null;
   };
@@ -1291,6 +1484,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     getMainTexture,
     clear,
     getLastCompileReport: () => lastCompileReport,
+    getLastNativeRuntimeReport: () => lastNativeRuntimeReport,
     getVariables: () => ({ ...variables }),
     getQVars: () => [...qVars],
   };

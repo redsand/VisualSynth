@@ -235,9 +235,9 @@ const nowPlayingTestLiveButton = document.getElementById('now-playing-test-live'
 const nowPlayingTestButton = document.getElementById('now-playing-test') as HTMLButtonElement;
 const nowPlayingCancelButton = document.getElementById('now-playing-cancel') as HTMLButtonElement;
 const nowPlayingSaveButton = document.getElementById('now-playing-save') as HTMLButtonElement;
-const saveButton = document.getElementById('btn-save') as HTMLButtonElement;
-const savePerfButton = document.getElementById('btn-save-perf') as HTMLButtonElement;
-const loadButton = document.getElementById('btn-load') as HTMLButtonElement;
+const saveButton = document.getElementById('btn-save') as HTMLButtonElement | null;
+const savePerfButton = document.getElementById('btn-save-perf') as HTMLButtonElement | null;
+const loadButton = document.getElementById('btn-load') as HTMLButtonElement | null;
 const presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
 const applyPresetButton = document.getElementById('btn-apply-preset') as HTMLButtonElement;
 const presetPrevButton = document.getElementById('preset-prev') as HTMLButtonElement;
@@ -9850,42 +9850,50 @@ const applyProject = async (project: VisualSynthProject) => {
   setStatus(`Loaded project: ${currentProject.name}`);
 };
 
+const saveProjectToDisk = async () => {
+  const payload = serializeProject();
+  await window.visualSynth.saveProject(payload);
+};
+
+const savePerformanceToDisk = async () => {
+  const payload = serializePerformance();
+  await window.visualSynth.saveProject(payload);
+};
+
+const loadProjectFromDisk = async () => {
+  const result = await window.visualSynth.openProject();
+  if (!result.canceled && result.project) {
+    await applyProject(result.project);
+  }
+};
+
 if (saveButton) {
-  saveButton.addEventListener('click', async () => {
-    const payload = serializeProject();
-    await window.visualSynth.saveProject(payload);
+  saveButton.addEventListener('click', () => {
+    void saveProjectToDisk();
   });
 }
 
 if (savePerfButton) {
-  savePerfButton.addEventListener('click', async () => {
-    const payload = serializePerformance();
-    await window.visualSynth.saveProject(payload);
+  savePerfButton.addEventListener('click', () => {
+    void savePerformanceToDisk();
   });
 }
 
 if (loadButton) {
-  loadButton.addEventListener('click', async () => {
-    const result = await window.visualSynth.openProject();
-    if (!result.canceled && result.project) {
-      await applyProject(result.project);
-    }
+  loadButton.addEventListener('click', () => {
+    void loadProjectFromDisk();
   });
 }
 
 if (topbarSaveProjectButton) {
   topbarSaveProjectButton.addEventListener('click', () => {
-    if (saveButton) {
-      void saveButton.click();
-    }
+    void saveProjectToDisk();
   });
 }
 
 if (topbarOpenProjectButton) {
   topbarOpenProjectButton.addEventListener('click', () => {
-    if (loadButton) {
-      void loadButton.click();
-    }
+    void loadProjectFromDisk();
   });
 }
 
@@ -11190,11 +11198,11 @@ const initShortcuts = () => {
     }
     if (event.ctrlKey && event.key.toLowerCase() === 's') {
       event.preventDefault();
-      void saveButton.click();
+      void saveProjectToDisk();
     }
     if (event.ctrlKey && event.key.toLowerCase() === 'o') {
       event.preventDefault();
-      void loadButton.click();
+      void loadProjectFromDisk();
     }
     if (event.key.toLowerCase() === 'f') {
       document.documentElement.requestFullscreen().catch(() => undefined);
@@ -12804,6 +12812,8 @@ const init = async () => {
         lastShaderError,
         renderer.getGeneratorDiagnostics(),
         renderer.getMissingUniforms(),
+        renderer.getMilkDropCompileReport(),
+        renderer.getMilkDropNativeRuntimeReport(),
         latestCaptureRenderSnapshot
       );
     },

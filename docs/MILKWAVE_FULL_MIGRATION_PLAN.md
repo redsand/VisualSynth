@@ -314,6 +314,12 @@ Status:
   - `src/renderer/milkwave/runtime/milkwaveBuiltins.ts`
   - `src/renderer/milkwave/runtime/milkwaveSamplers.ts`
 - `src/renderer/milkdropRenderer.ts` has begun delegating uniform/sampler binding to those modules.
+- Native custom shape execution is now started through:
+  - `src/renderer/milkwave/runtime/milkwaveShapes.ts`
+  - `src/renderer/milkwave/runtime/milkwaveShapeRenderer.ts`
+- Native custom wave execution is now started through:
+  - `src/renderer/milkwave/runtime/milkwaveWaveRenderer.ts`
+- The runtime now tracks native pass execution counts in `getLastNativeRuntimeReport()` so failures are diagnosable pass-by-pass.
 
 Deliverables:
 
@@ -358,6 +364,13 @@ Priority order:
 3. wave per-point
 4. texture-slot expressions
 
+Status:
+
+- Partially started through the native geometry runtime.
+- Shape init, per-frame, and per-point execution are implemented in the custom shape path.
+- Wave init, per-frame, and per-point execution are implemented in the custom wave path.
+- Preset-level per-pixel logic and texture-slot expressions are still missing.
+
 Acceptance criteria:
 
 - curated presets that depend on expression-driven state transitions behave plausibly and deterministically
@@ -395,10 +408,11 @@ Acceptance criteria:
 The next coding steps after this document are:
 
 1. Expand the runtime contract beyond builtin/sampler binding into explicit pass-state management
-2. Add support-tier-aware import/audit reporting everywhere imported Milkwave presets are generated or inspected
-3. Start the next high-leverage runtime subsystem: custom shape execution path
-4. Add tests around persisted `metadata.milkwave` and runtime contract extraction
-5. Keep `gen-milkwave` as the guaranteed fallback while native path coverage expands
+2. Add native runtime reporting to renderer debug surfaces and CLI inspection tooling
+3. Implement true textured custom shapes instead of flat-color fallback geometry
+4. Start native preset per-pixel execution against the new runtime contract
+5. Start texture-slot infrastructure and sampler/resource plumbing for presets that depend on it
+6. Keep `gen-milkwave` as the guaranteed fallback while native path coverage expands
 
 Do not start native runtime rewrites before IR and capability classification exist.
 

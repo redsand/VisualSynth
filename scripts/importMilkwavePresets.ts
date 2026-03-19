@@ -227,6 +227,8 @@ async function importMilkwavePresets(options: ImportOptions): Promise<ImportResu
 
         // Create preset
         const preset = createMilkwavePreset(milkData, glslWarp, glslComp, presetNumber);
+        const supportTier = preset.metadata?.milkwave?.supportTier;
+        const featureSummary = preset.metadata?.milkwave?.featureSummary;
 
         // Generate output filename
         const sanitizedName = sanitizeFilename(milkData.metadata.name);
@@ -243,8 +245,8 @@ async function importMilkwavePresets(options: ImportOptions): Promise<ImportResu
           author: milkData.metadata.author,
           name: milkData.metadata.name,
           category: preset.metadata.category,
-          supportTier: capability.tier,
-          featureSummary: capability.featureSummary
+          supportTier,
+          featureSummary
         });
 
         presetNumber++;

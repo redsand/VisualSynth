@@ -30,6 +30,11 @@ interface MilkwaveShapeRenderVertex {
   color: { r: number; g: number; b: number; a: number };
 }
 
+interface MilkwaveShapeTexturedVertex extends MilkwaveShapeRenderVertex {
+  u: number;
+  v: number;
+}
+
 const SHAPE_VERTEX_SHADER = `#version 300 es
 precision highp float;
 
@@ -52,6 +57,33 @@ void main() {
   fragColor = vColor;
 }`;
 
+const TEXTURED_SHAPE_VERTEX_SHADER = `#version 300 es
+precision highp float;
+
+in vec2 aPosition;
+in vec2 aUv;
+in vec4 aColor;
+out vec2 vUv;
+out vec4 vColor;
+
+void main() {
+  vUv = aUv;
+  vColor = aColor;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}`;
+
+const TEXTURED_SHAPE_FRAGMENT_SHADER = `#version 300 es
+precision highp float;
+
+uniform sampler2D uMainTexture;
+in vec2 vUv;
+in vec4 vColor;
+out vec4 fragColor;
+
+void main() {
+  fragColor = texture(uMainTexture, vUv) * vColor;
+}`;
+
 const compileShader = (
   gl: WebGL2RenderingContext,
   type: number,
@@ -69,9 +101,17 @@ const compileShader = (
   return shader;
 };
 
-const createProgram = (gl: WebGL2RenderingContext): WebGLProgram | null => {
-  const vs = compileShader(gl, gl.VERTEX_SHADER, SHAPE_VERTEX_SHADER);
-  const fs = compileShader(gl, gl.FRAGMENT_SHADER, SHAPE_FRAGMENT_SHADER);
+const createProgram = ({
+  gl,
+  vertexSource,
+  fragmentSource
+}: {
+  gl: WebGL2RenderingContext;
+  vertexSource: string;
+  fragmentSource: string;
+}): WebGLProgram | null => {
+  const vs = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
   if (!vs || !fs) return null;
   const program = gl.createProgram();
   if (!program) return null;
@@ -106,6 +146,27 @@ const createInterleavedBuffer = ({
     data[offset + 3] = vertex.color.g;
     data[offset + 4] = vertex.color.b;
     data[offset + 5] = vertex.color.a;
+  });
+  return data;
+};
+
+const createTexturedInterleavedBuffer = ({
+  vertices
+}: {
+  vertices: MilkwaveShapeTexturedVertex[];
+}) => {
+  const data = new Float32Array(vertices.length * 8);
+  vertices.forEach((vertex, index) => {
+    const ndc = toNdc(vertex.x, vertex.y);
+    const offset = index * 8;
+    data[offset] = ndc.x;
+    data[offset + 1] = ndc.y;
+    data[offset + 2] = vertex.u;
+    data[offset + 3] = vertex.v;
+    data[offset + 4] = vertex.color.r;
+    data[offset + 5] = vertex.color.g;
+    data[offset + 6] = vertex.color.b;
+    data[offset + 7] = vertex.color.a;
   });
   return data;
 };
@@ -329,35 +390,31 @@ const evaluatePerPointVertex = ({
 };
 
 export const createMilkwaveShapeRenderer = (gl: WebGL2RenderingContext) => {
-  const program = createProgram(gl);
+  const program = createProgram({
+    gl,
+    vertexSource: SHAPE_VERTEX_SHADER,
+    fragmentSource: SHAPE_FRAGMENT_SHADER
+  });
+  const texturedProgram = createProgram({
+    gl,
+    vertexSource: TEXTURED_SHAPE_VERTEX_SHADER,
+    fragmentSource: TEXTURED_SHAPE_FRAGMENT_SHADER
+  });
   const buffer = gl.createBuffer();
-  let didLogTexturedFallback = false;
   const runtimeMemory = new Map<string, MilkwaveShapeRuntimeMemory>();
 
   const render = ({
     shapes,
-    runtime
+    runtime,
+    mainTexture = null
   }: {
     shapes: MilkShapeConfig[] | undefined | null;
     runtime: MilkwaveShapeRuntimeFrameState;
+    mainTexture?: WebGLTexture | null;
   }): MilkwaveShapeRenderStats => {
-    if (!program || !buffer || !Array.isArray(shapes) || shapes.length === 0) {
+    if (!buffer || !Array.isArray(shapes) || shapes.length === 0) {
       return { renderedShapes: 0, renderedBorders: 0, ignoredTexturedShapes: 0, evaluatedShapes: 0, evaluatedPoints: 0 };
     }
-
-    const posLoc = gl.getAttribLocation(program, 'aPosition');
-    const colorLoc = gl.getAttribLocation(program, 'aColor');
-    if (posLoc < 0 || colorLoc < 0) {
-      return { renderedShapes: 0, renderedBorders: 0, ignoredTexturedShapes: 0, evaluatedShapes: 0, evaluatedPoints: 0 };
-    }
-
-    gl.useProgram(program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.enableVertexAttribArray(posLoc);
-    gl.enableVertexAttribArray(colorLoc);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 24, 0);
-    gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 24, 8);
-    gl.enable(gl.BLEND);
 
     let renderedShapes = 0;
     let renderedBorders = 0;
@@ -422,20 +479,22 @@ export const createMilkwaveShapeRenderer = (gl: WebGL2RenderingContext) => {
         if (!plan.enabled || plan.radius <= 0) continue;
 
         gl.blendFunc(gl.SRC_ALPHA, plan.additive ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
-
-        if (plan.textured) {
-          ignoredTexturedShapes++;
-          if (!didLogTexturedFallback) {
-            console.info('[MilkwaveShapes] Textured custom shapes are currently rendered as flat-color fallback geometry.');
-            didLogTexturedFallback = true;
-          }
-        }
+        gl.enable(gl.BLEND);
 
         const fan = buildMilkwaveShapeFan(plan);
         const fillVerticesInput: MilkwaveShapeRenderVertex[] = [
           {
             x: fan[0].x,
             y: fan[0].y,
+            color: plan.fillColor
+          }
+        ];
+        const texturedFillVerticesInput: MilkwaveShapeTexturedVertex[] = [
+          {
+            x: fan[0].x,
+            y: fan[0].y,
+            u: fan[0].u,
+            v: fan[0].v,
             color: plan.fillColor
           }
         ];
@@ -461,6 +520,11 @@ export const createMilkwaveShapeRenderer = (gl: WebGL2RenderingContext) => {
               };
           if (shape.perPointCode?.length) evaluatedPoints++;
           fillVerticesInput.push(evaluated);
+          texturedFillVerticesInput.push({
+            ...evaluated,
+            u: raw.u,
+            v: raw.v
+          });
           borderVerticesInput.push({
             x: evaluated.x,
             y: evaluated.y,
@@ -473,23 +537,75 @@ export const createMilkwaveShapeRenderer = (gl: WebGL2RenderingContext) => {
           });
         }
 
-        const fillVertices = createInterleavedBuffer({
-          vertices: fillVerticesInput
-        });
-        gl.bufferData(gl.ARRAY_BUFFER, fillVertices, gl.DYNAMIC_DRAW);
-        gl.drawArrays(gl.TRIANGLE_FAN, 0, fillVertices.length / 6);
+        const canRenderTextured = Boolean(plan.textured && texturedProgram && mainTexture);
+        if (canRenderTextured) {
+          const posLoc = gl.getAttribLocation(texturedProgram!, 'aPosition');
+          const uvLoc = gl.getAttribLocation(texturedProgram!, 'aUv');
+          const colorLoc = gl.getAttribLocation(texturedProgram!, 'aColor');
+          const samplerLoc = gl.getUniformLocation(texturedProgram!, 'uMainTexture');
+          if (posLoc >= 0 && uvLoc >= 0 && colorLoc >= 0) {
+            gl.useProgram(texturedProgram!);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.enableVertexAttribArray(posLoc);
+            gl.enableVertexAttribArray(uvLoc);
+            gl.enableVertexAttribArray(colorLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 32, 0);
+            gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 32, 8);
+            gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 32, 16);
+            const fillVertices = createTexturedInterleavedBuffer({
+              vertices: texturedFillVerticesInput
+            });
+            gl.bufferData(gl.ARRAY_BUFFER, fillVertices, gl.DYNAMIC_DRAW);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, mainTexture);
+            if (samplerLoc) gl.uniform1i(samplerLoc, 0);
+            gl.drawArrays(gl.TRIANGLE_FAN, 0, fillVertices.length / 8);
+          } else {
+            ignoredTexturedShapes++;
+          }
+        } else {
+          if (plan.textured) ignoredTexturedShapes++;
+          if (program) {
+            const posLoc = gl.getAttribLocation(program, 'aPosition');
+            const colorLoc = gl.getAttribLocation(program, 'aColor');
+            if (posLoc >= 0 && colorLoc >= 0) {
+              gl.useProgram(program);
+              gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+              gl.enableVertexAttribArray(posLoc);
+              gl.enableVertexAttribArray(colorLoc);
+              gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 24, 0);
+              gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 24, 8);
+              const fillVertices = createInterleavedBuffer({
+                vertices: fillVerticesInput
+              });
+              gl.bufferData(gl.ARRAY_BUFFER, fillVertices, gl.DYNAMIC_DRAW);
+              gl.drawArrays(gl.TRIANGLE_FAN, 0, fillVertices.length / 6);
+            }
+          }
+        }
+
         renderedShapes++;
         evaluatedShapes++;
 
         const borderAlpha = evaluatedShape.borderA ?? 0;
-        if (borderAlpha > 0) {
-          const borderVertices = createInterleavedBuffer({
-            vertices: borderVerticesInput
-          });
-          gl.bufferData(gl.ARRAY_BUFFER, borderVertices, gl.DYNAMIC_DRAW);
-          gl.lineWidth(plan.thickOutline ? 2 : 1);
-          gl.drawArrays(gl.LINE_STRIP, 0, borderVertices.length / 6);
-          renderedBorders++;
+        if (borderAlpha > 0 && program) {
+          const posLoc = gl.getAttribLocation(program, 'aPosition');
+          const colorLoc = gl.getAttribLocation(program, 'aColor');
+          if (posLoc >= 0 && colorLoc >= 0) {
+            gl.useProgram(program);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.enableVertexAttribArray(posLoc);
+            gl.enableVertexAttribArray(colorLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 24, 0);
+            gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 24, 8);
+            const borderVertices = createInterleavedBuffer({
+              vertices: borderVerticesInput
+            });
+            gl.bufferData(gl.ARRAY_BUFFER, borderVertices, gl.DYNAMIC_DRAW);
+            gl.lineWidth(plan.thickOutline ? 2 : 1);
+            gl.drawArrays(gl.LINE_STRIP, 0, borderVertices.length / 6);
+            renderedBorders++;
+          }
         }
       }
     }
@@ -499,6 +615,7 @@ export const createMilkwaveShapeRenderer = (gl: WebGL2RenderingContext) => {
 
   const clear = () => {
     if (program) gl.deleteProgram(program);
+    if (texturedProgram) gl.deleteProgram(texturedProgram);
     if (buffer) gl.deleteBuffer(buffer);
     runtimeMemory.clear();
   };
