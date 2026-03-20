@@ -122,6 +122,32 @@ export const patchMilkDropGlsl = (source: string): string => {
   if (!source || !source.includes('#version 300 es')) return source;
   const helperCallPattern = String.raw`\b(?:GetPixel|GetBlur[123]|GetMain)\((?:[^()]|\([^()]*\))*\)`;
 
+  // ── 0. Strip standalone 'shader_body { ... }' blocks that appear outside void main() ──
+  // The HLSL→GLSL offline translator emits shader_body{...} both before void main() as a
+  // "definition" and again inside void main() as an anonymous block. The pre-main copy is
+  // invalid at file scope — remove it. The copy inside main needs the keyword stripped.
+  const mainIdxPre = source.indexOf('void main()');
+  if (mainIdxPre !== -1) {
+    let s = source;
+    let sbIdx = s.indexOf('shader_body');
+    while (sbIdx !== -1 && sbIdx < s.indexOf('void main()')) {
+      const openBrace = s.indexOf('{', sbIdx);
+      if (openBrace === -1) break;
+      let depth = 1;
+      let pos = openBrace + 1;
+      while (pos < s.length && depth > 0) {
+        if (s[pos] === '{') depth++;
+        else if (s[pos] === '}') depth--;
+        pos++;
+      }
+      // Remove the entire shader_body { ... } block before void main()
+      s = s.substring(0, sbIdx).trimEnd() + '\n' + s.substring(pos).trimStart();
+      sbIdx = s.indexOf('shader_body');
+    }
+    // Remove 'shader_body' keyword before '{' inside void main() — leave as bare anonymous block
+    source = s.replace(/\bshader_body\s*(?=\{)/g, '');
+  }
+
   // ── 1. Inject missing helpers + uniforms after the header block ──
   // Find the spot right before `void main()` to inject our additions
   const mainIdx = source.indexOf('void main()');

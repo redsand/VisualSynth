@@ -3180,16 +3180,16 @@ const importSceneFromDisk = async () => {
   });
 };
 
-const SCENE_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
-  { label: 'Cut (instant)', transition: null },
-  { label: 'Fade 0.5s', transition: { type: 'fade', durationMs: 500, curve: 'easeInOut' } },
-  { label: 'Fade 1s', transition: { type: 'fade', durationMs: 1000, curve: 'easeInOut' } },
-  { label: 'Fade 2s', transition: { type: 'fade', durationMs: 2000, curve: 'easeInOut' } },
-  { label: 'Crossfade 0.5s', transition: { type: 'crossfade', durationMs: 500, curve: 'easeInOut' } },
-  { label: 'Crossfade 1s', transition: { type: 'crossfade', durationMs: 1000, curve: 'easeInOut' } },
-  { label: 'Warp', transition: { type: 'warp', durationMs: 600, curve: 'easeInOut' } },
-  { label: 'Glitch', transition: { type: 'glitch', durationMs: 300, curve: 'linear' } },
-  { label: 'Dissolve 1s', transition: { type: 'dissolve', durationMs: 1000, curve: 'easeInOut' } },
+const ACTIVATE_NOW_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
+  { label: 'Cut', transition: null },
+  { label: 'Fade', transition: { type: 'fade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Crossfade', transition: { type: 'crossfade', durationMs: 1000, curve: 'easeInOut' } },
+];
+
+const QUEUE_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
+  { label: 'Cut', transition: null },
+  { label: 'Fade', transition: { type: 'fade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Crossfade', transition: { type: 'crossfade', durationMs: 1000, curve: 'easeInOut' } },
 ];
 
 const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName: string) => {
@@ -3215,7 +3215,8 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   const makeSubmenuItem = (
     parent: HTMLElement,
     label: string,
-    onSelect: (transition: SceneTransition | null) => void
+    onSelect: (transition: SceneTransition | null) => void,
+    options: Array<{ label: string; transition: SceneTransition | null }>
   ) => {
     const wrapper = document.createElement('div');
     wrapper.style.position = 'relative';
@@ -3239,7 +3240,7 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
     document.body.appendChild(submenu);
     submenus.push(submenu);
 
-    SCENE_TRANSITION_OPTIONS.forEach(({ label: tLabel, transition }) => {
+    options.forEach(({ label: tLabel, transition }) => {
       const tBtn = document.createElement('button');
       tBtn.textContent = tLabel;
       styleMenuBtn(tBtn);
@@ -3284,7 +3285,7 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
 
   makeSubmenuItem(menu, 'Activate Now', (transition) => {
     applySceneWithTransitionOverride(sceneId, transition);
-  });
+  }, ACTIVATE_NOW_TRANSITION_OPTIONS);
 
   makeSubmenuItem(menu, 'Queue in 4 beats', (transition) => {
     const bpm = getActiveBpm();
@@ -3294,7 +3295,7 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
     const scheduledTimeMs = nextBeat + beatMs * 3;
     pendingSceneSwitch = { targetSceneId: sceneId, scheduledTimeMs, transitionOverride: transition };
     setStatus(`Queued scene switch to ${sceneName} (4 beats)`);
-  });
+  }, QUEUE_TRANSITION_OPTIONS);
 
   const divider = document.createElement('div');
   divider.style.height = '1px';
