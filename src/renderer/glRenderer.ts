@@ -986,7 +986,11 @@ void main() {
       });
     }
     
-    // Render MilkDrop if enabled
+    // Main shader draw — must happen BEFORE the MilkDrop composite so the composite
+    // renders on top rather than being overwritten by the main pass.
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // Render MilkDrop if enabled and composite its output over the main render
     if (milkDropEnabled && milkDropRenderer && currentMilkDropShaderData && (state.genUniforms?.MilkwaveEnabled ?? 0) > 0) {
       const milkDropSuccess = milkDropRenderer.render(state, currentMilkDropShaderData, false);
       if (milkDropSuccess) {
@@ -1031,8 +1035,7 @@ void main() {
         }
       }
     }
-    
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
     ensurePreviousFrameTextureSize();
     gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
     gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, canvas.width, canvas.height);

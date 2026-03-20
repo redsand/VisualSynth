@@ -408,6 +408,75 @@ export const patchMilkDropGlsl = (source: string): string => {
     return line;
   }).join('\n');
 
+  // ── 7. Fix vec/scalar type mismatches from HLSL auto-promotion ──
+
+  // 7a+7b. texture() returns vec4 but MilkDrop works in vec3.
+  //   Add .xyz to bare texture() calls when the line is a vec3 context
+  //   (assignment to ret, col, vec3 declaration, or arithmetic with vec3 vars).
+  //   This handles complex expressions like: vec3 rnd = texture(s, uv) * 2.0 - 1;
+  patched = patched.split('\n').map(line => {
+    // Skip lines that explicitly declare/use vec4
+    if (/\bvec4\s+\w+\s*=/.test(line)) return line;
+    // Only process lines involving vec3 contexts
+    const isVec3Ctx = /\b(ret|col\w*)\s*[+\-*]?=/.test(line) ||
+                      /\bvec3\s+\w+\s*=/.test(line);
+    if (!isVec3Ctx) return line;
+    // Add .xyz to texture() calls that lack a swizzle
+    return line.replace(
+      /\btexture\s*\(([^)]*)\)(?!\s*\.[xyzwrgba])/g,
+      '$&.xyz'
+    );
+  }).join('\n');
+
+  // 7c. vecN x = integer;  →  vecN x = vecN(integer.0);
+  patched = patched.replace(
+    /\b(vec([234])\s+\w+\s*=\s*)(-?\d+)(\s*;)/g,
+    (_, pre, dim, num, post) => `${pre}vec${dim}(${num}.0)${post}`
+  );
+
+  // 7d. pow(vec3_expr, scalar)  →  pow(vec3_expr, vec3(scalar))
+  //     GLSL ES: pow(genType, genType) — both args must match dimensionality.
+  //     Detect vec3 in first arg by presence of known vec3 names, then promote second arg.
+  patched = patched.replace(
+    /\bpow\s*\(\s*([^,]+?)\s*,\s*(-?(?:\d+\.?\d*|\.\d+))\s*\)/g,
+    (m, firstArg, scalar) => {
+      // Only promote if first arg is clearly a vec expression
+      if (!/\b(ret|col\w*|GetPixel|GetBlur[123]|GetMain|texture)\b/.test(firstArg) &&
+          !/\bvec[23]\b/.test(firstArg)) {
+        return m;
+      }
+      const s = scalar.includes('.') ? scalar : `${scalar}.0`;
+      return `pow(${firstArg}, vec3(${s}))`;
+    }
+  );
+
+  // 7e. ret = scalar_expr;  →  ret = vec3(scalar_expr);
+  //     lum/dot/length/distance return float but ret is vec3.
+  //     Handle full expressions like: ret = lum(ret)/ret2; ret = lum(ret)*hue;
+  patched = patched.replace(
+    /\bret\s*=\s*((?:lum|dot|length|distance|float)\s*\([^;]*?\)(?:\s*[*\/+\-]\s*[^;]+?)?)\s*;/g,
+    (m, expr) => {
+      // Only wrap if the expression starts with a scalar function
+      if (/^\s*(?:lum|dot|length|distance|float)\s*\(/.test(expr)) {
+        return `ret = vec3(${expr});`;
+      }
+      return m;
+    }
+  );
+
+  // 7f. float multi-variable declarations with int literals:
+  //     const float quality = 3, depth = q29;  →  const float quality = 3.0, depth = q29;
+  //     float a=0,b=0,c=0;  →  float a=0.0,b=0.0,c=0.0;
+  //     Also single declarations missed by step 6 (e.g., inside for-loop headers)
+  patched = patched.replace(
+    /\b((?:const\s+)?float\s+[^;]+;)/g,
+    (m) => {
+      // Only transform if it contains a bare int literal after =
+      if (!/=\s*-?\d+(?!\.)/.test(m)) return m;
+      return m.replace(/=\s*(-?\d+)(?!\.)\b/g, (mm, num) => `= ${num}.0`);
+    }
+  );
+
   // mix() third arg must be float/vec, not bare integer literal.
   patched = patched.replace(
     /\bmix\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*(-?\d+)\s*\)/g,

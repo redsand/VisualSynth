@@ -107,6 +107,87 @@ export interface MilkDropNativeRuntimeReport {
 export { patchMilkDropGlsl } from '../shared/milkwaveGlslPatcher';
 import { patchMilkDropGlsl } from '../shared/milkwaveGlslPatcher';
 
+// ── EEL → JavaScript transpiler ─────────────────────────────────────────────
+// MilkDrop per-frame/per-pixel code is written in EEL (Nullsoft Expression
+// Evaluation Library).  The naive regex approach fails for nested calls like
+// `if(above(d,r), 0, sin(y)*dir)` because `[^,]+` splits on the comma inside
+// `above(d,r)`.  This balanced-paren implementation handles arbitrary nesting.
+
+const eelFindMatchingParen = (s: string, openAt: number): number => {
+  let depth = 0;
+  for (let i = openAt; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')') { if (--depth === 0) return i; }
+  }
+  return s.length - 1;
+};
+
+const eelSplitArgs = (inner: string): string[] => {
+  const result: string[] = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < inner.length; i++) {
+    if (inner[i] === '(') depth++;
+    else if (inner[i] === ')') depth--;
+    else if (inner[i] === ',' && depth === 0) {
+      result.push(inner.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  result.push(inner.slice(start).trim());
+  return result;
+};
+
+// EEL functions that need special JS translation.
+// Any other function call (sin, cos, abs, …) passes through as-is since the
+// fnBody header already imports them from Math.
+const EEL_FN_RE = /\b(if|above|below|equal)\s*\(/;
+
+const transpileEelExpr = (s: string): string => {
+  let out = '';
+  let i = 0;
+  while (i < s.length) {
+    const rest = s.slice(i);
+    const m = EEL_FN_RE.exec(rest);
+    if (!m) { out += rest; break; }
+
+    out += rest.slice(0, m.index);
+
+    const fnName = m[1];
+    const openIdx = i + m.index + m[0].length - 1;
+    const closeIdx = eelFindMatchingParen(s, openIdx);
+    const args = eelSplitArgs(s.slice(openIdx + 1, closeIdx)).map(a => transpileEelExpr(a));
+
+    if (fnName === 'if' && args.length >= 3) {
+      out += `((${args[0]}) ? (${args[1]}) : (${args[2]}))`;
+    } else if (fnName === 'above' && args.length >= 2) {
+      out += `((${args[0]}) > (${args[1]}) ? 1 : 0)`;
+    } else if (fnName === 'below' && args.length >= 2) {
+      out += `((${args[0]}) < (${args[1]}) ? 1 : 0)`;
+    } else if (fnName === 'equal' && args.length >= 2) {
+      out += `((${args[0]}) == (${args[1]}) ? 1 : 0)`;
+    } else {
+      out += `${fnName}(${args.join(', ')})`;
+    }
+
+    i = closeIdx + 1;
+  }
+  return out;
+};
+
+const transpileEelLine = (line: string): string => {
+  let l = line.trim();
+  // megabuf(idx) = value  →  megabuf(idx, value)
+  l = l.replace(/\b(megabuf|gmegabuf)\s*\(([^)]+)\)\s*=\s*([^;]+)/g, '$1($2, $3)');
+  // loop(n, body)  →  best-effort for loop (many presets won't use this)
+  l = l.replace(/\bloop\s*\(\s*(\w+)\s*,/g, 'for (let __i=0; __i<$1; __i++) {');
+  if (l.includes('for (let __i')) {
+    l = l.replace(/\);\s*$/, '} ');
+  }
+  // if / above / below / equal  with nested paren support
+  l = transpileEelExpr(l);
+  return l;
+};
+// ────────────────────────────────────────────────────────────────────────────
 
 const createMilkDropVertexShader = (gl: WebGL2RenderingContext): WebGLShader | null => {
   const source = `#version 300 es
@@ -782,27 +863,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     };
 
     try {
-      // Preprocess MilkDrop code → JavaScript:
-      // - Join all lines into a single block (variables persist across lines)
-      // - Convert MilkDrop functions: if(cond, then, else), loop(), megabuf(), etc.
       const allLines = code
         .filter(line => line.trim() && !line.trim().startsWith('//'))
-        .map(line => {
-          let l = line.trim();
-          // Convert megabuf(idx) = value → megabuf(idx, value)
-          l = l.replace(/\b(megabuf|gmegabuf)\s*\(([^)]+)\)\s*=\s*([^;]+)/g, '$1($2, $3)');
-          // Convert MilkDrop if(cond, a, b) to JS ternary (simplified)
-          l = l.replace(/\bif\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g, '(($1) ? ($2) : ($3))');
-          // Convert loop(n, body) → for loop (simplified — many presets won't use this)
-          l = l.replace(/\bloop\s*\(\s*(\w+)\s*,/g, 'for (let __i=0; __i<$1; __i++) {');
-          // Close loop parentheses (best-effort)
-          if (l.includes('for (let __i')) {
-            l = l.replace(/\);\s*$/, '} ');
-          }
-          // Convert MilkDrop modulo operator (% on floats)
-          // Convert ternary MilkDrop syntax: expr ? expr : expr already works in JS
-          return l;
-        })
+        .map(transpileEelLine)
         .join('\n');
 
       // Build executable function with all context vars as mutable locals
@@ -851,12 +914,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
 
     const allLines = code
       .filter(line => line.trim() && !line.trim().startsWith('//'))
-      .map(line => {
-        let l = line.trim();
-        l = l.replace(/\b(megabuf|gmegabuf)\s*\(([^)]+)\)\s*=\s*([^;]+)/g, '$1($2, $3)');
-        l = l.replace(/\bif\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g, '(($1) ? ($2) : ($3))');
-        return l;
-      })
+      .map(transpileEelLine)
       .join('\n');
 
     try {
