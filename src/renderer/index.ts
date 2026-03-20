@@ -3183,13 +3183,17 @@ const importSceneFromDisk = async () => {
 const ACTIVATE_NOW_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
   { label: 'Cut', transition: null },
   { label: 'Fade', transition: { type: 'fade', durationMs: 1000, curve: 'easeInOut' } },
-  { label: 'Crossfade', transition: { type: 'crossfade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Warp', transition: { type: 'warp', durationMs: 600, curve: 'easeInOut' } },
+  { label: 'Glitch', transition: { type: 'glitch', durationMs: 300, curve: 'linear' } },
+  { label: 'Dissolve', transition: { type: 'dissolve', durationMs: 1000, curve: 'easeInOut' } },
 ];
 
 const QUEUE_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
   { label: 'Cut', transition: null },
   { label: 'Fade', transition: { type: 'fade', durationMs: 1000, curve: 'easeInOut' } },
-  { label: 'Crossfade', transition: { type: 'crossfade', durationMs: 1000, curve: 'easeInOut' } },
+  { label: 'Warp', transition: { type: 'warp', durationMs: 600, curve: 'easeInOut' } },
+  { label: 'Glitch', transition: { type: 'glitch', durationMs: 300, curve: 'linear' } },
+  { label: 'Dissolve', transition: { type: 'dissolve', durationMs: 1000, curve: 'easeInOut' } },
 ];
 
 const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName: string) => {

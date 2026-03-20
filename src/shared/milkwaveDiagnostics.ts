@@ -214,6 +214,24 @@ export const analyzeMilkwaveShaderSource = ({
     );
   }
 
+  if (stage === 'glsl') {
+    // Detect `float x = 0;` / `const float x = 0;` — integer literal in float declaration context.
+    // GLSL ES 3.00 does not allow implicit int→float conversion; must be `0.0`.
+    const intLiteralFloatDecl = firstMatch(
+      normalized,
+      /\b(?:const\s+)?float\s+\w+\s*=\s*-?\d+\s*;/
+    );
+    if (intLiteralFloatDecl) {
+      pushIssue(
+        issues,
+        'error',
+        'int-literal-float-decl',
+        'GLSL ES 3.00 does not allow implicit int→float conversion. Use `0.0` instead of `0` in float declarations.',
+        intLiteralFloatDecl
+      );
+    }
+  }
+
   return {
     stage,
     pass,
