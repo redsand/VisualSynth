@@ -12,84 +12,51 @@ const {
 const { projectSchema } = require('../dist/main/shared/projectSchema.js');
 const { buildMilkwaveIR } = require('../dist/main/shared/milkwaveIr.js');
 const { classifyMilkwaveIR } = require('../dist/main/shared/milkwaveCapability.js');
-const { analyzeMilkwaveShaderSource } = require('../dist/main/shared/milkwaveDiagnostics.js');
 
 const repoRoot = path.resolve(__dirname, '..');
 const presetsDir = path.join(repoRoot, 'assets', 'presets');
+const outputPath = path.join(repoRoot, 'milkwave-confirmed-manual-test.project.json');
 const BANK_SIZE = 250;
-const args = process.argv.slice(2);
-
-const readNumberArg = (flag, fallback) => {
-  const idx = args.indexOf(flag);
-  if (idx === -1 || idx + 1 >= args.length) return fallback;
-  const value = Number.parseInt(args[idx + 1], 10);
-  return Number.isFinite(value) ? value : fallback;
-};
-
-const fromPreset = Math.max(0, readNumberArg('--from', 0));
-const toPreset = Math.max(0, readNumberArg('--to', Number.MAX_SAFE_INTEGER));
-const outputLabelIdx = args.indexOf('--label');
-const outputLabel = outputLabelIdx !== -1 && outputLabelIdx + 1 < args.length
-  ? args[outputLabelIdx + 1]
-  : null;
-
-const labelSuffix = outputLabel ? `-${outputLabel}` : '';
-const outputPath = path.join(repoRoot, `milkwave-confirmed-manual-test${labelSuffix}.project.json`);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+const cleanCodeArray = (arr) =>
+  Array.isArray(arr) ? arr.filter((line) => typeof line === 'string') : [];
+
+const cleanCodeBlocks = (items) =>
+  (items || []).map((item) => ({
+    ...item,
+    initCode: cleanCodeArray(item.initCode),
+    perFrameCode: cleanCodeArray(item.perFrameCode),
+    perPointCode: cleanCodeArray(item.perPointCode)
+  }));
+
 const sanitizeOriginalParameters = (shaderData) => {
-  if (!shaderData || typeof shaderData !== 'object') {
-    return shaderData;
-  }
+  if (!shaderData) return shaderData;
 
   const sanitized = {};
-  for (const [key, value] of Object.entries(shaderData.originalParameters || {})) {
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      sanitized[key] = value;
+  if (shaderData.originalParameters && typeof shaderData.originalParameters === 'object') {
+    for (const [key, value] of Object.entries(shaderData.originalParameters)) {
+      if (typeof value === 'number' || typeof value === 'boolean') {
+        sanitized[key] = value;
+      }
     }
   }
 
   return {
     ...shaderData,
-    perFrameCode: sanitizeCodeLines(shaderData.perFrameCode),
-    perFrameInitCode: sanitizeCodeLines(shaderData.perFrameInitCode),
-    perPixelCode: sanitizeCodeLines(shaderData.perPixelCode),
-    waves: sanitizeRuntimeCollection(shaderData.waves).map(sanitizeWave),
-    shapes: sanitizeRuntimeCollection(shaderData.shapes).map(sanitizeShape),
-    originalParameters: sanitized
+    originalParameters: sanitized,
+    perFrameCode: cleanCodeArray(shaderData.perFrameCode),
+    perFrameInitCode: cleanCodeArray(shaderData.perFrameInitCode),
+    perPixelCode: cleanCodeArray(shaderData.perPixelCode),
+    waves: cleanCodeBlocks(shaderData.waves),
+    shapes: cleanCodeBlocks(shaderData.shapes)
   };
 };
-
-const sanitizeCodeLines = (lines) =>
-  Array.isArray(lines) ? lines.filter((line) => typeof line === 'string') : [];
-
-const sanitizeRuntimeCollection = (entries) =>
-  Array.isArray(entries) ? entries.filter((entry) => entry && typeof entry === 'object') : [];
-
-const sanitizeWave = (wave) => ({
-  ...wave,
-  initCode: sanitizeCodeLines(wave?.initCode),
-  perFrameCode: sanitizeCodeLines(wave?.perFrameCode),
-  perPointCode: sanitizeCodeLines(wave?.perPointCode)
-});
-
-const sanitizeShape = (shape) => ({
-  ...shape,
-  initCode: sanitizeCodeLines(shape?.initCode),
-  perFrameCode: sanitizeCodeLines(shape?.perFrameCode),
-  perPointCode: sanitizeCodeLines(shape?.perPointCode)
-});
 
 const milkwavePresetFiles = fs
   .readdirSync(presetsDir)
   .filter((file) => file.includes('-milkwave-') && file.endsWith('.json'))
-  .filter((file) => {
-    const match = file.match(/^preset-(\d+)-/i);
-    const presetNumber = match ? Number.parseInt(match[1], 10) : NaN;
-    if (!Number.isFinite(presetNumber)) return false;
-    return presetNumber >= fromPreset && presetNumber <= toPreset;
-  })
   .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
 const deriveMilkwaveSupportTier = (preset) => {
@@ -110,33 +77,17 @@ const deriveMilkwaveSupportTier = (preset) => {
     psVersionWarp: 3,
     psVersionComp: 3,
     parameters: shaderData.originalParameters || {},
-    perFrameCode: sanitizeCodeLines(shaderData.perFrameCode),
-    perFrameInitCode: sanitizeCodeLines(shaderData.perFrameInitCode),
-    perPixelCode: sanitizeCodeLines(shaderData.perPixelCode),
+    perFrameCode: shaderData.perFrameCode || [],
+    perFrameInitCode: shaderData.perFrameInitCode || [],
+    perPixelCode: shaderData.perPixelCode || [],
     warpShader: shaderData.warp || null,
     compShader: shaderData.comp || null,
-    waves: sanitizeRuntimeCollection(shaderData.waves).map(sanitizeWave),
-    shapes: sanitizeRuntimeCollection(shaderData.shapes).map(sanitizeShape)
+    waves: shaderData.waves || [],
+    shapes: shaderData.shapes || []
   };
 
   const ir = buildMilkwaveIR(pseudoPreset);
   const capability = classifyMilkwaveIR(ir);
-  const warpDiagnostics = analyzeMilkwaveShaderSource({
-    source: shaderData.warp || '',
-    pass: 'warp',
-    stage: 'glsl'
-  });
-  const compDiagnostics = analyzeMilkwaveShaderSource({
-    source: shaderData.comp || '',
-    pass: 'comp',
-    stage: 'glsl'
-  });
-  const hasFatalShaderDiagnostics = [...warpDiagnostics.issues, ...compDiagnostics.issues].some(
-    (issue) => issue.severity === 'error'
-  );
-  if (hasFatalShaderDiagnostics) {
-    return 'fallback-only';
-  }
   return capability.tier;
 };
 
@@ -161,9 +112,7 @@ const applyPresetToProject = (preset) => {
 };
 
 const project = clone(DEFAULT_PROJECT);
-project.name = outputLabel
-  ? `Milkwave Native Supported Manual Test ${outputLabel}`
-  : 'Milkwave Native Supported Manual Test';
+project.name = 'Milkwave Native Supported Manual Test';
 project.createdAt = new Date().toISOString();
 project.updatedAt = project.createdAt;
 project.scenes = [];
@@ -213,9 +162,6 @@ for (let bankIndex = 0; bankIndex < bankCount; bankIndex += 1) {
   const end = Math.min(start + BANK_SIZE, project.scenes.length);
   const bankProject = clone(DEFAULT_PROJECT);
   bankProject.name = `Milkwave Native Supported Bank ${bankIndex + 1} (${start + 1}-${end})`;
-  if (outputLabel) {
-    bankProject.name += ` ${outputLabel}`;
-  }
   bankProject.createdAt = project.createdAt;
   bankProject.updatedAt = project.updatedAt;
   bankProject.scenes = clone(project.scenes.slice(start, end));
@@ -229,7 +175,7 @@ for (let bankIndex = 0; bankIndex < bankCount; bankIndex += 1) {
 
   const bankPath = path.join(
     bankDir,
-    `milkwave-native-supported-bank-${String(bankIndex + 1).padStart(2, '0')}${labelSuffix}.project.json`
+    `milkwave-native-supported-bank-${String(bankIndex + 1).padStart(2, '0')}.project.json`
   );
   fs.writeFileSync(bankPath, `${JSON.stringify(bankProject, null, 2)}\n`, 'utf-8');
 }

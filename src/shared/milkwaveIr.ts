@@ -220,7 +220,7 @@ export const assessMilkwaveSupportTier = (
   };
 };
 
-const compactLines = (lines: string[]) => lines.filter((line) => line !== undefined && line.trim().length > 0);
+const compactLines = (lines: string[]) => lines.filter((line) => line != null && line.trim().length > 0);
 
 export const buildMilkwaveIR = (preset: MilkPresetData): MilkwaveIR => {
   const warp = inferPassRequirements('warp', preset.warpShader);
