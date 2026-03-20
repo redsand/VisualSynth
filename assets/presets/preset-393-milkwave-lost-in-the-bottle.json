@@ -1,0 +1,441 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "lost in the bottle",
+    "author": "fiShbRaiN",
+    "source": "fiShbRaiN - lost in the bottle.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-20T00:49:30.620Z",
+    "updatedAt": "2026-03-20T00:49:30.620Z",
+    "category": "Imported",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "milkwave": {
+      "format": "milkwave-ir",
+      "version": 1,
+      "supportTier": "native-supported",
+      "featureSummary": [
+        "preset-frame",
+        "custom-waves",
+        "wave-point",
+        "custom-shapes",
+        "textured-shapes"
+      ],
+      "reasons": [],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": false,
+        "generatedPasses": []
+      }
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1.7,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1.7,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1.093153,
+            "rotation": 0.2,
+            "warp": 100,
+            "decay": 0.925,
+            "gamma": 1.7,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": "",
+    "comp": "",
+    "perFrameCode": [
+      "mv_x=(sin(time)*.5)+.5;",
+      "echo_zoom=bass_att;"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [],
+    "waves": [
+      {
+        "enabled": false,
+        "samples": 512,
+        "sep": 0,
+        "bSpectrum": false,
+        "bUseDots": true,
+        "bDrawThick": true,
+        "bAdditive": false,
+        "scaling": 2.216707,
+        "smoothing": 0.5,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.1,
+        "initCode": [],
+        "perFrameCode": [],
+        "perPointCode": [
+          null,
+          "r=rand(100)*.01;",
+          "g=r;",
+          "b=r;"
+        ]
+      },
+      {
+        "enabled": false,
+        "samples": 512,
+        "sep": 0,
+        "bSpectrum": false,
+        "bUseDots": true,
+        "bDrawThick": true,
+        "bAdditive": false,
+        "scaling": 1.347849,
+        "smoothing": 0.5,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.4,
+        "initCode": [],
+        "perFrameCode": [],
+        "perPointCode": [
+          null,
+          "r=bass*.5;",
+          "g=r;",
+          "b=r;"
+        ]
+      },
+      {
+        "enabled": false,
+        "samples": 512,
+        "sep": 0,
+        "bSpectrum": true,
+        "bUseDots": true,
+        "bDrawThick": false,
+        "bAdditive": true,
+        "scaling": 26.671766,
+        "smoothing": 0.5,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.2,
+        "initCode": [],
+        "perFrameCode": [],
+        "perPointCode": []
+      },
+      {
+        "enabled": false,
+        "samples": 512,
+        "sep": 0,
+        "bSpectrum": false,
+        "bUseDots": false,
+        "bDrawThick": false,
+        "bAdditive": false,
+        "scaling": 1,
+        "smoothing": 0.5,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1,
+        "initCode": [],
+        "perFrameCode": [],
+        "perPointCode": []
+      }
+    ],
+    "shapes": [
+      {
+        "enabled": true,
+        "sides": 6,
+        "additive": false,
+        "thickOutline": false,
+        "textured": true,
+        "numInst": 1,
+        "x": 0.5,
+        "y": 0.5,
+        "rad": 1.08926,
+        "ang": 0,
+        "texAng": 0,
+        "texZoom": 1,
+        "r": 1,
+        "g": 0.8,
+        "b": 1,
+        "a": 0.9,
+        "r2": 1,
+        "g2": 1,
+        "b2": 1,
+        "a2": 0,
+        "borderR": 1,
+        "borderG": 1,
+        "borderB": 1,
+        "borderA": 0,
+        "initCode": [],
+        "perFrameCode": [
+          null,
+          "rad=rad+(bass_att+treb_att)*.15;"
+        ],
+        "perPointCode": []
+      },
+      {
+        "enabled": true,
+        "sides": 6,
+        "additive": false,
+        "thickOutline": false,
+        "textured": false,
+        "numInst": 1,
+        "x": 0.5,
+        "y": 0.5,
+        "rad": 0.599575,
+        "ang": 0,
+        "texAng": 0,
+        "texZoom": 1,
+        "r": 0.8,
+        "g": 0.8,
+        "b": 1,
+        "a": 0.2,
+        "r2": 1,
+        "g2": 1,
+        "b2": 1,
+        "a2": 0,
+        "borderR": 1,
+        "borderG": 1,
+        "borderB": 1,
+        "borderA": 0,
+        "initCode": [],
+        "perFrameCode": [
+          null,
+          "ang=time;"
+        ],
+        "perPointCode": []
+      },
+      {
+        "enabled": false,
+        "sides": 4,
+        "additive": false,
+        "thickOutline": false,
+        "textured": true,
+        "numInst": 1,
+        "x": 0.5,
+        "y": 0.5,
+        "rad": 0.653093,
+        "ang": 0,
+        "texAng": 0,
+        "texZoom": 4.448415,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 0.2,
+        "r2": 1,
+        "g2": 1,
+        "b2": 1,
+        "a2": 0,
+        "borderR": 1,
+        "borderG": 1,
+        "borderB": 1,
+        "borderA": 0,
+        "initCode": [],
+        "perFrameCode": [],
+        "perPointCode": []
+      },
+      {
+        "enabled": false,
+        "sides": 4,
+        "additive": false,
+        "thickOutline": false,
+        "textured": false,
+        "numInst": 1,
+        "x": 0.5,
+        "y": 0.5,
+        "rad": 0.1,
+        "ang": 0,
+        "texAng": 0,
+        "texZoom": 1,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1,
+        "r2": 1,
+        "g2": 1,
+        "b2": 1,
+        "a2": 0,
+        "borderR": 1,
+        "borderG": 1,
+        "borderB": 1,
+        "borderA": 0.1,
+        "initCode": [],
+        "perFrameCode": [],
+        "perPointCode": []
+      }
+    ],
+    "originalParameters": {
+      "fRating": 3,
+      "fGammaAdj": 1.7,
+      "fDecay": 0.925,
+      "fVideoEchoZoom": 1.356732,
+      "fVideoEchoAlpha": 0.5,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": true,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": false,
+      "bModWaveAlphaByVolume": true,
+      "bMaximizeWaveColor": false,
+      "bTexWrap": false,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": false,
+      "bDarken": false,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 0,
+      "fWaveScale": 1.732989,
+      "fWaveSmoothing": 0.9,
+      "fWaveParam": 0,
+      "fModWaveAlphaStart": 0.91,
+      "fModWaveAlphaEnd": 1.3,
+      "fWarpAnimSpeed": 0.905287,
+      "fWarpScale": 2.188998,
+      "fZoomExponent": 0.094414,
+      "fShader": 1,
+      "zoom": 1.093153,
+      "rot": 0.2,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 100,
+      "sx": 0.999996,
+      "sy": 0.819498,
+      "wave_r": 0.65,
+      "wave_g": 0.65,
+      "wave_b": 0.65,
+      "wave_x": 0.5,
+      "wave_y": 0.5,
+      "ob_size": 0.2,
+      "ob_r": 0.01,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.26,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0.4
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "native-supported",
+      "featureSummary": [
+        "preset-frame",
+        "custom-waves",
+        "wave-point",
+        "custom-shapes",
+        "textured-shapes"
+      ],
+      "runtimePatchRecommended": false,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": false,
+          "generated": false,
+          "source": "",
+          "backend": "milkwave-direct-v2",
+          "normalized": null,
+          "warnings": [],
+          "errors": [],
+          "diagnostics": null
+        }
+      }
+    }
+  }
+}

@@ -163,104 +163,108 @@ function sanitizeFilename(name: string): string {
     .substring(0, 50);
 }
 
+interface MilkFileEntry {
+  file: string;
+  folder: string;
+  filePath: string;
+}
+
+/** Recursively walk a directory and collect all .milk file entries. */
+function walkMilkFiles(dir: string, baseDir: string): MilkFileEntry[] {
+  const results: MilkFileEntry[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...walkMilkFiles(fullPath, baseDir));
+    } else if (entry.name.toLowerCase().endsWith('.milk')) {
+      const relDir = path.relative(baseDir, dir).replace(/\\/g, '/');
+      results.push({ file: entry.name, folder: relDir, filePath: fullPath });
+    }
+  }
+  return results.sort((a, b) => `${a.folder}/${a.file}`.localeCompare(`${b.folder}/${b.file}`));
+}
+
 async function importMilkwavePresets(options: ImportOptions): Promise<ImportResult[]> {
   const results: ImportResult[] = [];
 
-  // Determine which folders to process
-  let folders: string[];
-  if (options.folder) {
-    folders = [options.folder];
-  } else {
-    try {
-      const entries = fs.readdirSync(MILKWAVE_PATH, { withFileTypes: true });
-      folders = entries
-        .filter(e => e.isDirectory())
-        .map(e => e.name);
-    } catch {
-      console.error(`Milkwave path not found: ${MILKWAVE_PATH}`);
-      return [];
-    }
+  const searchRoot = options.folder
+    ? path.join(MILKWAVE_PATH, options.folder)
+    : MILKWAVE_PATH;
+
+  let allEntries: MilkFileEntry[];
+  try {
+    allEntries = walkMilkFiles(searchRoot, MILKWAVE_PATH);
+  } catch {
+    console.error(`Milkwave path not found: ${searchRoot}`);
+    return [];
   }
 
-  console.log(`Found ${folders.length} folders to process`);
+  const filesToProcess = options.batch ? allEntries.slice(0, options.batch) : allEntries;
+  console.log(`Found ${filesToProcess.length} presets to process`);
 
   let presetNumber = options.startIndex;
 
-  for (const folder of folders) {
-    const folderPath = path.join(MILKWAVE_PATH, folder);
-    const files = fs.readdirSync(folderPath)
-      .filter(f => f.toLowerCase().endsWith('.milk'))
-      .sort();
+  for (const entry of filesToProcess) {
+    try {
+      const content = fs.readFileSync(entry.filePath, 'utf-8');
+      const milkData = parseMilkFile(content, entry.file, entry.folder);
 
-    // Apply batch limit if specified
-    const filesToProcess = options.batch ? files.slice(0, options.batch) : files;
-
-    console.log(`Processing ${filesToProcess.length} files from ${folder}...`);
-
-    for (const file of filesToProcess) {
-      const filePath = path.join(folderPath, file);
-
-      try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const milkData = parseMilkFile(content, file, folder);
-
-        if (!milkData) {
-          results.push({
-            file: `${folder}/${file}`,
-            success: false,
-            author: 'Unknown',
-            name: file,
-            category: 'Imported',
-            error: 'Failed to parse .milk file'
-          });
-          continue;
-        }
-
-        const translated = translateMilkwavePresetOffline(milkData);
-        const { capability, translation } = translated;
-
-        if (translation.passes.warp.errors.length > 0) {
-          console.warn(`  Warp translation errors in ${file}:`, translation.passes.warp.errors);
-        }
-        if (translation.passes.comp.errors.length > 0) {
-          console.warn(`  Comp translation errors in ${file}:`, translation.passes.comp.errors);
-        }
-
-        // Create preset
-        const preset = createMilkwavePreset(milkData, translated, presetNumber);
-        const supportTier = capability.tier;
-        const featureSummary = capability.featureSummary;
-
-        // Generate output filename
-        const sanitizedName = sanitizeFilename(milkData.metadata.name);
-        const outputFilename = `preset-${String(presetNumber).padStart(3, '0')}-milkwave-${sanitizedName}.json`;
-        const outputPath = path.join(OUTPUT_PATH, outputFilename);
-
-        if (!options.dryRun) {
-          fs.writeFileSync(outputPath, JSON.stringify(preset, null, 2));
-        }
-
+      if (!milkData) {
         results.push({
-          file: `${folder}/${file}`,
-          success: true,
-          author: milkData.metadata.author,
-          name: milkData.metadata.name,
-          category: preset.metadata.category,
-          supportTier,
-          featureSummary
-        });
-
-        presetNumber++;
-      } catch (err: any) {
-        results.push({
-          file: `${folder}/${file}`,
+          file: `${entry.folder}/${entry.file}`,
           success: false,
           author: 'Unknown',
-          name: file,
+          name: entry.file,
           category: 'Imported',
-          error: err?.message ?? String(err)
+          error: 'Failed to parse .milk file'
         });
+        continue;
       }
+
+      const translated = translateMilkwavePresetOffline(milkData);
+      const { capability, translation } = translated;
+
+      if (translation.passes.warp.errors.length > 0) {
+        console.warn(`  Warp translation errors in ${entry.file}:`, translation.passes.warp.errors);
+      }
+      if (translation.passes.comp.errors.length > 0) {
+        console.warn(`  Comp translation errors in ${entry.file}:`, translation.passes.comp.errors);
+      }
+
+      // Create preset
+      const preset = createMilkwavePreset(milkData, translated, presetNumber);
+      const supportTier = capability.tier;
+      const featureSummary = capability.featureSummary;
+
+      // Generate output filename
+      const sanitizedName = sanitizeFilename(milkData.metadata.name);
+      const outputFilename = `preset-${String(presetNumber).padStart(3, '0')}-milkwave-${sanitizedName}.json`;
+      const outputPath = path.join(OUTPUT_PATH, outputFilename);
+
+      if (!options.dryRun) {
+        fs.writeFileSync(outputPath, JSON.stringify(preset, null, 2));
+      }
+
+      results.push({
+        file: `${entry.folder}/${entry.file}`,
+        success: true,
+        author: milkData.metadata.author,
+        name: milkData.metadata.name,
+        category: preset.metadata.category,
+        supportTier,
+        featureSummary
+      });
+
+      presetNumber++;
+    } catch (err: any) {
+      results.push({
+        file: `${entry.folder}/${entry.file}`,
+        success: false,
+        author: 'Unknown',
+        name: entry.file,
+        category: 'Imported',
+        error: err?.message ?? String(err)
+      });
     }
   }
 

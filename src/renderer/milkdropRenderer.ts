@@ -687,6 +687,39 @@ void main() {
   fragColor = result;
 }`;
 
+const WARP_MESH_GRID = 32;
+const WARP_MESH_VERT_COUNT = (WARP_MESH_GRID + 1) * (WARP_MESH_GRID + 1);
+const WARP_MESH_IDX_COUNT = WARP_MESH_GRID * WARP_MESH_GRID * 6;
+
+/**
+ * Vertex shader for per-pixel EEL warp mesh.
+ * Takes screen position and pre-computed source UV (from CPU EEL evaluation).
+ */
+const PER_PIXEL_WARP_VERTEX_SHADER = `#version 300 es
+precision highp float;
+in vec2 position;
+in vec2 srcUv;
+out vec2 vSrcUv;
+void main() {
+  vSrcUv = srcUv;
+  gl_Position = vec4(position, 0.0, 1.0);
+}`;
+
+/**
+ * Fragment shader for per-pixel EEL warp mesh.
+ * Samples previous frame at the per-vertex source UV with decay.
+ */
+const PER_PIXEL_WARP_FRAGMENT_SHADER = `#version 300 es
+precision highp float;
+in vec2 vSrcUv;
+uniform sampler2D sampler_main;
+uniform float uDecay;
+out vec4 fragColor;
+void main() {
+  vec3 color = texture(sampler_main, vSrcUv).rgb;
+  fragColor = vec4(color * uDecay, 1.0);
+}`;
+
 /**
  * Default warp shader for pre-MilkDrop2 presets (no custom GLSL).
  * Implements the classic MilkDrop warp mesh: zoom, rotation, warp distortion,
@@ -860,6 +893,79 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
+  // Per-pixel warp mesh state (for presets with EEL per_pixel code and no custom GLSL warp shader)
+  let perPixelWarpProgram: WebGLProgram | null = null;
+  let meshPositionBuffer: WebGLBuffer | null = null;
+  let meshSrcUvBuffer: WebGLBuffer | null = null;
+  let meshIndexBuffer: WebGLBuffer | null = null;
+  let isPerPixelWarpMode = false;
+  type PerPixelFn = (x: number, y: number, rad: number, ang: number, ctx: Record<string, number>) => { x: number; y: number };
+  let compiledPerPixelFn: PerPixelFn | null = null;
+
+  // Pre-compute static mesh positions and triangle indices (immutable across presets)
+  const meshPositions = new Float32Array(WARP_MESH_VERT_COUNT * 2);
+  const meshSrcUvs = new Float32Array(WARP_MESH_VERT_COUNT * 2);
+  const meshIndices = new Uint16Array(WARP_MESH_IDX_COUNT);
+  {
+    const g = WARP_MESH_GRID, gs = g + 1;
+    for (let j = 0; j <= g; j++) {
+      for (let i = 0; i <= g; i++) {
+        const vi = (j * gs + i) * 2;
+        meshPositions[vi]     = (i / g) * 2 - 1;  // screen x [-1, 1]
+        meshPositions[vi + 1] = (j / g) * 2 - 1;  // screen y [-1, 1]
+      }
+    }
+    let ii = 0;
+    for (let j = 0; j < g; j++) {
+      for (let i = 0; i < g; i++) {
+        const v0 = j * gs + i;
+        meshIndices[ii++] = v0;      meshIndices[ii++] = v0 + gs;      meshIndices[ii++] = v0 + 1;
+        meshIndices[ii++] = v0 + 1;  meshIndices[ii++] = v0 + gs;      meshIndices[ii++] = v0 + gs + 1;
+      }
+    }
+  }
+
+  // Upload static mesh data and allocate dynamic srcUv buffer
+  meshPositionBuffer = gl.createBuffer();
+  meshSrcUvBuffer = gl.createBuffer();
+  meshIndexBuffer = gl.createBuffer();
+  if (meshPositionBuffer) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, meshPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, meshPositions, gl.STATIC_DRAW);
+  }
+  if (meshIndexBuffer) {
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, meshIndices, gl.STATIC_DRAW);
+  }
+  if (meshSrcUvBuffer) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, meshSrcUvBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, meshSrcUvs, gl.DYNAMIC_DRAW);
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+  // Compile the per-pixel warp mesh program (vertex + fragment) once at startup
+  const initPerPixelWarpProgram = () => {
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    if (!vs) return;
+    gl.shaderSource(vs, PER_PIXEL_WARP_VERTEX_SHADER);
+    gl.compileShader(vs);
+    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+      console.error('[MilkDrop] Per-pixel warp vertex shader error:', gl.getShaderInfoLog(vs));
+      return;
+    }
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    if (!fs) return;
+    gl.shaderSource(fs, PER_PIXEL_WARP_FRAGMENT_SHADER);
+    gl.compileShader(fs);
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+      console.error('[MilkDrop] Per-pixel warp fragment shader error:', gl.getShaderInfoLog(fs));
+      return;
+    }
+    perPixelWarpProgram = createProgram(gl, vs, fs);
+  };
+  initPerPixelWarpProgram();
+
   const initBlurProgram = () => {
     // Note: blur vertex shader must use VERTEX_SHADER type, not fragment
     const vs = gl.createShader(gl.VERTEX_SHADER);
@@ -922,6 +1028,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const compileShaders = (shaderData: MilkDropShaderData): boolean => {
     warpProgram = null;
     compProgram = null;
+    isPerPixelWarpMode = false;
+    compiledPerPixelFn = null;
     const warpRawDiagnostics = analyzeMilkwaveShaderSource({
       source: shaderData.warp ?? '',
       pass: 'warp',
@@ -978,8 +1086,17 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         lastCompileReport.warp.fallbackUsed = true;
       }
       lastCompileReport.warp.compiled = warpProgram !== null;
+    } else if (shaderData.perPixelCode?.length) {
+      // Pre-MilkDrop2 preset with per-pixel EEL code: evaluate the warp mesh on the CPU
+      // and render via indexed triangles — authentic MilkDrop warp mesh behaviour.
+      isPerPixelWarpMode = false;
+      compilePerPixelCode(shaderData.perPixelCode);
+      isPerPixelWarpMode = compiledPerPixelFn !== null;
+      lastCompileReport.warp.compiled = isPerPixelWarpMode;
+      // warpProgram is left null — renderPerPixelWarpMesh() is used instead.
     } else {
-      // Pre-MilkDrop2 preset: no custom warp shader, use default warp
+      // Pre-MilkDrop2 preset with no custom warp and no per-pixel code: generic warp fallback
+      isPerPixelWarpMode = false;
       const defaultWarp = createDefaultWarpShader(shaderData.originalParameters);
       const defaultFs = createMilkDropFragmentShader(gl, defaultWarp);
       if (defaultFs) warpProgram = createProgram(gl, vs, defaultFs);
@@ -1034,7 +1151,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       comp: !!compProgram,
       report: lastCompileReport
     });
-    return warpProgram !== null || compProgram !== null;
+    return warpProgram !== null || compProgram !== null || isPerPixelWarpMode;
   };
 
   const executePerFrameCode = (code: string[], state: RenderState) => {
@@ -1164,6 +1281,150 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     variables.treb_att = ctx.treb_att;
   };
 
+  /**
+   * Compile per-pixel EEL code into a reusable JS function for warp mesh evaluation.
+   * The compiled function takes (x, y, rad, ang, frameCtx) and returns { x, y } — the
+   * source UV coordinates to sample from the previous frame for each mesh vertex.
+   */
+  const compilePerPixelCode = (code: string[]): void => {
+    compiledPerPixelFn = null;
+    if (!code.length) return;
+
+    const allLines = code
+      .filter(line => line.trim() && !line.trim().startsWith('//'))
+      .map(line => {
+        let l = line.trim();
+        l = l.replace(/\b(megabuf|gmegabuf)\s*\(([^)]+)\)\s*=\s*([^;]+)/g, '$1($2, $3)');
+        l = l.replace(/\bif\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/g, '(($1) ? ($2) : ($3))');
+        return l;
+      })
+      .join('\n');
+
+    try {
+      const fnBody = [
+        // Per-frame animation params — from per-frame EEL results or preset defaults
+        'let zoom=__ctx.zoom??1,zoomexp=__ctx.zoomexp??1,rot=__ctx.rot??0;',
+        'let cx=__ctx.cx??0.5,cy=__ctx.cy??0.5,dx=__ctx.dx??0,dy=__ctx.dy??0;',
+        'let warp=__ctx.warp??0,time=__ctx.time??0,frame=__ctx.frame??0;',
+        'let bass=__ctx.bass??0,mid=__ctx.mid??0,treb=__ctx.treb??0;',
+        ...Array.from({ length: 32 }, (_, i) => `let q${i + 1}=__ctx.q${i + 1}??0;`),
+        // Math builtins
+        'const abs=Math.abs,sqrt=Math.sqrt,sin=Math.sin,cos=Math.cos,tan=Math.tan;',
+        'const atan=Math.atan,atan2=Math.atan2,pow=Math.pow,log=Math.log,exp=Math.exp;',
+        'const floor=Math.floor,ceil=Math.ceil,sign=Math.sign,max=Math.max,min=Math.min;',
+        'const sqr=x=>x*x,rand=n=>Math.random()*n,int=Math.trunc,frac=x=>x-Math.trunc(x);',
+        'const above=(a,b)=>a>b?1:0,below=(a,b)=>a<b?1:0,equal=(a,b)=>a===b?1:0;',
+        'const pi=Math.PI,e=Math.E;',
+        // EEL per-pixel code body
+        allLines,
+        // Return modified x, y as the source UV for this mesh vertex
+        'return { x, y };'
+      ].join('\n');
+
+      compiledPerPixelFn = new Function('x', 'y', 'rad', 'ang', '__ctx', fnBody) as PerPixelFn;
+    } catch (e) {
+      console.warn('[MilkDrop] Failed to compile per-pixel EEL code:', e);
+    }
+  };
+
+  /**
+   * Evaluate the compiled per-pixel function for every mesh vertex, then upload
+   * the resulting source UV coordinates to the meshSrcUvBuffer on the GPU.
+   */
+  const computePerPixelMeshUVs = (params: Record<string, number | boolean>): void => {
+    if (!compiledPerPixelFn || !meshSrcUvBuffer) return;
+
+    const g = WARP_MESH_GRID, gs = g + 1;
+
+    // Build per-frame context: prefer values computed by per-frame EEL code (in customVars),
+    // falling back to preset parameters for vars that EEL did not override.
+    const fctx: Record<string, number> = {
+      zoom:    customVars['zoom']    ?? Number(params.zoom    ?? 1),
+      zoomexp: customVars['zoomexp'] ?? Number(params.zoomexp ?? 1),
+      rot:     customVars['rot']     ?? Number(params.rot     ?? 0),
+      cx:      customVars['cx']      ?? Number(params.cx      ?? 0.5),
+      cy:      customVars['cy']      ?? Number(params.cy      ?? 0.5),
+      dx:      customVars['dx']      ?? Number(params.dx      ?? 0),
+      dy:      customVars['dy']      ?? Number(params.dy      ?? 0),
+      warp:    customVars['warp']    ?? Number(params.warp    ?? 0),
+      time:    variables.time,
+      frame:   variables.frame,
+      bass:    variables.bass,
+      mid:     variables.mid,
+      treb:    variables.treb,
+      ...Object.fromEntries(qVars.map((v, i) => [`q${i + 1}`, v])),
+      ...customVars
+    };
+
+    const cx0 = fctx['cx'];
+    const cy0 = fctx['cy'];
+
+    for (let j = 0; j <= g; j++) {
+      for (let i = 0; i <= g; i++) {
+        const x0 = i / g;  // mesh u [0, 1]
+        const y0 = j / g;  // mesh v [0, 1]
+        const ddx = x0 - cx0;
+        const ddy = y0 - cy0;
+        const rad = Math.sqrt(ddx * ddx + ddy * ddy) / 0.5;
+        const ang = Math.atan2(ddy, ddx);
+
+        let srcX = x0;
+        let srcY = y0;
+        try {
+          const result = compiledPerPixelFn!(x0, y0, rad, ang, fctx);
+          srcX = result.x;
+          srcY = result.y;
+        } catch {
+          // Fallback to identity mapping for this vertex
+        }
+
+        const vi = (j * gs + i) * 2;
+        meshSrcUvs[vi]     = srcX;
+        meshSrcUvs[vi + 1] = srcY;
+      }
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, meshSrcUvBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, meshSrcUvs);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  };
+
+  /**
+   * Render the per-pixel warp mesh: compute per-vertex source UVs via EEL, upload to GPU,
+   * then draw indexed triangles sampling the previous frame at the per-vertex source UV.
+   * This provides authentic MilkDrop warp-mesh behaviour for presets without custom GLSL.
+   */
+  const renderPerPixelWarpMesh = (params: Record<string, number | boolean>): void => {
+    if (!perPixelWarpProgram || !meshPositionBuffer || !meshSrcUvBuffer || !meshIndexBuffer || !mainFbo) return;
+
+    computePerPixelMeshUVs(params);
+
+    gl.useProgram(perPixelWarpProgram);
+
+    const mainLoc = gl.getUniformLocation(perPixelWarpProgram, 'sampler_main');
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, mainFbo.texture);
+    gl.uniform1i(mainLoc, 0);
+
+    const decayLoc = gl.getUniformLocation(perPixelWarpProgram, 'uDecay');
+    gl.uniform1f(decayLoc, Number(params.fDecay ?? 0.98));
+
+    const posLoc = gl.getAttribLocation(perPixelWarpProgram, 'position');
+    gl.enableVertexAttribArray(posLoc);
+    gl.bindBuffer(gl.ARRAY_BUFFER, meshPositionBuffer);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const uvLoc = gl.getAttribLocation(perPixelWarpProgram, 'srcUv');
+    gl.enableVertexAttribArray(uvLoc);
+    gl.bindBuffer(gl.ARRAY_BUFFER, meshSrcUvBuffer);
+    gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshIndexBuffer);
+    gl.drawElements(gl.TRIANGLES, WARP_MESH_IDX_COUNT, gl.UNSIGNED_SHORT, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  };
+
   const applyBlurPass = (sourceTexture: WebGLTexture, targetFbo: WebGLFramebuffer | null, width: number, height: number, horizontal: boolean) => {
     if (!blurProgram) return;
     
@@ -1194,7 +1455,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
 
     ensureFramebuffers(width, height);
 
-    if (!shaderData || (!warpProgram && !compProgram)) {
+    if (!shaderData || (!warpProgram && !compProgram && !isPerPixelWarpMode)) {
       return false;
     }
 
@@ -1231,12 +1492,16 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    if (warpProgram) {
-      gl.useProgram(warpProgram);
-      setUniforms(warpProgram, state, width, height);
+    if (isPerPixelWarpMode && perPixelWarpProgram) {
+      // Per-pixel EEL warp mesh: evaluate EEL per vertex on CPU and render indexed triangles
+      renderPerPixelWarpMesh(shaderData.originalParameters);
+    } else if (warpProgram) {
+      const activeWarpProgram = warpProgram;
+      gl.useProgram(activeWarpProgram);
+      setUniforms(activeWarpProgram, state, width, height);
       bindMilkwaveSamplers({
         gl,
-        loc: (name) => gl.getUniformLocation(warpProgram, name),
+        loc: (name) => gl.getUniformLocation(activeWarpProgram, name),
         resources: {
           previousFrameTexture: mainFbo?.texture,
           blur1Texture: blur1Fbo?.texture,
@@ -1247,7 +1512,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         phase: 'warp'
       });
 
-      const posLoc = gl.getAttribLocation(warpProgram, 'position');
+      const posLoc = gl.getAttribLocation(activeWarpProgram, 'position');
       gl.enableVertexAttribArray(posLoc);
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
@@ -1353,11 +1618,12 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.viewport(0, 0, width, height);
 
     if (compProgram) {
-      gl.useProgram(compProgram);
-      setUniforms(compProgram, state, width, height);
+      const activeCompProgram = compProgram;
+      gl.useProgram(activeCompProgram);
+      setUniforms(activeCompProgram, state, width, height);
       bindMilkwaveSamplers({
         gl,
-        loc: (name) => gl.getUniformLocation(compProgram, name),
+        loc: (name) => gl.getUniformLocation(activeCompProgram, name),
         resources: {
           warpTexture: warpFbo?.texture,
           blur1Texture: blur1Fbo?.texture,
@@ -1367,8 +1633,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         },
         phase: 'comp'
       });
-      
-      const posLoc = gl.getAttribLocation(compProgram, 'position');
+
+      const posLoc = gl.getAttribLocation(activeCompProgram, 'position');
       gl.enableVertexAttribArray(posLoc);
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
@@ -1444,7 +1710,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         midAtt: variables.mid_att,
         trebAtt: variables.treb_att,
         qVars,
-        randomPreset,
+        randomPreset: randomPreset as [number, number],
         randomFrame: [Math.random(), Math.random(), Math.random(), Math.random()]
       }
     });

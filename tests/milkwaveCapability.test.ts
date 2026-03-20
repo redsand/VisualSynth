@@ -32,7 +32,7 @@ describe('Milkwave capability classifier', () => {
     expect(result.featureSummary).toContain('custom-warp');
   });
 
-  it('degrades presets with per-pixel EEL code and no custom warp shader', () => {
+  it('does NOT degrade presets with per-pixel EEL code — warp mesh is now implemented', () => {
     const result = classifyMilkwaveFeatures({
       hasCustomWarp: false,
       hasCustomComp: true,
@@ -57,19 +57,19 @@ describe('Milkwave capability classifier', () => {
       usesSamplerState: false
     });
 
-    expect(result.tier).toBe('supported-with-degradation');
+    // Per-pixel EEL warp mesh is now implemented — no degrade for preset_pixel in any case
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'preset_pixel')).toBe(false);
     // float1, tex2Dbias handled by offline translator — no longer degrade reasons
     expect(result.reasonsDetailed.some((reason) => reason.key === 'float1')).toBe(false);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'tex2Dbias')).toBe(false);
-    // preset_pixel degrades when there is no custom warp GLSL (EEL warp mesh not yet implemented)
-    expect(result.reasonsDetailed.some((reason) => reason.key === 'preset_pixel')).toBe(true);
-    expect(result.reasonsDetailed.some((reason) => reason.severity === 'degrade')).toBe(true);
-    // wave_init, wave_point, custom_shapes, shape_init, shape_point, float1 are now implemented/handled
+    // wave and shape codes are all implemented
     expect(result.reasonsDetailed.some((reason) => reason.key === 'wave_init')).toBe(false);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'wave_point')).toBe(false);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'custom_shapes')).toBe(false);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'shape_init')).toBe(false);
     expect(result.reasonsDetailed.some((reason) => reason.key === 'shape_point')).toBe(false);
+    // No degrade reasons at all — native-supported
+    expect(result.tier).toBe('native-supported');
   });
 
   it('does NOT degrade preset_pixel when a custom warp GLSL shader is present', () => {
@@ -102,7 +102,7 @@ describe('Milkwave capability classifier', () => {
     expect(result.tier).toBe('native-supported');
   });
 
-  it('marks sampler_state, volume_noise, and custom_texture_slots as supported-with-degradation (all now handled by offline translator)', () => {
+  it('does NOT degrade for sampler_state, volume_noise, or custom_texture_slots — all handled by offline translator', () => {
     const result = classifyMilkwaveFeatures({
       hasCustomWarp: true,
       hasCustomComp: false,
@@ -127,9 +127,15 @@ describe('Milkwave capability classifier', () => {
       usesSamplerState: true
     });
 
-    expect(result.tier).toBe('supported-with-degradation');
-    expect(result.reasonsDetailed.some((reason) => reason.severity === 'degrade')).toBe(true);
-    expect(result.reasonsDetailed.some((reason) => reason.key === 'sampler_state')).toBe(true);
+    // All three are handled by the offline translator — no degrade reasons
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'sampler_state')).toBe(false);
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'volume_noise')).toBe(false);
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'custom_texture_slots')).toBe(false);
+    expect(result.tier).toBe('native-supported');
+    // Features still appear in the summary for diagnostic visibility
+    expect(result.featureSummary).toContain('volume-noise');
+    expect(result.featureSummary).toContain('custom-texture-slots');
+    expect(result.featureSummary).toContain('sampler_state');
   });
 
   it('does NOT produce a degrade reason for hasTexturedShapes: false', () => {
@@ -161,7 +167,7 @@ describe('Milkwave capability classifier', () => {
     expect(result.tier).toBe('native-supported');
   });
 
-  it('produces a textured_shapes degrade reason for hasTexturedShapes: true', () => {
+  it('does NOT degrade for hasTexturedShapes: true — textured shapes are fully implemented', () => {
     const result = classifyMilkwaveFeatures({
       hasCustomWarp: false,
       hasCustomComp: false,
@@ -186,9 +192,9 @@ describe('Milkwave capability classifier', () => {
       usesSamplerState: false
     });
 
-    expect(result.reasonsDetailed.some((reason) => reason.key === 'textured_shapes')).toBe(true);
-    expect(result.reasonsDetailed.find((reason) => reason.key === 'textured_shapes')?.severity).toBe('degrade');
-    expect(result.tier).toBe('supported-with-degradation');
+    // Textured shapes sample from the main framebuffer via tex_zoom/tex_ang UV mapping — no degrade
+    expect(result.reasonsDetailed.some((reason) => reason.key === 'textured_shapes')).toBe(false);
+    expect(result.tier).toBe('native-supported');
     expect(result.featureSummary).toContain('textured-shapes');
   });
 });

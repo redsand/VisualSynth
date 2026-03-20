@@ -1,0 +1,290 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "MilkDrop2077 - Saturday smoke3",
+    "author": "mrange",
+    "source": "mrange - MilkDrop2077 - Saturday smoke3.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-20T00:49:39.867Z",
+    "updatedAt": "2026-03-20T00:49:39.867Z",
+    "category": "Space",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "milkwave": {
+      "format": "milkwave-ir",
+      "version": 1,
+      "supportTier": "native-supported",
+      "featureSummary": [
+        "custom-warp",
+        "custom-comp",
+        "preset-frame",
+        "preset-pixel",
+        "blur-samplers",
+        "prev-frame-aliases",
+        "float1"
+      ],
+      "reasons": [],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": true,
+        "generatedPasses": [
+          "warp",
+          "comp"
+        ]
+      }
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1.46,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1.46,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1,
+            "rotation": 0,
+            "warp": 1,
+            "decay": 0.935,
+            "gamma": 1.46,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\n// Ray marching step\nz += 0.6*d + 1.0E - 3.0;\n}\n// Tone mapping with music reactivity\nfloat brightness = 0.8 + 0.2*audioLowSmooth;\nret = tanh(o / 1.0e3 * brightness);\n}\n\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  //Shader from https://www.shadertoy.com/view / 3.0ftSz2\n//Ported to MilkDrop by MilkDrop2077\nvec4 o = vec4( 0.0 , 0.0 , 0.0 , 0.0 );\nfloat T = uTime;\nvec2 r = vec2(1.0, 1.0/uAspect.x);\nvec4 U = vec4( 0.0 , 1.0 , 2.0 , 3.0 );\nr.y = -r.y;\nfor(float i=0.0, z=0.0, d=0.0; i<28.0; i+=1.0) {\n// Convert UV to ray direction\nvec2 centered_uv = (uv-0.5)*r*2.0;\nvec4 p = vec4(z*normalize(vec3(centered_uv,1.0)), 0.0 );\np.z -= 4.0;\n// Reset for plane accumulation\nd = 9e9;\nfor(float j=5.0, D=0.0; j<9.0; j+=1.0) {\n// Plane thickness calculation\nD = 2.0/(j-3.0+q1)+p.y/3.0;\n// Apply distortion and rotation\nvec4 P = p;\nP.x -= 0.3*sin(p.y+T);\n// Create rotation matrix\nfloat angle = j-T+p.y+11.0*U.x;\nmat2 rot = transpose(mat2(cos(angle), -sin(angle), sin(angle), cos(angle)));\nP.xz = vec2(P.x*rot[0][0] + P.z*rot[0][1], P.x*rot[1][0] + P.z*rot[1][1]);\n// In GLSL is column-major order and in HLSL, row-major order,\n// So we transpose the matrix with transpose() to be the same as GLSL.\n// Mirror space\nP = abs(P)-0.01;\n// Distance field calculation\nfloat dist = min(\nmax(P.z, P.x-D) + 2.0E - 2.0,\nlength(P.xz-D*U.yx)\n);\n// Track closest distance\nd = min(d, dist);\n// Color generation\nvec4 P_color = 1.2+sin(j+U.xyzy+z);\n// Accumulate color\no += P_color.w*P_color/max(dist,1E - 3.0);\n  fragColor = vec4(ret, 1.0);\n}",
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nshader_body\n{\n//MilkDrop3 Flip Mode:\n//uv = 1.0 - uv; //Flipped in warp shader\n//MilkDrop3 Rotate Mode:\nuv = uv.xy;\nvec2 d = (vec2(1.0)/uTexSize) * 4.0;\nfloat dx = ( GetBlur1(uv+vec2( 1.0 , 0.0 )*d)-GetBlur1(uv-vec2( 1.0 , 0.0 )*d).xy ).y;\nfloat dy = ( GetBlur1(uv+vec2( 0.0 , 1.0 )*d)-GetBlur1(uv-vec2( 0.0 , 1.0 )*d).xy ).y;\nvec2 uv_y = uv-vec2(dx,dy)*.7;\nret = mix(vec3(2.6, 2.0 , 2.0)*texture(sampler_fc_main, uv_y).x,\nvec3(2.6, 2.0 , 3.0 ), GetBlur1(uv).y*0.05);\nret = mix(ret,vec3(-.2,-0.2,-0.3),GetPixel(uv).z);\n//MilkDrop3 Invert Mode:\nret = vec3( 1.0 ) - ret;\n//MilkDrop3 Color Mode:\nret /= vec3(1.8,2.2,2.1);\n//MilkDrop3 Blow Mode:\nvec3 avg_col = GetBlur2(uv);ret = abs(avg_col - ret) * 2.0;\n//MilkDrop3 SoftColor Mode:\nret += vec3(-0.2,0.1,0.3);\n}\n\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  shader_body\n{\n//MilkDrop3 Flip Mode:\n//uv = 1.0 - uv; //Flipped in warp shader\n//MilkDrop3 Rotate Mode:\nuv = uv.xy;\nvec2 d = (vec2(1.0)/uTexSize) * 4.0;\nfloat dx = ( GetBlur1(uv+vec2( 1.0 , 0.0 )*d)-GetBlur1(uv-vec2( 1.0 , 0.0 )*d).xy ).y;\nfloat dy = ( GetBlur1(uv+vec2( 0.0 , 1.0 )*d)-GetBlur1(uv-vec2( 0.0 , 1.0 )*d).xy ).y;\nvec2 uv_y = uv-vec2(dx,dy)*.7;\nret = mix(vec3(2.6, 2.0 , 2.0)*texture(sampler_fc_main, uv_y).x,\nvec3(2.6, 2.0 , 3.0 ), GetBlur1(uv).y*0.05);\nret = mix(ret,vec3(-.2,-0.2,-0.3),GetPixel(uv).z);\n//MilkDrop3 Invert Mode:\nret = vec3( 1.0 ) - ret;\n//MilkDrop3 Color Mode:\nret /= vec3(1.8,2.2,2.1);\n//MilkDrop3 Blow Mode:\nvec3 avg_col = GetBlur2(uv);ret = abs(avg_col - ret) * 2.0;\n//MilkDrop3 SoftColor Mode:\nret += vec3(-0.2,0.1,0.3);\n}\n  fragColor = vec4(ret, 1.0);\n}",
+    "perFrameCode": [
+      "time = time * 0.5;",
+      "zoom = 1 + sin(time*0.7)*0.1;",
+      "warp = 0;",
+      "rot = 0.1*sin(time*0.3);"
+    ],
+    "perFrameInitCode": [],
+    "perPixelCode": [
+      "x = x + 0.03*sin(time*1.2 + y*10);",
+      "y = y + 0.02*cos(time*1.5 + x*8);"
+    ],
+    "waves": [],
+    "shapes": [],
+    "originalParameters": {
+      "fRating": 5,
+      "fGammaAdj": 1.46,
+      "fDecay": 0.935,
+      "fVideoEchoZoom": 1.007,
+      "fVideoEchoAlpha": 0.5,
+      "nVideoEchoOrientation": false,
+      "nWaveMode": false,
+      "bAdditiveWaves": true,
+      "bWaveDots": false,
+      "bWaveThick": true,
+      "bModWaveAlphaByVolume": false,
+      "bMaximizeWaveColor": true,
+      "bTexWrap": true,
+      "bDarkenCenter": false,
+      "bRedBlueStereo": false,
+      "bBrighten": true,
+      "bDarken": true,
+      "bSolarize": false,
+      "bInvert": false,
+      "fWaveAlpha": 1,
+      "fWaveScale": 2.718,
+      "fWaveSmoothing": 0.9,
+      "fWaveParam": 1,
+      "fModWaveAlphaStart": 0.75,
+      "fModWaveAlphaEnd": 0.95,
+      "fWarpAnimSpeed": 1,
+      "fWarpScale": 1,
+      "fZoomExponent": 1,
+      "fShader": 1,
+      "zoom": 1,
+      "rot": 0,
+      "cx": 0.5,
+      "cy": 0.5,
+      "dx": 0,
+      "dy": 0,
+      "warp": 1,
+      "sx": 1,
+      "sy": 1,
+      "wave_r": 1,
+      "wave_g": 0.4,
+      "wave_b": 0.1,
+      "wave_x": 0.5,
+      "wave_y": 0.6,
+      "ob_size": 0.01,
+      "ob_r": 0,
+      "ob_g": 0,
+      "ob_b": 0,
+      "ob_a": 0,
+      "ib_size": 0.01,
+      "ib_r": 0.25,
+      "ib_g": 0.25,
+      "ib_b": 0.25,
+      "ib_a": 0,
+      "nMotionVectorsX": false,
+      "nMotionVectorsY": false,
+      "mv_dx": 0,
+      "mv_dy": 0,
+      "mv_l": 0.9,
+      "mv_r": 1,
+      "mv_g": 1,
+      "mv_b": 1,
+      "mv_a": 0,
+      "b1n": false,
+      "b2n": false,
+      "b3n": false,
+      "b1x": false,
+      "b2x": false,
+      "b3x": false,
+      "b1ed": false
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "native-supported",
+      "featureSummary": [
+        "custom-warp",
+        "custom-comp",
+        "preset-frame",
+        "preset-pixel",
+        "blur-samplers",
+        "prev-frame-aliases",
+        "float1"
+      ],
+      "runtimePatchRecommended": true,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": true,
+          "generated": true,
+          "source": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\n// Ray marching step\nz += 0.6*d + 1.0E - 3.0;\n}\n// Tone mapping with music reactivity\nfloat brightness = 0.8 + 0.2*audioLowSmooth;\nret = tanh(o / 1.0e3 * brightness);\n}\n\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  //Shader from https://www.shadertoy.com/view / 3.0ftSz2\n//Ported to MilkDrop by MilkDrop2077\nvec4 o = vec4( 0.0 , 0.0 , 0.0 , 0.0 );\nfloat T = uTime;\nvec2 r = vec2(1.0, 1.0/uAspect.x);\nvec4 U = vec4( 0.0 , 1.0 , 2.0 , 3.0 );\nr.y = -r.y;\nfor(float i=0.0, z=0.0, d=0.0; i<28.0; i+=1.0) {\n// Convert UV to ray direction\nvec2 centered_uv = (uv-0.5)*r*2.0;\nvec4 p = vec4(z*normalize(vec3(centered_uv,1.0)), 0.0 );\np.z -= 4.0;\n// Reset for plane accumulation\nd = 9e9;\nfor(float j=5.0, D=0.0; j<9.0; j+=1.0) {\n// Plane thickness calculation\nD = 2.0/(j-3.0+q1)+p.y/3.0;\n// Apply distortion and rotation\nvec4 P = p;\nP.x -= 0.3*sin(p.y+T);\n// Create rotation matrix\nfloat angle = j-T+p.y+11.0*U.x;\nmat2 rot = transpose(mat2(cos(angle), -sin(angle), sin(angle), cos(angle)));\nP.xz = vec2(P.x*rot[0][0] + P.z*rot[0][1], P.x*rot[1][0] + P.z*rot[1][1]);\n// In GLSL is column-major order and in HLSL, row-major order,\n// So we transpose the matrix with transpose() to be the same as GLSL.\n// Mirror space\nP = abs(P)-0.01;\n// Distance field calculation\nfloat dist = min(\nmax(P.z, P.x-D) + 2.0E - 2.0,\nlength(P.xz-D*U.yx)\n);\n// Track closest distance\nd = min(d, dist);\n// Color generation\nvec4 P_color = 1.2+sin(j+U.xyzy+z);\n// Accumulate color\no += P_color.w*P_color/max(dist,1E - 3.0);\n  fragColor = vec4(ret, 1.0);\n}",
+          "backend": "milkwave-direct-v2",
+          "normalized": {
+            "preludeLineCount": 7,
+            "bodyLineCount": 39,
+            "helperLineCount": 0,
+            "hasShaderBodyBlock": true,
+            "source": "// Ray marching step\nz += 0.6*d + 1E-3;\n}\n// Tone mapping with music reactivity\nfloat brightness = 0.8 + 0.2*bass_att;\nret = tanh(o/1e3 * brightness);\n}\nshader_body {\n//Shader from https://www.shadertoy.com/view/3ftSz2\n//Ported to MilkDrop by MilkDrop2077\nfloat4 o = float4(0,0,0,0);\nfloat T = time;\nfloat2 r = float2(1.0, 1.0/aspect.x);\nfloat4 U = float4(0,1,2,3);\nr.y = -r.y;\nfor(float i=0.0, z=0.0, d=0.0; i<28.0; i+=1.0) {\n// Convert UV to ray direction\nfloat2 centered_uv = (uv-0.5)*r*2.0;\nfloat4 p = float4(z*normalize(float3(centered_uv,1.0)),0);\np.z -= 4.0;\n// Reset for plane accumulation\nd = 9e9;\nfor(float j=5.0, D=0.0; j<9.0; j+=1.0) {\n// Plane thickness calculation\nD = 2.0/(j-3.0+q1)+p.y/3.0;\n// Apply distortion and rotation\nfloat4 P = p;\nP.x -= 0.3*sin(p.y+T);\n// Create rotation matrix\nfloat angle = j-T+p.y+11.0*U.x;\nfloat2x2 rot = transpose(float2x2(cos(angle), -sin(angle), sin(angle), cos(angle)));\nP.xz = float2(P.x*rot[0][0] + P.z*rot[0][1], P.x*rot[1][0] + P.z*rot[1][1]);\n// In GLSL is column-major order and in HLSL, row-major order,\n// So we transpose the matrix with transpose() to be the same as GLSL.\n// Mirror space\nP = abs(P)-0.01;\n// Distance field calculation\nfloat dist = min(\nmax(P.z, P.x-D)+2E-2,\nlength(P.xz-D*U.yx)\n);\n// Track closest distance\nd = min(d, dist);\n// Color generation\nfloat4 P_color = 1.2+sin(j+U.xyzy+z);\n// Accumulate color\no += P_color.w*P_color/max(dist,1E-3);\n}",
+            "dialectSource": "// Ray marching step\nz += 0.6*d + 1.0E - 3.0;\n}\n// Tone mapping with music reactivity\nfloat brightness = 0.8 + 0.2*audioLowSmooth;\nret = tanh(o / 1.0e3 * brightness);\n}\nshader_body {\n//Shader from https://www.shadertoy.com/view / 3.0ftSz2\n//Ported to MilkDrop by MilkDrop2077\nvec4 o = vec4( 0.0 , 0.0 , 0.0 , 0.0 );\nfloat T = uTime;\nvec2 r = vec2(1.0, 1.0/uAspect.x);\nvec4 U = vec4( 0.0 , 1.0 , 2.0 , 3.0 );\nr.y = -r.y;\nfor(float i=0.0, z=0.0, d=0.0; i<28.0; i+=1.0) {\n// Convert UV to ray direction\nvec2 centered_uv = (uv-0.5)*r*2.0;\nvec4 p = vec4(z*normalize(vec3(centered_uv,1.0)), 0.0 );\np.z -= 4.0;\n// Reset for plane accumulation\nd = 9e9;\nfor(float j=5.0, D=0.0; j<9.0; j+=1.0) {\n// Plane thickness calculation\nD = 2.0/(j-3.0+q1)+p.y/3.0;\n// Apply distortion and rotation\nvec4 P = p;\nP.x -= 0.3*sin(p.y+T);\n// Create rotation matrix\nfloat angle = j-T+p.y+11.0*U.x;\nmat2 rot = transpose(mat2(cos(angle), -sin(angle), sin(angle), cos(angle)));\nP.xz = vec2(P.x*rot[0][0] + P.z*rot[0][1], P.x*rot[1][0] + P.z*rot[1][1]);\n// In GLSL is column-major order and in HLSL, row-major order,\n// So we transpose the matrix with transpose() to be the same as GLSL.\n// Mirror space\nP = abs(P)-0.01;\n// Distance field calculation\nfloat dist = min(\nmax(P.z, P.x-D) + 2.0E - 2.0,\nlength(P.xz-D*U.yx)\n);\n// Track closest distance\nd = min(d, dist);\n// Color generation\nvec4 P_color = 1.2+sin(j+U.xyzy+z);\n// Accumulate color\no += P_color.w*P_color/max(dist,1E - 3.0);\n}"
+          },
+          "warnings": [],
+          "errors": [],
+          "diagnostics": {
+            "lineCount": 159,
+            "sourceLength": 5891,
+            "issueCount": 1,
+            "issues": [
+              {
+                "severity": "warning",
+                "code": "noise-volume-sampler",
+                "message": "References Milkwave volume-noise samplers that are not currently bound by the runtime."
+              }
+            ]
+          }
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": true,
+          "generated": true,
+          "source": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nshader_body\n{\n//MilkDrop3 Flip Mode:\n//uv = 1.0 - uv; //Flipped in warp shader\n//MilkDrop3 Rotate Mode:\nuv = uv.xy;\nvec2 d = (vec2(1.0)/uTexSize) * 4.0;\nfloat dx = ( GetBlur1(uv+vec2( 1.0 , 0.0 )*d)-GetBlur1(uv-vec2( 1.0 , 0.0 )*d).xy ).y;\nfloat dy = ( GetBlur1(uv+vec2( 0.0 , 1.0 )*d)-GetBlur1(uv-vec2( 0.0 , 1.0 )*d).xy ).y;\nvec2 uv_y = uv-vec2(dx,dy)*.7;\nret = mix(vec3(2.6, 2.0 , 2.0)*texture(sampler_fc_main, uv_y).x,\nvec3(2.6, 2.0 , 3.0 ), GetBlur1(uv).y*0.05);\nret = mix(ret,vec3(-.2,-0.2,-0.3),GetPixel(uv).z);\n//MilkDrop3 Invert Mode:\nret = vec3( 1.0 ) - ret;\n//MilkDrop3 Color Mode:\nret /= vec3(1.8,2.2,2.1);\n//MilkDrop3 Blow Mode:\nvec3 avg_col = GetBlur2(uv);ret = abs(avg_col - ret) * 2.0;\n//MilkDrop3 SoftColor Mode:\nret += vec3(-0.2,0.1,0.3);\n}\n\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  shader_body\n{\n//MilkDrop3 Flip Mode:\n//uv = 1.0 - uv; //Flipped in warp shader\n//MilkDrop3 Rotate Mode:\nuv = uv.xy;\nvec2 d = (vec2(1.0)/uTexSize) * 4.0;\nfloat dx = ( GetBlur1(uv+vec2( 1.0 , 0.0 )*d)-GetBlur1(uv-vec2( 1.0 , 0.0 )*d).xy ).y;\nfloat dy = ( GetBlur1(uv+vec2( 0.0 , 1.0 )*d)-GetBlur1(uv-vec2( 0.0 , 1.0 )*d).xy ).y;\nvec2 uv_y = uv-vec2(dx,dy)*.7;\nret = mix(vec3(2.6, 2.0 , 2.0)*texture(sampler_fc_main, uv_y).x,\nvec3(2.6, 2.0 , 3.0 ), GetBlur1(uv).y*0.05);\nret = mix(ret,vec3(-.2,-0.2,-0.3),GetPixel(uv).z);\n//MilkDrop3 Invert Mode:\nret = vec3( 1.0 ) - ret;\n//MilkDrop3 Color Mode:\nret /= vec3(1.8,2.2,2.1);\n//MilkDrop3 Blow Mode:\nvec3 avg_col = GetBlur2(uv);ret = abs(avg_col - ret) * 2.0;\n//MilkDrop3 SoftColor Mode:\nret += vec3(-0.2,0.1,0.3);\n}\n  fragColor = vec4(ret, 1.0);\n}",
+          "backend": "milkwave-direct-v2",
+          "normalized": {
+            "preludeLineCount": 22,
+            "bodyLineCount": 0,
+            "helperLineCount": 0,
+            "hasShaderBodyBlock": false,
+            "source": "shader_body\n{\n//MilkDrop3 Flip Mode:\n//uv = 1-uv; //Flipped in warp shader\n//MilkDrop3 Rotate Mode:\nuv = uv.xy;\nfloat2 d = texsize.zw*4;\nfloat1 dx = ( GetBlur1(uv+float2(1,0)*d)-GetBlur1(uv-float2(1,0)*d) ).y;\nfloat1 dy = ( GetBlur1(uv+float2(0,1)*d)-GetBlur1(uv-float2(0,1)*d) ).y;\nfloat2 uv_y = uv-float2(dx,dy)*.7;\nret = lerp(float3(2.6,2,2)*tex2D(sampler_fc_main, uv_y).x,\nfloat3(2.6,2,3), GetBlur1(uv).y*0.05);\nret = lerp(ret,float3(-.2,-0.2,-0.3),GetPixel(uv).z);\n//MilkDrop3 Invert Mode:\nret = 1 - ret;\n//MilkDrop3 Color Mode:\nret /= float3(1.8,2.2,2.1);\n//MilkDrop3 Blow Mode:\nfloat3 avg_col = GetBlur2(uv);ret = abs(avg_col - ret)*2;\n//MilkDrop3 SoftColor Mode:\nret += float3(-0.2,0.1,0.3);\n}",
+            "dialectSource": "shader_body\n{\n//MilkDrop3 Flip Mode:\n//uv = 1.0 - uv; //Flipped in warp shader\n//MilkDrop3 Rotate Mode:\nuv = uv.xy;\nvec2 d = (vec2(1.0)/uTexSize) * 4.0;\nfloat dx = ( GetBlur1(uv+vec2( 1.0 , 0.0 )*d)-GetBlur1(uv-vec2( 1.0 , 0.0 )*d).xy ).y;\nfloat dy = ( GetBlur1(uv+vec2( 0.0 , 1.0 )*d)-GetBlur1(uv-vec2( 0.0 , 1.0 )*d).xy ).y;\nvec2 uv_y = uv-vec2(dx,dy)*.7;\nret = mix(vec3(2.6, 2.0 , 2.0)*texture(sampler_fc_main, uv_y).x,\nvec3(2.6, 2.0 , 3.0 ), GetBlur1(uv).y*0.05);\nret = mix(ret,vec3(-.2,-0.2,-0.3),GetPixel(uv).z);\n//MilkDrop3 Invert Mode:\nret = vec3( 1.0 ) - ret;\n//MilkDrop3 Color Mode:\nret /= vec3(1.8,2.2,2.1);\n//MilkDrop3 Blow Mode:\nvec3 avg_col = GetBlur2(uv);ret = abs(avg_col - ret) * 2.0;\n//MilkDrop3 SoftColor Mode:\nret += vec3(-0.2,0.1,0.3);\n}"
+          },
+          "warnings": [],
+          "errors": [],
+          "diagnostics": {
+            "lineCount": 157,
+            "sourceLength": 5969,
+            "issueCount": 1,
+            "issues": [
+              {
+                "severity": "warning",
+                "code": "noise-volume-sampler",
+                "message": "References Milkwave volume-noise samplers that are not currently bound by the runtime."
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

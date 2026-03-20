@@ -1,0 +1,230 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Tetrahedra",
+    "author": "Mdgeorge",
+    "source": "Mdgeorge - Tetrahedra.milk",
+    "importedFrom": "Milkwave",
+    "createdAt": "2026-03-20T00:49:35.893Z",
+    "updatedAt": "2026-03-20T00:49:35.893Z",
+    "category": "Audio Reactive",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "milkwave": {
+      "format": "milkwave-ir",
+      "version": 1,
+      "supportTier": "native-supported",
+      "featureSummary": [
+        "custom-warp",
+        "custom-comp",
+        "custom-waves"
+      ],
+      "reasons": [],
+      "translation": {
+        "pipeline": "milkwave-offline-v1",
+        "runtimePatchRecommended": true,
+        "generatedPasses": [
+          "warp",
+          "comp"
+        ]
+      }
+    },
+    "activeEngineId": "engine-radial-core",
+    "activeModeId": "mode-cosmic",
+    "intendedMusicStyle": "Electronic",
+    "visualIntentTags": [
+      "imported",
+      "milkwave"
+    ],
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut"
+    }
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Main",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [
+          "layer-milkwave"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-milkwave",
+          "name": "Milkwave",
+          "role": "support",
+          "enabled": true,
+          "opacity": 1.98,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 1.98,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "zoom": 1,
+            "rotation": 0,
+            "warp": 0,
+            "decay": 1,
+            "gamma": 1.98,
+            "bassSensitivity": 1,
+            "midSensitivity": 1,
+            "trebSensitivity": 1
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 1,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "_shaderData": {
+    "warp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  ret = 0;\n  fragColor = vec4(ret, 1.0);\n}",
+    "comp": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\n// adapted from https://www.scratchapixel.com/lessons / 3.0d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection.html\n// returns (u',v',t,f) where (u,v) are the barycentric coordinates,\n// t is the depth,\n// and f is either\n//   < 0 (back intersection),\n//   = 0 (no intersection), or\n//   > 0 (front intersection)\nvec4 intersection(vec2 o, vec3 v0, vec3 v1, vec3 v2) {\nvec3 orig = vec3(o.x, o.y, 3.0 );\nvec3 dir  = vec3( 0.0 , 0.0 , 1.0 );\nvec3 v0v1 = v1 - v0;\nvec3 v0v2 = v2 - v0;\nvec3 tvec = orig - v0;\nvec3 pvec = cross(dir, v0v2);\nfloat  det  = dot(v0v1, pvec);\nif (abs(det) < 0.0001) {\nreturn vec4( 0.0 , 0.0 , 0.0 , 0.0 );\n}\nelse {\nfloat  invDet = 1.0 / det;\nfloat u = dot(tvec, pvec)*invDet;\nvec3 qvec   = cross(tvec, v0v1);\nfloat v = dot(dir, qvec) * invDet;\nfloat t = dot(v0v2, qvec)*invDet;\nfloat w = 1.0 - u - v;\nreturn vec4(u, v, t, det);\n}\n}\nelse if (bary.x > .08 && bary.y > .08 && bary.z > .08) {\n}\nelse if (i.z > depth) {\n}\nelse {\ndepth = i.z;\nret = v3.xyz / 4.0 + 0.5*bary;\n}\n}\n}\n}\n\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  float f = 1.618; // golden ratio\nfloat g = 0.618; // 1.0 / f, or f - 1.0\nvec4 corners[20] =\n{ vec4(+1,+1,+1, 1.0 ) // tetrahedron 1\n, vec4(+1,-1,-1, 1.0 )\n, vec4(-1,+1,-1, 1.0 )\n, vec4(-1,-1,+1, 1.0 )\n, vec4(-1,-1,-1, 1.0 ) // tetrahedron 2\n, vec4( 0.0 ,+f,-g, 1.0 )\n, vec4(-g, 0.0 ,+f, 1.0 )\n, vec4(+f,-g, 0.0 , 1.0 )\n, vec4(-1,+1,+1, 1.0 ) // tetrahedron 3\n, vec4( 0.0 ,-f,+g, 1.0 )\n, vec4(-g, 0.0 ,-f, 1.0 )\n, vec4(+f,+g, 0.0 , 1.0 )\n, vec4(+1,-1,+1, 1.0 ) // tetrahedron 4\n, vec4( 0.0 ,+f,+g, 1.0 )\n, vec4(+g, 0.0 ,-f, 1.0 )\n, vec4(-f,-g, 0.0 , 1.0 )\n, vec4(+1,+1,-1, 1.0 ) // tetrahedron 5\n, vec4( 0.0 ,-f,-g, 1.0 )\n, vec4(+g, 0.0 ,+f, 1.0 )\n, vec4(-f,+g, 0.0 , 1.0 )\n};\nvec2 uv2 = (uv - vec2(.5,.5))*uAspect.wz * 4.0; // normalized into [-1,1]\nfloat depth = 10;\nret = vec3(0.9,0.95, 1.0 );\nfor (int tet = 0; tet < 5; tet++) {\nfor (int face = 0; face < 4; face++) {\nvec4 v0 = corners[(4.0 * tet) + ((face + 0.0)%4)];\nvec4 v1 = corners[(4.0 * tet) + ((face + 1.0)%4)];\nvec4 v2 = corners[(4.0 * tet) + ((face + 2.0)%4)];\nvec4 v3 = corners[(4.0 * tet) + ((face + 3.0)%4)];\nvec4 i = intersection(uv2,\nmultiply(v0, rot_f1),\nmultiply(v1, rot_f1),\nmultiply(v2, rot_f1)\n);\nvec3 bary = vec3(i.xy, 1.0 - i.x - i.y);\nif (bary.x < 0 || bary.x > 1 || bary.y < 0 || bary.y > 1 || bary.z < 0 || bary.z > 1) {\n  fragColor = vec4(ret, 1.0);\n}",
+    "perFrameCode": [],
+    "perFrameInitCode": [],
+    "perPixelCode": [],
+    "waves": [
+      {
+        "enabled": false,
+        "samples": 100,
+        "sep": 0,
+        "bSpectrum": false,
+        "bUseDots": true,
+        "bDrawThick": true,
+        "bAdditive": true,
+        "scaling": 1,
+        "smoothing": 0.5,
+        "r": 1,
+        "g": 1,
+        "b": 1,
+        "a": 1,
+        "initCode": [],
+        "perFrameCode": [],
+        "perPointCode": []
+      }
+    ],
+    "shapes": [],
+    "originalParameters": {
+      "fShader": 0,
+      "fDecay": 1,
+      "fGammaAdj": 1.98,
+      "warp": 0,
+      "zoom": 1,
+      "wave_a": 0
+    },
+    "translation": {
+      "pipeline": "milkwave-offline-v1",
+      "supportTier": "native-supported",
+      "featureSummary": [
+        "custom-warp",
+        "custom-comp",
+        "custom-waves"
+      ],
+      "runtimePatchRecommended": true,
+      "passes": {
+        "warp": {
+          "kind": "warp",
+          "requested": true,
+          "generated": true,
+          "source": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  ret = 0;\n  fragColor = vec4(ret, 1.0);\n}",
+          "backend": "milkwave-direct-v2",
+          "normalized": {
+            "preludeLineCount": 0,
+            "bodyLineCount": 1,
+            "helperLineCount": 0,
+            "hasShaderBodyBlock": true,
+            "source": "shader_body {\nret = 0;\n}",
+            "dialectSource": "shader_body {\nret = 0;\n}"
+          },
+          "warnings": [],
+          "errors": [],
+          "diagnostics": {
+            "lineCount": 113,
+            "sourceLength": 4459,
+            "issueCount": 1,
+            "issues": [
+              {
+                "severity": "warning",
+                "code": "noise-volume-sampler",
+                "message": "References Milkwave volume-noise samplers that are not currently bound by the runtime."
+              }
+            ]
+          }
+        },
+        "comp": {
+          "kind": "comp",
+          "requested": true,
+          "generated": true,
+          "source": "#version 300 es\nprecision highp float;\n\n// VisualSynth uniforms\nuniform float uTime;\nuniform float uFrame;\nuniform float uFps;\nuniform float uRms;\n\n// Audio uniforms\nuniform float audioLow;\nuniform float audioLowSmooth;\nuniform float audioMid;\nuniform float audioMidSmooth;\nuniform float audioHigh;\nuniform float audioHighSmooth;\n\n// Screen uniforms\nuniform float uAspectX;\nuniform float uAspectY;\nuniform vec2 uAspect;\nuniform vec2 uTexSize;\n#define texsize vec4(uTexSize, 1.0/uTexSize)\n\n// Random values\nuniform vec2 uRandomPreset;\nuniform vec2 uRandomFrame;\nuniform vec4 rand_preset;\nuniform vec4 rand_frame;\n\n// Input from vertex shader\nin vec2 vUv;\nin vec2 vUvOriginal;\nin float vRadius;\nin float vAngle;\n\n// Output\nout vec4 fragColor;\n\n// Textures\nuniform sampler2D sampler_main;\nuniform sampler2D sampler_noise_lq;\nuniform sampler2D sampler_noise_mq;\nuniform sampler2D sampler_noise_hq;\nuniform sampler2D sampler_blur1;\nuniform sampler2D sampler_blur2;\nuniform sampler2D sampler_blur3;\n#define sampler_fc_main sampler_main\n#define sampler_pc_main sampler_main\n#define sampler_fw_main sampler_main\n#define sampler_pw_main sampler_main\n#define sampler_noise_lq_lite sampler_noise_lq\n#define sampler_noisevol_lq sampler_noise_lq\n#define sampler_noisevol_hq sampler_noise_hq\n\n// MilkDrop q-variable uniforms (q1–q32)\nuniform float q1; uniform float q2; uniform float q3; uniform float q4;\nuniform float q5; uniform float q6; uniform float q7; uniform float q8;\nuniform float q9; uniform float q10; uniform float q11; uniform float q12;\nuniform float q13; uniform float q14; uniform float q15; uniform float q16;\nuniform float q17; uniform float q18; uniform float q19; uniform float q20;\nuniform float q21; uniform float q22; uniform float q23; uniform float q24;\nuniform float q25; uniform float q26; uniform float q27; uniform float q28;\nuniform float q29; uniform float q30; uniform float q31; uniform float q32;\n\n// MilkDrop _c / _q matrix uniforms\nuniform vec4 _c0; uniform vec4 _c1; uniform vec4 _c2; uniform vec4 _c3;\nuniform vec4 _c4; uniform vec4 _c5; uniform vec4 _c6; uniform vec4 _c7;\nuniform vec4 _c8; uniform vec4 _c9; uniform vec4 _c10; uniform vec4 _c11;\nuniform vec4 _c12; uniform vec4 _c13; uniform vec4 _c14;\nuniform vec4 _c15; uniform vec4 _c16; uniform vec4 _c17;\nuniform vec4 _qa; uniform vec4 _qb; uniform vec4 _qc; uniform vec4 _qd;\nuniform vec4 _qe; uniform vec4 _qf; uniform vec4 _qg; uniform vec4 _qh;\n\n// MilkDrop rotation matrices\nuniform mat4 rot_s1; uniform mat4 rot_s2; uniform mat4 rot_s3; uniform mat4 rot_s4;\nuniform mat4 rot_d1; uniform mat4 rot_d2; uniform mat4 rot_d3; uniform mat4 rot_d4;\nuniform mat4 rot_f1; uniform mat4 rot_f2; uniform mat4 rot_f3; uniform mat4 rot_f4;\nuniform mat4 rot_vf1; uniform mat4 rot_vf2; uniform mat4 rot_vf3; uniform mat4 rot_vf4;\nuniform mat4 rot_uf1; uniform mat4 rot_uf2; uniform mat4 rot_uf3; uniform mat4 rot_uf4;\nuniform mat4 rot_rand1; uniform mat4 rot_rand2; uniform mat4 rot_rand3; uniform mat4 rot_rand4;\n\nfloat clamp01(float x) { return clamp(x, 0.0, 1.0); }\nvec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\nfloat lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }\nfloat lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }\nfloat sat(float x) { return clamp(x, 0.0, 1.0); }\nvec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }\nvec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }\nvec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }\n\nvec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }\nvec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }\nvec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }\nvec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }\nvec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }\nvec2 multiply(vec2 v, mat2 m) { return m * v; }\nvec3 multiply(vec3 v, mat3 m) { return m * v; }\nvec4 multiply(vec4 v, mat4 m) { return m * v; }\nvec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\nvec4 textureLod4(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }\n// adapted from https://www.scratchapixel.com/lessons / 3.0d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection.html\n// returns (u',v',t,f) where (u,v) are the barycentric coordinates,\n// t is the depth,\n// and f is either\n//   < 0 (back intersection),\n//   = 0 (no intersection), or\n//   > 0 (front intersection)\nvec4 intersection(vec2 o, vec3 v0, vec3 v1, vec3 v2) {\nvec3 orig = vec3(o.x, o.y, 3.0 );\nvec3 dir  = vec3( 0.0 , 0.0 , 1.0 );\nvec3 v0v1 = v1 - v0;\nvec3 v0v2 = v2 - v0;\nvec3 tvec = orig - v0;\nvec3 pvec = cross(dir, v0v2);\nfloat  det  = dot(v0v1, pvec);\nif (abs(det) < 0.0001) {\nreturn vec4( 0.0 , 0.0 , 0.0 , 0.0 );\n}\nelse {\nfloat  invDet = 1.0 / det;\nfloat u = dot(tvec, pvec)*invDet;\nvec3 qvec   = cross(tvec, v0v1);\nfloat v = dot(dir, qvec) * invDet;\nfloat t = dot(v0v2, qvec)*invDet;\nfloat w = 1.0 - u - v;\nreturn vec4(u, v, t, det);\n}\n}\nelse if (bary.x > .08 && bary.y > .08 && bary.z > .08) {\n}\nelse if (i.z > depth) {\n}\nelse {\ndepth = i.z;\nret = v3.xyz / 4.0 + 0.5*bary;\n}\n}\n}\n}\n\nvoid main() {\n  vec3 ret = vec3(0.0);\n  vec2 uv = vUv;\n  vec2 uv_orig = vUvOriginal;\n  float rad = vRadius;\n  float ang = vAngle;\n  float f = 1.618; // golden ratio\nfloat g = 0.618; // 1.0 / f, or f - 1.0\nvec4 corners[20] =\n{ vec4(+1,+1,+1, 1.0 ) // tetrahedron 1\n, vec4(+1,-1,-1, 1.0 )\n, vec4(-1,+1,-1, 1.0 )\n, vec4(-1,-1,+1, 1.0 )\n, vec4(-1,-1,-1, 1.0 ) // tetrahedron 2\n, vec4( 0.0 ,+f,-g, 1.0 )\n, vec4(-g, 0.0 ,+f, 1.0 )\n, vec4(+f,-g, 0.0 , 1.0 )\n, vec4(-1,+1,+1, 1.0 ) // tetrahedron 3\n, vec4( 0.0 ,-f,+g, 1.0 )\n, vec4(-g, 0.0 ,-f, 1.0 )\n, vec4(+f,+g, 0.0 , 1.0 )\n, vec4(+1,-1,+1, 1.0 ) // tetrahedron 4\n, vec4( 0.0 ,+f,+g, 1.0 )\n, vec4(+g, 0.0 ,-f, 1.0 )\n, vec4(-f,-g, 0.0 , 1.0 )\n, vec4(+1,+1,-1, 1.0 ) // tetrahedron 5\n, vec4( 0.0 ,-f,-g, 1.0 )\n, vec4(+g, 0.0 ,+f, 1.0 )\n, vec4(-f,+g, 0.0 , 1.0 )\n};\nvec2 uv2 = (uv - vec2(.5,.5))*uAspect.wz * 4.0; // normalized into [-1,1]\nfloat depth = 10;\nret = vec3(0.9,0.95, 1.0 );\nfor (int tet = 0; tet < 5; tet++) {\nfor (int face = 0; face < 4; face++) {\nvec4 v0 = corners[(4.0 * tet) + ((face + 0.0)%4)];\nvec4 v1 = corners[(4.0 * tet) + ((face + 1.0)%4)];\nvec4 v2 = corners[(4.0 * tet) + ((face + 2.0)%4)];\nvec4 v3 = corners[(4.0 * tet) + ((face + 3.0)%4)];\nvec4 i = intersection(uv2,\nmultiply(v0, rot_f1),\nmultiply(v1, rot_f1),\nmultiply(v2, rot_f1)\n);\nvec3 bary = vec3(i.xy, 1.0 - i.x - i.y);\nif (bary.x < 0 || bary.x > 1 || bary.y < 0 || bary.y > 1 || bary.z < 0 || bary.z > 1) {\n  fragColor = vec4(ret, 1.0);\n}",
+          "backend": "milkwave-direct-v2",
+          "normalized": {
+            "preludeLineCount": 39,
+            "bodyLineCount": 40,
+            "helperLineCount": 4,
+            "hasShaderBodyBlock": true,
+            "source": "// adapted from https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection.html\n// returns (u',v',t,f) where (u,v) are the barycentric coordinates,\n// t is the depth,\n// and f is either\n//   < 0 (back intersection),\n//   = 0 (no intersection), or\n//   > 0 (front intersection)\nfloat4 intersection(float2 o, float3 v0, float3 v1, float3 v2) {\nfloat3 orig = float3(o.x, o.y, 3);\nfloat3 dir  = float3(0,0,1);\nfloat3 v0v1 = v1 - v0;\nfloat3 v0v2 = v2 - v0;\nfloat3 tvec = orig - v0;\nfloat3 pvec = cross(dir, v0v2);\nfloat  det  = dot(v0v1, pvec);\nif (abs(det) < 0.0001) {\nreturn float4(0,0,0,0);\n}\nelse {\nfloat  invDet = 1/det;\nfloat u = dot(tvec, pvec)*invDet;\nfloat3 qvec   = cross(tvec, v0v1);\nfloat v = dot(dir, qvec) * invDet;\nfloat t = dot(v0v2, qvec)*invDet;\nfloat w = 1 - u - v;\nreturn float4(u, v, t, det);\n}\n}\nelse if (bary.x > .08 && bary.y > .08 && bary.z > .08) {\n}\nelse if (i.z > depth) {\n}\nelse {\ndepth = i.z;\nret = v3.xyz/4 + 0.5*bary;\n}\n}\n}\n}\nshader_body {\nfloat f = 1.618; // golden ratio\nfloat g = 0.618; // 1/f, or f - 1\nfloat4 corners[20] =\n{ float4(+1,+1,+1,1) // tetrahedron 1\n, float4(+1,-1,-1,1)\n, float4(-1,+1,-1,1)\n, float4(-1,-1,+1,1)\n, float4(-1,-1,-1,1) // tetrahedron 2\n, float4( 0,+f,-g,1)\n, float4(-g, 0,+f,1)\n, float4(+f,-g, 0,1)\n, float4(-1,+1,+1,1) // tetrahedron 3\n, float4( 0,-f,+g,1)\n, float4(-g, 0,-f,1)\n, float4(+f,+g, 0,1)\n, float4(+1,-1,+1,1) // tetrahedron 4\n, float4( 0,+f,+g,1)\n, float4(+g, 0,-f,1)\n, float4(-f,-g, 0,1)\n, float4(+1,+1,-1,1) // tetrahedron 5\n, float4( 0,-f,-g,1)\n, float4(+g, 0,+f,1)\n, float4(-f,+g, 0,1)\n};\nfloat2 uv2 = (uv - float2(.5,.5))*aspect.wz*4; // normalized into [-1,1]\nfloat depth = 10;\nret = float3(0.9,0.95,1);\nfor (int tet = 0; tet < 5; tet++) {\nfor (int face = 0; face < 4; face++) {\nfloat4 v0 = corners[(4*tet) + ((face + 0)%4)];\nfloat4 v1 = corners[(4*tet) + ((face + 1)%4)];\nfloat4 v2 = corners[(4*tet) + ((face + 2)%4)];\nfloat4 v3 = corners[(4*tet) + ((face + 3)%4)];\nfloat4 i = intersection(uv2,\nmul(v0, rot_f1),\nmul(v1, rot_f1),\nmul(v2, rot_f1)\n);\nfloat3 bary = float3(i.xy, 1 - i.x - i.y);\nif (bary.x < 0 || bary.x > 1 || bary.y < 0 || bary.y > 1 || bary.z < 0 || bary.z > 1) {\n}",
+            "dialectSource": "// adapted from https://www.scratchapixel.com/lessons / 3.0d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection.html\n// returns (u',v',t,f) where (u,v) are the barycentric coordinates,\n// t is the depth,\n// and f is either\n//   < 0 (back intersection),\n//   = 0 (no intersection), or\n//   > 0 (front intersection)\nvec4 intersection(vec2 o, vec3 v0, vec3 v1, vec3 v2) {\nvec3 orig = vec3(o.x, o.y, 3.0 );\nvec3 dir  = vec3( 0.0 , 0.0 , 1.0 );\nvec3 v0v1 = v1 - v0;\nvec3 v0v2 = v2 - v0;\nvec3 tvec = orig - v0;\nvec3 pvec = cross(dir, v0v2);\nfloat  det  = dot(v0v1, pvec);\nif (abs(det) < 0.0001) {\nreturn vec4( 0.0 , 0.0 , 0.0 , 0.0 );\n}\nelse {\nfloat  invDet = 1.0 / det;\nfloat u = dot(tvec, pvec)*invDet;\nvec3 qvec   = cross(tvec, v0v1);\nfloat v = dot(dir, qvec) * invDet;\nfloat t = dot(v0v2, qvec)*invDet;\nfloat w = 1.0 - u - v;\nreturn vec4(u, v, t, det);\n}\n}\nelse if (bary.x > .08 && bary.y > .08 && bary.z > .08) {\n}\nelse if (i.z > depth) {\n}\nelse {\ndepth = i.z;\nret = v3.xyz / 4.0 + 0.5*bary;\n}\n}\n}\n}\nshader_body {\nfloat f = 1.618; // golden ratio\nfloat g = 0.618; // 1.0 / f, or f - 1.0\nvec4 corners[20] =\n{ vec4(+1,+1,+1, 1.0 ) // tetrahedron 1\n, vec4(+1,-1,-1, 1.0 )\n, vec4(-1,+1,-1, 1.0 )\n, vec4(-1,-1,+1, 1.0 )\n, vec4(-1,-1,-1, 1.0 ) // tetrahedron 2\n, vec4( 0.0 ,+f,-g, 1.0 )\n, vec4(-g, 0.0 ,+f, 1.0 )\n, vec4(+f,-g, 0.0 , 1.0 )\n, vec4(-1,+1,+1, 1.0 ) // tetrahedron 3\n, vec4( 0.0 ,-f,+g, 1.0 )\n, vec4(-g, 0.0 ,-f, 1.0 )\n, vec4(+f,+g, 0.0 , 1.0 )\n, vec4(+1,-1,+1, 1.0 ) // tetrahedron 4\n, vec4( 0.0 ,+f,+g, 1.0 )\n, vec4(+g, 0.0 ,-f, 1.0 )\n, vec4(-f,-g, 0.0 , 1.0 )\n, vec4(+1,+1,-1, 1.0 ) // tetrahedron 5\n, vec4( 0.0 ,-f,-g, 1.0 )\n, vec4(+g, 0.0 ,+f, 1.0 )\n, vec4(-f,+g, 0.0 , 1.0 )\n};\nvec2 uv2 = (uv - vec2(.5,.5))*uAspect.wz * 4.0; // normalized into [-1,1]\nfloat depth = 10;\nret = vec3(0.9,0.95, 1.0 );\nfor (int tet = 0; tet < 5; tet++) {\nfor (int face = 0; face < 4; face++) {\nvec4 v0 = corners[(4.0 * tet) + ((face + 0.0)%4)];\nvec4 v1 = corners[(4.0 * tet) + ((face + 1.0)%4)];\nvec4 v2 = corners[(4.0 * tet) + ((face + 2.0)%4)];\nvec4 v3 = corners[(4.0 * tet) + ((face + 3.0)%4)];\nvec4 i = intersection(uv2,\nmultiply(v0, rot_f1),\nmultiply(v1, rot_f1),\nmultiply(v2, rot_f1)\n);\nvec3 bary = vec3(i.xy, 1.0 - i.x - i.y);\nif (bary.x < 0 || bary.x > 1 || bary.y < 0 || bary.y > 1 || bary.z < 0 || bary.z > 1) {\n}"
+          },
+          "warnings": [],
+          "errors": [],
+          "diagnostics": {
+            "lineCount": 192,
+            "sourceLength": 6789,
+            "issueCount": 1,
+            "issues": [
+              {
+                "severity": "warning",
+                "code": "noise-volume-sampler",
+                "message": "References Milkwave volume-noise samplers that are not currently bound by the runtime."
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

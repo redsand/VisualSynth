@@ -45,7 +45,7 @@ describe('Milkwave IR', () => {
     expect(ir.capability.reasons).toHaveLength(0);
   });
 
-  it('classifies sampler-state driven presets as supported-with-degradation (offline translator strips sampler_state blocks)', () => {
+  it('classifies sampler-state driven presets as native-supported (offline translator strips sampler_state blocks — no degrade)', () => {
     const tier = assessMilkwaveSupportTier({
       hasCustomWarp: true,
       hasCustomComp: false,
@@ -70,8 +70,8 @@ describe('Milkwave IR', () => {
       usesSamplerState: true
     });
 
-    expect(tier.tier).toBe('supported-with-degradation');
-    expect(tier.reasons.some((reason) => reason.includes('sampler_state'))).toBe(true);
+    expect(tier.tier).toBe('native-supported');
+    expect(tier.reasons).toHaveLength(0);
   });
 
   it('captures wave and shape init/per-point blocks in the IR', () => {
