@@ -5838,7 +5838,7 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
       currentTransitionDecay = transition.decay;
     },
     startBlendTransition: (fromSnapshot, toSnapshot, at, durationMs, curve) => {
-      sceneManager.startTransition(fromSnapshot, toSnapshot, at, durationMs, curve);
+      sceneManager.startTransition(fromSnapshot, toSnapshot, at, durationMs, curve as 'linear' | 'easeInOut');
     },
     clearBlendTransition: () => {
       sceneManager.clearTransition();
@@ -11965,6 +11965,13 @@ const render = (time: number) => {
     const portalLayer = findLayerById(renderScene?.layers, 'layer-portal');
     const mediaLayer = findLayerById(renderScene?.layers, 'layer-media');
     const oscilloLayer = findLayerById(renderScene?.layers, 'layer-oscillo');
+    const assetVortexLayer = findLayerById(renderScene?.layers, 'gen-asset-vortex');
+    const assetSlicesLayer = findLayerById(renderScene?.layers, 'gen-asset-slices');
+    const assetPolarLayer = findLayerById(renderScene?.layers, 'gen-asset-polar');
+    const assetMosaicLayer = findLayerById(renderScene?.layers, 'gen-asset-mosaic');
+    const assetRippleLayer = findLayerById(renderScene?.layers, 'gen-asset-ripple');
+    const assetScatterLayer = findLayerById(renderScene?.layers, 'gen-asset-scatter');
+    const assetEchoLayer = findLayerById(renderScene?.layers, 'gen-asset-echo');
 
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);
@@ -12362,6 +12369,35 @@ const render = (time: number) => {
     spectrumAssetAudioReact: spectrumAssetAudioReact,
     mediaAssetBlendMode: mediaAssetBlendMode,
     mediaAssetAudioReact: mediaAssetAudioReact,
+    assetVortexEnabled: assetVortexLayer?.enabled ?? false,
+    assetVortexOpacity: assetVortexLayer?.opacity ?? 0.8,
+    assetVortexStrength: 2.0,
+    assetVortexSpeed: 1.0,
+    assetSlicesEnabled: assetSlicesLayer?.enabled ?? false,
+    assetSlicesOpacity: assetSlicesLayer?.opacity ?? 0.8,
+    assetSlicesCount: 16.0,
+    assetSlicesShift: 0.3,
+    assetPolarEnabled: assetPolarLayer?.enabled ?? false,
+    assetPolarOpacity: assetPolarLayer?.opacity ?? 0.8,
+    assetPolarRadius: 0.5,
+    assetPolarTwist: 1.0,
+    assetMosaicEnabled: assetMosaicLayer?.enabled ?? false,
+    assetMosaicOpacity: assetMosaicLayer?.opacity ?? 0.8,
+    assetMosaicTiles: 8.0,
+    assetMosaicFlip: 0.5,
+    assetRippleEnabled: assetRippleLayer?.enabled ?? false,
+    assetRippleOpacity: assetRippleLayer?.opacity ?? 0.8,
+    assetRippleAmplitude: 0.03,
+    assetRippleFrequency: 20.0,
+    assetScatterEnabled: assetScatterLayer?.enabled ?? false,
+    assetScatterOpacity: assetScatterLayer?.opacity ?? 0.8,
+    assetScatterAmount: 0.02,
+    assetScatterSeed: 1.0,
+    assetEchoEnabled: assetEchoLayer?.enabled ?? false,
+    assetEchoOpacity: assetEchoLayer?.opacity ?? 0.8,
+    assetEchoCount: 3.0,
+    assetEchoSpread: 0.15,
+    assetEchoFade: 0.6,
     roleWeights: currentProject.roleWeights || { core: 1, support: 1, atmosphere: 1 },
     transitionAmount: currentTransitionAmount,
     transitionType: currentTransitionType,
@@ -12781,7 +12817,7 @@ const init = async () => {
 
   // Check if recovery API is available
   updateLoadingProgress(92, 'Checking recovery session...');
-  if (window.visualSynth && window.visualSynth.getRecovery) {
+  if (window.visualSynth) {
     console.log('[Init] Starting recovery check...');
     try {
       const startupSelection = await selectStartupProject(window.visualSynth, localStorage);

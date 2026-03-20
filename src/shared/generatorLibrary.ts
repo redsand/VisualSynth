@@ -164,7 +164,14 @@ export type GeneratorId =
   | 'fx-chroma'
   | 'fx-posterize'
   | 'fx-blur'
-  | 'fx-trails';
+  | 'fx-trails'
+  | 'gen-asset-vortex'
+  | 'gen-asset-slices'
+  | 'gen-asset-polar'
+  | 'gen-asset-mosaic'
+  | 'gen-asset-ripple'
+  | 'gen-asset-scatter'
+  | 'gen-asset-echo';
 
 export interface GeneratorEntry {
   id: GeneratorId;
@@ -319,6 +326,13 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-score-counter', name: 'Generator: Score Counter' },
   { id: 'gen-pixel-rain', name: 'Generator: Pixel Rain' },
   { id: 'gen-boss-health', name: 'Generator: Boss Health' },
+  { id: 'gen-asset-vortex', name: 'Asset Vortex', supportsAsset: true },
+  { id: 'gen-asset-slices', name: 'Asset Slices', supportsAsset: true },
+  { id: 'gen-asset-polar', name: 'Asset Polar Warp', supportsAsset: true },
+  { id: 'gen-asset-mosaic', name: 'Asset Mosaic', supportsAsset: true },
+  { id: 'gen-asset-ripple', name: 'Asset Ripples', supportsAsset: true },
+  { id: 'gen-asset-scatter', name: 'Asset Scatter', supportsAsset: true },
+  { id: 'gen-asset-echo', name: 'Asset Echo Ghosts', supportsAsset: true },
   { id: 'gen-milkwave', name: 'Generator: Milkwave Import', visible: false }
 ];
 

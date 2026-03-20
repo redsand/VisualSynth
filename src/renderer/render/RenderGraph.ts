@@ -1522,6 +1522,13 @@ export class RenderGraph {
       findLayerById(activeScene?.layers, 'layer-milkwave') ??
       findLayerById(activeScene?.layers, 'layer-milkwave-effects');
     const bossHealthLayer = findLayerById(activeScene?.layers, 'gen-boss-health');
+    const assetVortexLayer = findLayerById(activeScene?.layers, 'gen-asset-vortex');
+    const assetSlicesLayer = findLayerById(activeScene?.layers, 'gen-asset-slices');
+    const assetPolarLayer = findLayerById(activeScene?.layers, 'gen-asset-polar');
+    const assetMosaicLayer = findLayerById(activeScene?.layers, 'gen-asset-mosaic');
+    const assetRippleLayer = findLayerById(activeScene?.layers, 'gen-asset-ripple');
+    const assetScatterLayer = findLayerById(activeScene?.layers, 'gen-asset-scatter');
+    const assetEchoLayer = findLayerById(activeScene?.layers, 'gen-asset-echo');
 
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
@@ -1838,6 +1845,35 @@ export class RenderGraph {
       mediaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-media'],
       mediaAssetAudioReact:
         state.renderSettings.assetLayerAudioReact['layer-media'] * getRoleAudioScale(mediaRole, lowFreq, legacyNeutral),
+      assetVortexEnabled: assetVortexLayer?.enabled ?? false,
+      assetVortexOpacity: layerOpacity(assetVortexLayer, 'gen-asset-vortex.opacity', 0.8),
+      assetVortexStrength: 2.0,
+      assetVortexSpeed: 1.0,
+      assetSlicesEnabled: assetSlicesLayer?.enabled ?? false,
+      assetSlicesOpacity: layerOpacity(assetSlicesLayer, 'gen-asset-slices.opacity', 0.8),
+      assetSlicesCount: 16.0,
+      assetSlicesShift: 0.3,
+      assetPolarEnabled: assetPolarLayer?.enabled ?? false,
+      assetPolarOpacity: layerOpacity(assetPolarLayer, 'gen-asset-polar.opacity', 0.8),
+      assetPolarRadius: 0.5,
+      assetPolarTwist: 1.0,
+      assetMosaicEnabled: assetMosaicLayer?.enabled ?? false,
+      assetMosaicOpacity: layerOpacity(assetMosaicLayer, 'gen-asset-mosaic.opacity', 0.8),
+      assetMosaicTiles: 8.0,
+      assetMosaicFlip: 0.5,
+      assetRippleEnabled: assetRippleLayer?.enabled ?? false,
+      assetRippleOpacity: layerOpacity(assetRippleLayer, 'gen-asset-ripple.opacity', 0.8),
+      assetRippleAmplitude: 0.03,
+      assetRippleFrequency: 20.0,
+      assetScatterEnabled: assetScatterLayer?.enabled ?? false,
+      assetScatterOpacity: layerOpacity(assetScatterLayer, 'gen-asset-scatter.opacity', 0.8),
+      assetScatterAmount: 0.02,
+      assetScatterSeed: 1.0,
+      assetEchoEnabled: assetEchoLayer?.enabled ?? false,
+      assetEchoOpacity: layerOpacity(assetEchoLayer, 'gen-asset-echo.opacity', 0.8),
+      assetEchoCount: 3.0,
+      assetEchoSpread: 0.15,
+      assetEchoFade: 0.6,
       roleWeights,
       transitionAmount,
       transitionType,

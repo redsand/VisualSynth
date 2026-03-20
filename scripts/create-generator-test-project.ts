@@ -37,6 +37,13 @@ const GENERATORS_TO_TEST = [
   { id: 'gen-pixel-rain', name: 'Pixel Rain' },
   { id: 'gen-boss-health', name: 'Boss Health' },
   { id: 'layer-weather', name: 'Audio Weather' },
+  { id: 'gen-asset-vortex', name: 'Asset Vortex' },
+  { id: 'gen-asset-slices', name: 'Asset Slices' },
+  { id: 'gen-asset-polar', name: 'Asset Polar Warp' },
+  { id: 'gen-asset-mosaic', name: 'Asset Mosaic' },
+  { id: 'gen-asset-ripple', name: 'Asset Ripples' },
+  { id: 'gen-asset-scatter', name: 'Asset Scatter' },
+  { id: 'gen-asset-echo', name: 'Asset Echo Ghosts' },
 ];
 
 const repoRoot = path.resolve(__dirname, '..');

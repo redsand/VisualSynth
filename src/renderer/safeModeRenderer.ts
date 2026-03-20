@@ -11,6 +11,8 @@ type SafeModeRenderer = {
   precompileVariant: () => void;
   setCustomShaderBlocks: () => void;
   updateMilkDropShaders: () => void;
+  getMilkDropCompileReport: () => null;
+  getMilkDropNativeRuntimeReport: () => null;
 };
 
 export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Safe mode: WebGL2 unavailable'): SafeModeRenderer => ({
@@ -33,5 +35,7 @@ export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Saf
   recompileForGenerators: () => false,
   precompileVariant: () => {},
   setCustomShaderBlocks: () => {},
-  updateMilkDropShaders: () => {}
+  updateMilkDropShaders: () => {},
+  getMilkDropCompileReport: () => null,
+  getMilkDropNativeRuntimeReport: () => null,
 });

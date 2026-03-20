@@ -45,7 +45,7 @@ const serializeAssetForOutput = (asset: AssetItem | null): SerializedOutputAsset
         id: asset.id,
         name: asset.name,
         kind: asset.kind,
-        path: asset.path,
+        path: asset.path ?? '',
         width: asset.width,
         height: asset.height,
         internalSource: asset.internalSource,

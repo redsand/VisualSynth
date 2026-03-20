@@ -78,13 +78,14 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
 
   const flushWindow = (nowMs: number) => {
     if (!activeWindow || activeWindow.sampleCount === 0) return;
+    const currentWindow = activeWindow;
     const signature = normalizeVector(
-      activeWindow.sums.map((value) => value / Math.max(1, activeWindow.sampleCount))
+      currentWindow.sums.map((value) => value / Math.max(1, currentWindow.sampleCount))
     );
 
     if (!baselineSignature) {
       baselineSignature = signature;
-      baselineStartedAt = activeWindow.startedAt;
+      baselineStartedAt = currentWindow.startedAt;
       activeWindow = null;
       consecutiveChanges = 0;
       pendingSignature = null;

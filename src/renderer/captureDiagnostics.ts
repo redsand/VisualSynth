@@ -108,6 +108,13 @@ const getLayerId = (layer: { id?: string; type?: string }) => layer.id ?? layer.
 
 const sortStrings = (values: Iterable<string>) => Array.from(values).sort((a, b) => a.localeCompare(b));
 
+const hexToRgb = (hex: string): number[] => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return [r, g, b];
+};
+
 const getActiveScene = (project: VisualSynthProject): SceneConfig | null =>
   project.scenes.find((scene) => scene.id === project.activeSceneId) ?? project.scenes[0] ?? null;
 
@@ -152,7 +159,7 @@ export const buildCaptureDiagnostics = (
       ? {
           ...renderSnapshot,
           activePaletteId,
-          activePalettePreview: activePalette?.colors?.slice(0, 4).map((color) => [...color]) ?? []
+          activePalettePreview: activePalette?.colors?.slice(0, 4).map(hexToRgb) ?? []
         }
       : null
   };

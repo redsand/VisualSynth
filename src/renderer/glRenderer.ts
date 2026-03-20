@@ -487,6 +487,35 @@ void main() {
     gl.uniform1fv(getLocation('uMediaBurstRadius[0]'), state.mediaBurstRadii);
     gl.uniform1fv(getLocation('uMediaBurstType[0]'), state.mediaBurstTypes);
     gl.uniform1fv(getLocation('uMediaBurstActive[0]'), state.mediaBurstActives);
+    gl.uniform1f(getLocation('uAssetVortexEnabled'), state.assetVortexEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAssetVortexOpacity'), state.assetVortexOpacity ?? 0.8);
+    gl.uniform1f(getLocation('uAssetVortexStrength'), state.assetVortexStrength ?? 2.0);
+    gl.uniform1f(getLocation('uAssetVortexSpeed'), state.assetVortexSpeed ?? 1.0);
+    gl.uniform1f(getLocation('uAssetSlicesEnabled'), state.assetSlicesEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAssetSlicesOpacity'), state.assetSlicesOpacity ?? 0.8);
+    gl.uniform1f(getLocation('uAssetSlicesCount'), state.assetSlicesCount ?? 16.0);
+    gl.uniform1f(getLocation('uAssetSlicesShift'), state.assetSlicesShift ?? 0.3);
+    gl.uniform1f(getLocation('uAssetPolarEnabled'), state.assetPolarEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAssetPolarOpacity'), state.assetPolarOpacity ?? 0.8);
+    gl.uniform1f(getLocation('uAssetPolarRadius'), state.assetPolarRadius ?? 0.5);
+    gl.uniform1f(getLocation('uAssetPolarTwist'), state.assetPolarTwist ?? 1.0);
+    gl.uniform1f(getLocation('uAssetMosaicEnabled'), state.assetMosaicEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAssetMosaicOpacity'), state.assetMosaicOpacity ?? 0.8);
+    gl.uniform1f(getLocation('uAssetMosaicTiles'), state.assetMosaicTiles ?? 8.0);
+    gl.uniform1f(getLocation('uAssetMosaicFlip'), state.assetMosaicFlip ?? 0.5);
+    gl.uniform1f(getLocation('uAssetRippleEnabled'), state.assetRippleEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAssetRippleOpacity'), state.assetRippleOpacity ?? 0.8);
+    gl.uniform1f(getLocation('uAssetRippleAmplitude'), state.assetRippleAmplitude ?? 0.03);
+    gl.uniform1f(getLocation('uAssetRippleFrequency'), state.assetRippleFrequency ?? 20.0);
+    gl.uniform1f(getLocation('uAssetScatterEnabled'), state.assetScatterEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAssetScatterOpacity'), state.assetScatterOpacity ?? 0.8);
+    gl.uniform1f(getLocation('uAssetScatterAmount'), state.assetScatterAmount ?? 0.02);
+    gl.uniform1f(getLocation('uAssetScatterSeed'), state.assetScatterSeed ?? 1.0);
+    gl.uniform1f(getLocation('uAssetEchoEnabled'), state.assetEchoEnabled ? 1 : 0);
+    gl.uniform1f(getLocation('uAssetEchoOpacity'), state.assetEchoOpacity ?? 0.8);
+    gl.uniform1f(getLocation('uAssetEchoCount'), state.assetEchoCount ?? 3.0);
+    gl.uniform1f(getLocation('uAssetEchoSpread'), state.assetEchoSpread ?? 0.15);
+    gl.uniform1f(getLocation('uAssetEchoFade'), state.assetEchoFade ?? 0.6);
     gl.uniform1f(getLocation('uOscilloEnabled'), state.oscilloEnabled ? 1 : 0);
     gl.uniform1f(getLocation('uOscilloOpacity'), state.oscilloOpacity);
     gl.uniform1f(getLocation('uOscilloMode'), state.oscilloMode);
@@ -641,11 +670,29 @@ void main() {
     }
   };
 
-  type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
+  type AssetLayerId = 
+    | 'layer-plasma' 
+    | 'layer-spectrum' 
+    | 'layer-media'
+    | 'gen-asset-vortex'
+    | 'gen-asset-slices'
+    | 'gen-asset-polar'
+    | 'gen-asset-mosaic'
+    | 'gen-asset-ripple'
+    | 'gen-asset-scatter'
+    | 'gen-asset-echo';
+  
   const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = {
     'layer-plasma': 1,
     'layer-spectrum': 2,
-    'layer-media': 3
+    'layer-media': 3,
+    'gen-asset-vortex': 4,
+    'gen-asset-slices': 5,
+    'gen-asset-polar': 6,
+    'gen-asset-mosaic': 7,
+    'gen-asset-ripple': 8,
+    'gen-asset-scatter': 9,
+    'gen-asset-echo': 10
   };
 
   interface AssetCacheEntry {
@@ -848,15 +895,28 @@ void main() {
   const applyLayerBinding = (prog: WebGLProgram, layerId: AssetLayerId) => {
     const entry = layerBindings[layerId];
     const unitIndex = ASSET_LAYER_UNITS[layerId];
-    const prefix =
-      layerId === 'layer-plasma' ? 'uPlasma' : layerId === 'layer-spectrum' ? 'uSpectrum' : 'uMedia';
-    const enabledLoc = gl.getUniformLocation(prog, `${prefix}AssetEnabled`);
-    const samplerLoc = gl.getUniformLocation(prog, `${prefix}Asset`);
+    
+    const uniformNames: Record<AssetLayerId, { enabled: string; sampler: string }> = {
+      'layer-plasma': { enabled: 'uPlasmaAssetEnabled', sampler: 'uPlasmaAsset' },
+      'layer-spectrum': { enabled: 'uSpectrumAssetEnabled', sampler: 'uSpectrumAsset' },
+      'layer-media': { enabled: 'uMediaAssetEnabled', sampler: 'uMediaAsset' },
+      'gen-asset-vortex': { enabled: 'uAssetVortexEnabled', sampler: 'uAssetVortexAsset' },
+      'gen-asset-slices': { enabled: 'uAssetSlicesEnabled', sampler: 'uAssetSlicesAsset' },
+      'gen-asset-polar': { enabled: 'uAssetPolarEnabled', sampler: 'uAssetPolarAsset' },
+      'gen-asset-mosaic': { enabled: 'uAssetMosaicEnabled', sampler: 'uAssetMosaicAsset' },
+      'gen-asset-ripple': { enabled: 'uAssetRippleEnabled', sampler: 'uAssetRippleAsset' },
+      'gen-asset-scatter': { enabled: 'uAssetScatterEnabled', sampler: 'uAssetScatterAsset' },
+      'gen-asset-echo': { enabled: 'uAssetEchoEnabled', sampler: 'uAssetEchoAsset' }
+    };
+    
+    const names = uniformNames[layerId];
+    const enabledLoc = gl.getUniformLocation(prog, names.enabled);
+    const samplerLoc = gl.getUniformLocation(prog, names.sampler);
     
     if (enabledLoc) gl.uniform1f(enabledLoc, entry ? 1 : 0);
     
     if (entry?.internalSourceId) {
-        let internalUnit = 10; // waveform
+        let internalUnit = 10;
         if (entry.internalSourceId === 'audio-spectrum') internalUnit = 11;
         if (entry.internalSourceId === 'modulators') internalUnit = 12;
         if (entry.internalSourceId === 'midi-history') internalUnit = 13;
@@ -869,10 +929,10 @@ void main() {
     }
   };
 
-  const setLayerAsset = async (layerId: AssetLayerId, asset: AssetItem | null, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
-    if (!asset) { delete layerBindings[layerId]; return; }
+  const setLayerAsset = async (layerId: string, asset: AssetItem | null, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
+    if (!asset) { delete layerBindings[layerId as AssetLayerId]; return; }
     const entry = await ensureAssetEntry(asset, videoOverride, textCanvas);
-    layerBindings[layerId] = entry;
+    layerBindings[layerId as AssetLayerId] = entry;
   };
 
   const setPalette = (colors: [string, string, string, string, string]) => {
@@ -952,6 +1012,13 @@ void main() {
     applyLayerBinding(currentProgram, 'layer-plasma');
     applyLayerBinding(currentProgram, 'layer-spectrum');
     applyLayerBinding(currentProgram, 'layer-media');
+    applyLayerBinding(currentProgram, 'gen-asset-vortex');
+    applyLayerBinding(currentProgram, 'gen-asset-slices');
+    applyLayerBinding(currentProgram, 'gen-asset-polar');
+    applyLayerBinding(currentProgram, 'gen-asset-mosaic');
+    applyLayerBinding(currentProgram, 'gen-asset-ripple');
+    applyLayerBinding(currentProgram, 'gen-asset-scatter');
+    applyLayerBinding(currentProgram, 'gen-asset-echo');
     
     if (currentProgram === advancedSdfProgram && state.sdfScene) {
       const s = state.sdfScene;

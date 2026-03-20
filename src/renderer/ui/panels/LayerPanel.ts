@@ -11,7 +11,7 @@ type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 
 export interface LayerPanelDeps {
   store: Store;
-  setLayerAsset: (layerId: AssetLayerId, asset: AssetItem | null, video?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => Promise<void>;
+  setLayerAsset: (layerId: string, asset: AssetItem | null, video?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => Promise<void>;
   onEffectBoost: (id: 'bloom' | 'feedback' | 'kaleidoscope' | 'chroma' | 'posterize' | 'blur' | 'trails') => void;
   onEnableParticles: () => void;
   onEnableSdf: () => void;

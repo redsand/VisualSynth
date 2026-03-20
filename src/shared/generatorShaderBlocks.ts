@@ -352,22 +352,172 @@ uniform float uMediaBurstType[8];
         if (activeAmt <= 0.01) continue;
         vec2 delta = effectUv - uMediaBurstPos[int(i)];
         float r = uMediaBurstRadius[int(i)];
-        float w = 0.01 + activeAmt * 0.015;
-        float type = uMediaBurstType[int(i)];
-        float shape = 0.0;
-        if (type < 0.5) {
-          float dist = length(delta);
-          shape = smoothstep(r + w, r, dist) * smoothstep(r, r - w * 2.2, dist);
-        } else if (type < 1.5) {
-          float t = sdEquilateralTriangle(delta, r);
-          shape = smoothstep(w, 0.0, abs(t));
-        } else {
-          float line = smoothstep(w, 0.0, abs(delta.y)) * smoothstep(r, r - w * 6.0, abs(delta.x));
-          shape = line;
-        }
-        vec3 burstColor = palette(fract(i * 0.17 + uPaletteShift * 0.2));
-        color += burstColor * shape * activeAmt * uMediaOpacity * uRoleWeights.y;
+        float ring = smoothstep(r, r * 0.7, length(delta)) * smoothstep(r * 0.3, r * 0.6, length(delta));
+        color += vec3(1.0, 0.9, 0.8) * ring * activeAmt * uMediaOpacity * uRoleWeights.y;
       }
+  }
+`,
+  },
+
+  {
+    id: 'gen-asset-vortex',
+    uniforms: `uniform float uAssetVortexEnabled;
+uniform float uAssetVortexOpacity;
+uniform sampler2D uAssetVortexAsset;
+uniform float uAssetVortexStrength;
+uniform float uAssetVortexSpeed;
+`,
+    functions: `vec2 vortexWarp(vec2 uv, float t, float strength) {
+  vec2 centered = uv - 0.5;
+  float dist = length(centered);
+  float angle = atan(centered.y, centered.x);
+  float twist = strength * (1.0 - dist) * sin(t * 2.0 + dist * 10.0);
+  angle += twist;
+  float pull = 1.0 - dist * strength * 0.3;
+  return 0.5 + vec2(cos(angle), sin(angle)) * dist * pull;
+}`,
+    mainCall: `  if (uAssetVortexEnabled > 0.5) {
+    vec2 warpedUv = vortexWarp(effectUv, uTime * uAssetVortexSpeed, uAssetVortexStrength + uPeak * 2.0);
+    warpedUv = clamp(warpedUv, 0.0, 1.0);
+    vec4 tex = texture(uAssetVortexAsset, warpedUv);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetVortexOpacity * uRoleWeights.y);
+  }
+`,
+  },
+
+  {
+    id: 'gen-asset-slices',
+    uniforms: `uniform float uAssetSlicesEnabled;
+uniform float uAssetSlicesOpacity;
+uniform sampler2D uAssetSlicesAsset;
+uniform float uAssetSlicesCount;
+uniform float uAssetSlicesShift;
+`,
+    functions: ``, 
+    mainCall: `  if (uAssetSlicesEnabled > 0.5) {
+    float slices = max(8.0, uAssetSlicesCount);
+    float sliceY = floor(effectUv.y * slices) / slices;
+    int band = int(sliceY * 64.0) % 64;
+    float amp = uSpectrum[band];
+    float shift = amp * uAssetSlicesShift;
+    vec2 slicedUv = vec2(fract(effectUv.x + shift), effectUv.y);
+    vec4 tex = texture(uAssetSlicesAsset, slicedUv);
+    color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetSlicesOpacity * uRoleWeights.y);
+  }
+`,
+  },
+
+  {
+    id: 'gen-asset-polar',
+    uniforms: `uniform float uAssetPolarEnabled;
+uniform float uAssetPolarOpacity;
+uniform sampler2D uAssetPolarAsset;
+uniform float uAssetPolarRadius;
+uniform float uAssetPolarTwist;
+`,
+    functions: `vec2 polarCoords(vec2 uv, float radius, float twist) {
+  vec2 centered = uv - 0.5;
+  float r = length(centered) / radius;
+  float theta = atan(centered.y, centered.x) + twist * r;
+  return vec2(theta / 6.28318 + 0.5, r);
+}`,
+    mainCall: `  if (uAssetPolarEnabled > 0.5) {
+    vec2 polarUv = polarCoords(effectUv, uAssetPolarRadius + uRms * 0.2, uAssetPolarTwist + uTime * 0.1);
+    vec4 tex = texture(uAssetPolarAsset, clamp(polarUv, 0.0, 1.0));
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetPolarOpacity * uRoleWeights.y);
+  }
+`,
+  },
+
+  {
+    id: 'gen-asset-mosaic',
+    uniforms: `uniform float uAssetMosaicEnabled;
+uniform float uAssetMosaicOpacity;
+uniform sampler2D uAssetMosaicAsset;
+uniform float uAssetMosaicTiles;
+uniform float uAssetMosaicFlip;
+`,
+    functions: ``,
+    mainCall: `  if (uAssetMosaicEnabled > 0.5) {
+    float tiles = max(4.0, uAssetMosaicTiles);
+    vec2 tileUv = fract(effectUv * tiles);
+    vec2 tileId = floor(effectUv * tiles);
+    float hash = fract(sin(dot(tileId, vec2(12.9898, 78.233))) * 43758.5453);
+    float flip = step(0.5 + uPeak * uAssetMosaicFlip, hash);
+    tileUv = mix(tileUv, 1.0 - tileUv, flip);
+    vec4 tex = texture(uAssetMosaicAsset, tileUv);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetMosaicOpacity * uRoleWeights.y);
+  }
+`,
+  },
+
+  {
+    id: 'gen-asset-ripple',
+    uniforms: `uniform float uAssetRippleEnabled;
+uniform float uAssetRippleOpacity;
+uniform sampler2D uAssetRippleAsset;
+uniform float uAssetRippleAmplitude;
+uniform float uAssetRippleFrequency;
+`,
+    functions: `vec2 rippleWarp(vec2 uv, float t, float amp, float freq) {
+  vec2 centered = uv - 0.5;
+  float dist = length(centered);
+  float ripple = sin(dist * freq - t * 3.0) * amp;
+  return uv + normalize(centered + 0.001) * ripple * (1.0 - dist);
+}`,
+    mainCall: `  if (uAssetRippleEnabled > 0.5) {
+    float amp = uAssetRippleAmplitude + uPeak * 0.05;
+    vec2 rippledUv = rippleWarp(effectUv, uTime, amp, uAssetRippleFrequency);
+    rippledUv = clamp(rippledUv, 0.0, 1.0);
+    vec4 tex = texture(uAssetRippleAsset, rippledUv);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetRippleOpacity * uRoleWeights.y);
+  }
+`,
+  },
+
+  {
+    id: 'gen-asset-scatter',
+    uniforms: `uniform float uAssetScatterEnabled;
+uniform float uAssetScatterOpacity;
+uniform sampler2D uAssetScatterAsset;
+uniform float uAssetScatterAmount;
+uniform float uAssetScatterSeed;
+`,
+    functions: `vec2 scatterWarp(vec2 uv, float amount, float seed) {
+  float n = fract(sin(dot(uv * 100.0 + seed, vec2(12.9898, 78.233))) * 43758.5453);
+  vec2 offset = vec2(n - 0.5, fract(n * 17.0) - 0.5) * amount;
+  return uv + offset;
+}`,
+    mainCall: `  if (uAssetScatterEnabled > 0.5) {
+    float scatter = uAssetScatterAmount * (1.0 + uPeak * 5.0);
+    vec2 scatteredUv = scatterWarp(effectUv, scatter, uAssetScatterSeed + uTime * 0.1);
+    vec4 tex = texture(uAssetScatterAsset, clamp(scatteredUv, 0.0, 1.0));
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetScatterOpacity * uRoleWeights.y);
+  }
+`,
+  },
+
+  {
+    id: 'gen-asset-echo',
+    uniforms: `uniform float uAssetEchoEnabled;
+uniform float uAssetEchoOpacity;
+uniform sampler2D uAssetEchoAsset;
+uniform float uAssetEchoCount;
+uniform float uAssetEchoSpread;
+uniform float uAssetEchoFade;
+`,
+    functions: ``,
+    mainCall: `  if (uAssetEchoEnabled > 0.5) {
+    float count = max(1.0, uAssetEchoCount);
+    for (float i = 0.0; i < 5.0; i += 1.0) {
+      if (i >= count) break;
+      float offset = i / count * uAssetEchoSpread;
+      vec2 echoUv = effectUv + vec2(offset * sin(uTime + i), offset * cos(uTime + i));
+      echoUv = clamp(echoUv, 0.0, 1.0);
+      vec4 tex = texture(uAssetEchoAsset, echoUv);
+      float fade = pow(uAssetEchoFade, i);
+      color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetEchoOpacity * fade * uRoleWeights.y);
+    }
   }
 `,
   },

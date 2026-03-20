@@ -35,6 +35,8 @@ export interface Renderer {
   recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) => boolean;
   precompileVariant: (ids: Set<string>) => void;
   setCustomShaderBlocks: (blocks: CustomShaderBlock[]) => void;
+  getMilkDropCompileReport: ReturnType<typeof createGLRenderer>['getMilkDropCompileReport'];
+  getMilkDropNativeRuntimeReport: ReturnType<typeof createGLRenderer>['getMilkDropNativeRuntimeReport'];
 }
 
 export const createRenderer = ({
@@ -237,6 +239,8 @@ export const createRenderer = ({
     precompileVariant: (ids: Set<string>) =>
       renderer.precompileVariant ? renderer.precompileVariant(ids) : undefined,
     setCustomShaderBlocks: (blocks: CustomShaderBlock[]) =>
-      renderer.setCustomShaderBlocks ? renderer.setCustomShaderBlocks(blocks) : undefined
+      renderer.setCustomShaderBlocks ? renderer.setCustomShaderBlocks(blocks) : undefined,
+    getMilkDropCompileReport: renderer.getMilkDropCompileReport,
+    getMilkDropNativeRuntimeReport: renderer.getMilkDropNativeRuntimeReport
   };
 };

@@ -265,7 +265,7 @@ export const createMilkwaveWaveRenderer = (gl: WebGL2RenderingContext) => {
       const memoryKey = `wave-${index}`;
       const memory =
         runtimeMemory.get(memoryKey) ??
-        { initRan: false, tVars: new Array(8).fill(0), qVars: [...runtime.qVars] };
+        { initRan: false, tVars: new Array(8).fill(0), qVars: [...runtime.qVars], samples: undefined };
       runtimeMemory.set(memoryKey, memory);
 
       let frameCtx = createBaseWaveContext({ wave, runtime, memory });
@@ -309,7 +309,7 @@ export const createMilkwaveWaveRenderer = (gl: WebGL2RenderingContext) => {
       const vertices: MilkwaveWaveRenderVertex[] = [];
 
       for (let pointIndex = 0; pointIndex < sampleCount; pointIndex++) {
-        let pointCtx = {
+        let pointCtx: Record<string, number> = {
           ...frameCtx,
           sample: sampleCount <= 1 ? 0 : pointIndex / (sampleCount - 1),
           value1: left[pointIndex] ?? 0,
