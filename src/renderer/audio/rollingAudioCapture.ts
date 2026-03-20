@@ -5,6 +5,57 @@ export interface RecentAudioClip {
   endedAt: number;
 }
 
+export interface RecentAudioClipPcm {
+  pcmS16le: Int16Array;   // 16 kHz mono signed-16 PCM
+  numSamples: number;
+  durationMs: number;
+  startedAt: number;
+  endedAt: number;
+}
+
+/**
+ * Decode a webm/mp4 audio blob to 16 kHz mono Int16 PCM using the Web Audio API.
+ * Returns null if decoding fails.
+ */
+export async function decodeClipToPcm(clip: RecentAudioClip): Promise<RecentAudioClipPcm | null> {
+  try {
+    const arrayBuffer = await clip.blob.arrayBuffer();
+    const audioCtx = new OfflineAudioContext(1, 1, 16000);
+    let decoded: AudioBuffer;
+    try {
+      decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    } catch {
+      return null;
+    }
+
+    const targetSampleRate = 16000;
+    const numOutputSamples = Math.ceil(decoded.duration * targetSampleRate);
+    const offlineCtx = new OfflineAudioContext(1, numOutputSamples, targetSampleRate);
+    const srcNode = offlineCtx.createBufferSource();
+    srcNode.buffer = decoded;
+    srcNode.connect(offlineCtx.destination);
+    srcNode.start(0);
+    const resampled = await offlineCtx.startRendering();
+
+    const f32 = resampled.getChannelData(0);
+    const s16 = new Int16Array(f32.length);
+    for (let i = 0; i < f32.length; i++) {
+      const clamped = Math.max(-1, Math.min(1, f32[i]));
+      s16[i] = Math.round(clamped * 32767);
+    }
+
+    return {
+      pcmS16le: s16,
+      numSamples: s16.length,
+      durationMs: Math.round(s16.length / targetSampleRate * 1000),
+      startedAt: clip.startedAt,
+      endedAt: clip.endedAt
+    };
+  } catch {
+    return null;
+  }
+}
+
 interface TimedChunk {
   at: number;
   blob: Blob;

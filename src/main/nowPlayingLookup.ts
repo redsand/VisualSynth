@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { NowPlayingRecognitionRequest, NowPlayingRecognitionResponse } from '../shared/nowPlaying';
+import { ShazamSignatureGenerator, SHAZAM_SAMPLE_RATE } from '../shared/shazamSignature';
 
 const IMAGE_EXTENSIONS: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -469,17 +470,104 @@ const postAcrCloudLookup = async (
   };
 };
 
+const SHAZAM_USER_AGENTS = [
+  'Dalvik/2.1.0 (Linux; U; Android 9; SM-G960F Build/PPR1.180610.011)',
+  'Dalvik/2.1.0 (Linux; U; Android 10; SM-G973F Build/QP1A.190711.020)',
+  'Dalvik/2.1.0 (Linux; U; Android 11; Pixel 4 Build/RQ3A.210905.001)',
+  'Dalvik/2.1.0 (Linux; U; Android 12; SM-S908B Build/SP1A.210812.016)',
+];
+
 const postShazamLookup = async (
   request: NowPlayingRecognitionRequest,
   fetchImpl: typeof fetch
 ): Promise<NowPlayingRecognitionResponse> => {
-  if (!request.endpoint?.trim()) {
+  if (request.mimeType !== 'audio/pcm-s16le') {
     return {
       matched: false,
-      error: 'Shazam proxy is not configured.'
+      error: 'Shazam provider requires PCM audio (audio/pcm-s16le). Ensure the renderer sent PCM.'
     };
   }
-  return postCustomLookup(request, fetchImpl);
+
+  // Decode base64 → Int16Array
+  const rawBuf = Buffer.from(request.audioBase64, 'base64');
+  const s16 = new Int16Array(rawBuf.buffer, rawBuf.byteOffset, rawBuf.byteLength / 2);
+
+  // Build signature
+  const gen = new ShazamSignatureGenerator();
+  gen.feed(s16);
+  const sigBytes = gen.encode();
+  const sigBase64 = Buffer.from(sigBytes).toString('base64');
+  const sampleMs = Math.trunc(gen.numSamples / SHAZAM_SAMPLE_RATE * 1000);
+  const sigUri = `data:audio/vnd.shazam.sig;base64,${sigBase64}`;
+
+  // Build request URL with two random UUIDs
+  const uuid1 = crypto.randomUUID().toUpperCase();
+  const uuid2 = crypto.randomUUID().toUpperCase();
+  const market = request.market?.trim() || 'US';
+  const qs = 'sync=true&webv3=true&sampling=true&connected=&shazamapiversion=v3&sharehub=true&hubv5minorversion=v5.1&hidelb=true&video=v3';
+  const url = `https://amp.shazam.com/discovery/v5/en-US/${market}/iphone/-/tag/${uuid1}/${uuid2}?${qs}`;
+
+  const ua = SHAZAM_USER_AGENTS[Math.floor(Math.random() * SHAZAM_USER_AGENTS.length)];
+
+  const body = JSON.stringify({
+    timezone: 'America/Chicago',
+    signature: { uri: sigUri, samplems: sampleMs },
+    timestamp: Date.now(),
+    context: {},
+    geolocation: {}
+  });
+
+  const response = await fetchImpl(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shazam-Platform': 'IPHONE',
+      'X-Shazam-AppVersion': '14.1.0',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US',
+      'User-Agent': ua
+    },
+    body
+  });
+
+  if (!response.ok) {
+    return {
+      matched: false,
+      error: `Shazam request failed (HTTP ${response.status}).`
+    };
+  }
+
+  const payload = await response.json() as {
+    matches?: unknown[];
+    track?: {
+      title?: string;
+      subtitle?: string;
+      images?: { coverarthq?: string; coverart?: string };
+      sections?: Array<{ type?: string; metadata?: Array<{ title?: string; text?: string }> }>;
+    } | null;
+  };
+
+  if (!payload.matches?.length || !payload.track) {
+    return { matched: false, provider: 'Shazam', raw: payload };
+  }
+
+  const track = payload.track;
+
+  // Extract album from SONG section metadata
+  const songSection = track.sections?.find((s) => s.type === 'SONG');
+  const albumMeta = songSection?.metadata?.find((m) => m.title?.toLowerCase() === 'album');
+  const album = albumMeta?.text;
+
+  return {
+    matched: true,
+    title: track.title,
+    artist: track.subtitle,
+    album,
+    artworkUrl: track.images?.coverarthq ?? track.images?.coverart,
+    confidence: 1,
+    provider: 'Shazam',
+    raw: payload
+  };
 };
 
 export const fetchNowPlayingMetadataBridge = async (

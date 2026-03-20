@@ -79,7 +79,7 @@ import {
   type NowPlayingSettings
 } from '../shared/nowPlaying';
 import { createSongChangeDetector } from './audio/songChangeDetector';
-import { createRollingAudioCapture } from './audio/rollingAudioCapture';
+import { createRollingAudioCapture, decodeClipToPcm } from './audio/rollingAudioCapture';
 
 declare global {
   interface Window {
@@ -9056,7 +9056,7 @@ const updateNowPlayingStatusText = () => {
 
 const syncNowPlayingProviderFields = () => {
   const provider = nowPlayingProviderSelect.value as NowPlayingSettings['provider'];
-  const showEndpoint = provider === 'custom' || provider === 'shazam';
+  const showEndpoint = provider === 'custom';
   const showHost = provider === 'acrcloud';
   const showSecret = provider === 'acrcloud';
   const showApiKey = provider !== 'shazam';
@@ -9076,7 +9076,7 @@ const syncNowPlayingProviderFields = () => {
       : provider === 'acrcloud'
         ? 'ACRCloud requires host, access key, and access secret.'
         : provider === 'shazam'
-          ? 'Shazam mode expects your own proxy endpoint because ShazamKit is not a direct Electron HTTP API.'
+          ? 'Shazam identifies tracks directly — no API key or proxy needed. Uses the Shazam mobile app endpoint.'
           : 'Custom mode posts the captured clip to your own lookup endpoint.';
 };
 
@@ -9271,6 +9271,50 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
   return btoa(binary);
 };
 
+/**
+ * Build the recognition request payload, converting to PCM when provider is 'shazam'.
+ * Returns null if the Shazam PCM decode fails.
+ */
+const buildRecognitionRequest = async (
+  clip: Awaited<ReturnType<typeof rollingAudioCapture.exportRecentClip>>,
+  settings: NowPlayingSettings,
+  detectedAt: number
+): Promise<NowPlayingRecognitionRequest | null> => {
+  if (!clip) return null;
+
+  if (settings.provider === 'shazam') {
+    const pcm = await decodeClipToPcm(clip);
+    if (!pcm) return null;
+    // Encode Int16Array as base64 via a copy into a known ArrayBuffer
+    const rawCopy = new Uint8Array(pcm.pcmS16le.byteLength);
+    rawCopy.set(new Uint8Array(pcm.pcmS16le.buffer, pcm.pcmS16le.byteOffset, pcm.pcmS16le.byteLength));
+    const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
+    return {
+      provider: 'shazam',
+      audioBase64,
+      mimeType: 'audio/pcm-s16le',
+      numSamples: pcm.numSamples,
+      durationMs: pcm.durationMs,
+      market: settings.market || undefined,
+      detectedAt
+    };
+  }
+
+  const audioBase64 = await blobToBase64(clip.blob);
+  return {
+    provider: settings.provider,
+    endpoint: settings.endpoint || undefined,
+    host: settings.host || undefined,
+    apiKey: settings.apiKey || undefined,
+    apiSecret: settings.apiSecret || undefined,
+    market: settings.market || undefined,
+    audioBase64,
+    mimeType: clip.mimeType,
+    durationMs: Math.max(0, clip.endedAt - clip.startedAt),
+    detectedAt
+  };
+};
+
 const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
   if (!isNowPlayingLookupConfigured(settings)) {
     nowPlayingTestStatus.textContent = 'Provider settings are incomplete.';
@@ -9283,20 +9327,13 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
     return;
   }
 
-  nowPlayingTestStatus.textContent = 'Running live lookup...';
-  const audioBase64 = await blobToBase64(clip.blob);
-  const result = await window.visualSynth.identifyNowPlaying({
-    provider: settings.provider,
-    endpoint: settings.endpoint || undefined,
-    host: settings.host || undefined,
-    apiKey: settings.apiKey || undefined,
-    apiSecret: settings.apiSecret || undefined,
-    market: settings.market || undefined,
-    audioBase64,
-    mimeType: clip.mimeType,
-    durationMs: Math.max(0, clip.endedAt - clip.startedAt),
-    detectedAt: Date.now()
-  });
+  nowPlayingTestStatus.textContent = settings.provider === 'shazam' ? 'Decoding audio + fingerprinting...' : 'Running live lookup...';
+  const request = await buildRecognitionRequest(clip, settings, Date.now());
+  if (!request) {
+    nowPlayingTestStatus.textContent = 'Failed to prepare audio for Shazam (decode error).';
+    return;
+  }
+  const result = await window.visualSynth.identifyNowPlaying(request);
 
   if (!result.matched) {
     nowPlayingTestStatus.textContent = result.error || 'No match found from live input.';
@@ -9326,20 +9363,11 @@ const runNowPlayingLookup = async (detectedAt: number) => {
   lastNowPlayingLookupAt = detectedAt;
 
   try {
-    const audioBase64 = await blobToBase64(clip.blob);
-    const result = await window.visualSynth.identifyNowPlaying({
-      provider: nowPlayingSettings.provider,
-      endpoint: nowPlayingSettings.endpoint,
-      apiKey: nowPlayingSettings.apiKey || undefined,
-      apiSecret: nowPlayingSettings.apiSecret || undefined,
-      host: nowPlayingSettings.host || undefined,
-      market: nowPlayingSettings.market || undefined,
-      audioBase64,
-      mimeType: clip.mimeType,
-      durationMs: clip.endedAt - clip.startedAt,
-      detectedAt
-    });
-    await consumeNowPlayingResult(result, 'Now playing');
+    const request = await buildRecognitionRequest(clip, nowPlayingSettings, detectedAt);
+    if (request) {
+      const result = await window.visualSynth.identifyNowPlaying(request);
+      await consumeNowPlayingResult(result, 'Now playing');
+    }
   } finally {
     nowPlayingLookupInFlight = false;
   }

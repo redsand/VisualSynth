@@ -1,5 +1,6 @@
 export interface NowPlayingRecognitionRequest {
   audioBase64: string;
+  /** 'audio/pcm-s16le' when provider is 'shazam' (16 kHz mono Int16 PCM) */
   mimeType: string;
   durationMs: number;
   detectedAt: number;
@@ -9,6 +10,8 @@ export interface NowPlayingRecognitionRequest {
   apiSecret?: string;
   host?: string;
   market?: string;
+  /** Number of PCM samples — only set when mimeType is audio/pcm-s16le */
+  numSamples?: number;
 }
 
 export interface NowPlayingRecognitionResponse {
@@ -90,7 +93,7 @@ export const isNowPlayingLookupConfigured = (settings: NowPlayingSettings): bool
       settings.apiKey.trim().length > 0 &&
       settings.apiSecret.trim().length > 0
     ) ||
-    (settings.provider === 'shazam' && settings.endpoint.trim().length > 0)
+    settings.provider === 'shazam'
   );
 
 export const isNowPlayingMetadataSourceConfigured = (settings: NowPlayingSettings): boolean =>

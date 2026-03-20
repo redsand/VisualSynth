@@ -122,7 +122,7 @@ describe('identifyNowPlaying', () => {
     expect(result.error).toBe('AudD could not fingerprint this clip. Try a cleaner 6-12 second section.');
   });
 
-  it('requires a proxy endpoint for shazam mode', async () => {
+  it('returns an error for shazam mode when audio is not PCM', async () => {
     const result = await identifyNowPlaying({
       provider: 'shazam',
       audioBase64: 'abc',
@@ -132,7 +132,7 @@ describe('identifyNowPlaying', () => {
     });
 
     expect(result.matched).toBe(false);
-    expect(result.error).toBe('Shazam proxy is not configured.');
+    expect(result.error).toContain('PCM audio');
   });
 
   it('normalizes an ACRCloud match', async () => {
