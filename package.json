@@ -93,6 +93,7 @@
     "publish": null
   },
   "dependencies": {
+    "@shaderfrog/glsl-parser": "^7.0.1",
     "midi": "^2.0.0",
     "zod": "^3.23.8"
   },

@@ -390,6 +390,11 @@ export const patchMilkDropGlsl = (source: string): string => {
     line = line.replace(/(?<=[\s(,=])(\d+)(?!\.\d)\s*([*\/+\-])\s*([a-zA-Z_(])/g,
       (m, num, op, id) => `${num}.0 ${op} ${id}`
     );
+    // Fix float_literal op bare_int: `2.0-1` → `2.0-1.0`, `4.0+1` → `4.0+1.0`
+    // The previous regexes miss this because the LHS ends with a digit (from the float literal).
+    line = line.replace(/(\d+\.\d*)\s*([+\-])\s*(\d+)(?!\.\d|\d)/g,
+      (m, floatLit, op, intLit) => `${floatLit} ${op} ${intLit}.0`
+    );
     // Fix bare integers in vec/mat constructors
     line = line.replace(
       /(?<=[,(])\s*(\d+)\s*(?=[,)])/g,
@@ -411,22 +416,45 @@ export const patchMilkDropGlsl = (source: string): string => {
   // ── 7. Fix vec/scalar type mismatches from HLSL auto-promotion ──
 
   // 7a+7b. texture() returns vec4 but MilkDrop works in vec3.
-  //   Add .xyz to bare texture() calls when the line is a vec3 context
-  //   (assignment to ret, col, vec3 declaration, or arithmetic with vec3 vars).
-  //   This handles complex expressions like: vec3 rnd = texture(s, uv) * 2.0 - 1;
-  patched = patched.split('\n').map(line => {
-    // Skip lines that explicitly declare/use vec4
-    if (/\bvec4\s+\w+\s*=/.test(line)) return line;
-    // Only process lines involving vec3 contexts
-    const isVec3Ctx = /\b(ret|col\w*)\s*[+\-*]?=/.test(line) ||
-                      /\bvec3\s+\w+\s*=/.test(line);
-    if (!isVec3Ctx) return line;
-    // Add .xyz to texture() calls that lack a swizzle
-    return line.replace(
-      /\btexture\s*\(([^)]*)\)(?!\s*\.[xyzwrgba])/g,
-      '$&.xyz'
-    );
-  }).join('\n');
+  //   Add .xyz to bare texture() calls in vec3 contexts.
+  //   Works on the full string to handle multi-line texture() calls.
+  //   Uses balanced-paren matching to find the actual closing ')'.
+  {
+    const texRe = /\btexture\s*\(/g;
+    let tm: RegExpExecArray | null;
+    const texReplacements: { insertAt: number; text: string }[] = [];
+    while ((tm = texRe.exec(patched)) !== null) {
+      const openIdx = tm.index + tm[0].length - 1;
+      let depth = 1;
+      let pos = openIdx + 1;
+      while (pos < patched.length && depth > 0) {
+        if (patched[pos] === '(') depth++;
+        else if (patched[pos] === ')') depth--;
+        pos++;
+      }
+      if (depth !== 0) continue;
+      const closeIdx = pos - 1; // index of matching ')'
+      // Check what comes after: already has swizzle?
+      const after = patched.slice(closeIdx + 1);
+      if (/^\s*\.[xyzwrgba]/.test(after)) continue;
+      // Determine context: find the statement this texture() is part of.
+      // Look backwards from the texture() call to find the start of the statement.
+      const stmtStart = patched.lastIndexOf(';', tm.index);
+      const stmtRegion = patched.slice(stmtStart === -1 ? 0 : stmtStart, tm.index);
+      // Skip if this is in a vec4 declaration/assignment context
+      if (/\bvec4\s+\w+\s*=/.test(stmtRegion)) continue;
+      if (/fragColor\s*=/.test(stmtRegion)) continue;
+      // Only add .xyz in vec3 contexts
+      const isVec3Ctx = /\b(ret|col\w*)\s*[+\-*]?=/.test(stmtRegion) ||
+                        /\bvec3\s+\w+\s*=/.test(stmtRegion);
+      if (!isVec3Ctx) continue;
+      texReplacements.push({ insertAt: closeIdx + 1, text: '.xyz' });
+    }
+    // Apply in reverse to preserve indices
+    for (const r of texReplacements.reverse()) {
+      patched = patched.slice(0, r.insertAt) + r.text + patched.slice(r.insertAt);
+    }
+  }
 
   // 7c. vecN x = integer;  →  vecN x = vecN(integer.0);
   patched = patched.replace(
@@ -436,19 +464,55 @@ export const patchMilkDropGlsl = (source: string): string => {
 
   // 7d. pow(vec3_expr, scalar)  →  pow(vec3_expr, vec3(scalar))
   //     GLSL ES: pow(genType, genType) — both args must match dimensionality.
-  //     Detect vec3 in first arg by presence of known vec3 names, then promote second arg.
-  patched = patched.replace(
-    /\bpow\s*\(\s*([^,]+?)\s*,\s*(-?(?:\d+\.?\d*|\.\d+))\s*\)/g,
-    (m, firstArg, scalar) => {
-      // Only promote if first arg is clearly a vec expression
-      if (!/\b(ret|col\w*|GetPixel|GetBlur[123]|GetMain|texture)\b/.test(firstArg) &&
-          !/\bvec[23]\b/.test(firstArg)) {
-        return m;
+  //     Uses balanced-paren arg splitting to handle nested commas.
+  {
+    const powRe = /\bpow\s*\(/g;
+    let pm: RegExpExecArray | null;
+    const powReplacements: { start: number; end: number; replacement: string }[] = [];
+    while ((pm = powRe.exec(patched)) !== null) {
+      const openIdx = pm.index + pm[0].length - 1;
+      let depth = 1;
+      let pos = openIdx + 1;
+      while (pos < patched.length && depth > 0) {
+        if (patched[pos] === '(') depth++;
+        else if (patched[pos] === ')') depth--;
+        pos++;
       }
-      const s = scalar.includes('.') ? scalar : `${scalar}.0`;
-      return `pow(${firstArg}, vec3(${s}))`;
+      if (depth !== 0) continue;
+      const closeIdx = pos - 1;
+      const inner = patched.slice(openIdx + 1, closeIdx);
+      // Split on top-level comma
+      let d = 0, splitAt = -1;
+      for (let ci = 0; ci < inner.length; ci++) {
+        if (inner[ci] === '(') d++;
+        else if (inner[ci] === ')') d--;
+        else if (inner[ci] === ',' && d === 0) { splitAt = ci; break; }
+      }
+      if (splitAt === -1) continue;
+      const firstArg = inner.slice(0, splitAt).trim();
+      const secondArg = inner.slice(splitAt + 1).trim();
+      // Check if first arg is a vec expression (not wrapped in scalar fn)
+      const firstIsVec = !/^\s*(length|dot|lum|distance|float|abs)\s*\(/.test(firstArg) &&
+                         !/\.(x|y|z|w|r|g|b|a)\s*$/.test(firstArg) &&
+                         (/\b(ret|col\w*|GetPixel|GetBlur[123]?|GetMain|texture)\b/.test(firstArg) ||
+                          /\bvec[23]\s*\(/.test(firstArg) ||
+                          /\bmix\s*\(/.test(firstArg) ||
+                          /\bclamp01\s*\(/.test(firstArg));
+      // Second arg is a simple scalar literal
+      const secondIsScalar = /^\s*-?(\d+\.?\d*|\.\d+)\s*$/.test(secondArg);
+      if (firstIsVec && secondIsScalar) {
+        const s = secondArg.includes('.') ? secondArg : `${secondArg}.0`;
+        powReplacements.push({
+          start: pm.index,
+          end: closeIdx + 1,
+          replacement: `pow(${firstArg}, vec3(${s.trim()}))`,
+        });
+      }
     }
-  );
+    for (const r of powReplacements.reverse()) {
+      patched = patched.slice(0, r.start) + r.replacement + patched.slice(r.end);
+    }
+  }
 
   // 7e. ret = scalar_expr;  →  ret = vec3(scalar_expr);
   //     lum/dot/length/distance return float but ret is vec3.
@@ -508,6 +572,51 @@ export const patchMilkDropGlsl = (source: string): string => {
     /\bret\s*=\s*(-?(?:\d+\.\d+|\d+|\.\d+))\s*-\s*([^;]+);/g,
     (_match, scalarLiteral, rhs) => `ret = vec3(${scalarLiteral}) - ${rhs};`
   );
+
+  // 7g. min(scalar, vec) → min(vec, scalar) and max(scalar, vec) → max(vec, scalar)
+  //     GLSL ES has max/min(genType, float) but NOT max/min(float, genType).
+  //     Use balanced-paren arg split to handle nested expressions.
+  {
+    const minMaxRe = /\b(min|max)\s*\(/g;
+    let mm: RegExpExecArray | null;
+    const replacements: { start: number; end: number; replacement: string }[] = [];
+    while ((mm = minMaxRe.exec(patched)) !== null) {
+      const openIdx = mm.index + mm[0].length - 1;
+      let depth = 1;
+      let pos = openIdx + 1;
+      while (pos < patched.length && depth > 0) {
+        if (patched[pos] === '(') depth++;
+        else if (patched[pos] === ')') depth--;
+        pos++;
+      }
+      if (depth !== 0) continue;
+      const closeIdx = pos - 1;
+      const inner = patched.slice(openIdx + 1, closeIdx);
+      let d = 0, splitAt = -1;
+      for (let ci = 0; ci < inner.length; ci++) {
+        if (inner[ci] === '(') d++;
+        else if (inner[ci] === ')') d--;
+        else if (inner[ci] === ',' && d === 0) { splitAt = ci; break; }
+      }
+      if (splitAt === -1) continue;
+      const a = inner.slice(0, splitAt).trim();
+      const b = inner.slice(splitAt + 1).trim();
+      const aIsScalar = /^-?(\d+\.?\d*|\.\d+)$/.test(a);
+      const bIsVec = /\b(ret|col\w*|GetPixel|GetBlur[123]?|GetMain|texture|vec[234])\b/.test(b) &&
+                     !/\.(x|y|z|w|r|g|b|a)\s*$/.test(b);
+      if (aIsScalar && bIsVec) {
+        replacements.push({
+          start: mm.index,
+          end: closeIdx + 1,
+          replacement: `${mm[0].slice(0, -1)}(${b}, ${a})`,
+        });
+      }
+    }
+    // Apply replacements in reverse order to preserve indices
+    for (const r of replacements.reverse()) {
+      patched = patched.slice(0, r.start) + r.replacement + patched.slice(r.end);
+    }
+  }
 
   // Fix ret type mismatch: vec4 ret → vec3 ret
   patched = patched.replace(/\bvec4\s+ret\s*=\s*vec4\(0\.0\)\s*;/, 'vec3 ret = vec3(0.0);');
