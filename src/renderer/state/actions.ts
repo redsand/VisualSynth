@@ -2,6 +2,10 @@ import type { OutputConfig, VisualSynthProject, LayerConfig } from '../../shared
 import type { BpmRange } from '../../shared/bpm';
 import type { Store } from './store';
 
+const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum', 'layer-media'] as const;
+type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
+const isAssetLayerId = (id: string): id is AssetLayerId => ASSET_LAYER_IDS.includes(id as AssetLayerId);
+
 const LAYER_DEFAULTS: Record<string, Omit<LayerConfig, 'id'>> = {
   'layer-plasma': {
     name: 'Shader Plasma',
@@ -192,6 +196,9 @@ export const actions = {
         if (!defaults) return;
         layer = { id: layerId, ...defaults };
         scene.layers.push(layer);
+        if (isAssetLayerId(layerId) && !layer.assetId && state.project.assets.length > 0) {
+          layer.assetId = state.project.assets[0].id;
+        }
       } else {
         layer.enabled = true;
       }
@@ -215,12 +222,12 @@ export const actions = {
       if (layer) layer.opacity = opacity;
     });
   },
-  setAssetBlendMode: (store: Store, layerId: 'layer-plasma' | 'layer-spectrum', mode: number) => {
+  setAssetBlendMode: (store: Store, layerId: 'layer-plasma' | 'layer-spectrum' | 'layer-media', mode: number) => {
     store.update((state) => {
       state.renderSettings.assetLayerBlendModes[layerId] = mode;
     }, false);
   },
-  setAssetAudioReact: (store: Store, layerId: 'layer-plasma' | 'layer-spectrum', amount: number) => {
+  setAssetAudioReact: (store: Store, layerId: 'layer-plasma' | 'layer-spectrum' | 'layer-media', amount: number) => {
     store.update((state) => {
       state.renderSettings.assetLayerAudioReact[layerId] = amount;
     }, false);

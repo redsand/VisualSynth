@@ -32,7 +32,7 @@ import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './ui/panels/ModulationPanel';
 import { getBeatMs, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
-import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite } from '../shared/generatorLibrary';
+import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
 import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
@@ -3580,10 +3580,13 @@ const renderLayerList = () => {
       row.appendChild(controls);
       const assetControl = document.createElement('div');
       assetControl.className = 'layer-asset-control';
-      assetControl.appendChild(buildLayerAssetSelect(layer));
+      
+      if (supportsAsset(layer.id)) {
+        assetControl.appendChild(buildLayerAssetSelect(layer));
+      }
       assetControl.appendChild(opacityRow);
 
-      if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum' || layer.id === 'layer-media') {
+      if (supportsAsset(layer.id)) {
         const layerId = layer.id as AssetLayerId;
 
         const blendLabel = document.createElement('label');
@@ -4573,22 +4576,19 @@ const assetLayerAudioReact: Record<AssetLayerId, number> = {
   'layer-spectrum': 0.8,
   'layer-media': 0.5
 };
-const getAssetBlendModeValue = (layerId: AssetLayerId): number =>
-  assetLayerBlendModes[layerId] ?? 0;
-const getAssetAudioReactValue = (layerId: AssetLayerId): number =>
-  assetLayerAudioReact[layerId] ?? 0.5;
+const getAssetBlendModeValue = (layerId: string): number =>
+  (assetLayerBlendModes as Record<string, number>)[layerId] ?? 0;
+const getAssetAudioReactValue = (layerId: string): number =>
+  (assetLayerAudioReact as Record<string, number>)[layerId] ?? 0.5;
 
 const formatAssetLabel = (asset: AssetItem) => `${asset.name} (${asset.kind})`;
-
-const isAssetLayerId = (value: string): value is AssetLayerId =>
-  (ASSET_LAYER_IDS as readonly string[]).includes(value);
 
 const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
   if (!forceRefresh && layer.assetId === assetId) return;
   layer.assetId = assetId ?? undefined;
   const target = assetId ? currentProject.assets.find((item) => item.id === assetId) ?? null : null;
-  if (!isAssetLayerId(layer.id)) {
-    setStatus(`${layer.name} does not support texture overrides yet`);
+  if (!supportsAsset(layer.id)) {
+    setStatus(`${layer.name} does not support texture overrides`);
     return;
   }
   try {
@@ -4607,6 +4607,15 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, fo
 
 const syncLayerAsset = (layer: LayerConfig) => {
   void assignAssetToLayer(layer, layer.assetId ?? null);
+};
+
+const autoAssignFirstAsset = (layer: LayerConfig) => {
+  if (!supportsAsset(layer.id)) return;
+  if (layer.assetId) return;
+  const firstAsset = currentProject.assets[0];
+  if (firstAsset) {
+    void assignAssetToLayer(layer, firstAsset.id);
+  }
 };
 
 const refreshLayersForAsset = (assetId: string) => {
@@ -6156,6 +6165,7 @@ const applyGeneratorVariant = (
     blendMode: options.blendMode,
     params: options.params
   });
+  autoAssignFirstAsset(layer);
   renderLayerList();
 };
 
@@ -10712,9 +10722,10 @@ playlistPlayButton.addEventListener('click', async () => {
   stopPlaylist();
   playlistActive = true;
   playlistOverrides = {};
-  playlistIndex = 0;
 
-  await triggerPlaylistSlot(0);
+  const startIndex = playlistIndex;
+
+  await triggerPlaylistSlot(startIndex);
 
   const slotMs = Math.max(2000, (Number(playlistSlotSeconds.value) || 16) * 1000);
   playlistTimer = window.setTimeout(() => {

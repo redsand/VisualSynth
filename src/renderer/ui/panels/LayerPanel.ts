@@ -2,12 +2,12 @@ import { removeLayer as removeLayerFromScene } from '../../../shared/layers';
 import type { AssetItem, LayerConfig } from '../../../shared/project';
 import type { Store } from '../../state/store';
 import { actions } from '../../state/actions';
-import { GENERATORS, GeneratorId, getVisibleGenerators, toggleFavorite, updateRecents } from '../../../shared/generatorLibrary';
+import { GENERATORS, GeneratorId, getVisibleGenerators, toggleFavorite, updateRecents, supportsAsset } from '../../../shared/generatorLibrary';
 import { assetService } from '../assetService';
 import { setStatus } from '../../state/events';
 import type { CustomShaderBlock } from '../../../shared/customShaderBlock';
 
-type AssetLayerId = 'layer-plasma' | 'layer-spectrum';
+type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 
 export interface LayerPanelDeps {
   store: Store;
@@ -49,33 +49,32 @@ export const createLayerPanel = ({
 
   const assetLayerBlendModes: Record<AssetLayerId, number> = {
     'layer-plasma': store.getState().renderSettings.assetLayerBlendModes['layer-plasma'],
-    'layer-spectrum': store.getState().renderSettings.assetLayerBlendModes['layer-spectrum']
+    'layer-spectrum': store.getState().renderSettings.assetLayerBlendModes['layer-spectrum'],
+    'layer-media': 3
   };
   const assetLayerAudioReact: Record<AssetLayerId, number> = {
     'layer-plasma': store.getState().renderSettings.assetLayerAudioReact['layer-plasma'],
-    'layer-spectrum': store.getState().renderSettings.assetLayerAudioReact['layer-spectrum']
+    'layer-spectrum': store.getState().renderSettings.assetLayerAudioReact['layer-spectrum'],
+    'layer-media': 0.5
   };
 
   const formatAssetLabel = (asset: AssetItem) => `${asset.name} (${asset.kind})`;
-  const isAssetLayerId = (value: string): value is AssetLayerId =>
-    (['layer-plasma', 'layer-spectrum'] as const).includes(value as AssetLayerId);
 
   const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
     if (!forceRefresh && layer.assetId === assetId) return;
     layer.assetId = assetId ?? undefined;
     const target = assetId ? store.getState().project.assets.find((item) => item.id === assetId) ?? null : null;
     
-    // Internal assets are supported
     if (target?.kind === 'internal') {
         setStatus(`${layer.name} now using internal source: ${target.name}`);
-        if (isAssetLayerId(layer.id)) {
-            await setLayerAsset(layer.id, target);
+        if (supportsAsset(layer.id)) {
+            await setLayerAsset(layer.id as AssetLayerId, target);
         }
         return;
     }
 
-    if (!isAssetLayerId(layer.id)) {
-      setStatus(`${layer.name} does not support texture overrides yet`);
+    if (!supportsAsset(layer.id)) {
+      setStatus(`${layer.name} does not support texture overrides`);
       return;
     }
     try {
@@ -234,7 +233,7 @@ export const createLayerPanel = ({
       assetControl.className = 'layer-asset-control';
       assetControl.appendChild(buildLayerAssetSelect(layer));
 
-      if (layer.id === 'layer-plasma' || layer.id === 'layer-spectrum') {
+      if (supportsAsset(layer.id)) {
         const layerId = layer.id as AssetLayerId;
 
         const blendLabel = document.createElement('label');

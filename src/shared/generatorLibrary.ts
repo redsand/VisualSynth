@@ -170,11 +170,12 @@ export interface GeneratorEntry {
   id: GeneratorId;
   name: string;
   visible?: boolean;
+  supportsAsset?: boolean;
 }
 
 export const GENERATORS: GeneratorEntry[] = [
-  { id: 'layer-plasma', name: 'Shader Plasma' },
-  { id: 'layer-spectrum', name: 'Spectrum Bars' },
+  { id: 'layer-plasma', name: 'Shader Plasma', supportsAsset: true },
+  { id: 'layer-spectrum', name: 'Spectrum Bars', supportsAsset: true },
   { id: 'layer-origami', name: 'Origami Fold' },
   { id: 'layer-glyph', name: 'Glyph Language' },
   { id: 'layer-crystal', name: 'Crystal Harmonics' },
@@ -182,7 +183,7 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'layer-topo', name: 'Topo Terrain' },
   { id: 'layer-weather', name: 'Audio Weather' },
   { id: 'layer-portal', name: 'Wormhole Portal' },
-  { id: 'layer-media', name: 'Media Overlay' },
+  { id: 'layer-media', name: 'Media Overlay', supportsAsset: true },
   { id: 'layer-oscillo', name: 'Sacred Oscilloscope' },
   { id: 'variant-plasma-vortex', name: 'Plasma: Vortex' },
   { id: 'variant-plasma-liquid', name: 'Plasma: Liquid Metal' },
@@ -336,4 +337,9 @@ export const toggleFavorite = (favorites: GeneratorId[], id: GeneratorId) => {
     return favorites.filter((item) => item !== id);
   }
   return [...favorites, id];
+};
+
+export const supportsAsset = (generatorId: string): boolean => {
+  const entry = GENERATORS.find((g) => g.id === generatorId);
+  return entry?.supportsAsset === true;
 };
