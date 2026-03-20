@@ -231,7 +231,62 @@ export const createLayerPanel = ({
       row.appendChild(controls);
       const assetControl = document.createElement('div');
       assetControl.className = 'layer-asset-control';
-      assetControl.appendChild(buildLayerAssetSelect(layer));
+
+      if (supportsAsset(layer.id)) {
+        assetControl.appendChild(buildLayerAssetSelect(layer));
+      }
+
+      if (layer.id === 'layer-oscillo') {
+        const runtime = store.getState().runtime;
+        
+        const modeLabel = document.createElement('label');
+        modeLabel.textContent = 'Mode:';
+        modeLabel.className = 'asset-control-label';
+        const modeSelect = document.createElement('select');
+        modeSelect.className = 'oscillo-mode-select';
+        const modes = ['Circle', 'Lissajous', 'Rose'];
+        modes.forEach((m, i) => {
+          const opt = document.createElement('option');
+          opt.value = String(i);
+          opt.textContent = m;
+          modeSelect.appendChild(opt);
+        });
+        modeSelect.value = String(runtime.oscilloMode);
+        modeSelect.addEventListener('change', () => {
+          actions.setOscilloMode(store, Number(modeSelect.value));
+        });
+        assetControl.appendChild(modeLabel);
+        assetControl.appendChild(modeSelect);
+
+        const freezeLabel = document.createElement('label');
+        freezeLabel.textContent = 'Freeze:';
+        freezeLabel.className = 'asset-control-label';
+        const freezeCheck = document.createElement('input');
+        freezeCheck.type = 'checkbox';
+        freezeCheck.className = 'oscillo-freeze-check';
+        freezeCheck.checked = runtime.oscilloFreeze > 0.5;
+        freezeCheck.addEventListener('change', () => {
+          actions.setOscilloFreeze(store, freezeCheck.checked ? 1 : 0);
+        });
+        assetControl.appendChild(freezeLabel);
+        assetControl.appendChild(freezeCheck);
+
+        const rotateLabel = document.createElement('label');
+        rotateLabel.textContent = 'Rotate:';
+        rotateLabel.className = 'asset-control-label';
+        const rotateSlider = document.createElement('input');
+        rotateSlider.type = 'range';
+        rotateSlider.min = '0';
+        rotateSlider.max = '5';
+        rotateSlider.step = '1';
+        rotateSlider.value = String(runtime.oscilloRotate);
+        rotateSlider.className = 'oscillo-rotate-slider';
+        rotateSlider.addEventListener('input', () => {
+          actions.setOscilloRotate(store, Number(rotateSlider.value));
+        });
+        assetControl.appendChild(rotateLabel);
+        assetControl.appendChild(rotateSlider);
+      }
 
       if (supportsAsset(layer.id)) {
         const layerId = layer.id as AssetLayerId;

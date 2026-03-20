@@ -231,5 +231,20 @@ export const actions = {
     store.update((state) => {
       state.renderSettings.assetLayerAudioReact[layerId] = amount;
     }, false);
+  },
+  setOscilloMode: (store: Store, mode: number) => {
+    store.update((state) => {
+      state.runtime.oscilloMode = mode;
+    }, false);
+  },
+  setOscilloFreeze: (store: Store, freeze: number) => {
+    store.update((state) => {
+      state.runtime.oscilloFreeze = freeze;
+    }, false);
+  },
+  setOscilloRotate: (store: Store, rotate: number) => {
+    store.update((state) => {
+      state.runtime.oscilloRotate = rotate;
+    }, false);
   }
 };

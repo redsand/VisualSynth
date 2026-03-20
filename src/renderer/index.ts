@@ -528,7 +528,7 @@ const assetTextInput = document.getElementById('asset-text-input') as HTMLInputE
 const assetFontSelect = document.getElementById('asset-font-select') as HTMLSelectElement | null;
 const assetFontSizeInput = document.getElementById('asset-font-size') as HTMLInputElement | null;
 const assetTextAddButton = document.getElementById('asset-text-add') as HTMLButtonElement | null;
-const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement;
+const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement | null;
 const assetList = document.getElementById('asset-list') as HTMLDivElement;
 const webcamPicker = document.getElementById('webcam-picker') as HTMLDivElement | null;
 const webcamPickerSelect = document.getElementById('webcam-picker-select') as HTMLSelectElement | null;
@@ -550,6 +550,95 @@ const stopLiveAssetStream = (assetId: string) => {
     video.pause();
     video.srcObject = null;
     livePreviewElements.delete(assetId);
+  }
+};
+
+const stopAllLiveStreams = () => {
+  liveStreams.forEach((_, assetId) => stopLiveAssetStream(assetId));
+};
+
+const restoreDynamicAssets = async () => {
+  stopAllLiveStreams();
+
+  const liveAssets = currentProject.assets.filter(
+    (asset) => asset.kind === 'live' && asset.options?.liveSource && !asset.missing
+  );
+
+  if (liveAssets.length === 0) return;
+
+  let restoredCount = 0;
+  let failedCount = 0;
+
+  for (const asset of liveAssets) {
+    const source = asset.options!.liveSource;
+
+    if (source === 'webcam') {
+      try {
+        const savedDeviceId = getSavedWebcamId();
+        let videoConstraints: MediaTrackConstraints | boolean = true;
+
+        if (savedDeviceId) {
+          videoConstraints = { deviceId: { exact: savedDeviceId }, width: 1280, height: 720 };
+        } else {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const cameras = devices.filter((device) => device.kind === 'videoinput');
+          if (cameras.length > 0) {
+            videoConstraints = { deviceId: { exact: cameras[0].deviceId }, width: 1280, height: 720 };
+          } else {
+            videoConstraints = { width: 1280, height: 720 };
+          }
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false
+        });
+
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+
+        asset.width = settings.width ?? asset.width ?? 1280;
+        asset.height = settings.height ?? asset.height ?? 720;
+        asset.missing = false;
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        void video.play();
+
+        livePreviewElements.set(asset.id, video);
+        liveStreams.set(asset.id, stream);
+
+        track.addEventListener('ended', () => {
+          stopLiveAssetStream(asset.id);
+          asset.missing = true;
+          renderAssets();
+          setStatus(`Live source ended: ${asset.name}`);
+        });
+
+        restoredCount++;
+      } catch (err) {
+        asset.missing = true;
+        failedCount++;
+        console.warn(`[Project] Failed to restore webcam asset "${asset.name}":`, err);
+      }
+    } else {
+      asset.missing = true;
+      failedCount++;
+    }
+  }
+
+  if (restoredCount > 0 || failedCount > 0) {
+    renderAssets();
+    renderLayerList();
+    if (failedCount > 0 && restoredCount > 0) {
+      setStatus(`Restored ${restoredCount} live source(s), ${failedCount} need manual restart`);
+    } else if (restoredCount > 0) {
+      setStatus(`Restored ${restoredCount} live source(s)`);
+    } else {
+      setStatus(`${failedCount} live source(s) need manual restart`);
+    }
   }
 };
 
@@ -4335,16 +4424,6 @@ const createMetadataPanel = (asset: AssetItem) => {
     return row;
   };
 
-  const tagsInput = document.createElement('input');
-  tagsInput.type = 'text';
-  tagsInput.value = asset.tags.join(', ');
-  tagsInput.addEventListener('change', () => {
-    const tags = normalizeAssetTags(tagsInput.value);
-    patchAsset(asset.id, (existing) => ({ ...existing, tags }));
-    tagsInput.value = tags.join(', ');
-  });
-  panel.appendChild(makeField('Tags', tagsInput));
-
   const colorSpaceSelect = document.createElement('select');
   ['srgb', 'linear'].forEach((space) => {
     const option = document.createElement('option');
@@ -4419,12 +4498,6 @@ const createMetadataPanel = (asset: AssetItem) => {
     });
     panel.appendChild(makeField('Blend', blendInput));
   }
-
-  const details = document.createElement('div');
-  details.className = 'asset-meta-details';
-  const metaParts = buildAssetMetaParts(asset);
-  details.textContent = metaParts.length > 0 ? metaParts.join(' • ') : 'No metadata';
-  panel.appendChild(details);
 
   return panel;
 };
@@ -4517,7 +4590,7 @@ const renderAssets = () => {
     actions.className = 'asset-actions';
     const remove = document.createElement('button');
     remove.className = 'asset-remove-btn';
-    remove.textContent = 'Delete';
+    remove.innerHTML = '🗑️';
     remove.title = 'Remove asset';
     remove.addEventListener('click', () => {
       stopLiveAssetStream(asset.id);
@@ -4528,12 +4601,6 @@ const renderAssets = () => {
       setStatus(`Asset removed: ${asset.name}`);
     });
     actions.appendChild(remove);
-    if (asset.options?.liveSource) {
-      const liveBadge = document.createElement('span');
-      liveBadge.className = 'asset-live-badge';
-      liveBadge.textContent = asset.options.liveSource.toUpperCase();
-      actions.appendChild(liveBadge);
-    }
     if (asset.path) {
       const revealBtn = document.createElement('button');
       revealBtn.textContent = 'Open Folder';
@@ -4732,7 +4799,7 @@ const importAsset = async () => {
   const result = await window.visualSynth.importAsset(kind);
   if (result.canceled || !result.filePath) return;
   const name = result.filePath.split(/[\\/]/).pop() ?? 'Asset';
-  const tags = normalizeAssetTags(assetTagsInput.value);
+  const tags = normalizeAssetTags(assetTagsInput?.value ?? '');
   const metadata = {
     hash: result.hash,
     mime: result.mime,
@@ -4765,7 +4832,7 @@ const importAsset = async () => {
       }
     })
   ];
-  assetTagsInput.value = '';
+  if (assetTagsInput) assetTagsInput.value = '';
   renderAssets();
   renderLayerList();
   setStatus(`Asset imported: ${name}`);
@@ -4775,7 +4842,7 @@ const importVideoAsset = async () => {
   const result = await window.visualSynth.importAsset('video');
   if (result.canceled || !result.filePath) return;
   const name = result.filePath.split(/[\\/]/).pop() ?? 'Video Asset';
-  const tags = normalizeAssetTags(assetTagsInput.value);
+  const tags = normalizeAssetTags(assetTagsInput?.value ?? '');
   const videoMeta = await loadVideoMetadata(result.filePath);
   const metadata = {
     hash: result.hash,
@@ -4799,7 +4866,7 @@ const importVideoAsset = async () => {
       options
     })
   ];
-  assetTagsInput.value = '';
+  if (assetTagsInput) assetTagsInput.value = '';
   renderAssets();
   renderLayerList();
   setStatus(`Video imported: ${name}`);
@@ -4884,7 +4951,7 @@ const createTextAsset = () => {
   const fontSize = Number(assetFontSizeInput?.value) || 48;
   const font = `${fontSize}px ${fontFamily}`;
 
-  const tags = normalizeAssetTags(assetTagsInput.value);
+  const tags = normalizeAssetTags(assetTagsInput?.value ?? '');
   const canvas = renderTextToCanvas(text, font, '#ffffff');
 
   const asset = createAssetItem({
@@ -4912,7 +4979,7 @@ const createTextAsset = () => {
   currentProject.assets = [...currentProject.assets, asset];
 
   if (assetTextInput) assetTextInput.value = '';
-  assetTagsInput.value = '';
+  if (assetTagsInput) assetTagsInput.value = '';
   renderAssets();
 
   // Automatically assign text to the media layer in the current scene
@@ -5041,7 +5108,17 @@ const startLiveCapture = async (source: 'webcam' | 'screen') => {
     const height = settings.height ?? 720;
 
     const name = source === 'webcam' ? `Webcam (${track.label})` : `Screen (${track.label})`;
-    const tags = normalizeAssetTags(assetTagsInput.value);
+    
+    const existingLiveAsset = currentProject.assets.find(
+      (a) => a.kind === 'live' && a.name === name && !a.missing
+    );
+    if (existingLiveAsset) {
+      track.stop();
+      setStatus(`Live source already active: ${name}`);
+      return;
+    }
+    
+    const tags = normalizeAssetTags(assetTagsInput?.value ?? '');
 
     const video = document.createElement('video');
     video.srcObject = stream;
@@ -5074,7 +5151,7 @@ const startLiveCapture = async (source: 'webcam' | 'screen') => {
     });
 
     currentProject.assets = [...currentProject.assets, asset];
-    assetTagsInput.value = '';
+    if (assetTagsInput) assetTagsInput.value = '';
     renderAssets();
     renderLayerList();
     setStatus(`Live capture started: ${name}`);
@@ -9888,6 +9965,7 @@ const applyProject = async (project: VisualSynthProject) => {
   diffBaseProject = { ...currentProject };
   renderDiffSections();
   void checkMissingAssets();
+  void restoreDynamicAssets();
   broadcastCurrentOutputState();
   cacheWarmer?.notifyProjectChanged(currentProject);
   setStatus(`Loaded project: ${currentProject.name}`);

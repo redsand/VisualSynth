@@ -1816,6 +1816,147 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
       { id: 'midSensitivity', name: 'Mid Sensitivity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
       { id: 'trebSensitivity', name: 'Treble Sensitivity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
     ]
+  },
+  {
+    id: 'sdf',
+    name: 'SDF Shapes',
+    description: 'Signed distance field shapes with glow',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'shape', name: 'Shape', type: 'number', min: 0, max: 5, default: 0, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 0.1, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'edge', name: 'Edge', type: 'number', min: 0, max: 0.5, default: 0.05, modulatable: true, midiMappable: true },
+      { id: 'glow', name: 'Glow', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'rotation', name: 'Rotation', type: 'number', min: 0, max: 6.28, default: 0, modulatable: true, midiMappable: true },
+      { id: 'fill', name: 'Fill', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'sdf-scene',
+    name: 'SDF Scene',
+    description: 'Advanced 3D signed distance field scene with raymarching',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'tunnel-warp',
+    name: 'Tunnel Warp',
+    description: 'Warped tunnel effect with grid lines',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'nebula-drift',
+    name: 'Nebula Drift',
+    description: 'Drifting nebula cloud effect',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'fractal-bloom',
+    name: 'Fractal Bloom',
+    description: 'Fractal blooming pattern',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'kaleido-shard',
+    name: 'Kaleido Shard',
+    description: 'Kaleidoscopic shard pattern',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'glitch-datamosh',
+    name: 'Glitch Datamosh',
+    description: 'Datamoshing glitch effect',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'particle-swarm',
+    name: 'Particle Swarm',
+    description: 'Swarming particle system',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'particles',
+    name: 'Particles',
+    description: 'Basic particle system',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'neon-wireframe',
+    name: 'Neon Wireframe',
+    description: 'Neon wireframe geometry',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'organic-fluid',
+    name: 'Organic Fluid',
+    description: 'Organic fluid simulation',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'cosmic-aurora',
+    name: 'Cosmic Aurora',
+    description: 'Cosmic aurora effect',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'typography-reveal',
+    name: 'Typography Reveal',
+    description: 'Animated text reveal',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'radar-hud',
+    name: 'Radar HUD',
+    description: 'Radar heads-up display',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'audio-geometry',
+    name: 'Audio Geometry',
+    description: 'Audio-reactive geometry',
+    sinceVersion: '1.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
   }
 ];
 
@@ -1920,7 +2061,23 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-score-counter': 'score-counter',
     'gen-pixel-rain': 'pixel-rain',
     'gen-boss-health': 'boss-health',
-    'gen-milkwave': 'milkwave'
+    'gen-milkwave': 'milkwave',
+    'gen-sdf': 'sdf',
+    'gen-sdf-scene': 'sdf-scene',
+    'gen-tunnel-warp': 'tunnel-warp',
+    'gen-wormhole-core': 'wormhole-core',
+    'gen-nebula-drift': 'nebula-drift',
+    'gen-fractal-bloom': 'fractal-bloom',
+    'gen-kaleido-shard': 'kaleido-shard',
+    'gen-glitch-datamosh': 'glitch-datamosh',
+    'gen-particle-swarm': 'particle-swarm',
+    'gen-particles': 'particles',
+    'gen-neon-wireframe': 'neon-wireframe',
+    'gen-organic-fluid': 'organic-fluid',
+    'gen-cosmic-aurora': 'cosmic-aurora',
+    'gen-typography-reveal': 'typography-reveal',
+    'gen-radar-hud': 'radar-hud',
+    'gen-audio-geometry': 'audio-geometry',
   };
 
   const type = idMapping[layerId] || layerId;

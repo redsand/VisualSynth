@@ -2,77 +2,71 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const GENERATORS_TO_TEST = [
-  { id: 'layer-plasma', name: 'Shader Plasma' },
-  { id: 'gen-particles', name: 'Particles' },
-  { id: 'layer-portal', name: 'Portal' },
-  { id: 'layer-spectrum', name: 'Spectrum Bars' },
-  { id: 'gen-cellular-growth', name: 'Cellular Growth' },
-  { id: 'gen-bio-luminescent-forest', name: 'Biolumin' },
-  { id: 'gen-crystalline', name: 'Crystalline' },
-  { id: 'gen-audio-dna', name: 'Audio DNA' },
-  { id: 'gen-liquid-metal', name: 'Liquid Metal' },
-  { id: 'gen-neon-cityscape', name: 'Neon Cityscape' },
-  { id: 'gen-cosmic-nebula', name: 'Cosmic Nebula' },
-  { id: 'gen-sonic-rain', name: 'Sonic Rain' },
-  { id: 'gen-morphing-geometry', name: 'Morphing Geometry' },
-  { id: 'gen-urban-rhythm', name: 'Urban Rhythm' },
-  { id: 'gen-crimson-veil', name: 'Crimson Veil' },
-  { id: 'gen-victorian-crypt', name: 'Victorian Crypt' },
-  { id: 'gen-spectral-apparition', name: 'Spectral Apparition' },
-  { id: 'gen-gothic-cobwebs', name: 'Gothic Cobwebs' },
-  { id: 'gen-blood-moon-rise', name: 'Blood Moon Rise' },
-  { id: 'gen-candlelight-vigil', name: 'Candlelight Vigil' },
-  { id: 'gen-gargoyles-awake', name: 'Gargoyles Awake' },
-  { id: 'gen-crypt-shadows', name: 'Crypt Shadows' },
-  { id: 'gen-gothic-rose', name: 'Gothic Rose' },
-  { id: 'gen-eternal-darkness', name: 'Eternal Darkness' },
-  { id: 'gen-pixel-dust', name: 'Pixel Dust' },
-  { id: 'gen-retro-starfield', name: 'Retro Starfield' },
-  { id: 'gen-8bit-grid', name: '8-Bit Grid' },
-  { id: 'gen-arcade-invaders', name: 'Arcade Invaders' },
-  { id: 'gen-power-up-pulse', name: 'Power-Up Pulse' },
-  { id: 'gen-dungeon-tiles', name: 'Dungeon Tiles' },
-  { id: 'gen-chiptune-wave', name: 'Chiptune Wave' },
-  { id: 'gen-score-counter', name: 'Score Counter' },
-  { id: 'gen-pixel-rain', name: 'Pixel Rain' },
-  { id: 'gen-boss-health', name: 'Boss Health' },
-  { id: 'layer-weather', name: 'Audio Weather' },
-  { id: 'gen-asset-vortex', name: 'Asset Vortex' },
-  { id: 'gen-asset-slices', name: 'Asset Slices' },
-  { id: 'gen-asset-polar', name: 'Asset Polar Warp' },
-  { id: 'gen-asset-mosaic', name: 'Asset Mosaic' },
-  { id: 'gen-asset-ripple', name: 'Asset Ripples' },
-  { id: 'gen-asset-scatter', name: 'Asset Scatter' },
-  { id: 'gen-asset-echo', name: 'Asset Echo Ghosts' },
+  { id: 'layer-plasma', name: 'Shader Plasma', role: 'core' },
+  { id: 'layer-portal', name: 'Portal', role: 'support' },
+  { id: 'layer-spectrum', name: 'Spectrum Bars', role: 'support' },
+  { id: 'layer-oscillo', name: 'Sacred Oscilloscope', role: 'support' },
+  { id: 'layer-weather', name: 'Audio Weather', role: 'atmosphere' },
+  { id: 'gen-cellular-growth', name: 'Cellular Growth', role: 'support' },
+  { id: 'gen-bio-luminescent-forest', name: 'Biolumin', role: 'support' },
+  { id: 'gen-crystalline', name: 'Crystalline', role: 'support' },
+  { id: 'gen-audio-dna', name: 'Audio DNA', role: 'support' },
+  { id: 'gen-liquid-metal', name: 'Liquid Metal', role: 'support' },
+  { id: 'gen-neon-cityscape', name: 'Neon Cityscape', role: 'support' },
+  { id: 'gen-cosmic-nebula', name: 'Cosmic Nebula', role: 'support' },
+  { id: 'gen-sonic-rain', name: 'Sonic Rain', role: 'support' },
+  { id: 'gen-morphing-geometry', name: 'Morphing Geometry', role: 'support' },
+  { id: 'gen-urban-rhythm', name: 'Urban Rhythm', role: 'support' },
+  { id: 'gen-crimson-veil', name: 'Crimson Veil', role: 'support' },
+  { id: 'gen-victorian-crypt', name: 'Victorian Crypt', role: 'support' },
+  { id: 'gen-spectral-apparition', name: 'Spectral Apparition', role: 'support' },
+  { id: 'gen-gothic-cobwebs', name: 'Gothic Cobwebs', role: 'support' },
+  { id: 'gen-blood-moon-rise', name: 'Blood Moon Rise', role: 'support' },
+  { id: 'gen-candlelight-vigil', name: 'Candlelight Vigil', role: 'support' },
+  { id: 'gen-gargoyles-awake', name: 'Gargoyles Awake', role: 'support' },
+  { id: 'gen-crypt-shadows', name: 'Crypt Shadows', role: 'support' },
+  { id: 'gen-gothic-rose', name: 'Gothic Rose', role: 'support' },
+  { id: 'gen-eternal-darkness', name: 'Eternal Darkness', role: 'support' },
+  { id: 'gen-pixel-dust', name: 'Pixel Dust', role: 'support' },
+  { id: 'gen-retro-starfield', name: 'Retro Starfield', role: 'support' },
+  { id: 'gen-8bit-grid', name: '8-Bit Grid', role: 'support' },
+  { id: 'gen-arcade-invaders', name: 'Arcade Invaders', role: 'support' },
+  { id: 'gen-power-up-pulse', name: 'Power-Up Pulse', role: 'support' },
+  { id: 'gen-dungeon-tiles', name: 'Dungeon Tiles', role: 'support' },
+  { id: 'gen-chiptune-wave', name: 'Chiptune Wave', role: 'support' },
+  { id: 'gen-score-counter', name: 'Score Counter', role: 'support' },
+  { id: 'gen-pixel-rain', name: 'Pixel Rain', role: 'support' },
+  { id: 'gen-boss-health', name: 'Boss Health', role: 'support' },
+  { id: 'gen-asset-vortex', name: 'Asset Vortex', role: 'support', supportsAsset: true },
+  { id: 'gen-asset-slices', name: 'Asset Slices', role: 'support', supportsAsset: true },
+  { id: 'gen-asset-polar', name: 'Asset Polar Warp', role: 'support', supportsAsset: true },
+  { id: 'gen-asset-mosaic', name: 'Asset Mosaic', role: 'support', supportsAsset: true },
+  { id: 'gen-asset-ripple', name: 'Asset Ripples', role: 'support', supportsAsset: true },
+  { id: 'gen-asset-scatter', name: 'Asset Scatter', role: 'support', supportsAsset: true },
+  { id: 'gen-asset-echo', name: 'Asset Echo Ghosts', role: 'support', supportsAsset: true },
 ];
 
 const repoRoot = path.resolve(__dirname, '..');
 const outputPath = path.join(repoRoot, 'generator-test.project.json');
 
-function createLayer(generatorId: string, name: string, index: number) {
+function createLayer(generatorId: string, name: string, role: string) {
   return {
-    id: `layer-${index}`,
+    id: generatorId,
     name: name,
-    generatorId: generatorId,
-    role: 'support',
+    role: role,
     enabled: true,
-    opacity: 1,
+    opacity: 0.85,
     blendMode: 'screen',
     transform: {
       x: 0,
       y: 0,
       scale: 1,
       rotation: 0
-    },
-    params: {
-      enabled: true,
-      opacity: 1,
-      blendMode: 'screen'
     }
   };
 }
 
-function createScene(generatorId: string, name: string, index: number) {
+function createScene(generatorId: string, name: string, role: string, index: number) {
   const sceneId = `test-scene-${String(index).padStart(3, '0')}`;
   return {
     id: sceneId,
@@ -92,11 +86,11 @@ function createScene(generatorId: string, name: string, index: number) {
       type: 'manual'
     },
     assigned_layers: {
-      core: [],
-      support: [`layer-${index}`],
-      atmosphere: []
+      core: role === 'core' ? [generatorId] : [],
+      support: role === 'support' ? [generatorId] : [],
+      atmosphere: role === 'atmosphere' ? [generatorId] : []
     },
-    layers: [createLayer(generatorId, name, index)]
+    layers: [createLayer(generatorId, name, role)]
   };
 }
 
@@ -105,7 +99,7 @@ function main() {
   
   const project: any = {
     version: 6,
-    name: `Generator Test (${GENERATORS_TO_TEST.length} generators)`,
+    name: `Generator Test (${GENERATORS_TO_TEST.length} generators + particles)`,
     createdAt: now,
     updatedAt: now,
     output: {
@@ -133,7 +127,7 @@ function main() {
       }
     ],
     activePaletteId: 'synthwave',
-    scenes: GENERATORS_TO_TEST.map((g, i) => createScene(g.id, g.name, i + 1)),
+    scenes: GENERATORS_TO_TEST.map((g, i) => createScene(g.id, g.name, g.role, i + 1)),
     modMatrix: [],
     midiMappings: [],
     activeSceneId: 'test-scene-001',
@@ -149,7 +143,16 @@ function main() {
       bpm: 120,
       source: 'auto'
     },
-    customShaderBlocks: []
+    customShaderBlocks: [],
+    particles: {
+      enabled: true,
+      density: 0.5,
+      speed: 0.5,
+      size: 0.5,
+      glow: 0.7,
+      turbulence: 0.3,
+      audioLift: 0.5
+    }
   };
   
   fs.writeFileSync(outputPath, JSON.stringify(project, null, 2) + '\n', 'utf-8');
@@ -157,8 +160,9 @@ function main() {
   
   console.log('\nGenerators to test:');
   GENERATORS_TO_TEST.forEach((g, i) => {
-    console.log(`  ${i + 1}. ${g.name} (${g.id})`);
+    console.log(`  ${i + 1}. ${g.name} (${g.id}) [${g.role}]`);
   });
+  console.log('\n  + Global Particles System (enabled by default)');
 }
 
 main();

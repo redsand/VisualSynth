@@ -1600,7 +1600,7 @@ body[data-mode='matrix'] .safe-mode {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .scene-inline input,
@@ -2724,12 +2724,12 @@ body[data-mode='matrix'] .safe-mode {
   font-weight: 600;
   text-transform: uppercase;
   color: #91c6ff;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .asset-tags {
   color: #a5c7f7;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .asset-preview {
@@ -2746,14 +2746,14 @@ body[data-mode='matrix'] .safe-mode {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 11px;
+  font-size: 10px;
   min-width: 0;
 }
 
 .asset-name {
   font-weight: 600;
   color: #f7fbff;
-  font-size: 12px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2761,7 +2761,7 @@ body[data-mode='matrix'] .safe-mode {
 
 .asset-meta {
   color: #9ab5d2;
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.4;
 }
 
@@ -2827,6 +2827,40 @@ body[data-mode='matrix'] .safe-mode {
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 3px;
+}
+
+.asset-metadata-panel {
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid #23334a;
+  display: none;
+}
+
+.asset-list-row.expanded .asset-metadata-panel {
+  display: block;
+}
+
+.asset-metadata-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.asset-metadata-row span {
+  color: #9ab5d2;
+  font-size: 10px;
+}
+
+.asset-metadata-row select,
+.asset-metadata-row input[type="checkbox"] {
+  background: #162235;
+  color: #e4f4ff;
+  border: 1px solid #2c4159;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
 }
 
 .asset-preview-missing {
