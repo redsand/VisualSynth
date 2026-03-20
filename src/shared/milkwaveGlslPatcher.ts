@@ -264,98 +264,275 @@ const preprocess = (source: string): string => {
   source = source.replace(/\bstatic\s+/g, '');
   // `float2x3` etc. → `mat2x3`
   source = source.replace(/\bfloat(\d)x(\d)\b/g, 'mat$1x$2');
+  // HLSL `sampler` declarations (e.g., `sampler sampler_rand00 = ;` or `sampler sampler_rand00;`)
+  source = source.replace(/^\s*sampler\s+\w+\s*(?:=[^;]*)?\s*;/gm, '');
+  // HLSL semantics (`: COLOR0`, `: SV_TARGET`, etc.)
+  source = source.replace(/\)\s*:\s*[A-Z_][A-Z0-9_]*/g, ')');
+  // HLSL `tex3D()` → `texture()`
+  source = source.replace(/\btex3D\b/g, 'texture');
+  // Line continuations: `\` at end of line followed by newline → join lines
+  source = source.replace(/\\\s*\n/g, ' ');
+  // `smooth` is a GLSL reserved keyword — rename if used as variable
+  source = source.replace(/\bfloat\s+smooth\b/g, 'float smooth_');
+  source = source.replace(/\bsmooth\s*(?=[+\-*/=;,)])/g, 'smooth_');
+  // Mixed-type comma declarations: `float x, y,\nvec2 a, b;` → split with `;`
+  source = source.replace(/,\s*\n\s*(vec[234]|mat[234x]*|float|int|uint|bool|ivec[234]|bvec[234]|uvec[234])\s/g, ';\n$1 ');
 
-  // ── 0b. Strip shader_body blocks ──
+  // ── 0b. Strip shader_body keyword everywhere ──
+  source = source.replace(/\bshader_body\b/g, '');
+
+  // ── 0c. Strip double semicolons (empty statements not valid at file scope) ──
+  source = source.replace(/;;/g, ';');
+
   const mainIdxPre = source.indexOf('void main()');
   if (mainIdxPre !== -1) {
-    let s = source;
-    // Strip explicit shader_body { ... } blocks before void main()
-    let sbIdx = s.indexOf('shader_body');
-    while (sbIdx !== -1 && sbIdx < s.indexOf('void main()')) {
-      const openBrace = s.indexOf('{', sbIdx);
-      if (openBrace === -1) break;
-      let depth = 1;
-      let pos = openBrace + 1;
-      while (pos < s.length && depth > 0) {
-        if (s[pos] === '{') depth++;
-        else if (s[pos] === '}') depth--;
-        pos++;
+    // ── 0d. Before void main(): handle orphan shader_body content ──
+    // The transpiler emits shader_body content at file scope. We need to:
+    //  1. Keep declarations and function definitions at file scope
+    //  2. Move everything else (exec stmts, control flow, orphan braces) into main()
+    //  3. Remove nested function definitions inside main() (GLSL forbids them)
+    //
+    // The moved content goes BEFORE the fragColor line in main(), because the
+    // orphan `}` often closes an unclosed for/while loop inside main().
+
+    const beforeMain = source.substring(0, mainIdxPre);
+    const bmLines = beforeMain.split('\n');
+
+    // Phase A: Classify each line before main()
+    // Track brace depth; at depth 0 we can distinguish declarations vs exec stmts
+    let depth = 0;
+    const keepLines: string[] = [];
+    const moveLines: string[] = [];
+    let inFuncDef = false;   // inside a function definition body
+    let inBareBlock = false; // inside a bare { } block (orphan shader_body)
+    let inArrayInit = false; // inside a `const type name[] = { ... }` initializer
+    let prevKeptLineEndsWithSemicolon = true; // tracks multi-line continuations
+
+    for (let i = 0; i < bmLines.length; i++) {
+      const line = bmLines[i];
+      const trimmed = line.trim();
+
+      // Calculate brace delta for this line
+      let delta = 0;
+      for (const ch of trimmed) {
+        if (ch === '{') delta++;
+        else if (ch === '}') delta--;
       }
-      s = s.substring(0, sbIdx).trimEnd() + '\n' + s.substring(pos).trimStart();
-      sbIdx = s.indexOf('shader_body');
+
+      // Handle being inside a function definition body
+      if (inFuncDef) {
+        keepLines.push(line);
+        depth += delta;
+        if (depth <= 0) { inFuncDef = false; depth = 0; }
+        continue;
+      }
+
+      // Handle being inside an array initializer `const type name[] = { ... }`
+      if (inArrayInit) {
+        keepLines.push(line);
+        depth += delta;
+        if (depth <= 0) { inArrayInit = false; depth = 0; }
+        continue;
+      }
+
+      // Handle being inside a bare { ... } block (orphan shader_body)
+      if (inBareBlock) {
+        moveLines.push(line);
+        depth += delta;
+        if (depth <= 0) { inBareBlock = false; depth = 0; }
+        continue;
+      }
+
+      // At depth 0: classify the line
+      if (depth === 0) {
+        // Detect orphan `}` — brace underflow
+        if (depth + delta < 0) {
+          moveLines.push(line);
+          depth = 0;
+          continue;
+        }
+
+        // Multi-line continuation: if previous kept line didn't end with `;`, `{`, `}`,
+        // `)`, or a comment/preprocessor, this line continues it → keep
+        if (!prevKeptLineEndsWithSemicolon && trimmed) {
+          keepLines.push(line);
+          depth += delta;
+          if (trimmed.endsWith(';') || trimmed.endsWith('}') || trimmed.endsWith('{')) {
+            prevKeptLineEndsWithSemicolon = true;
+          }
+          continue;
+        }
+
+        // Detect bare `{` — could be shader_body block or array initializer
+        if (trimmed === '{') {
+          // Check if previous kept line is a declaration with `= {` (array init)
+          const prevKept = keepLines.length > 0 ? keepLines[keepLines.length - 1].trim() : '';
+          if (/=\s*$/.test(prevKept) || /\[\d*\]\s*=\s*$/.test(prevKept)) {
+            // Array initializer — keep
+            keepLines.push(line);
+            depth += delta;
+            inArrayInit = true;
+            continue;
+          }
+          // Otherwise it's a shader_body block (or control flow) — move
+          moveLines.push(line);
+          depth += delta;
+          inBareBlock = true;
+          continue;
+        }
+
+        // Check if this is a valid file-scope construct
+        const isTypeDecl = /^\s*(?:(?:const\s+)?(?:flat\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|sampler\w*)\s)/.test(line);
+        const isFuncDef = isTypeDecl && /\)\s*\{/.test(trimmed);
+        const isVoidFuncDef = /^\s*void\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*\{/.test(trimmed);
+        const isPreprocessor = trimmed.startsWith('#');
+        const isUniform = /^\s*(?:uniform|in|out|precision|layout)\s/.test(line);
+        const isEmpty = !trimmed;
+        const isComment = trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
+        // Raw text (not code): no semicolons, no operators, no parens — strip
+        const isRawText = trimmed.length > 0 && !isEmpty && !isComment && !isPreprocessor &&
+          !/[;{}()=+\-*/<>!&|,#]/.test(trimmed) && !/^\s*(float|vec|mat|int|uint|bool|void|uniform|in|out|const|precision|layout)\b/.test(trimmed);
+
+        if (isRawText) {
+          // Plain text like "written by martin", "END" — discard
+          continue;
+        }
+
+        if (isFuncDef || isVoidFuncDef) {
+          keepLines.push(line);
+          depth += delta;
+          if (depth > 0) inFuncDef = true;
+          prevKeptLineEndsWithSemicolon = true;
+          continue;
+        }
+
+        // Function declaration on this line, `{` on next line
+        const isFuncProto = /^\s*(?:(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*$)/.test(trimmed);
+        if (isFuncProto && (bmLines[i + 1] || '').trim().startsWith('{')) {
+          keepLines.push(line);
+          depth += delta;
+          inFuncDef = true;
+          prevKeptLineEndsWithSemicolon = true;
+          continue;
+        }
+
+        // Type declaration with `= {` (array initializer start)
+        if (isTypeDecl && /=\s*\{/.test(trimmed)) {
+          keepLines.push(line);
+          depth += delta;
+          if (depth > 0) inArrayInit = true;
+          prevKeptLineEndsWithSemicolon = trimmed.endsWith(';') || trimmed.endsWith('}');
+          continue;
+        }
+
+        if (isTypeDecl || isPreprocessor || isUniform || isEmpty || isComment) {
+          keepLines.push(line);
+          depth += delta;
+          if (trimmed.endsWith(';') || trimmed.endsWith('}') || isEmpty || isComment || isPreprocessor) {
+            prevKeptLineEndsWithSemicolon = true;
+          } else {
+            prevKeptLineEndsWithSemicolon = false;
+          }
+        } else {
+          // Executable statement or control flow at file scope — move to main()
+          moveLines.push(line);
+          depth += delta;
+          if (delta > 0) inBareBlock = true;
+        }
+      } else {
+        // depth > 0 but not in funcDef, arrayInit, or bareBlock — should not happen
+        moveLines.push(line);
+        depth += delta;
+        if (depth <= 0) depth = 0;
+      }
     }
-    source = s.replace(/\bshader_body\s*(?=\{)/g, '');
 
-    // ── 0c. Handle orphan shader_body content at file scope ──
-    // When the HLSL→GLSL transpiler already stripped the `shader_body` keyword,
-    // the block content and closing `}` remain at file scope. The structure is:
-    //   ... function definitions ...
-    //   declarations / executable statements (was inside shader_body)
-    //   }                          ← orphan closing brace
-    //   void main() { ... }
-    // The orphan `}` was the closing brace of the original shader_body block.
-    // We need to: (1) remove the orphan `}`, (2) move executable statements
-    // into void main(), (3) keep file-scope declarations where they are.
+    // Phase B: Reconstruct source
+    let afterMain = source.substring(mainIdxPre);
+
+    if (moveLines.length > 0) {
+      // Insert moved content into main() before the fragColor line
+      const fragColorIdx = afterMain.lastIndexOf('fragColor');
+      if (fragColorIdx !== -1) {
+        const insertContent = '\n  // --- moved from shader_body ---\n' +
+          moveLines.map(l => '  ' + l).join('\n') + '\n';
+        afterMain = afterMain.substring(0, fragColorIdx) +
+          insertContent +
+          afterMain.substring(fragColorIdx);
+      }
+    }
+
+    source = keepLines.join('\n') + '\n' + afterMain;
+
+    // ── 0e. Inside void main(): remove nested function definitions ──
+    // GLSL doesn't allow function definitions inside other functions.
+    // The transpiler duplicates file-scope functions inside main().
     const mainPos = source.indexOf('void main()');
-    const beforeMainStr = source.substring(0, mainPos);
-    const lines = beforeMainStr.split('\n');
+    const mainBrace = source.indexOf('{', mainPos);
+    if (mainBrace !== -1) {
+      const beforeMainBody = source.substring(0, mainBrace + 1);
+      let body = source.substring(mainBrace + 1);
 
-    // Find orphan `}` — a `}` at file scope before void main() that would make
-    // the brace depth go negative.
-    let braceDepth = 0;
-    let orphanBraceLine = -1;
-    for (let i = 0; i < lines.length; i++) {
-      for (const ch of lines[i]) {
-        if (ch === '{') braceDepth++;
-        else if (ch === '}') {
-          braceDepth--;
-          if (braceDepth < 0) {
-            orphanBraceLine = i;
-            braceDepth = 0; // reset after removing
+      // Find and remove function definitions inside main
+      const bodyLines = body.split('\n');
+      const cleanBodyLines: string[] = [];
+      let bodyDepth = 0;
+      let inNestedFunc = false;
+      let nestedFuncDepth = 0;
+
+      for (let i = 0; i < bodyLines.length; i++) {
+        const trimmed = bodyLines[i].trim();
+
+        if (inNestedFunc) {
+          for (const ch of trimmed) {
+            if (ch === '{') bodyDepth++;
+            else if (ch === '}') bodyDepth--;
+          }
+          if (bodyDepth <= nestedFuncDepth) {
+            inNestedFunc = false;
+          }
+          continue;
+        }
+
+        // Detect function definition: type name(params) {
+        const funcDefRe = /^\s*(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*\{/;
+        const funcDeclRe = /^\s*(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*$/;
+
+        if (funcDefRe.test(trimmed)) {
+          inNestedFunc = true;
+          nestedFuncDepth = bodyDepth;
+          for (const ch of trimmed) {
+            if (ch === '{') bodyDepth++;
+            else if (ch === '}') bodyDepth--;
+          }
+          if (bodyDepth <= nestedFuncDepth) inNestedFunc = false;
+          continue;
+        }
+
+        if (funcDeclRe.test(trimmed)) {
+          const nextTrimmed = (bodyLines[i + 1] || '').trim();
+          if (nextTrimmed.startsWith('{')) {
+            inNestedFunc = true;
+            nestedFuncDepth = bodyDepth;
+            i++;
+            for (const ch of (bodyLines[i] || '')) {
+              if (ch === '{') bodyDepth++;
+              else if (ch === '}') bodyDepth--;
+            }
+            if (bodyDepth <= nestedFuncDepth) inNestedFunc = false;
+            continue;
           }
         }
-      }
-    }
 
-    if (orphanBraceLine !== -1) {
-      // Remove the orphan `}`
-      lines[orphanBraceLine] = lines[orphanBraceLine].replace('}', '');
-
-      // Collect executable statements between last function `}` and the orphan `}`
-      // that need to move inside void main()
-      const stmtLines: string[] = [];
-      for (let i = orphanBraceLine - 1; i >= 0; i--) {
-        const trimmed = lines[i].trim();
-        if (!trimmed || trimmed.startsWith('//')) continue;
-        // Stop at function definition end or other structural boundary
-        if (trimmed === '}') break;
-        if (trimmed.startsWith('#')) break;
-
-        const isDecl = /^\s*(?:(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|sampler\w*|void)\s)/.test(lines[i]);
-        const isExecStmt = !isDecl && /^\s*[a-zA-Z_]\w*\s*(?:[+\-*/]?=|;|\+\+|--)/.test(lines[i]);
-
-        if (isExecStmt) {
-          stmtLines.unshift(lines[i]);
-          lines[i] = '';
-        } else if (isDecl && (/=\s*[a-zA-Z_]\w*\s*\(/.test(trimmed) || /=\s*texture\s*\(/.test(trimmed))) {
-          // Declaration with non-constant initializer (function call) — must be inside a function
-          stmtLines.unshift(lines[i]);
-          lines[i] = '';
+        for (const ch of trimmed) {
+          if (ch === '{') bodyDepth++;
+          else if (ch === '}') bodyDepth--;
         }
-        // Normal declarations stay at file scope
+
+        cleanBodyLines.push(bodyLines[i]);
       }
 
-      if (stmtLines.length > 0) {
-        const beforeMainClean = lines.join('\n');
-        const mainBraceIdx = source.indexOf('{', mainPos);
-        const afterMainBrace = source.substring(mainBraceIdx + 1);
-        source = beforeMainClean + source.substring(mainPos, mainBraceIdx + 1) +
-          '\n  // --- moved from shader_body ---\n  ' +
-          stmtLines.join('\n  ') + '\n' +
-          afterMainBrace;
-      } else {
-        source = lines.join('\n') + source.substring(mainPos);
-      }
+      source = beforeMainBody + cleanBodyLines.join('\n');
     }
   }
 
@@ -783,6 +960,9 @@ const astTransform = (source: string): string => {
 // ═══════════════════════════════════════════════════════════════════════════
 // Public API
 // ═══════════════════════════════════════════════════════════════════════════
+
+/** Exported for debugging; not part of public API. */
+export const _preprocess = preprocess;
 
 export const patchMilkDropGlsl = (source: string): string => {
   if (!source || !source.includes('#version 300 es')) return source;
