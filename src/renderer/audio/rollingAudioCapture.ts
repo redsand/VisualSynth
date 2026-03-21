@@ -6,26 +6,83 @@ export interface RecentAudioClip {
 }
 
 export interface RecentAudioClipPcm {
-  pcmS16le: Int16Array;   // 16 kHz mono signed-16 PCM
+  pcmS16le: Int16Array;
   numSamples: number;
   durationMs: number;
   startedAt: number;
   endedAt: number;
 }
 
-/**
- * Decode a webm/mp4 audio blob to 16 kHz mono Int16 PCM using the Web Audio API.
- * Returns null if decoding fails.
- */
+export interface DecodeResult {
+  success: boolean;
+  pcm?: RecentAudioClipPcm;
+  error?: string;
+  errorDetail?: {
+    blobSize: number;
+    mimeType: string;
+    decodeSucceeded: boolean;
+    sampleCount?: number;
+    minRequiredSamples: number;
+  };
+}
+
+export interface CaptureStats {
+  isActive: boolean;
+  totalChunks: number;
+  totalBytes: number;
+  oldestChunkAge: number;
+  newestChunkAge: number;
+  captureDurationMs: number;
+  mimeType: string;
+  averageChunkSize: number;
+}
+
+export interface ExportResult {
+  success: boolean;
+  clip?: RecentAudioClip;
+  error?: string;
+  errorDetail?: {
+    totalChunks: number;
+    selectedChunks: number;
+    totalBytes: number;
+    requestedDurationMs: number;
+    minRequiredBytes: number;
+    minRequiredChunks: number;
+  };
+}
+
+const MIN_SAMPLES_FOR_SHAZAM = 48000; // 3 seconds at 16kHz
+const MIN_BYTES_PER_SECOND = 6000;
+const MIN_CHUNKS_FOR_6_SECONDS = 5;
+const MIN_CHUNKS_FOR_12_SECONDS = 10;
+
 export async function decodeClipToPcm(clip: RecentAudioClip): Promise<RecentAudioClipPcm | null> {
+  const result = await decodeClipToPcmWithDiagnostics(clip);
+  return result.success ? result.pcm ?? null : null;
+}
+
+export async function decodeClipToPcmWithDiagnostics(clip: RecentAudioClip): Promise<DecodeResult> {
+  const minRequiredSamples = MIN_SAMPLES_FOR_SHAZAM;
+  const errorDetail: DecodeResult['errorDetail'] = {
+    blobSize: clip.blob.size,
+    mimeType: clip.mimeType,
+    decodeSucceeded: false,
+    minRequiredSamples
+  };
+
   try {
     const arrayBuffer = await clip.blob.arrayBuffer();
     const audioCtx = new OfflineAudioContext(1, 1, 16000);
     let decoded: AudioBuffer;
     try {
       decoded = await audioCtx.decodeAudioData(arrayBuffer);
-    } catch {
-      return null;
+      errorDetail.decodeSucceeded = true;
+    } catch (decodeError) {
+      return {
+        success: false,
+        error: 'Failed to decode audio data. The audio format may be unsupported or corrupt.',
+        errorDetail
+      };
     }
 
     const targetSampleRate = 16000;
@@ -44,16 +101,52 @@ export async function decodeClipToPcm(clip: RecentAudioClip): Promise<RecentAudi
       s16[i] = Math.round(clamped * 32767);
     }
 
+    errorDetail.sampleCount = s16.length;
+
+    if (s16.length < minRequiredSamples) {
+      const actualDuration = (s16.length / 16000).toFixed(1);
+      const minDuration = (minRequiredSamples / 16000).toFixed(1);
+      return {
+        success: false,
+        error: `Audio too short: ${actualDuration}s captured, need at least ${minDuration}s.`,
+        errorDetail
+      };
+    }
+
+    const energy = calculateAudioEnergy(s16);
+    if (energy < 0.001) {
+      return {
+        success: false,
+        error: 'Audio appears to be silent or near-silent. Ensure audio is playing.',
+        errorDetail: { ...errorDetail, sampleCount: s16.length }
+      };
+    }
+
     return {
-      pcmS16le: s16,
-      numSamples: s16.length,
-      durationMs: Math.round(s16.length / targetSampleRate * 1000),
-      startedAt: clip.startedAt,
-      endedAt: clip.endedAt
+      success: true,
+      pcm: {
+        pcmS16le: s16,
+        numSamples: s16.length,
+        durationMs: Math.round(s16.length / targetSampleRate * 1000),
+        startedAt: clip.startedAt,
+        endedAt: clip.endedAt
+      }
     };
-  } catch {
-    return null;
+  } catch (error) {
+    return {
+      success: false,
+      error: `Unexpected error: ${(error as Error).message}`,
+      errorDetail
+    };
   }
+}
+
+function calculateAudioEnergy(samples: Int16Array): number {
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sum += samples[i] * samples[i];
+  }
+  return Math.sqrt(sum / samples.length) / 32768;
 }
 
 interface TimedChunk {
@@ -81,6 +174,7 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
   let chunks: TimedChunk[] = [];
   let activeStream: MediaStream | null = null;
   let mimeType = '';
+  let firstChunkAt: number | null = null;
 
   const trim = (now = Date.now()) => {
     chunks = chunks.filter((chunk) => now - chunk.at <= historyMs);
@@ -94,6 +188,7 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     chunks = [];
     activeStream = null;
     mimeType = '';
+    firstChunkAt = null;
   };
 
   return {
@@ -126,6 +221,9 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
       activeStream = stream;
       recorder.addEventListener('dataavailable', (event) => {
         if (!event.data || event.data.size === 0) return;
+        if (firstChunkAt === null) {
+          firstChunkAt = Date.now();
+        }
         chunks.push({ at: Date.now(), blob: event.data });
         trim();
       });
@@ -133,31 +231,142 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
       return true;
     },
     async exportRecentClip(durationMs: number): Promise<RecentAudioClip | null> {
-      if (!recorder || chunks.length === 0) {
-        return null;
+      const result = await this.exportRecentClipWithDiagnostics(durationMs);
+      return result.success ? result.clip ?? null : null;
+    },
+    async exportRecentClipWithDiagnostics(durationMs: number): Promise<ExportResult> {
+      if (!recorder) {
+        return {
+          success: false,
+          error: 'Audio capture not started. Start audio input first.',
+          errorDetail: {
+            totalChunks: 0,
+            selectedChunks: 0,
+            totalBytes: 0,
+            requestedDurationMs: durationMs,
+            minRequiredBytes: MIN_BYTES_PER_SECOND * Math.ceil(durationMs / 1000),
+            minRequiredChunks: MIN_CHUNKS_FOR_6_SECONDS
+          }
+        };
       }
+
       const now = Date.now();
       trim(now);
+
+      if (chunks.length === 0) {
+        return {
+          success: false,
+          error: 'No audio chunks captured yet. Wait a few seconds after starting audio input.',
+          errorDetail: {
+            totalChunks: 0,
+            selectedChunks: 0,
+            totalBytes: 0,
+            requestedDurationMs: durationMs,
+            minRequiredBytes: MIN_BYTES_PER_SECOND * Math.ceil(durationMs / 1000),
+            minRequiredChunks: MIN_CHUNKS_FOR_6_SECONDS
+          }
+        };
+      }
+
       const selected = chunks.filter((chunk) => now - chunk.at <= durationMs);
       if (selected.length === 0) {
-        return null;
+        return {
+          success: false,
+          error: `No audio chunks within the last ${Math.round(durationMs / 1000)} seconds.`,
+          errorDetail: {
+            totalChunks: chunks.length,
+            selectedChunks: 0,
+            totalBytes: chunks.reduce((sum, c) => sum + c.blob.size, 0),
+            requestedDurationMs: durationMs,
+            minRequiredBytes: MIN_BYTES_PER_SECOND * Math.ceil(durationMs / 1000),
+            minRequiredChunks: MIN_CHUNKS_FOR_6_SECONDS
+          }
+        };
       }
+
+      const totalBytes = selected.reduce((sum, c) => sum + c.blob.size, 0);
+      const minRequiredBytes = MIN_BYTES_PER_SECOND * Math.ceil(durationMs / 1000);
+
+      if (selected.length < MIN_CHUNKS_FOR_6_SECONDS) {
+        const oldestAge = Math.round((now - selected[0].at) / 1000);
+        return {
+          success: false,
+          error: `Only ${selected.length} chunks captured over ${oldestAge}s. Wait longer for more audio data.`,
+          errorDetail: {
+            totalChunks: chunks.length,
+            selectedChunks: selected.length,
+            totalBytes,
+            requestedDurationMs: durationMs,
+            minRequiredBytes,
+            minRequiredChunks: MIN_CHUNKS_FOR_6_SECONDS
+          }
+        };
+      }
+
+      if (totalBytes < minRequiredBytes) {
+        const actualKb = (totalBytes / 1024).toFixed(1);
+        const minKb = (minRequiredBytes / 1024).toFixed(1);
+        return {
+          success: false,
+          error: `Insufficient audio data: ${actualKb}KB captured, need at least ${minKb}KB.`,
+          errorDetail: {
+            totalChunks: chunks.length,
+            selectedChunks: selected.length,
+            totalBytes,
+            requestedDurationMs: durationMs,
+            minRequiredBytes,
+            minRequiredChunks: MIN_CHUNKS_FOR_6_SECONDS
+          }
+        };
+      }
+
       const startedAt = selected[0].at;
       const endedAt = selected[selected.length - 1].at;
       const blob = new Blob(
         selected.map((chunk) => chunk.blob),
         { type: recorder.mimeType || mimeType || 'audio/webm' }
       );
+
       return {
-        blob,
-        mimeType: blob.type || recorder.mimeType || mimeType || 'audio/webm',
-        startedAt,
-        endedAt
+        success: true,
+        clip: {
+          blob,
+          mimeType: blob.type || recorder.mimeType || mimeType || 'audio/webm',
+          startedAt,
+          endedAt
+        }
       };
     },
     stop,
     isActive() {
       return Boolean(recorder && recorder.state !== 'inactive');
+    },
+    getStats(): CaptureStats {
+      const now = Date.now();
+      const active = this.isActive();
+      const totalChunks = chunks.length;
+      const totalBytes = chunks.reduce((sum, c) => sum + c.blob.size, 0);
+
+      let oldestChunkAge = 0;
+      let newestChunkAge = 0;
+      let captureDurationMs = 0;
+
+      if (chunks.length > 0) {
+        oldestChunkAge = now - chunks[0].at;
+        newestChunkAge = now - chunks[chunks.length - 1].at;
+        captureDurationMs = chunks[chunks.length - 1].at - chunks[0].at;
+      }
+
+      return {
+        isActive: active,
+        totalChunks,
+        totalBytes,
+        oldestChunkAge,
+        newestChunkAge,
+        captureDurationMs,
+        mimeType: recorder?.mimeType || mimeType || '',
+        averageChunkSize: totalChunks > 0 ? Math.round(totalBytes / totalChunks) : 0
+      };
     }
   };
 };

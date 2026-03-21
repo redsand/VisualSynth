@@ -79,7 +79,11 @@ import {
   type NowPlayingSettings
 } from '../shared/nowPlaying';
 import { createSongChangeDetector } from './audio/songChangeDetector';
-import { createRollingAudioCapture, decodeClipToPcm } from './audio/rollingAudioCapture';
+import {
+  createRollingAudioCapture,
+  decodeClipToPcmWithDiagnostics,
+  type ExportResult
+} from './audio/rollingAudioCapture';
 
 declare global {
   interface Window {
@@ -9804,47 +9808,74 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
   return btoa(binary);
 };
 
-/**
- * Build the recognition request payload, converting to PCM when provider is 'shazam'.
- * Returns null if the Shazam PCM decode fails.
- */
+interface BuildRecognitionRequestResult {
+  request?: NowPlayingRecognitionRequest;
+  error?: string;
+  diagnostics?: {
+    clipSizeKb: number;
+    clipDurationMs: number;
+    pcmSamples?: number;
+    pcmDurationMs?: number;
+  };
+}
+
 const buildRecognitionRequest = async (
-  clip: Awaited<ReturnType<typeof rollingAudioCapture.exportRecentClip>>,
+  clip: NonNullable<Awaited<ReturnType<typeof rollingAudioCapture.exportRecentClip>>>,
   settings: NowPlayingSettings,
   detectedAt: number
-): Promise<NowPlayingRecognitionRequest | null> => {
-  if (!clip) return null;
+): Promise<BuildRecognitionRequestResult> => {
+  const diagnostics: BuildRecognitionRequestResult['diagnostics'] = {
+    clipSizeKb: Math.round(clip.blob.size / 1024 * 10) / 10,
+    clipDurationMs: Math.max(0, clip.endedAt - clip.startedAt)
+  };
 
   if (settings.provider === 'shazam') {
-    const pcm = await decodeClipToPcm(clip);
-    if (!pcm) return null;
-    // Encode Int16Array as base64 via a copy into a known ArrayBuffer
-    const rawCopy = new Uint8Array(pcm.pcmS16le.byteLength);
-    rawCopy.set(new Uint8Array(pcm.pcmS16le.buffer, pcm.pcmS16le.byteOffset, pcm.pcmS16le.byteLength));
+    const decodeResult = await decodeClipToPcmWithDiagnostics(clip);
+    if (!decodeResult.success || !decodeResult.pcm) {
+      return {
+        error: decodeResult.error || 'Failed to decode audio for Shazam.',
+        diagnostics
+      };
+    }
+    diagnostics.pcmSamples = decodeResult.pcm.numSamples;
+    diagnostics.pcmDurationMs = decodeResult.pcm.durationMs;
+
+    const rawCopy = new Uint8Array(decodeResult.pcm.pcmS16le.byteLength);
+    rawCopy.set(new Uint8Array(
+      decodeResult.pcm.pcmS16le.buffer,
+      decodeResult.pcm.pcmS16le.byteOffset,
+      decodeResult.pcm.pcmS16le.byteLength
+    ));
     const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
     return {
-      provider: 'shazam',
-      audioBase64,
-      mimeType: 'audio/pcm-s16le',
-      numSamples: pcm.numSamples,
-      durationMs: pcm.durationMs,
-      market: settings.market || undefined,
-      detectedAt
+      request: {
+        provider: 'shazam',
+        audioBase64,
+        mimeType: 'audio/pcm-s16le',
+        numSamples: decodeResult.pcm.numSamples,
+        durationMs: decodeResult.pcm.durationMs,
+        market: settings.market || undefined,
+        detectedAt
+      },
+      diagnostics
     };
   }
 
   const audioBase64 = await blobToBase64(clip.blob);
   return {
-    provider: settings.provider,
-    endpoint: settings.endpoint || undefined,
-    host: settings.host || undefined,
-    apiKey: settings.apiKey || undefined,
-    apiSecret: settings.apiSecret || undefined,
-    market: settings.market || undefined,
-    audioBase64,
-    mimeType: clip.mimeType,
-    durationMs: Math.max(0, clip.endedAt - clip.startedAt),
-    detectedAt
+    request: {
+      provider: settings.provider,
+      endpoint: settings.endpoint || undefined,
+      host: settings.host || undefined,
+      apiKey: settings.apiKey || undefined,
+      apiSecret: settings.apiSecret || undefined,
+      market: settings.market || undefined,
+      audioBase64,
+      mimeType: clip.mimeType,
+      durationMs: diagnostics.clipDurationMs,
+      detectedAt
+    },
+    diagnostics
   };
 };
 
@@ -9854,19 +9885,82 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
     return;
   }
 
-  const clip = await rollingAudioCapture.exportRecentClip(settings.clipDurationMs);
-  if (!clip) {
-    nowPlayingTestStatus.textContent = 'No recent live audio buffer is available. Start audio input and let it listen for a few seconds.';
+  if (!rollingAudioCapture.isActive()) {
+    nowPlayingTestStatus.textContent = 'Audio capture not active. Start audio input first.';
     return;
   }
 
-  nowPlayingTestStatus.textContent = settings.provider === 'shazam' ? 'Decoding audio + fingerprinting...' : 'Running live lookup...';
-  const request = await buildRecognitionRequest(clip, settings, Date.now());
-  if (!request) {
-    nowPlayingTestStatus.textContent = 'Failed to prepare audio for Shazam (decode error).';
+  const stats = rollingAudioCapture.getStats();
+  const minWaitMs = 10000;
+  if (stats.captureDurationMs < minWaitMs && stats.totalChunks < 8) {
+    const waitSeconds = Math.ceil((minWaitMs - stats.captureDurationMs) / 1000);
+    nowPlayingTestStatus.textContent = `Capturing audio... wait ~${waitSeconds}s more (${stats.totalChunks} chunks, ${(stats.totalBytes / 1024).toFixed(1)}KB)`;
     return;
   }
-  const result = await window.visualSynth.identifyNowPlaying(request);
+
+  nowPlayingTestStatus.textContent = `Exporting ${Math.round(settings.clipDurationMs / 1000)}s clip from ${stats.totalChunks} chunks...`;
+
+  const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(settings.clipDurationMs);
+  if (!exportResult.success || !exportResult.clip) {
+    const detail = exportResult.errorDetail;
+    if (detail) {
+      nowPlayingTestStatus.textContent = `${exportResult.error} (${detail.selectedChunks}/${detail.totalChunks} chunks, ${(detail.totalBytes / 1024).toFixed(1)}KB)`;
+    } else {
+      nowPlayingTestStatus.textContent = exportResult.error || 'Failed to export audio clip.';
+    }
+    return;
+  }
+
+  const clip = exportResult.clip;
+  nowPlayingTestStatus.textContent = `Validating ${(clip.blob.size / 1024).toFixed(1)}KB audio...`;
+
+  // Always decode to check actual audio duration/quality, even for non-Shazam providers
+  const diagnosticDecode = await decodeClipToPcmWithDiagnostics(clip);
+  if (!diagnosticDecode.success || !diagnosticDecode.pcm) {
+    nowPlayingTestStatus.textContent = diagnosticDecode.error || 'Failed to validate audio quality.';
+    console.error('[Now Playing] Audio validation failed:', diagnosticDecode.errorDetail);
+    return;
+  }
+
+  const actualDurationSec = (diagnosticDecode.pcm.durationMs / 1000).toFixed(1);
+  const minDurationSec = 6;
+  
+  if (diagnosticDecode.pcm.durationMs < 6000) {
+    nowPlayingTestStatus.textContent = `Audio too short: ${actualDurationSec}s captured, need at least ${minDurationSec}s. Wait longer before testing.`;
+    console.warn('[Now Playing] Insufficient duration:', {
+      actualDuration: actualDurationSec,
+      minDuration: minDurationSec,
+      samples: diagnosticDecode.pcm.numSamples,
+      recommendation: 'Wait 15+ seconds before testing'
+    });
+    return;
+  }
+
+  const energy = diagnosticDecode.pcm.pcmS16le.length > 0 ? 
+    Math.sqrt(Array.from(diagnosticDecode.pcm.pcmS16le).reduce((sum, s) => sum + s * s, 0) / diagnosticDecode.pcm.pcmS16le.length) / 32768 : 0;
+  
+  console.log('[Now Playing] Audio diagnostics:', {
+    blobSize: `${(clip.blob.size / 1024).toFixed(1)}KB`,
+    actualDuration: `${actualDurationSec}s`,
+    samples: diagnosticDecode.pcm.numSamples,
+    energy: energy.toFixed(4),
+    mimeType: clip.mimeType
+  });
+
+  nowPlayingTestStatus.textContent = `Running ${settings.provider} lookup (${actualDurationSec}s audio, ${(clip.blob.size / 1024).toFixed(1)}KB)...`;
+
+  const buildResult = await buildRecognitionRequest(clip, settings, Date.now());
+  if (!buildResult.request) {
+    const diag = buildResult.diagnostics;
+    if (diag) {
+      nowPlayingTestStatus.textContent = `${buildResult.error} (clip: ${diag.clipSizeKb}KB, ${Math.round(diag.clipDurationMs / 1000)}s)`;
+    } else {
+      nowPlayingTestStatus.textContent = buildResult.error || 'Failed to prepare audio.';
+    }
+    return;
+  }
+
+  const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
 
   if (!result.matched) {
     nowPlayingTestStatus.textContent = result.error || 'No match found from live input.';
@@ -9886,19 +9980,20 @@ const runNowPlayingLookup = async (detectedAt: number) => {
     return;
   }
 
-  const clip = await rollingAudioCapture.exportRecentClip(nowPlayingSettings.clipDurationMs);
-  if (!clip) {
-    setStatus('Song change detected, but no recent audio clip was available.');
+  const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(nowPlayingSettings.clipDurationMs);
+  if (!exportResult.success || !exportResult.clip) {
+    setStatus(`Song change detected, but ${exportResult.error}`);
     return;
   }
 
+  const clip = exportResult.clip;
   nowPlayingLookupInFlight = true;
   lastNowPlayingLookupAt = detectedAt;
 
   try {
-    const request = await buildRecognitionRequest(clip, nowPlayingSettings, detectedAt);
-    if (request) {
-      const result = await window.visualSynth.identifyNowPlaying(request);
+    const buildResult = await buildRecognitionRequest(clip, nowPlayingSettings, detectedAt);
+    if (buildResult.request) {
+      const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
       await consumeNowPlayingResult(result, 'Now playing');
     }
   } finally {
