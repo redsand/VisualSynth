@@ -36,10 +36,39 @@ const createVideoElement = (asset: SerializedOutputAsset): HTMLVideoElement => {
   return video;
 };
 
+const createLiveVideoElement = async (asset: SerializedOutputAsset): Promise<HTMLVideoElement> => {
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  
+  const liveSource = asset.options?.liveSource;
+  try {
+    let stream: MediaStream;
+    if (liveSource === 'screen') {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+    }
+    video.srcObject = stream;
+    const track = stream.getVideoTracks()[0];
+    track.addEventListener('ended', () => {
+      video.srcObject = null;
+    });
+  } catch (err) {
+    console.warn('[Output] Failed to create live stream:', err);
+  }
+  return video;
+};
+
 const cleanupLayerVideo = (layerId: AssetLayerId) => {
   const existing = layerVideoElements[layerId];
   if (existing) {
     existing.pause();
+    if (existing.srcObject) {
+      (existing.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+      existing.srcObject = null;
+    }
     existing.src = '';
     existing.load();
     delete layerVideoElements[layerId];
@@ -359,10 +388,27 @@ channel.onmessage = (event) => {
           ? `${asset.id}-${asset.options?.text ?? ''}-${asset.options?.font ?? ''}-${asset.options?.fontColor ?? ''}`
           : asset?.id ?? null;
       if (layerAssetIds[layerId] === nextId && layerAssetKeys[layerId] === assetKey) return;
+      
+      cleanupLayerVideo(layerId);
       layerAssetIds[layerId] = nextId;
       layerAssetKeys[layerId] = assetKey;
+      
       const textCanvas = asset?.kind === 'text' ? getTextCanvas(asset) ?? undefined : undefined;
-      renderer.setLayerAsset(layerId, asset as any, undefined, textCanvas);
+      
+      if (asset?.kind === 'live') {
+        createLiveVideoElement(asset).then((videoElement) => {
+          layerVideoElements[layerId] = videoElement;
+          void videoElement.play().catch(() => undefined);
+          renderer.setLayerAsset(layerId, asset as any, videoElement, textCanvas);
+        });
+      } else if (asset?.kind === 'video') {
+        const videoElement = createVideoElement(asset);
+        layerVideoElements[layerId] = videoElement;
+        void videoElement.play().catch(() => undefined);
+        renderer.setLayerAsset(layerId, asset as any, videoElement, textCanvas);
+      } else {
+        renderer.setLayerAsset(layerId, asset as any, undefined, textCanvas);
+      }
     });
   }
   if (Array.isArray((data as any).overlays)) {
