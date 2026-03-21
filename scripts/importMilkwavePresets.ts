@@ -114,6 +114,7 @@ function createMilkwavePreset(
             name: 'Milkwave',
             role: 'support',
             enabled: true,
+            generatorId: 'gen-milkwave',
             opacity: milkData.parameters.fGammaAdj ?? 1,
             blendMode: 'screen',
             transform: { x: 0, y: 0, scale: 1, rotation: 0 },

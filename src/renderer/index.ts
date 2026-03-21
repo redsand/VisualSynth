@@ -6389,7 +6389,7 @@ const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
   }
 
   if (!sourceProject || sourceProject.scenes.length === 0) {
-    setStatus('Preset has no scenes.');
+    console.error(`[Refresh] Preset has no scenes: ${scene.name}`);
     return false;
   }
 
