@@ -777,6 +777,15 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
     ]
   },
   {
+    id: 'vhs-scanline',
+    name: 'VHS Scanline',
+    description: 'Classic VHS scanline effect with bands',
+    sinceVersion: '1.4.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
     id: 'moire-pattern',
     name: 'Moire Pattern',
     description: 'Interference patterns from rotating grids',
@@ -1941,12 +1950,14 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
     ]
   },
   {
-    id: 'radar-hud',
-    name: 'Radar HUD',
-    description: 'Radar heads-up display',
-    sinceVersion: '1.0.0',
+    id: 'moire-pattern',
+    name: 'Moire Pattern',
+    description: 'Interference patterns from rotating grids',
+    sinceVersion: '1.4.0',
     params: [
-      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Grid Scale', type: 'number', min: 0.1, max: 10, default: 5, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Rotation Speed', type: 'number', min: 0.1, max: 5, default: 1, modulatable: true, midiMappable: true }
     ]
   },
   {
@@ -2014,6 +2025,7 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-neural-net': 'neural-net',
     'gen-aurora-chord': 'aurora-chord',
     'gen-vhs-glitch': 'vhs-glitch',
+    'gen-vhs-scanline': 'vhs-scanline',
     'gen-moire-pattern': 'moire-pattern',
     'gen-hypercube': 'hypercube',
     'gen-fluid-swirl': 'fluid-swirl',

@@ -6340,42 +6340,36 @@ const addSceneFromPreset = async (presetPath: string) => {
 const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
   const scene = currentProject.scenes.find((s) => s.id === sceneId);
   if (!scene) {
-    setStatus('Scene not found.');
+    console.warn(`[Refresh] Scene not found: ${sceneId}`);
     return false;
   }
 
   if (!scene.presetPath) {
-    setStatus('Scene has no saved preset path.');
+    console.warn(`[Refresh] Scene has no presetPath: ${scene.name}`);
     return false;
   }
 
-  const traceId = createPresetTraceId();
-  logPresetDebug(traceId, 'Refreshing scene from preset', { sceneId, presetPath: scene.presetPath });
-
   const result = await window.visualSynth.loadPreset(scene.presetPath);
   if (result.error) {
-    logPresetError(traceId, 'Preset reload failed', { presetPath: scene.presetPath, error: result.error });
-    setStatus(`Failed to refresh: ${result.error}`);
+    console.error(`[Refresh] Load error for ${scene.name}: ${result.error}`);
     return false;
   }
 
   if (!result.preset) {
-    setStatus('Preset reload returned no data.');
+    console.error(`[Refresh] No preset data for ${scene.name}`);
     return false;
   }
 
   const presetMigration = await import('../shared/presetMigration');
   const migrationResult = presetMigration.migratePreset(result.preset);
   if (!migrationResult.success) {
-    logPresetError(traceId, 'Preset migration failed', { errors: migrationResult.errors });
-    setStatus(`Preset migration failed: ${migrationResult.errors.join(', ')}`);
+    console.error(`[Refresh] Migration failed for ${scene.name}:`, migrationResult.errors);
     return false;
   }
 
   const validationResult = presetMigration.validatePreset(migrationResult.preset);
   if (!validationResult.valid) {
-    logPresetError(traceId, 'Preset validation failed', { errors: validationResult.errors });
-    setStatus(`Preset validation failed: ${validationResult.errors.join(', ')}`);
+    console.error(`[Refresh] Validation failed for ${scene.name}:`, validationResult.errors);
     return false;
   }
 
@@ -6474,16 +6468,38 @@ const refreshAllScenesFromPresets = async (): Promise<void> => {
     return;
   }
 
+  const total = scenesWithPresets.length;
   let successCount = 0;
   let failCount = 0;
+  const errors: string[] = [];
 
-  for (const scene of scenesWithPresets) {
-    const success = await refreshSceneFromPreset(scene.id);
-    if (success) {
-      successCount++;
-    } else {
+  console.log(`[Refresh] Starting refresh of ${total} scenes...`);
+  setStatus(`Refreshing ${total} scenes...`);
+
+  for (let i = 0; i < scenesWithPresets.length; i++) {
+    const scene = scenesWithPresets[i];
+    try {
+      const success = await refreshSceneFromPreset(scene.id);
+      if (success) {
+        successCount++;
+        if (successCount % 20 === 0) {
+          console.log(`[Refresh] Progress: ${successCount}/${total}`);
+        }
+      } else {
+        failCount++;
+        console.warn(`[Refresh] Failed (returned false): ${scene.name}`);
+      }
+    } catch (err) {
       failCount++;
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${scene.name}: ${msg}`);
+      console.error(`[Refresh] Exception for "${scene.name}":`, err);
     }
+  }
+
+  console.log(`[Refresh] Complete: ${successCount} success, ${failCount} failed`);
+  if (errors.length > 0 && errors.length <= 10) {
+    console.error('[Refresh] Errors:', errors);
   }
 
   if (failCount === 0) {
