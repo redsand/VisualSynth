@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { patchMilkDropGlsl } from '../src/shared/milkwaveGlslPatcher';
+import { analyzeMilkwaveShaderSource } from '../src/shared/milkwaveDiagnostics';
 
 const presetsDir = path.resolve(__dirname, '../assets/presets');
 const milkwavePresets = fs
@@ -22,10 +23,12 @@ for (const fileName of milkwavePresets) {
     if (!shader || typeof shader !== 'string') continue;
     try {
       console.log(`Testing ${fileName} [${pass}]`);
-      patchMilkDropGlsl(shader);
+      const patched = patchMilkDropGlsl(shader);
+      analyzeMilkwaveShaderSource({ source: patched, pass: pass as 'warp' | 'comp', stage: 'glsl' });
     } catch(e) {
       console.log(`Failed on ${fileName} [${pass}]`, e);
     }
   }
 }
 console.log('Done!');
+
