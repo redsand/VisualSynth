@@ -26,7 +26,8 @@ const loadImage = (path: string): HTMLImageElement | null => {
   img.src = path.startsWith('file:') ? path : `file:///${path.replace(/\\/g, '/')}`;
   img.onload = () => imageCache.set(path, { img, path });
   img.onerror = () => console.warn('[Overlay] Failed to load image:', path);
-  return null;
+  imageCache.set(path, { img, path });
+  return img;
 };
 
 const renderTextCanvas = (overlay: OverlayConfig, w: number, h: number): HTMLCanvasElement => {

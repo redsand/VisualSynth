@@ -49,6 +49,8 @@ export interface NowPlayingSettings {
   autoCreateOverlays: boolean;
   titleOverlayId: string;
   artworkOverlayId: string;
+  slideshowEnabled: boolean;
+  slideshowSceneIds: string[];
 }
 
 export const DEFAULT_NOW_PLAYING_SETTINGS: NowPlayingSettings = {
@@ -72,7 +74,9 @@ export const DEFAULT_NOW_PLAYING_SETTINGS: NowPlayingSettings = {
   artworkPreference: 'album',
   autoCreateOverlays: true,
   titleOverlayId: 'now-playing-title',
-  artworkOverlayId: 'now-playing-artwork'
+  artworkOverlayId: 'now-playing-artwork',
+  slideshowEnabled: false,
+  slideshowSceneIds: []
 };
 
 export const normalizeNowPlayingSettings = (

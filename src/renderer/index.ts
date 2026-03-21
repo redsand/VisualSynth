@@ -2016,6 +2016,7 @@ const renderPlaylist = () => {
     const row = document.createElement('div');
     const isActive = playlistIndex === index && playlistActive;
     row.className = `marker-row playlist-slot${isActive ? ' active' : ''}`;
+    row.dataset.index = String(index);
 
     const indexLabel = document.createElement('div');
     indexLabel.className = 'slot-index';
@@ -2039,6 +2040,17 @@ const renderPlaylist = () => {
     row.appendChild(trigger);
     playlistList.appendChild(row);
   });
+
+  if (playlistActive && scenes.length > 2) {
+    const activeRow = playlistList.querySelector(`[data-index="${playlistIndex}"]`) as HTMLElement;
+    if (activeRow) {
+      const containerHeight = playlistList.clientHeight;
+      const rowHeight = activeRow.offsetHeight;
+      const rowTop = activeRow.offsetTop;
+      const midpoint = containerHeight / 2 - rowHeight / 2;
+      playlistList.scrollTop = Math.max(0, rowTop - midpoint);
+    }
+  }
 };
 
 const stopPlaylist = () => {

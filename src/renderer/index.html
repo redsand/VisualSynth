@@ -1411,6 +1411,19 @@
             <input id="now-playing-auto-overlays" type="checkbox" checked />
           </label>
         </div>
+        <div class="scene-row">
+          <label class="scene-inline modal-checkbox">
+            Enable slideshow on new song
+            <input id="now-playing-slideshow-enabled" type="checkbox" />
+          </label>
+        </div>
+        <div id="slideshow-scene-select-group" class="scene-row hidden">
+          <label class="scene-label">
+            Slideshow Scenes (Ctrl+Click to multi-select)
+            <select id="now-playing-slideshow-scenes" multiple size="4" style="width: 100%;">
+            </select>
+          </label>
+        </div>
         <div id="now-playing-provider-hint" class="output-hint">
           Custom mode posts the captured clip to your own lookup endpoint.
         </div>

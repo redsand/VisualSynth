@@ -948,8 +948,8 @@ export const applyPresetV3 = (preset: any, currentProject: any): { project: any;
     };
   });
 
-  // Start with all layers from DEFAULT_PROJECT disabled as a stable baseline.
-  const defaultLayers = defaultScene.layers.map((l: any) => ({ ...l, enabled: false }));
+  // Start with all layers from DEFAULT_PROJECT enabled as a stable baseline.
+  const defaultLayers = defaultScene.layers.map((l: any) => ({ ...l, enabled: true }));
 
   // Apply preset layers over the disabled baseline.
   const newLayers = defaultLayers.map((baseLayer: any) => {

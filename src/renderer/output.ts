@@ -15,6 +15,15 @@ const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
 const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};
 
+const hiddenVideoContainer = document.createElement('div');
+hiddenVideoContainer.style.position = 'absolute';
+hiddenVideoContainer.style.width = '1px';
+hiddenVideoContainer.style.height = '1px';
+hiddenVideoContainer.style.opacity = '0';
+hiddenVideoContainer.style.pointerEvents = 'none';
+hiddenVideoContainer.style.overflow = 'hidden';
+document.body.appendChild(hiddenVideoContainer);
+
 const toFileUrl = (filePath: string) => {
   if (filePath.startsWith('file://')) return filePath;
   if (/^[A-Za-z]:/.test(filePath)) return `file:///${filePath.replace(/\\/g, '/')}`;
@@ -33,6 +42,7 @@ const createVideoElement = (asset: SerializedOutputAsset): HTMLVideoElement => {
   if (asset.path) {
     video.src = toFileUrl(asset.path);
   }
+  hiddenVideoContainer.appendChild(video);
   return video;
 };
 
@@ -58,6 +68,7 @@ const createLiveVideoElement = async (asset: SerializedOutputAsset): Promise<HTM
   } catch (err) {
     console.warn('[Output] Failed to create live stream:', err);
   }
+  hiddenVideoContainer.appendChild(video);
   return video;
 };
 
@@ -71,6 +82,7 @@ const cleanupLayerVideo = (layerId: AssetLayerId) => {
     }
     existing.src = '';
     existing.load();
+    existing.remove();
     delete layerVideoElements[layerId];
   }
 };
