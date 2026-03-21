@@ -3701,7 +3701,8 @@ const populateSceneSelectors = () => {
   if (sceneEditPanel) {
     const sceneEditLabel = sceneEditPanel.querySelector('.scene-label');
     if (sceneEditLabel) sceneEditLabel.classList.toggle('hidden', !showMultiSceneUI);
-  }[sceneViewSelect, sceneEditSelect].forEach(select => {
+  }
+  [sceneViewSelect, sceneEditSelect].filter(Boolean).forEach(select => {
     select.innerHTML = '';
     currentProject.scenes.forEach((scene, index) => {
       const option = document.createElement('option');
@@ -10781,20 +10782,22 @@ sceneViewSelect.addEventListener('change', () => {
   }
 });
 
-sceneEditSelect.addEventListener('change', () => {
-  const sceneId = sceneEditSelect.value;
-  if (sceneId) {
-    selectedSceneId = sceneId;
-    previewSceneId = sceneId;
-    const scene = currentProject.scenes.find(s => s.id === sceneId);
-    if (scene) {
-      compileSceneShaders(renderer, scene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
-      updateSceneContextUI(scene);
-      renderLayerList();
-      setStatus(`Editing scene: ${scene.name}`);
+if (sceneEditSelect) {
+  sceneEditSelect.addEventListener('change', () => {
+    const sceneId = sceneEditSelect.value;
+    if (sceneId) {
+      selectedSceneId = sceneId;
+      previewSceneId = sceneId;
+      const scene = currentProject.scenes.find(s => s.id === sceneId);
+      if (scene) {
+        compileSceneShaders(renderer, scene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+        updateSceneContextUI(scene);
+        renderLayerList();
+        setStatus(`Editing scene: ${scene.name}`);
+      }
     }
-  }
-});
+  });
+}
 
 sceneIntentSelect.addEventListener('change', () => {
   const scene = getActiveScene();
