@@ -44,32 +44,19 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-weather"
         ],
+        "support": [],
         "atmosphere": [
           "layer-topo"
         ]
       },
       "layers": [
         {
-          "id": "layer-topo",
-          "name": "Topo Terrain",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
-          "transform": {
-            "x": 0,
-            "y": 0,
-            "scale": 1,
-            "rotation": 0
-          }
-        },
-        {
           "id": "layer-weather",
           "name": "Weather",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
@@ -89,7 +76,22 @@
               "scale": 1,
               "rotation": 0
             },
-            "speed": 1
+            "intensity": 0.8,
+            "particleSize": 0.02
+          }
+        },
+        {
+          "id": "layer-topo",
+          "name": "Topo Terrain",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.6,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
           }
         }
       ]

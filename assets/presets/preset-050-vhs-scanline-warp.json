@@ -45,19 +45,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "variant-vhs-scanline-warp"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "variant-vhs-scanline-warp",
           "name": "VHS Scanline Warp",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

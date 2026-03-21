@@ -1,6 +1,6 @@
 import type { Store } from '../../state/store';
 import { sdfRegistry } from '../../sdf/registry';
-import { SdfNodeInstance, DEFAULT_SDF_SCENE, SdfSceneConfig, createNodeInstance, SdfParameter } from '../../sdf/api';
+import { SdfNodeInstance, DEFAULT_SDF_SCENE, SdfSceneConfig, createNodeInstance, SdfParameter, DEFAULT_RENDER_2D, DEFAULT_RENDER_3D } from '../../sdf/api';
 import { setStatus } from '../../state/events';
 import { actions } from '../../state/actions';
 
@@ -45,6 +45,14 @@ export const createSdfPanel = ({ store }: SdfPanelDeps) => {
     const modeRow = document.createElement('div');
     modeRow.className = 'layer-row';
     const config: SdfSceneConfig = layer.sdfScene || JSON.parse(JSON.stringify(DEFAULT_SDF_SCENE));
+    
+    // Ensure render2d and render3d have defaults if missing
+    if (!config.render2d) {
+        config.render2d = { ...DEFAULT_RENDER_2D };
+    }
+    if (!config.render3d) {
+        config.render3d = { ...DEFAULT_RENDER_3D };
+    }
     
     const modeLabel = document.createElement('span');
     modeLabel.textContent = 'Mode: ';

@@ -45,16 +45,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-plasma"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-plasma",
           "name": "Plasma",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",

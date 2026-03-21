@@ -45,9 +45,10 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-plasma"
+        ],
         "support": [
-          "layer-plasma",
           "layer-spectrum"
         ],
         "atmosphere": []
@@ -55,36 +56,38 @@
       "layers": [
         {
           "id": "layer-plasma",
-          "name": "Plasma",
+          "name": "Cosmic Plasma",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
-            "scale": 1,
+            "scale": 1.1,
             "rotation": 0
           },
           "params": {
-            "opacity": 0.95,
+            "opacity": 1,
             "enabled": true,
-            "blendMode": "screen",
+            "blendMode": "normal",
             "transform": {
               "x": 0,
               "y": 0,
-              "scale": 1,
+              "scale": 1.1,
               "rotation": 0
             },
-            "speed": 1,
-            "scale": 1,
-            "complexity": 0.5
+            "speed": 0.8,
+            "scale": 1.2,
+            "complexity": 0.7
           }
         },
         {
           "id": "layer-spectrum",
           "name": "Spectrum",
+          "role": "support",
           "enabled": true,
-          "opacity": 0.9,
+          "opacity": 0.85,
           "blendMode": "add",
           "transform": {
             "x": 0,
@@ -93,7 +96,7 @@
             "rotation": 0
           },
           "params": {
-            "opacity": 0.9,
+            "opacity": 0.85,
             "enabled": true,
             "blendMode": "add",
             "transform": {

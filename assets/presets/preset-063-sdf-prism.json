@@ -45,19 +45,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-plasma"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-plasma",
           "name": "Plasma",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.6,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
@@ -171,13 +172,13 @@
   "modMatrix": [],
   "midiMappings": [],
   "sdf": {
-    "enabled": false,
-    "shape": "circle",
-    "scale": 0.5,
+    "enabled": true,
+    "shape": "triangle",
+    "scale": 0.55,
     "edge": 0.05,
-    "glow": 0.1,
+    "glow": 0.2,
     "rotation": 0,
-    "fill": 0
+    "fill": 0.4
   },
   "assets": [],
   "plugins": [],

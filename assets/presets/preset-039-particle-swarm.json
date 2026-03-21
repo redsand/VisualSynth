@@ -44,19 +44,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-particles"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-particles",
           "name": "particles",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "add",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

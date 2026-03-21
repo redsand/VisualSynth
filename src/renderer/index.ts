@@ -980,6 +980,103 @@ let lastMetadataTrackAt = 0;
 let lastMetadataPollAt = 0;
 let tapTempoTimes: number[] = [];
 
+// Handle Shazam file decode requests from main process
+(window as any).visualSynth?.onShazamDecodeFile?.(async (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => {
+  try {
+    const { requestId, fileBase64, seekSeconds, durationSeconds } = data;
+    
+    // Decode base64 to ArrayBuffer
+    const binaryString = atob(fileBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Create blob and decode using Web Audio API
+    const blob = new Blob([bytes.buffer], { type: data.mimeType });
+    const arrayBuffer = await blob.arrayBuffer();
+    
+    // Decode audio data
+    const audioContext = new OfflineAudioContext(1, 1, 16000);
+    let decoded: AudioBuffer;
+    try {
+      decoded = await audioContext.decodeAudioData(arrayBuffer);
+    } catch {
+      (window as any).visualSynth?.sendShazamDecodeResult?.(requestId, { pcmBase64: null, error: 'Failed to decode audio file' });
+      return;
+    }
+    
+    // Calculate seek position in samples
+    const originalSampleRate = decoded.sampleRate;
+    const targetSampleRate = 16000;
+    const seekSamples = Math.floor(seekSeconds * originalSampleRate);
+    const captureSamples = Math.floor(durationSeconds * originalSampleRate);
+    
+    // Get audio data, potentially seeking into the file
+    const channelData = decoded.numberOfChannels > 1 
+      ? mixToMonoBuffer(decoded) 
+      : decoded.getChannelData(0);
+    
+    // Extract section starting from seek position
+    const startIdx = Math.min(seekSamples, channelData.length - captureSamples);
+    const endIdx = Math.min(startIdx + captureSamples, channelData.length);
+    const sectionLength = endIdx - startIdx;
+    
+    // Resample to 16kHz mono
+    const resampleRatio = originalSampleRate / targetSampleRate;
+    const numOutputSamples = Math.floor(sectionLength / resampleRatio);
+    const offlineCtx = new OfflineAudioContext(1, numOutputSamples, targetSampleRate);
+    const srcNode = offlineCtx.createBufferSource();
+    
+    // Create a new buffer with just the section we want
+    const sectionBuffer = offlineCtx.createBuffer(1, sectionLength, originalSampleRate);
+    sectionBuffer.copyToChannel(channelData.slice(startIdx, endIdx), 0);
+    srcNode.buffer = sectionBuffer;
+    srcNode.connect(offlineCtx.destination);
+    srcNode.start(0);
+    
+    const resampled = await offlineCtx.startRendering();
+    const f32 = resampled.getChannelData(0);
+    
+    // Convert Float32 to Int16 PCM
+    const s16 = new Int16Array(f32.length);
+    for (let i = 0; i < f32.length; i++) {
+      const clamped = Math.max(-1, Math.min(1, f32[i]));
+      s16[i] = Math.round(clamped * 32767);
+    }
+    
+    // Encode to base64
+    const rawCopy = new Uint8Array(s16.buffer, s16.byteOffset, s16.byteLength);
+    let binary = '';
+    for (let i = 0; i < rawCopy.length; i++) {
+      binary += String.fromCharCode(rawCopy[i]);
+    }
+    const pcmBase64 = btoa(binary);
+    
+    (window as any).visualSynth?.sendShazamDecodeResult?.(requestId, { pcmBase64 });
+  } catch (error) {
+    const requestId = (data as any).requestId;
+    (window as any).visualSynth?.sendShazamDecodeResult?.(requestId, { 
+      pcmBase64: null, 
+      error: (error as Error).message 
+    });
+  }
+});
+
+// Helper to mix stereo/multichannel to mono
+const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
+  const numChannels = buffer.numberOfChannels;
+  const length = buffer.length;
+  const mono = new Float32Array(length);
+  for (let c = 0; c < numChannels; c++) {
+    const channel = buffer.getChannelData(c);
+    for (let i = 0; i < length; i++) {
+      mono[i] += channel[i] / numChannels;
+    }
+  }
+  return mono;
+};
+
 const gravityWells = Array.from({ length: 8 }, () => ({
   x: 0,
   y: 0,

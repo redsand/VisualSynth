@@ -45,19 +45,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "gen-vhs-scanline"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "gen-vhs-scanline",
           "name": "VHS Scanline",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

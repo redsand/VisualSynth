@@ -44,19 +44,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-oscillo"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-oscillo",
           "name": "Oscilloscope",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

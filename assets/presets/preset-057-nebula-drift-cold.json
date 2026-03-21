@@ -45,17 +45,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-inkflow"
+        ],
         "support": [],
-        "atmosphere": ["layer-inkflow"]
+        "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-inkflow",
           "name": "Ink Flow",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.82,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

@@ -44,20 +44,22 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-spectrum",
-          "layer-topo"
+        "core": [
+          "layer-spectrum"
         ],
-        "atmosphere": []
+        "support": [],
+        "atmosphere": [
+          "layer-topo"
+        ]
       },
       "layers": [
         {
           "id": "layer-spectrum",
           "name": "Spectrum",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.25,
-          "blendMode": "add",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

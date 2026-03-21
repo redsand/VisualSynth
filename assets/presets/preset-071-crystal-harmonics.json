@@ -45,9 +45,10 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-plasma"
+        ],
         "support": [
-          "layer-plasma",
           "layer-crystal"
         ],
         "atmosphere": []
@@ -56,9 +57,10 @@
         {
           "id": "layer-plasma",
           "name": "Plasma",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.25,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

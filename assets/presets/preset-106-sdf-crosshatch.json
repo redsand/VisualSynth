@@ -157,13 +157,13 @@
   "modMatrix": [],
   "midiMappings": [],
   "sdf": {
-    "enabled": false,
-    "shape": "circle",
-    "scale": 0.5,
-    "edge": 0.05,
-    "glow": 0.1,
+    "enabled": true,
+    "shape": "box",
+    "scale": 0.25,
+    "edge": 0.02,
+    "glow": 0.08,
     "rotation": 0,
-    "fill": 0
+    "fill": 0.15
   },
   "assets": [],
   "plugins": [],

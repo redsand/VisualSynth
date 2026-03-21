@@ -45,40 +45,67 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-weather"
+        ],
         "support": [],
         "atmosphere": [
-          "layer-topo",
-          "layer-weather"
+          "layer-topo"
         ]
       },
       "layers": [
         {
-          "id": "layer-topo",
-          "name": "Topo Terrain",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "id": "layer-weather",
+          "name": "Neon Rain",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
             "scale": 1,
             "rotation": 0
+          },
+          "params": {
+            "opacity": 1,
+            "enabled": true,
+            "blendMode": "normal",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "intensity": 0.9,
+            "particleSize": 0.015
           }
         },
         {
-          "id": "layer-weather",
-          "name": "Audio Weather",
+          "id": "layer-topo",
+          "name": "Topo Terrain",
           "role": "atmosphere",
           "enabled": true,
-          "opacity": 0.85,
+          "opacity": 0.4,
           "blendMode": "screen",
           "transform": {
             "x": 0,
             "y": 0,
             "scale": 1,
             "rotation": 0
+          },
+          "params": {
+            "opacity": 0.4,
+            "enabled": true,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "scale": 1.2,
+            "elevation": 0.7
           }
         }
       ]
@@ -188,13 +215,13 @@
   "modMatrix": [],
   "midiMappings": [],
   "sdf": {
-    "enabled": false,
-    "shape": "circle",
-    "scale": 0.5,
+    "enabled": true,
+    "shape": "box",
+    "scale": 0.3,
     "edge": 0.05,
     "glow": 0.1,
     "rotation": 0,
-    "fill": 0
+    "fill": 0.2
   },
   "assets": [],
   "plugins": [],

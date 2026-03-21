@@ -130,5 +130,11 @@ contextBridge.exposeInMainWorld('visualSynth', {
     senderName: string;
     connectedReceivers: string[];
   }>,
-  ndiSetSenderName: (name: string) => ipcRenderer.invoke('ndi:set-sender-name', name) as Promise<void>
+  ndiSetSenderName: (name: string) => ipcRenderer.invoke('ndi:set-sender-name', name) as Promise<void>,
+  onShazamDecodeFile: (callback: (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => void) => {
+    ipcRenderer.on('shazam:decode-file', (_event, data) => callback(data));
+  },
+  sendShazamDecodeResult: (requestId: string, result: { pcmBase64: string | null; error?: string }) => {
+    ipcRenderer.send(requestId, result);
+  }
 });

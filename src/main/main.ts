@@ -576,8 +576,8 @@ ipcMain.handle(
     }
 
     const filePath = result.filePaths[0];
-    const buffer = fs.readFileSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
+
     const mimeMap: Record<string, string> = {
       '.mp3': 'audio/mpeg',
       '.wav': 'audio/wav',
@@ -589,6 +589,80 @@ ipcMain.handle(
       '.webm': 'audio/webm'
     };
 
+    // For Shazam, use renderer's Web Audio API to decode file to 16kHz mono PCM
+    // Sample from ~25% into the song (aiming for first drop/chorus) for better recognition
+    if (request.provider === 'shazam') {
+      try {
+        // Read file and send to renderer for decoding
+        const fileBuffer = fs.readFileSync(filePath);
+        const fileBase64 = fileBuffer.toString('base64');
+        const mimeType = mimeMap[ext] ?? 'application/octet-stream';
+        
+        // Default seek position (25% into song, aiming for first drop/chorus)
+        const seekSeconds = 20;
+        const durationSeconds = 5; // Shazam needs ~3.1 sec, we give 5 sec
+
+        const rendererPcm = await new Promise<Int16Array | null>((resolve) => {
+          const requestId = `shazam-decode-${Date.now()}`;
+          const timeout = setTimeout(() => resolve(null), 30000); // 30 sec timeout
+          ipcMain.once(requestId, (_ev, result: { pcmBase64: string | null; error?: string }) => {
+            clearTimeout(timeout);
+            if (result.pcmBase64) {
+              const buf = Buffer.from(result.pcmBase64, 'base64');
+              resolve(new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2));
+            } else {
+              resolve(null);
+            }
+          });
+          mainWindow?.webContents.send('shazam:decode-file', {
+            requestId,
+            fileBase64,
+            mimeType,
+            seekSeconds,
+            durationSeconds
+          });
+        });
+
+        if (!rendererPcm || rendererPcm.length < 16000 * 3) {
+          return {
+            matched: false,
+            canceled: false,
+            selectedFilePath: filePath,
+            error: 'Failed to decode audio file. Try a different audio file format.'
+          };
+        }
+
+        const rawCopy = new Uint8Array(rendererPcm.byteLength);
+        rawCopy.set(new Uint8Array(rendererPcm.buffer, rendererPcm.byteOffset, rendererPcm.byteLength));
+        const audioBase64 = Buffer.from(rawCopy).toString('base64');
+        const numSamples = rendererPcm.length;
+        const durationMs = Math.round(numSamples / 16);
+
+        const lookup = await identifyNowPlaying({
+          ...request,
+          audioBase64,
+          mimeType: 'audio/pcm-s16le',
+          durationMs,
+          detectedAt: Date.now(),
+          numSamples
+        });
+
+        return {
+          ...lookup,
+          selectedFilePath: filePath,
+          canceled: false
+        };
+      } catch (error) {
+        return {
+          matched: false,
+          canceled: false,
+          selectedFilePath: filePath,
+          error: `Shazam file processing failed: ${(error as Error).message}`
+        };
+      }
+    }
+
+    const buffer = fs.readFileSync(filePath);
     const lookup = await identifyNowPlaying({
       ...request,
       audioBase64: buffer.toString('base64'),

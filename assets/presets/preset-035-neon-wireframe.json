@@ -44,20 +44,22 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-glyph",
-          "layer-topo"
+        "core": [
+          "layer-glyph"
         ],
-        "atmosphere": []
+        "support": [],
+        "atmosphere": [
+          "layer-topo"
+        ]
       },
       "layers": [
         {
           "id": "layer-glyph",
           "name": "Glyph",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.4,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
