@@ -71,16 +71,22 @@ async function decodeAudioDataUniversal(blob: Blob): Promise<AudioBuffer | null>
 }
 
 async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000): Promise<AudioBuffer | null> {
-  const objectUrl = URL.createObjectURL(blob);
-  const audio = new Audio();
-  audio.src = objectUrl;
-  audio.muted = true;
-  
   let audioCtx: AudioContext | null = null;
   
   console.log('[Now Playing] Attempting webm decode via Audio element...');
   
   try {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+
+    const audio = new Audio();
+    audio.src = dataUrl;
+    audio.muted = true;
+    
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Audio load timeout')), 15000);
       audio.oncanplaythrough = () => {
@@ -166,8 +172,6 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
       await audioCtx.close().catch(() => {});
     }
     return null;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
   }
 }
 

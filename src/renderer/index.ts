@@ -9683,6 +9683,7 @@ const consumeNowPlayingResult = async (
   statusPrefix: string
 ) => {
   if (!result.matched) {
+    clearNowPlayingOverlays();
     setStatus(result.error ? `${statusPrefix}: ${result.error}` : `${statusPrefix}: no match found.`);
     return;
   }
@@ -9773,6 +9774,25 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
   currentProject.overlays.push(overlay);
   renderOverlayList();
   return overlay;
+};
+
+const clearNowPlayingOverlays = () => {
+  if (!nowPlayingSettings.autoCreateOverlays) return;
+  
+  const titleOverlay = currentProject.overlays?.find(
+    (item) => item.id === nowPlayingSettings.titleOverlayId && item.type === 'text'
+  );
+  if (titleOverlay) {
+    titleOverlay.text = '';
+  }
+  
+  const artworkOverlay = currentProject.overlays?.find(
+    (item) => item.id === nowPlayingSettings.artworkOverlayId && item.type === 'image'
+  );
+  if (artworkOverlay) {
+    artworkOverlay.enabled = false;
+    artworkOverlay.assetPath = undefined;
+  }
 };
 
 const updateNowPlayingOverlays = (track: {
