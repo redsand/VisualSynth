@@ -1815,6 +1815,7 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
     description: 'Imported Milkwave/MilkDrop preset with custom shader',
     sinceVersion: '1.4.0',
     params: [
+      { id: 'enabled', name: 'Enabled', type: 'boolean', default: true, modulatable: false, midiMappable: false },
       { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
       { id: 'zoom', name: 'Zoom', type: 'number', min: 0.5, max: 2, default: 1, modulatable: true, midiMappable: true },
       { id: 'rotation', name: 'Rotation', type: 'number', min: -3.14, max: 3.14, default: 0, modulatable: true, midiMappable: true },

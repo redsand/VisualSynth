@@ -1590,7 +1590,9 @@ export class RenderGraph {
     const macroVal = (target: string) => macroSum[target] ?? 0;
     const getLayerParamNumber = (layer: any, key: string, fallback: number) => {
       const value = layer?.params?.[key];
-      return typeof value === 'number' ? value : fallback;
+      if (typeof value === 'number') return value;
+      if (typeof value === 'boolean') return value ? 1 : 0;
+      return fallback;
     };
 
     const layerOpacity = (layer: any, macroTarget: string, defaultVal: number) => {

@@ -365,7 +365,8 @@ void main() {
       const fallbackShaderData: MilkDropShaderData = {
         ...shaderData,
         warp: '',
-        comp: ''
+        comp: '',
+        perPixelCode: []
       };
       const fallbackSuccess = milkDropRenderer.compileShaders(fallbackShaderData);
       if (fallbackSuccess) {
