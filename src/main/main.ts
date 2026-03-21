@@ -203,7 +203,7 @@ const createOutputWindow = () => {
   outputWindow.on('closed', () => {
     outputWindow = null;
     outputConfig = { ...outputConfig, enabled: false };
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('output:closed');
     }
   });
@@ -614,13 +614,17 @@ ipcMain.handle(
               resolve(null);
             }
           });
-          mainWindow?.webContents.send('shazam:decode-file', {
-            requestId,
-            fileBase64,
-            mimeType,
-            seekSeconds,
-            durationSeconds
-          });
+          if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.send('shazam:decode-file', {
+              requestId,
+              fileBase64,
+              mimeType,
+              seekSeconds,
+              durationSeconds
+            });
+          } else {
+            resolve(null);
+          }
         });
 
         if (!rendererPcm || rendererPcm.length < 16000 * 3) {
@@ -912,7 +916,7 @@ ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; addres
         }
         const allowFallback = now - lastMasterBpmAt > 2000 && status.isOnAir;
         if (useMaster || allowFallback) {
-          if (mainWindow) {
+          if (mainWindow && !mainWindow.webContents.isDestroyed()) {
             mainWindow.webContents.send('bpm:network', {
               bpm: status.trackBPM,
               deviceId: status.deviceId,

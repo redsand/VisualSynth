@@ -10321,7 +10321,13 @@ if (applyTemplateButton) {
 }
 
 if (sceneSelect) {
-  sceneSelect.disabled = true;
+  sceneSelect.addEventListener('change', () => {
+    const sceneId = sceneSelect.value;
+    if (!sceneId) return;
+    applyScene(sceneId);
+    const sceneName = currentProject.scenes.find((s) => s.id === sceneId)?.name ?? sceneId;
+    setStatus(`Activated: ${sceneName}`);
+  });
 }
 
 if (queueSceneButton) {
