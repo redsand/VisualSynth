@@ -36,8 +36,8 @@ describe('RenderGraph entry parity', () => {
       });
 
       const renderState = renderGraph.buildRenderState(0, 16, { width: 800, height: 600 });
-      const scene = project.scenes.find((item) => item.id === project.activeSceneId) ?? project.scenes[0];
-      const spectrumLayer = scene?.layers.find((layer) => layer.id === 'layer-spectrum');
+      const scene = project.scenes.find((item: any) => item.id === project.activeSceneId) ?? project.scenes[0];
+      const spectrumLayer = scene?.layers.find((layer: any) => layer.id === 'layer-spectrum');
       const expected = spectrumLayer?.enabled ?? false;
       if (renderState.spectrumEnabled !== expected) {
         mismatches.push(fileName);

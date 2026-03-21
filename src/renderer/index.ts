@@ -10357,11 +10357,9 @@ const applyProject = async (project: VisualSynthProject) => {
     visualModeSelect.value = currentProject.activeModeId || 'mode-cosmic';
   }
   if (engineSelect) {
-    engineSelect.value = currentProject.activeEngineId || 'engine-radial-core';
-    const engine = ENGINE_REGISTRY[engineSelect.value as EngineId];
-    if (engine && engineDescription) {
-      engineDescription.textContent = engine.description;
-    }
+    const engineId = currentProject.activeEngineId || 'engine-radial-core';
+    engineSelect.value = engineId;
+    applyVisualEngine(engineId as EngineId);
   }
   if (currentProject.roleWeights) {
     mixRoleCore.value = String(currentProject.roleWeights.core);

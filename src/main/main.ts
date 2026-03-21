@@ -800,7 +800,29 @@ ipcMain.handle('presets:list', async () => {
 ipcMain.handle('presets:load', async (_event, presetPath: string) => {
   console.log('[Presets] Loading:', presetPath);
   try {
-    const data = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+    let resolvedPath: string;
+    if (path.isAbsolute(presetPath)) {
+      resolvedPath = presetPath;
+    } else {
+      const devPath = path.join(app.getAppPath(), presetPath);
+      const prodPath = path.join(
+        process.resourcesPath,
+        presetPath.replace(/^assets[\/\\]/, '')
+      );
+      resolvedPath = app.isPackaged ? prodPath : devPath;
+      if (!fs.existsSync(resolvedPath)) {
+        const altPath = app.isPackaged ? devPath : prodPath;
+        if (fs.existsSync(altPath)) {
+          resolvedPath = altPath;
+        }
+      }
+    }
+    console.log('[Presets] Resolved path:', resolvedPath);
+    if (!fs.existsSync(resolvedPath)) {
+      console.error('[Presets] File not found:', resolvedPath);
+      return { error: `Preset file not found: ${presetPath}` };
+    }
+    const data = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
 
     if (data.version === 6) {
       const v6Parsed = presetV6Schema.safeParse(data);

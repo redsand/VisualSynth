@@ -7,7 +7,7 @@ describe('Palette and shiftPalette shader behavior', () => {
     // Simulate the palette() GLSL function behavior
     // palette(t) with grayscale colors should return grayscale
     
-    const grayscalePalette = [
+    const grayscalePalette: [number, number, number][] = [
       [0, 0, 0],       // black
       [0.25, 0.25, 0.25], // dark gray
       [0.5, 0.5, 0.5],     // mid gray
@@ -45,17 +45,17 @@ describe('Palette and shiftPalette shader behavior', () => {
     // For any input t, palette(t) should return grayscale (R == G == B)
     for (let t = 0; t <= 1; t += 0.1) {
       const result = palette(t);
-      expect(result[0]).toBeCloseTo(result[1], 5, `palette(${t}) R should equal G`);
-      expect(result[1]).toBeCloseTo(result[2], 5, `palette(${t}) G should equal B`);
-      expect(result[0]).toBeCloseTo(result[2], 5, `palette(${t}) R should equal B`);
+      expect(result[0]).toBeCloseTo(result[1], 5);
+      expect(result[1]).toBeCloseTo(result[2], 5);
+      expect(result[0]).toBeCloseTo(result[2], 5);
     }
     
     // Test with t + shift
     const shift = 0.16;
     for (let t = 0; t <= 1; t += 0.1) {
       const result = palette(t + shift);
-      expect(result[0]).toBeCloseTo(result[1], 5, `palette(${t + shift}) R should equal G`);
-      expect(result[1]).toBeCloseTo(result[2], 5, `palette(${t + shift}) G should equal B`);
+      expect(result[0]).toBeCloseTo(result[1], 5);
+      expect(result[1]).toBeCloseTo(result[2], 5);
     }
   });
   

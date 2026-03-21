@@ -6,7 +6,8 @@ describe('Milkwave builtin binder', () => {
     const calls: Array<{ fn: string; args: unknown[] }> = [];
     const gl = {
       uniform1f: (...args: unknown[]) => calls.push({ fn: 'uniform1f', args }),
-      uniform4f: (...args: unknown[]) => calls.push({ fn: 'uniform4f', args })
+      uniform4f: (...args: unknown[]) => calls.push({ fn: 'uniform4f', args }),
+      uniformMatrix4fv: (...args: unknown[]) => calls.push({ fn: 'uniformMatrix4fv', args })
     };
     const known = new Set(['q1', '_c0', '_c2', '_c3', '_c15', '_qa', 'rand_frame', 'rand_preset']);
     const loc = (name: string) => (known.has(name) ? ({ name } as unknown as WebGLUniformLocation) : null);

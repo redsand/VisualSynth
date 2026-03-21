@@ -44,6 +44,6 @@ describe('prepareProjectForRuntime', () => {
     const prepared = prepareProjectForRuntime(project);
 
     expect(prepared.scenes[0].layers.filter((layer: any) => layer.role === 'core')).toHaveLength(1);
-    expect(prepared.scenes[0].layers[0].params.opacity).toBe(1);
+    expect(prepared.scenes[0].layers[0].params!.opacity).toBe(1);
   });
 });

@@ -7,6 +7,7 @@ export interface MilkwaveSamplerResources {
   noiseTexture?: WebGLTexture | null;
   noiseVolLqTexture?: WebGLTexture | null;
   noiseVolHqTexture?: WebGLTexture | null;
+  customTextures?: (WebGLTexture | null)[];
 }
 
 type SamplerGL = Pick<
@@ -63,4 +64,10 @@ export const bindMilkwaveSamplers = ({
   
   bind3d('sampler_noisevol_lq', resources.noiseVolLqTexture, 5);
   bind3d('sampler_noisevol_hq', resources.noiseVolHqTexture, 6);
+
+  if (resources.customTextures) {
+    resources.customTextures.forEach((tex, i) => {
+      bind2d(`sampler_texture_${i}`, tex, 7 + i);
+    });
+  }
 };

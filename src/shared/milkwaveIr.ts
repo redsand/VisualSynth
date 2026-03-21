@@ -105,6 +105,7 @@ export interface MilkwaveIR {
   };
   waves: MilkwaveWaveNode[];
   shapes: MilkwaveShapeNode[];
+  textures: string[];
   featureRequirements: MilkwaveFeatureRequirements;
   capability: MilkwaveCapabilityAssessment;
 }
@@ -275,6 +276,7 @@ export const buildMilkwaveIR = (preset: MilkPresetData): MilkwaveIR => {
     passes: { warp, comp },
     waves,
     shapes,
+    textures: preset.textures,
     featureRequirements,
     capability: assessMilkwaveSupportTier(featureRequirements)
   };

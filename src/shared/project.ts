@@ -10,6 +10,7 @@ export interface MilkDropShaderData {
   perPixelCode?: string[];
   waves?: MilkWaveConfig[];
   shapes?: MilkShapeConfig[];
+  textures?: string[];
   originalParameters: Record<string, number | boolean>;
   translation?: MilkwaveOfflineTranslationReport;
 }

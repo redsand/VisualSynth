@@ -62,7 +62,7 @@ const applyMigratedPreset = (preset: any) => {
 
 describe('v1.0 compatibility', () => {
   it('retains every v1.0 generator id', () => {
-    const missing = v1GeneratorIds.filter((id) => !currentGeneratorIds.has(id));
+    const missing = v1GeneratorIds.filter((id) => !currentGeneratorIds.has(id as any));
     expect(missing).toEqual([]);
   });
 
@@ -116,7 +116,7 @@ describe('v1.0 compatibility', () => {
         const firstActiveBlock = GENERATOR_SHADER_BLOCKS.find((block) => activeIds.has(block.id));
         const firstUniform = firstActiveBlock?.uniforms.split('\n').find(Boolean);
         if (firstUniform && !source.includes(firstUniform)) {
-          failures.push(`${presetPath}: missing active block uniforms for ${firstActiveBlock.id}`);
+          failures.push(`${presetPath}: missing active block uniforms for ${firstActiveBlock!.id}`);
         }
       }
     }

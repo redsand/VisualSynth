@@ -385,6 +385,7 @@ const milkDropShaderDataSchema = z.object({
   perPixelCode: z.array(z.string()).optional(),
   waves: z.array(milkWaveConfigSchema).optional(),
   shapes: z.array(milkShapeConfigSchema).optional(),
+  textures: z.array(z.string()).optional(),
   originalParameters: z.record(z.union([z.number(), z.boolean()])),
   translation: z.object({
     pipeline: z.literal('milkwave-offline-v1'),

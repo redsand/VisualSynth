@@ -75,6 +75,7 @@ export interface MilkPresetData {
   compShader: string | null;
   waves: MilkWaveConfig[];
   shapes: MilkShapeConfig[];
+  textures: string[];
 }
 
 /**
@@ -155,6 +156,7 @@ export function parseMilkFile(
     // Parse waves and shapes
     const waves: Map<number, MilkWaveConfig> = new Map();
     const shapes: Map<number, MilkShapeConfig> = new Map();
+    const textures: string[] = [];
 
     for (const line of lines) {
       const trimmed = line.trim();
@@ -182,6 +184,14 @@ export function parseMilkFile(
 
       // Skip [preset00] section marker
       if (trimmed.startsWith('[preset')) continue;
+
+      // Parse tex_N=path lines
+      const texMatch = trimmed.match(/^tex_(\d+)=(.*)$/);
+      if (texMatch) {
+        const index = parseInt(texMatch[1], 10);
+        textures[index] = texMatch[2].trim();
+        continue;
+      }
 
       // Parse per_frame_init_ lines
       const perFrameInitMatch = trimmed.match(/^per_frame_init_(\d+)=(.*)$/);
@@ -385,7 +395,8 @@ export function parseMilkFile(
       warpShader,
       compShader,
       waves: Array.from(waves.values()),
-      shapes: Array.from(shapes.values())
+      shapes: Array.from(shapes.values()),
+      textures: textures.filter(t => t !== undefined)
     };
   } catch (error) {
     console.error(`Failed to parse milk file: ${filename}`, error);

@@ -149,6 +149,7 @@ function createMilkwavePreset(
       perPixelCode: milkData.perPixelCode,
       waves: milkData.waves,
       shapes: milkData.shapes,
+      textures: milkData.textures,
       originalParameters: milkData.parameters,
       translation
     }

@@ -24,7 +24,7 @@ describe('resolveProjectOutputConfig', () => {
   });
 
   it('preserves current runtime output fields until the project overrides them', () => {
-    const project = {
+    const project: any = {
       ...DEFAULT_PROJECT,
       output: {
         enabled: true

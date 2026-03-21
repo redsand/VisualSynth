@@ -17,7 +17,7 @@ export interface MilkwaveSamplerBinding {
     | 'noise-hq'
     | 'noisevol-lq'
     | 'noisevol-hq'
-    | 'custom-slot';
+    | `custom-texture-${number}`;
   aliases?: string[];
 }
 
@@ -77,7 +77,12 @@ export const MILKWAVE_SAMPLER_BINDINGS: MilkwaveSamplerBinding[] = [
   { name: 'sampler_noise_mq', kind: '2d', source: 'noise-mq' },
   { name: 'sampler_noise_hq', kind: '2d', source: 'noise-hq' },
   { name: 'sampler_noisevol_lq', kind: '3d', source: 'noisevol-lq' },
-  { name: 'sampler_noisevol_hq', kind: '3d', source: 'noisevol-hq' }
+  { name: 'sampler_noisevol_hq', kind: '3d', source: 'noisevol-hq' },
+  ...Array.from({ length: 32 }, (_, i) => ({
+    name: `sampler_texture_${i}`,
+    kind: '2d' as const,
+    source: `custom-texture-${i}` as const
+  }))
 ];
 
 export const MILKWAVE_RUNTIME_CONTRACT: MilkwaveRuntimeContract = {

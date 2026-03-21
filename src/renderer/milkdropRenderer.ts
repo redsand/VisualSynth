@@ -1,6 +1,7 @@
 import type { RenderState } from './renderState';
 import type { MilkShapeConfig, MilkWaveConfig } from '../shared/milkwaveParser';
 import type { MilkwaveOfflineTranslationReport } from '../shared/milkwaveOfflineTranslation';
+import type { MilkDropShaderData } from '../shared/project';
 import {
   analyzeMilkwaveShaderSource,
   summarizeMilkwaveShaderDiagnostics,
@@ -10,18 +11,6 @@ import { bindMilkwaveBuiltins } from './milkwave/runtime/milkwaveBuiltins';
 import { bindMilkwaveSamplers } from './milkwave/runtime/milkwaveSamplers';
 import { createMilkwaveShapeRenderer } from './milkwave/runtime/milkwaveShapeRenderer';
 import { createMilkwaveWaveRenderer } from './milkwave/runtime/milkwaveWaveRenderer';
-
-export interface MilkDropShaderData {
-  warp: string;
-  comp: string;
-  perFrameCode: string[];
-  perFrameInitCode: string[];
-  perPixelCode?: string[];
-  waves?: MilkWaveConfig[];
-  shapes?: MilkShapeConfig[];
-  originalParameters: Record<string, number | boolean>;
-  translation?: MilkwaveOfflineTranslationReport;
-}
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -206,6 +195,8 @@ const transpileEelToGlsl = (code: string[]): string => {
     l = l.replace(/\bbnot\s*\(([^)]+)\)/g, '(($1) == 0.0 ? 1.0 : 0.0)');
     l = l.replace(/\blog10\s*\(([^)]+)\)/g, '(log($1)/2.302585)');
     l = l.replace(/\batan2\s*\(([^,]+),\s*([^)]+)\)/g, 'atan($1, $2)');
+    l = l.replace(/\basin\s*\(/g, 'asin(');
+    l = l.replace(/\bacos\s*\(/g, 'acos(');
     l = l.replace(/\brand\s*\(([^)]+)\)/g, '(fract(sin(dot(vUvOriginal, vec2(12.9898, 78.233)) + uTime) * 43758.5453) * ($1))');
     l = l.replace(/\bpi\b/g, '3.14159265359');
     
@@ -664,6 +655,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     }
   };
   
+  let customTextures: (WebGLTexture | null)[] = [];
+  
   const variables: MilkDropVariables = {
     time: 0,
     frame: 0,
@@ -690,79 +683,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   if (!positionBuffer) throw new Error('[MilkDrop] Buffer creation failed');
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
-
-  // Per-pixel warp mesh state (for presets with EEL per_pixel code and no custom GLSL warp shader)
-  let perPixelWarpProgram: WebGLProgram | null = null;
-  let meshPositionBuffer: WebGLBuffer | null = null;
-  let meshSrcUvBuffer: WebGLBuffer | null = null;
-  let meshIndexBuffer: WebGLBuffer | null = null;
-  let isPerPixelWarpMode = false;
-  type PerPixelFn = (x: number, y: number, rad: number, ang: number, ctx: Record<string, number>) => { x: number; y: number };
-  let compiledPerPixelFn: PerPixelFn | null = null;
-
-  // Pre-compute static mesh positions and triangle indices (immutable across presets)
-  const meshPositions = new Float32Array(WARP_MESH_VERT_COUNT * 2);
-  const meshSrcUvs = new Float32Array(WARP_MESH_VERT_COUNT * 2);
-  const meshIndices = new Uint16Array(WARP_MESH_IDX_COUNT);
-  {
-    const g = WARP_MESH_GRID, gs = g + 1;
-    for (let j = 0; j <= g; j++) {
-      for (let i = 0; i <= g; i++) {
-        const vi = (j * gs + i) * 2;
-        meshPositions[vi]     = (i / g) * 2 - 1;  // screen x [-1, 1]
-        meshPositions[vi + 1] = (j / g) * 2 - 1;  // screen y [-1, 1]
-      }
-    }
-    let ii = 0;
-    for (let j = 0; j < g; j++) {
-      for (let i = 0; i < g; i++) {
-        const v0 = j * gs + i;
-        meshIndices[ii++] = v0;      meshIndices[ii++] = v0 + gs;      meshIndices[ii++] = v0 + 1;
-        meshIndices[ii++] = v0 + 1;  meshIndices[ii++] = v0 + gs;      meshIndices[ii++] = v0 + gs + 1;
-      }
-    }
-  }
-
-  // Upload static mesh data and allocate dynamic srcUv buffer
-  meshPositionBuffer = gl.createBuffer();
-  meshSrcUvBuffer = gl.createBuffer();
-  meshIndexBuffer = gl.createBuffer();
-  if (meshPositionBuffer) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, meshPositionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, meshPositions, gl.STATIC_DRAW);
-  }
-  if (meshIndexBuffer) {
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshIndexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, meshIndices, gl.STATIC_DRAW);
-  }
-  if (meshSrcUvBuffer) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, meshSrcUvBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, meshSrcUvs, gl.DYNAMIC_DRAW);
-  }
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-
-  // Compile the per-pixel warp mesh program (vertex + fragment) once at startup
-  const initPerPixelWarpProgram = () => {
-    const vs = gl.createShader(gl.VERTEX_SHADER);
-    if (!vs) return;
-    gl.shaderSource(vs, PER_PIXEL_WARP_VERTEX_SHADER);
-    gl.compileShader(vs);
-    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
-      console.error('[MilkDrop] Per-pixel warp vertex shader error:', gl.getShaderInfoLog(vs));
-      return;
-    }
-    const fs = gl.createShader(gl.FRAGMENT_SHADER);
-    if (!fs) return;
-    gl.shaderSource(fs, PER_PIXEL_WARP_FRAGMENT_SHADER);
-    gl.compileShader(fs);
-    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
-      console.error('[MilkDrop] Per-pixel warp fragment shader error:', gl.getShaderInfoLog(fs));
-      return;
-    }
-    perPixelWarpProgram = createProgram(gl, vs, fs);
-  };
-  initPerPixelWarpProgram();
 
   const initBlurProgram = () => {
     // Note: blur vertex shader must use VERTEX_SHADER type, not fragment
@@ -848,8 +768,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const compileShaders = (shaderData: MilkDropShaderData): boolean => {
     warpProgram = null;
     compProgram = null;
-    isPerPixelWarpMode = false;
-    compiledPerPixelFn = null;
     const warpRawDiagnostics = analyzeMilkwaveShaderSource({
       source: shaderData.warp ?? '',
       pass: 'warp',
@@ -908,7 +826,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       lastCompileReport.warp.compiled = warpProgram !== null;
     } else if (shaderData.perPixelCode?.length) {
       // Pre-MilkDrop2 preset with per-pixel EEL code: translated to native GLSL warp shader.
-      isPerPixelWarpMode = false;
       const nativeWarp = createNativePerPixelWarpShader(shaderData.originalParameters, shaderData.perPixelCode);
       const nativeFs = createMilkDropFragmentShader(gl, nativeWarp);
       if (nativeFs) {
@@ -922,7 +839,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       lastCompileReport.warp.compiled = warpProgram !== null;
     } else {
       // Pre-MilkDrop2 preset with no custom warp and no per-pixel code: generic warp fallback
-      isPerPixelWarpMode = false;
       const defaultWarp = createDefaultWarpShader(shaderData.originalParameters);
       const defaultFs = createMilkDropFragmentShader(gl, defaultWarp);
       if (defaultFs) warpProgram = createProgram(gl, vs, defaultFs);
@@ -972,12 +888,50 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     perFrameInitRun = false;
     randomPreset = [Math.random(), Math.random()];
 
+    // Clean up old custom textures
+    customTextures.forEach(t => t && gl.deleteTexture(t));
+    customTextures = [];
+    
+    if (shaderData.textures) {
+      customTextures = new Array(shaderData.textures.length).fill(null);
+      shaderData.textures.forEach((texPath, i) => {
+        if (!texPath) return;
+        
+        const texture = gl.createTexture();
+        if (!texture) return;
+        
+        // 1x1 transparent fallback while loading
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        customTextures[i] = texture;
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0); // Restore default
+        };
+        img.onerror = () => {
+          console.warn('[MilkDrop] Failed to load custom texture:', texPath);
+        };
+        // Ensure path works for local or remote
+        img.src = texPath.startsWith('file:') || texPath.startsWith('http') || texPath.startsWith('data:')
+          ? texPath
+          : (/^[A-Za-z]:/.test(texPath) ? `file:///${texPath.replace(/\\/g, '/')}` : `file://${texPath}`);
+      });
+    }
+
     console.log('[MilkDrop] Shaders compiled:', {
       warp: !!warpProgram,
       comp: !!compProgram,
       report: lastCompileReport
     });
-    return warpProgram !== null || compProgram !== null || isPerPixelWarpMode;
+    return warpProgram !== null || compProgram !== null;
   };
 
   const executePerFrameCode = (code: string[], state: RenderState) => {
@@ -1022,7 +976,12 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       sqrt: Math.sqrt,
       pow: Math.pow,
       log: Math.log,
+      log10: Math.log10,
       exp: Math.exp,
+      asin: Math.asin,
+      acos: Math.acos,
+      atan: Math.atan,
+      atan2: Math.atan2,
       floor: Math.floor,
       ceil: Math.ceil,
       sign: Math.sign,
@@ -1089,145 +1048,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     variables.treb_att = ctx.treb_att;
   };
 
-  /**
-   * Compile per-pixel EEL code into a reusable JS function for warp mesh evaluation.
-   * The compiled function takes (x, y, rad, ang, frameCtx) and returns { x, y } — the
-   * source UV coordinates to sample from the previous frame for each mesh vertex.
-   */
-  const compilePerPixelCode = (code: string[]): void => {
-    compiledPerPixelFn = null;
-    if (!code.length) return;
-
-    const allLines = code
-      .filter(line => line.trim() && !line.trim().startsWith('//'))
-      .map(transpileEelLine)
-      .join('\n');
-
-    try {
-      const fnBody = [
-        // Per-frame animation params — from per-frame EEL results or preset defaults
-        'let zoom=__ctx.zoom??1,zoomexp=__ctx.zoomexp??1,rot=__ctx.rot??0;',
-        'let cx=__ctx.cx??0.5,cy=__ctx.cy??0.5,dx=__ctx.dx??0,dy=__ctx.dy??0;',
-        'let warp=__ctx.warp??0,time=__ctx.time??0,frame=__ctx.frame??0;',
-        'let bass=__ctx.bass??0,mid=__ctx.mid??0,treb=__ctx.treb??0;',
-        ...Array.from({ length: 32 }, (_, i) => `let q${i + 1}=__ctx.q${i + 1}??0;`),
-        // Math builtins
-        'const abs=Math.abs,sqrt=Math.sqrt,sin=Math.sin,cos=Math.cos,tan=Math.tan;',
-        'const atan=Math.atan,atan2=Math.atan2,pow=Math.pow,log=Math.log,exp=Math.exp;',
-        'const floor=Math.floor,ceil=Math.ceil,sign=Math.sign,max=Math.max,min=Math.min;',
-        'const sqr=x=>x*x,rand=n=>Math.random()*n,int=Math.trunc,frac=x=>x-Math.trunc(x);',
-        'const above=(a,b)=>a>b?1:0,below=(a,b)=>a<b?1:0,equal=(a,b)=>a===b?1:0;',
-        'const pi=Math.PI,e=Math.E;',
-        // EEL per-pixel code body
-        allLines,
-        // Return modified x, y as the source UV for this mesh vertex
-        'return { x, y };'
-      ].join('\n');
-
-      compiledPerPixelFn = new Function('x', 'y', 'rad', 'ang', '__ctx', fnBody) as PerPixelFn;
-    } catch (e) {
-      console.warn('[MilkDrop] Failed to compile per-pixel EEL code:', e);
-    }
-  };
-
-  /**
-   * Evaluate the compiled per-pixel function for every mesh vertex, then upload
-   * the resulting source UV coordinates to the meshSrcUvBuffer on the GPU.
-   */
-  const computePerPixelMeshUVs = (params: Record<string, number | boolean>): void => {
-    if (!compiledPerPixelFn || !meshSrcUvBuffer) return;
-
-    const g = WARP_MESH_GRID, gs = g + 1;
-
-    // Build per-frame context: prefer values computed by per-frame EEL code (in customVars),
-    // falling back to preset parameters for vars that EEL did not override.
-    const fctx: Record<string, number> = {
-      zoom:    customVars['zoom']    ?? Number(params.zoom    ?? 1),
-      zoomexp: customVars['zoomexp'] ?? Number(params.zoomexp ?? 1),
-      rot:     customVars['rot']     ?? Number(params.rot     ?? 0),
-      cx:      customVars['cx']      ?? Number(params.cx      ?? 0.5),
-      cy:      customVars['cy']      ?? Number(params.cy      ?? 0.5),
-      dx:      customVars['dx']      ?? Number(params.dx      ?? 0),
-      dy:      customVars['dy']      ?? Number(params.dy      ?? 0),
-      warp:    customVars['warp']    ?? Number(params.warp    ?? 0),
-      time:    variables.time,
-      frame:   variables.frame,
-      bass:    variables.bass,
-      mid:     variables.mid,
-      treb:    variables.treb,
-      ...Object.fromEntries(qVars.map((v, i) => [`q${i + 1}`, v])),
-      ...customVars
-    };
-
-    const cx0 = fctx['cx'];
-    const cy0 = fctx['cy'];
-
-    for (let j = 0; j <= g; j++) {
-      for (let i = 0; i <= g; i++) {
-        const x0 = i / g;  // mesh u [0, 1]
-        const y0 = j / g;  // mesh v [0, 1]
-        const ddx = x0 - cx0;
-        const ddy = y0 - cy0;
-        const rad = Math.sqrt(ddx * ddx + ddy * ddy) / 0.5;
-        const ang = Math.atan2(ddy, ddx);
-
-        let srcX = x0;
-        let srcY = y0;
-        try {
-          const result = compiledPerPixelFn!(x0, y0, rad, ang, fctx);
-          srcX = result.x;
-          srcY = result.y;
-        } catch {
-          // Fallback to identity mapping for this vertex
-        }
-
-        const vi = (j * gs + i) * 2;
-        meshSrcUvs[vi]     = srcX;
-        meshSrcUvs[vi + 1] = srcY;
-      }
-    }
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, meshSrcUvBuffer);
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, meshSrcUvs);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  };
-
-  /**
-   * Render the per-pixel warp mesh: compute per-vertex source UVs via EEL, upload to GPU,
-   * then draw indexed triangles sampling the previous frame at the per-vertex source UV.
-   * This provides authentic MilkDrop warp-mesh behaviour for presets without custom GLSL.
-   */
-  const renderPerPixelWarpMesh = (params: Record<string, number | boolean>): void => {
-    if (!perPixelWarpProgram || !meshPositionBuffer || !meshSrcUvBuffer || !meshIndexBuffer || !mainFbo) return;
-
-    computePerPixelMeshUVs(params);
-
-    gl.useProgram(perPixelWarpProgram);
-
-    const mainLoc = gl.getUniformLocation(perPixelWarpProgram, 'sampler_main');
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, mainFbo.texture);
-    gl.uniform1i(mainLoc, 0);
-
-    const decayLoc = gl.getUniformLocation(perPixelWarpProgram, 'uDecay');
-    gl.uniform1f(decayLoc, Number(params.fDecay ?? 0.98));
-
-    const posLoc = gl.getAttribLocation(perPixelWarpProgram, 'position');
-    gl.enableVertexAttribArray(posLoc);
-    gl.bindBuffer(gl.ARRAY_BUFFER, meshPositionBuffer);
-    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-    const uvLoc = gl.getAttribLocation(perPixelWarpProgram, 'srcUv');
-    gl.enableVertexAttribArray(uvLoc);
-    gl.bindBuffer(gl.ARRAY_BUFFER, meshSrcUvBuffer);
-    gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshIndexBuffer);
-    gl.drawElements(gl.TRIANGLES, WARP_MESH_IDX_COUNT, gl.UNSIGNED_SHORT, 0);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  };
-
   const applyBlurPass = (sourceTexture: WebGLTexture, targetFbo: WebGLFramebuffer | null, width: number, height: number, horizontal: boolean) => {
     if (!blurProgram) return;
     
@@ -1258,7 +1078,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
 
     ensureFramebuffers(width, height);
 
-    if (!shaderData || (!warpProgram && !compProgram && !isPerPixelWarpMode)) {
+    if (!shaderData || (!warpProgram && !compProgram)) {
       return false;
     }
 
@@ -1295,10 +1115,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    if (isPerPixelWarpMode && perPixelWarpProgram) {
-      // Per-pixel EEL warp mesh: evaluate EEL per vertex on CPU and render indexed triangles
-      renderPerPixelWarpMesh(shaderData.originalParameters);
-    } else if (warpProgram) {
+    if (warpProgram) {
       const activeWarpProgram = warpProgram;
       gl.useProgram(activeWarpProgram);
       setUniforms(activeWarpProgram, state, width, height, shaderData, 'warp');
@@ -1312,7 +1129,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           blur3Texture: blur3Fbo?.texture,
           noiseTexture,
           noiseVolLqTexture,
-          noiseVolHqTexture
+          noiseVolHqTexture,
+          customTextures
         },
         phase: 'warp'
       });
@@ -1436,7 +1254,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           blur3Texture: blur3Fbo?.texture,
           noiseTexture,
           noiseVolLqTexture,
-          noiseVolHqTexture
+          noiseVolHqTexture,
+          customTextures
         },
         phase: 'comp'
       });
@@ -1466,7 +1285,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     // Clean up GL state — milkdrop shares the GL context with the main renderer.
     // Leaving textures/FBOs bound causes feedback loops and corrupts rendering.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 40; i++) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, null);
       gl.bindTexture(gl.TEXTURE_3D, null);
