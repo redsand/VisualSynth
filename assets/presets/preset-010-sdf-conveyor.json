@@ -45,20 +45,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [],
-        "atmosphere": [
+        "core": [
           "layer-inkflow"
-        ]
+        ],
+        "support": [],
+        "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-inkflow",
           "name": "Ink Flow",
-          "role": "atmosphere",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
@@ -86,10 +86,10 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-spectrum"
         ],
+        "support": [],
         "atmosphere": [
           "layer-inkflow"
         ]
@@ -98,10 +98,10 @@
         {
           "id": "layer-spectrum",
           "name": "Spectrum Bars",
-          "role": "support",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "add",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

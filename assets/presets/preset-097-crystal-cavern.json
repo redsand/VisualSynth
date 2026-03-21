@@ -44,10 +44,10 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-crystal"
         ],
+        "support": [],
         "atmosphere": [
           "layer-topo"
         ]
@@ -56,9 +56,10 @@
         {
           "id": "layer-crystal",
           "name": "Crystal",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
-          "blendMode": "screen",
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
@@ -113,10 +114,11 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-spectrum",
+        "core": [
           "layer-crystal"
+        ],
+        "support": [
+          "layer-spectrum"
         ],
         "atmosphere": [
           "layer-topo"
@@ -140,10 +142,10 @@
         {
           "id": "layer-crystal",
           "name": "Crystal Harmonics",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

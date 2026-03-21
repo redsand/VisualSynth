@@ -135,7 +135,7 @@ body {
 .scene-timeline-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -147,6 +147,31 @@ body {
   color: #d6ecff;
   text-transform: none;
   letter-spacing: 0.02em;
+}
+
+.scene-select-dropdown {
+  flex: 1;
+  max-width: 200px;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: #111c2d;
+  border: 1px solid #22344a;
+  border-radius: 4px;
+  color: #d6ecff;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.scene-select-dropdown:focus {
+  outline: none;
+  border-color: #1ec8ff;
+  box-shadow: 0 0 6px rgba(30, 200, 255, 0.2);
+}
+
+.scene-select-dropdown option {
+  background: #111c2d;
+  color: #d6ecff;
 }
 
 .scene-timeline-track {
@@ -175,6 +200,16 @@ body {
 .scene-timeline-item.active {
   border-color: #1ec8ff;
   box-shadow: 0 0 10px rgba(30, 200, 255, 0.25);
+}
+
+.scene-timeline-item.previewed {
+  border-color: #ff9f1a;
+  box-shadow: 0 0 8px rgba(255, 159, 26, 0.2);
+}
+
+.scene-timeline-item.active.previewed {
+  border-color: #1ec8ff;
+  box-shadow: 0 0 14px rgba(30, 200, 255, 0.35), 0 0 6px rgba(255, 159, 26, 0.15);
 }
 
 .scene-timeline-item-import {

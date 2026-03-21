@@ -45,16 +45,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-crystal"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-crystal",
           "name": "Crystal",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",

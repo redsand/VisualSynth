@@ -3536,6 +3536,7 @@ const renderSceneTimeline = () => {
     project: currentProject,
     track: sceneTimelineTrack,
     status: sceneTimelineStatus,
+    previewedSceneId: previewSceneId,
     onSelect: (sceneId, sceneName) => {
       selectedSceneId = sceneId;
       previewSceneId = sceneId;
@@ -3550,6 +3551,10 @@ const renderSceneTimeline = () => {
       }
       renderSceneStrip();
       setStatus(`Scene preview: ${sceneName}`);
+    },
+    onActivate: (sceneId, sceneName) => {
+      applyScene(sceneId);
+      setStatus(`Activated: ${sceneName}`);
     },
     onRemove: (sceneId, sceneName) => {
       removeScene(sceneId);

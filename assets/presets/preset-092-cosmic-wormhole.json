@@ -97,13 +97,13 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-portal"
+        ],
         "support": [
           "layer-spectrum"
         ],
-        "atmosphere": [
-          "layer-portal"
-        ]
+        "atmosphere": []
       },
       "layers": [
         {
@@ -123,10 +123,10 @@
         {
           "id": "layer-portal",
           "name": "Wormhole Portal",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

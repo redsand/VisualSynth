@@ -45,16 +45,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-origami"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-origami",
           "name": "Origami",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",

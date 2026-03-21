@@ -99,9 +99,10 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-spectrum"
+        ],
         "support": [
-          "layer-spectrum",
           "layer-glyph"
         ],
         "atmosphere": []
@@ -110,10 +111,10 @@
         {
           "id": "layer-spectrum",
           "name": "Spectrum Bars",
-          "role": "support",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "add",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

@@ -1,9 +1,11 @@
 /**
  * ModulationPanel: Manages LFOs, Envelopes, Sample-Hold, Mod Matrix, and MIDI Mappings
+ * Enhanced with scene modulation targets for performance-driven scene switching
  */
 
 import type { Store } from '../../state/store';
 import { setStatus } from '../../state/events';
+import { SCENE_MODULATION_TARGETS } from '../../../shared/sceneModulation';
 
 export interface ModulationPanelDeps {
   store: Store;
@@ -14,7 +16,24 @@ export interface ModulationPanelApi {
   renderModulators: () => void;
   renderModMatrix: () => void;
   renderMidiMappings: () => void;
+  addSceneModulation: (source: string, target: string) => void;
 }
+
+const MOD_SOURCE_CATEGORIES = {
+  audio: ['audio.rms', 'audio.peak', 'audio.frequency.low', 'audio.frequency.mid', 'audio.frequency.high'],
+  lfo: ['lfo-1', 'lfo-2', 'lfo-3', 'lfo-4'],
+  env: ['env-1', 'env-2', 'env-3', 'env-4'],
+  macro: ['macro-1', 'macro-2', 'macro-3', 'macro-4', 'macro-5', 'macro-6', 'macro-7', 'macro-8'],
+  scene: ['scene.next', 'scene.prev', 'scene.mix', 'scene.transition.duration']
+};
+
+const MOD_TARGET_CATEGORIES = {
+  effects: ['effects.bloom', 'effects.blur', 'effects.chroma', 'effects.feedback', 'effects.kaleidoscope', 'effects.persistence'],
+  particles: ['particles.density', 'particles.speed', 'particles.size', 'particles.glow'],
+  sdf: ['sdf.scale', 'sdf.edge', 'sdf.glow', 'sdf.rotation', 'sdf.fill'],
+  layers: [] as string[],
+  scene: ['scene.next', 'scene.prev', 'scene.mix', 'scene.transition.duration']
+};
 
 export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDeps): ModulationPanelApi => {
   const lfoList = document.getElementById('lfo-list') as HTMLDivElement;
@@ -194,6 +213,26 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
     renderSampleHoldList();
   };
 
+  const addSceneModulation = (source: string, target: string) => {
+    const project = store.getState().project;
+    const targetConfig = SCENE_MODULATION_TARGETS[target as keyof typeof SCENE_MODULATION_TARGETS];
+    
+    project.modMatrix.push({
+      id: `mod-${Date.now()}`,
+      source,
+      target,
+      amount: targetConfig?.defaultAmount ?? 0.5,
+      curve: 'linear',
+      smoothing: 0.2,
+      bipolar: target === 'scene.mix',
+      min: targetConfig?.min ?? 0,
+      max: targetConfig?.max ?? 1,
+      enabled: true
+    });
+    renderModMatrix();
+    setStatus(`Added scene modulation: ${source} -> ${target}`);
+  };
+
   modMatrixAdd?.addEventListener('click', () => {
     const project = store.getState().project;
     project.modMatrix.push({
@@ -218,6 +257,7 @@ export const createModulationPanel = ({ store, armMidiLearn }: ModulationPanelDe
   return {
     renderModulators,
     renderModMatrix,
-    renderMidiMappings
+    renderMidiMappings,
+    addSceneModulation
   };
 };

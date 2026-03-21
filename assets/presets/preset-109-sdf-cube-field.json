@@ -45,20 +45,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-glyph"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-glyph",
           "name": "Glyph Language",
-          "role": "support",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.8,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
@@ -86,9 +86,10 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-spectrum"
+        ],
         "support": [
-          "layer-spectrum",
           "layer-glyph"
         ],
         "atmosphere": []
@@ -97,10 +98,10 @@
         {
           "id": "layer-spectrum",
           "name": "Spectrum Bars",
-          "role": "support",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.95,
-          "blendMode": "add",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

@@ -45,16 +45,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-inkflow"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-inkflow",
           "name": "Ink Flow",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
@@ -98,13 +99,13 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-inkflow"
+        ],
         "support": [
           "layer-spectrum"
         ],
-        "atmosphere": [
-          "layer-inkflow"
-        ]
+        "atmosphere": []
       },
       "layers": [
         {
@@ -124,10 +125,10 @@
         {
           "id": "layer-inkflow",
           "name": "Ink Flow",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

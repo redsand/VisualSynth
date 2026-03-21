@@ -44,16 +44,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-oscillo"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-oscillo",
           "name": "Oscilloscope",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
@@ -95,10 +96,11 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-spectrum",
+        "core": [
           "layer-oscillo"
+        ],
+        "support": [
+          "layer-spectrum"
         ],
         "atmosphere": []
       },
@@ -120,10 +122,10 @@
         {
           "id": "layer-oscillo",
           "name": "Sacred Oscilloscope",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

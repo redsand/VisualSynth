@@ -128,10 +128,11 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-spectrum",
+        "core": [
           "layer-glyph"
+        ],
+        "support": [
+          "layer-spectrum"
         ],
         "atmosphere": []
       },
@@ -153,10 +154,10 @@
         {
           "id": "layer-glyph",
           "name": "Glyph Language",
-          "role": "support",
-          "enabled": false,
-          "opacity": 0.8,
-          "blendMode": "screen",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

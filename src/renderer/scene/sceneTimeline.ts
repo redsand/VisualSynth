@@ -5,9 +5,11 @@ export interface SceneTimelineOptions {
   track: HTMLElement;
   status?: HTMLElement | null;
   onSelect: (sceneId: string, sceneName: string) => void;
+  onActivate: (sceneId: string, sceneName: string) => void;
   onRemove: (sceneId: string, sceneName: string) => void;
   onContextMenu?: (sceneId: string, sceneName: string, event: MouseEvent) => void;
   onImport?: () => void;
+  previewedSceneId?: string | null;
 }
 
 export const renderSceneTimelineItems = ({
@@ -15,9 +17,11 @@ export const renderSceneTimelineItems = ({
   track,
   status,
   onSelect,
+  onActivate,
   onRemove,
   onContextMenu,
-  onImport
+  onImport,
+  previewedSceneId
 }: SceneTimelineOptions) => {
   track.innerHTML = '';
   if (project.scenes.length === 0) {
@@ -28,8 +32,12 @@ export const renderSceneTimelineItems = ({
   const hasDurations = durations.some((value) => value > 0);
   project.scenes.forEach((scene) => {
     const isActive = scene.id === project.activeSceneId;
+    const isPreviewed = scene.id === previewedSceneId;
     const item = document.createElement('div');
-    item.className = `scene-timeline-item${isActive ? ' active' : ''}`;
+    const classes = ['scene-timeline-item'];
+    if (isActive) classes.push('active');
+    if (isPreviewed && !isActive) classes.push('previewed');
+    item.className = classes.join(' ');
     item.dataset.sceneId = scene.id;
     item.style.flexGrow = String(hasDurations ? Math.max(scene.duration ?? 0, 1) : 1);
     item.style.flexBasis = '0';
@@ -63,6 +71,7 @@ export const renderSceneTimelineItems = ({
     item.appendChild(progress);
     item.appendChild(remove);
     item.addEventListener('click', () => onSelect(scene.id, scene.name));
+    item.addEventListener('dblclick', () => onActivate(scene.id, scene.name));
     item.addEventListener('contextmenu', (event) => {
       if (!onContextMenu) return;
       event.preventDefault();

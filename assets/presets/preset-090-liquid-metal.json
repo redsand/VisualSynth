@@ -45,16 +45,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-liquid-metal"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-liquid-metal",
           "name": "Liquid Metal",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",

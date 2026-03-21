@@ -32,12 +32,14 @@ describe('Scene timeline DOM', () => {
     const track = document.createElement('div');
     const status = document.createElement('div');
     const onSelect = vi.fn();
+    const onActivate = vi.fn();
     const onRemove = vi.fn();
     renderSceneTimelineItems({
       project: makeProject(),
       track,
       status,
       onSelect,
+      onActivate,
       onRemove
     });
     const items = track.querySelectorAll('.scene-timeline-item');
@@ -49,11 +51,13 @@ describe('Scene timeline DOM', () => {
   it('invokes callbacks for select/remove', () => {
     const track = document.createElement('div');
     const onSelect = vi.fn();
+    const onActivate = vi.fn();
     const onRemove = vi.fn();
     renderSceneTimelineItems({
       project: makeProject(),
       track,
       onSelect,
+      onActivate,
       onRemove
     });
     const item = track.querySelector<HTMLElement>('.scene-timeline-item');

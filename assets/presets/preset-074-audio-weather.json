@@ -44,9 +44,10 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-plasma"
+        ],
         "support": [
-          "layer-plasma",
           "layer-weather"
         ],
         "atmosphere": []
@@ -55,9 +56,10 @@
         {
           "id": "layer-plasma",
           "name": "Plasma",
+          "role": "core",
           "enabled": true,
-          "opacity": 0.2,
-          "blendMode": "screen",
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
@@ -124,13 +126,13 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-weather"
+        ],
         "support": [
           "layer-spectrum"
         ],
-        "atmosphere": [
-          "layer-weather"
-        ]
+        "atmosphere": []
       },
       "layers": [
         {
@@ -150,10 +152,10 @@
         {
           "id": "layer-weather",
           "name": "Audio Weather",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,

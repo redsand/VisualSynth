@@ -44,16 +44,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-topo"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-topo",
           "name": "Topo",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "normal",
@@ -97,13 +98,13 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-topo"
+        ],
         "support": [
           "layer-spectrum"
         ],
-        "atmosphere": [
-          "layer-topo"
-        ]
+        "atmosphere": []
       },
       "layers": [
         {
@@ -123,10 +124,10 @@
         {
           "id": "layer-topo",
           "name": "Topo Terrain",
-          "role": "atmosphere",
-          "enabled": false,
-          "opacity": 0.85,
-          "blendMode": "screen",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
