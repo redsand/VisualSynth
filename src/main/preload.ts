@@ -9,7 +9,12 @@ import type {
 
 contextBridge.exposeInMainWorld('visualSynth', {
   saveProject: (payload: string) => ipcRenderer.invoke('project:save', payload),
+  saveProjectAs: (payload: string) => ipcRenderer.invoke('project:save-as', payload),
   autosaveProject: (payload: string) => ipcRenderer.invoke('project:autosave', payload),
+  showSaveDialog: (isRecovery: boolean) => ipcRenderer.invoke('app:show-save-dialog', isRecovery) as Promise<{ result: 'save' | 'discard' | 'cancel' }>,
+  confirmClose: () => ipcRenderer.invoke('app:confirm-close'),
+  onCloseRequested: (handler: () => void) =>
+    ipcRenderer.on('app:close-requested', () => handler()),
   savePreset: (payload: string, defaultName: string) =>
     ipcRenderer.invoke('preset:save', payload, defaultName),
   saveExchange: (payload: string, defaultName: string) =>

@@ -60,11 +60,11 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     e.preventDefault();
     contextLost = true;
     console.warn('[GLRenderer] WebGL context lost');
+    canvas.dispatchEvent(new CustomEvent('visualsynth-contextlost'));
   });
   canvas.addEventListener('webglcontextrestored', () => {
     console.log('[GLRenderer] WebGL context restored — rebuilding');
-    contextLost = false;
-    // All GL resources are invalid after context loss — clear every cache
+    contextLost = false;// All GL resources are invalid after context loss — clear every cache
     programCache.clear();
     activeUniformLookupCache.clear();
     uniformLocationCache.clear();
@@ -90,6 +90,7 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
       currentCustomBlocks
     );
     currentProgram = standardProgram;
+    canvas.dispatchEvent(new CustomEvent('visualsynth-contextrestored'));
   });
 
   // --- Generator Diagnostics ---
@@ -1262,6 +1263,7 @@ void main() {
     recompileForGenerators,
     precompileVariant,
     setCustomShaderBlocks,
-    updateMilkDropShaders
+    updateMilkDropShaders,
+    isContextLost: () => contextLost
   };
 };

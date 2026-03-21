@@ -7,6 +7,7 @@ interface StartupSelectionRuntimeDeps {
   log?: (message: string) => void;
   warn?: (message: string, detail?: string) => void;
   invalidRecoveryFallbackStatus?: string;
+  onRecoveryLoaded?: () => void;
 }
 
 export const applyStartupSelection = async (
@@ -17,6 +18,9 @@ export const applyStartupSelection = async (
     await deps.applyProject(selection.project);
     deps.setStatus(selection.status);
     deps.log?.(selection.logLabel);
+    if (selection.kind === 'recovery') {
+      deps.onRecoveryLoaded?.();
+    }
     return;
   }
 

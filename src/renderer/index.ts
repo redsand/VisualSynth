@@ -85,7 +85,11 @@ declare global {
   interface Window {
     visualSynth: {
       saveProject: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
+      saveProjectAs: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
       autosaveProject: (payload: string) => Promise<{ saved: boolean; filePath?: string }>;
+      showSaveDialog: (isRecovery: boolean) => Promise<{ result: 'save' | 'discard' | 'cancel' }>;
+      confirmClose: () => Promise<void>;
+      onCloseRequested: (handler: () => void) => void;
       savePreset: (
         payload: string,
         defaultName: string
@@ -416,6 +420,21 @@ const visualizerMacroToggle = document.getElementById('visualizer-macro-enabled'
 const visualizerMacroSelect = document.getElementById('visualizer-macro-select') as HTMLSelectElement;
 const styleSelect = document.getElementById('style-select') as HTMLSelectElement;
 const sceneTransitionTypeSelect = document.getElementById('scene-transition-type') as HTMLSelectElement;
+const sceneTransitionDuration = document.getElementById('scene-transition-duration') as HTMLInputElement;
+const sceneTransitionCurve = document.getElementById('scene-transition-curve') as HTMLSelectElement;
+const sceneViewSelect = document.getElementById('scene-view-select') as HTMLSelectElement;
+const sceneEditSelect = document.getElementById('scene-edit-select') as HTMLSelectElement;
+const sceneIntentSelect = document.getElementById('scene-intent-select') as HTMLSelectElement;
+const sceneTriggerType = document.getElementById('scene-trigger-type') as HTMLSelectElement;
+const sceneTriggerThreshold = document.getElementById('scene-trigger-threshold') as HTMLInputElement;
+const sceneTriggerInterval = document.getElementById('scene-trigger-interval') as HTMLInputElement;
+const sceneTriggerAudioOptions = document.getElementById('scene-trigger-audio-options') as HTMLDivElement;
+const sceneContextPanel = document.getElementById('scene-context-panel') as HTMLDivElement;
+const sceneEditPanel = document.getElementById('scene-edit-panel') as HTMLDivElement;
+const sceneAddBtn = document.getElementById('scene-add-btn') as HTMLButtonElement;
+const sceneAddBtnView = document.getElementById('scene-add-btn-view') as HTMLButtonElement;
+const sceneDeleteBtn = document.getElementById('scene-delete-btn') as HTMLButtonElement;
+const sceneDeleteBtnView = document.getElementById('scene-delete-btn-view') as HTMLButtonElement;
 const styleContrast = document.getElementById('style-contrast') as HTMLInputElement;
 const styleSaturation = document.getElementById('style-saturation') as HTMLInputElement;
 const styleShift = document.getElementById('style-shift') as HTMLInputElement;
@@ -732,6 +751,12 @@ let beatHoldOffMs = 0;
 let lastBeatTime = 0;
 let fluxPrev = 0;
 let fluxPrevPrev = 0;
+let projectDirty = false;
+let isRecoveryProject = false;
+
+const markProjectDirty = () => {
+  projectDirty = true;
+};
 let fluxPrevTime = 0;
 let fluxHistory: { time: number; value: number }[] = [];
 let onsetTimes: number[] = [];
@@ -2229,6 +2254,11 @@ const applyPresetPath = async (path: string, reason?: string) => {
 };
 
 const advancePlaylist = async () => {
+  // Skip if WebGL context is lost
+  if (renderer.isContextLost?.()) {
+    console.log('[Playlist] Skipping advance - WebGL context lost');
+    return;
+  }
   const scenes = currentProject.scenes;
   if (scenes.length === 0) return;
 
@@ -3604,15 +3634,17 @@ const updateSceneTimelineProgress = (blendSnapshot: { mix: number; inTransition:
 };
 
 const refreshSceneSelect = () => {
-  if (!sceneSelect) return;
-  sceneSelect.innerHTML = '';
-  currentProject.scenes.forEach((scene) => {
-    const option = document.createElement('option');
-    option.value = scene.id;
-    option.textContent = scene.name;
-    sceneSelect.appendChild(option);
-  });
-  sceneSelect.value = currentProject.activeSceneId;
+  if (sceneSelect) {
+    sceneSelect.innerHTML = '';
+    currentProject.scenes.forEach((scene) => {
+      const option = document.createElement('option');
+      option.value = scene.id;
+      option.textContent = scene.name;
+      sceneSelect.appendChild(option);
+    });
+    sceneSelect.value = currentProject.activeSceneId;
+  }
+  populateSceneSelectors();
   if (!selectedSceneId) {
     selectedSceneId = currentProject.activeSceneId;
   }
@@ -3644,6 +3676,49 @@ const removeLayer = (sceneId: string, layerId: string) => {
   normalizeSceneLayerRoles(scene);
   renderLayerList();
   setStatus(`Layer removed: ${layerId}`);
+};
+
+const updateSceneContextUI = (scene: SceneConfig) => {
+  sceneIntentSelect.value = scene.intent ?? 'ambient';  const trigger = scene.trigger ?? { type: 'manual' };
+  sceneTriggerType.value = trigger.type;
+  sceneTriggerAudioOptions.classList.toggle('hidden', trigger.type !== 'audio');
+  if (trigger.type === 'audio') {
+    sceneTriggerThreshold.value = String(trigger.threshold ?? 0.5);
+    sceneTriggerInterval.value = String(trigger.minIntervalMs ?? 2000);
+  }const transition = scene.transition_in ?? { durationMs: 600, curve: 'easeInOut' };
+  sceneTransitionTypeSelect.value = transition.type ?? 'fade';
+  sceneTransitionDuration.value = String(transition.durationMs ?? 600);
+  sceneTransitionCurve.value = transition.curve ?? 'easeInOut';
+};
+
+const populateSceneSelectors = () => {
+  const sceneId = selectedSceneId ?? currentProject.activeSceneId;
+  const sceneCount = currentProject.scenes.length;
+  const showMultiSceneUI = sceneCount > 1;
+  
+  // Toggle visibility of multi-scene UI
+  if (sceneContextPanel) sceneContextPanel.classList.toggle('hidden', !showMultiSceneUI);
+  if (sceneEditPanel) {
+    const sceneEditLabel = sceneEditPanel.querySelector('.scene-label');
+    if (sceneEditLabel) sceneEditLabel.classList.toggle('hidden', !showMultiSceneUI);
+  }[sceneViewSelect, sceneEditSelect].forEach(select => {
+    select.innerHTML = '';
+    currentProject.scenes.forEach((scene, index) => {
+      const option = document.createElement('option');
+      option.value = scene.id;
+      option.textContent = `Scene ${index + 1}${scene.intent ? ` (${scene.intent})` : ''}`;
+      select.appendChild(option);
+    });
+    select.value = sceneId;
+  });
+  // Toggle delete buttons - can only delete if more than 1 scene and not first scene
+  const selectedIndex = currentProject.scenes.findIndex(s => s.id === sceneId);
+  const canDelete = sceneCount > 1 && selectedIndex > 0;
+  if (sceneDeleteBtn) sceneDeleteBtn.classList.toggle('hidden', !canDelete);
+  if (sceneDeleteBtnView) sceneDeleteBtnView.classList.toggle('hidden', !canDelete);const activeScene = currentProject.scenes.find(s => s.id === sceneId);
+  if (activeScene) {
+    updateSceneContextUI(activeScene);
+  }
 };
 
 const renderLayerList = () => {
@@ -3954,6 +4029,14 @@ const renderLayerList = () => {
 };
 
 const renderModMatrix = () => {
+  modMatrixList.innerHTML = '';
+  if (currentProject.modMatrix.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No modulation connections.';
+    modMatrixList.appendChild(empty);
+    return;
+  }
   currentProject.modMatrix.forEach((connection, index) => {
     const row = document.createElement('div');
     row.className = 'matrix-row';
@@ -10233,7 +10316,46 @@ if (addBlankSceneButton) {
     const scene = createBlankScene();
     addSceneToProject(scene, false);
     setStatus(`Scene added: ${scene.name}`);
+    populateSceneSelectors();
   });
+}
+
+const handleAddScene = () => {
+  const scene = createBlankScene();
+  addSceneToProject(scene, false);
+  populateSceneSelectors();
+  setStatus(`Scene added: ${scene.name}`);
+};
+
+const handleDeleteScene = () => {
+  const sceneId = selectedSceneId ?? currentProject.activeSceneId;
+  const sceneIndex = currentProject.scenes.findIndex(s => s.id === sceneId);
+  if (currentProject.scenes.length <= 1) {
+    setStatus('Cannot delete the only scene.');
+    return;
+  }
+  if (sceneIndex <= 0) {
+    setStatus('Cannot delete the first scene.');
+    return;
+  }
+  const scene = currentProject.scenes.find(s => s.id === sceneId);
+  removeScene(sceneId);
+  selectedSceneId = currentProject.activeSceneId;
+  populateSceneSelectors();
+  setStatus(`Deleted scene: ${scene?.name ?? sceneId}`);
+};
+
+if (sceneAddBtn) {
+  sceneAddBtn.addEventListener('click', handleAddScene);
+}
+if (sceneAddBtnView) {
+  sceneAddBtnView.addEventListener('click', handleAddScene);
+}
+if (sceneDeleteBtn) {
+  sceneDeleteBtn.addEventListener('click', handleDeleteScene);
+}
+if (sceneDeleteBtnView) {
+  sceneDeleteBtnView.addEventListener('click', handleDeleteScene);
 }
 
 if (presetShuffleButton) {
@@ -10621,6 +10743,90 @@ sceneTransitionTypeSelect.addEventListener('change', () => {
     }
     scene.transition_in.type = sceneTransitionTypeSelect.value as any;
     setStatus(`Scene transition set to: ${scene.transition_in.type}`);
+  }
+});
+
+sceneTransitionDuration.addEventListener('input', () => {
+  const scene = getActiveScene();
+  if (scene) {
+    if (!scene.transition_in) {
+      scene.transition_in = { ...DEFAULT_SCENE_TRANSITION };
+    }
+    scene.transition_in.durationMs = Number(sceneTransitionDuration.value);
+  }
+});
+
+sceneTransitionCurve.addEventListener('change', () => {
+  const scene = getActiveScene();
+  if (scene) {
+    if (!scene.transition_in) {
+      scene.transition_in = { ...DEFAULT_SCENE_TRANSITION };
+    }
+    scene.transition_in.curve = sceneTransitionCurve.value as 'linear' | 'easeInOut';
+  }
+});
+
+sceneViewSelect.addEventListener('change', () => {
+  const sceneId = sceneViewSelect.value;
+  if (sceneId) {
+    selectedSceneId = sceneId;
+    previewSceneId = sceneId;
+    const scene = currentProject.scenes.find(s => s.id === sceneId);
+    if (scene) {
+      compileSceneShaders(renderer, scene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+      updateSceneContextUI(scene);
+      renderLayerList();
+      setStatus(`Viewing scene: ${scene.name}`);
+    }
+  }
+});
+
+sceneEditSelect.addEventListener('change', () => {
+  const sceneId = sceneEditSelect.value;
+  if (sceneId) {
+    selectedSceneId = sceneId;
+    previewSceneId = sceneId;
+    const scene = currentProject.scenes.find(s => s.id === sceneId);
+    if (scene) {
+      compileSceneShaders(renderer, scene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+      updateSceneContextUI(scene);
+      renderLayerList();
+      setStatus(`Editing scene: ${scene.name}`);
+    }
+  }
+});
+
+sceneIntentSelect.addEventListener('change', () => {
+  const scene = getActiveScene();
+  if (scene) {
+    scene.intent = sceneIntentSelect.value as SceneIntent;
+    setStatus(`Scene intent: ${scene.intent}`);
+  }
+});
+
+sceneTriggerType.addEventListener('change', () => {
+  const scene = getActiveScene();
+  if (scene) {
+    if (!scene.trigger) {
+      scene.trigger = { type: 'manual' };
+    }
+    scene.trigger.type = sceneTriggerType.value as 'manual' | 'time' | 'audio';
+    sceneTriggerAudioOptions.classList.toggle('hidden', scene.trigger.type !== 'audio');
+    setStatus(`Trigger type: ${scene.trigger.type}`);
+  }
+});
+
+sceneTriggerThreshold.addEventListener('input', () => {
+  const scene = getActiveScene();
+  if (scene && scene.trigger) {
+    scene.trigger.threshold = Number(sceneTriggerThreshold.value);
+  }
+});
+
+sceneTriggerInterval.addEventListener('input', () => {
+  const scene = getActiveScene();
+  if (scene && scene.trigger) {
+    scene.trigger.minIntervalMs = Number(sceneTriggerInterval.value);
   }
 });
 
@@ -13065,7 +13271,11 @@ const init = async () => {
         setStatus,
         log: (message) => console.log(`[Init] ${message}`),
         warn: (message, detail) => console.warn(`[Init] ${message}:`, detail),
-        invalidRecoveryFallbackStatus: 'Recovery session found but failed to load.'
+        invalidRecoveryFallbackStatus: 'Recovery session found but failed to load.',
+        onRecoveryLoaded: () => {
+          isRecoveryProject = true;
+          projectDirty = true;
+        }
       });
     } catch {
       setStatus('Recovery session found but failed to load.');
@@ -13110,6 +13320,34 @@ const init = async () => {
   setTimeout(() => {
     hideLoadingSplash();
   }, 300);
+
+  // Handle close request from main process
+  window.visualSynth?.onCloseRequested(async () => {
+    if (!projectDirty) {
+      await window.visualSynth.confirmClose();
+      return;
+    }
+
+    const { result } = await window.visualSynth.showSaveDialog(isRecoveryProject);
+    
+    if (result === 'cancel') {
+      return;
+    }
+    
+    if (result === 'save') {
+      const payload = serializeProject();
+      const saveResult = isRecoveryProject
+        ? await window.visualSynth.saveProjectAs(payload)
+        : await window.visualSynth.saveProject(payload);
+      
+      if (saveResult.canceled) {
+        return;
+      }
+      projectDirty = false;
+    }
+    
+    await window.visualSynth.confirmClose();
+  });
 
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {

@@ -13,6 +13,7 @@ type SafeModeRenderer = {
   updateMilkDropShaders: () => void;
   getMilkDropCompileReport: () => null;
   getMilkDropNativeRuntimeReport: () => null;
+  isContextLost: () => boolean;
 };
 
 export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Safe mode: WebGL2 unavailable'): SafeModeRenderer => ({
@@ -38,4 +39,5 @@ export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Saf
   updateMilkDropShaders: () => {},
   getMilkDropCompileReport: () => null,
   getMilkDropNativeRuntimeReport: () => null,
+  isContextLost: () => false,
 });

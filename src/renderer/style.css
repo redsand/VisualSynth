@@ -135,7 +135,7 @@ body {
 .scene-timeline-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -149,29 +149,26 @@ body {
   letter-spacing: 0.02em;
 }
 
-.scene-select-dropdown {
-  flex: 1;
-  max-width: 200px;
-  padding: 4px 8px;
+.scene-action-btn {
+  margin-top: 6px;
+  padding: 4px 10px;
   font-size: 11px;
-  background: #111c2d;
-  border: 1px solid #22344a;
+  background: #1a2d45;
+  border: 1px solid #34516d;
   border-radius: 4px;
-  color: #d6ecff;
-  text-transform: none;
-  letter-spacing: 0.02em;
+  color: #8da7c1;
   cursor: pointer;
+  margin-right: 6px;
 }
 
-.scene-select-dropdown:focus {
-  outline: none;
+.scene-action-btn:hover {
+  background: #223d5c;
   border-color: #1ec8ff;
-  box-shadow: 0 0 6px rgba(30, 200, 255, 0.2);
+  color: #d6ecff;
 }
 
-.scene-select-dropdown option {
-  background: #111c2d;
-  color: #d6ecff;
+.scene-action-btn.hidden {
+  display: none;
 }
 
 .scene-timeline-track {

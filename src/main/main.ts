@@ -165,6 +165,13 @@ const createWindow = () => {
     return { action: 'deny' };
   });
 
+  mainWindow.on('close', (event) => {
+    if (!closeConfirmed) {
+      event.preventDefault();
+      mainWindow?.webContents.send('app:close-requested');
+    }
+  });
+
   mainWindow.on('closed', () => {
     if (outputWindow) {
       outputWindow.close();
@@ -251,8 +258,9 @@ app.on('window-all-closed', () => {
   }
 });
 
+let closeConfirmed = false;
+
 app.on('before-quit', async () => {
-  // Cleanup output integrations before quitting
   await cleanupOutputIntegrations();
 });
 
@@ -305,6 +313,44 @@ ipcMain.handle('project:recovery', async () => {
   if (!fs.existsSync(filePath)) return { found: false };
   const payload = fs.readFileSync(filePath, 'utf-8');
   return { found: true, payload, filePath };
+});
+
+ipcMain.handle('app:confirm-close', () => {
+  closeConfirmed = true;
+  mainWindow?.close();
+});
+
+ipcMain.handle('app:show-save-dialog', async (_event, isRecovery: boolean) => {
+  if (!mainWindow) return { result: 'cancel' };
+  
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['Save', "Don't Save", 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+    title: 'Save Project?',
+    message: isRecovery
+      ? 'This is a recovered project. Would you like to save it?'
+      : 'You have unsaved changes. Would you like to save before closing?'
+  });
+  
+  if (choice.response === 0) return { result: 'save' };
+  if (choice.response === 1) return { result: 'discard' };
+  return { result: 'cancel' };
+});
+
+ipcMain.handle('project:save-as', async (_event, payload: string) => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save VisualSynth Project As',
+    defaultPath: 'visualsynth-project.json',
+    filters: [{ name: 'VisualSynth Project', extensions: ['json'] }]
+  });
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+  fs.writeFileSync(result.filePath, payload, 'utf-8');
+  return { canceled: false, filePath: result.filePath };
 });
 
 ipcMain.handle('exchange:save', async (_event, payload: string, defaultName: string) => {

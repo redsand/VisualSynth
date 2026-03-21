@@ -13,6 +13,38 @@ let renderer: ReturnType<typeof createGLRenderer>;
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
+const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};
+
+const toFileUrl = (filePath: string) => {
+  if (filePath.startsWith('file://')) return filePath;
+  if (/^[A-Za-z]:/.test(filePath)) return `file:///${filePath.replace(/\\/g, '/')}`;
+  return `file://${filePath}`;
+};
+
+const createVideoElement = (asset: SerializedOutputAsset): HTMLVideoElement => {
+  const video = document.createElement('video');
+  video.crossOrigin = 'anonymous';
+  video.muted = true;
+  video.loop = asset.options?.loop ?? true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.autoplay = true;
+  video.playbackRate = asset.options?.playbackRate ?? 1;
+  if (asset.path) {
+    video.src = toFileUrl(asset.path);
+  }
+  return video;
+};
+
+const cleanupLayerVideo = (layerId: AssetLayerId) => {
+  const existing = layerVideoElements[layerId];
+  if (existing) {
+    existing.pause();
+    existing.src = '';
+    existing.load();
+    delete layerVideoElements[layerId];
+  }
+};
 
 let outputOverlays: OverlayConfig[] = [];
 const outputOverlayRenderer = createOverlayRenderer({

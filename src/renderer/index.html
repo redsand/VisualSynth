@@ -92,7 +92,6 @@
       <div id="scene-timeline" class="scene-timeline">
         <div class="scene-timeline-header">
           <span>Scene Timeline</span>
-          <select id="scene-select" class="scene-select-dropdown" aria-label="Select active scene"></select>
           <span id="scene-timeline-status" class="scene-timeline-status">Active: --</span>
         </div>
         <div id="scene-timeline-track" class="scene-timeline-track"></div>
@@ -179,9 +178,79 @@
           <div id="mode-scene-left" class="mode-pane hidden">
             <h2>Scene</h2>
             <div id="scene-strip-anchor"></div>
+            <div class="panel-block" id="scene-context-panel">
+              <h3>Scene Context</h3>
+              <label class="scene-label">
+                Viewing Scene
+                <select id="scene-view-select">
+                  <option value="">Scene 1</option>
+                </select>
+              </label>
+              <button id="scene-add-btn-view" type="button" class="scene-action-btn">+ Add Scene</button>
+              <button id="scene-delete-btn-view" type="button" class="scene-action-btn hidden">Delete Scene</button>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Intent
+                  <select id="scene-intent-select">
+                    <option value="ambient">Ambient</option>
+                    <option value="calm">Calm</option>
+                    <option value="pulse">Pulse</option>
+                    <option value="build">Build</option>
+                    <option value="chaos">Chaos</option>
+                  </select>
+                </label>
+              </div>
+            </div>
             <div class="panel-block">
               <h3>Layers</h3>
               <div class="layer-list" id="layer-list-scene"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Trigger</h3>
+              <label class="scene-label">
+                Type
+                <select id="scene-trigger-type">
+                  <option value="manual">Manual</option>
+                  <option value="time">Time-based</option>
+                  <option value="audio">Audio-triggered</option>
+                </select>
+              </label>
+              <div id="scene-trigger-audio-options" class="hidden">
+                <label class="scene-inline">
+                  Threshold
+                  <input id="scene-trigger-threshold" type="range" min="0" max="1" step="0.05" value="0.5" />
+                </label>
+                <label class="scene-inline">
+                  Min Interval (ms)
+                  <input id="scene-trigger-interval" type="number" min="100" max="10000" value="2000" />
+                </label>
+              </div>
+            </div>
+            <div class="panel-block">
+              <h3>Transition</h3>
+              <label class="scene-label">
+                Type
+                <select id="scene-transition-type">
+                  <option value="fade">Fade</option>
+                  <option value="crossfade">Crossfade</option>
+                  <option value="warp">Warp</option>
+                  <option value="glitch">Glitch</option>
+                  <option value="dissolve">Dissolve</option>
+                </select>
+              </label>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Duration (ms)
+                  <input id="scene-transition-duration" type="number" min="100" max="5000" value="600" />
+                </label>
+                <label class="scene-inline">
+                  Curve
+                  <select id="scene-transition-curve">
+                    <option value="linear">Linear</option>
+                    <option value="easeInOut">Ease In/Out</option>
+                  </select>
+                </label>
+              </div>
             </div>
             <div class="panel-block" id="generator-panel">
               <h3>Generator Library</h3>
@@ -221,8 +290,16 @@
 
           <div id="mode-design-left" class="mode-pane hidden">
             <h2>Design</h2>
-            <div class="panel-block">
+            <div class="panel-block" id="scene-edit-panel">
               <h3>Layer Details</h3>
+              <label class="scene-label hidden">
+                Editing Scene
+                <select id="scene-edit-select">
+                  <option value="">Scene 1</option>
+                </select>
+              </label>
+              <button id="scene-add-btn" type="button" class="scene-action-btn">+ Add Scene</button>
+              <button id="scene-delete-btn" type="button" class="scene-action-btn hidden">Delete Scene</button>
               <div class="layer-list" id="layer-list-design"></div>
               <div class="scene-row">
                 <button id="design-add-layer" type="button">Add Generator...</button>
