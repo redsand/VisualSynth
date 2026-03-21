@@ -5,9 +5,19 @@ export interface MilkwaveSamplerResources {
   blur2Texture?: WebGLTexture | null;
   blur3Texture?: WebGLTexture | null;
   noiseTexture?: WebGLTexture | null;
+  noiseVolLqTexture?: WebGLTexture | null;
+  noiseVolHqTexture?: WebGLTexture | null;
 }
 
-type SamplerGL = Pick<WebGL2RenderingContext, 'TEXTURE0' | 'TEXTURE_2D' | 'activeTexture' | 'bindTexture' | 'uniform1i'>;
+type SamplerGL = Pick<
+  WebGL2RenderingContext,
+  | 'TEXTURE0'
+  | 'TEXTURE_2D'
+  | 'TEXTURE_3D'
+  | 'activeTexture'
+  | 'bindTexture'
+  | 'uniform1i'
+>;
 
 export const bindMilkwaveSamplers = ({
   gl,
@@ -36,10 +46,21 @@ export const bindMilkwaveSamplers = ({
     gl.uniform1i(target, unit);
   };
 
+  const bind3d = (uniformName: string, texture: WebGLTexture | null | undefined, unit: number) => {
+    const target = loc(uniformName);
+    if (!target || !texture) return;
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_3D, texture);
+    gl.uniform1i(target, unit);
+  };
+
   bind2d('sampler_blur1', resources.blur1Texture, 1);
   bind2d('sampler_blur2', resources.blur2Texture, 2);
   bind2d('sampler_blur3', resources.blur3Texture, 3);
   bind2d('sampler_noise_lq', resources.noiseTexture, 4);
   bind2d('sampler_noise_mq', resources.noiseTexture, 4);
   bind2d('sampler_noise_hq', resources.noiseTexture, 4);
+  
+  bind3d('sampler_noisevol_lq', resources.noiseVolLqTexture, 5);
+  bind3d('sampler_noisevol_hq', resources.noiseVolHqTexture, 6);
 };

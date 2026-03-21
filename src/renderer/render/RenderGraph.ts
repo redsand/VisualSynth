@@ -1921,7 +1921,7 @@ export class RenderGraph {
       particleGlow: moddedParticles.glow,
       particleTurbulence: moddedParticles.turbulence,
       particleAudioLift: moddedParticles.audioLift,
-      sdfEnabled: advancedSdfEnabled || (activeScene ? (activeScene.layers.some(l => l.id === 'layer-sdf' && l.enabled && l.opacity > 0.01)) : (sdf.enabled && (sdf.fill > 0.01 || sdf.glow > 0.01))),
+      sdfEnabled: advancedSdfEnabled || sdf.enabled,
       sdfShape: sdf.shape === 'circle' ? 0 : sdf.shape === 'box' ? 1 : 2,
       sdfScale: moddedSdf.scale,
       sdfEdge: moddedSdf.edge,

@@ -15,9 +15,17 @@ export interface MilkwaveBuiltinState {
   qVars: number[];
   randomPreset: [number, number];
   randomFrame: [number, number, number, number];
+  mouseX?: number;
+  mouseY?: number;
+  isMouseDown?: boolean;
+  blurInfo?: {
+    scale1: number; bias1: number;
+    scale2: number; bias2: number;
+    scale3: number; bias3: number;
+  };
 }
 
-type UniformGL = Pick<WebGL2RenderingContext, 'uniform1f' | 'uniform4f'>;
+type UniformGL = Pick<WebGL2RenderingContext, 'uniform1f' | 'uniform4f' | 'uniformMatrix4fv'>;
 
 export const bindMilkwaveBuiltins = ({
   gl,
@@ -51,11 +59,12 @@ export const bindMilkwaveBuiltins = ({
   const c4 = loc('_c4');
   if (c4) gl.uniform4f(c4, state.bassAtt, state.midAtt, state.trebAtt, state.rms);
 
+  const b = state.blurInfo;
   const c5 = loc('_c5');
-  if (c5) gl.uniform4f(c5, 256, 256, 1 / 256, 1 / 256);
+  if (c5) gl.uniform4f(c5, b?.scale1 ?? 1.0, b?.scale2 ?? 1.0, b?.bias1 ?? 0.0, b?.bias2 ?? 0.0);
 
   const c6 = loc('_c6');
-  if (c6) gl.uniform4f(c6, 256, 256, 1 / 256, 1 / 256);
+  if (c6) gl.uniform4f(c6, b?.scale3 ?? 1.0, 0.0, b?.bias3 ?? 0.0, 0.0); // plus blur1 threshold?
 
   const c7 = loc('_c7');
   if (c7) gl.uniform4f(c7, state.width, state.height, 1 / state.width, 1 / state.height);
@@ -127,7 +136,7 @@ export const bindMilkwaveBuiltins = ({
   }
 
   const c14 = loc('_c14');
-  if (c14) gl.uniform4f(c14, 0, 1, 0, 1);
+  if (c14) gl.uniform4f(c14, state.mouseX ?? 0.5, state.mouseY ?? 0.5, state.isMouseDown ? 1.0 : 0.0, 0.0);
 
   const c15 = loc('_c15');
   if (c15) gl.uniform4f(c15, state.bassAtt, state.midAtt, state.trebAtt, state.rms);
@@ -162,6 +171,21 @@ export const bindMilkwaveBuiltins = ({
       state.qVars[base + 2] ?? 0,
       state.qVars[base + 3] ?? 0
     );
+  });
+
+  // rotation matrices (item 1 gap - basic identity for now to avoid crashes)
+  const rotNames = [
+    'rot_s1', 'rot_s2', 'rot_s3', 'rot_s4',
+    'rot_d1', 'rot_d2', 'rot_d3', 'rot_d4',
+    'rot_f1', 'rot_f2', 'rot_f3', 'rot_f4',
+    'rot_vf1', 'rot_vf2', 'rot_vf3', 'rot_vf4',
+    'rot_uf1', 'rot_uf2', 'rot_uf3', 'rot_uf4',
+    'rot_rand1', 'rot_rand2', 'rot_rand3', 'rot_rand4'
+  ];
+  const identity = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  rotNames.forEach(name => {
+    const target = loc(name);
+    if (target) gl.uniformMatrix4fv(target, false, identity);
   });
 };
 

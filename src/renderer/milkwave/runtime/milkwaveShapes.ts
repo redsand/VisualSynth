@@ -108,7 +108,7 @@ export const buildMilkwaveShapeFan = (plan: MilkwaveShapePlan): MilkwaveShapeVer
       x: px,
       y: py,
       u: 0.5 + local.x * 0.5,
-      v: 0.5 + local.y * 0.5
+      v: 0.5 - local.y * 0.5
     });
   }
 

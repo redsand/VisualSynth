@@ -187,6 +187,34 @@ const transpileEelLine = (line: string): string => {
   l = transpileEelExpr(l);
   return l;
 };
+
+const transpileEelToGlsl = (code: string[]): string => {
+  return code.map(line => {
+    let l = transpileEelLine(line);
+    // Remove megabuf/gmegabuf for GLSL compatibility
+    l = l.replace(/\b(megabuf|gmegabuf)\b[^;]*;/g, '/* megabuf stubbed */');
+    // Replace let __i loops with int __i
+    l = l.replace(/\blet\s+__i/g, 'int __i');
+    
+    // Math builtins renaming
+    l = l.replace(/\bint\s*\(/g, 'trunc(');
+    l = l.replace(/\bfrac\s*\(/g, 'fract(');
+    l = l.replace(/\bsqr\s*\(([^)]+)\)/g, '(($1)*($1))');
+    l = l.replace(/\bsigmoid\s*\(([^,]+),\s*([^)]+)\)/g, '(1.0 / (1.0 + exp(-($1) * ($2))))');
+    l = l.replace(/\bband\s*\(([^,]+),\s*([^)]+)\)/g, '((($1) != 0.0 && ($2) != 0.0) ? 1.0 : 0.0)');
+    l = l.replace(/\bbor\s*\(([^,]+),\s*([^)]+)\)/g, '((($1) != 0.0 || ($2) != 0.0) ? 1.0 : 0.0)');
+    l = l.replace(/\bbnot\s*\(([^)]+)\)/g, '(($1) == 0.0 ? 1.0 : 0.0)');
+    l = l.replace(/\blog10\s*\(([^)]+)\)/g, '(log($1)/2.302585)');
+    l = l.replace(/\batan2\s*\(([^,]+),\s*([^)]+)\)/g, 'atan($1, $2)');
+    l = l.replace(/\brand\s*\(([^)]+)\)/g, '(fract(sin(dot(vUvOriginal, vec2(12.9898, 78.233)) + uTime) * 43758.5453) * ($1))');
+    l = l.replace(/\bpi\b/g, '3.14159265359');
+    
+    // EEL modulo
+    l = l.replace(/([a-zA-Z0-9_.)]+)\s*%\s*([a-zA-Z0-9_.(]+)/g, 'mod($1, $2)');
+    
+    return l;
+  }).join('\n');
+};
 // ────────────────────────────────────────────────────────────────────────────
 
 const createMilkDropVertexShader = (gl: WebGL2RenderingContext): WebGLShader | null => {
@@ -426,6 +454,115 @@ void main() {
 }`;
 };
 
+const createNativePerPixelWarpShader = (params: Record<string, number | boolean>, perPixelCode: string[]): string => {
+  const decay = Number(params.fDecay ?? 0.95);
+  const glslBody = transpileEelToGlsl(perPixelCode);
+  
+  const rawGlsl = `#version 300 es
+precision highp float;
+in vec2 vUv;
+in vec2 vUvOriginal;
+in float vRadius;
+in float vAngle;
+out vec4 fragColor;
+
+uniform sampler2D sampler_main;
+uniform float uTime;
+uniform float uFrame;
+uniform float uFps;
+uniform float uRms;
+uniform float audioLow;
+uniform float audioMid;
+uniform float audioHigh;
+uniform float audioLowSmooth;
+uniform float audioMidSmooth;
+uniform float audioHighSmooth;
+
+uniform float uBaseZoom;
+uniform float uBaseZoomexp;
+uniform float uBaseRot;
+uniform float uBaseCx;
+uniform float uBaseCy;
+uniform float uBaseDx;
+uniform float uBaseDy;
+uniform float uBaseSx;
+uniform float uBaseSy;
+uniform float uBaseWarp;
+
+// Q variables
+uniform float q1; uniform float q2; uniform float q3; uniform float q4;
+uniform float q5; uniform float q6; uniform float q7; uniform float q8;
+uniform float q9; uniform float q10; uniform float q11; uniform float q12;
+uniform float q13; uniform float q14; uniform float q15; uniform float q16;
+uniform float q17; uniform float q18; uniform float q19; uniform float q20;
+uniform float q21; uniform float q22; uniform float q23; uniform float q24;
+uniform float q25; uniform float q26; uniform float q27; uniform float q28;
+uniform float q29; uniform float q30; uniform float q31; uniform float q32;
+
+void main() {
+  float x = vUvOriginal.x;
+  float y = vUvOriginal.y;
+  float rad = vRadius;
+  float ang = vAngle;
+  
+  float zoom = uBaseZoom;
+  float zoomexp = uBaseZoomexp;
+  float rot = uBaseRot;
+  float cx = uBaseCx;
+  float cy = uBaseCy;
+  float dx = uBaseDx;
+  float dy = uBaseDy;
+  float sx = uBaseSx;
+  float sy = uBaseSy;
+  float warp = uBaseWarp;
+  
+  float time = uTime;
+  float fps = uFps;
+  float frame = uFrame;
+  float bass = audioLow;
+  float mid = audioMid;
+  float treb = audioHigh;
+  float bass_att = audioLowSmooth;
+  float mid_att = audioMidSmooth;
+  float treb_att = audioHighSmooth;
+  
+  // --- EEL Per-Pixel Code ---
+  ${glslBody}
+  // --------------------------
+  
+  vec2 center = vec2(cx, cy);
+  vec2 uv = vUvOriginal - center;
+
+  float z = zoom;
+  if (zoomexp != 1.0) {
+    z = pow(z, pow(zoomexp, rad * 2.0 - 1.0));
+  }
+  uv /= max(z, 0.001);
+
+  float ca = cos(rot);
+  float sa = sin(rot);
+  uv = mat2(ca, sa, -sa, ca) * uv;
+
+  uv *= vec2(sx, sy);
+  uv += vec2(dx, dy);
+
+  uv += warp * 0.03 * vec2(
+    sin(uv.y * 6.28 + uTime * 0.5),
+    cos(uv.x * 6.28 + uTime * 0.5)
+  );
+
+  uv += center;
+
+  vec3 color = texture(sampler_main, uv).rgb;
+  color *= ${decay.toFixed(4)};
+  fragColor = vec4(color, 1.0);
+}`;
+  
+  // Use the patcher to fix int->float and auto-declare undeclared variables
+  return patchMilkDropGlsl(rawGlsl);
+};
+
+
 /** Fallback warp shader when custom shader fails to compile */
 const createFallbackWarpShader = (): string => `#version 300 es
 precision highp float;
@@ -486,6 +623,27 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   let blur3Fbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   
   let noiseTexture: WebGLTexture | null = null;
+  let noiseVolLqTexture: WebGLTexture | null = null;
+  let noiseVolHqTexture: WebGLTexture | null = null;
+
+  let mouseX = 0.5;
+  let mouseY = 0.5;
+  let isMouseDown = false;
+
+  const onMouseMove = (e: MouseEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = (e.clientX - rect.left) / rect.width;
+    mouseY = (e.clientY - rect.top) / rect.height;
+  };
+  const onMouseDown = () => { isMouseDown = true; };
+  const onMouseUp = () => { isMouseDown = false; };
+  const onMouseLeave = () => { isMouseDown = false; };
+
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('mouseleave', onMouseLeave);
+
   let lastWidth = 0;
   let lastHeight = 0;
   let lastCompileReport: MilkDropCompileReport | null = null;
@@ -638,8 +796,30 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     return texture;
   };
 
-  // Create noise texture once (not on every resize)
+  const generateNoiseVolTexture = (width: number, height: number, depth: number): WebGLTexture => {
+    const texture = gl.createTexture()!;
+    const data = new Uint8Array(width * height * depth * 4);
+    for (let i = 0; i < data.length; i += 4) {
+      const v = Math.random() * 255;
+      data[i] = v;
+      data[i + 1] = v;
+      data[i + 2] = v;
+      data[i + 3] = 255;
+    }
+    gl.bindTexture(gl.TEXTURE_3D, texture);
+    gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, width, height, depth, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.REPEAT);
+    return texture;
+  };
+
+  // Create noise textures once (not on every resize)
   noiseTexture = generateNoiseTexture(256, 256);
+  noiseVolLqTexture = generateNoiseVolTexture(32, 32, 32);
+  noiseVolHqTexture = generateNoiseVolTexture(64, 64, 64);
 
   const ensureFramebuffers = (width: number, height: number) => {
     if (width === lastWidth && height === lastHeight && mainFbo) return;
@@ -727,13 +907,19 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       }
       lastCompileReport.warp.compiled = warpProgram !== null;
     } else if (shaderData.perPixelCode?.length) {
-      // Pre-MilkDrop2 preset with per-pixel EEL code: evaluate the warp mesh on the CPU
-      // and render via indexed triangles — authentic MilkDrop warp mesh behaviour.
+      // Pre-MilkDrop2 preset with per-pixel EEL code: translated to native GLSL warp shader.
       isPerPixelWarpMode = false;
-      compilePerPixelCode(shaderData.perPixelCode);
-      isPerPixelWarpMode = compiledPerPixelFn !== null;
-      lastCompileReport.warp.compiled = isPerPixelWarpMode;
-      // warpProgram is left null — renderPerPixelWarpMesh() is used instead.
+      const nativeWarp = createNativePerPixelWarpShader(shaderData.originalParameters, shaderData.perPixelCode);
+      const nativeFs = createMilkDropFragmentShader(gl, nativeWarp);
+      if (nativeFs) {
+        warpProgram = createProgram(gl, vs, nativeFs);
+      } else {
+        console.warn('[MilkDrop] Native per-pixel warp compilation failed, using default warp fallback.');
+        const fallbackWarp = createDefaultWarpShader(shaderData.originalParameters);
+        const fallbackFs = createMilkDropFragmentShader(gl, fallbackWarp);
+        if (fallbackFs) warpProgram = createProgram(gl, vs, fallbackFs);
+      }
+      lastCompileReport.warp.compiled = warpProgram !== null;
     } else {
       // Pre-MilkDrop2 preset with no custom warp and no per-pixel code: generic warp fallback
       isPerPixelWarpMode = false;
@@ -1115,7 +1301,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     } else if (warpProgram) {
       const activeWarpProgram = warpProgram;
       gl.useProgram(activeWarpProgram);
-      setUniforms(activeWarpProgram, state, width, height);
+      setUniforms(activeWarpProgram, state, width, height, shaderData, 'warp');
       bindMilkwaveSamplers({
         gl,
         loc: (name) => gl.getUniformLocation(activeWarpProgram, name),
@@ -1124,7 +1310,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           blur1Texture: blur1Fbo?.texture,
           blur2Texture: blur2Fbo?.texture,
           blur3Texture: blur3Fbo?.texture,
-          noiseTexture
+          noiseTexture,
+          noiseVolLqTexture,
+          noiseVolHqTexture
         },
         phase: 'warp'
       });
@@ -1237,7 +1425,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (compProgram) {
       const activeCompProgram = compProgram;
       gl.useProgram(activeCompProgram);
-      setUniforms(activeCompProgram, state, width, height);
+      setUniforms(activeCompProgram, state, width, height, shaderData, 'comp');
       bindMilkwaveSamplers({
         gl,
         loc: (name) => gl.getUniformLocation(activeCompProgram, name),
@@ -1246,7 +1434,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           blur1Texture: blur1Fbo?.texture,
           blur2Texture: blur2Fbo?.texture,
           blur3Texture: blur3Fbo?.texture,
-          noiseTexture
+          noiseTexture,
+          noiseVolLqTexture,
+          noiseVolHqTexture
         },
         phase: 'comp'
       });
@@ -1276,9 +1466,10 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     // Clean up GL state — milkdrop shares the GL context with the main renderer.
     // Leaving textures/FBOs bound causes feedback loops and corrupts rendering.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 7; i++) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.bindTexture(gl.TEXTURE_3D, null);
     }
     gl.activeTexture(gl.TEXTURE0);
 
@@ -1286,7 +1477,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     return true;
   };
 
-  const setUniforms = (program: WebGLProgram, state: RenderState, width: number, height: number) => {
+  const setUniforms = (program: WebGLProgram, state: RenderState, width: number, height: number, shaderData: MilkDropShaderData, phase: 'warp' | 'comp') => {
     const loc = (name: string) => gl.getUniformLocation(program, name);
     const t = variables.time;
     const aspect = width / height;
@@ -1311,6 +1502,31 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.uniform2f(loc('uRandomPreset'), randomPreset[0], randomPreset[1]);
     gl.uniform2f(loc('uRandomFrame'), Math.random(), Math.random());
 
+    const p = shaderData.originalParameters ?? {};
+
+    // EEL native per-pixel variables
+    gl.uniform1f(loc('uBaseZoom'), customVars['zoom'] ?? Number(p.zoom ?? 1));
+    gl.uniform1f(loc('uBaseZoomexp'), customVars['zoomexp'] ?? Number(p.zoomexp ?? 1));
+    gl.uniform1f(loc('uBaseRot'), customVars['rot'] ?? Number(p.rot ?? 0));
+    gl.uniform1f(loc('uBaseCx'), customVars['cx'] ?? Number(p.cx ?? 0.5));
+    gl.uniform1f(loc('uBaseCy'), customVars['cy'] ?? Number(p.cy ?? 0.5));
+    gl.uniform1f(loc('uBaseDx'), customVars['dx'] ?? Number(p.dx ?? 0));
+    gl.uniform1f(loc('uBaseDy'), customVars['dy'] ?? Number(p.dy ?? 0));
+    gl.uniform1f(loc('uBaseSx'), customVars['sx'] ?? Number(p.sx ?? 1));
+    gl.uniform1f(loc('uBaseSy'), customVars['sy'] ?? Number(p.sy ?? 1));
+    gl.uniform1f(loc('uBaseWarp'), customVars['warp'] ?? Number(p.warp ?? 0));
+
+    const getBlurScale = (idx: number) => {
+      const min = Number(p[`blur${idx}_min`] ?? 0);
+      const max = Number(p[`blur${idx}_max`] ?? 1);
+      return 1.0 / Math.max(0.0001, max - min);
+    };
+    const getBlurBias = (idx: number) => {
+      const min = Number(p[`blur${idx}_min`] ?? 0);
+      const max = Number(p[`blur${idx}_max`] ?? 1);
+      return -min / Math.max(0.0001, max - min);
+    };
+
     bindMilkwaveBuiltins({
       gl,
       loc,
@@ -1328,7 +1544,15 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         trebAtt: variables.treb_att,
         qVars,
         randomPreset: randomPreset as [number, number],
-        randomFrame: [Math.random(), Math.random(), Math.random(), Math.random()]
+        randomFrame: [Math.random(), Math.random(), Math.random(), Math.random()],
+        mouseX,
+        mouseY,
+        isMouseDown,
+        blurInfo: {
+          scale1: getBlurScale(1), bias1: getBlurBias(1),
+          scale2: getBlurScale(2), bias2: getBlurBias(2),
+          scale3: getBlurScale(3), bias3: getBlurBias(3)
+        }
       }
     });
   };
@@ -1338,8 +1562,17 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   };
 
   const clear = () => {
+    canvas.removeEventListener('mousemove', onMouseMove);
+    canvas.removeEventListener('mousedown', onMouseDown);
+    canvas.removeEventListener('mouseup', onMouseUp);
+    canvas.removeEventListener('mouseleave', onMouseLeave);
+
     if (warpProgram) gl.deleteProgram(warpProgram);
     if (compProgram) gl.deleteProgram(compProgram);
+    if (noiseTexture) gl.deleteTexture(noiseTexture);
+    if (noiseVolLqTexture) gl.deleteTexture(noiseVolLqTexture);
+    if (noiseVolHqTexture) gl.deleteTexture(noiseVolHqTexture);
+
     shapeRenderer.clear();
     waveRenderer.clear();
     lastNativeRuntimeReport = {
