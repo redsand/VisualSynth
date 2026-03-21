@@ -677,6 +677,7 @@ const diffLoadIncomingButton = document.getElementById('diff-load-incoming') as 
 const diffApplyButton = document.getElementById('diff-apply') as HTMLButtonElement;
 const diffStatus = document.getElementById('diff-status') as HTMLDivElement;
 const diffSections = document.getElementById('diff-sections') as HTMLDivElement;
+const refreshAllPresetsButton = document.getElementById('refresh-all-presets') as HTMLButtonElement;
 
 const fpsLabel = document.getElementById('diag-fps') as HTMLDivElement;
 const latencyLabel = document.getElementById('diag-latency') as HTMLDivElement;
@@ -3083,6 +3084,7 @@ const addSceneFromSourceProject = (
     sceneName: string;
     explicitPaletteId?: string;
     statusLabel: string;
+    presetPath?: string;
   }
 ) => {
   if (!sourceProject.scenes.length) {
@@ -3150,7 +3152,8 @@ const addSceneFromSourceProject = (
       return cloned;
     }),
     look,
-    _shaderData: sourceScene._shaderData ? cloneValue(sourceScene._shaderData) : undefined
+    _shaderData: sourceScene._shaderData ? cloneValue(sourceScene._shaderData) : undefined,
+    presetPath: options.presetPath
   };
 
   addSceneToProject(newScene, false);
@@ -3358,7 +3361,8 @@ const importSceneFromDisk = async () => {
         parsedProject.data.activePaletteId ||
         parsedProject.data.scenes[0]?.look?.activePaletteId ||
         undefined,
-      statusLabel: 'Scene imported'
+      statusLabel: 'Scene imported',
+      presetPath: result.filePath
     });
     return;
   }
@@ -3406,7 +3410,8 @@ const importSceneFromDisk = async () => {
       migratedPreset.project?.activePaletteId ||
       migratedPreset.project?.scenes?.[0]?.look?.activePaletteId ||
       undefined,
-    statusLabel: 'Scene imported'
+    statusLabel: 'Scene imported',
+    presetPath: result.filePath
   });
 };
 
@@ -3546,6 +3551,18 @@ const showSceneTimelineMenu = (x: number, y: number, sceneId: string, sceneName:
   };
   menu.appendChild(saveBtn);
 
+  const scene = currentProject.scenes.find((s) => s.id === sceneId);
+  if (scene?.presetPath) {
+    const refreshBtn = document.createElement('button');
+    refreshBtn.textContent = 'Refresh from Disk';
+    styleMenuBtn(refreshBtn);
+    refreshBtn.onclick = () => {
+      void refreshSceneFromPreset(sceneId);
+      closeSceneTimelineMenu();
+    };
+    menu.appendChild(refreshBtn);
+  }
+
   document.body.appendChild(menu);
 
   const rect = menu.getBoundingClientRect();
@@ -3582,6 +3599,7 @@ const renderSceneTimeline = () => {
     onSelect: (sceneId, sceneName) => {
       selectedSceneId = sceneId;
       previewSceneId = sceneId;
+
       const scene = currentProject.scenes.find((s) => s.id === sceneId);
       if (scene) {
         compileSceneShaders(
@@ -6294,7 +6312,8 @@ const addSceneFromPreset = async (presetPath: string) => {
     sourceSceneId: sourceScene.id,
     sceneName: presetName,
     explicitPaletteId: presetExplicitPaletteId,
-    statusLabel: 'Scene added from preset'
+    statusLabel: 'Scene added from preset',
+    presetPath
   });
   if (!addedSceneId) return null;
   const newScene = currentProject.scenes.find((scene) => scene.id === addedSceneId);
@@ -6316,6 +6335,162 @@ const addSceneFromPreset = async (presetPath: string) => {
     })
   );
   return newScene.id;
+};
+
+const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
+  const scene = currentProject.scenes.find((s) => s.id === sceneId);
+  if (!scene) {
+    setStatus('Scene not found.');
+    return false;
+  }
+
+  if (!scene.presetPath) {
+    setStatus('Scene has no saved preset path.');
+    return false;
+  }
+
+  const traceId = createPresetTraceId();
+  logPresetDebug(traceId, 'Refreshing scene from preset', { sceneId, presetPath: scene.presetPath });
+
+  const result = await window.visualSynth.loadPreset(scene.presetPath);
+  if (result.error) {
+    logPresetError(traceId, 'Preset reload failed', { presetPath: scene.presetPath, error: result.error });
+    setStatus(`Failed to refresh: ${result.error}`);
+    return false;
+  }
+
+  if (!result.preset) {
+    setStatus('Preset reload returned no data.');
+    return false;
+  }
+
+  const presetMigration = await import('../shared/presetMigration');
+  const migrationResult = presetMigration.migratePreset(result.preset);
+  if (!migrationResult.success) {
+    logPresetError(traceId, 'Preset migration failed', { errors: migrationResult.errors });
+    setStatus(`Preset migration failed: ${migrationResult.errors.join(', ')}`);
+    return false;
+  }
+
+  const validationResult = presetMigration.validatePreset(migrationResult.preset);
+  if (!validationResult.valid) {
+    logPresetError(traceId, 'Preset validation failed', { errors: validationResult.errors });
+    setStatus(`Preset validation failed: ${validationResult.errors.join(', ')}`);
+    return false;
+  }
+
+  const migratedPreset = migrationResult.preset;
+  let sourceProject: VisualSynthProject | null = null;
+
+  if (migratedPreset.version === 6) {
+    sourceProject = presetMigration.applyPresetV6(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 5) {
+    sourceProject = presetMigration.applyPresetV5(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 4) {
+    sourceProject = presetMigration.applyPresetV4(migratedPreset, currentProject).project ?? null;
+  } else if (migratedPreset.version === 3) {
+    sourceProject = presetMigration.applyPresetV3(migratedPreset, currentProject).project ?? null;
+  } else {
+    sourceProject = migratedPreset as VisualSynthProject;
+  }
+
+  if (!sourceProject || sourceProject.scenes.length === 0) {
+    setStatus('Preset has no scenes.');
+    return false;
+  }
+
+  const sourceScene =
+    sourceProject.scenes.find((s) => s.id === sourceProject?.activeSceneId) ??
+    sourceProject.scenes[0];
+
+  const assetIdMap = new Map<string, string>();
+  const referencedAssetIds = new Set<string>();
+  sourceScene.layers.forEach((layer) => {
+    if (layer.assetId) referencedAssetIds.add(layer.assetId);
+  });
+
+  if (sourceProject.assets?.length && referencedAssetIds.size > 0) {
+    const nextAssets = [...currentProject.assets];
+    sourceProject.assets.forEach((asset) => {
+      if (!referencedAssetIds.has(asset.id)) return;
+      const hasCollision = nextAssets.some((existing) => existing.id === asset.id);
+      const newId = hasCollision ? getNextAssetId() : asset.id;
+      assetIdMap.set(asset.id, newId);
+      nextAssets.push({ ...cloneValue(asset), id: newId });
+    });
+    currentProject.assets = nextAssets;
+    renderAssets();
+  }
+
+  const updatedLook: SceneLook = {
+    effects: cloneValue(sourceProject.effects || {}),
+    particles: cloneValue(sourceProject.particles || {}),
+    sdf: cloneValue(sourceProject.sdf || {}),
+    visualizer: cloneValue(sourceProject.visualizer || {}),
+    stylePresets: cloneValue(sourceProject.stylePresets || []),
+    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
+    palettes: cloneValue(sourceProject.palettes || []),
+    activePaletteId: scene.look?.activePaletteId,
+    macros: cloneValue(sourceProject.macros || []),
+    modMatrix: cloneValue(sourceProject.modMatrix || [])
+  };
+
+  const sceneIndex = currentProject.scenes.findIndex((s) => s.id === sceneId);
+  if (sceneIndex === -1) return false;
+
+  currentProject.scenes[sceneIndex] = {
+    ...scene,
+    intent: sourceScene.intent ?? scene.intent,
+    duration: typeof sourceScene.duration === 'number' ? sourceScene.duration : scene.duration,
+    layers: sourceScene.layers.map((layer) => {
+      const cloned = cloneLayerConfig(layer);
+      if (cloned.assetId && assetIdMap.has(cloned.assetId)) {
+        cloned.assetId = assetIdMap.get(cloned.assetId);
+      }
+      return cloned;
+    }),
+    look: updatedLook,
+    _shaderData: sourceScene._shaderData ? cloneValue(sourceScene._shaderData) : undefined
+  };
+
+  compileSceneShaders(
+    renderer,
+    currentProject.scenes[sceneIndex],
+    currentProject.customShaderBlocks ?? [],
+    currentProject.sdf?.enabled ?? false
+  );
+
+  renderSceneStrip();
+  renderSceneTimeline();
+  markProjectDirty();
+  setStatus(`Refreshed scene: ${scene.name}`);
+  return true;
+};
+
+const refreshAllScenesFromPresets = async (): Promise<void> => {
+  const scenesWithPresets = currentProject.scenes.filter((s) => s.presetPath);
+  if (scenesWithPresets.length === 0) {
+    setStatus('No scenes with preset paths to refresh.');
+    return;
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const scene of scenesWithPresets) {
+    const success = await refreshSceneFromPreset(scene.id);
+    if (success) {
+      successCount++;
+    } else {
+      failCount++;
+    }
+  }
+
+  if (failCount === 0) {
+    setStatus(`Refreshed all ${successCount} scene(s) from disk.`);
+  } else {
+    setStatus(`Refreshed ${successCount} scene(s), ${failCount} failed.`);
+  }
 };
 
 const updateQuantizeHud = (message: string | null) => {
@@ -10675,6 +10850,10 @@ diffLoadIncomingButton?.addEventListener('click', async () => {
 
 diffApplyButton?.addEventListener('click', () => {
   void applyDiffMerge();
+});
+
+refreshAllPresetsButton?.addEventListener('click', () => {
+  void refreshAllScenesFromPresets();
 });
 
 exportSceneButton.addEventListener('click', async () => {

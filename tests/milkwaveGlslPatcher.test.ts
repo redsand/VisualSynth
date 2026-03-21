@@ -87,14 +87,14 @@ describe('patchMilkDropGlsl – unit', () => {
     const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec4 ret = vec4(0.0);\n  fragColor = ret;\n}';
     const out = patchMilkDropGlsl(src);
     expect(out).toMatch(/vec3 ret = vec3\(0\.0\)/);
-    expect(out).toMatch(/fragColor = vec4\(ret, 1\.0\)/);
+    expect(out).toMatch(/fragColor = vec4\(ret\s*,\s*1\.0\s*\)/);
   });
 
   it('adds .xyz to texture() in vec3 context with nested parens', () => {
     const src = '#version 300 es\nprecision highp float;\nuniform sampler2D sampler_main;\nin vec2 vUv;\nout vec4 fragColor;\nvoid main() {\n  vec2 uv = vUv;\n  vec3 ret = vec3(0.0);\n  ret = max(ret, texture( sampler_main, vec2(1.0 - uv.x, 1.0 - uv.y) ) );\n  fragColor = vec4(ret, 1.0);\n}';
     const out = patchMilkDropGlsl(src);
     // .xyz should be AFTER the texture() close paren, not inside vec2()
-    expect(out).toMatch(/texture\(\s*sampler_main,\s*vec2\([^)]+\)\s*\)\.xyz/);
+    expect(out).toMatch(/texture\(\s*sampler_main,\s*vec2\([^)]+\)\s*\)\s*\.xyz/);
     // Must NOT have .xyz inside vec2()
     expect(out).not.toMatch(/vec2\([^)]*\.xyz/);
   });

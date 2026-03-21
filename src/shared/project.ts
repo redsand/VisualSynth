@@ -227,6 +227,7 @@ export interface SceneConfig {
   layers: LayerConfig[];
   look?: SceneLook;
   _shaderData?: MilkDropShaderData;
+  presetPath?: string;
 }
 
 export interface MacroTarget {
