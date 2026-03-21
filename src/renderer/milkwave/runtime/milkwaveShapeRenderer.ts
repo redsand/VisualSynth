@@ -263,7 +263,7 @@ const createBaseShapeContext = ({
 
 const preprocessMilkwaveCode = (lines: string[]) =>
   lines
-    .filter((line) => line.trim() && !line.trim().startsWith('//'))
+    .filter((line) => line && typeof line === 'string' && line.trim() && !line.trim().startsWith('//'))
     .map((line) =>
       line
         .trim()
@@ -280,14 +280,15 @@ const executeMilkwaveShapeCode = ({
   ctx: Record<string, any>;
   persistentNames: string[];
 }) => {
-  if (!lines.some((line) => line.trim().length > 0)) return ctx;
+  const validLines = lines.filter(line => line && typeof line === 'string' && line.trim().length > 0);
+  if (validLines.length === 0) return ctx;
   try {
     const localNames = Object.keys(ctx).filter((key) => typeof ctx[key] !== 'function');
     const fnNames = Object.keys(ctx).filter((key) => typeof ctx[key] === 'function');
     const header = localNames.map((key) => `let ${key} = __ctx.${key};`).join('\n');
     const fnHeader = fnNames.map((key) => `const ${key} = __ctx.${key};`).join('\n');
     const returnNames = [...new Set([...persistentNames, ...localNames])];
-    const body = preprocessMilkwaveCode(lines);
+    const body = preprocessMilkwaveCode(validLines);
     const fn = new Function('__ctx', `${header}\n${fnHeader}\n${body}\nreturn { ${returnNames.join(', ')} };`);
     const result = fn(ctx);
     return { ...ctx, ...result };

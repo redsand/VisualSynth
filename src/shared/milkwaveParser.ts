@@ -377,6 +377,19 @@ export function parseMilkFile(
       ? compShaderLines.filter(l => l !== undefined).join('\n')
       : null;
 
+    const finalWaves = Array.from(waves.values()).map(w => ({
+      ...w,
+      initCode: w.initCode.filter(c => c !== undefined),
+      perFrameCode: w.perFrameCode.filter(c => c !== undefined),
+      perPointCode: w.perPointCode.filter(c => c !== undefined)
+    }));
+
+    const finalShapes = Array.from(shapes.values()).map(s => ({
+      ...s,
+      initCode: s.initCode.filter(c => c !== undefined),
+      perFrameCode: s.perFrameCode.filter(c => c !== undefined)
+    }));
+
     return {
       metadata: {
         name,
@@ -394,8 +407,8 @@ export function parseMilkFile(
       perPixelCode: perPixelCode.filter(c => c !== undefined),
       warpShader,
       compShader,
-      waves: Array.from(waves.values()),
-      shapes: Array.from(shapes.values()),
+      waves: finalWaves,
+      shapes: finalShapes,
       textures: textures.filter(t => t !== undefined)
     };
   } catch (error) {

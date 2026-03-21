@@ -956,11 +956,11 @@ const astTransform = (source: string): string => {
 
   // ── Pass 9: Binary Dimension Rebalancing (vec3 - vec2 → vec3.xy - vec2) ──
   visit(ast, {
-    binary_expression: {
-      leave: (p) => {
+    binary: {
+      enter: (p: Path<BinaryNode>) => {
         const left = p.node.left;
         const right = p.node.right;
-        const op = p.node.operator.token;
+        const op = p.node.operator.literal;
         
         if (!['+', '-', '*', '/'].includes(op)) return;
 
