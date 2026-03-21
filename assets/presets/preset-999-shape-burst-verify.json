@@ -8,10 +8,9 @@
       "name": "Verification",
       "layers": [
         {
-          "id": "verification-burst",
-          "name": "Burst Layer",
+          "id": "gen-shape-burst",
+          "name": "Shape Burst",
           "enabled": true,
-          "generatorId": "gen-shape-burst",
           "opacity": 1,
           "blendMode": "add",
           "params": {

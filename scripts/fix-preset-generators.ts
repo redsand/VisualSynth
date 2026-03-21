@@ -95,6 +95,18 @@ const GENERATOR_MAPPINGS: Record<string, { layerId: string; layerName: string; r
   'gen-freq-terrain': { layerId: 'gen-freq-terrain', layerName: 'Freq Terrain', role: 'core' },
   'gen-pulsing-ribbons': { layerId: 'gen-pulsing-ribbons', layerName: 'Pulsing Ribbons', role: 'support' },
   'gen-shimmer-veil': { layerId: 'gen-shimmer-veil', layerName: 'Shimmer Veil', role: 'support' },
+  'gen-gothic-cobwebs': { layerId: 'gen-gothic-cobwebs', layerName: 'Gothic Cobwebs', role: 'support' },
+  'gen-gargoyles-awake': { layerId: 'gen-gargoyles-awake', layerName: 'Gargoyles Awake', role: 'support' },
+  'gen-gothic-rose': { layerId: 'gen-gothic-rose', layerName: 'Gothic Rose', role: 'support' },
+  'gen-candlelight-vigil': { layerId: 'gen-candlelight-vigil', layerName: 'Candlelight Vigil', role: 'support' },
+  'gen-eternal-darkness': { layerId: 'gen-eternal-darkness', layerName: 'Eternal Darkness', role: 'support' },
+  'gen-pixel-dust': { layerId: 'gen-pixel-dust', layerName: 'Pixel Dust', role: 'support' },
+  'gen-arcade-invaders': { layerId: 'gen-arcade-invaders', layerName: 'Arcade Invaders', role: 'support' },
+  'gen-dungeon-tiles': { layerId: 'gen-dungeon-tiles', layerName: 'Dungeon Tiles', role: 'support' },
+  'gen-chiptune-wave': { layerId: 'gen-chiptune-wave', layerName: 'Chiptune Wave', role: 'support' },
+  'gen-score-counter': { layerId: 'gen-score-counter', layerName: 'Score Counter', role: 'support' },
+  'gen-pixel-rain': { layerId: 'gen-pixel-rain', layerName: 'Pixel Rain', role: 'support' },
+  'gen-boss-health': { layerId: 'gen-boss-health', layerName: 'Boss Health', role: 'support' },
 };
 
 const PRESET_NAME_TO_GENERATOR: Array<{ pattern: RegExp; generator: string }> = [
@@ -155,6 +167,18 @@ const PRESET_NAME_TO_GENERATOR: Array<{ pattern: RegExp; generator: string }> = 
   { pattern: /Freq.*Terrain|Audio.*Terrain/i, generator: 'gen-freq-terrain' },
   { pattern: /Ribbon.*Pulse|Pulsing/i, generator: 'gen-pulsing-ribbons' },
   { pattern: /Shimmer|Veil|Curtain/i, generator: 'gen-shimmer-veil' },
+  { pattern: /Gothic.*Cobweb|Cobweb/i, generator: 'gen-gothic-cobwebs' },
+  { pattern: /Gargoyle|Gargoyles/i, generator: 'gen-gargoyles-awake' },
+  { pattern: /Gothic.*Rose/i, generator: 'gen-gothic-rose' },
+  { pattern: /Candlelight|Vigil/i, generator: 'gen-candlelight-vigil' },
+  { pattern: /Eternal.*Darkness/i, generator: 'gen-eternal-darkness' },
+  { pattern: /Pixel.*Dust/i, generator: 'gen-pixel-dust' },
+  { pattern: /Arcade.*Invader|Invader/i, generator: 'gen-arcade-invaders' },
+  { pattern: /Dungeon.*Tile/i, generator: 'gen-dungeon-tiles' },
+  { pattern: /Chiptune.*Wave|Chiptune/i, generator: 'gen-chiptune-wave' },
+  { pattern: /Score.*Counter/i, generator: 'gen-score-counter' },
+  { pattern: /Pixel.*Rain/i, generator: 'gen-pixel-rain' },
+  { pattern: /Boss.*Health/i, generator: 'gen-boss-health' },
 ];
 
 function createLayer(generatorId: string, opacity: number = 0.9, blendMode: string = 'screen'): LayerConfig {

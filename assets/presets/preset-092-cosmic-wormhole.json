@@ -45,19 +45,20 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
+        "core": [
           "layer-portal"
         ],
+        "support": [],
         "atmosphere": []
       },
       "layers": [
         {
           "id": "layer-portal",
           "name": "Portal",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
-          "blendMode": "screen",
+          "blendMode": "normal",
           "transform": {
             "x": 0,
             "y": 0,
@@ -67,7 +68,7 @@
           "params": {
             "opacity": 1,
             "enabled": true,
-            "blendMode": "screen",
+            "blendMode": "normal",
             "transform": {
               "x": 0,
               "y": 0,

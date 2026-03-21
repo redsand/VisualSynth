@@ -10,9 +10,10 @@
       "minVersion": "0.9.0"
     },
     "presetType": "scene",
-    "intendedMusicStyle": "Any",
+    "intendedMusicStyle": "Ambient",
     "visualIntentTags": [
-      "general"
+      "space",
+      "ethereal"
     ],
     "defaultTransition": {
       "durationMs": 600,
@@ -44,19 +45,17 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
-        "support": [
-          "layer-spectrum"
-        ],
-        "atmosphere": []
+        "core": ["layer-plasma"],
+        "support": ["layer-spectrum", "layer-crystal"],
+        "atmosphere": ["layer-portal"]
       },
       "layers": [
         {
-          "id": "layer-spectrum",
-          "name": "Spectrum",
+          "id": "layer-plasma",
+          "name": "Plasma",
           "enabled": true,
-          "opacity": 0.9,
-          "blendMode": "add",
+          "opacity": 0.6,
+          "blendMode": "screen",
           "transform": {
             "x": 0,
             "y": 0,
@@ -64,15 +63,57 @@
             "rotation": 0
           },
           "params": {
-            "opacity": 0.9,
-            "enabled": true,
-            "blendMode": "add",
-            "transform": {
-              "x": 0,
-              "y": 0,
-              "scale": 1,
-              "rotation": 0
-            }
+            "speed": 0.4,
+            "scale": 1.2,
+            "complexity": 0.7
+          }
+        },
+        {
+          "id": "layer-spectrum",
+          "name": "Spectrum",
+          "enabled": true,
+          "opacity": 0.75,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {}
+        },
+        {
+          "id": "layer-crystal",
+          "name": "Crystal Harmonics",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "scale": 1.5,
+            "speed": 0.8
+          }
+        },
+        {
+          "id": "layer-portal",
+          "name": "Wormhole Portal",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "style": 1,
+            "autoSpawn": 0.5
           }
         }
       ]
@@ -103,36 +144,7 @@
       "bipolar": false
     }
   ],
-  "macros": [
-    {
-      "id": "macro-1",
-      "name": "Audio Spectrum smoothing",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Audio Spectrum smoothing"
-    },
-    {
-      "id": "macro-2",
-      "name": "Audio Spectrum sensitivity",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Audio Spectrum sensitivity"
-    },
-    {
-      "id": "macro-3",
-      "name": "Audio Spectrum bar Width",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Audio Spectrum bar Width"
-    },
-    {
-      "id": "macro-4",
-      "name": "Audio Spectrum glow",
-      "value": 0.5,
-      "targets": [],
-      "description": "Controls: Audio Spectrum glow"
-    }
-  ],
+  "macros": [],
   "name": "Lunar Echo",
   "createdAt": "2026-01-26T18:12:47.550062",
   "updatedAt": "2026-02-02T01:09:55.235Z",
@@ -151,5 +163,19 @@
   "plugins": [],
   "lfos": [],
   "envelopes": [],
-  "sampleHold": []
+  "sampleHold": [],
+  "palettes": [
+    {
+      "id": "palette-lunar",
+      "name": "Lunar Glow",
+      "colors": [
+        { "r": 0.05, "g": 0.08, "b": 0.15 },
+        { "r": 0.2, "g": 0.3, "b": 0.5 },
+        { "r": 0.5, "g": 0.7, "b": 0.9 },
+        { "r": 0.9, "g": 0.95, "b": 1.0 }
+      ],
+      "interpolation": "smooth",
+      "locked": false
+    }
+  ]
 }

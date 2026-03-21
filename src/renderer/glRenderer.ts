@@ -1156,7 +1156,7 @@ void main() {
     }
   };
 
-  const recompileForGenerators = (activeIds: Set<string>, customBlocks: CustomShaderBlock[] = []): boolean => {
+  const recompileForGenerators = (activeIds: Set<string>, customBlocks: CustomShaderBlock[] = [], forceSync = false): boolean => {
     // Store the active IDs and custom blocks for future recompilations (e.g., when SDF changes)
     currentActiveIds = new Set(activeIds);
     currentCustomBlocks = customBlocks;
@@ -1184,8 +1184,8 @@ void main() {
       return true;
     }
 
-    // Trigger compile
-    const useAsync = !!extParallel;
+    // Trigger compile - use sync if forced or if async not available
+    const useAsync = !forceSync && !!extParallel;
     const prog = getOrCompileProgram(
       activeIds,
       currentSdfUniforms,

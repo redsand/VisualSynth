@@ -656,12 +656,11 @@ export const createLayerPanel = ({
       setStatus('Generator: Glitch Datamosh (Hard) added.');
     }
     if (id === 'gen-particle-swarm') {
-      setParticles({ enabled: true, density: 0.6, speed: 0.8, size: 0.45, glow: 0.7 });
+      tweakLayer('gen-particle-swarm', { opacity: 0.85, blendMode: 'screen' });
       setStatus('Generator: Particle Swarm added.');
     }
     if (id === 'variant-particle-swarm-bloom') {
-      setParticles({ enabled: true, density: 0.75, speed: 0.95, size: 0.5, glow: 0.85 });
-      setEffects({ enabled: true, bloom: 0.35 });
+      tweakLayer('variant-particle-swarm-bloom', { opacity: 0.9, blendMode: 'screen' });
       setStatus('Generator: Particle Swarm (Bloom) added.');
     }
     if (id === 'gen-typography-reveal') {

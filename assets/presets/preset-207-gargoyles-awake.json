@@ -45,7 +45,9 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-plasma"
+        ],
         "support": [
           "layer-gargoyles-awake"
         ],
@@ -53,8 +55,37 @@
       },
       "layers": [
         {
+          "id": "layer-plasma",
+          "name": "Dark Base",
+          "role": "core",
+          "enabled": true,
+          "opacity": 0.35,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.35,
+            "enabled": true,
+            "blendMode": "normal",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 0.4,
+            "scale": 1,
+            "complexity": 0.7
+          }
+        },
+        {
           "id": "layer-gargoyles-awake",
           "name": "Gargoyles Awake",
+          "role": "support",
           "enabled": true,
           "opacity": 0.9,
           "blendMode": "screen",

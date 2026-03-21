@@ -45,7 +45,9 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-plasma"
+        ],
         "support": [
           "layer-boss-health"
         ],
@@ -53,8 +55,37 @@
       },
       "layers": [
         {
+          "id": "layer-plasma",
+          "name": "Retro Base",
+          "role": "core",
+          "enabled": true,
+          "opacity": 0.55,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.55,
+            "enabled": true,
+            "blendMode": "normal",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 0.7,
+            "scale": 1,
+            "complexity": 0.5
+          }
+        },
+        {
           "id": "layer-boss-health",
           "name": "Boss Health",
+          "role": "support",
           "enabled": true,
           "opacity": 0.95,
           "blendMode": "screen",

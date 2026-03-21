@@ -45,7 +45,9 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-plasma"
+        ],
         "support": [
           "layer-candlelight-vigil"
         ],
@@ -53,8 +55,37 @@
       },
       "layers": [
         {
+          "id": "layer-plasma",
+          "name": "Warm Base",
+          "role": "core",
+          "enabled": true,
+          "opacity": 0.25,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.25,
+            "enabled": true,
+            "blendMode": "normal",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 0.3,
+            "scale": 1,
+            "complexity": 0.6
+          }
+        },
+        {
           "id": "layer-candlelight-vigil",
           "name": "Candlelight Vigil",
+          "role": "support",
           "enabled": true,
           "opacity": 0.93,
           "blendMode": "screen",

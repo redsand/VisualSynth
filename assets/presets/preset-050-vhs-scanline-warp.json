@@ -12,7 +12,8 @@
     "presetType": "scene",
     "intendedMusicStyle": "Any",
     "visualIntentTags": [
-      "general"
+      "retro",
+      "glitch"
     ],
     "defaultTransition": {
       "durationMs": 600,
@@ -46,17 +47,17 @@
       "assigned_layers": {
         "core": [],
         "support": [
-          "layer-plasma"
+          "variant-vhs-scanline-warp"
         ],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-plasma",
-          "name": "Plasma",
+          "id": "variant-vhs-scanline-warp",
+          "name": "VHS Scanline Warp",
           "enabled": true,
-          "opacity": 0.78,
-          "blendMode": "add",
+          "opacity": 0.9,
+          "blendMode": "screen",
           "transform": {
             "x": 0,
             "y": 0,
@@ -64,19 +65,7 @@
             "rotation": 0
           },
           "params": {
-            "opacity": 0.78,
-            "enabled": true,
-            "blendMode": "add",
-            "transform": {
-              "x": 0,
-              "y": 0,
-              "scale": 1,
-              "rotation": 0
-            },
-            "speed": 0.45,
-            "scale": 0.6,
-            "complexity": 5,
-            "audioReact": 0.4
+            "opacity": 0.9
           }
         }
       ]
@@ -92,21 +81,7 @@
     "bpm": 120,
     "source": "manual"
   },
-  "modulations": [
-    {
-      "source": "audio.rms",
-      "target": {
-        "type": "plasma",
-        "param": "opacity"
-      },
-      "amount": 0.3,
-      "min": 0.5,
-      "max": 1,
-      "curve": "linear",
-      "smoothing": 0.5,
-      "bipolar": false
-    }
-  ],
+  "modulations": [],
   "macros": [],
   "name": "VHS Scanline Warp",
   "createdAt": "2026-02-01T12:00:00.000Z",
@@ -126,5 +101,19 @@
   "plugins": [],
   "lfos": [],
   "envelopes": [],
-  "sampleHold": []
+  "sampleHold": [],
+  "palettes": [
+    {
+      "id": "palette-vhs-warp",
+      "name": "VHS Warp",
+      "colors": [
+        { "r": 0.05, "g": 0.1, "b": 0.2 },
+        { "r": 0.3, "g": 0.5, "b": 0.8 },
+        { "r": 0.6, "g": 0.8, "b": 1.0 },
+        { "r": 0.9, "g": 0.95, "b": 1.0 }
+      ],
+      "interpolation": "smooth",
+      "locked": false
+    }
+  ]
 }

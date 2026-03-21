@@ -45,7 +45,9 @@
         "type": "manual"
       },
       "assigned_layers": {
-        "core": [],
+        "core": [
+          "layer-plasma"
+        ],
         "support": [
           "layer-chiptune-wave"
         ],
@@ -53,8 +55,37 @@
       },
       "layers": [
         {
+          "id": "layer-plasma",
+          "name": "Retro Base",
+          "role": "core",
+          "enabled": true,
+          "opacity": 0.5,
+          "blendMode": "normal",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.5,
+            "enabled": true,
+            "blendMode": "normal",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "speed": 0.6,
+            "scale": 1,
+            "complexity": 0.5
+          }
+        },
+        {
           "id": "layer-chiptune-wave",
           "name": "Chiptune Wave",
+          "role": "support",
           "enabled": true,
           "opacity": 0.9,
           "blendMode": "screen",

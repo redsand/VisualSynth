@@ -527,6 +527,8 @@ const assetLiveScreenButton = document.getElementById('asset-live-screen') as HT
 const assetTextInput = document.getElementById('asset-text-input') as HTMLInputElement | null;
 const assetFontSelect = document.getElementById('asset-font-select') as HTMLSelectElement | null;
 const assetFontSizeInput = document.getElementById('asset-font-size') as HTMLInputElement | null;
+const assetFontBoldCheckbox = document.getElementById('asset-font-bold') as HTMLInputElement | null;
+const assetFontItalicCheckbox = document.getElementById('asset-font-italic') as HTMLInputElement | null;
 const assetTextAddButton = document.getElementById('asset-text-add') as HTMLButtonElement | null;
 const assetTagsInput = document.getElementById('asset-tags') as HTMLInputElement | null;
 const assetList = document.getElementById('asset-list') as HTMLDivElement;
@@ -3759,9 +3761,10 @@ const renderLayerList = () => {
       }
 
       // Modern Generator Parameter Editing (Generic)
-      if (layer.generatorId) {
-          const genType = getLayerType(layer.generatorId);
-          const params = (genType?.params ?? []).filter(p => p.id !== 'opacity');
+      const layerTypeId = layer.generatorId || layer.id;
+      const genType = getLayerType(layerTypeId);
+      if (genType) {
+          const params = (genType.params ?? []).filter(p => p.id !== 'opacity');
           if (params.length > 0) {
               const paramsContainer = document.createElement('div');
               paramsContainer.className = 'layer-params-grid';
@@ -4949,10 +4952,13 @@ const createTextAsset = () => {
 
   const fontFamily = assetFontSelect?.value?.trim() || 'Arial';
   const fontSize = Number(assetFontSizeInput?.value) || 48;
-  const font = `${fontSize}px ${fontFamily}`;
+  const isBold = assetFontBoldCheckbox?.checked ?? false;
+  const isItalic = assetFontItalicCheckbox?.checked ?? false;
+
+  const fontStyle = `${isItalic ? 'italic ' : ''}${isBold ? 'bold ' : ''}${fontSize}px ${fontFamily}`;
 
   const tags = normalizeAssetTags(assetTagsInput?.value ?? '');
-  const canvas = renderTextToCanvas(text, font, '#ffffff');
+  const canvas = renderTextToCanvas(text, fontStyle, '#ffffff');
 
   const asset = createAssetItem({
     name: text.length > 20 ? `${text.substring(0, 20)}...` : text,
@@ -4965,14 +4971,14 @@ const createTextAsset = () => {
     },
     options: {
       text,
-      font,
+      font: fontStyle,
       fontSize,
       fontColor: '#ffffff'
     }
   });
 
   textCanvasCache.set(
-    `${asset.id}-${text}-${font}-#ffffff`,
+    `${asset.id}-${text}-${fontStyle}-#ffffff`,
     canvas
   );
 
@@ -5865,6 +5871,24 @@ const initMatrixTabs = () => {
   if (initial) setActive(initial);
 };
 
+const initAssetTabs = () => {
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.asset-tab'));
+  if (tabs.length === 0) return;
+  const panels = Array.from(document.querySelectorAll<HTMLElement>('.asset-tab-panel'));
+  const setActive = (key: string) => {
+    tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.assetTab === key));
+    panels.forEach((panel) => panel.classList.toggle('active', panel.dataset.assetPanel === key));
+  };
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const key = tab.dataset.assetTab;
+      if (key) setActive(key);
+    });
+  });
+  const initial = tabs.find((tab) => tab.classList.contains('active'))?.dataset.assetTab;
+  if (initial) setActive(initial);
+};
+
 const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
   const plasmaLayer = scene.layers.find((layer) => layer.id === 'layer-plasma');
   const shaderId = plasmaLayer?.params?.shaderId as string | undefined;
@@ -6730,24 +6754,47 @@ const addGenerator = (id: GeneratorId) => {
     setStatus('Generator: Glitch Datamosh (Hard) added.');
   }
   if (id === 'gen-particle-swarm') {
-    particlesEnabled.checked = true;
-    particlesDensity.value = '0.6';
-    particlesSpeed.value = '0.8';
-    particlesSize.value = '0.45';
-    particlesGlow.value = '0.7';
-    applyParticleControls();
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'gen-particle-swarm');
+      if (!layer) {
+        layer = {
+          id: 'gen-particle-swarm',
+          name: 'Particle Swarm',
+          role: getDefaultRoleForLayerId('gen-particle-swarm'),
+          enabled: true,
+          opacity: 0.85,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
     setStatus('Generator: Particle Swarm added.');
   }
   if (id === 'variant-particle-swarm-bloom') {
-    particlesEnabled.checked = true;
-    particlesDensity.value = '0.75';
-    particlesSpeed.value = '0.95';
-    particlesSize.value = '0.5';
-    particlesGlow.value = '0.85';
-    applyParticleControls();
-    effectsEnabled.checked = true;
-    effectBloom.value = '0.35';
-    applyEffectControls();
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      let layer = scene.layers.find((item) => item.id === 'variant-particle-swarm-bloom');
+      if (!layer) {
+        layer = {
+          id: 'variant-particle-swarm-bloom',
+          name: 'Particle Swarm (Bloom)',
+          role: getDefaultRoleForLayerId('variant-particle-swarm-bloom'),
+          enabled: true,
+          opacity: 0.9,
+          blendMode: 'screen',
+          transform: { x: 0, y: 0, scale: 1, rotation: 0 }
+        };
+        scene.layers.push(layer);
+      } else {
+        layer.enabled = true;
+      }
+      renderLayerList();
+    }
     setStatus('Generator: Particle Swarm (Bloom) added.');
   }
   if (id === 'gen-typography-reveal') {
@@ -7486,6 +7533,11 @@ const addGenerator = (id: GeneratorId) => {
   generatorRecentsState = updateRecents(generatorRecentsState, id);
   saveGeneratorLibrary();
   refreshGeneratorUI();
+  
+  const activeScene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+  if (activeScene) {
+    compileSceneShaders(renderer, activeScene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
+  }
 };
 
 const applyMidiTargetValue = (target: string, value: number, isToggle = false) => {
@@ -12784,6 +12836,7 @@ const init = async () => {
     });
   }
   initMatrixTabs();
+  initAssetTabs();
   initLearnables();
   initSpectrumHint();
   loadPlaylist();

@@ -1013,72 +1013,132 @@
             <h2>Design</h2>
             <div class="panel-block">
               <h3>Assets</h3>
-              <div class="scene-row">
-                <button id="asset-import">Import Texture / Shader</button>
-                <select id="asset-kind">
-                  <option value="texture">Texture</option>
-                  <option value="shader">Shader</option>
-                </select>
-                <button id="asset-import-video">Import Video</button>
+              <div class="asset-tabs">
+                <button type="button" class="asset-tab active" data-asset-tab="textures">
+                  <span class="tab-label">Texture</span>
+                </button>
+                <button type="button" class="asset-tab" data-asset-tab="video">
+                  <span class="tab-label">Video</span>
+                </button>
+                <button type="button" class="asset-tab" data-asset-tab="live">
+                  <span class="tab-label">Live</span>
+                </button>
+                <button type="button" class="asset-tab" data-asset-tab="text">
+                  <span class="tab-label">Text</span>
+                </button>
               </div>
-              <div class="scene-row">
-                <label class="scene-inline">
-                  Color Space
-                  <select id="asset-color-space">
-                    <option value="srgb" selected>sRGB</option>
-                    <option value="linear">Linear</option>
-                  </select>
-                </label>
-                <label class="scene-inline">
-                  Texture Sampling
-                  <select id="asset-texture-sampling">
-                    <option value="linear" selected>Linear</option>
-                    <option value="nearest">Nearest</option>
-                  </select>
-                </label>
-                <label class="scene-inline">
-                  Generate mipmaps
-                  <input id="asset-generate-mipmaps" type="checkbox" />
-                </label>
-              </div>
-              <div class="scene-row">
-                <label class="scene-inline">
-                  Loop
-                  <input id="asset-video-loop" type="checkbox" />
-                </label>
-                <label class="scene-inline">
-                  Reverse
-                  <input id="asset-video-reverse" type="checkbox" />
-                </label>
-                <label class="scene-inline">
-                  Playback Rate
-                  <input id="asset-video-rate" type="number" min="0.1" max="4" step="0.1" value="1" />
-                </label>
-                <label class="scene-inline">
-                  Frame Blend
-                  <input id="asset-video-frameblend" type="range" min="0" max="1" step="0.1" value="0" />
-                </label>
-              </div>
-              <div class="scene-row">
-                <button id="asset-live-webcam">Capture Video</button>
-                <button id="asset-live-screen">Screen Capture</button>
-              </div>
-              <div class="scene-row">
-                <input id="asset-text-input" type="text" placeholder="Caption / lyrics" />
-                <select id="asset-font-select">
-                  <option value="Arial" selected>Arial</option>
-                  <option value="Segoe UI">Segoe UI</option>
-                  <option value="Verdana">Verdana</option>
-                  <option value="Tahoma">Tahoma</option>
-                  <option value="Trebuchet MS">Trebuchet MS</option>
-                  <option value="Georgia">Georgia</option>
-                  <option value="Times New Roman">Times New Roman</option>
-                  <option value="Courier New">Courier New</option>
-                  <option value="Consolas">Consolas</option>
-                  <option value="Impact">Impact</option>
-                </select>
-                <input id="asset-font-size" type="number" min="8" max="200" step="1" value="48" />
-                <button id="asset-text-add">Add Text Layer</button>
+              <div class="asset-tab-panels">
+                <div class="asset-tab-panel active" data-asset-panel="textures">
+                  <div class="asset-action-row">
+                    <button id="asset-import" class="asset-btn">
+                      <span class="btn-icon">📁</span>
+                      <span class="btn-label">Import</span>
+                    </button>
+                    <select id="asset-kind" class="asset-select-mini">
+                      <option value="texture">Texture</option>
+                      <option value="shader">Shader</option>
+                    </select>
+                  </div>
+                  <div class="asset-options-row">
+                    <label class="asset-opt">
+                      <span class="opt-label">Color</span>
+                      <select id="asset-color-space">
+                        <option value="srgb" selected>sRGB</option>
+                        <option value="linear">Linear</option>
+                      </select>
+                    </label>
+                    <label class="asset-opt">
+                      <span class="opt-label">Sample</span>
+                      <select id="asset-texture-sampling">
+                        <option value="linear" selected>Linear</option>
+                        <option value="nearest">Nearest</option>
+                      </select>
+                    </label>
+                    <label class="asset-opt asset-opt-checkbox">
+                      <input id="asset-generate-mipmaps" type="checkbox" />
+                      <span>Mipmaps</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="asset-tab-panel" data-asset-panel="video">
+                  <div class="asset-action-row">
+                    <button id="asset-import-video" class="asset-btn">
+                      <span class="btn-icon">📁</span>
+                      <span class="btn-label">Import</span>
+                    </button>
+                  </div>
+                  <div class="asset-options-row">
+                    <label class="asset-opt asset-opt-checkbox">
+                      <input id="asset-video-loop" type="checkbox" />
+                      <span>Loop</span>
+                    </label>
+                    <label class="asset-opt asset-opt-checkbox">
+                      <input id="asset-video-reverse" type="checkbox" />
+                      <span>Reverse</span>
+                    </label>
+                    <label class="asset-opt">
+                      <span class="opt-label">Speed</span>
+                      <input id="asset-video-rate" type="number" min="0.1" max="4" step="0.1" value="1" />
+                    </label>
+                    <label class="asset-opt">
+                      <span class="opt-label">Blend</span>
+                      <input id="asset-video-frameblend" type="range" min="0" max="1" step="0.1" value="0" />
+                    </label>
+                  </div>
+                </div>
+                <div class="asset-tab-panel" data-asset-panel="live">
+                  <div class="asset-action-row">
+                    <button id="asset-live-webcam" class="asset-btn">
+                      <span class="btn-icon">📷</span>
+                      <span class="btn-label">Webcam</span>
+                    </button>
+                    <button id="asset-live-screen" class="asset-btn">
+                      <span class="btn-icon">🖥️</span>
+                      <span class="btn-label">Screen</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="asset-tab-panel" data-asset-panel="text">
+                  <div class="asset-text-content">
+                    <div class="asset-text-row-main">
+                      <input id="asset-text-input" type="text" placeholder="Enter text..." class="asset-text-input" />
+                    </div>
+                    <div class="asset-text-row-options">
+                      <label class="asset-opt">
+                        <span class="opt-label">Font</span>
+                        <select id="asset-font-select" class="asset-select-font">
+                          <option value="Arial" selected>Arial</option>
+                          <option value="Segoe UI">Segoe UI</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Tahoma">Tahoma</option>
+                          <option value="Trebuchet MS">Trebuchet MS</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                          <option value="Consolas">Consolas</option>
+                          <option value="Impact">Impact</option>
+                        </select>
+                      </label>
+                      <label class="asset-opt">
+                        <span class="opt-label">Size</span>
+                        <input id="asset-font-size" type="number" min="8" max="200" step="1" value="48" class="asset-font-size" />
+                      </label>
+                      <label class="asset-opt asset-opt-checkbox">
+                        <input id="asset-font-bold" type="checkbox" />
+                        <span>Bold</span>
+                      </label>
+                      <label class="asset-opt asset-opt-checkbox">
+                        <input id="asset-font-italic" type="checkbox" />
+                        <span>Italic</span>
+                      </label>
+                    </div>
+                    <div class="asset-text-row-action">
+                      <button id="asset-text-add" class="asset-btn">
+                        <span class="btn-label">Create Text Asset</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div id="asset-list" class="marker-list"></div>
             </div>

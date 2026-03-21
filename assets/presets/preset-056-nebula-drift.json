@@ -46,15 +46,13 @@
       },
       "assigned_layers": {
         "core": [],
-        "support": [
-          "layer-ink"
-        ],
-        "atmosphere": []
+        "support": [],
+        "atmosphere": ["layer-inkflow"]
       },
       "layers": [
         {
-          "id": "layer-ink",
-          "name": "ink",
+          "id": "layer-inkflow",
+          "name": "Ink Flow",
           "enabled": true,
           "opacity": 0.78,
           "blendMode": "screen",
@@ -65,18 +63,6 @@
             "rotation": 0
           },
           "params": {
-            "opacity": 0.78,
-            "enabled": true,
-            "blendMode": "screen",
-            "transform": {
-              "x": 0,
-              "y": 0,
-              "scale": 1,
-              "rotation": 0
-            },
-            "brush": 1,
-            "pressure": 0.45,
-            "lifespan": 0.6,
             "speed": 0.35,
             "scale": 0.7
           }
@@ -128,5 +114,19 @@
   "plugins": [],
   "lfos": [],
   "envelopes": [],
-  "sampleHold": []
+  "sampleHold": [],
+  "palettes": [
+    {
+      "id": "palette-nebula-warm",
+      "name": "Nebula Warm",
+      "colors": [
+        { "r": 0.15, "g": 0.02, "b": 0.25 },
+        { "r": 0.6, "g": 0.1, "b": 0.45 },
+        { "r": 0.95, "g": 0.35, "b": 0.55 },
+        { "r": 1.0, "g": 0.7, "b": 0.85 }
+      ],
+      "interpolation": "smooth",
+      "locked": false
+    }
+  ]
 }

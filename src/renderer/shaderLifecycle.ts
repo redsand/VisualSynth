@@ -3,7 +3,7 @@ import type { CustomShaderBlock } from '../shared/customShaderBlock';
 import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 
 export interface ShaderCompiler {
-  recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) => boolean;
+  recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[], forceSync?: boolean) => boolean;
   precompileVariant: (ids: Set<string>) => void;
   setCustomShaderBlocks?: (blocks: CustomShaderBlock[]) => void;
 }
@@ -15,14 +15,15 @@ export const compileSceneShaders = (
   renderer: ShaderCompiler,
   scene: SceneConfig | undefined,
   customBlocks: CustomShaderBlock[] = [],
-  sdfEnabled = false
+  sdfEnabled = false,
+  forceSync = false
 ): number => {
   const activeIds = scene ? collectSceneGeneratorIds(scene) : new Set<string>();
   if (sdfEnabled) {
     activeIds.add('gen-sdf');
   }
   renderer.setCustomShaderBlocks?.(customBlocks);
-  renderer.recompileForGenerators(activeIds, customBlocks);
+  renderer.recompileForGenerators(activeIds, customBlocks, forceSync);
   return activeIds.size;
 };
 
