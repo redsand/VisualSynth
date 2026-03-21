@@ -2,7 +2,7 @@
   "version": 6,
   "name": "VisualSynth Showcase",
   "createdAt": "2026-03-21T01:14:25.806Z",
-  "updatedAt": "2026-03-21T05:31:49.546Z",
+  "updatedAt": "2026-03-21T15:17:04.748Z",
   "output": {
     "enabled": true,
     "fullscreen": false,
@@ -182,25 +182,25 @@
     {
       "id": "macro-1",
       "name": "Macro 1",
-      "value": 0.5,
+      "value": 0.75,
       "targets": []
     },
     {
       "id": "macro-2",
       "name": "Macro 2",
-      "value": 0.5,
+      "value": 0.64,
       "targets": []
     },
     {
       "id": "macro-3",
       "name": "Macro 3",
-      "value": 0.5,
+      "value": 0.7,
       "targets": []
     },
     {
       "id": "macro-4",
       "name": "Macro 4",
-      "value": 0.5,
+      "value": 0.72,
       "targets": []
     },
     {
@@ -306,9 +306,9 @@
     "enabled": false,
     "shape": "circle",
     "scale": 0.5,
-    "edge": 0.05,
+    "edge": 0.06,
     "glow": 0.1,
-    "rotation": 0,
+    "rotation": 0.01,
     "fill": 0,
     "color": [
       1,
@@ -797,8 +797,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-001-cosmic.json"
+      ]
     },
     {
       "id": "showcase-001",
@@ -853,8 +852,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-002-spectrum.json"
+      ]
     },
     {
       "id": "showcase-002",
@@ -939,8 +937,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-004-vivid.json"
+      ]
     },
     {
       "id": "showcase-003",
@@ -1025,8 +1022,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-005-midnight.json"
+      ]
     },
     {
       "id": "showcase-004",
@@ -1111,8 +1107,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-006-ignite.json"
+      ]
     },
     {
       "id": "showcase-005",
@@ -1161,8 +1156,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-007-sdf-monolith.json"
+      ]
     },
     {
       "id": "showcase-006",
@@ -1263,8 +1257,7 @@
             "targets": []
           }
         ]
-      },
-      "presetPath": "assets/presets/preset-008-sdf-pulse.json"
+      }
     },
     {
       "id": "showcase-007",
@@ -1312,8 +1305,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-009-sdf-morph.json"
+      ]
     },
     {
       "id": "showcase-008",
@@ -1362,8 +1354,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-010-sdf-conveyor.json"
+      ]
     },
     {
       "id": "showcase-009",
@@ -1432,8 +1423,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-011-sdf-rain.json"
+      ]
     },
     {
       "id": "showcase-010",
@@ -1490,8 +1480,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-012-topo-zoom.json"
+      ]
     },
     {
       "id": "showcase-011",
@@ -1547,8 +1536,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-013-glyph-matrix.json"
+      ]
     },
     {
       "id": "showcase-012",
@@ -1625,8 +1613,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-014-origami-storm.json"
+      ]
     },
     {
       "id": "showcase-013",
@@ -1704,8 +1691,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-015-weather-hurricane.json"
+      ]
     },
     {
       "id": "showcase-014",
@@ -1790,8 +1776,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-016-visualsynth-dna-feedback.json"
+      ]
     },
     {
       "id": "showcase-015",
@@ -1849,8 +1834,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-017-slow-plasma.json"
+      ]
     },
     {
       "id": "showcase-016",
@@ -1897,8 +1881,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-018-space-station.json"
+      ]
     },
     {
       "id": "showcase-017",
@@ -1947,8 +1930,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-019-sunken-city.json"
+      ]
     },
     {
       "id": "showcase-018",
@@ -1998,8 +1980,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-020-glitch-grid.json"
+      ]
     },
     {
       "id": "showcase-019",
@@ -2046,8 +2027,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-021-neon-skyline.json"
+      ]
     },
     {
       "id": "showcase-020",
@@ -2096,8 +2076,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-022-kaleido-shapes.json"
+      ]
     },
     {
       "id": "showcase-021",
@@ -2182,8 +2161,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-023-visualsynth-dna-bloom.json"
+      ]
     },
     {
       "id": "showcase-022",
@@ -2245,8 +2223,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-024-visualsynth-dna-plasma.json"
+      ]
     },
     {
       "id": "showcase-023",
@@ -2331,8 +2308,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-025-neon-drift.json"
+      ]
     },
     {
       "id": "showcase-024",
@@ -2390,8 +2366,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-026-prism-wake.json"
+      ]
     },
     {
       "id": "showcase-025",
@@ -2476,8 +2451,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-027-ember-pulse.json"
+      ]
     },
     {
       "id": "showcase-026",
@@ -2562,8 +2536,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-028-aurora-chord.json"
+      ]
     },
     {
       "id": "showcase-027",
@@ -2648,8 +2621,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-029-voltage-bloom.json"
+      ]
     },
     {
       "id": "showcase-028",
@@ -2707,8 +2679,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-030-fractal-coil.json"
+      ]
     },
     {
       "id": "showcase-029",
@@ -2791,8 +2762,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-031-audio-geometry.json"
+      ]
     },
     {
       "id": "showcase-030",
@@ -2877,8 +2847,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-032-audio-geometry-prism.json"
+      ]
     },
     {
       "id": "showcase-031",
@@ -2965,8 +2934,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-033-organic-fluid.json"
+      ]
     },
     {
       "id": "showcase-032",
@@ -3053,8 +3021,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-034-organic-fluid-ink.json"
+      ]
     },
     {
       "id": "showcase-033",
@@ -3139,8 +3106,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-035-neon-wireframe.json"
+      ]
     },
     {
       "id": "showcase-034",
@@ -3224,8 +3190,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-036-neon-wireframe-grid.json"
+      ]
     },
     {
       "id": "showcase-035",
@@ -3310,8 +3275,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-037-glitch-datamosh.json"
+      ]
     },
     {
       "id": "showcase-038",
@@ -3390,8 +3354,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-041-typography-reveal.json"
+      ]
     },
     {
       "id": "showcase-039",
@@ -3470,8 +3433,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-042-typography-reveal-glow.json"
+      ]
     },
     {
       "id": "showcase-040",
@@ -3530,8 +3492,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-043-kaleido-shards.json"
+      ]
     },
     {
       "id": "showcase-041",
@@ -3589,8 +3550,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-045-radar-hud.json"
+      ]
     },
     {
       "id": "showcase-042",
@@ -3648,8 +3608,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-046-radar-hud-deep.json"
+      ]
     },
     {
       "id": "showcase-043",
@@ -3708,8 +3667,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-047-fractal-bloom.json"
+      ]
     },
     {
       "id": "showcase-044",
@@ -3768,8 +3726,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-048-fractal-bloom-ember.json"
+      ]
     },
     {
       "id": "showcase-045",
@@ -3816,8 +3773,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-049-vhs-scanline.json"
+      ]
     },
     {
       "id": "showcase-046",
@@ -3864,8 +3820,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-050-vhs-scanline-warp.json"
+      ]
     },
     {
       "id": "showcase-047",
@@ -3978,8 +3933,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-051-lunar-echo.json"
+      ]
     },
     {
       "id": "showcase-048",
@@ -4038,8 +3992,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-052-tunnel-warp.json"
+      ]
     },
     {
       "id": "showcase-049",
@@ -4096,8 +4049,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-054-wormhole-core.json"
+      ]
     },
     {
       "id": "showcase-050",
@@ -4146,8 +4098,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-056-nebula-drift.json"
+      ]
     },
     {
       "id": "showcase-051",
@@ -4196,8 +4147,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-057-nebula-drift-cold.json"
+      ]
     },
     {
       "id": "showcase-052",
@@ -4283,8 +4233,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-058-obsidian-pulse.json"
+      ]
     },
     {
       "id": "showcase-053",
@@ -4369,8 +4318,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-059-visualsynth-dna-particles.json"
+      ]
     },
     {
       "id": "showcase-054",
@@ -4449,8 +4397,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-060-visualsynth-dna-sdf.json"
+      ]
     },
     {
       "id": "showcase-055",
@@ -4505,8 +4452,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-061-circuit-pulse.json"
+      ]
     },
     {
       "id": "showcase-056",
@@ -4561,8 +4507,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-062-particle-swarm.json"
+      ]
     },
     {
       "id": "showcase-057",
@@ -4620,8 +4565,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-063-sdf-prism.json"
+      ]
     },
     {
       "id": "showcase-058",
@@ -4706,8 +4650,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-064-kaleido-trails.json"
+      ]
     },
     {
       "id": "showcase-059",
@@ -4765,8 +4708,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-065-posterize-strobe.json"
+      ]
     },
     {
       "id": "showcase-060",
@@ -4851,8 +4793,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-067-spectrum-off-nebula.json"
+      ]
     },
     {
       "id": "showcase-061",
@@ -4910,8 +4851,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-068-neural-cathedral.json"
+      ]
     },
     {
       "id": "showcase-062",
@@ -4997,8 +4937,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-070-glyph-language.json"
+      ]
     },
     {
       "id": "showcase-063",
@@ -5085,8 +5024,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-071-crystal-harmonics.json"
+      ]
     },
     {
       "id": "showcase-064",
@@ -5173,8 +5111,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-072-ink-flow.json"
+      ]
     },
     {
       "id": "showcase-065",
@@ -5261,8 +5198,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-073-topo-terrain.json"
+      ]
     },
     {
       "id": "showcase-066",
@@ -5348,8 +5284,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-074-audio-weather.json"
+      ]
     },
     {
       "id": "showcase-067",
@@ -5434,8 +5369,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-075-wormhole-portals.json"
+      ]
     },
     {
       "id": "showcase-068",
@@ -5520,8 +5454,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-076-sacred-oscilloscope.json"
+      ]
     },
     {
       "id": "showcase-069",
@@ -5571,8 +5504,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-077-cyber-rain.json"
+      ]
     },
     {
       "id": "showcase-070",
@@ -5629,8 +5561,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-078-vapor-grid.json"
+      ]
     },
     {
       "id": "showcase-071",
@@ -5686,8 +5617,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-079-red-code.json"
+      ]
     },
     {
       "id": "showcase-072",
@@ -5743,8 +5673,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-080-paper-dreams.json"
+      ]
     },
     {
       "id": "showcase-073",
@@ -5801,8 +5730,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-081-crystal-void.json"
+      ]
     },
     {
       "id": "showcase-074",
@@ -5859,8 +5787,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-082-ink-blot.json"
+      ]
     },
     {
       "id": "showcase-075",
@@ -5916,8 +5843,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-083-storm-watch.json"
+      ]
     },
     {
       "id": "showcase-076",
@@ -5972,8 +5898,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-084-warp-core.json"
+      ]
     },
     {
       "id": "showcase-077",
@@ -6028,8 +5953,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-085-oscillo-drive.json"
+      ]
     },
     {
       "id": "showcase-078",
@@ -6099,8 +6023,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-086-data-stream.json"
+      ]
     },
     {
       "id": "showcase-079",
@@ -6147,8 +6070,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-087-soft-spectrum.json"
+      ]
     },
     {
       "id": "showcase-080",
@@ -6198,8 +6120,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-088-echo-chamber.json"
+      ]
     },
     {
       "id": "showcase-081",
@@ -6256,8 +6177,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-089-prismatic-core.json"
+      ]
     },
     {
       "id": "showcase-082",
@@ -6315,8 +6235,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-090-liquid-metal.json"
+      ]
     },
     {
       "id": "showcase-083",
@@ -6366,8 +6285,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-091-star-warp.json"
+      ]
     },
     {
       "id": "showcase-084",
@@ -6422,8 +6340,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-092-cosmic-wormhole.json"
+      ]
     },
     {
       "id": "showcase-085",
@@ -6481,8 +6398,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-093-nebula-tunnel.json"
+      ]
     },
     {
       "id": "showcase-086",
@@ -6531,8 +6447,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-094-cloud-corridor.json"
+      ]
     },
     {
       "id": "showcase-087",
@@ -6612,8 +6527,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-095-aurora-borealis.json"
+      ]
     },
     {
       "id": "showcase-088",
@@ -6670,8 +6584,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-096-cave-diver.json"
+      ]
     },
     {
       "id": "showcase-089",
@@ -6750,8 +6663,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-097-crystal-cavern.json"
+      ]
     },
     {
       "id": "showcase-090",
@@ -6830,8 +6742,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-098-root-system.json"
+      ]
     },
     {
       "id": "showcase-091",
@@ -6889,8 +6800,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-099-abyss-tube.json"
+      ]
     },
     {
       "id": "showcase-092",
@@ -6940,8 +6850,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-100-whirlpool.json"
+      ]
     },
     {
       "id": "showcase-093",
@@ -6998,8 +6907,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-101-ice-tunnel.json"
+      ]
     },
     {
       "id": "showcase-094",
@@ -7047,8 +6955,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-102-sdf-geometry-101.json"
+      ]
     },
     {
       "id": "showcase-095",
@@ -7095,8 +7002,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-103-sdf-3d-torus.json"
+      ]
     },
     {
       "id": "showcase-096",
@@ -7145,8 +7051,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-104-sdf-metaballs.json"
+      ]
     },
     {
       "id": "showcase-097",
@@ -7204,8 +7109,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-105-hyper-plasma.json"
+      ]
     },
     {
       "id": "showcase-098",
@@ -7252,8 +7156,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-106-sdf-crosshatch.json"
+      ]
     },
     {
       "id": "showcase-099",
@@ -7302,8 +7205,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-107-sdf-grid.json"
+      ]
     },
     {
       "id": "showcase-100",
@@ -7373,8 +7275,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-108-sdf-links.json"
+      ]
     },
     {
       "id": "showcase-101",
@@ -7422,8 +7323,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-109-sdf-cube-field.json"
+      ]
     },
     {
       "id": "showcase-102",
@@ -7471,8 +7371,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-110-sdf-moon.json"
+      ]
     },
     {
       "id": "showcase-103",
@@ -7572,8 +7471,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-111-laser-beam.json"
+      ]
     },
     {
       "id": "showcase-104",
@@ -7670,8 +7568,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-112-strobe-flash.json"
+      ]
     },
     {
       "id": "showcase-105",
@@ -7769,8 +7666,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-113-shape-burst.json"
+      ]
     },
     {
       "id": "showcase-106",
@@ -7868,8 +7764,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-114-grid-tunnel.json"
+      ]
     },
     {
       "id": "showcase-107",
@@ -7942,8 +7837,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-120-neon-overdrive.json"
+      ]
     },
     {
       "id": "showcase-108",
@@ -8012,8 +7906,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-121-guitar-amp.json"
+      ]
     },
     {
       "id": "showcase-109",
@@ -8094,8 +7987,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-122-drum-solo.json"
+      ]
     },
     {
       "id": "showcase-110",
@@ -8160,8 +8052,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-123-vinyl-warp.json"
+      ]
     },
     {
       "id": "showcase-111",
@@ -8229,8 +8120,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-124-stage-fog.json"
+      ]
     },
     {
       "id": "showcase-112",
@@ -8300,8 +8190,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-125-electric-storm.json"
+      ]
     },
     {
       "id": "showcase-113",
@@ -8368,8 +8257,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-126-bass-face.json"
+      ]
     },
     {
       "id": "showcase-114",
@@ -8440,8 +8328,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-127-retro-highway.json"
+      ]
     },
     {
       "id": "showcase-115",
@@ -8491,8 +8378,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-128-feedback-loop.json"
+      ]
     },
     {
       "id": "showcase-116",
@@ -8559,8 +8445,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-129-acid-rock.json"
+      ]
     },
     {
       "id": "showcase-117",
@@ -8629,8 +8514,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-130-laser-show.json"
+      ]
     },
     {
       "id": "showcase-118",
@@ -8698,8 +8582,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-131-electric-arena.json"
+      ]
     },
     {
       "id": "showcase-119",
@@ -8765,8 +8648,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-132-pyro-stage.json"
+      ]
     },
     {
       "id": "showcase-120",
@@ -8833,8 +8715,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-133-cyber-ribbon.json"
+      ]
     },
     {
       "id": "showcase-121",
@@ -8901,8 +8782,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-134-geo-shredder.json"
+      ]
     },
     {
       "id": "showcase-122",
@@ -8968,8 +8848,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-135-signal-loss.json"
+      ]
     },
     {
       "id": "showcase-123",
@@ -9039,8 +8918,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-136-tesla-rain.json"
+      ]
     },
     {
       "id": "showcase-124",
@@ -9106,8 +8984,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-137-speaker-shred.json"
+      ]
     },
     {
       "id": "showcase-125",
@@ -9174,8 +9051,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-138-prism-star.json"
+      ]
     },
     {
       "id": "showcase-126",
@@ -9244,8 +9120,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-139-analog-static.json"
+      ]
     },
     {
       "id": "showcase-127",
@@ -9293,8 +9168,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-140-organic-wormhole.json"
+      ]
     },
     {
       "id": "showcase-128",
@@ -9341,8 +9215,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-141-neon-ribbon-spin.json"
+      ]
     },
     {
       "id": "showcase-129",
@@ -9389,8 +9262,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-142-fractal-deep-dive.json"
+      ]
     },
     {
       "id": "showcase-130",
@@ -9455,8 +9327,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-143-data-conduit.json"
+      ]
     },
     {
       "id": "showcase-131",
@@ -9524,8 +9395,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-144-sinister-weave.json"
+      ]
     },
     {
       "id": "showcase-132",
@@ -9592,8 +9462,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-145-spiral-overload.json"
+      ]
     },
     {
       "id": "showcase-133",
@@ -9640,8 +9509,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-146-aura-of-silence.json"
+      ]
     },
     {
       "id": "showcase-134",
@@ -9707,8 +9575,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-147-spectrum-peaks.json"
+      ]
     },
     {
       "id": "showcase-135",
@@ -9774,8 +9641,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-148-mainframe-flow.json"
+      ]
     },
     {
       "id": "showcase-136",
@@ -9821,8 +9687,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-149-neon-caustics.json"
+      ]
     },
     {
       "id": "showcase-137",
@@ -9868,8 +9733,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-150-spectral-curtain.json"
+      ]
     },
     {
       "id": "showcase-138",
@@ -9934,8 +9798,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-151-cinematic-distortion.json"
+      ]
     },
     {
       "id": "showcase-139",
@@ -10020,8 +9883,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-152-vhs-memories.json"
+      ]
     },
     {
       "id": "showcase-140",
@@ -10087,8 +9949,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-153-star-lit-backdrop.json"
+      ]
     },
     {
       "id": "showcase-141",
@@ -10174,8 +10035,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-154-liquid-canvas.json"
+      ]
     },
     {
       "id": "showcase-142",
@@ -10261,8 +10121,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-155-data-overlay.json"
+      ]
     },
     {
       "id": "showcase-143",
@@ -10310,8 +10169,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-160-nebula-cloud.json"
+      ]
     },
     {
       "id": "showcase-144",
@@ -10359,8 +10217,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-161-circuit-board.json"
+      ]
     },
     {
       "id": "showcase-145",
@@ -10408,8 +10265,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-162-lorenz-attractor.json"
+      ]
     },
     {
       "id": "showcase-146",
@@ -10457,8 +10313,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-163-mandala-spinner.json"
+      ]
     },
     {
       "id": "showcase-147",
@@ -10506,8 +10361,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-164-starburst-galaxy.json"
+      ]
     },
     {
       "id": "showcase-148",
@@ -10555,8 +10409,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-165-digital-rain-v2.json"
+      ]
     },
     {
       "id": "showcase-149",
@@ -10604,8 +10457,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-166-lava-flow.json"
+      ]
     },
     {
       "id": "showcase-150",
@@ -10653,8 +10505,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-167-crystal-growth.json"
+      ]
     },
     {
       "id": "showcase-151",
@@ -10702,8 +10553,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-168-techno-grid.json"
+      ]
     },
     {
       "id": "showcase-152",
@@ -10751,8 +10601,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-169-magnetic-field.json"
+      ]
     },
     {
       "id": "showcase-153",
@@ -10800,8 +10649,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-170-prism-shards.json"
+      ]
     },
     {
       "id": "showcase-154",
@@ -10849,8 +10697,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-171-neural-net.json"
+      ]
     },
     {
       "id": "showcase-155",
@@ -10898,8 +10745,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-172-aurora-chord.json"
+      ]
     },
     {
       "id": "showcase-156",
@@ -10947,8 +10793,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-173-vhs-glitch.json"
+      ]
     },
     {
       "id": "showcase-157",
@@ -10996,8 +10841,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-174-moire-pattern.json"
+      ]
     },
     {
       "id": "showcase-158",
@@ -11045,8 +10889,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-175-hypercube.json"
+      ]
     },
     {
       "id": "showcase-159",
@@ -11094,8 +10937,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-176-fluid-swirl.json"
+      ]
     },
     {
       "id": "showcase-160",
@@ -11143,8 +10985,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-177-ascii-stream.json"
+      ]
     },
     {
       "id": "showcase-161",
@@ -11192,8 +11033,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-178-retro-wave.json"
+      ]
     },
     {
       "id": "showcase-162",
@@ -11241,8 +11081,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-179-bubble-pop.json"
+      ]
     },
     {
       "id": "showcase-163",
@@ -11290,8 +11129,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-180-sound-wave-3d.json"
+      ]
     },
     {
       "id": "showcase-164",
@@ -11339,8 +11177,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-181-particle-vortex.json"
+      ]
     },
     {
       "id": "showcase-165",
@@ -11388,8 +11225,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-182-glow-worms.json"
+      ]
     },
     {
       "id": "showcase-166",
@@ -11437,8 +11273,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-183-mirror-maze.json"
+      ]
     },
     {
       "id": "showcase-167",
@@ -11486,8 +11321,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-184-pulse-heart.json"
+      ]
     },
     {
       "id": "showcase-168",
@@ -11535,8 +11369,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-185-data-shards.json"
+      ]
     },
     {
       "id": "showcase-169",
@@ -11584,8 +11417,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-186-hex-cell.json"
+      ]
     },
     {
       "id": "showcase-170",
@@ -11633,8 +11465,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-187-plasma-ball.json"
+      ]
     },
     {
       "id": "showcase-171",
@@ -11682,8 +11513,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-188-warp-drive.json"
+      ]
     },
     {
       "id": "showcase-172",
@@ -11731,8 +11561,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-189-visual-feedback.json"
+      ]
     },
     {
       "id": "showcase-173",
@@ -11779,8 +11608,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-190-mycelium-network.json"
+      ]
     },
     {
       "id": "showcase-174",
@@ -11837,8 +11665,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-191-cellular-growth.json"
+      ]
     },
     {
       "id": "showcase-175",
@@ -11895,8 +11722,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-192-bio-luminescent-forest.json"
+      ]
     },
     {
       "id": "showcase-176",
@@ -11953,8 +11779,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-193-crystalline.json"
+      ]
     },
     {
       "id": "showcase-177",
@@ -12011,8 +11836,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-194-audio-dna.json"
+      ]
     },
     {
       "id": "showcase-178",
@@ -12069,8 +11893,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-195-liquid-metal.json"
+      ]
     },
     {
       "id": "showcase-179",
@@ -12127,8 +11950,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-196-neon-cityscape.json"
+      ]
     },
     {
       "id": "showcase-180",
@@ -12185,8 +12007,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-197-cosmic-nebula.json"
+      ]
     },
     {
       "id": "showcase-181",
@@ -12243,8 +12064,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-198-sonic-rain.json"
+      ]
     },
     {
       "id": "showcase-182",
@@ -12301,8 +12121,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-199-morphing-geometry.json"
+      ]
     },
     {
       "id": "showcase-183",
@@ -12359,8 +12178,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-200-urban-rhythm.json"
+      ]
     },
     {
       "id": "showcase-184",
@@ -12417,8 +12235,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-201-crimson-veil.json"
+      ]
     },
     {
       "id": "showcase-185",
@@ -12475,8 +12292,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-202-victorian-crypt.json"
+      ]
     },
     {
       "id": "showcase-186",
@@ -12533,8 +12349,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-203-spectral-apparition.json"
+      ]
     },
     {
       "id": "showcase-187",
@@ -12623,8 +12438,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-204-gothic-cobwebs.json"
+      ]
     },
     {
       "id": "showcase-188",
@@ -12681,8 +12495,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-205-blood-moon-rise.json"
+      ]
     },
     {
       "id": "showcase-189",
@@ -12770,8 +12583,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-206-candlelight-vigil.json"
+      ]
     },
     {
       "id": "showcase-190",
@@ -12859,8 +12671,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-207-gargoyles-awake.json"
+      ]
     },
     {
       "id": "showcase-191",
@@ -12917,8 +12728,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-208-crypt-shadows.json"
+      ]
     },
     {
       "id": "showcase-192",
@@ -13006,8 +12816,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-209-gothic-rose.json"
+      ]
     },
     {
       "id": "showcase-193",
@@ -13095,8 +12904,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-210-eternal-darkness.json"
+      ]
     },
     {
       "id": "showcase-194",
@@ -13184,8 +12992,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-211-pixel-dust.json"
+      ]
     },
     {
       "id": "showcase-195",
@@ -13242,8 +13049,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-212-retro-starfield.json"
+      ]
     },
     {
       "id": "showcase-196",
@@ -13301,8 +13107,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-213-8bit-grid.json"
+      ]
     },
     {
       "id": "showcase-197",
@@ -13374,6 +13179,7 @@
             "scale": 1,
             "rotation": 0
           },
+          "assetId": "asset-1774056564047-666",
           "params": {
             "opacity": 0.5,
             "speed": 0.7,
@@ -13388,11 +13194,9 @@
               "rotation": 0
             }
           },
-          "effects": [],
-          "assetId": "asset-1774056564047-666"
+          "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-214-arcade-invaders.json"
+      ]
     },
     {
       "id": "showcase-198",
@@ -13449,8 +13253,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-215-power-up-pulse.json"
+      ]
     },
     {
       "id": "showcase-199",
@@ -13538,8 +13341,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-216-dungeon-tiles.json"
+      ]
     },
     {
       "id": "showcase-200",
@@ -13627,8 +13429,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-217-chiptune-wave.json"
+      ]
     },
     {
       "id": "showcase-201",
@@ -13716,8 +13517,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-218-score-counter.json"
+      ]
     },
     {
       "id": "showcase-202",
@@ -13806,8 +13606,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-219-pixel-rain.json"
+      ]
     },
     {
       "id": "showcase-203",
@@ -13895,8 +13694,7 @@
           },
           "effects": []
         }
-      ],
-      "presetPath": "assets/presets/preset-220-boss-health.json"
+      ]
     },
     {
       "id": "showcase-204",
@@ -13995,14 +13793,14 @@
             "scale": 1,
             "rotation": 0
           },
+          "assetId": "asset-1774056564047-666",
           "params": {
             "opacity": 0.65,
             "speed": 0.9,
             "scale": 1,
             "complexity": 0.5
           },
-          "effects": [],
-          "assetId": "asset-1774056564047-666"
+          "effects": []
         },
         {
           "id": "layer-spectrum",
@@ -14713,7 +14511,7 @@
     }
   ],
   "midiMappings": [],
-  "activeSceneId": "scene-206",
+  "activeSceneId": "showcase-042",
   "activeModeId": "mode-performance",
   "activeEngineId": "engine-default",
   "colorChemistry": [
@@ -14750,14 +14548,14 @@
       "name": "Now Playing",
       "type": "text",
       "enabled": true,
-      "x": 0.013751846381093058,
-      "y": 0.786709470304976,
-      "width": 0.533618906942393,
-      "height": 0.22307651150347782,
+      "x": 0.009489271786037645,
+      "y": 0.8424279453782897,
+      "width": 0.6086402198153683,
+      "height": 0.18202079302840452,
       "opacity": 1,
       "rotation": 0,
       "includeInFx": false,
-      "text": "Butterfly\nCrazy Town\nStudio Brussel - Boitlyfe",
+      "text": "Baby Got Back (Clean Version)\nSir Mix A Lot\nCharlie's Angels - Music From the Motion Picture",
       "fontSize": 30,
       "fontColor": "#ffffff",
       "fontWeight": "bold",
@@ -14768,13 +14566,14 @@
       "name": "Now Playing Artwork",
       "type": "image",
       "enabled": true,
-      "x": 0.03,
-      "y": 0.62,
-      "width": 0.14,
-      "height": 0.18,
+      "x": 0.01635976129582267,
+      "y": 0.5466862170087977,
+      "width": 0.15705029838022166,
+      "height": 0.2738416422287391,
       "opacity": 0.95,
       "rotation": 0,
-      "includeInFx": false
+      "includeInFx": false,
+      "assetPath": "C:\\Users\\TimShelton\\AppData\\Roaming\\VisualSynth\\assets\\ae23143dacda5496fcb2d19954046a3e03ce6e54a81f4b2e862e8d32caeb2d70.jpg"
     }
   ]
 }
