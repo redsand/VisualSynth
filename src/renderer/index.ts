@@ -9914,35 +9914,52 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
   const clip = exportResult.clip;
   nowPlayingTestStatus.textContent = `Validating ${(clip.blob.size / 1024).toFixed(1)}KB audio...`;
 
-  // Always decode to check actual audio duration/quality, even for non-Shazam providers
   const diagnosticDecode = await decodeClipToPcmWithDiagnostics(clip);
-  if (!diagnosticDecode.success || !diagnosticDecode.pcm) {
-    nowPlayingTestStatus.textContent = diagnosticDecode.error || 'Failed to validate audio quality.';
-    console.error('[Now Playing] Audio validation failed:', diagnosticDecode.errorDetail);
-    return;
-  }
-
-  const actualDurationSec = (diagnosticDecode.pcm.durationMs / 1000).toFixed(1);
-  const minDurationSec = 6;
+  let actualDurationSec: string;
+  let energy = 0;
   
-  if (diagnosticDecode.pcm.durationMs < 6000) {
-    nowPlayingTestStatus.textContent = `Audio too short: ${actualDurationSec}s captured, need at least ${minDurationSec}s. Wait longer before testing.`;
-    console.warn('[Now Playing] Insufficient duration:', {
-      actualDuration: actualDurationSec,
-      minDuration: minDurationSec,
-      samples: diagnosticDecode.pcm.numSamples,
-      recommendation: 'Wait 15+ seconds before testing'
+  if (!diagnosticDecode.success || !diagnosticDecode.pcm) {
+    if (settings.provider === 'shazam') {
+      nowPlayingTestStatus.textContent = diagnosticDecode.error || 'Failed to validate audio quality.';
+      console.error('[Now Playing] Audio validation failed for Shazam:', diagnosticDecode.errorDetail);
+      return;
+    }
+    
+    const estimatedDurationSec = Math.round((clip.blob.size / 32000) * 10) / 10;
+    actualDurationSec = `${estimatedDurationSec}s (estimated)`;
+    console.warn('[Now Playing] Audio decode skipped for non-Shazam provider:', {
+      error: diagnosticDecode.error,
+      blobSize: clip.blob.size,
+      estimatedDuration: actualDurationSec,
+      provider: settings.provider
     });
-    return;
-  }
+    
+    if (estimatedDurationSec < 6) {
+      nowPlayingTestStatus.textContent = `Audio may be too short (~${estimatedDurationSec}s). Wait longer before testing.`;
+      return;
+    }
+  } else {
+    actualDurationSec = (diagnosticDecode.pcm.durationMs / 1000).toFixed(1);
+    const minDurationSec = 6;
+    
+    if (diagnosticDecode.pcm.durationMs < 6000) {
+      nowPlayingTestStatus.textContent = `Audio too short: ${actualDurationSec}s captured, need at least ${minDurationSec}s. Wait longer before testing.`;
+      console.warn('[Now Playing] Insufficient duration:', {
+        actualDuration: actualDurationSec,
+        minDuration: minDurationSec,
+        samples: diagnosticDecode.pcm.numSamples,
+        recommendation: 'Wait 15+ seconds before testing'
+      });
+      return;
+    }
 
-  const energy = diagnosticDecode.pcm.pcmS16le.length > 0 ? 
-    Math.sqrt(Array.from(diagnosticDecode.pcm.pcmS16le).reduce((sum, s) => sum + s * s, 0) / diagnosticDecode.pcm.pcmS16le.length) / 32768 : 0;
+    energy = diagnosticDecode.pcm.pcmS16le.length > 0 ? 
+      Math.sqrt(Array.from(diagnosticDecode.pcm.pcmS16le).reduce((sum, s) => sum + s * s, 0) / diagnosticDecode.pcm.pcmS16le.length) / 32768 : 0;
+  }
   
   console.log('[Now Playing] Audio diagnostics:', {
     blobSize: `${(clip.blob.size / 1024).toFixed(1)}KB`,
-    actualDuration: `${actualDurationSec}s`,
-    samples: diagnosticDecode.pcm.numSamples,
+    actualDuration: actualDurationSec,
     energy: energy.toFixed(4),
     mimeType: clip.mimeType
   });

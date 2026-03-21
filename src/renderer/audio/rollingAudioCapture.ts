@@ -56,6 +56,121 @@ const MIN_BYTES_PER_SECOND = 6000;
 const MIN_CHUNKS_FOR_6_SECONDS = 5;
 const MIN_CHUNKS_FOR_12_SECONDS = 10;
 
+async function decodeAudioDataUniversal(blob: Blob): Promise<AudioBuffer | null> {
+  const arrayBuffer = await blob.arrayBuffer();
+  
+  try {
+    const audioCtx = new AudioContext();
+    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    await audioCtx.close();
+    return decoded;
+  } catch (e) {
+    console.warn('[Now Playing] decodeAudioData failed, blob may be in unsupported format:', (e as Error).message);
+    return null;
+  }
+}
+
+async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000): Promise<AudioBuffer | null> {
+  const objectUrl = URL.createObjectURL(blob);
+  const audio = new Audio();
+  audio.src = objectUrl;
+  audio.muted = true;
+  
+  let audioCtx: AudioContext | null = null;
+  
+  console.log('[Now Playing] Attempting webm decode via Audio element...');
+  
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Audio load timeout')), 15000);
+      audio.oncanplaythrough = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      audio.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Audio load error'));
+      };
+      audio.load();
+    });
+
+    const duration = audio.duration;
+    if (!isFinite(duration) || duration <= 0 || duration > 60) {
+      throw new Error(`Invalid audio duration: ${duration}`);
+    }
+    
+    audioCtx = new AudioContext({ sampleRate: targetSampleRate });
+    
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+    
+    const source = audioCtx.createMediaElementSource(audio);
+    
+    const numSamples = Math.ceil(duration * targetSampleRate);
+    const buffer = audioCtx.createBuffer(1, numSamples, targetSampleRate);
+    const channelData = buffer.getChannelData(0);
+    
+    let writeIndex = 0;
+    
+    const scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+    
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        resolve();
+      }, (duration + 2) * 1000);
+      
+      scriptProcessor.onaudioprocess = (event) => {
+        const inputData = event.inputBuffer.getChannelData(0);
+        const samplesToWrite = Math.min(inputData.length, numSamples - writeIndex);
+        if (samplesToWrite > 0) {
+          channelData.set(inputData.subarray(0, samplesToWrite), writeIndex);
+          writeIndex += samplesToWrite;
+        }
+        if (writeIndex >= numSamples) {
+          audio.pause();
+          clearTimeout(timeout);
+          resolve();
+        }
+      };
+      
+      audio.onended = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      
+      audio.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Audio playback error'));
+      };
+      
+      source.connect(scriptProcessor);
+      scriptProcessor.connect(audioCtx!.destination);
+      
+      audio.play().catch(reject);
+    });
+    
+    source.disconnect();
+    scriptProcessor.disconnect();
+    audio.pause();
+    
+    const actualBuffer = audioCtx.createBuffer(1, writeIndex, targetSampleRate);
+    actualBuffer.copyToChannel(channelData.subarray(0, writeIndex), 0);
+    
+    await audioCtx.close();
+    
+    return actualBuffer;
+  } catch (error) {
+    console.warn('[Now Playing] PCM capture from audio element failed:', error);
+    if (audioCtx && audioCtx.state !== 'closed') {
+      await audioCtx.close().catch(() => {});
+    }
+    return null;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export async function decodeClipToPcm(clip: RecentAudioClip): Promise<RecentAudioClipPcm | null> {
   const result = await decodeClipToPcmWithDiagnostics(clip);
   return result.success ? result.pcm ?? null : null;
@@ -71,30 +186,61 @@ export async function decodeClipToPcmWithDiagnostics(clip: RecentAudioClip): Pro
   };
 
   try {
-    const arrayBuffer = await clip.blob.arrayBuffer();
-    const audioCtx = new OfflineAudioContext(1, 1, 16000);
-    let decoded: AudioBuffer;
-    try {
-      decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    let decoded: AudioBuffer | undefined;
+    
+    const isWebm = clip.mimeType.includes('webm');
+    
+    if (isWebm) {
+      decoded = await capturePcmFromAudioElement(clip.blob) ?? undefined;
+      if (!decoded) {
+        decoded = await decodeAudioDataUniversal(clip.blob) ?? undefined;
+      }
+      if (!decoded) {
+        return {
+          success: false,
+          error: 'Failed to decode webm audio. The browser may not support this format.',
+          errorDetail
+        };
+      }
       errorDetail.decodeSucceeded = true;
-    } catch (decodeError) {
+    } else {
+      const arrayBuffer = await clip.blob.arrayBuffer();
+      const audioCtx = new OfflineAudioContext(1, 1, 16000);
+      try {
+        decoded = await audioCtx.decodeAudioData(arrayBuffer);
+        errorDetail.decodeSucceeded = true;
+      } catch (decodeError) {
+        return {
+          success: false,
+          error: 'Failed to decode audio data. The audio format may be unsupported or corrupt.',
+          errorDetail
+        };
+      }
+    }
+
+    if (!decoded) {
       return {
         success: false,
-        error: 'Failed to decode audio data. The audio format may be unsupported or corrupt.',
+        error: 'Failed to decode audio.',
         errorDetail
       };
     }
 
     const targetSampleRate = 16000;
-    const numOutputSamples = Math.ceil(decoded.duration * targetSampleRate);
-    const offlineCtx = new OfflineAudioContext(1, numOutputSamples, targetSampleRate);
-    const srcNode = offlineCtx.createBufferSource();
-    srcNode.buffer = decoded;
-    srcNode.connect(offlineCtx.destination);
-    srcNode.start(0);
-    const resampled = await offlineCtx.startRendering();
-
-    const f32 = resampled.getChannelData(0);
+    let f32: Float32Array;
+    
+    if (decoded.sampleRate === targetSampleRate && decoded.numberOfChannels >= 1) {
+      f32 = decoded.getChannelData(0);
+    } else {
+      const numOutputSamples = Math.ceil(decoded.duration * targetSampleRate);
+      const offlineCtx = new OfflineAudioContext(1, numOutputSamples, targetSampleRate);
+      const srcNode = offlineCtx.createBufferSource();
+      srcNode.buffer = decoded;
+      srcNode.connect(offlineCtx.destination);
+      srcNode.start(0);
+      const resampled = await offlineCtx.startRendering();
+      f32 = resampled.getChannelData(0);
+    }
     const s16 = new Int16Array(f32.length);
     for (let i = 0; i < f32.length; i++) {
       const clamped = Math.max(-1, Math.min(1, f32[i]));
