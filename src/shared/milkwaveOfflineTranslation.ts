@@ -319,18 +319,6 @@ const processMilkwaveCode = (code: string): string => {
     /\bret\s*=\s*(-?(?:\d+\.\d+|\d+|\.\d+))\s*-\s*([^;]+);/g,
     (_match, scalarLiteral, rhs) => `ret = vec3(${scalarLiteral}) - ${rhs};`
   );
-  result = result.replace(
-    /(\bvec2\s+\w+\s*=\s*[^;]*?)(\b(?:GetPixel|GetBlur[123]|GetMain)\((?:[^()]|\([^()]*\))*\))(?!\s*\.)/g,
-    (_match, prefix, helperCall) => `${prefix}${helperCall}.xy`
-  );
-  result = result.replace(
-    /(\b[a-zA-Z_]\w*\s*(?:[+\-*/]?=)\s*[^;]*?\b(?:uv|uv2|delta|offset|coord)\w*[^;]*?)(\b(?:GetPixel|GetBlur[123]|GetMain)\((?:[^()]|\([^()]*\))*\))(?!\s*\.)/g,
-    (_match, prefix, helperCall) => `${prefix}${helperCall}.xy`
-  );
-  result = result.replace(
-    /(?<=[=(,])\s*(-?(?:\d+\.\d+|\d+|\.\d+))\s*([+\-])\s*((?:\d*\.?\d+\s*\*\s*)?(?:GetPixel|GetBlur[123]|GetMain)\((?:[^()]|\([^()]*\))*\)\.xy)/g,
-    (_match, scalarLiteral, op, rhs) => ` vec2(${scalarLiteral}) ${op} ${rhs}`
-  );
   result = result
     .split('\n')
     .map((line) => {

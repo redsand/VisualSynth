@@ -954,6 +954,36 @@ const astTransform = (source: string): string => {
     },
   });
 
+  // ── Pass 9: Binary Dimension Rebalancing (vec3 - vec2 → vec3.xy - vec2) ──
+  visit(ast, {
+    binary_expression: {
+      leave: (p) => {
+        const left = p.node.left;
+        const right = p.node.right;
+        const op = p.node.operator.token;
+        
+        if (!['+', '-', '*', '/'].includes(op)) return;
+
+        const leftDim = inferDim(left);
+        const rightDim = inferDim(right);
+
+        if (leftDim === 0 || rightDim === 0) return;
+        if (leftDim === rightDim) return;
+        if (leftDim === 1 || rightDim === 1) return; // scalar handled by GLSL
+
+        // Mismatch found! e.g. vec3 - vec2.
+        // Usually in coordinate math, we want to down-swizzle the larger vec.
+        if (leftDim > rightDim) {
+          const swizzle = rightDim === 2 ? 'xy' : 'xyz';
+          p.node.left = mkPostfixSwizzle(left, swizzle) as unknown as AstNode;
+        } else {
+          const swizzle = leftDim === 2 ? 'xy' : 'xyz';
+          p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
+        }
+      }
+    }
+  });
+
   return generate(ast);
 };
 

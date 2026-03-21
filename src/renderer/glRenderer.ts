@@ -382,6 +382,10 @@ void main() {
       }
     } else {
       console.log('[GLRenderer] MilkDrop shaders compiled successfully');
+      currentMilkDropShaderData = shaderData;
+      milkDropEnabled = true;
+      lastMilkDropWarp = shaderData.warp;
+      lastMilkDropComp = shaderData.comp;
     }
   };
 
@@ -1060,7 +1064,8 @@ void main() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     // Render MilkDrop if enabled and composite its output over the main render
-    if (milkDropEnabled && milkDropRenderer && currentMilkDropShaderData && (state.genUniforms?.MilkwaveEnabled ?? 0) > 0) {
+    const milwaveEnabledUniform = state.genUniforms?.MilkwaveEnabled ?? 0;
+    if (milkDropEnabled && milkDropRenderer && currentMilkDropShaderData && milwaveEnabledUniform > 0) {
       const milkDropSuccess = milkDropRenderer.render(state, currentMilkDropShaderData, false);
       if (milkDropSuccess) {
         const mdTexture = milkDropRenderer.getMainTexture();

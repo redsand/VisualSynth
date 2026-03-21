@@ -550,7 +550,12 @@ void main() {
 }`;
   
   // Use the patcher to fix int->float and auto-declare undeclared variables
-  return patchMilkDropGlsl(rawGlsl);
+  try {
+    return patchMilkDropGlsl(rawGlsl);
+  } catch (err) {
+    console.warn('[MilkDrop] Failed to patch native per-pixel warp shader, using raw source:', err);
+    return rawGlsl;
+  }
 };
 
 
@@ -799,7 +804,13 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     }
 
     if (shaderData.warp) {
-      const patchedWarp = patchMilkDropGlsl(shaderData.warp);
+      let patchedWarp: string;
+      try {
+        patchedWarp = patchMilkDropGlsl(shaderData.warp);
+      } catch (err) {
+        console.warn('[MilkDrop] Failed to patch warp shader, using raw source:', err);
+        patchedWarp = shaderData.warp;
+      }
       const warpPatchedDiagnostics = analyzeMilkwaveShaderSource({
         source: patchedWarp,
         pass: 'warp',
@@ -846,7 +857,13 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     }
 
     if (shaderData.comp) {
-      const patchedComp = patchMilkDropGlsl(shaderData.comp);
+      let patchedComp: string;
+      try {
+        patchedComp = patchMilkDropGlsl(shaderData.comp);
+      } catch (err) {
+        console.warn('[MilkDrop] Failed to patch comp shader, using raw source:', err);
+        patchedComp = shaderData.comp;
+      }
       const compPatchedDiagnostics = analyzeMilkwaveShaderSource({
         source: patchedComp,
         pass: 'comp',

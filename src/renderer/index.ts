@@ -10334,6 +10334,8 @@ const serializeProject = () => {
 };
 
 const applyProject = async (project: VisualSynthProject) => {
+  isRecoveryProject = false;
+  projectDirty = false;
   if (!preservePresetPreviewState && presetPreviewBaseProject) {
     clearPresetPreviewState();
   }
