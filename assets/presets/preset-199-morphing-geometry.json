@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-morphing-geometry"
+          "gen-morphing-geometry"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-morphing-geometry",
+          "id": "gen-morphing-geometry",
           "name": "Morphing Geometry",
           "role": "core",
           "enabled": true,

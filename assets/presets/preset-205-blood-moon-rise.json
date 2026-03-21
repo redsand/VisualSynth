@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-blood-moon-rise"
+          "gen-blood-moon-rise"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-blood-moon-rise",
+          "id": "gen-blood-moon-rise",
           "name": "Blood Moon Rise",
           "role": "core",
           "enabled": true,

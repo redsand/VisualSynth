@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-boss-health"
+          "gen-boss-health"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-boss-health",
+          "id": "gen-boss-health",
           "name": "Boss Health",
           "role": "support",
           "enabled": true,

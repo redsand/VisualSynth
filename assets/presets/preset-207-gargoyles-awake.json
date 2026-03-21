@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-gargoyles-awake"
+          "gen-gargoyles-awake"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-gargoyles-awake",
+          "id": "gen-gargoyles-awake",
           "name": "Gargoyles Awake",
           "role": "support",
           "enabled": true,

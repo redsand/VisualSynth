@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-spectral-apparition"
+          "gen-spectral-apparition"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-spectral-apparition",
+          "id": "gen-spectral-apparition",
           "name": "Spectral Apparition",
           "role": "core",
           "enabled": true,

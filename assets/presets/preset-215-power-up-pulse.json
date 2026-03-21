@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-power-up-pulse"
+          "gen-power-up-pulse"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-power-up-pulse",
+          "id": "gen-power-up-pulse",
           "name": "Power-Up Pulse",
           "role": "core",
           "enabled": true,

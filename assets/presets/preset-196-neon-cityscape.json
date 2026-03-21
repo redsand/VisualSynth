@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-neon-cityscape"
+          "gen-neon-cityscape"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-neon-cityscape",
+          "id": "gen-neon-cityscape",
           "name": "Neon Cityscape",
           "role": "core",
           "enabled": true,

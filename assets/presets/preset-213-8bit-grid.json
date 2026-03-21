@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-8bit-grid"
+          "gen-8bit-grid"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-8bit-grid",
+          "id": "gen-8bit-grid",
           "name": "8-Bit Grid",
           "role": "core",
           "enabled": true,

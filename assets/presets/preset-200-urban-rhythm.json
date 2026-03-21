@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-urban-rhythm"
+          "gen-urban-rhythm"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-urban-rhythm",
+          "id": "gen-urban-rhythm",
           "name": "Urban Rhythm",
           "role": "core",
           "enabled": true,

@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-retro-starfield"
+          "gen-retro-starfield"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-retro-starfield",
+          "id": "gen-retro-starfield",
           "name": "Retro Starfield",
           "role": "core",
           "enabled": true,

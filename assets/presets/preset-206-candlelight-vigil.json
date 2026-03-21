@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-candlelight-vigil"
+          "gen-candlelight-vigil"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-candlelight-vigil",
+          "id": "gen-candlelight-vigil",
           "name": "Candlelight Vigil",
           "role": "support",
           "enabled": true,

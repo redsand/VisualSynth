@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-crypt-shadows"
+          "gen-crypt-shadows"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-crypt-shadows",
+          "id": "gen-crypt-shadows",
           "name": "Crypt Shadows",
           "role": "core",
           "enabled": true,

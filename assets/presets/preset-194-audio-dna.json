@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-audio-dna"
+          "gen-audio-dna"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-audio-dna",
+          "id": "gen-audio-dna",
           "name": "Audio DNA",
           "role": "core",
           "enabled": true,

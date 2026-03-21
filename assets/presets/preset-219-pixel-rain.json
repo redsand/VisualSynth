@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-pixel-rain"
+          "gen-pixel-rain"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-pixel-rain",
+          "id": "gen-pixel-rain",
           "name": "Pixel Rain",
           "role": "support",
           "enabled": true,

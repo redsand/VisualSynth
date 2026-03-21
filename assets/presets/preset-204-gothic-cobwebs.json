@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-gothic-cobwebs"
+          "gen-gothic-cobwebs"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-gothic-cobwebs",
+          "id": "gen-gothic-cobwebs",
           "name": "Gothic Cobwebs",
           "role": "support",
           "enabled": true,

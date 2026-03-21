@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-dungeon-tiles"
+          "gen-dungeon-tiles"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-dungeon-tiles",
+          "id": "gen-dungeon-tiles",
           "name": "Dungeon Tiles",
           "role": "support",
           "enabled": true,

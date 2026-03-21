@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-chiptune-wave"
+          "gen-chiptune-wave"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-chiptune-wave",
+          "id": "gen-chiptune-wave",
           "name": "Chiptune Wave",
           "role": "support",
           "enabled": true,

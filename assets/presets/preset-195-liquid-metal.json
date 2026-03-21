@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-liquid-metal"
+          "gen-liquid-metal"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-liquid-metal",
+          "id": "gen-liquid-metal",
           "name": "Liquid Metal",
           "role": "core",
           "enabled": true,

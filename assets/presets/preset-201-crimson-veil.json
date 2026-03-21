@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-crimson-veil"
+          "gen-crimson-veil"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-crimson-veil",
+          "id": "gen-crimson-veil",
           "name": "Crimson Veil",
           "role": "core",
           "enabled": true,

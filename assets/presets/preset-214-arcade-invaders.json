@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-arcade-invaders"
+          "gen-arcade-invaders"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-arcade-invaders",
+          "id": "gen-arcade-invaders",
           "name": "Arcade Invaders",
           "role": "support",
           "enabled": true,

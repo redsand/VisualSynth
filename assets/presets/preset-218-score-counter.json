@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-score-counter"
+          "gen-score-counter"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-score-counter",
+          "id": "gen-score-counter",
           "name": "Score Counter",
           "role": "support",
           "enabled": true,

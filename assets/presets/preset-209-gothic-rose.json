@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-gothic-rose"
+          "gen-gothic-rose"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-gothic-rose",
+          "id": "gen-gothic-rose",
           "name": "Gothic Rose",
           "role": "support",
           "enabled": true,

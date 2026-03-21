@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-cellular-growth"
+          "gen-cellular-growth"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-cellular-growth",
+          "id": "gen-cellular-growth",
           "name": "Cellular Growth",
           "role": "core",
           "enabled": true,

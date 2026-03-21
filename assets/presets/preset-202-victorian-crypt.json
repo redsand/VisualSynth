@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-victorian-crypt"
+          "gen-victorian-crypt"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-victorian-crypt",
+          "id": "gen-victorian-crypt",
           "name": "Victorian Crypt",
           "role": "core",
           "enabled": true,

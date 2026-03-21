@@ -46,14 +46,14 @@
       },
       "assigned_layers": {
         "core": [
-          "layer-crystalline"
+          "gen-crystalline"
         ],
         "support": [],
         "atmosphere": []
       },
       "layers": [
         {
-          "id": "layer-crystalline",
+          "id": "gen-crystalline",
           "name": "Crystalline",
           "role": "core",
           "enabled": true,

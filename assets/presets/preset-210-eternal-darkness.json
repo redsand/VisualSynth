@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-eternal-darkness"
+          "gen-eternal-darkness"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-eternal-darkness",
+          "id": "gen-eternal-darkness",
           "name": "Eternal Darkness",
           "role": "support",
           "enabled": true,

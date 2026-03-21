@@ -49,7 +49,7 @@
           "layer-plasma"
         ],
         "support": [
-          "layer-pixel-dust"
+          "gen-pixel-dust"
         ],
         "atmosphere": []
       },
@@ -83,7 +83,7 @@
           }
         },
         {
-          "id": "layer-pixel-dust",
+          "id": "gen-pixel-dust",
           "name": "Pixel Dust",
           "role": "support",
           "enabled": true,
