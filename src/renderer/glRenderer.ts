@@ -1209,8 +1209,8 @@ void main() {
     programCache.set(pending.cacheKey, pending.program);
     
     // Swap only if this pending program is still what the user wants
-    const currentCacheKey = shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', 
-      [...currentCustomBlocks].sort((a, b) => a.id.localeCompare(b.id)).map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, '')).join('|'));
+    const currentCustomHash = [...currentCustomBlocks].sort((a, b) => a.id.localeCompare(b.id)).map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, '')).join('|');
+    const currentCacheKey = shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomHash + currentFxUniforms);
 
     if (pending.cacheKey === currentCacheKey) {
       standardProgram = pending.program;
