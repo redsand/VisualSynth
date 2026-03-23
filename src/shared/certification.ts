@@ -1,4 +1,4 @@
-export type CertificationLevel = 'certified-safe' | 'degraded-usable' | 'unstable' | 'archived';
+export type CertificationLevel = 'safe' | 'degraded' | 'unstable' | 'archived';
 
 export interface CertificationMetadata {
   level: CertificationLevel;
@@ -11,8 +11,8 @@ export interface CertificationMetadata {
 
 export const getCertificationColor = (level: CertificationLevel): string => {
   switch (level) {
-    case 'certified-safe': return '#4caf50'; // Green
-    case 'degraded-usable': return '#ff9800'; // Orange
+    case 'safe': return '#4caf50'; // Green
+    case 'degraded': return '#ff9800'; // Orange
     case 'unstable': return '#f44336'; // Red
     case 'archived': return '#9e9e9e'; // Grey
     default: return '#9e9e9e';

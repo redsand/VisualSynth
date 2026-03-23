@@ -17,6 +17,8 @@
     "release:check:bootstrap": "npm run verify:packaging && npm run build:bootstrap && npm test",
     "release:check:index": "npm run verify:packaging && npm run build:index && npm test",
     "test:bootstrap-readiness": "vitest run tests/bootstrapStartupOrder.test.ts tests/bootstrapEntrypoint.test.ts tests/rendererArchitecture.test.ts tests/visualSynthBridge.test.ts tests/startupProject.test.ts tests/startupProjectApply.test.ts tests/projectApplyRuntime.test.ts tests/loadableProject.test.ts tests/outputRuntime.test.ts tests/outputSessionRuntime.test.ts tests/sceneRuntime.test.ts tests/shaderLifecycle.test.ts tests/renderLoopHelpers.test.ts tests/rendererLoop.integration.test.ts tests/renderGraphEntryParity.test.ts tests/renderGraphFxParity.test.ts tests/renderGraphGeneratorDefaultParity.test.ts",
+    "test:soak": "vitest run tests/soakTests.test.ts",
+    "check:mvp-health": "ts-node scripts/check-mvp-health.ts",
     "dist": "npm run verify:packaging && npm run build && electron-builder",
     "test": "vitest run",
     "screenshots:generate": "node scripts/generate-visual-screenshots.js",

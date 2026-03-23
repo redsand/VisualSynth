@@ -80,6 +80,8 @@ export type LayerRole = 'core' | 'support' | 'atmosphere';
 
 export type SceneIntent = 'calm' | 'pulse' | 'build' | 'chaos' | 'ambient';
 
+export type PresetCertification = 'safe' | 'degraded' | 'unstable' | 'archived';
+
 export interface SceneTransition {
   durationMs: number;
   curve: 'linear' | 'easeInOut';
@@ -231,6 +233,7 @@ export interface SceneConfig {
   look?: SceneLook;
   _shaderData?: MilkDropShaderData;
   presetPath?: string;
+  certification?: PresetCertification;
   depthScore?: number;
   complexity?: number;
   tags?: string[];

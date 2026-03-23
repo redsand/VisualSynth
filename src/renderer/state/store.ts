@@ -117,6 +117,7 @@ export interface AppState {
   diagnostics: DiagnosticsState;
   safeMode: SafeModeState;
   debug: DebugFlags;
+  performanceMode: boolean;
   quantizeHudMessage: string | null;
   pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number } | null;
   renderSettings: {
@@ -199,6 +200,7 @@ export const createInitialState = (): AppState => ({
   },
   safeMode: { reasons: [], webglInitError: null },
   debug: { enabled: false, tintLayers: false, fxDelta: false },
+  performanceMode: false,
   quantizeHudMessage: null,
   pendingSceneSwitch: null,
   renderSettings: {

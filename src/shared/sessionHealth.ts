@@ -1,5 +1,5 @@
 import type { MilkwaveRuntimeStatus } from './milkwaveStatus';
-import type { SongDetectionState } from './songDetectionStatus';
+import type { SongDetectionState, SongDetectionDiagnostics } from './songDetectionStatus';
 
 export type HealthStatus = 'nominal' | 'degraded' | 'critical';
 
@@ -19,7 +19,17 @@ export interface SessionHealth {
   
   milkwaveStatus: MilkwaveRuntimeStatus;
   songDetectionStatus: SongDetectionState;
+  songDetectionDiagnostics?: SongDetectionDiagnostics;
   
+  fxHealth: {
+    bloom: boolean;
+    radialGravity: boolean;
+    motionEcho: boolean;
+    spectralSmear: boolean;
+    sdf: boolean;
+    particles: boolean;
+  };
+
   assetWarningCount: number;
   lastError?: {
     message: string;
@@ -29,6 +39,9 @@ export interface SessionHealth {
   
   startTime: string;
   uptimeSeconds: number;
+  
+  degradedReason?: string;
+  failedReason?: string;
 }
 
 export const getHealthColor = (status: HealthStatus): string => {

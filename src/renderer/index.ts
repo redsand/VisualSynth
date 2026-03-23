@@ -534,6 +534,11 @@ const captureStatus = document.getElementById('capture-status') as HTMLDivElemen
 const markerLabelInput = document.getElementById('marker-label') as HTMLInputElement;
 const markerAddButton = document.getElementById('marker-add') as HTMLButtonElement;
 const markerList = document.getElementById('marker-list') as HTMLDivElement;
+
+const perfModeEnabled = document.getElementById('perf-mode-enabled') as HTMLInputElement;
+const perfModeRestrictPresets = document.getElementById('perf-mode-restrict-presets') as HTMLInputElement;
+const perfModeAutoRecovery = document.getElementById('perf-mode-auto-recovery') as HTMLInputElement;
+
 const assetImportButton = document.getElementById('asset-import') as HTMLButtonElement;
 const assetKindSelect = document.getElementById('asset-kind') as HTMLSelectElement;
 const assetColorSpaceSelect = document.getElementById('asset-color-space') as HTMLSelectElement | null;
@@ -1770,7 +1775,7 @@ const getFilteredPresetEntries = () => {
 
   return getSortedPresetEntries(
     presetLibrary.filter((preset) => {
-      if (restrictToSafe && preset.certification !== 'certified-safe') return false;
+      if (restrictToSafe && preset.certification !== 'safe') return false;
       if (presetCategoryFilter !== 'All' && preset.primaryCategory !== presetCategoryFilter) return false;
       if (!quickFilter.match(preset)) return false;
       if (!search) return true;
@@ -3240,7 +3245,16 @@ const updateOutputResolution = () => {
   outputResolutionLabel.textContent = `Output: ${width} x ${height}`;
 };
 
+const updatePerformanceModeUI = () => {
+  if (currentProject.performanceMode) {
+    perfModeEnabled.checked = currentProject.performanceMode.enabled;
+    perfModeRestrictPresets.checked = currentProject.performanceMode.restrictToSafePresets;
+    perfModeAutoRecovery.checked = currentProject.performanceMode.autoRecoveryEnabled;
+  }
+};
+
 const updateOutputUI = () => {
+  updatePerformanceModeUI();
   outputToggleButton.textContent = outputOpen ? 'Close Output' : 'Open Output';
   outputFullscreenToggle.checked = outputConfig.fullscreen;
   outputScaleSelect.value = String(outputConfig.scale);
@@ -11573,6 +11587,38 @@ outputFullscreenToggle.addEventListener('change', async () => {
   await syncOutputConfig({ fullscreen: outputFullscreenToggle.checked });
 });
 
+perfModeEnabled.addEventListener('change', () => {
+  if (!currentProject.performanceMode) {
+    currentProject.performanceMode = {
+      enabled: perfModeEnabled.checked,
+      restrictToSafePresets: perfModeRestrictPresets.checked,
+      autoRecoveryEnabled: perfModeAutoRecovery.checked,
+      forceMinimalQualityOnStruggle: true,
+      disableExperimentalEngines: true,
+      maxMemoryMB: 2048
+    };
+  } else {
+    currentProject.performanceMode.enabled = perfModeEnabled.checked;
+  }
+  renderPresetBrowser(true);
+  markProjectDirty();
+});
+
+perfModeRestrictPresets.addEventListener('change', () => {
+  if (currentProject.performanceMode) {
+    currentProject.performanceMode.restrictToSafePresets = perfModeRestrictPresets.checked;
+    renderPresetBrowser(true);
+    markProjectDirty();
+  }
+});
+
+perfModeAutoRecovery.addEventListener('change', () => {
+  if (currentProject.performanceMode) {
+    currentProject.performanceMode.autoRecoveryEnabled = perfModeAutoRecovery.checked;
+    markProjectDirty();
+  }
+});
+
 outputScaleSelect.addEventListener('change', async () => {
   await syncOutputConfig({ scale: Number(outputScaleSelect.value) });
 });
@@ -13154,6 +13200,8 @@ const render = (time: number) => {
     gravityActives,
     gravityCollapse,
     genUniforms,
+    sessionHealth: sessionHealthService.getHealth(),
+    performanceMode: projectState.performanceMode,
   };
     return { renderState };
   };

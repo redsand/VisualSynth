@@ -221,6 +221,7 @@ export interface RenderState
   milkDropShaderData: MilkDropShaderData | null;
 
   sessionHealth?: SessionHealth;
+  performanceMode?: boolean;
 
   /**
    * Dynamic generator uniforms — populated by resolveGenUniforms().

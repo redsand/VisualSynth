@@ -160,6 +160,11 @@ export const actions = {
       state.bpm.networkActive = active;
     });
   },
+  setPerformanceMode: (store: Store, enabled: boolean) => {
+    store.update((state) => {
+      state.performanceMode = enabled;
+    });
+  },
   setQuantizeHud: (store: Store, message: string | null) => {
     store.update((state) => {
       state.quantizeHudMessage = message;
