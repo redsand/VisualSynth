@@ -13201,7 +13201,7 @@ const render = (time: number) => {
     gravityCollapse,
     genUniforms,
     sessionHealth: sessionHealthService.getHealth(),
-    performanceMode: projectState.performanceMode,
+    performanceMode: currentProject.performanceMode?.enabled,
   };
     return { renderState };
   };
