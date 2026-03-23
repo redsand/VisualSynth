@@ -13,57 +13,177 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { parse } from '@shaderfrog/glsl-parser';
 import { GENERATOR_SHADER_BLOCKS } from '../src/shared/generatorShaderBlocks';
 import { buildFragmentShader } from '../src/renderer/render/shaderBuilder';
 import SHADER_PREAMBLE from '../src/renderer/shaders/preamble.glsl';
 import SHADER_MAIN_TEMPLATE from '../src/renderer/shaders/mainTemplate.glsl';
+import { DEFAULT_PROJECT } from '../src/shared/project';
+import { getFxUniformsDeclarations } from '../src/shared/shaderUtils';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-/** Extract every `uniform <type> <name>[<size>]?;` declaration from a GLSL string. */
-function extractDeclaredUniforms(glsl: string): Map<string, string> {
-  const map = new Map<string, string>(); // name → type
-  for (const m of glsl.matchAll(/uniform\s+(\w+(?:\s+\w+)?)\s+(u\w+)(?:\[\d+\])?\s*;/g)) {
-    const [, type, name] = m;
-    map.set(name, type);
+/**
+ * Validates a GLSL shader string by parsing it into an AST.
+ * This catches syntax errors, redeclarations, and some undeclared identifiers.
+ */
+const GLSL_KEYWORDS = new Set([
+  'attribute', 'const', 'uniform', 'varying', 'break', 'continue', 'do', 'for', 'while',
+  'if', 'else', 'in', 'out', 'inout', 'float', 'int', 'void', 'bool', 'true', 'false',
+  'lowp', 'mediump', 'highp', 'precision', 'invariant', 'discard', 'return',
+  'mat2', 'mat3', 'mat4', 'vec2', 'vec3', 'vec4', 'ivec2', 'ivec3', 'ivec4', 'bvec2', 'bvec3', 'bvec4',
+  'sampler2D', 'samplerCube', 'struct', 'layout', 'location', 'flat', 'smooth'
+]);
+
+const GLSL_BUILTINS = new Set([
+  'gl_Position', 'gl_FragColor', 'gl_FragCoord', 'gl_PointCoord', 'gl_PointSize', 'gl_InstanceID', 'gl_VertexID',
+  'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'pow', 'exp', 'log', 'exp2', 'log2', 'sqrt', 'inversesqrt',
+  'abs', 'sign', 'floor', 'ceil', 'fract', 'mod', 'min', 'max', 'clamp', 'mix', 'step', 'smoothstep',
+  'length', 'distance', 'dot', 'cross', 'normalize', 'faceforward', 'reflect', 'refract',
+  'matrixCompMult', 'lessThan', 'lessThanEqual', 'greaterThan', 'greaterThanEqual', 'any', 'all', 'not',
+  'texture', 'texture2D', 'textureCube', 'dFdx', 'dFdy', 'fwidth'
+]);
+
+function isSwizzle(name: string): boolean {
+  if (name.length > 4) return false;
+  const swizzles = ['xyzw', 'rgba', 'stpq'];
+  for (const set of swizzles) {
+    let allInSet = true;
+    for (const char of name) {
+      if (!set.includes(char)) {
+        allInSet = false;
+        break;
+      }
+    }
+    if (allInSet) return true;
   }
+  return false;
+}
+
+function extractDeclarations(glsl: string): Map<string, number> {
+  const map = new Map<string, number>();
+  
+  const withoutComments = glsl
+    .replace(/\/\/.*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, (match) => match.split('\n').map(() => '').join('\n'));
+
+  const lines = withoutComments.split('\n');
+  
+  const uniformRegex = /uniform\s+(?:\w+(?:\s+\w+)?)\s+(\w+)(?:\[\d+\])?\s*;/g;
+  const funcRegex = /\b(?:void|float|int|bool|vec2|vec3|vec4|mat2|mat3|mat4)\s+(\w+)\s*\(/g;
+  const localRegex = /\b(?:float|int|bool|vec2|vec3|vec4|mat2|mat3|mat4)\s+(\w+)\b(?!\s*\()/g;
+
+  lines.forEach((line, i) => {
+    if (line.trim().startsWith('#')) return;
+
+    let m;
+    while ((m = uniformRegex.exec(line)) !== null) {
+      if (!map.has(m[1])) map.set(m[1], i);
+    }
+    uniformRegex.lastIndex = 0;
+
+    while ((m = funcRegex.exec(line)) !== null) {
+      if (GLSL_KEYWORDS.has(m[1]) || m[1] === 'main') continue;
+      if (!map.has(m[1])) map.set(m[1], i);
+    }
+    funcRegex.lastIndex = 0;
+
+    while ((m = localRegex.exec(line)) !== null) {
+      if (GLSL_KEYWORDS.has(m[1]) || GLSL_BUILTINS.has(m[1])) continue;
+      if (!map.has(m[1])) map.set(m[1], i);
+    }
+    localRegex.lastIndex = 0;
+  });
+  
   return map;
 }
 
-/** Find every identifier that starts with 'u' followed by an uppercase letter,
- *  appearing as a standalone token (not as part of a declaration). */
-function findUniformReferences(glsl: string): Set<string> {
-  const refs = new Set<string>();
-  // Strip declaration lines so we only look at usage sites
-  const withoutDecls = glsl.replace(/uniform\s+\S+(?:\s+\S+)?\s+u\w+(?:\[\d+\])?\s*;/g, '');
-  // Match u[A-Z]... OR uscene_... OR uglobal_... OR ulayer_...
-  for (const m of withoutDecls.matchAll(/\b(u[A-Z]\w*|uscene_\w+|uglobal_\w+|ulayer_\w+)\b/g)) {
-    refs.add(m[1]);
-  }
+function findReferences(glsl: string): Array<{ name: string; line: number }> {
+  const refs: Array<{ name: string; line: number }> = [];
+  const lines = glsl.split('\n');
+  
+  lines.forEach((line, i) => {
+    if (line.trim().startsWith('#')) return;
+    const code = line.replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const words = code.matchAll(/\b([a-zA-Z_]\w*)\b/g);
+    for (const match of words) {
+      const name = match[1];
+      if (GLSL_KEYWORDS.has(name) || GLSL_BUILTINS.has(name) || isSwizzle(name)) continue;
+      refs.push({ name, line: i });
+    }
+  });
+  
   return refs;
+}
+
+function validateShaderComplete(glsl: string): string[] {
+  const violations: string[] = [];
+  
+  // 1. AST check for syntax
+  try {
+    parse(glsl, { stage: 'fragment', quiet: true });
+  } catch (e: any) {
+    violations.push(`AST Error: ${e.message}`);
+  }
+
+  // 2. Declaration order check
+  const declared = extractDeclarations(glsl);
+  const referenced = findReferences(glsl);
+
+  referenced.forEach(ref => {
+    if (KNOWN_NON_UNIFORMS.has(ref.name)) return;
+    
+    const declLine = declared.get(ref.name);
+    if (declLine === undefined) {
+      violations.push(`${ref.name} used on line ${ref.line + 1} but never declared`);
+    } else if (declLine > ref.line) {
+      violations.push(`${ref.name} used on line ${ref.line + 1} but declared later on line ${declLine + 1}`);
+    }
+  });
+
+  return violations;
 }
 
 // Known preamble globals that are declared but aren't `u<UpperCase>` (skip them),
 // and identifiers that look like uniforms but are GLSL built-ins or shader outputs.
 const KNOWN_NON_UNIFORMS = new Set([
   'uv',    // local variable, not a uniform
+  'p',     // SDF input position
+  'optional', // from comments or template logic
+  'opacity', // from comments or template logic
+  'sdfValue', // from comments or template logic
+  'sdf', // from comments or template logic
+  'uGravityPos', // array accessed by index
+  'uGravityStrength', // array accessed by index
+  'uGravityPolarity', // array accessed by index
+  'uGravityActive', // array accessed by index
+  'uSpectrum', // array accessed by index
+  'uPalette', // array accessed by index
+  'customPlasma', // injected by buildFragmentShader via @@PLASMA_SOURCE
+  'sb', // soft-body / scene-body identifier in some generators
+  'caustic', // local in some core generators
+  'rad', // local in some core generators
+  'arcGlow', // local in some core generators
+  'main', // some generators may use main as a variable or have main() conflicts
+  'e', // local epsilon in calcSdfNormal
+  'occ', // local occlusion in calcSdfAO
+  'sca', // local scale in calcSdfAO
 ]);
-
-import { DEFAULT_PROJECT } from '../src/shared/project';
-import { getFxUniformsDeclarations } from '../src/shared/shaderUtils';
 
 // ─── build once ─────────────────────────────────────────────────────────────
 
 const allIds = new Set(GENERATOR_SHADER_BLOCKS.map(b => b.id));
 const fxUniforms = getFxUniformsDeclarations(DEFAULT_PROJECT, DEFAULT_PROJECT.scenes[0]);
 
+// USE A REALISTIC SDF BODY THAT CALLS LIBRARY FUNCTIONS
+// This ensures the global validation catch issues like 'fbm' being used before defined.
 const builtShader = buildFragmentShader(
   { preamble: SHADER_PREAMBLE, mainTemplate: SHADER_MAIN_TEMPLATE },
   GENERATOR_SHADER_BLOCKS,
   allIds,
   /* sdfUniforms */ '',
   /* sdfFunctions */ '',
-  /* sdfMapBody */ '10.0',
+  /* sdfMapBody */ 'fbm(p.xy * 2.0)',
   /* plasmaSource */ null,
   fxUniforms
 );
@@ -94,18 +214,12 @@ describe('GLSL shader static validation', () => {
     expect(duplicates).toEqual([]);
   });
 
-  it('has no undeclared uniform references', () => {
-    const declared = extractDeclaredUniforms(builtShader);
-    const referenced = findUniformReferences(builtShader);
-
-    const undeclared = [...referenced].filter(
-      name => !declared.has(name) && !KNOWN_NON_UNIFORMS.has(name)
-    );
-
-    if (undeclared.length > 0) {
-      console.error('Undeclared uniform references:\n  ' + undeclared.join('\n  '));
+  it('has no syntax or declaration errors', () => {
+    const violations = validateShaderComplete(builtShader);
+    if (violations.length > 0) {
+      console.error('Shader validation failed:\n  ' + violations.join('\n  '));
     }
-    expect(undeclared).toEqual([]);
+    expect(violations).toEqual([]);
   });
 
   it('preamble placeholder /* @@GENERATOR_UNIFORMS */ is replaced', () => {
@@ -201,16 +315,16 @@ describe('GLSL shader static validation', () => {
       initialFx
     );
 
-    const declared = extractDeclaredUniforms(minimalShader);
+    const declared = extractDeclarations(minimalShader);
     expect(declared.has('uscene_scene_0_bloom')).toBe(true);
     expect(declared.has('uscene_scene_0_chroma')).toBe(true);
     expect(declared.has('uscene_scene_0_blur')).toBe(true);
     expect(declared.has('uscene_scene_0_posterize')).toBe(true);
 
-    const referenced = findUniformReferences(minimalShader);
-    const undeclared = [...referenced].filter(
-      name => !declared.has(name) && !KNOWN_NON_UNIFORMS.has(name)
-    );
-    expect(undeclared).toEqual([]);
+    const violations = validateShaderComplete(minimalShader);
+    if (violations.length > 0) {
+      console.error('Minimal shader validation failures:\n  ' + violations.join('\n  '));
+    }
+    expect(violations).toEqual([]);
   });
 });

@@ -69,108 +69,7 @@ uniform float uBloom;
 uniform float uPersistence;
 uniform float uGlyphBeat;
 
-// Scene Scoped FX uniforms (always required by mainTemplate)
-// (Now dynamically injected via @@FX_UNIFORMS)
-
-vec3 getPaletteColor(float t) {
-  float s = clamp(t, 0.0, 1.0) * 4.0;
-  int i = int(floor(s));
-  float f = fract(s);
-  if (i >= 4) return uPalette[4];
-  return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
-}
-
-vec3 palette(float t) {
-  return getPaletteColor(t);
-}
-
-/* @@FX_UNIFORMS */
-
-// Strobe uniforms (used in mainTemplate post-processing)
-uniform float uStrobeEnabled;
-uniform float uStrobeRate;
-uniform float uStrobeDutyCycle;
-uniform float uStrobeThreshold;
-uniform float uStrobeAudioTrigger;
-uniform float uStrobeOpacity;
-uniform float uStrobeFadeOut;
-uniform float uStrobeMode;
-uniform float uStrobePattern;
-
-// VHS scanline uniforms (used in mainTemplate post-processing)
-uniform float uVhsScanlineEnabled;
-uniform float uVhsScanlineMode;
-uniform float uVhsScanlineFrequency;
-uniform float uVhsScanlineSpeed;
-uniform float uVhsScanlineIntensity;
-uniform float uVhsScanlineWarp;
-
-/* @@GENERATOR_UNIFORMS */
-
-/* @@GENERATOR_FUNCTIONS */
-
-float sdfSceneMap(vec3 p) {
-  return 10.0; // Placeholder for simple mode, overridden in advanced
-}
-
-vec2 advancedSdfMap(vec3 p) {
-  // Default returns distance and material (0.0 for no material)
-  return vec2(/* @@SDF_MAP_BODY */, 0.0);
-}
-
-vec3 calcSdfNormal(vec3 p) {
-  vec2 e = vec2(0.001, 0.0);
-  return normalize(vec3(
-    advancedSdfMap(p + e.xyy).x - advancedSdfMap(p - e.xyy).x,
-    advancedSdfMap(p + e.yxy).x - advancedSdfMap(p - e.yxy).x,
-    advancedSdfMap(p + e.yyx).x - advancedSdfMap(p - e.yyx).x
-  ));
-}
-
-vec3 getSdfColor(float id) {
-  return vec3(1.0);
-}
-
-float calcSdfShadow(vec3 ro, vec3 rd, float k) {
-  float res = 1.0;
-  float t = 0.01;
-  for (float i = 0.0; i < 16.0; i += 1.0) {
-    float h = advancedSdfMap(ro + rd * t).x;
-    res = min(res, k * h / t);
-    t += clamp(h, 0.01, 0.2);
-    if(res < 0.001 || t > 5.0) break;
-  }
-  return clamp(res, 0.0, 1.0);
-}
-
-float calcSdfAO(vec3 p, vec3 n) {
-  float occ = 0.0;
-  float sca = 1.0;
-  for (float i = 0.0; i < 5.0; i += 1.0) {
-    float hr = 0.01 + 0.12 * i / 4.0;
-    float d = advancedSdfMap(p + n * hr).x;
-    occ += (hr - d) * sca;
-    sca *= 0.95;
-  }
-  return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
-}
-
-mat3 setCamera(vec3 ro, vec3 ta, float cr) {
-  vec3 cw = normalize(ta - ro);
-  vec3 cp = vec3(sin(cr), cos(cr), 0.0);
-  vec3 cu = normalize(cross(cw, cp));
-  vec3 cv = normalize(cross(cu, cw));
-  return mat3(cu, cv, cw);
-}
-
-vec3 getRayDirection(vec2 uv, vec3 ro, vec3 ta, float fov) {
-  mat3 ca = setCamera(ro, ta, 0.0);
-  return ca * normalize(vec3(uv, fov));
-}
-// --- End Injections ---
-
-in vec2 vUv;
-out vec4 outColor;
+// ─── UTILITY FUNCTIONS (Must be defined before any injections) ───
 
 vec3 blendAdd(vec3 base, vec3 blend) {
   return min(base + blend, 1.0);
@@ -373,10 +272,111 @@ vec3 hueRotate(vec3 col, float angle) {
   return clamp(m * col, 0.0, 1.0);
 }
 
-// Scoped FX Helper
 void applyScopedFx(inout vec3 col, vec2 uv, float bloom, float chroma, float blur, float posterizeAmount) {
     if (bloom > 0.01) col += pow(col, vec3(2.0)) * bloom;
     if (chroma > 0.01) col = mix(col, vec3(col.r + chroma * 0.02, col.g, col.b - chroma * 0.02), 0.3);
     if (blur > 0.01) col = mix(col, vec3((col.r + col.g + col.b) / 3.0), blur * 0.3);
     if (posterizeAmount > 0.01) col = posterize(col, posterizeAmount);
 }
+
+// ─── PALETTE FUNCTIONS ───
+
+vec3 getPaletteColor(float t) {
+  float s = clamp(t, 0.0, 1.0) * 4.0;
+  int i = int(floor(s));
+  float f = fract(s);
+  if (i >= 4) return uPalette[4];
+  return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
+}
+
+vec3 palette(float t) {
+  return getPaletteColor(t);
+}
+
+/* @@FX_UNIFORMS */
+
+// Strobe uniforms (used in mainTemplate post-processing)
+uniform float uStrobeEnabled;
+uniform float uStrobeRate;
+uniform float uStrobeDutyCycle;
+uniform float uStrobeThreshold;
+uniform float uStrobeAudioTrigger;
+uniform float uStrobeOpacity;
+uniform float uStrobeFadeOut;
+uniform float uStrobeMode;
+uniform float uStrobePattern;
+
+// VHS scanline uniforms (used in mainTemplate post-processing)
+uniform float uVhsScanlineEnabled;
+uniform float uVhsScanlineMode;
+uniform float uVhsScanlineFrequency;
+uniform float uVhsScanlineSpeed;
+uniform float uVhsScanlineIntensity;
+uniform float uVhsScanlineWarp;
+
+/* @@GENERATOR_UNIFORMS */
+
+/* @@GENERATOR_FUNCTIONS */
+
+float sdfSceneMap(vec3 p) {
+  return 10.0; // Placeholder for simple mode, overridden in advanced
+}
+
+vec2 advancedSdfMap(vec3 p) {
+  // Default returns distance and material (0.0 for no material)
+  return vec2(/* @@SDF_MAP_BODY */, 0.0);
+}
+
+vec3 calcSdfNormal(vec3 p) {
+  vec3 e = vec3(0.001, 0.0, 0.0);
+  return normalize(vec3(
+    advancedSdfMap(p + e.xyy).x - advancedSdfMap(p - e.xyy).x,
+    advancedSdfMap(p + e.yxy).x - advancedSdfMap(p - e.yxy).x,
+    advancedSdfMap(p + e.yyx).x - advancedSdfMap(p - e.yyx).x
+  ));
+}
+
+vec3 getSdfColor(float id) {
+  return vec3(1.0);
+}
+
+float calcSdfShadow(vec3 ro, vec3 rd, float k) {
+  float res = 1.0;
+  float t = 0.01;
+  for (float i = 0.0; i < 16.0; i += 1.0) {
+    float h = advancedSdfMap(ro + rd * t).x;
+    res = min(res, k * h / t);
+    t += clamp(h, 0.01, 0.2);
+    if(res < 0.001 || t > 5.0) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+
+float calcSdfAO(vec3 p, vec3 n) {
+  float occ = 0.0;
+  float sca = 1.0;
+  for (float i = 0.0; i < 5.0; i += 1.0) {
+    float hr = 0.01 + 0.12 * i / 4.0;
+    float d = advancedSdfMap(p + n * hr).x;
+    occ += (hr - d) * sca;
+    sca *= 0.95;
+  }
+  return clamp(1.0 - 3.0 * occ, 0.0, 1.0);
+}
+
+mat3 setCamera(vec3 ro, vec3 ta, float cr) {
+  vec3 cw = normalize(ta - ro);
+  vec3 cp = vec3(sin(cr), cos(cr), 0.0);
+  vec3 cu = normalize(cross(cw, cp));
+  vec3 cv = normalize(cross(cu, cw));
+  return mat3(cu, cv, cw);
+}
+
+vec3 getRayDirection(vec2 uv, vec3 ro, vec3 ta, float fov) {
+  mat3 ca = setCamera(ro, ta, 0.0);
+  return ca * normalize(vec3(uv, fov));
+}
+// --- End Injections ---
+
+in vec2 vUv;
+out vec4 outColor;
