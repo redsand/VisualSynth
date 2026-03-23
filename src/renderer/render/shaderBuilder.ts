@@ -1,5 +1,6 @@
 import type { GeneratorShaderBlock } from '../../shared/generatorShaderBlocks';
 import type { CustomShaderBlock } from '../../shared/customShaderBlock';
+import { deduplicateUniformDeclarations } from '../../shared/shaderUtils';
 
 export type { GeneratorShaderBlock };
 
@@ -80,7 +81,10 @@ export const buildFragmentShader = (
     .replace('/* @@PLASMA_SOURCE */', plasmaSource ?? '')
     .replace('/* @@GENERATOR_CALLS */', generatorCalls);
 
-  return preamble + functionPrefix + main;
+  const fullShader = preamble + functionPrefix + main;
+  
+  // Final safety pass: deduplicate uniform declarations in the entire shader
+  return deduplicateUniformDeclarations(fullShader);
 };
 
 /**

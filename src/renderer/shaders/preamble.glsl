@@ -70,10 +70,7 @@ uniform float uPersistence;
 uniform float uGlyphBeat;
 
 // Scene Scoped FX uniforms (always required by mainTemplate)
-uniform float uscene_scene_0_bloom;
-uniform float uscene_scene_0_chroma;
-uniform float uscene_scene_0_blur;
-uniform float uscene_scene_0_posterize;
+// (Now dynamically injected via @@FX_UNIFORMS)
 
 vec3 getPaletteColor(float t) {
   float s = clamp(t, 0.0, 1.0) * 4.0;
@@ -81,6 +78,10 @@ vec3 getPaletteColor(float t) {
   float f = fract(s);
   if (i >= 4) return uPalette[4];
   return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
+}
+
+vec3 palette(float t) {
+  return getPaletteColor(t);
 }
 
 /* @@FX_UNIFORMS */

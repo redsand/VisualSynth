@@ -53,10 +53,16 @@ export const collectSceneGeneratorIds = (scene: SceneConfig): Set<string> => {
 export const getFxUniformsDeclarations = (project: VisualSynthProject, scene: SceneConfig | null): string => {
   const params = ['bloom', 'chroma', 'blur', 'posterize'];
   let decls = '';
+  const declared = new Set<string>();
+
   const addDecls = (scope: string, instanceId: string) => {
     const prefix = `${scope}_${instanceId}`.replace(/:/g, '_').replace(/-/g, '_');
     params.forEach(param => {
-      decls += `uniform float u${prefix}_${param};\n`;
+      const name = `u${prefix}_${param}`;
+      if (!declared.has(name)) {
+        decls += `uniform float ${name};\n`;
+        declared.add(name);
+      }
     });
   };
 
@@ -80,4 +86,33 @@ export const getFxUniformsDeclarations = (project: VisualSynthProject, scene: Sc
   }
 
   return decls;
+};
+
+/**
+ * Deduplicates uniform declarations in a string.
+ */
+export const deduplicateUniformDeclarations = (uniforms: string): string => {
+  const lines = uniforms.split('\n');
+  const uniqueUniforms = new Set<string>();
+  const result: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      result.push(line);
+      continue;
+    }
+
+    if (trimmed.startsWith('uniform ')) {
+      if (!uniqueUniforms.has(trimmed)) {
+        uniqueUniforms.add(trimmed);
+        result.push(line);
+      }
+    } else {
+      // Non-uniform line: always preserve
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
 };

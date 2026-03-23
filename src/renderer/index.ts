@@ -1091,9 +1091,10 @@ const audioStoreBridge: Store = {
 createAudioEngine(audioStoreBridge);
 
 let audioEngineWarningLogged = false;
+let audioEngineFailed = false;
 const getAudioEngineSafe = () => {
   const engine = getAudioEngine();
-  if (!engine && !audioEngineWarningLogged) {
+  if (!engine && !audioEngineWarningLogged && !audioEngineFailed) {
     // Should not happen as bootstrap should have run
     console.warn('[Now Playing] Audio engine not initialized yet.');
     audioEngineWarningLogged = true;
@@ -13648,6 +13649,7 @@ const init = async () => {
     console.log('[Init] setupMIDI completed');
   } catch (e) {
     console.error('[Init] Audio setup error:', e);
+    audioEngineFailed = true;
     updateLoadingProgress(90, 'Audio setup failed (check permissions), continuing...');
   }
 
