@@ -70,10 +70,11 @@ export const getFxUniformsDeclarations = (project: VisualSynthProject, scene: Sc
 
   // Layers
   if (scene?.layers) {
-    scene.layers.forEach(layer => {
-      const gid = resolveGeneratorId(layer.generatorId ?? layer.id);
+    scene.layers.forEach((layer, idx) => {
+      const gid = resolveGeneratorId(layer.generatorId ?? (layer as any).id);
       if (gid) {
-        addDecls('layer', `${layer.id}_0`);
+        const safeId = (layer as any).id || `layer_${idx}`;
+        addDecls('layer', `${safeId}_0`);
       }
     });
   }

@@ -48,7 +48,7 @@ vec3 samplePlasma(vec2 uv, float t) {
   return customPlasma(uv, t);
 #else
   float p = plasmaDefault(uv, t);
-  return palette(p);
+  return getPaletteColor(p);
 #endif
 }
 `,
@@ -87,10 +87,10 @@ uniform float uSpectrumAssetAudioReact;
     float trail = uTrailSpectrum[index];
     float bar = step(effectUv.y, amp);
     float trailBar = step(effectUv.y, trail);
-    vec3 specColor = palette(amp) * bar * 0.8;
+    vec3 specColor = getPaletteColor(amp) * bar * 0.8;
     applyScopedFx(specColor, effectUv, ulayer_layer_spectrum_0_bloom, ulayer_layer_spectrum_0_chroma, ulayer_layer_spectrum_0_blur, ulayer_layer_spectrum_0_posterize);
     color += specColor * uSpectrumOpacity * uRoleWeights.y;
-    if (uPersistence > 0.01) { color += palette(trail) * trailBar * 0.5 * uPersistence * uRoleWeights.y; }
+    if (uPersistence > 0.01) { color += getPaletteColor(trail) * trailBar * 0.5 * uPersistence * uRoleWeights.y; }
   }
   if (uSpectrumAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
@@ -124,7 +124,7 @@ uniform float uOrigamiFoldSharpness;
     float foldPhase = uOrigamiFoldState * 6.28318;
     float foldField = abs(sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed + foldPhase));
     float crease = smoothstep(sharp, 0.0, foldField);
-    vec3 creaseCol = palette(0.9) * (0.5 + high * 0.5);
+    vec3 creaseCol = getPaletteColor(0.9) * (0.5 + high * 0.5);
     applyScopedFx(creaseCol, effectUv, ulayer_layer_origami_0_bloom, ulayer_layer_origami_0_chroma, ulayer_layer_origami_0_blur, ulayer_layer_origami_0_posterize);
     color += creaseCol * crease * uOrigamiOpacity * uRoleWeights.y;
   }
@@ -167,7 +167,7 @@ uniform float uGlyphSeed;
     if (uGlyphMode > 2.5) { local.y += (mod(cell.y, 4.0) - 1.5) * 0.06; local.x += sin(uTime * 0.2 * uGlyphSpeed + cell.y * 0.8) * 0.06; }
     float dist = glyphShape(local, seed, band, complexity);
     float stroke = smoothstep(0.04, 0.0, dist);
-    vec3 glyphColor = palette(fract(float(bandIndex) * 0.15 + uTime * 0.05));
+    vec3 glyphColor = getPaletteColor(fract(float(bandIndex) * 0.15 + uTime * 0.05));
     glyphColor *= 0.55 + complexity * 0.75;
     applyScopedFx(glyphColor, effectUv, ulayer_layer_glyph_0_bloom, ulayer_layer_glyph_0_chroma, ulayer_layer_glyph_0_blur, ulayer_layer_glyph_0_posterize);
     color += glyphColor * stroke * uGlyphOpacity * uRoleWeights.y;
@@ -206,7 +206,7 @@ uniform float uCrystalBrittleness;
     float cell = crystalField(centered, uTime * 0.02 * timeScale + uCrystalMode * 2.0, mix(4.0, 10.0, bassStability) * (uCrystalScale > 0.01 ? uCrystalScale : 1.0));
     float shard = smoothstep(0.22, 0.02, cell);
     float growth = mix(0.35, 0.9, alignment) + mid * 0.2;
-    vec3 base = palette(0.1), core = palette(0.5), caustic = palette(0.9);
+    vec3 base = getPaletteColor(0.1), core = getPaletteColor(0.5), caustic = getPaletteColor(0.9);
     vec3 crystal = mix(base, core, (1.0 - cell) * (0.6 + bassStability * 0.6));
     crystal += caustic * smoothstep(0.1, 0.0, cell - high * 0.05) * clamp(uPeak - uRms, 0.0, 1.0) * (0.6 + high);
     crystal *= growth + (uCrystalMode < 0.5 ? 0.15 : uCrystalMode < 1.5 ? 0.35 : uCrystalMode < 2.5 ? 0.7 : 0.05);
@@ -236,7 +236,7 @@ uniform float uInkBrush;
     if (uGlyphBeat > 0.1) flow = vec2(flow.y, -flow.x);
     vec2 inkUv = effectUv + flow * 0.08;
     float stroke = smoothstep(0.6, 0.0, abs(sin((inkUv.x + inkUv.y) * 18.0 * uInkScale + uTime * 0.6 * uInkSpeed))) * (0.4 + uInkPressure * 0.8);
-    vec3 inkColor = palette(uInkBrush < 0.5 ? 0.1 : uInkBrush < 1.5 ? 0.4 : 0.7);
+    vec3 inkColor = getPaletteColor(uInkBrush < 0.5 ? 0.1 : uInkBrush < 1.5 ? 0.4 : 0.7);
     if (uInkBrush > 0.5 && uInkBrush < 1.5) stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
     applyScopedFx(inkColor, effectUv, ulayer_layer_inkflow_0_bloom, ulayer_layer_inkflow_0_chroma, ulayer_layer_inkflow_0_blur, ulayer_layer_inkflow_0_posterize);
     color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity * uRoleWeights.z;
@@ -605,7 +605,7 @@ uniform float uLightningColor;
 }`,
     mainCall: `  if (uLightningEnabled > 0.5) {
     float lightningVal = lightningBolt(effectUv, uTime, high);
-    vec3 lightningCol = palette(uLightningColor < 0.5 ? 0.2 : (uLightningColor < 1.5 ? 0.5 : 0.8));
+    vec3 lightningCol = getPaletteColor(uLightningColor < 0.5 ? 0.2 : (uLightningColor < 1.5 ? 0.5 : 0.8));
     color += lightningCol * lightningVal;
   }
 `,
@@ -645,7 +645,7 @@ uniform float uAnalogOscilloColor;
 }`,
     mainCall: `  if (uAnalogOscilloEnabled > 0.5) {
     float oscVal = analogOscillo(effectUv, uTime, mid);
-    vec3 oscCol = palette(uAnalogOscilloColor < 0.5 ? 0.1 : (uAnalogOscilloColor < 1.5 ? 0.4 : 0.7));
+    vec3 oscCol = getPaletteColor(uAnalogOscilloColor < 0.5 ? 0.1 : (uAnalogOscilloColor < 1.5 ? 0.4 : 0.7));
     color += oscCol * oscVal;
   }
 `,
@@ -668,7 +668,7 @@ uniform float uSpeakerConeForce;
     smoothstep(ringRadius + ringWidth * 1.5, ringRadius + ringWidth, dist);
   float glow = exp(-abs(dist - ringRadius) * 40.0) * (0.3 + drive * 0.4);
   float cone = smoothstep(0.55, 0.0, dist) * (0.25 + drive * 0.35);
-  vec3 col = mix(palette(0.25 + drive * 0.1), palette(0.85), 0.35 + drive * 0.2);
+  vec3 col = mix(getPaletteColor(0.25 + drive * 0.1), getPaletteColor(0.85), 0.35 + drive * 0.2);
   return col * (ring + glow + cone) * uSpeakerConeOpacity;
 }`,
     mainCall: `  if (uSpeakerConeEnabled > 0.5) {
@@ -700,7 +700,7 @@ uniform float uGlitchScanlineOpacity;
   float flicker = step(0.92, hash21(vec2(floor(t * 20.0), 0.0))) * 0.4;
 
   vec3 col = vec3(scan * 0.6);
-  col += palette(fract(blockY * 0.1 + t * 0.05)) * abs(hShift) * 5.0;
+  col += getPaletteColor(fract(blockY * 0.1 + t * 0.05)) * abs(hShift) * 5.0;
   col += vec3(tearLine);
   col *= (1.0 - flicker);
 
@@ -738,7 +738,7 @@ uniform float uLaserStarfieldOpacity;
     float rnd = hash21(id);
     if(rnd > 1.0 - uLaserStarfieldDensity * 0.2) {
       float star = smoothstep(0.1, 0.0, length(f));
-      col += palette(rnd) * star * fade;
+      col += getPaletteColor(rnd) * star * fade;
     }
   }
   return col * uLaserStarfieldOpacity * (1.0 + audio * 0.5);
@@ -764,7 +764,7 @@ uniform float uPulsingRibbonsOpacity;
     wave += sin(uv.x * 10.0 - t * 1.5) * 0.1;
     float d = abs(uv.y - 0.5 - wave);
     float ribbon = smoothstep(uPulsingRibbonsWidth, 0.0, d);
-    col += palette(fract(i * 0.3 + t * 0.1)) * ribbon;
+    col += getPaletteColor(fract(i * 0.3 + t * 0.1)) * ribbon;
   }
   return col * uPulsingRibbonsOpacity * (1.0 + audio);
 }`,
@@ -787,7 +787,7 @@ uniform float uElectricArcOpacity;
   float arc = abs(d - uElectricArcRadius);
   float noise = fbm(p * uElectricArcChaos + t * 2.0);
   float val = smoothstep(0.05, 0.0, arc + noise * 0.1);
-  return palette(fract(t * 0.1 + noise)) * val * uElectricArcOpacity * (1.0 + audio);
+  return getPaletteColor(fract(t * 0.1 + noise)) * val * uElectricArcOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uElectricArcEnabled > 0.5) {
     color += electricArc(effectUv, uTime, mid);
@@ -807,7 +807,7 @@ uniform float uPyroBurstOpacity;
   float d = length(p);
   float angle = atan(p.y, p.x);
   float burst = smoothstep(0.1, 0.0, abs(sin(angle * 10.0 + t * 10.0))) * smoothstep(uPyroBurstForce * peak, 0.0, d);
-  return palette(fract(t * 0.5 + d)) * burst * uPyroBurstOpacity;
+  return getPaletteColor(fract(t * 0.5 + d)) * burst * uPyroBurstOpacity;
 }`,
     mainCall: `  if (uPyroBurstEnabled > 0.5) {
     color += pyroBurst(effectUv, uTime, uPeak);
@@ -829,7 +829,7 @@ uniform float uGeoWireframeOpacity;
   if(uGeoWireframeShape < 0.5) shape = abs(sdBox(p, vec2(uGeoWireframeScale))) - 0.01;
   else shape = abs(sdEquilateralTriangle(p, uGeoWireframeScale)) - 0.01;
   float val = smoothstep(0.02, 0.0, shape);
-  return palette(fract(t * 0.1)) * val * uGeoWireframeOpacity * (1.0 + audio * 0.5);
+  return getPaletteColor(fract(t * 0.1)) * val * uGeoWireframeOpacity * (1.0 + audio * 0.5);
 }`,
     mainCall: `  if (uGeoWireframeEnabled > 0.5) {
     color += geoWireframe(effectUv, uTime, low);
@@ -852,7 +852,7 @@ uniform float uSignalNoiseAmount;
   float staticGrain = n * 0.5 + n2 * 0.3;
   float burst = scanline * 1.5;
 
-  vec3 col = palette(fract(n + t * 0.1)) * (staticGrain + burst);
+  vec3 col = getPaletteColor(fract(n + t * 0.1)) * (staticGrain + burst);
   col += vec3(scanline) * 0.4;
 
   return col * uSignalNoiseOpacity * uSignalNoiseAmount;
@@ -886,11 +886,11 @@ uniform float uRibbonTunnelOpacity;
     ribbon *= smoothstep(0.0, 0.4, r);
     float glow = exp(-abs(sin(twist * (4.0 + i))) * 6.0) * 0.4;
     glow *= smoothstep(0.0, 0.3, r);
-    col += palette(fract(z * 0.15 + i * 0.33 + t * 0.03)) * (ribbon + glow);
+    col += getPaletteColor(fract(z * 0.15 + i * 0.33 + t * 0.03)) * (ribbon + glow);
   }
 
   float depth = smoothstep(2.0, 0.5, z) * 0.6;
-  col += palette(fract(z * 0.1 + 0.5)) * depth * smoothstep(0.0, 0.3, r);
+  col += getPaletteColor(fract(z * 0.1 + 0.5)) * depth * smoothstep(0.0, 0.3, r);
 
   return col * uRibbonTunnelOpacity * (1.0 + audio * 0.8);
 }`,
@@ -926,8 +926,8 @@ uniform float uFractalTunnelOpacity;
   }
 
   col *= 0.25;
-  vec3 c = palette(fract(col * 0.3 + z * 0.05)) * col;
-  c += palette(fract(col * 0.5 + 0.3)) * glow * 0.4;
+  vec3 c = getPaletteColor(fract(col * 0.3 + z * 0.05)) * col;
+  c += getPaletteColor(fract(col * 0.5 + 0.3)) * glow * 0.4;
 
   return c * uFractalTunnelOpacity * (1.0 + audio * 0.8);
 }`,
@@ -952,7 +952,7 @@ uniform float uCircuitConduitOpacity;
   float grid = step(0.95, fract(tu.x * 4.0)) + step(0.95, fract(tu.y * 10.0));
   float pulses = step(0.98, fract(tu.y * 2.0 - t * 5.0));
   
-  return palette(fract(z * 0.1)) * (grid + pulses * 2.0) * uCircuitConduitOpacity * (1.0 + audio);
+  return getPaletteColor(fract(z * 0.1)) * (grid + pulses * 2.0) * uCircuitConduitOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uCircuitConduitEnabled > 0.5) {
     color += circuitConduit(effectUv, uTime, low);
@@ -983,10 +983,10 @@ uniform float uAuraPortalOpacity;
   float rays = smoothstep(0.4, 0.0, abs(sin(a * 6.0 + t * 0.5))) * smoothstep(1.0, 0.1, d) * 0.3;
 
   float baseHue = uAuraPortalColor < 0.5 ? 0.2 : 0.8;
-  vec3 coreCol = palette(baseHue) * core;
-  vec3 ringCol = palette(baseHue + 0.1) * (ring1 + ring2 + ring3);
-  vec3 pulseCol = palette(baseHue + 0.2) * pulse * 0.35;
-  vec3 rayCol = palette(baseHue + 0.3) * rays;
+  vec3 coreCol = getPaletteColor(baseHue) * core;
+  vec3 ringCol = getPaletteColor(baseHue + 0.1) * (ring1 + ring2 + ring3);
+  vec3 pulseCol = getPaletteColor(baseHue + 0.2) * pulse * 0.35;
+  vec3 rayCol = getPaletteColor(baseHue + 0.3) * rays;
 
   return (coreCol + ringCol + pulseCol + rayCol) * uAuraPortalOpacity;
 }`,
@@ -1024,9 +1024,9 @@ uniform float uFreqTerrainOpacity;
   float glow = exp(-abs(uv.y - barTop) * 15.0) * smoothAmp;
   glow += exp(-abs(uv.y - barBase) * 15.0) * smoothAmp;
 
-  vec3 barCol = palette(smoothAmp * 0.8 + 0.1) * inBar * (0.4 + smoothAmp * 0.6);
-  vec3 edgeCol = palette(smoothAmp * 0.6 + 0.3) * edge;
-  vec3 glowCol = palette(smoothAmp * 0.4 + 0.5) * glow * 0.5;
+  vec3 barCol = getPaletteColor(smoothAmp * 0.8 + 0.1) * inBar * (0.4 + smoothAmp * 0.6);
+  vec3 edgeCol = getPaletteColor(smoothAmp * 0.6 + 0.3) * edge;
+  vec3 glowCol = getPaletteColor(smoothAmp * 0.4 + 0.5) * glow * 0.5;
 
   col = barCol + edgeCol + glowCol;
   return col * uFreqTerrainOpacity;
@@ -1047,7 +1047,7 @@ uniform float uDataStreamOpacity;
   vec2 gv = fract(uv * vec2(20.0, 1.0) + vec2(0.0, t * uDataStreamSpeed));
   float line = step(0.98, gv.x);
   float bits = step(0.9, hash21(floor(uv * vec2(20.0, 10.0) + vec2(0.0, t * 5.0))));
-  return palette(fract(uv.x * 0.1 + t * 0.05)) * (line + bits) * uDataStreamOpacity * (1.0 + audio);
+  return getPaletteColor(fract(uv.x * 0.1 + t * 0.05)) * (line + bits) * uDataStreamOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uDataStreamEnabled > 0.5) {
     color += dataStream(effectUv, uTime, low);
@@ -1070,7 +1070,7 @@ uniform float uCausticLiquidOpacity;
     swirl += length(p) * 0.05;
   }
   float c = sin(p.x + p.y + swirl) * 0.5 + 0.5;
-  return palette(c) * smoothstep(0.0, 1.0, c) * uCausticLiquidOpacity * (1.0 + audio);
+  return getPaletteColor(c) * smoothstep(0.0, 1.0, c) * uCausticLiquidOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uCausticLiquidEnabled > 0.5) {
     color += causticLiquid(effectUv, uTime, mid);
@@ -1087,7 +1087,7 @@ uniform float uShimmerVeilOpacity;
     functions: `vec3 shimmerVeil(vec2 uv, float t, float audio) {
   float v = sin(uv.x * 10.0 + t) * sin(uv.y * uShimmerVeilComplexity + t * 0.5);
   float pattern = smoothstep(0.1, 0.0, abs(v));
-  return palette(fract(t * 0.1)) * pattern * uShimmerVeilOpacity * (1.0 + audio);
+  return getPaletteColor(fract(t * 0.1)) * pattern * uShimmerVeilOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uShimmerVeilEnabled > 0.5) {
     color += shimmerVeil(effectUv, uTime, high);
@@ -1106,7 +1106,7 @@ uniform float uNebulaCloudOpacity;
   vec2 p = uv * uNebulaCloudDensity;
   float n = fbm(p + t * uNebulaCloudSpeed);
   float n2 = fbm(p * 2.0 - t * uNebulaCloudSpeed * 0.5);
-  vec3 col = palette(n + n2 + audio * 0.2);
+  vec3 col = getPaletteColor(n + n2 + audio * 0.2);
   return col * pow(n, 3.0) * uNebulaCloudOpacity;
 }`,
     mainCall: `  if (uNebulaCloudEnabled > 0.5) color += nebulaCloud(effectUv, uTime, high);
@@ -1128,7 +1128,7 @@ uniform float uCircuitBoardOpacity;
   float growth = fract(t * uCircuitBoardGrowth + h);
   float line = smoothstep(0.1, 0.0, abs(f.x - 0.5)) * step(f.y, growth);
   float node = smoothstep(0.2, 0.0, length(f - 0.5)) * step(0.9, h);
-  return palette(h) * (line + node * (1.0 + audio)) * uCircuitBoardOpacity;
+  return getPaletteColor(h) * (line + node * (1.0 + audio)) * uCircuitBoardOpacity;
 }`,
     mainCall: `  if (uCircuitBoardEnabled > 0.5) color += circuitBoard(effectUv, uTime, mid);
 `
@@ -1160,7 +1160,7 @@ uniform float uLorenzAttractorOpacity;
       d = min(d, dist / fade);
     }
   }
-  return palette(t * 0.1) * smoothstep(0.05, 0.0, d) * uLorenzAttractorOpacity;
+  return getPaletteColor(t * 0.1) * smoothstep(0.05, 0.0, d) * uLorenzAttractorOpacity;
 }`,
     mainCall: `  if (uLorenzAttractorEnabled > 0.5) color += lorenzAttractor(effectUv, uTime, low);
 `
@@ -1182,7 +1182,7 @@ uniform float uMandalaSpinnerOpacity;
   a = mod(a, 6.28/sides) - 3.14/sides;
   p = vec2(cos(a), sin(a)) * r;
   float mask = smoothstep(0.02, 0.0, abs(p.y - sin(p.x * 10.0 + t) * 0.1));
-  return palette(r + audio) * mask * uMandalaSpinnerOpacity;
+  return getPaletteColor(r + audio) * mask * uMandalaSpinnerOpacity;
 }`,
     mainCall: `  if (uMandalaSpinnerEnabled > 0.5) color += mandalaSpinner(effectUv, uTime, mid);
 `
@@ -1212,7 +1212,7 @@ uniform float uStarburstGalaxyOpacity;
     float star = smoothstep(size, 0.0, length(p - pos));
     float trail = smoothstep(size * 3.0, 0.0, length(p - pos)) * 0.3;
     float fade = (1.0 - burst) * (1.0 - burst);
-    col += palette(fract(h + t * 0.05)) * (star + trail) * fade;
+    col += getPaletteColor(fract(h + t * 0.05)) * (star + trail) * fade;
   }
   return col * uStarburstGalaxyOpacity * (1.0 + audio);
 }`,
@@ -1237,7 +1237,7 @@ uniform float uDigitalRainV2Opacity;
   float drop = fract(uv.y + t * speed + h);
   float mask = step(0.9, fract(p.x)) * smoothstep(0.2, 0.0, abs(drop - 0.5));
   mask *= mix(0.7, 1.2, density);
-  return palette(h) * mask * uDigitalRainV2Opacity * (1.0 + audio);
+  return getPaletteColor(h) * mask * uDigitalRainV2Opacity * (1.0 + audio);
 }`,
     mainCall: `  if (uDigitalRainV2Enabled > 0.5) color += digitalRainV2(effectUv, uTime, low);
 `
@@ -1254,7 +1254,7 @@ uniform float uLavaFlowOpacity;
   vec2 p = uv * 3.0;
   float n = fbm(p + vec2(t * 0.2 * uLavaFlowViscosity));
   float heat = clamp(n * uLavaFlowHeat + audio * 0.2, 0.0, 1.0);
-  return palette(heat) * heat * uLavaFlowOpacity;
+  return getPaletteColor(heat) * heat * uLavaFlowOpacity;
 }`,
     mainCall: `  if (uLavaFlowEnabled > 0.5) color += lavaFlow(effectUv, uTime, low);
 `
@@ -1278,7 +1278,7 @@ uniform float uCrystalGrowthOpacity;
   // Make the edge much more visible with multiple glow layers
   float edge = smoothstep(0.05 * uCrystalGrowthSharpness, 0.0, d);
   float glow = smoothstep(0.15 * uCrystalGrowthSharpness, 0.0, d) * 0.5;
-  return (palette(audio) * edge + palette(audio + 0.3) * glow) * uCrystalGrowthOpacity * (1.0 + audio * 0.5);
+  return (getPaletteColor(audio) * edge + getPaletteColor(audio + 0.3) * glow) * uCrystalGrowthOpacity * (1.0 + audio * 0.5);
 }`,
     mainCall: `  if (uCrystalGrowthEnabled > 0.5) color += crystalGrowth(effectUv, uTime, high);
 `
@@ -1297,7 +1297,7 @@ uniform float uTechnoGridOpacity;
   vec2 grid_uv = vec2(p.x * z, z + t * uTechnoGridSpeed);
   float grid = step(0.95, fract(grid_uv.x * 5.0)) + step(0.95, fract(grid_uv.y * 5.0));
   float towers = step(0.98, hash21(floor(grid_uv * 5.0))) * z * uTechnoGridHeight * 0.1;
-  return palette(fract(z * 0.1 + t * 0.05)) * (grid + towers) * uTechnoGridOpacity * (1.0 + audio);
+  return getPaletteColor(fract(z * 0.1 + t * 0.05)) * (grid + towers) * uTechnoGridOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uTechnoGridEnabled > 0.5) color += technoGrid3D(effectUv, uTime, low);
 `
@@ -1319,7 +1319,7 @@ uniform float uMagneticFieldOpacity;
     float h = i / lines;
     vec2 force = vec2(sin(t + h * 6.28), cos(t * 0.5 + h * 6.28)) * uMagneticFieldStrength;
     float d = abs(length(p - force) - 0.5);
-    col += palette(h) * smoothstep(0.02, 0.0, d);
+    col += getPaletteColor(h) * smoothstep(0.02, 0.0, d);
   }
   return col * uMagneticFieldOpacity * (1.0 + audio);
 }`,
@@ -1347,7 +1347,7 @@ uniform float uPrismShardsOpacity;
     float size = 0.15 + 0.1 * sin(t + i);
     float edge = smoothstep(size, 0.0, dist);
     float glow = smoothstep(size * 2.5, 0.0, dist) * 0.4;
-    col += (palette(dist + refract_val) * edge + palette(dist + refract_val + 0.2) * glow);
+    col += (getPaletteColor(dist + refract_val) * edge + getPaletteColor(dist + refract_val + 0.2) * glow);
   }
   return col * uPrismShardsOpacity * (1.0 + audio * 0.5);
 }`,
@@ -1383,7 +1383,7 @@ uniform float uNeuralNetOpacity;
       }
     }
   }
-  return palette(audio + t * 0.05) * (node + connections * 0.8) * uNeuralNetOpacity * (1.0 + audio * 0.3);
+  return getPaletteColor(audio + t * 0.05) * (node + connections * 0.8) * uNeuralNetOpacity * (1.0 + audio * 0.3);
 }`,
     mainCall: `  if (uNeuralNetEnabled > 0.5) color += neuralNet(effectUv, uTime, mid);
 `
@@ -1409,7 +1409,7 @@ uniform float uAuroraChordOpacity;
   }
   v = v * 0.15 + 0.5;
   float glow = smoothstep(0.8, 0.2, length(p)) * 0.3;
-  return palette(v * 0.3 + t * 0.05 + audio * 0.2) * (abs(v - 0.5) * 2.0 + glow) * uAuroraChordOpacity;
+  return getPaletteColor(v * 0.3 + t * 0.05 + audio * 0.2) * (abs(v - 0.5) * 2.0 + glow) * uAuroraChordOpacity;
 }`,
     mainCall: `  if (uAuroraChordEnabled > 0.5) color += auroraChord(effectUv, uTime, mid);
 `
@@ -1460,7 +1460,7 @@ uniform float uMoirePatternOpacity;
   moire = moire * 0.5 + 0.5; // Map to 0-1
   moire = pow(moire, 0.7); // Increase contrast
 
-  return palette(moire) * uMoirePatternOpacity * (1.0 + audio * 0.3);
+  return getPaletteColor(moire) * uMoirePatternOpacity * (1.0 + audio * 0.3);
 }`,
     mainCall: `  if (uMoirePatternEnabled > 0.5) color += moirePattern(effectUv, uTime, high);
 `
@@ -1488,7 +1488,7 @@ uniform float uHypercubeOpacity;
   float cornerDist = max(abs(p.x) - 0.4, abs(p.y) - 0.4);
   float corners = smoothstep(0.1, 0.0, cornerDist);
   mask += corners * 0.3;
-  return palette(rot + audio * 0.2) * mask * uHypercubeOpacity * (1.0 + audio * 0.5);
+  return getPaletteColor(rot + audio * 0.2) * mask * uHypercubeOpacity * (1.0 + audio * 0.5);
 }`,
     mainCall: `  if (uHypercubeEnabled > 0.5) color += hypercube(effectUv, uTime, mid);
 `
@@ -1507,7 +1507,7 @@ uniform float uFluidSwirlOpacity;
     p += sin(p.yx * 4.0 + t) * 0.1 * uFluidSwirlVorticity;
   }
   float swirl = length(p - uv);
-  return palette(swirl * uFluidSwirlColorMix) * swirl * 10.0 * uFluidSwirlOpacity;
+  return getPaletteColor(swirl * uFluidSwirlColorMix) * swirl * 10.0 * uFluidSwirlOpacity;
 }`,
     mainCall: `  if (uFluidSwirlEnabled > 0.5) color += fluidSwirl(effectUv, uTime, mid);
 `
@@ -1525,7 +1525,7 @@ uniform float uAsciiStreamOpacity;
   float h = hash21(p + floor(t * 10.0));
   float bright = (sin(uv.x * 10.0) + sin(uv.y * 10.0)) * 0.5 + 0.5;
   float mask = step(0.5, fract(h * 10.0));
-  return palette(h) * mask * bright * uAsciiStreamContrast * uAsciiStreamOpacity;
+  return getPaletteColor(h) * mask * bright * uAsciiStreamContrast * uAsciiStreamOpacity;
 }`,
     mainCall: `  if (uAsciiStreamEnabled > 0.5) color += asciiStream(effectUv, uTime, high);
 `
@@ -1554,8 +1554,8 @@ uniform float uRetroWaveOpacity;
   // Retro sun stripes
   if (p.y < 0.3 && fract(p.y * 15.0) < 0.25) sun = 0.0;
   
-  vec3 sunCol = palette(0.9); 
-  vec3 gridCol = palette(0.2); 
+  vec3 sunCol = getPaletteColor(0.9); 
+  vec3 gridCol = getPaletteColor(0.2); 
   
   return (sunCol * sun + gridCol * grid) * uRetroWaveOpacity * (1.0 + audio);
 }`,
@@ -1577,7 +1577,7 @@ uniform float uBubblePopOpacity;
   float h = hash21(id);
   float size = fract(t * uBubblePopPopRate + h) * uBubblePopSize;
   float bubble = smoothstep(size, size - 0.02, length(f - 0.5));
-  return palette(h) * bubble * uBubblePopOpacity * (1.0 + audio);
+  return getPaletteColor(h) * bubble * uBubblePopOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uBubblePopEnabled > 0.5) color += bubblePop(effectUv, uTime, uPeak);
 `
@@ -1605,7 +1605,7 @@ uniform float uSoundWave3DOpacity;
   float width = mix(0.03, 0.008, depth);
   float d = abs(lineY - y);
   float line = smoothstep(width, 0.0, d);
-  vec3 col = palette(fract(depth + audio * 0.3 + t * 0.05));
+  vec3 col = getPaletteColor(fract(depth + audio * 0.3 + t * 0.05));
   col *= (0.6 + depth * 0.7);
   return col * line * uSoundWave3DOpacity;
 }`,
@@ -1652,7 +1652,7 @@ uniform float uParticleVortexOpacity;
     trail += smoothstep(0.1 - i * 0.015, 0.0, trailD) * (0.3 - i * 0.05);
   }
 
-  return (palette(r + audio * 0.2) * particles + palette(r + 0.3) * trail) * uParticleVortexOpacity * (1.0 + audio * 0.5);
+  return (getPaletteColor(r + audio * 0.2) * particles + getPaletteColor(r + 0.3) * trail) * uParticleVortexOpacity * (1.0 + audio * 0.5);
 }`,
     mainCall: `  if (uParticleVortexEnabled > 0.5) color += particleVortex(effectUv, uTime, low);
 `
@@ -1684,7 +1684,7 @@ uniform float uGlowWormsOpacity;
     // Main glow - brighter and more visible
     float d = length(p - center);
     float glow = exp(-d * (15.0 / uGlowWormsLength));
-    col += palette(audio + i * 0.1) * glow * 1.5;
+    col += getPaletteColor(audio + i * 0.1) * glow * 1.5;
 
     // Trail effect - creates a glowing path
     for (float j = 1.0; j <= 10.0; j += 1.0) {
@@ -1695,7 +1695,7 @@ uniform float uGlowWormsOpacity;
       ) * radius;
       float trailD = length(p - trailPos);
       float trailGlow = exp(-trailD * (12.0 / uGlowWormsLength)) * (0.5 - j * 0.04);
-      col += palette(audio + i * 0.1 + j * 0.05) * trailGlow;
+      col += getPaletteColor(audio + i * 0.1 + j * 0.05) * trailGlow;
     }
 
     // Core bright spot
@@ -1739,7 +1739,7 @@ uniform float uMirrorMazeOpacity;
   col += smoothstep(0.5, 0.0, d) * 0.5;
   // Audio reactive pulse
   col *= 1.0 + audio * 0.5;
-  return palette(d + t + audio * 0.3) * col * uMirrorMazeOpacity;
+  return getPaletteColor(d + t + audio * 0.3) * col * uMirrorMazeOpacity;
 }`,
     mainCall: `  if (uMirrorMazeEnabled > 0.5) color += mirrorMaze(effectUv, uTime, high);
 `
@@ -1762,7 +1762,7 @@ uniform float uPulseHeartOpacity;
     float radius = pulse * (i / uPulseHeartLayers);
     heart += smoothstep(radius, radius - 0.02, r) - smoothstep(radius - 0.04, radius - 0.06, r);
   }
-  return palette(fract(pulse * 0.2 + audio)) * heart * uPulseHeartOpacity * (1.0 + audio);
+  return getPaletteColor(fract(pulse * 0.2 + audio)) * heart * uPulseHeartOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uPulseHeartEnabled > 0.5) color += pulseHeart(effectUv, uTime, low);
 `
@@ -1782,7 +1782,7 @@ uniform float uDataShardsOpacity;
     float h = hash21(vec2(i, 88.8));
     vec2 dir = vec2(cos(t * uDataShardsSpeed + h * 6.28), sin(t * uDataShardsSpeed + h * 6.28));
     float shard = smoothstep(0.1 * uDataShardsSharpness, 0.0, abs(dot(p, dir) - h));
-    col += palette(h) * shard;
+    col += getPaletteColor(h) * shard;
   }
   return col * uDataShardsOpacity * (1.0 + audio);
 }`,
@@ -1807,7 +1807,7 @@ uniform float uHexCellOpacity;
   float d = length(gv);
   float pulse = sin(t * uHexCellPulse) * 0.1 + 0.4;
   float hex = smoothstep(pulse, pulse - 0.05, d);
-  return palette(d) * hex * uHexCellOpacity * (1.0 + audio);
+  return getPaletteColor(d) * hex * uHexCellOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uHexCellEnabled > 0.5) color += hexCell(effectUv, uTime, mid);
 `
@@ -1830,7 +1830,7 @@ uniform float uPlasmaBallOpacity;
     float line = smoothstep(0.02, 0.0, abs(length(p - target * sin(t)) - 0.1));
     col += line;
   }
-  return palette(fract(t * 0.1 + audio)) * col * uPlasmaBallVoltage * uPlasmaBallOpacity;
+  return getPaletteColor(fract(t * 0.1 + audio)) * col * uPlasmaBallVoltage * uPlasmaBallOpacity;
 }`,
     mainCall: `  if (uPlasmaBallEnabled > 0.5) color += plasmaBall(effectUv, uTime, uPeak);
 `
@@ -1849,7 +1849,7 @@ uniform float uWarpDriveOpacity;
   float r = length(p);
   float streaks = step(0.95, hash21(vec2(floor(a * 20.0), 1.0)));
   float star = streaks * smoothstep(1.0, 0.0, fract(r - t * uWarpDriveWarp));
-  return palette(fract(a * 0.1 + t * 0.05)) * star * uWarpDriveGlow * uWarpDriveOpacity * (1.0 + audio);
+  return getPaletteColor(fract(a * 0.1 + t * 0.05)) * star * uWarpDriveGlow * uWarpDriveOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uWarpDriveEnabled > 0.5) color += warpDrive(effectUv, uTime, high);
 `
@@ -1871,7 +1871,7 @@ uniform float uVisualFeedbackOpacity;
     p = (p - 0.5) * uVisualFeedbackZoom + 0.5;
     p = rotate2d(p - 0.5, uVisualFeedbackRotation) + 0.5;
     f += fbm(p * 5.0 + t);
-  }  return palette(f * 0.2) * f * 0.5 * uVisualFeedbackOpacity;
+  }  return getPaletteColor(f * 0.2) * f * 0.5 * uVisualFeedbackOpacity;
 }`,
     mainCall: `  if (uVisualFeedbackEnabled > 0.5) color += visualFeedback(effectUv, uTime, mid);
 `
@@ -1893,7 +1893,7 @@ uniform float uMyceliumGrowthOpacity;
   float life = smoothstep(0.0, 0.2, phase) * smoothstep(1.0, 0.6, phase);
   float pulse = 0.6 + 0.4 * sin(t * (0.6 + growthRate * 2.0));
   float energy = mix(0.7, 1.3, clamp(audio, 0.0, 1.0));
-  return palette(n + audio) * pattern * life * pulse * energy * uMyceliumGrowthOpacity;
+  return getPaletteColor(n + audio) * pattern * life * pulse * energy * uMyceliumGrowthOpacity;
 }`,
     mainCall: `  if (uMyceliumGrowthEnabled > 0.5) color += myceliumGrowth(effectUv, uTime, mid);
 `
@@ -1972,7 +1972,7 @@ uniform float uLaserAudioReact;
     float glow = exp(-perp / (width * 4.0)) * uLaserGlow * inBeam * 0.5;
 
     // Color with optional shift
-    vec3 beamColor = palette(0.3 + i * 0.1);
+    vec3 beamColor = getPaletteColor(0.3 + i * 0.1);
     if (uLaserColorShift > 0.0) {
       float hueShift = (i / beamCount + audio * uLaserAudioReact) * uLaserColorShift;
       beamColor = hueRotate(beamColor, hueShift * 6.28);
@@ -2006,19 +2006,19 @@ uniform float uLaserAudioReact;
   float fadeT = isHit ? 0.0 : beatPhase / max(uStrobeDutyCycle, 0.01);
   flash *= exp(-fadeT * (1.0 / max(uStrobeFadeOut, 0.01)));
 
-  vec3 color = palette(1.0); // Use top of palette for white-ish flashes
+  vec3 color = getPaletteColor(1.0); // Use top of palette for white-ish flashes
 
   // Mode 0: White (mapped to palette peak)
   if (uStrobeMode < 0.5) {
-    color = palette(1.0);
+    color = getPaletteColor(1.0);
   }
   // Mode 1: Color (use palette)
   else if (uStrobeMode < 1.5) {
-    color = palette(0.5);
+    color = getPaletteColor(0.5);
   }
   // Mode 2: Rainbow
   else if (uStrobeMode < 2.5) {
-    color = palette(fract(t * 0.2));
+    color = getPaletteColor(fract(t * 0.2));
   }
   // Mode 3: Invert (handled in main)
   else {
@@ -2106,7 +2106,7 @@ uniform float uShapeBurstThickness;
       shape = smoothstep(uShapeBurstThickness, 0.0, abs(tri));
     }
 
-    vec3 burstColor = palette(fract(float(i) * 0.15 + age * 0.5));
+    vec3 burstColor = getPaletteColor(fract(float(i) * 0.15 + age * 0.5));
     color += burstColor * shape * opacity;
   }
 
@@ -2153,7 +2153,7 @@ uniform float uGridTunnelGlow;
     float fade = exp(-abs(y) * 3.0);
     float horizon = smoothstep(0.0, 0.1, abs(y));
 
-    vec3 gridColor = palette(0.6);
+    vec3 gridColor = getPaletteColor(0.6);
     color = gridColor * grid * fade * horizon * (1.0 + uGridTunnelGlow);
   }
   // Mode 1: Tunnel
@@ -2175,7 +2175,7 @@ uniform float uGridTunnelGlow;
 
     float fade = 1.0 - smoothstep(0.0, 0.5, r);
 
-    vec3 gridColor = palette(0.7);
+    vec3 gridColor = getPaletteColor(0.7);
     color = gridColor * grid * fade * (1.0 + uGridTunnelGlow);
   }
   // Mode 2: Box
@@ -2200,7 +2200,7 @@ uniform float uGridTunnelGlow;
 
     float fade = 1.0 - z;
 
-    vec3 gridColor = palette(0.5 + z * 0.3);
+    vec3 gridColor = getPaletteColor(0.5 + z * 0.3);
     color = gridColor * (boxLine + gridLine * 0.5) * fade * (1.0 + uGridTunnelGlow);
   }
 
@@ -2251,7 +2251,7 @@ uniform float uCellularGrowthOpacity;
   col += newState * d;
   col += d * 0.3 * (0.5 + 0.5 * sin(t * uCellularGrowthRate + neighbors));
 
-  return palette(fract(id.x * 0.1 + id.y * 0.1 + t * 0.1)) * col * uCellularGrowthOpacity * (1.0 + audio);
+  return getPaletteColor(fract(id.x * 0.1 + id.y * 0.1 + t * 0.1)) * col * uCellularGrowthOpacity * (1.0 + audio);
 }`,
     mainCall: `  if (uCellularGrowthEnabled > 0.5) color += cellularGrowth(effectUv, uTime, mid);
 `
@@ -2286,14 +2286,14 @@ uniform float uBioLuminescentForestOpacity;
     float core = smoothstep(treeSize * 0.5, 0.0, dist);
 
     // Color based on position and audio
-    vec3 treeColor = palette(h + audio * 0.3 + i * 0.1);
+    vec3 treeColor = getPaletteColor(h + audio * 0.3 + i * 0.1);
 
     col += treeColor * (core * 0.8 + glow * 0.4);
   }
 
   // Add ambient forest glow
   float forestGlow = fbm(p * 3.0 + t * 0.1) * 0.3;
-  col += palette(forestGlow) * forestGlow * 0.2;
+  col += getPaletteColor(forestGlow) * forestGlow * 0.2;
 
   return col * uBioLuminescentForestOpacity * (1.0 + audio * 0.5);
 }`,
@@ -2328,17 +2328,17 @@ uniform float uCrystallineOpacity;
     facets += facet;
 
     // Add rainbow refraction
-    vec3 refractColor = palette(refract * 0.5 + t * 0.1 + i * 0.05);
+    vec3 refractColor = getPaletteColor(refract * 0.5 + t * 0.1 + i * 0.05);
     col += refractColor * facet * 0.3;
   }
 
   // Core glow
   float core = smoothstep(0.1, 0.0, length(p));
-  col += palette(audio + t * 0.05) * core * 0.5;
+  col += getPaletteColor(audio + t * 0.05) * core * 0.5;
 
   // Edge glow
   float edge = smoothstep(0.5, 0.45, max(abs(p.x), abs(p.y)));
-  col += palette(edge + t * 0.1) * edge * 0.4;
+  col += getPaletteColor(edge + t * 0.1) * edge * 0.4;
 
   return col * uCrystallineOpacity * (1.0 + audio * 0.3);
 }`,
@@ -2388,7 +2388,7 @@ uniform float uAudioDnaOpacity;
       float glow = smoothstep(pairSize * 2.5, 0.0, dist) * 0.4;
 
       float hue = (i / uAudioDnaSegments) + helix * 0.5 + t * 0.05;
-      vec3 bpColor = palette(hue);
+      vec3 bpColor = getPaletteColor(hue);
 
       col += bpColor * (basePair + glow);
     }
@@ -2396,7 +2396,7 @@ uniform float uAudioDnaOpacity;
 
   // Add connecting backbone
   float backbone = smoothstep(0.02, 0.0, abs(p.x)) * smoothstep(1.0, 0.8, abs(p.y));
-  col += palette(audio + t * 0.1) * backbone * 0.3;
+  col += getPaletteColor(audio + t * 0.1) * backbone * 0.3;
 
   return col * uAudioDnaOpacity * (1.0 + audio * 0.5);
 }`,
@@ -2430,7 +2430,7 @@ uniform float uLiquidMetalOpacity;
     float sheen = abs(wave);
     sheen = pow(sheen, 3.0 + uLiquidMetalShimmer * 2.0);
 
-    vec3 waveColor = palette(sheen + audio * 0.2 + phase * 0.1);
+    vec3 waveColor = getPaletteColor(sheen + audio * 0.2 + phase * 0.1);
     col += waveColor * sheen * (0.4 - i * 0.1);
   }
 
@@ -2482,7 +2482,7 @@ uniform float uNeonCityscapeOpacity;
     float neon = smoothstep(lightSize, 0.0, dist) * pulse;
     float neonGlow = smoothstep(lightSize * 3.0, 0.0, dist) * 0.3 * pulse;
 
-    vec3 neonColor = palette(h + i * 0.07 + audio * 0.2);
+    vec3 neonColor = getPaletteColor(h + i * 0.07 + audio * 0.2);
     col += neonColor * (neon + neonGlow);
   }
 
@@ -2521,7 +2521,7 @@ uniform float uCosmicNebulaOpacity;
 
     float cloud = smoothstep(0.3, 0.5, noise) * smoothstep(0.7, 0.5, noise);
 
-    vec3 cloudColor = palette(noise * 0.3 + i * 0.15 + t * 0.02);
+    vec3 cloudColor = getPaletteColor(noise * 0.3 + i * 0.15 + t * 0.02);
     col += cloudColor * cloud * (0.3 - i * 0.05);
   }
 
@@ -2577,7 +2577,7 @@ uniform float uSonicRainOpacity;
 
     // Color based on position and audio
     float hue = (i / 20.0) + audio * 0.3 + t * 0.05;
-    vec3 dropColor = palette(hue);
+    vec3 dropColor = getPaletteColor(hue);
 
     col += dropColor * (drop + trail);
   }
@@ -2655,7 +2655,7 @@ uniform float uMorphingGeometryOpacity;
     float weight = 1.0 - abs(i - morphPhase);
     weight = pow(clamp(weight, 0.0, 1.0), 2.0);
 
-    vec3 shapeColor = palette(i * 0.25 + t * 0.02);
+    vec3 shapeColor = getPaletteColor(i * 0.25 + t * 0.02);
     col += shapeColor * (edge + glow) * weight;
   }
 
@@ -2704,7 +2704,7 @@ uniform float uUrbanRhythmOpacity;
     float lightGlow = smoothstep(lightSize, 0.0, dist);
     float lightHalo = smoothstep(lightSize * 3.0, 0.0, dist) * 0.3;
 
-    vec3 lightColor = palette(h + beat * 0.3 + i * 0.1);
+    vec3 lightColor = getPaletteColor(h + beat * 0.3 + i * 0.1);
     col += lightColor * (lightGlow + lightHalo);
   }
 
@@ -2712,7 +2712,7 @@ uniform float uUrbanRhythmOpacity;
   for (float i = 0.0; i < 3.0; i += 1.0) {
     float pulsePhase = t * bpm * 0.3 + i * 2.0;
     float pulseRing = smoothstep(0.05, 0.04, abs(length(p - 0.5) - fract(pulsePhase) * 0.4));
-    col += palette(audio + i * 0.2 + t * 0.05) * pulseRing * beat * 0.5;
+    col += getPaletteColor(audio + i * 0.2 + t * 0.05) * pulseRing * beat * 0.5;
   }
 
   return col * uUrbanRhythmOpacity * (1.0 + audio * 0.4);
@@ -3984,7 +3984,7 @@ uniform float uParticleAudioLift;
   return spark * twinkle;
 }
 `,
-    mainCall: `  if (uParticlesEnabled > 0.5) color += palette(0.5) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8);
+    mainCall: `  if (uParticlesEnabled > 0.5) color += getPaletteColor(0.5) * particleField(effectUv, uTime, uParticleDensity, uParticleSpeed, uParticleSize) * uParticleGlow * (0.5 + uRms * 0.8);
 `,
   },
 
@@ -4087,7 +4087,7 @@ uniform float uWormholeIter;
     float phase = depth * i * 0.4 - t * speed * (0.3 + i * 0.07);
     float twist = a + depth * weave * i * 0.3 + t * speed * 0.2;
     float ring = smoothstep(0.04, 0.0, abs(fract(phase) - 0.5) - 0.44);
-    col += palette(fract(i * 0.17 + twist * 0.1 + t * 0.05 + audio * 0.3)) * ring * (0.6 + audio * 0.6);
+    col += getPaletteColor(fract(i * 0.17 + twist * 0.1 + t * 0.05 + audio * 0.3)) * ring * (0.6 + audio * 0.6);
   }
   float vignette = smoothstep(1.2, 0.1, r);
   return col * vignette * uWormholeOpacity;
@@ -4232,10 +4232,10 @@ uniform float uAudioGeometryOpacity;
     float sa = mod(angle, sector) - sector * 0.5;
     float d = cos(sa) * radius - r;
     float ring = smoothstep(0.02, 0.0, abs(d));
-    col += palette(fract(i * 0.25 + t * 0.05)) * ring * (0.6 + audio * 0.8);
+    col += getPaletteColor(fract(i * 0.25 + t * 0.05)) * ring * (0.6 + audio * 0.8);
   }
   float core = smoothstep(0.05 + audio * 0.1, 0.0, r);
-  col += palette(0.1) * core * (1.0 + audio * 2.0);
+  col += getPaletteColor(0.1) * core * (1.0 + audio * 2.0);
   return col;
 }
 `,
@@ -4288,9 +4288,9 @@ uniform float uOrganicFluidOpacity;
   vec2 r = vec2(fbm(p + 4.0 * q + vec2(1.7, 9.2) + t * speed * 0.15),
                 fbm(p + 4.0 * q + vec2(8.3, 2.8) + t * speed * 0.15));
   float f = fbm(p + 4.0 * r);
-  vec3 col = mix(palette(0.1), palette(0.5), clamp(f * f * 4.0, 0.0, 1.0));
-  col = mix(col, palette(0.9), clamp(length(q), 0.0, 1.0));
-  col = mix(col, palette(0.6), clamp(r.x * r.x, 0.0, 1.0));
+  vec3 col = mix(getPaletteColor(0.1), getPaletteColor(0.5), clamp(f * f * 4.0, 0.0, 1.0));
+  col = mix(col, getPaletteColor(0.9), clamp(length(q), 0.0, 1.0));
+  col = mix(col, getPaletteColor(0.6), clamp(r.x * r.x, 0.0, 1.0));
   f = pow(clamp(f, 0.0, 1.0), 0.5 + audio * 0.5);
   return col * f * (0.8 + audio * 0.4);
 }
@@ -4313,7 +4313,7 @@ uniform float uVariantOrganicFluidInkOpacity;
                 fbm(p * 2.0 + 4.0 * q + vec2(8.3, 2.8) + t * speed * 0.5));
   float f = fbm(p * 2.5 + 4.0 * r + t * speed * 0.2);
   float ink = pow(abs(sin(f * 8.0 + t * 0.2)), 2.0 + audio * 2.0);
-  vec3 col = mix(vec3(0.0), palette(f + uPaletteShift), ink * (0.5 + audio * 0.8));
+  vec3 col = mix(vec3(0.0), getPaletteColor(f + uPaletteShift), ink * (0.5 + audio * 0.8));
   return col;
 }
 `,
@@ -4349,7 +4349,7 @@ uniform float uNeonWireframeOpacity;
     vec2 a = verts[edges[e*2]], b = verts[edges[e*2+1]];
     float d = sdSegment(p, a, b);
     float glow = (0.004 + audio * 0.003) / (d + 0.001);
-    col += palette(float(e) / 12.0 + t * 0.04) * glow * 0.012;
+    col += getPaletteColor(float(e) / 12.0 + t * 0.04) * glow * 0.012;
   }
   return col;
 }
@@ -4376,7 +4376,7 @@ uniform float uVariantNeonWireframeGridOpacity;
   float gz = smoothstep(0.06, 0.0, abs(fract(grid.y + 0.5) - 0.5));
   float line = max(gx, gz) * min(1.0, z * 0.1);
   float fade = smoothstep(0.0, 0.3, y) * smoothstep(2.0, 0.5, y);
-  vec3 col = palette(fract(z * 0.05 + t * 0.03)) * line * fade;
+  vec3 col = getPaletteColor(fract(z * 0.05 + t * 0.03)) * line * fade;
   col *= (0.8 + audio * 0.6);
   return col;
 }
@@ -4399,9 +4399,9 @@ uniform float uGlitchDatamoshOpacity;
   float offsetX = (hash21(vec2(blockY * 3.7, floor(t * 6.0))) - 0.5) * 0.25 * glitchIntensity * doGlitch;
   vec2 displaced = vec2(fract(p.x + offsetX), p.y);
   float chromaX = 0.02 * glitchIntensity * doGlitch;
-  float r = palette(hash21(floor(displaced * vec2(80.0, 40.0)) + vec2(t * 3.0, 0.0))).r;
-  float g = palette(hash21(floor(displaced * vec2(80.0, 40.0) + vec2(chromaX, 0.0) * 80.0) + vec2(t * 3.0 + 0.5, 0.0))).g;
-  float b = palette(hash21(floor(displaced * vec2(80.0, 40.0) - vec2(chromaX, 0.0) * 80.0) + vec2(t * 3.0 + 1.0, 0.0))).b;
+  float r = getPaletteColor(hash21(floor(displaced * vec2(80.0, 40.0)) + vec2(t * 3.0, 0.0))).r;
+  float g = getPaletteColor(hash21(floor(displaced * vec2(80.0, 40.0) + vec2(chromaX, 0.0) * 80.0) + vec2(t * 3.0 + 0.5, 0.0))).g;
+  float b = getPaletteColor(hash21(floor(displaced * vec2(80.0, 40.0) - vec2(chromaX, 0.0) * 80.0) + vec2(t * 3.0 + 1.0, 0.0))).b;
   vec3 col = vec3(r, g, b);
   float scan = step(0.5, fract(p.y * 120.0)) * 0.15;
   col *= (1.0 - scan);
@@ -4425,7 +4425,7 @@ uniform float uVariantGlitchDatamoshHardOpacity;
   float offsetX = step(0.4, glitchH) * (hash21(vec2(blockY * 7.1, beats)) - 0.5) * 0.6;
   float offsetY = step(0.7, hash21(vec2(blockY * 2.3, beats))) * (hash21(vec2(blockY * 5.5, beats + 0.5)) - 0.5) * 0.1;
   vec2 g = fract(p + vec2(offsetX, offsetY));
-  vec3 col = palette(hash21(floor(g * vec2(16.0, 8.0)) + beats));
+  vec3 col = getPaletteColor(hash21(floor(g * vec2(16.0, 8.0)) + beats));
   float tear = step(0.8, hash21(vec2(floor(p.y * 8.0), beats * 0.5)));
   col *= (1.0 - tear * 0.9);
   col *= (0.7 + audio * 0.9);
@@ -4454,7 +4454,7 @@ uniform float uParticleSwarmOpacity;
     vec2 pp = vec2(px, py);
     float d = length(p - pp);
     float glow = (0.006 + audio * 0.004) / (d * d + 0.001);
-    col += palette(fi + t * 0.05) * glow * 0.003;
+    col += getPaletteColor(fi + t * 0.05) * glow * 0.003;
   }
   return col;
 }
@@ -4483,7 +4483,7 @@ uniform float uVariantParticleSwarmBloomOpacity;
     float d = length(p - pp);
     float core = smoothstep(0.03, 0.0, d);
     float bloom = 0.015 / (d * d + 0.004);
-    vec3 c = palette(fi + t * 0.04 + audio * 0.2);
+    vec3 c = getPaletteColor(fi + t * 0.04 + audio * 0.2);
     col += c * (core * 2.0 + bloom * 0.02 * (0.5 + audio));
   }
   return col;
@@ -4519,7 +4519,7 @@ uniform float uTypographyRevealOpacity;
   float band = floor(cell.x / gridSize.x * 8.0);
   int bIdx = int(clamp(band, 0.0, 7.0));
   float amp = uSpectrum[bIdx * 8];
-  vec3 col = palette(fract(rnd2 + t * 0.04 + amp * 0.3)) * stroke;
+  vec3 col = getPaletteColor(fract(rnd2 + t * 0.04 + amp * 0.3)) * stroke;
   return col;
 }
 `,
@@ -4548,7 +4548,7 @@ uniform float uVariantTypographyRevealGlowOpacity;
   float outline = smoothstep(0.04, 0.0, abs(d));
   float glow = exp(-abs(d) * 8.0) * 0.3 * activeVal;
   float amp = uSpectrum[int(clamp(cell.x / gridSize.x * 64.0, 0.0, 63.0))];
-  vec3 c = palette(hash21(cell) + t * 0.03 + amp * 0.2);
+  vec3 c = getPaletteColor(hash21(cell) + t * 0.03 + amp * 0.2);
   return c * (outline + glow) * activeVal * (0.5 + audio * 0.8);
 }
 `,
@@ -4581,7 +4581,7 @@ uniform float uKaleidoShardOpacity;
   }
   float edge = 1.0 - smoothstep(0.0, 0.05, minDist);
   float cell = smoothstep(0.3, 0.0, minDist) * 0.4;
-  vec3 col = palette(minId / 8.0 + t * 0.04) * (edge + cell) * (0.7 + audio * 0.8);
+  vec3 col = getPaletteColor(minId / 8.0 + t * 0.04) * (edge + cell) * (0.7 + audio * 0.8);
   col *= smoothstep(1.4, 0.2, r);
   return col;
 }
@@ -4609,7 +4609,7 @@ uniform float uVariantKaleidoShardIrisOpacity;
   float angularD = abs(a / (seg * 0.5) - 0.5) * 2.0;
   float shard = smoothstep(0.1, 0.0, ringD * angularD);
   float iris = smoothstep(0.05, 0.0, abs(r - 0.5 - audio * 0.15));
-  vec3 col = palette(r * 0.4 + a / 6.28318 + t * 0.05) * (shard * 0.7 + iris * 0.5);
+  vec3 col = getPaletteColor(r * 0.4 + a / 6.28318 + t * 0.05) * (shard * 0.7 + iris * 0.5);
   col *= (0.6 + audio * 1.0) * smoothstep(1.3, 0.1, r);
   return col;
 }
@@ -4672,11 +4672,11 @@ uniform float uVariantRadarHudDeepOpacity;
     float sweepA = mod(t * sweepSpeed + sweep * 2.09, 6.28318) - 3.14159;
     float da = mod(a - sweepA + 3.14159, 6.28318) - 3.14159;
     float arm = exp(-abs(da) * 4.0) * smoothstep(1.2, 0.0, r);
-    col += palette(sweep / 3.0 + t * 0.02) * arm * 0.5 * (0.4 + audio * 0.6);
+    col += getPaletteColor(sweep / 3.0 + t * 0.02) * arm * 0.5 * (0.4 + audio * 0.6);
   }
   for (float i = 0.5; i <= 4.0; i += 0.5) {
     float ring = smoothstep(0.018, 0.0, abs(r - i * 0.28));
-    col += palette(i * 0.2) * ring * 0.5;
+    col += getPaletteColor(i * 0.2) * ring * 0.5;
   }
   col *= smoothstep(1.15, 0.05, r);
   return col;
@@ -4701,9 +4701,9 @@ uniform float uFractalBloomOpacity;
     if (dot(z, z) > 4.0) { smooth_iter = i - log2(log2(dot(z, z))); break; }
     z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
   }
-  if (smooth_iter == 0.0) return palette(0.0) * 0.05;
+  if (smooth_iter == 0.0) return getPaletteColor(0.0) * 0.05;
   float f = smooth_iter / 64.0;
-  vec3 col = palette(f + t * 0.03);
+  vec3 col = getPaletteColor(f + t * 0.03);
   col *= 1.0 - f * 0.5;
   col = col * col;
   return col * (0.8 + audio * 0.5);
@@ -4753,13 +4753,13 @@ uniform float uVhsScanlineGenOpacity;
   float bands = sin(p.y * 80.0 - t * scanSpeed * 10.0) * 0.5 + 0.5;
   float bands2 = sin(p.y * 160.0 + t * scanSpeed * 7.0) * 0.5 + 0.5;
   float barX = floor(p.x * 7.0) / 7.0;
-  vec3 barCol = palette(barX + t * 0.02);
+  vec3 barCol = getPaletteColor(barX + t * 0.02);
   float noise = hash21(vec2(floor(p.x * 120.0), floor(p.y * 60.0 + t * 30.0)));
   float noiseStripe = step(0.92, noise);
   float dropY = floor(p.y * 50.0 + t * 8.0);
   float dropOut = step(0.96, hash21(vec2(dropY, floor(t * 3.0))));
   vec3 col = barCol * bands * (0.5 + audio * 0.6);
-  col = mix(col, palette(0.8), noiseStripe * 0.7);
+  col = mix(col, getPaletteColor(0.8), noiseStripe * 0.7);
   col *= (1.0 - dropOut * 0.8);
   col *= 0.7 + bands2 * 0.4;
   return col;
@@ -4780,7 +4780,7 @@ uniform float uVariantVhsScanlineWarpOpacity;
   p.x = fract(p.x + warpAmt);
   float ghost = hash21(vec2(floor(p.x * 80.0 + 3.0), floor(p.y * 40.0 + t * 20.0)));
   float ghost2 = hash21(vec2(floor(p.x * 80.0 - 5.0), floor(p.y * 40.0 + t * 20.0)));
-  vec3 col = palette(ghost + t * 0.03) * 0.6 + palette(ghost2 + 0.5) * 0.3;
+  vec3 col = getPaletteColor(ghost + t * 0.03) * 0.6 + getPaletteColor(ghost2 + 0.5) * 0.3;
   float scan = step(0.4, fract(p.y * 60.0));
   col *= 0.5 + scan * 0.5;
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
@@ -4811,7 +4811,7 @@ uniform float uTunnelWarpOpacity;
   float warp = sin(tuv.x * 12.0 + t * 2.0) * audio * 0.06;
   float d = abs(r - (0.3 + warp));
   float ring = smoothstep(0.06, 0.0, d) * 0.5;
-  vec3 col = palette(fract(z * 0.08 + t * 0.04)) * (grid * 0.8 + ring);
+  vec3 col = getPaletteColor(fract(z * 0.08 + t * 0.04)) * (grid * 0.8 + ring);
   col *= smoothstep(0.0, 0.15, r) * (0.6 + audio * 0.7);
   return col;
 }
@@ -4837,7 +4837,7 @@ uniform float uVariantTunnelWarpSpiralOpacity;
   float spiral = fract(spiralA / 6.28318 * 5.0 + tuv_z * 0.5);
   float stripes = smoothstep(0.4, 0.5, spiral) - smoothstep(0.5, 0.6, spiral);
   float depth = smoothstep(3.0, 0.3, z) * smoothstep(0.0, 0.1, r);
-  vec3 col = palette(fract(z * 0.06 + a / 6.28318 + t * 0.05)) * stripes * depth;
+  vec3 col = getPaletteColor(fract(z * 0.06 + a / 6.28318 + t * 0.05)) * stripes * depth;
   col *= (0.7 + audio * 0.8);
   return col;
 }
@@ -4860,10 +4860,10 @@ uniform float uWormholeCoreOpacity;
   for (float i = 1.0; i <= 5.0; i += 1.0) {
     float radius = 0.15 * i + sin(t * 0.4 * i + audio * i) * 0.05;
     float ring = smoothstep(0.04, 0.0, abs(r - radius));
-    col += palette(i / 5.0 + t * 0.06) * ring * (0.6 + audio * 0.6);
+    col += getPaletteColor(i / 5.0 + t * 0.06) * ring * (0.6 + audio * 0.6);
   }
   float disk = smoothstep(0.1, 0.0, abs(r - 0.45 - sin(a * 3.0 + t) * 0.06));
-  col += palette(a / 6.28318 + t * 0.08) * disk * (0.8 + audio);
+  col += getPaletteColor(a / 6.28318 + t * 0.08) * disk * (0.8 + audio);
   float core = smoothstep(0.12, 0.0, r) * 2.0;
   col = max(col - vec3(core), vec3(0.0));
   return col;
@@ -4889,11 +4889,11 @@ uniform float uVariantWormholeCoreEchoOpacity;
     float radius = phase * 0.9;
     float fade = (1.0 - phase) * (0.5 + audio * 0.5);
     float ring = smoothstep(0.03, 0.0, abs(r - radius));
-    col += palette(i / 6.0 + t * 0.04) * ring * fade;
+    col += getPaletteColor(i / 6.0 + t * 0.04) * ring * fade;
   }
   float twist = a + r * 4.0 * (1.0 + audio) - t * 0.6;
   float swirl = smoothstep(0.0, 0.3, r) * smoothstep(0.5, 0.2, r);
-  col += palette(twist / 6.28318 + t * 0.05) * swirl * 0.4;
+  col += getPaletteColor(twist / 6.28318 + t * 0.05) * swirl * 0.4;
   return col;
 }
 `,
@@ -4915,8 +4915,8 @@ uniform float uNebulaDriftOpacity;
   float n3 = fbm(p * 8.0 + drift * 0.3 + 1.7);
   float nebula = n1 * 0.6 + n2 * 0.3 + n3 * 0.1;
   nebula = pow(nebula, 1.5 - audio * 0.4);
-  vec3 col = mix(palette(0.6), palette(0.8), n2);
-  col = mix(col, palette(0.2), n3 * 0.5);
+  vec3 col = mix(getPaletteColor(0.6), getPaletteColor(0.8), n2);
+  col = mix(col, getPaletteColor(0.2), n3 * 0.5);
   col *= nebula;
   vec2 starGrid = floor(p * 80.0);
   float star = hash21(starGrid);
@@ -5015,12 +5015,12 @@ uniform float uMilkwaveOpacity;
   float bands = smoothstep(-0.15, 0.95, ripples);
   float haze = fbm(p * 4.5 - vec2(t * 0.12, t * 0.09));
   vec3 col = mix(
-    palette(fract(warp * 0.35 + t * 0.02)),
-    palette(fract(0.35 + radius * 0.6 - t * 0.03)),
+    getPaletteColor(fract(warp * 0.35 + t * 0.02)),
+    getPaletteColor(fract(0.35 + radius * 0.6 - t * 0.03)),
     0.5 + 0.5 * sin(angle + t * 0.2)
   );
-  col += palette(fract(0.7 + radius * 0.25 + audio * 0.2)) * glow * (0.5 + audio);
-  col += palette(fract(angle * 0.08 + t * 0.04)) * bands * 0.25;
+  col += getPaletteColor(fract(0.7 + radius * 0.25 + audio * 0.2)) * glow * (0.5 + audio);
+  col += getPaletteColor(fract(angle * 0.08 + t * 0.04)) * bands * 0.25;
   return col * (0.35 + haze * 0.85);
 }
 `,

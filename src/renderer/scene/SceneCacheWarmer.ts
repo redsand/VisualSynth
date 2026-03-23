@@ -1,6 +1,6 @@
 import type { VisualSynthProject } from '../../shared/project';
 import type { ShaderCompiler } from '../shaderLifecycle';
-import { collectSceneGeneratorIds } from '../../shared/shaderUtils';
+import { collectSceneGeneratorIds, getFxUniformsDeclarations } from '../../shared/shaderUtils';
 
 export class SceneCacheWarmer {
   private requestHandle: number | null = null;
@@ -33,10 +33,12 @@ export class SceneCacheWarmer {
       const activeIds = collectSceneGeneratorIds(scene);
       if (hasSdf) activeIds.add('gen-sdf');
 
+      const fxUniforms = getFxUniformsDeclarations(this.project, scene);
+
       // The renderer handles caching internally. We can just call precompileVariant
       // If it's already cached, it's an immediate no-op return.
       // If it's not, it will kick off an async compile (if supported) and add to its internal queue.
-      this.renderer.precompileVariant(activeIds);
+      this.renderer.precompileVariant(activeIds, fxUniforms);
     }
   }
 }

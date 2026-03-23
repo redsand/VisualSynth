@@ -58,8 +58,11 @@ export const buildFragmentShader = (
 
   const allFunctions = generatorFunctions + sdfFunctions;
 
-  const preambleWithUniforms = parts.preamble
-    .replace('/* @@GENERATOR_UNIFORMS */', generatorUniforms + sdfUniforms + fxUniforms);
+  const preambleWithFx = parts.preamble
+    .replace('/* @@FX_UNIFORMS */', fxUniforms);
+
+  const preambleWithUniforms = preambleWithFx
+    .replace('/* @@GENERATOR_UNIFORMS */', generatorUniforms + sdfUniforms);
 
   // If preamble has a functions placeholder, inject there; otherwise prepend to main
   const hasFunctionsPlaceholder = preambleWithUniforms.includes('/* @@GENERATOR_FUNCTIONS */');

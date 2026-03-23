@@ -36,9 +36,11 @@ describe('SceneCacheWarmer', () => {
     // Fast forward to process requestIdleCallback (which we mocked with setTimeout)
     vi.runAllTimers();
 
+    const expectedFx1 = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\nuniform float ulayer_layer_0_0_bloom;\nuniform float ulayer_layer_0_0_chroma;\nuniform float ulayer_layer_0_0_blur;\nuniform float ulayer_layer_0_0_posterize;\n';
+    const expectedFx2 = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\nuniform float ulayer_layer_0_0_bloom;\nuniform float ulayer_layer_0_0_chroma;\nuniform float ulayer_layer_0_0_blur;\nuniform float ulayer_layer_0_0_posterize;\n';
     expect(mockRenderer.precompileVariant).toHaveBeenCalledTimes(2);
-    expect(mockRenderer.precompileVariant).toHaveBeenNthCalledWith(1, new Set(['layer-plasma']));
-    expect(mockRenderer.precompileVariant).toHaveBeenNthCalledWith(2, new Set(['layer-spectrum']));
+    expect(mockRenderer.precompileVariant).toHaveBeenNthCalledWith(1, new Set(['layer-plasma']), expectedFx1);
+    expect(mockRenderer.precompileVariant).toHaveBeenNthCalledWith(2, new Set(['layer-spectrum']), expectedFx2);
   });
 
   it('includes sdf in precompile requests if enabled globally', () => {
@@ -62,6 +64,7 @@ describe('SceneCacheWarmer', () => {
     warmer.notifyProjectChanged(mockProject);
     vi.runAllTimers();
 
-    expect(mockRenderer.precompileVariant).toHaveBeenCalledWith(new Set(['layer-origami', 'gen-sdf']));
+    const expectedFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\nuniform float ulayer_layer_0_0_bloom;\nuniform float ulayer_layer_0_0_chroma;\nuniform float ulayer_layer_0_0_blur;\nuniform float ulayer_layer_0_0_posterize;\n';
+    expect(mockRenderer.precompileVariant).toHaveBeenCalledWith(new Set(['layer-origami', 'gen-sdf']), expectedFx);
   });
 });

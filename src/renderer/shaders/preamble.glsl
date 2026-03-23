@@ -75,6 +75,14 @@ uniform float uscene_scene_0_chroma;
 uniform float uscene_scene_0_blur;
 uniform float uscene_scene_0_posterize;
 
+vec3 getPaletteColor(float t) {
+  float s = clamp(t, 0.0, 1.0) * 4.0;
+  int i = int(floor(s));
+  float f = fract(s);
+  if (i >= 4) return uPalette[4];
+  return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
+}
+
 /* @@FX_UNIFORMS */
 
 // Strobe uniforms (used in mainTemplate post-processing)
@@ -244,14 +252,6 @@ float fbm(vec2 p) {
     amp *= 0.5;
   }
   return v * 0.5 + 0.5;
-}
-
-vec3 palette(float t) {
-  float s = clamp(t, 0.0, 1.0) * 4.0;
-  int i = int(floor(s));
-  float f = fract(s);
-  if (i >= 4) return uPalette[4];
-  return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
 }
 
 vec3 applySaturation(vec3 color, float amount) {

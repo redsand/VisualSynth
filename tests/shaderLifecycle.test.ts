@@ -23,14 +23,17 @@ describe('shaderLifecycle', () => {
       }]
     };
     const customBlocks = [{ id: 'custom-plasma', target: 'plasma', source: 'vec3 customPlasma(vec2 uv, float t) { return vec3(1.0); }' }] as any;
+    const project = { ...DEFAULT_PROJECT, scenes: [scene as any], customShaderBlocks: customBlocks };
 
-    const count = compileSceneShaders(renderer, scene as any, customBlocks);
+    const count = compileSceneShaders(renderer, scene as any, project as any, customBlocks);
 
     expect(count).toBe(1);
     expect(renderer.setCustomShaderBlocks).toHaveBeenCalledWith(customBlocks);
     expect(renderer.recompileForGenerators).toHaveBeenCalledTimes(1);
     expect(renderer.recompileForGenerators.mock.calls[0][0]).toEqual(new Set(['layer-plasma']));
-    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['layer-plasma']), customBlocks, false, '');
+    // Expected FX uniforms for a layer with id 'layer-plasma'
+    const expectedFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\nuniform float uglobal_master_bloom;\nuniform float uglobal_master_chroma;\nuniform float uglobal_master_blur;\nuniform float uglobal_master_posterize;\nuniform float ulayer_layer_plasma_0_bloom;\nuniform float ulayer_layer_plasma_0_chroma;\nuniform float ulayer_layer_plasma_0_blur;\nuniform float ulayer_layer_plasma_0_posterize;\n';
+    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['layer-plasma']), customBlocks, false, expectedFx);
   });
 
   it('falls back to the active scene when compiling a project', () => {
@@ -67,7 +70,8 @@ describe('shaderLifecycle', () => {
     const count = compileActiveSceneShaders(renderer, project);
 
     expect(count).toBe(1);
-    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), [], false, '');
+    const expectedFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\nuniform float uglobal_master_bloom;\nuniform float uglobal_master_chroma;\nuniform float uglobal_master_blur;\nuniform float uglobal_master_posterize;\nuniform float ulayer_gen_lightning_0_bloom;\nuniform float ulayer_gen_lightning_0_chroma;\nuniform float ulayer_gen_lightning_0_blur;\nuniform float ulayer_gen_lightning_0_posterize;\n';
+    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), [], false, expectedFx);
   });
 
   it('primes project shaders by compiling the active scene', () => {
@@ -115,7 +119,8 @@ describe('shaderLifecycle', () => {
       const count = primeProjectShaders(renderer, project, 250);
 
       expect(count).toBe(1);
-      expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), [], false, '');
+      const expectedFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\nuniform float uglobal_master_bloom;\nuniform float uglobal_master_chroma;\nuniform float uglobal_master_blur;\nuniform float uglobal_master_posterize;\nuniform float ulayer_gen_lightning_0_bloom;\nuniform float ulayer_gen_lightning_0_chroma;\nuniform float ulayer_gen_lightning_0_blur;\nuniform float ulayer_gen_lightning_0_posterize;\n';
+      expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), [], false, expectedFx);
     } finally {
       vi.useRealTimers();
     }

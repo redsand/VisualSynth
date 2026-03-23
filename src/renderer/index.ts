@@ -3742,6 +3742,7 @@ const renderSceneTimeline = () => {
         compileSceneShaders(
           renderer,
           scene,
+          currentProject,
           currentProject.customShaderBlocks ?? [],
           currentProject.sdf?.enabled ?? false
         );
@@ -6307,7 +6308,7 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean } = {
       paletteApplyToggle.checked = applied;
     },
     compileSceneShaders: (targetScene, targetProject) =>
-      compileSceneShaders(renderer, targetScene, targetProject.customShaderBlocks ?? [], targetProject.sdf?.enabled ?? false),
+      compileSceneShaders(renderer, targetScene, targetProject, targetProject.customShaderBlocks ?? [], targetProject.sdf?.enabled ?? false),
     skipShaderWarmup: options.skipShaderWarmup
   });
   if (runtime.activeGeneratorCount !== null) {
@@ -8065,7 +8066,7 @@ const addGenerator = (id: GeneratorId) => {
   
   const activeScene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (activeScene) {
-    compileSceneShaders(renderer, activeScene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
+    compileSceneShaders(renderer, activeScene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
   }
 };
 
@@ -11115,7 +11116,7 @@ sceneViewSelect.addEventListener('change', () => {
     previewSceneId = sceneId;
     const scene = currentProject.scenes.find(s => s.id === sceneId);
     if (scene) {
-      compileSceneShaders(renderer, scene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+      compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
       updateSceneContextUI(scene);
       renderLayerList();
       setStatus(`Viewing scene: ${scene.name}`);
@@ -11131,7 +11132,7 @@ if (sceneEditSelect) {
       previewSceneId = sceneId;
       const scene = currentProject.scenes.find(s => s.id === sceneId);
       if (scene) {
-        compileSceneShaders(renderer, scene, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+        compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
         updateSceneContextUI(scene);
         renderLayerList();
         setStatus(`Editing scene: ${scene.name}`);

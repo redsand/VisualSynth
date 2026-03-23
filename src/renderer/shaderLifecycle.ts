@@ -1,6 +1,6 @@
 import type { VisualSynthProject, SceneConfig } from '../shared/project';
 import type { CustomShaderBlock } from '../shared/customShaderBlock';
-import { collectSceneGeneratorIds } from '../shared/shaderUtils';
+import { collectSceneGeneratorIds, getFxUniformsDeclarations } from '../shared/shaderUtils';
 
 export interface ShaderCompiler {
   recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[], forceSync?: boolean, fxUniforms?: string) => boolean;
@@ -14,15 +14,16 @@ export const getActiveScene = (project: VisualSynthProject): SceneConfig | undef
 export const compileSceneShaders = (
   renderer: ShaderCompiler,
   scene: SceneConfig | undefined,
+  project: VisualSynthProject, // Added project context for FX declarations
   customBlocks: CustomShaderBlock[] = [],
   sdfEnabled = false,
-  forceSync = false,
-  fxUniforms = ''
+  forceSync = false
 ): number => {
   const activeIds = scene ? collectSceneGeneratorIds(scene) : new Set<string>();
   if (sdfEnabled) {
     activeIds.add('gen-sdf');
   }
+  const fxUniforms = getFxUniformsDeclarations(project, scene ?? null);
   renderer.setCustomShaderBlocks?.(customBlocks);
   renderer.recompileForGenerators(activeIds, customBlocks, forceSync, fxUniforms);
   return activeIds.size;
@@ -31,12 +32,16 @@ export const compileSceneShaders = (
 export const compileActiveSceneShaders = (
   renderer: ShaderCompiler,
   project: VisualSynthProject
-): number => compileSceneShaders(
-  renderer,
-  getActiveScene(project),
-  project.customShaderBlocks ?? [],
-  project.sdf?.enabled ?? false
-);
+): number => {
+  const activeScene = getActiveScene(project);
+  return compileSceneShaders(
+    renderer,
+    activeScene,
+    project,
+    project.customShaderBlocks ?? [],
+    project.sdf?.enabled ?? false
+  );
+};
 
 export const primeProjectShaders = (
   renderer: ShaderCompiler,
