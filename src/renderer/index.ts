@@ -74,7 +74,8 @@ import type { OverlayConfig } from '../shared/project';
 import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
 import { createSongChangeDetector } from './audio/songChangeDetector';
 import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult } from './audio/rollingAudioCapture';
-import { getAudioEngine } from './audio/AudioEngine';
+import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
+import type { Store } from './state/store';
 import { sessionHealthService } from './sessionHealthService';
 
 declare global {
@@ -1001,11 +1002,103 @@ const audioState = {
   energyHigh: 0
 };
 
+// Bridge between index.ts global variables and the AudioEngine's expectation of a Store.
+// This allows AudioEngine to update audioState, bpm, and runtime variables directly.
+const audioStoreBridge: Store = {
+  getState: () => ({
+    audio: audioState,
+    project: currentProject,
+    bpm: { 
+      source: bpmSource,
+      range: bpmRange, 
+      autoBpm,
+      networkBpm,
+      networkActive: bpmNetworkActive,
+      manualBpm: Number(tempoInput?.value ?? 120)
+    },
+    runtime: { 
+      strobeIntensity, 
+      strobeDecay, 
+      glyphBeatPulse,
+      glyphMode,
+      glyphSeed,
+      crystalMode,
+      crystalBrittleness,
+      inkBrush,
+      inkPressure,
+      inkLifespan,
+      topoQuake,
+      topoSlide,
+      topoPlate,
+      topoTravel,
+      weatherMode,
+      weatherIntensity,
+      portalShift,
+      portalSeed,
+      oscilloMode,
+      oscilloFreeze,
+      oscilloRotate
+    },
+    modulators: { 
+      lfoPhases: [], 
+      envStates: [], 
+      shStates: [] 
+    },
+    // Minimal mock for other required fields
+    projectPath: null,
+    outputConfig,
+    outputOpen,
+    uiMode: activeMode,
+    transport: { isPlaying, timeMs: transportTimeMs },
+    midi: { lastLatencyMs },
+    pad: { states: [], activeBank: 0, activeMapBank: 0 },
+    diagnostics: { 
+      fps: 0, 
+      frameDropScore: 0, 
+      lastWatchdogUpdate: 0, 
+      lastAutosaveAt: 0, 
+      lastRenderTimeMs: 0, 
+      lastSummaryUpdate: 0, 
+      latencyMs: null, 
+      outputLatencyMs: null 
+    },
+    safeMode: { reasons: safeModeReasons, webglInitError: null },
+    debug: { enabled: false, tintLayers: false, fxDelta: false },
+    performanceMode: false,
+    quantizeHudMessage: null,
+    pendingSceneSwitch: null,
+    renderSettings: {
+      assetLayerBlendModes: { 'layer-plasma': 3, 'layer-spectrum': 1, 'layer-media': 3 },
+      assetLayerAudioReact: { 'layer-plasma': 0.6, 'layer-spectrum': 0.8, 'layer-media': 0.5 }
+    }
+  } as any),
+  update: (updater: (state: any) => void) => {
+    const state = audioStoreBridge.getState();
+    updater(state);
+    // Sync back critical values that AudioEngine might update
+    if (state.bpm.autoBpm !== undefined) autoBpm = state.bpm.autoBpm;
+    if (state.runtime.glyphBeatPulse !== undefined) glyphBeatPulse = state.runtime.glyphBeatPulse;
+    if (state.runtime.lastBeatTime !== undefined) lastBeatTime = state.runtime.lastBeatTime;
+    if (state.safeMode.reasons !== undefined) safeModeReasons = [...state.safeMode.reasons];
+  },
+  setState: (patch: any) => {
+    if (patch.bpm?.autoBpm !== undefined) autoBpm = patch.bpm.autoBpm;
+  },
+  subscribe: () => () => {}
+};
+
+// Initialize audio engine instance
+createAudioEngine(audioStoreBridge);
+
+let audioEngineWarningLogged = false;
 const getAudioEngineSafe = () => {
   const engine = getAudioEngine();
-  if (!engine) {
+  if (!engine && !audioEngineWarningLogged) {
     // Should not happen as bootstrap should have run
     console.warn('[Now Playing] Audio engine not initialized yet.');
+    audioEngineWarningLogged = true;
+  } else if (engine) {
+    audioEngineWarningLogged = false;
   }
   return engine;
 };
@@ -12049,6 +12142,7 @@ try {
   });
   cacheWarmer = new SceneCacheWarmer(renderer);
 } catch (error) {
+  console.error('[Init] Failed to create GL renderer:', error);
   webglInitError = error instanceof Error ? error.message : String(error);
   safeModeReasons.push('Renderer init failed');
   updateSafeModeBanner();
@@ -13544,7 +13638,7 @@ const init = async () => {
     await initAudioDevices();
     console.log('[Init] initAudioDevices completed');
 
-    updateLoadingProgress(85, 'Setting up audio...');
+    updateLoadingProgress(85, 'Waiting for audio engine & microphone...');
     await setupAudio();
     console.log('[Init] setupAudio completed');
 
@@ -13553,6 +13647,7 @@ const init = async () => {
     console.log('[Init] setupMIDI completed');
   } catch (e) {
     console.error('[Init] Audio setup error:', e);
+    updateLoadingProgress(90, 'Audio setup failed (check permissions), continuing...');
   }
 
   // Check if recovery API is available
@@ -13684,8 +13779,5 @@ const init = async () => {
   console.log('[Init] Capture API exposed');
 };
 
-// Start the render loop immediately so the canvas is live while init() awaits async work
-(window as any).__renderLoopStarted = true;
-requestAnimationFrame(render);
-
+// Initialize the application
 void init();

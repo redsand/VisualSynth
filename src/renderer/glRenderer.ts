@@ -288,13 +288,14 @@ void main() {
     sdfMapBody = '10.0',
     plasmaSource: string | null = null,
     customBlocks: CustomShaderBlock[] = [],
-    deferLinkCheck = false
+    deferLinkCheck = false,
+    fxUniforms = ''
   ): WebGLProgram | null => {
     const customHash = [...customBlocks]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
       .join('|');
-    const key = shaderCacheKey(activeIds, sdfMapBody, plasmaSource ?? '', customHash);
+    const key = shaderCacheKey(activeIds, sdfMapBody, plasmaSource ?? '', customHash + fxUniforms);
 
     // Check cache first
     if (programCache.has(key)) {
@@ -1252,7 +1253,8 @@ void main() {
       currentSdfMapBody,
       currentPlasmaSource,
       customBlocks,
-      useAsync
+      useAsync,
+      fxUniforms
     );
 
     if (!prog) {
