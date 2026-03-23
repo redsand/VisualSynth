@@ -5,7 +5,8 @@ import {
   COLOR_PALETTES,
   DEFAULT_SCENE_TRANSITION,
   DEFAULT_SCENE_TRIGGER,
-  DEFAULT_SCENE_ROLES
+  DEFAULT_SCENE_ROLES,
+  DEFAULT_OUTPUT_CONFIG
 } from './project';
 
 const CURRENT_VERSION = 6;
@@ -73,7 +74,7 @@ upgraded = {
       ...project,
       palettes: project.palettes ?? COLOR_PALETTES,
       activePaletteId: project.activePaletteId ?? 'default-classic',
-      output: { ...DEFAULT_PROJECT.output, ...project.output },
+      output: { ...DEFAULT_OUTPUT_CONFIG, ...project.output },
       stylePresets: project.stylePresets ?? [],
       activeStylePresetId: project.activeStylePresetId ?? 'style-neutral',
       macros: project.macros?.length ? project.macros : DEFAULT_PROJECT.macros

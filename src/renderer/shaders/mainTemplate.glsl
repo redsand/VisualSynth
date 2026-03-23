@@ -175,7 +175,7 @@ void main() {
 
   if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5) {
     // Apply Scene FX
-    APPLY_SCOPED_FX(color, effectUv, scene_scene_0)
+    applyScopedFx(color, effectUv, uscene_scene_0_bloom, uscene_scene_0_chroma, uscene_scene_0_blur, uscene_scene_0_posterize);
     
     // Apply Global FX (Legacy names preserved for test compatibility)
     if (uBloom > 0.01) color += pow(color, vec3(2.0)) * uBloom;

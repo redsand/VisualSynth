@@ -50,10 +50,9 @@ export const collectSceneGeneratorIds = (scene: SceneConfig): Set<string> => {
 /**
  * Produces GLSL uniform declarations for all FX in a scene and project.
  */
-export const getFxUniformsDeclarations = (project: VisualSynthProject, scene?: SceneConfig): string => {
+export const getFxUniformsDeclarations = (project: VisualSynthProject, scene: SceneConfig | null): string => {
+  const params = ['bloom', 'chroma', 'blur', 'posterize'];
   let decls = '';
-  const params = ['bloom', 'blur', 'chroma', 'posterize', 'kaleidoscope', 'feedback', 'persistence'];
-
   const addDecls = (scope: string, instanceId: string) => {
     const prefix = `${scope}_${instanceId}`.replace(/:/g, '_').replace(/-/g, '_');
     params.forEach(param => {
@@ -61,25 +60,20 @@ export const getFxUniformsDeclarations = (project: VisualSynthProject, scene?: S
     });
   };
 
+  // Always add scene decls as they are used in mainTemplate
+  addDecls('scene', 'scene_0');
+
   // Global
   if (project.effects) {
     addDecls('global', 'master');
   }
 
-  // Scene
-  if (scene?.look?.effects) {
-    scene.look.effects.forEach((_, i) => {
-      addDecls('scene', `scene_${i}`);
-    });
-  }
-
   // Layers
   if (scene?.layers) {
     scene.layers.forEach(layer => {
-      if (layer.effects) {
-        layer.effects.forEach((_, i) => {
-          addDecls('layer', `${layer.id}_${i}`);
-        });
+      const gid = resolveGeneratorId(layer.generatorId ?? layer.id);
+      if (gid) {
+        addDecls('layer', `${layer.id}_0`);
       }
     });
   }

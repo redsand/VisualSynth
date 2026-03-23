@@ -54,7 +54,7 @@ vec3 samplePlasma(vec2 uv, float t) {
 `,
     mainCall: `  if (uPlasmaEnabled > 0.5) {
     vec3 plasmaColor = samplePlasma(effectUv, uTime);
-    APPLY_SCOPED_FX(plasmaColor, effectUv, layer_layer_plasma_0)
+    applyScopedFx(plasmaColor, effectUv, ulayer_layer_plasma_0_bloom, ulayer_layer_plasma_0_chroma, ulayer_layer_plasma_0_blur, ulayer_layer_plasma_0_posterize);
     color += plasmaColor * uPlasmaOpacity * uRoleWeights.x;
   }
   if (uPlasmaAssetEnabled > 0.5) {
@@ -88,7 +88,7 @@ uniform float uSpectrumAssetAudioReact;
     float bar = step(effectUv.y, amp);
     float trailBar = step(effectUv.y, trail);
     vec3 specColor = palette(amp) * bar * 0.8;
-    APPLY_SCOPED_FX(specColor, effectUv, layer_layer_spectrum_0)
+    applyScopedFx(specColor, effectUv, ulayer_layer_spectrum_0_bloom, ulayer_layer_spectrum_0_chroma, ulayer_layer_spectrum_0_blur, ulayer_layer_spectrum_0_posterize);
     color += specColor * uSpectrumOpacity * uRoleWeights.y;
     if (uPersistence > 0.01) { color += palette(trail) * trailBar * 0.5 * uPersistence * uRoleWeights.y; }
   }
@@ -125,6 +125,7 @@ uniform float uOrigamiFoldSharpness;
     float foldField = abs(sin((centered.x * 0.9 + centered.y * 0.4) * mix(2.5, 7.5, low) + uTime * 0.35 * uOrigamiSpeed + foldPhase));
     float crease = smoothstep(sharp, 0.0, foldField);
     vec3 creaseCol = palette(0.9) * (0.5 + high * 0.5);
+    applyScopedFx(creaseCol, effectUv, ulayer_layer_origami_0_bloom, ulayer_layer_origami_0_chroma, ulayer_layer_origami_0_blur, ulayer_layer_origami_0_posterize);
     color += creaseCol * crease * uOrigamiOpacity * uRoleWeights.y;
   }
 `,
@@ -168,6 +169,7 @@ uniform float uGlyphSeed;
     float stroke = smoothstep(0.04, 0.0, dist);
     vec3 glyphColor = palette(fract(float(bandIndex) * 0.15 + uTime * 0.05));
     glyphColor *= 0.55 + complexity * 0.75;
+    applyScopedFx(glyphColor, effectUv, ulayer_layer_glyph_0_bloom, ulayer_layer_glyph_0_chroma, ulayer_layer_glyph_0_blur, ulayer_layer_glyph_0_posterize);
     color += glyphColor * stroke * uGlyphOpacity * uRoleWeights.y;
   }
 `,
@@ -209,6 +211,7 @@ uniform float uCrystalBrittleness;
     crystal += caustic * smoothstep(0.1, 0.0, cell - high * 0.05) * clamp(uPeak - uRms, 0.0, 1.0) * (0.6 + high);
     crystal *= growth + (uCrystalMode < 0.5 ? 0.15 : uCrystalMode < 1.5 ? 0.35 : uCrystalMode < 2.5 ? 0.7 : 0.05);
     crystal *= 0.4 + (1.0 - clamp(uCrystalBrittleness, 0.0, 1.0)) * 0.6;
+    applyScopedFx(crystal, effectUv, ulayer_layer_crystal_0_bloom, ulayer_layer_crystal_0_chroma, ulayer_layer_crystal_0_blur, ulayer_layer_crystal_0_posterize);
     color += crystal * shard * uCrystalOpacity * uRoleWeights.y;
   }
 `,
@@ -235,6 +238,7 @@ uniform float uInkBrush;
     float stroke = smoothstep(0.6, 0.0, abs(sin((inkUv.x + inkUv.y) * 18.0 * uInkScale + uTime * 0.6 * uInkSpeed))) * (0.4 + uInkPressure * 0.8);
     vec3 inkColor = palette(uInkBrush < 0.5 ? 0.1 : uInkBrush < 1.5 ? 0.4 : 0.7);
     if (uInkBrush > 0.5 && uInkBrush < 1.5) stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
+    applyScopedFx(inkColor, effectUv, ulayer_layer_inkflow_0_bloom, ulayer_layer_inkflow_0_chroma, ulayer_layer_inkflow_0_blur, ulayer_layer_inkflow_0_posterize);
     color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity * uRoleWeights.z;
   }
 `,
@@ -261,7 +265,9 @@ uniform float uTopoSlide;
     terrain += uTopoQuake * 0.6 * sin(flow.x * 6.0 + uTime * 1.4);
     terrain -= uTopoSlide * 0.5 * smoothstep(0.2, 0.9, terrain);
     float mask = smoothstep(0.12, 0.02, abs(sin(terrain * mix(6.0, 18.0, high))) * mix(0.2, 1.0, mid));
-    color += mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0)) * mask * uTopoOpacity * uRoleWeights.z;
+    vec3 topoColor = mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0));
+    applyScopedFx(topoColor, effectUv, ulayer_layer_topo_0_bloom, ulayer_layer_topo_0_chroma, ulayer_layer_topo_0_blur, ulayer_layer_topo_0_posterize);
+    color += topoColor * mask * uTopoOpacity * uRoleWeights.z;
   }
 `,
   },
@@ -288,7 +294,9 @@ uniform float uWeatherIntensity;
     float pHigh = high * 1.2 + uWeatherIntensity * 0.2;
     float rain = smoothstep(0.6, 0.0, abs(sin((wUv.x + uTime * 0.4 * uWeatherSpeed) * 30.0)) * pHigh) * (uWeatherMode < 0.5 || uWeatherMode > 2.5 ? 1.0 : 0.0);
     float snow = smoothstep(0.65, 0.0, abs(sin((wUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * pHigh) * (uWeatherMode > 0.5 && uWeatherMode < 1.5 ? 1.0 : 0.0);
-    color += (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6) * uWeatherOpacity * uRoleWeights.z;
+    vec3 weatherColor = (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6);
+    applyScopedFx(weatherColor, effectUv, ulayer_layer_weather_0_bloom, ulayer_layer_weather_0_chroma, ulayer_layer_weather_0_blur, ulayer_layer_weather_0_posterize);
+    color += weatherColor * uWeatherOpacity * uRoleWeights.z;
   }
 `,
   },
@@ -320,7 +328,9 @@ uniform float uPortalActive[4];
     vec3 baseCol = vec3(0.2, 0.6, 0.9);
     if (style > 0.5 && style < 1.5) baseCol = vec3(0.7, 0.35, 0.95);
     if (style >= 1.5) baseCol = vec3(0.2, 0.9, 0.55);
-    color += (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow * uPortalOpacity * uRoleWeights.z;
+    vec3 portalColor = (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow;
+    applyScopedFx(portalColor, effectUv, ulayer_layer_portal_0_bloom, ulayer_layer_portal_0_chroma, ulayer_layer_portal_0_blur, ulayer_layer_portal_0_posterize);
+    color += portalColor * uPortalOpacity * uRoleWeights.z;
   }
 `,
   },
@@ -346,6 +356,7 @@ uniform float uMediaBurstType[8];
     centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
     vec4 assetSample = texture(uMediaAsset, centeredAssetUv);
     vec3 assetColor = assetSample.rgb * (0.85 + audioMod * 0.15);
+    applyScopedFx(assetColor, effectUv, ulayer_layer_media_0_bloom, ulayer_layer_media_0_chroma, ulayer_layer_media_0_blur, ulayer_layer_media_0_posterize);
     float alpha = assetSample.a * clamp(uMediaOpacity, 0.0, 1.0) * uRoleWeights.y;
     color = applyBlendMode(color, assetColor, uMediaAssetBlend, alpha);
   }
@@ -356,7 +367,9 @@ uniform float uMediaBurstType[8];
         vec2 delta = effectUv - uMediaBurstPos[int(i)];
         float r = uMediaBurstRadius[int(i)];
         float ring = smoothstep(r, r * 0.7, length(delta)) * smoothstep(r * 0.3, r * 0.6, length(delta));
-        color += vec3(1.0, 0.9, 0.8) * ring * activeAmt * uMediaOpacity * uRoleWeights.y;
+        vec3 burstColor = vec3(1.0, 0.9, 0.8) * ring * activeAmt;
+        applyScopedFx(burstColor, effectUv, ulayer_layer_media_0_bloom, ulayer_layer_media_0_chroma, ulayer_layer_media_0_blur, ulayer_layer_media_0_posterize);
+        color += burstColor * uMediaOpacity * uRoleWeights.y;
       }
   }
 `,
@@ -547,7 +560,9 @@ uniform float uOscillo[64];
       minDist = min(minDist, length(centered - p));
       arcGlow += smoothstep(0.08, 0.0, abs(length(centered) - (rad + 0.06 * sin(t * 12.0 + uTime * 0.3)))) * 0.2;
     }
-    color += (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow) * uOscilloOpacity * uRoleWeights.y;
+    vec3 oscColor = (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow);
+    applyScopedFx(oscColor, effectUv, ulayer_layer_oscillo_0_bloom, ulayer_layer_oscillo_0_chroma, ulayer_layer_oscillo_0_blur, ulayer_layer_oscillo_0_posterize);
+    color += oscColor * uOscilloOpacity * uRoleWeights.y;
   }
 `,
   },
@@ -5098,3 +5113,4 @@ uniform float uBossHealthOpacity;
 /** Returns the block for a given generator ID, or null if not found */
 export const findGeneratorShaderBlock = (id: string): GeneratorShaderBlock | null =>
   GENERATOR_SHADER_BLOCKS.find(b => b.id === id) ?? null;
+

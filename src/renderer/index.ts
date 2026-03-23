@@ -12379,7 +12379,7 @@ const render = (time: number) => {
     lastSummaryUpdate = time;
     updateSummaryChips();
   }
-  const latency = resolveLatencyDiagnostics(audioContext);
+  const latency = resolveLatencyDiagnostics(getAudioEngine()?.getContext() ?? null);
   if (latency.latencyMs !== null) {
     latencyLabel.textContent = `Audio Latency: ${latency.latencyMs}ms`;
     healthLatency.textContent = `Latency: ${latency.latencyMs}ms`;

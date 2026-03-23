@@ -268,7 +268,7 @@ export const createRenderer = ({
     getGeneratorDiagnostics: renderer.getGeneratorDiagnostics,
     getMissingUniforms: renderer.getMissingUniforms,
     recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) =>
-      renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds, customBlocks, false, renderGraph.getFxUniformsDeclarations()) : false,
+      renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds, customBlocks, false) : false,
     precompileVariant: (ids: Set<string>) =>
       renderer.precompileVariant ? renderer.precompileVariant(ids) : undefined,
     setCustomShaderBlocks: (blocks: CustomShaderBlock[]) =>

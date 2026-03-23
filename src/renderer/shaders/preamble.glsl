@@ -69,6 +69,14 @@ uniform float uBloom;
 uniform float uPersistence;
 uniform float uGlyphBeat;
 
+// Scene Scoped FX uniforms (always required by mainTemplate)
+uniform float uscene_scene_0_bloom;
+uniform float uscene_scene_0_chroma;
+uniform float uscene_scene_0_blur;
+uniform float uscene_scene_0_posterize;
+
+/* @@FX_UNIFORMS */
+
 // Strobe uniforms (used in mainTemplate post-processing)
 uniform float uStrobeEnabled;
 uniform float uStrobeRate;
@@ -89,6 +97,8 @@ uniform float uVhsScanlineIntensity;
 uniform float uVhsScanlineWarp;
 
 /* @@GENERATOR_UNIFORMS */
+
+/* @@GENERATOR_FUNCTIONS */
 
 float sdfSceneMap(vec3 p) {
   return 10.0; // Placeholder for simple mode, overridden in advanced
@@ -363,8 +373,9 @@ vec3 hueRotate(vec3 col, float angle) {
 }
 
 // Scoped FX Helper
-#define APPLY_SCOPED_FX(col, uv, prefix) \
-    if (u##prefix##_bloom > 0.01) col += pow(col, vec3(2.0)) * u##prefix##_bloom; \
-    if (u##prefix##_chroma > 0.01) col = mix(col, vec3(col.r + u##prefix##_chroma * 0.02, col.g, col.b - u##prefix##_chroma * 0.02), 0.3); \
-    if (u##prefix##_blur > 0.01) col = mix(col, vec3((col.r + col.g + col.b) / 3.0), u##prefix##_blur * 0.3); \
-    if (u##prefix##_posterize > 0.01) col = posterize(col, u##prefix##_posterize);
+void applyScopedFx(inout vec3 col, vec2 uv, float bloom, float chroma, float blur, float posterizeAmount) {
+    if (bloom > 0.01) col += pow(col, vec3(2.0)) * bloom;
+    if (chroma > 0.01) col = mix(col, vec3(col.r + chroma * 0.02, col.g, col.b - chroma * 0.02), 0.3);
+    if (blur > 0.01) col = mix(col, vec3((col.r + col.g + col.b) / 3.0), blur * 0.3);
+    if (posterizeAmount > 0.01) col = posterize(col, posterizeAmount);
+}
