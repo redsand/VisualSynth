@@ -278,6 +278,7 @@ void main() {
   let currentSdfFunctions = '';
   let currentSdfMapBody = '10.0';
   let currentPlasmaSource: string | null = null;
+  let currentFxUniforms = '';
   let currentActiveIds = new Set<string>();
   let currentCustomBlocks: CustomShaderBlock[] = [];
 
@@ -361,7 +362,9 @@ void main() {
         compiled.functionsCode,
         compiled.mapBody,
         customPlasmaSource,
-        currentCustomBlocks
+        currentCustomBlocks,
+        false,
+        currentFxUniforms
       );
       if (newProg) {
         advancedSdfProgram = newProg;
@@ -1014,7 +1017,9 @@ void main() {
       currentSdfFunctions,
       currentSdfMapBody,
       nextSource,
-      currentCustomBlocks
+      currentCustomBlocks,
+      false,
+      currentFxUniforms
     );
     if (!nextProgram) {
       return { ok: false };
@@ -1217,9 +1222,10 @@ void main() {
   };
 
   const recompileForGenerators = (activeIds: Set<string>, customBlocks: CustomShaderBlock[] = [], forceSync = false, fxUniforms = ''): boolean => {
-    // Store the active IDs and custom blocks for future recompilations (e.g., when SDF changes)
+    // Store the active IDs, custom blocks, and FX uniforms for future recompilations (e.g., when SDF changes)
     currentActiveIds = new Set(activeIds);
     currentCustomBlocks = customBlocks;
+    currentFxUniforms = fxUniforms;
 
     const t0 = performance.now();
     const customHash = [...customBlocks]
@@ -1287,6 +1293,9 @@ void main() {
     const key = shaderCacheKey(ids, currentSdfMapBody, currentPlasmaSource ?? '', customHash + fxUniforms);
 
     if (programCache.has(key)) return;
+
+    // Ensure we track these for future recompilations if needed
+    currentFxUniforms = fxUniforms;
 
     const useAsync = !!extParallel;
     const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, fxUniforms);

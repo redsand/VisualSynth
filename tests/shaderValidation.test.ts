@@ -36,7 +36,8 @@ function findUniformReferences(glsl: string): Set<string> {
   const refs = new Set<string>();
   // Strip declaration lines so we only look at usage sites
   const withoutDecls = glsl.replace(/uniform\s+\S+(?:\s+\S+)?\s+u\w+(?:\[\d+\])?\s*;/g, '');
-  for (const m of withoutDecls.matchAll(/\b(u[A-Z]\w*)\b/g)) {
+  // Match u[A-Z]... OR uscene_... OR uglobal_... OR ulayer_...
+  for (const m of withoutDecls.matchAll(/\b(u[A-Z]\w*|uscene_\w+|uglobal_\w+|ulayer_\w+)\b/g)) {
     refs.add(m[1]);
   }
   return refs;
@@ -48,9 +49,14 @@ const KNOWN_NON_UNIFORMS = new Set([
   'uv',    // local variable, not a uniform
 ]);
 
+import { DEFAULT_PROJECT } from '../src/shared/project';
+import { getFxUniformsDeclarations } from '../src/shared/shaderUtils';
+
 // ─── build once ─────────────────────────────────────────────────────────────
 
 const allIds = new Set(GENERATOR_SHADER_BLOCKS.map(b => b.id));
+const fxUniforms = getFxUniformsDeclarations(DEFAULT_PROJECT, DEFAULT_PROJECT.scenes[0]);
+
 const builtShader = buildFragmentShader(
   { preamble: SHADER_PREAMBLE, mainTemplate: SHADER_MAIN_TEMPLATE },
   GENERATOR_SHADER_BLOCKS,
@@ -58,7 +64,8 @@ const builtShader = buildFragmentShader(
   /* sdfUniforms */ '',
   /* sdfFunctions */ '',
   /* sdfMapBody */ '10.0',
-  /* plasmaSource */ null
+  /* plasmaSource */ null,
+  fxUniforms
 );
 
 // ─── tests ───────────────────────────────────────────────────────────────────
