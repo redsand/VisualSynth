@@ -1,0 +1,787 @@
+{
+  "preset-002-spectrum": [
+    {
+      "variantId": "preset-021-neon-skyline",
+      "variantName": "SDF Neon Skyline"
+    },
+    {
+      "variantId": "preset-061-circuit-pulse",
+      "variantName": "Circuit Pulse",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        }
+      }
+    },
+    {
+      "variantId": "preset-062-particle-swarm",
+      "variantName": "Particle Swarm",
+      "parameterOverrides": {
+        "opacity": 0.6,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        }
+      }
+    },
+    {
+      "variantId": "preset-087-soft-spectrum",
+      "variantName": "Soft Spectrum"
+    },
+    {
+      "variantId": "preset-103-sdf-3d-torus",
+      "variantName": "SDF 3D Torus"
+    }
+  ],
+  "preset-004-vivid": [
+    {
+      "variantId": "preset-005-midnight",
+      "variantName": "Midnight Bloom",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 0.6,
+        "scale": 1.3,
+        "complexity": 0.4
+      }
+    },
+    {
+      "variantId": "preset-006-ignite",
+      "variantName": "Ignite",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 2,
+        "scale": 0.9,
+        "complexity": 0.8
+      }
+    },
+    {
+      "variantId": "preset-058-obsidian-pulse",
+      "variantName": "Obsidian Pulse",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1.2,
+        "scale": 1,
+        "complexity": 0.6
+      }
+    },
+    {
+      "variantId": "preset-086-data-stream",
+      "variantName": "Data Stream"
+    }
+  ],
+  "preset-007-sdf-monolith": [
+    {
+      "variantId": "preset-012-topo-zoom",
+      "variantName": "Topo Zoom",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1.3,
+        "elevation": 0.7
+      }
+    },
+    {
+      "variantId": "preset-104-sdf-metaballs",
+      "variantName": "SDF Metaballs"
+    }
+  ],
+  "preset-008-sdf-pulse": [
+    {
+      "variantId": "preset-022-kaleido-shapes",
+      "variantName": "SDF Kaleido Gem",
+      "parameterOverrides": {
+        "autoSpawn": 1,
+        "style": 0
+      }
+    },
+    {
+      "variantId": "preset-054-wormhole-core",
+      "variantName": "Wormhole Core",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "shift": 0.6,
+        "style": 1
+      }
+    }
+  ],
+  "preset-009-sdf-morph": [
+    {
+      "variantId": "preset-013-glyph-matrix",
+      "variantName": "Glyph Matrix",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1.2,
+        "complexity": 0.7
+      }
+    },
+    {
+      "variantId": "preset-109-sdf-cube-field",
+      "variantName": "SDF Matrix Field"
+    }
+  ],
+  "preset-010-sdf-conveyor": [
+    {
+      "variantId": "preset-019-sunken-city",
+      "variantName": "SDF Sunken City"
+    },
+    {
+      "variantId": "preset-107-sdf-grid",
+      "variantName": "SDF Wire Grid"
+    }
+  ],
+  "preset-011-sdf-rain": [
+    {
+      "variantId": "preset-015-weather-hurricane",
+      "variantName": "Weather Hurricane",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "intensity": 0.8,
+        "particleSize": 0.02
+      }
+    }
+  ],
+  "preset-016-visualsynth-dna-feedback": [
+    {
+      "variantId": "preset-023-visualsynth-dna-bloom",
+      "variantName": "VisualSynth DNA - Spectral Bloom",
+      "parameterOverrides": {
+        "opacity": 0.85,
+        "enabled": true,
+        "blendMode": "overlay",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.05,
+          "rotation": 0.02
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-025-neon-drift",
+      "variantName": "Neon Drift",
+      "parameterOverrides": {
+        "opacity": 0.8,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-027-ember-pulse",
+      "variantName": "Ember Pulse",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-028-aurora-chord",
+      "variantName": "Aurora Chord",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-029-voltage-bloom",
+      "variantName": "Voltage Bloom",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-037-glitch-datamosh",
+      "variantName": "Glitch Datamosh",
+      "parameterOverrides": {
+        "opacity": 0.65,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1.1,
+        "scale": 1.3,
+        "complexity": 0.7
+      }
+    },
+    {
+      "variantId": "preset-059-visualsynth-dna-particles",
+      "variantName": "VisualSynth DNA: Particle Halo",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-064-kaleido-trails",
+      "variantName": "Kaleido Trails",
+      "parameterOverrides": {
+        "opacity": 0.6,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.1,
+          "rotation": 0.08
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-067-spectrum-off-nebula",
+      "variantName": "Nebula Drift (No Bars)",
+      "parameterOverrides": {
+        "opacity": 0.65,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.15,
+          "rotation": 0.06
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    }
+  ],
+  "preset-017-slow-plasma": [
+    {
+      "variantId": "preset-024-visualsynth-dna-plasma",
+      "variantName": "VisualSynth DNA - Plasma Drift",
+      "parameterOverrides": {
+        "opacity": 0.95,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.2,
+          "rotation": 0.12
+        },
+        "params": {
+          "complexity": 6,
+          "audioReact": 0.8
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-063-sdf-prism",
+      "variantName": "SDF Prism",
+      "parameterOverrides": {
+        "opacity": 0.6,
+        "enabled": false,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-105-hyper-plasma",
+      "variantName": "Hyper Plasma",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    }
+  ],
+  "preset-018-space-station": [
+    {
+      "variantId": "preset-106-sdf-crosshatch",
+      "variantName": "SDF Neon Crosshatch"
+    }
+  ],
+  "preset-020-glitch-grid": [
+    {
+      "variantId": "preset-026-prism-wake",
+      "variantName": "Prism Wake",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-030-fractal-coil",
+      "variantName": "Fractal Coil",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-043-kaleido-shards",
+      "variantName": "Kaleido Shards",
+      "parameterOverrides": {
+        "opacity": 0.7,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 0.8,
+        "scale": 0.55,
+        "complexity": 5,
+        "audioReact": 0.5
+      }
+    },
+    {
+      "variantId": "preset-052-tunnel-warp",
+      "variantName": "Tunnel Warp",
+      "parameterOverrides": {
+        "opacity": 0.8,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 0.95,
+        "scale": 0.55,
+        "complexity": 6,
+        "audioReact": 0.6
+      }
+    },
+    {
+      "variantId": "preset-065-posterize-strobe",
+      "variantName": "Posterize Strobe",
+      "parameterOverrides": {
+        "opacity": 0.7,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0.02
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-068-neural-cathedral",
+      "variantName": "Neural Cathedral",
+      "parameterOverrides": {
+        "opacity": 0.4,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1.25,
+          "rotation": 0.08
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-077-cyber-rain",
+      "variantName": "Cyber Rain"
+    },
+    {
+      "variantId": "preset-088-echo-chamber",
+      "variantName": "Echo Chamber"
+    },
+    {
+      "variantId": "preset-091-star-warp",
+      "variantName": "Star Warp"
+    },
+    {
+      "variantId": "preset-093-nebula-tunnel",
+      "variantName": "Nebula Tunnel",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-099-abyss-tube",
+      "variantName": "Abyss Tube",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "speed": 1,
+        "scale": 1,
+        "complexity": 0.5
+      }
+    },
+    {
+      "variantId": "preset-100-whirlpool",
+      "variantName": "Whirlpool"
+    }
+  ],
+  "preset-039-particle-swarm": [
+    {
+      "variantId": "preset-040-particle-swarm-bloom",
+      "variantName": "Particle Swarm Bloom",
+      "parameterOverrides": {
+        "opacity": 0.85,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "density": 0.68,
+        "speed": 0.35,
+        "size": 0.58,
+        "glow": 0.95,
+        "turbulence": 0.35,
+        "audioLift": 0.8
+      }
+    }
+  ],
+  "preset-041-typography-reveal": [
+    {
+      "variantId": "preset-042-typography-reveal-glow",
+      "variantName": "Typography Reveal Glow",
+      "parameterOverrides": {
+        "opacity": 0.88,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "mode": 2,
+        "seed": 6,
+        "beat": 0.55,
+        "speed": 0.9
+      }
+    }
+  ],
+  "preset-045-radar-hud": [
+    {
+      "variantId": "preset-046-radar-hud-deep",
+      "variantName": "Radar HUD Deep",
+      "parameterOverrides": {
+        "opacity": 0.9,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "mode": 1,
+        "freeze": 0.2,
+        "rotate": 0.8
+      }
+    }
+  ],
+  "preset-047-fractal-bloom": [
+    {
+      "variantId": "preset-048-fractal-bloom-ember",
+      "variantName": "Fractal Bloom Ember",
+      "parameterOverrides": {
+        "opacity": 0.82,
+        "enabled": true,
+        "blendMode": "add",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "mode": 2,
+        "brittleness": 0.55,
+        "scale": 0.6,
+        "speed": 0.7
+      }
+    },
+    {
+      "variantId": "preset-089-prismatic-core",
+      "variantName": "Prismatic Core",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "speed": 1
+      }
+    },
+    {
+      "variantId": "preset-101-ice-tunnel",
+      "variantName": "Ice Tunnel",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "speed": 1
+      }
+    }
+  ],
+  "preset-056-nebula-drift": [
+    {
+      "variantId": "preset-057-nebula-drift-cold",
+      "variantName": "Nebula Drift Cold",
+      "parameterOverrides": {
+        "speed": 0.55,
+        "scale": 0.6
+      }
+    }
+  ],
+  "preset-090-liquid-metal": [
+    {
+      "variantId": "preset-195-liquid-metal",
+      "variantName": "Liquid Metal",
+      "parameterOverrides": {
+        "opacity": 0.88,
+        "enabled": true,
+        "blendMode": "screen",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "flow": 0.6,
+        "shimmer": 0.5
+      }
+    }
+  ],
+  "preset-094-cloud-corridor": [
+    {
+      "variantId": "preset-096-cave-diver",
+      "variantName": "Cave Diver",
+      "parameterOverrides": {
+        "opacity": 1,
+        "enabled": true,
+        "blendMode": "normal",
+        "transform": {
+          "x": 0,
+          "y": 0,
+          "scale": 1,
+          "rotation": 0
+        },
+        "scale": 1,
+        "elevation": 0.5
+      }
+    }
+  ],
+  "preset-102-sdf-geometry-101": [
+    {
+      "variantId": "preset-110-sdf-moon",
+      "variantName": "SDF Crater Moon"
+    }
+  ],
+  "preset-125-electric-storm": [
+    {
+      "variantId": "preset-136-tesla-rain",
+      "variantName": "Tesla Rain",
+      "parameterOverrides": {
+        "speed": 3,
+        "branches": 5,
+        "thickness": 0.05,
+        "color": 0
+      }
+    }
+  ]
+}

@@ -11,6 +11,28 @@
  */
 
 // ============================================================================
+// Performance Mode (Club-Safe Mode)
+// ============================================================================
+
+export interface PerformanceModeConfig {
+  enabled: boolean;
+  restrictToSafePresets: boolean;
+  forceMinimalQualityOnStruggle: boolean;
+  disableExperimentalEngines: boolean;
+  autoRecoveryEnabled: boolean;
+  maxMemoryMB: number;
+}
+
+export const DEFAULT_PERFORMANCE_MODE_CONFIG: PerformanceModeConfig = {
+  enabled: false,
+  restrictToSafePresets: true,
+  forceMinimalQualityOnStruggle: true,
+  disableExperimentalEngines: true,
+  autoRecoveryEnabled: true,
+  maxMemoryMB: 2048
+};
+
+// ============================================================================
 // Resource Pool Types
 // ============================================================================
 

@@ -14,6 +14,12 @@ import { createMilkwaveWaveRenderer } from './milkwave/runtime/milkwaveWaveRende
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
+import {
+  type MilkDropCompileReport,
+  type MilkDropCompileReportPass,
+  type MilkwaveRuntimeStatus
+} from '../shared/milkwaveStatus';
+
 export const deriveMilkDropSeedColor = (
   params: Record<string, number | boolean>,
   random: [number, number]
@@ -61,19 +67,6 @@ export interface MilkDropVariables {
   mid_att: number;
   treb_att: number;
   [key: string]: number;
-}
-
-export interface MilkDropCompileReportPass {
-  requested: boolean;
-  diagnostics: MilkwaveShaderDiagnostics;
-  patchedDiagnostics?: MilkwaveShaderDiagnostics;
-  compiled: boolean;
-  fallbackUsed: boolean;
-}
-
-export interface MilkDropCompileReport {
-  warp: MilkDropCompileReportPass;
-  comp: MilkDropCompileReportPass;
 }
 
 export interface MilkDropNativeRuntimeReport {
@@ -208,7 +201,7 @@ const transpileEelToGlsl = (code: string[]): string => {
 };
 // ────────────────────────────────────────────────────────────────────────────
 
-const createMilkDropVertexShader = (gl: WebGL2RenderingContext): WebGLShader | null => {
+const createMilkDropVertexShader = (gl: WebGL2RenderingContext, trackShader: <T extends WebGLShader | null>(s: T) => T): WebGLShader | null => {
   const source = `#version 300 es
 precision highp float;
 
@@ -226,7 +219,7 @@ void main() {
   vAngle = atan(centered.y, centered.x);
   gl_Position = vec4(position, 0.0, 1.0);
 }`;
-  const shader = gl.createShader(gl.VERTEX_SHADER);
+  const shader = trackShader(gl.createShader(gl.VERTEX_SHADER));
   if (!shader) return null;
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
@@ -236,20 +229,24 @@ void main() {
   return shader;
 };
 
-const createMilkDropFragmentShader = (gl: WebGL2RenderingContext, source: string): WebGLShader | null => {
-  const shader = gl.createShader(gl.FRAGMENT_SHADER);
-  if (!shader) return null;
+const createMilkDropFragmentShader = (
+  gl: WebGL2RenderingContext,
+  source: string,
+  trackShader: <T extends WebGLShader | null>(s: T) => T
+): { shader: WebGLShader | null, error?: string } => {
+  const shader = trackShader(gl.createShader(gl.FRAGMENT_SHADER));
+  if (!shader) return { shader: null, error: 'Failed to create shader' };
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    const info = gl.getShaderInfoLog(shader);
+    const info = gl.getShaderInfoLog(shader) || 'Compile error';
     console.error('[MilkDrop] Fragment shader compile error:', info);
     // Log all error lines for diagnosis
     const lines = source.split('\n');
     const errorLines = new Set<number>();
     const lineRe = /\d+:(\d+):/g;
     let lm: RegExpExecArray | null;
-    while ((lm = lineRe.exec(info ?? '')) !== null) {
+    while ((lm = lineRe.exec(info)) !== null) {
       errorLines.add(parseInt(lm[1], 10));
     }
     if (errorLines.size > 0) {
@@ -261,28 +258,51 @@ const createMilkDropFragmentShader = (gl: WebGL2RenderingContext, source: string
         lines.slice(start, end).map((l, i) => `${start + i + 1}: ${l}`).join('\n')
       );
     }
-    return null;
+    return { shader: null, error: info };
   }
-  return shader;
+  return { shader };
 };
 
-const createProgram = (gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader): WebGLProgram | null => {
-  const program = gl.createProgram();
-  if (!program) return null;
+const createProgram = (
+  gl: WebGL2RenderingContext,
+  vs: WebGLShader,
+  fs: WebGLShader,
+  trackProgram: <T extends WebGLProgram | null>(p: T) => T,
+  untrackProgram: <T extends WebGLProgram | null>(p: T) => T,
+  untrackShader: <T extends WebGLShader | null>(s: T) => T
+): { program: WebGLProgram | null, error?: string } => {
+  const program = trackProgram(gl.createProgram());
+  if (!program) return { program: null, error: 'Failed to create program' };
   gl.attachShader(program, vs);
   gl.attachShader(program, fs);
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const info = gl.getProgramInfoLog(program);
+    const info = gl.getProgramInfoLog(program) || 'Link error';
     console.error('[MilkDrop] Program link error:', info);
-    return null;
+    untrackProgram(program);
+    gl.deleteProgram(program);
+    return { program: null, error: info };
   }
-  return program;
+  // Detach and delete shaders after successful link to prevent resource leaks.
+  gl.detachShader(program, vs);
+  gl.detachShader(program, fs);
+  untrackShader(vs); gl.deleteShader(vs);
+  untrackShader(fs); gl.deleteShader(fs);
+
+  return { program };
 };
 
-const createFramebuffer = (gl: WebGL2RenderingContext, width: number, height: number): { fbo: WebGLFramebuffer; texture: WebGLTexture } | null => {
-  const fbo = gl.createFramebuffer();
-  const texture = gl.createTexture();
+const createFramebuffer = (
+  gl: WebGL2RenderingContext,
+  width: number,
+  height: number,
+  trackFramebuffer?: <T extends WebGLFramebuffer | null>(f: T) => T,
+  trackTexture?: <T extends WebGLTexture | null>(t: T) => T
+): { fbo: WebGLFramebuffer; texture: WebGLTexture } | null => {
+  const tf = trackFramebuffer ?? (<T extends WebGLFramebuffer | null>(f: T) => f);
+  const tt = trackTexture ?? (<T extends WebGLTexture | null>(t: T) => t);
+  const fbo = tf(gl.createFramebuffer());
+  const texture = tt(gl.createTexture());
   if (!fbo || !texture) return null;
   
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
@@ -617,6 +637,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   let blur1Fbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   let blur2Fbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   let blur3Fbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
+  let blur1TempFbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
+  let blur2TempFbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
+  let blur3TempFbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   
   let noiseTexture: WebGLTexture | null = null;
   let noiseVolLqTexture: WebGLTexture | null = null;
@@ -673,6 +696,24 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     mid_att: 0,
     treb_att: 0,
   };
+
+  // --- Resource Tracking ---
+  let textureCount = 0;
+  let framebufferCount = 0;
+  let bufferCount = 0;
+  let programCount = 0;
+  let shaderCount = 0;
+
+  const trackTexture = <T extends WebGLTexture | null>(tex: T): T => { if (tex) textureCount++; return tex; };
+  const untrackTexture = <T extends WebGLTexture | null>(tex: T): T => { if (tex) textureCount--; return tex; };
+  const trackFramebuffer = <T extends WebGLFramebuffer | null>(fbo: T): T => { if (fbo) framebufferCount++; return fbo; };
+  const untrackFramebuffer = <T extends WebGLFramebuffer | null>(fbo: T): T => { if (fbo) framebufferCount--; return fbo; };
+  const trackBuffer = <T extends WebGLBuffer | null>(buf: T): T => { if (buf) bufferCount++; return buf; };
+  const untrackBuffer = <T extends WebGLBuffer | null>(buf: T): T => { if (buf) bufferCount--; return buf; };
+  const trackProgram = <T extends WebGLProgram | null>(prog: T): T => { if (prog) programCount++; return prog; };
+  const untrackProgram = <T extends WebGLProgram | null>(prog: T): T => { if (prog) programCount--; return prog; };
+  const trackShader = <T extends WebGLShader | null>(shader: T): T => { if (shader) shaderCount++; return shader; };
+  const untrackShader = <T extends WebGLShader | null>(shader: T): T => { if (shader) shaderCount--; return shader; };
   
   const qVars: number[] = new Array(32).fill(0);
   const customVars: Record<string, number> = {};
@@ -681,29 +722,45 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   let randomPreset = [Math.random(), Math.random()];
   const gmegabufData: Record<number, number> = {};
   let perFrameInitRun = false;
-  const shapeRenderer = createMilkwaveShapeRenderer(gl);
-  const waveRenderer = createMilkwaveWaveRenderer(gl);
+  const shapeRenderer = createMilkwaveShapeRenderer({
+    gl,
+    trackProgram,
+    untrackProgram,
+    trackShader,
+    untrackShader,
+    trackBuffer,
+    untrackBuffer
+  });
+  const waveRenderer = createMilkwaveWaveRenderer({
+    gl,
+    trackProgram,
+    untrackProgram,
+    trackShader,
+    untrackShader,
+    trackBuffer,
+    untrackBuffer
+  });
   
-  const positionBuffer = gl.createBuffer();
+  const positionBuffer = trackBuffer(gl.createBuffer());
   if (!positionBuffer) throw new Error('[MilkDrop] Buffer creation failed');
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
   const initBlurProgram = () => {
     // Note: blur vertex shader must use VERTEX_SHADER type, not fragment
-    const vs = gl.createShader(gl.VERTEX_SHADER);
+    const vs = trackShader(gl.createShader(gl.VERTEX_SHADER));
     if (!vs) return;
     gl.shaderSource(vs, BLUR_VERTEX_SHADER);
     gl.compileShader(vs);
     if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) return;
-    const fs = createMilkDropFragmentShader(gl, BLUR_FRAGMENT_SHADER);
+    const fs = createMilkDropFragmentShader(gl, BLUR_FRAGMENT_SHADER, trackShader);
     if (!fs) return;
-    blurProgram = createProgram(gl, vs, fs);
+    blurProgram = createProgram(gl, vs, fs, trackProgram, untrackProgram, untrackShader);
   };
   initBlurProgram();
 
   const generateNoiseTexture = (width: number, height: number): WebGLTexture => {
-    const texture = gl.createTexture()!;
+    const texture = trackTexture(gl.createTexture()!);
     const data = new Uint8Array(width * height * 4);
     for (let i = 0; i < data.length; i += 4) {
       const v = Math.random() * 255;
@@ -722,7 +779,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   };
 
   const generateNoiseVolTexture = (width: number, height: number, depth: number): WebGLTexture => {
-    const texture = gl.createTexture()!;
+    const texture = trackTexture(gl.createTexture()!);
     const data = new Uint8Array(width * height * depth * 4);
     for (let i = 0; i < data.length; i += 4) {
       const v = Math.random() * 255;
@@ -749,11 +806,24 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const ensureFramebuffers = (width: number, height: number) => {
     if (width === lastWidth && height === lastHeight && mainFbo) return;
 
-    mainFbo = createFramebuffer(gl, width, height);
-    warpFbo = createFramebuffer(gl, width, height);
-    blur1Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2)));
-    blur2Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 4)), Math.max(1, Math.floor(height / 4)));
-    blur3Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 8)), Math.max(1, Math.floor(height / 8)));
+    // Delete old framebuffers to prevent leaks
+    [mainFbo, warpFbo, blur1Fbo, blur2Fbo, blur3Fbo, blur1TempFbo, blur2TempFbo, blur3TempFbo].forEach(fbo => {
+      if (fbo) {
+        untrackFramebuffer(fbo.fbo);
+        untrackTexture(fbo.texture);
+        gl.deleteFramebuffer(fbo.fbo);
+        gl.deleteTexture(fbo.texture);
+      }
+    });
+
+    mainFbo = createFramebuffer(gl, width, height, trackFramebuffer, trackTexture);
+    warpFbo = createFramebuffer(gl, width, height, trackFramebuffer, trackTexture);
+    blur1Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2)), trackFramebuffer, trackTexture);
+    blur2Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 4)), Math.max(1, Math.floor(height / 4)), trackFramebuffer, trackTexture);
+    blur3Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 8)), Math.max(1, Math.floor(height / 8)), trackFramebuffer, trackTexture);
+    blur1TempFbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2)), trackFramebuffer, trackTexture);
+    blur2TempFbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 4)), Math.max(1, Math.floor(height / 4)), trackFramebuffer, trackTexture);
+    blur3TempFbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 8)), Math.max(1, Math.floor(height / 8)), trackFramebuffer, trackTexture);
 
     lastWidth = width;
     lastHeight = height;
@@ -771,6 +841,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   };
 
   const compileShaders = (shaderData: MilkDropShaderData): boolean => {
+    if (warpProgram) { untrackProgram(warpProgram); gl.deleteProgram(warpProgram); }
+    if (compProgram) { untrackProgram(compProgram); gl.deleteProgram(compProgram); }
     warpProgram = null;
     compProgram = null;
     const warpRawDiagnostics = analyzeMilkwaveShaderSource({
@@ -785,23 +857,29 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     });
     lastCompileReport = {
       warp: {
-        requested: Boolean(shaderData.warp),
+        requested: Boolean(shaderData.warp || shaderData.perPixelCode?.length),
+        status: 'failed',
         diagnostics: warpRawDiagnostics,
         compiled: false,
         fallbackUsed: false
       },
       comp: {
         requested: Boolean(shaderData.comp),
+        status: 'failed',
         diagnostics: compRawDiagnostics,
         compiled: false,
         fallbackUsed: false
       }
     };
-    const vs = createMilkDropVertexShader(gl);
+    const vs = createMilkDropVertexShader(gl, trackShader);
     if (!vs) {
       onError?.('Failed to compile vertex shader', 'vertex');
       return false;
     }
+
+    // Clean up old programs before compiling new ones to prevent leaks
+    if (warpProgram) { untrackProgram(warpProgram); gl.deleteProgram(warpProgram); warpProgram = null; }
+    if (compProgram) { untrackProgram(compProgram); gl.deleteProgram(compProgram); compProgram = null; }
 
     if (shaderData.warp) {
       let patchedWarp: string;
@@ -821,38 +899,71 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         summary: summarizeMilkwaveShaderDiagnostics(warpPatchedDiagnostics),
         issues: [...warpRawDiagnostics.issues, ...warpPatchedDiagnostics.issues].slice(0, 8)
       });
-      const warpFs = createMilkDropFragmentShader(gl, patchedWarp);
-      if (warpFs) {
-        warpProgram = createProgram(gl, vs, warpFs);
+      const warpFsResult = createMilkDropFragmentShader(gl, patchedWarp, trackShader);
+      if (warpFsResult.shader) {
+        const linkResult = createProgram(gl, vs, warpFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        warpProgram = linkResult.program;
         if (!warpProgram) {
+          lastCompileReport.warp.status = 'failed';
+          lastCompileReport.warp.linkError = linkResult.error;
           onError?.('Failed to link warp program', 'link');
+        } else {
+          lastCompileReport.warp.status = 'success';
         }
       } else {
         console.warn('[MilkDrop] Warp shader compile failed, using fallback');
+        lastCompileReport.warp.error = warpFsResult.error;
         const fallbackWarp = createFallbackWarpShader();
-        const fallbackFs = createMilkDropFragmentShader(gl, fallbackWarp);
-        if (fallbackFs) warpProgram = createProgram(gl, vs, fallbackFs);
-        lastCompileReport.warp.fallbackUsed = true;
+        const fallbackFsResult = createMilkDropFragmentShader(gl, fallbackWarp, trackShader);
+        if (fallbackFsResult.shader) {
+          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader);
+          warpProgram = linkResult.program;
+          if (warpProgram) {
+            lastCompileReport.warp.status = 'fallback';
+            lastCompileReport.warp.fallbackUsed = true;
+          }
+        }
       }
       lastCompileReport.warp.compiled = warpProgram !== null;
     } else if (shaderData.perPixelCode?.length) {
       // Pre-MilkDrop2 preset with per-pixel EEL code: translated to native GLSL warp shader.
       const nativeWarp = createNativePerPixelWarpShader(shaderData.originalParameters, shaderData.perPixelCode);
-      const nativeFs = createMilkDropFragmentShader(gl, nativeWarp);
-      if (nativeFs) {
-        warpProgram = createProgram(gl, vs, nativeFs);
+      const nativeFsResult = createMilkDropFragmentShader(gl, nativeWarp, trackShader);
+      if (nativeFsResult.shader) {
+        const linkResult = createProgram(gl, vs, nativeFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        warpProgram = linkResult.program;
+        if (warpProgram) {
+          lastCompileReport.warp.status = 'success';
+        } else {
+          lastCompileReport.warp.status = 'failed';
+          lastCompileReport.warp.linkError = linkResult.error;
+        }
       } else {
         console.warn('[MilkDrop] Native per-pixel warp compilation failed, using default warp fallback.');
+        lastCompileReport.warp.error = nativeFsResult.error;
         const fallbackWarp = createDefaultWarpShader(shaderData.originalParameters);
-        const fallbackFs = createMilkDropFragmentShader(gl, fallbackWarp);
-        if (fallbackFs) warpProgram = createProgram(gl, vs, fallbackFs);
+        const fallbackFsResult = createMilkDropFragmentShader(gl, fallbackWarp, trackShader);
+        if (fallbackFsResult.shader) {
+          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader);
+          warpProgram = linkResult.program;
+          if (warpProgram) {
+            lastCompileReport.warp.status = 'degraded';
+            lastCompileReport.warp.fallbackUsed = true;
+          }
+        }
       }
       lastCompileReport.warp.compiled = warpProgram !== null;
     } else {
       // Pre-MilkDrop2 preset with no custom warp and no per-pixel code: generic warp fallback
       const defaultWarp = createDefaultWarpShader(shaderData.originalParameters);
-      const defaultFs = createMilkDropFragmentShader(gl, defaultWarp);
-      if (defaultFs) warpProgram = createProgram(gl, vs, defaultFs);
+      const defaultFsResult = createMilkDropFragmentShader(gl, defaultWarp, trackShader);
+      if (defaultFsResult.shader) {
+        const linkResult = createProgram(gl, vs, defaultFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        warpProgram = linkResult.program;
+        if (warpProgram) {
+          lastCompileReport.warp.status = 'success';
+        }
+      }
       lastCompileReport.warp.compiled = warpProgram !== null;
     }
 
@@ -874,27 +985,49 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         summary: summarizeMilkwaveShaderDiagnostics(compPatchedDiagnostics),
         issues: [...compRawDiagnostics.issues, ...compPatchedDiagnostics.issues].slice(0, 8)
       });
-      const compFs = createMilkDropFragmentShader(gl, patchedComp);
-      if (compFs) {
-        compProgram = createProgram(gl, vs, compFs);
+      const compFsResult = createMilkDropFragmentShader(gl, patchedComp, trackShader);
+      if (compFsResult.shader) {
+        const linkResult = createProgram(gl, vs, compFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        compProgram = linkResult.program;
         if (!compProgram) {
+          lastCompileReport.comp.status = 'failed';
+          lastCompileReport.comp.linkError = linkResult.error;
           onError?.('Failed to link comp program', 'link');
+        } else {
+          lastCompileReport.comp.status = 'success';
         }
       } else {
         console.warn('[MilkDrop] Comp shader compile failed, using fallback');
+        lastCompileReport.comp.error = compFsResult.error;
         const fallbackComp = createFallbackCompShader();
-        const fallbackFs = createMilkDropFragmentShader(gl, fallbackComp);
-        if (fallbackFs) compProgram = createProgram(gl, vs, fallbackFs);
-        lastCompileReport.comp.fallbackUsed = true;
+        const fallbackFsResult = createMilkDropFragmentShader(gl, fallbackComp, trackShader);
+        if (fallbackFsResult.shader) {
+          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader);
+          compProgram = linkResult.program;
+          if (compProgram) {
+            lastCompileReport.comp.status = 'fallback';
+            lastCompileReport.comp.fallbackUsed = true;
+          }
+        }
       }
       lastCompileReport.comp.compiled = compProgram !== null;
     } else {
       // Pre-MilkDrop2 preset: no custom comp shader, use default passthrough
       const defaultComp = createFallbackCompShader();
-      const defaultFs = createMilkDropFragmentShader(gl, defaultComp);
-      if (defaultFs) compProgram = createProgram(gl, vs, defaultFs);
+      const defaultFsResult = createMilkDropFragmentShader(gl, defaultComp, trackShader);
+      if (defaultFsResult.shader) {
+        const linkResult = createProgram(gl, vs, defaultFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        compProgram = linkResult.program;
+        if (compProgram) {
+          lastCompileReport.comp.status = 'success';
+        }
+      }
       lastCompileReport.comp.compiled = compProgram !== null;
     }
+
+    // Vertex shader is linked into programs, can be deleted now
+    untrackShader(vs);
+    gl.deleteShader(vs);
 
     // Reset state for new preset
     qVars.fill(0);
@@ -906,7 +1039,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     randomPreset = [Math.random(), Math.random()];
 
     // Clean up old custom textures
-    customTextures.forEach(t => t && gl.deleteTexture(t));
+    customTextures.forEach(t => { if (t) { untrackTexture(t); gl.deleteTexture(t); } });
     customTextures = [];
     
     if (shaderData.textures) {
@@ -914,7 +1047,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       shaderData.textures.forEach((texPath, i) => {
         if (!texPath) return;
         
-        const texture = gl.createTexture();
+        const texture = trackTexture(gl.createTexture());
         if (!texture) return;
         
         // 1x1 transparent fallback while loading
@@ -1218,38 +1351,25 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       // Blur1: half resolution
       const bw1 = Math.max(1, Math.floor(width / 2));
       const bh1 = Math.max(1, Math.floor(height / 2));
-      const temp1 = createFramebuffer(gl, bw1, bh1);
-      if (temp1) {
-        applyBlurPass(warpFbo.texture, temp1.fbo, bw1, bh1, true);
-        applyBlurPass(temp1.texture, blur1Fbo?.fbo ?? null, bw1, bh1, false);
-        gl.deleteFramebuffer(temp1.fbo);
-        gl.deleteTexture(temp1.texture);
+      if (blur1TempFbo && blur1Fbo) {
+        applyBlurPass(warpFbo.texture, blur1TempFbo.fbo, bw1, bh1, true);
+        applyBlurPass(blur1TempFbo.texture, blur1Fbo.fbo, bw1, bh1, false);
       }
 
       // Blur2: quarter resolution (cascade from blur1)
-      if (blur1Fbo && blur2Fbo) {
+      if (blur1Fbo && blur2Fbo && blur2TempFbo) {
         const bw2 = Math.max(1, Math.floor(width / 4));
         const bh2 = Math.max(1, Math.floor(height / 4));
-        const temp2 = createFramebuffer(gl, bw2, bh2);
-        if (temp2) {
-          applyBlurPass(blur1Fbo.texture, temp2.fbo, bw2, bh2, true);
-          applyBlurPass(temp2.texture, blur2Fbo.fbo, bw2, bh2, false);
-          gl.deleteFramebuffer(temp2.fbo);
-          gl.deleteTexture(temp2.texture);
-        }
+        applyBlurPass(blur1Fbo.texture, blur2TempFbo.fbo, bw2, bh2, true);
+        applyBlurPass(blur2TempFbo.texture, blur2Fbo.fbo, bw2, bh2, false);
       }
 
       // Blur3: eighth resolution (cascade from blur2)
-      if (blur2Fbo && blur3Fbo) {
+      if (blur2Fbo && blur3Fbo && blur3TempFbo) {
         const bw3 = Math.max(1, Math.floor(width / 8));
         const bh3 = Math.max(1, Math.floor(height / 8));
-        const temp3 = createFramebuffer(gl, bw3, bh3);
-        if (temp3) {
-          applyBlurPass(blur2Fbo.texture, temp3.fbo, bw3, bh3, true);
-          applyBlurPass(temp3.texture, blur3Fbo.fbo, bw3, bh3, false);
-          gl.deleteFramebuffer(temp3.fbo);
-          gl.deleteTexture(temp3.texture);
-        }
+        applyBlurPass(blur2Fbo.texture, blur3TempFbo.fbo, bw3, bh3, true);
+        applyBlurPass(blur3TempFbo.texture, blur3Fbo.fbo, bw3, bh3, false);
       }
     }
 
@@ -1403,39 +1523,63 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     canvas.removeEventListener('mouseup', onMouseUp);
     canvas.removeEventListener('mouseleave', onMouseLeave);
 
-    if (warpProgram) gl.deleteProgram(warpProgram);
-    if (compProgram) gl.deleteProgram(compProgram);
-    if (noiseTexture) gl.deleteTexture(noiseTexture);
-    if (noiseVolLqTexture) gl.deleteTexture(noiseVolLqTexture);
-    if (noiseVolHqTexture) gl.deleteTexture(noiseVolHqTexture);
+    if (warpProgram) { untrackProgram(warpProgram); gl.deleteProgram(warpProgram); }
+    if (compProgram) { untrackProgram(compProgram); gl.deleteProgram(compProgram); }
+    if (blurProgram) { untrackProgram(blurProgram); gl.deleteProgram(blurProgram); }
+    if (noiseTexture) { untrackTexture(noiseTexture); gl.deleteTexture(noiseTexture); }
+    if (noiseVolLqTexture) { untrackTexture(noiseVolLqTexture); gl.deleteTexture(noiseVolLqTexture); }
+    if (noiseVolHqTexture) { untrackTexture(noiseVolHqTexture); gl.deleteTexture(noiseVolHqTexture); }
+
+    [mainFbo, warpFbo, blur1Fbo, blur2Fbo, blur3Fbo, blur1TempFbo, blur2TempFbo, blur3TempFbo].forEach(fbo => {
+      if (fbo) {
+        untrackFramebuffer(fbo.fbo);
+        untrackTexture(fbo.texture);
+        gl.deleteFramebuffer(fbo.fbo);
+        gl.deleteTexture(fbo.texture);
+      }
+    });
+
+    customTextures.forEach(t => { if (t) { untrackTexture(t); gl.deleteTexture(t); } });
+    customTextures = [];
+
+    if (positionBuffer) {
+      untrackBuffer(positionBuffer);
+      gl.deleteBuffer(positionBuffer);
+    }
 
     shapeRenderer.clear();
     waveRenderer.clear();
-    lastNativeRuntimeReport = {
-      shapes: {
-        requested: 0,
-        rendered: 0,
-        borders: 0,
-        texturedFallbacks: 0,
-        evaluatedShapes: 0,
-        evaluatedPoints: 0
-      },
-      waves: {
-        requested: 0,
-        rendered: 0,
-        renderedPoints: 0,
-        evaluatedPoints: 0
-      }
-    };
+    
     warpProgram = null;
     compProgram = null;
+    blurProgram = null;
+    noiseTexture = null;
+    noiseVolLqTexture = null;
+    noiseVolHqTexture = null;
+    mainFbo = null;
+    warpFbo = null;
+    blur1Fbo = null;
+    blur2Fbo = null;
+    blur3Fbo = null;
+    blur1TempFbo = null;
+    blur2TempFbo = null;
+    blur3TempFbo = null;
   };
+
+  const getResourceCounts = () => ({
+    textures: textureCount,
+    framebuffers: framebufferCount,
+    buffers: bufferCount,
+    programs: programCount,
+    shaders: shaderCount
+  });
 
   return {
     compileShaders,
     render,
     getMainTexture,
     clear,
+    getResourceCounts,
     getLastCompileReport: () => lastCompileReport,
     getLastNativeRuntimeReport: () => lastNativeRuntimeReport,
     getVariables: () => ({ ...variables }),

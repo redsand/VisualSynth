@@ -98,27 +98,6 @@ export const createDebugOverlay = (onFlagsChange: (flags: DebugOverlayFlags) => 
 
   tintToggle.addEventListener('change', applyFlags);
   fxToggle.addEventListener('change', applyFlags);
-  copyButton.addEventListener('click', async () => {
-    const text = body.textContent ?? '';
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      copyButton.textContent = 'Copied';
-      window.setTimeout(() => {
-        copyButton.textContent = 'Copy';
-      }, 1200);
-    } catch {
-      const range = document.createRange();
-      range.selectNodeContents(body);
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-      document.execCommand('copy');
-      if (selection) selection.removeAllRanges();
-    }
-  });
 
   window.addEventListener('keydown', (event) => {
     if (event.key.toLowerCase() !== 'd') return;
@@ -193,12 +172,79 @@ export const createDebugOverlay = (onFlagsChange: (flags: DebugOverlayFlags) => 
     }
     lines.push(`Master: ${state.masterBusFrameId}`);
     lines.push(`Uniforms: ${state.uniformsUpdatedFrameId}`);
+    if (state.glResources) {
+      const res = state.glResources;
+      lines.push(`WebGL: tex=${res.textures} fbo=${res.framebuffers} prog=${res.programs} sh=${res.shaders}`);
+    }
+
+    if (state.milkdropCompileReport) {
+      const report = state.milkdropCompileReport;
+      lines.push('Milkwave Compile:');
+      const passes: ('warp' | 'comp')[] = ['warp', 'comp'];
+      passes.forEach(pass => {
+        const p = report[pass];
+        if (p.requested) {
+          const fallback = p.fallbackUsed ? ' [FALLBACK]' : '';
+          lines.push(`- ${pass}: ${p.status}${fallback}${p.compiled ? ' (OK)' : ' (FAIL)'}`);
+          if (p.error) lines.push(`  ! Shader Error: ${p.error.substring(0, 120)}${p.error.length > 120 ? '...' : ''}`);
+          if (p.linkError) lines.push(`  ! Link Error: ${p.linkError}`);
+          
+          const diag = p.patchedDiagnostics || p.diagnostics;
+          if (diag?.issues?.length) {
+            lines.push(`  Issues: ${diag.issues.length}`);
+            diag.issues.slice(0, 3).forEach(issue => {
+              lines.push(`    - ${issue.severity}: ${issue.message}`);
+            });
+          }
+        }
+      });
+    }
+
+    if (state.milkdropRuntimeReport) {
+      const run = state.milkdropRuntimeReport;
+      lines.push(`Milkwave Runtime:`);
+      lines.push(`- Shapes: ${run.shapes.rendered}/${run.shapes.requested} (textFB=${run.shapes.texturedFallbacks})`);
+      lines.push(`- Waves: ${run.waves.rendered}/${run.waves.requested} (pts=${run.waves.renderedPoints})`);
+    }
+
     body.textContent = lines.join('\n');
   };
+
+  copyButton.addEventListener('click', async () => {
+    // Collect full diagnostics including all hidden detail
+    const state = (window as any).lastRenderDebugState as RenderDebugState;
+    if (!state) return;
+
+    const report = {
+      timestamp: new Date().toISOString(),
+      scene: state.activeSceneName,
+      sceneId: state.activeSceneId,
+      lastShaderError: state.lastShaderError,
+      milkdrop: {
+        compile: state.milkdropCompileReport,
+        runtime: state.milkdropRuntimeReport
+      },
+      glResources: state.glResources
+    };
+
+    const text = JSON.stringify(report, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      copyButton.textContent = 'Copied JSON';
+      window.setTimeout(() => {
+        copyButton.textContent = 'Copy';
+      }, 1200);
+    } catch (err) {
+      console.error('Failed to copy diagnostics:', err);
+    }
+  });
 
   return {
     isEnabled: () => enabled,
     getFlags: () => ({ ...flags }),
-    update
+    update: (state: RenderDebugState, fps: number) => {
+      (window as any).lastRenderDebugState = state;
+      update(state, fps);
+    }
   };
 };

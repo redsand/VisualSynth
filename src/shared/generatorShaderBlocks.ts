@@ -54,6 +54,7 @@ vec3 samplePlasma(vec2 uv, float t) {
 `,
     mainCall: `  if (uPlasmaEnabled > 0.5) {
     vec3 plasmaColor = samplePlasma(effectUv, uTime);
+    APPLY_SCOPED_FX(plasmaColor, effectUv, layer_layer_plasma_0)
     color += plasmaColor * uPlasmaOpacity * uRoleWeights.x;
   }
   if (uPlasmaAssetEnabled > 0.5) {
@@ -86,7 +87,9 @@ uniform float uSpectrumAssetAudioReact;
     float trail = uTrailSpectrum[index];
     float bar = step(effectUv.y, amp);
     float trailBar = step(effectUv.y, trail);
-    color += palette(amp) * bar * 0.8 * uSpectrumOpacity * uRoleWeights.y;
+    vec3 specColor = palette(amp) * bar * 0.8;
+    APPLY_SCOPED_FX(specColor, effectUv, layer_layer_spectrum_0)
+    color += specColor * uSpectrumOpacity * uRoleWeights.y;
     if (uPersistence > 0.01) { color += palette(trail) * trailBar * 0.5 * uPersistence * uRoleWeights.y; }
   }
   if (uSpectrumAssetEnabled > 0.5) {
@@ -4978,69 +4981,6 @@ uniform float uVariantNebulaDriftColdOpacity;
   },
 
   // ── Category 5: Effect generators (stub) ─────────────────────────────────────
-
-  {
-    id: 'fx-bloom',
-    uniforms: `uniform float uFxBloomEnabled;
-`,
-    functions: ``,
-    mainCall: `  if (uFxBloomEnabled > 0.5) color += vec3(0.0);
-`,
-  },
-
-  {
-    id: 'fx-feedback',
-    uniforms: `uniform float uFxFeedbackEnabled;
-`,
-    functions: ``,
-    mainCall: `  if (uFxFeedbackEnabled > 0.5) color += vec3(0.0);
-`,
-  },
-
-  {
-    id: 'fx-kaleidoscope',
-    uniforms: `uniform float uFxKaleidoscopeEnabled;
-`,
-    functions: ``,
-    mainCall: `  if (uFxKaleidoscopeEnabled > 0.5) color += vec3(0.0);
-`,
-  },
-
-  {
-    id: 'fx-chroma',
-    uniforms: `uniform float uFxChromaEnabled;
-`,
-    functions: ``,
-    mainCall: `  if (uFxChromaEnabled > 0.5) color += vec3(0.0);
-`,
-  },
-
-  {
-    id: 'fx-posterize',
-    uniforms: `uniform float uFxPosterizeEnabled;
-`,
-    functions: ``,
-    mainCall: `  if (uFxPosterizeEnabled > 0.5) color += vec3(0.0);
-`,
-  },
-
-  {
-    id: 'fx-blur',
-    uniforms: `uniform float uFxBlurEnabled;
-`,
-    functions: ``,
-    mainCall: `  if (uFxBlurEnabled > 0.5) color += vec3(0.0);
-`,
-  },
-
-  {
-    id: 'fx-trails',
-    uniforms: `uniform float uFxTrailsEnabled;
-`,
-    functions: ``,
-    mainCall: `  if (uFxTrailsEnabled > 0.5) color += vec3(0.0);
-`,
-  },
 
   // ── Category 6: Dynamic/special ──────────────────────────────────────────────
 

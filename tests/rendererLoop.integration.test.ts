@@ -92,7 +92,8 @@ describe('createRenderer loop integration behaviors', () => {
           sdfScene: { nodes: [{ id: 'node-a' }] },
           debugTint: 0.2
         }),
-        getDebugState: vi.fn(() => ({}))
+        getDebugState: vi.fn(() => ({})),
+        dispose: vi.fn()
       } as any,
       audioEngine: {
         update: vi.fn(),
@@ -142,7 +143,8 @@ describe('createRenderer loop integration behaviors', () => {
           transitionAmount: 0.9,
           spectrum: new Float32Array([1, 2, 3])
         }),
-        getDebugState: vi.fn(() => ({}))
+        getDebugState: vi.fn(() => ({})),
+        dispose: vi.fn()
       } as any,
       audioEngine: {
         update: vi.fn(),
@@ -185,7 +187,8 @@ describe('createRenderer loop integration behaviors', () => {
           transitionAmount: 0.9,
           spectrum: new Float32Array([1, 2, 3])
         }),
-        getDebugState: vi.fn(() => ({}))
+        getDebugState: vi.fn(() => ({})),
+        dispose: vi.fn()
       } as any,
       audioEngine: {
         update: vi.fn(),
@@ -230,7 +233,8 @@ describe('createRenderer loop integration behaviors', () => {
           transitionAmount: 0.9,
           spectrum: new Float32Array([1, 2, 3])
         }),
-        getDebugState: vi.fn(() => ({}))
+        getDebugState: vi.fn(() => ({})),
+        dispose: vi.fn()
       } as any,
       audioEngine: {
         update: vi.fn(),
@@ -276,7 +280,8 @@ describe('createRenderer loop integration behaviors', () => {
           sdfScene: { nodes: [{ id: 'node-a' }] },
           debugTint: 0.2
         }),
-        getDebugState: vi.fn(() => ({}))
+        getDebugState: vi.fn(() => ({})),
+        dispose: vi.fn()
       } as any,
       audioEngine: {
         update: vi.fn(),
@@ -323,7 +328,8 @@ describe('createRenderer loop integration behaviors', () => {
           sdfScene: { nodes: [{ id: 'node-a' }] },
           debugTint: 0.2
         }),
-        getDebugState: vi.fn(() => ({}))
+        getDebugState: vi.fn(() => ({})),
+        dispose: vi.fn()
       } as any,
       audioEngine: {
         update: vi.fn(),

@@ -1,4 +1,5 @@
 import type { AssetItem, LayerConfig, SceneConfig } from './project';
+import type { CertificationLevel } from './certification';
 
 export type PresetEnergy = 'low' | 'medium' | 'high' | 'peak';
 export type PresetDensity = 'minimal' | 'balanced' | 'dense';
@@ -33,6 +34,7 @@ export interface PresetIndexEntry {
   sourceDependency: PresetSourceDependency;
   riskFlags: PresetRiskFlag[];
   sceneCount: number;
+  certification?: CertificationLevel;
   importedFrom?: string;
   thumbnail?: string;
   searchText: string;
@@ -295,6 +297,7 @@ export const buildPresetIndexEntry = (presetPath: string, data: any): PresetInde
   const motion = detectMotion(layerBlob, familySet);
   const riskFlags = detectRiskFlags(layerBlob, sourceDependency, energy, density);
   const useCases = detectUseCases(layerBlob, energy, sourceDependency);
+  const certification = (data?.metadata?.certification ?? data?.certification) as CertificationLevel | undefined;
   const metadataCategory = (data?.metadata?.category as string | undefined)?.trim();
   const categoryInfo = metadataCategory
     ? { primaryCategory: metadataCategory, subcategory: metadataCategory }
@@ -305,6 +308,7 @@ export const buildPresetIndexEntry = (presetPath: string, data: any): PresetInde
     categoryInfo.primaryCategory,
     categoryInfo.subcategory,
     importedFrom,
+    certification,
     ...visualFamilies,
     ...useCases,
     ...riskFlags,
@@ -328,6 +332,7 @@ export const buildPresetIndexEntry = (presetPath: string, data: any): PresetInde
     sourceDependency,
     riskFlags,
     sceneCount: scenes.length || 1,
+    certification,
     importedFrom,
     thumbnail,
     searchText

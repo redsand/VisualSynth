@@ -1,6 +1,7 @@
 import type { VisualSynthProject } from '../shared/project';
 import { projectSchema } from '../shared/projectSchema';
 import { prepareProjectForRuntime } from './runtimeProject';
+import { normalizeAssetPath } from '../shared/assets';
 
 export type LoadableProjectResult =
   | {
@@ -38,10 +39,20 @@ export const resolveLoadableProject = (project: unknown): LoadableProjectResult 
     };
   }
 
+  const projectData = parsed.data as VisualSynthProject;
+  
+  // Normalize asset paths on load
+  if (projectData.assets) {
+    projectData.assets = projectData.assets.map(asset => ({
+      ...asset,
+      path: normalizeAssetPath(asset.path)
+    }));
+  }
+
   return {
     ok: true,
     name,
-    project: prepareProjectForRuntime(parsed.data)
+    project: prepareProjectForRuntime(projectData)
   };
 };
 

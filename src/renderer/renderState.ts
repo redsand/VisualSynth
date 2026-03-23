@@ -7,6 +7,7 @@
  */
 
 import type { MilkDropShaderData } from '../shared/project';
+import type { SessionHealth } from '../shared/sessionHealth';
 
 export interface RenderTelemetryState {
   timeMs: number;
@@ -218,6 +219,8 @@ export interface RenderState
 
   // MilkDrop shader data (not a uniform)
   milkDropShaderData: MilkDropShaderData | null;
+
+  sessionHealth?: SessionHealth;
 
   /**
    * Dynamic generator uniforms — populated by resolveGenUniforms().

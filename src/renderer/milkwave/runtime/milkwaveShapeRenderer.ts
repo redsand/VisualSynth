@@ -390,18 +390,86 @@ const evaluatePerPointVertex = ({
   };
 };
 
-export const createMilkwaveShapeRenderer = (gl: WebGL2RenderingContext) => {
-  const program = createProgram({
+export interface MilkwaveShapeRendererOptions {
+  gl: WebGL2RenderingContext;
+  trackProgram?: <T extends WebGLProgram | null>(p: T) => T;
+  untrackProgram?: <T extends WebGLProgram | null>(p: T) => T;
+  trackShader?: <T extends WebGLShader | null>(s: T) => T;
+  untrackShader?: <T extends WebGLShader | null>(s: T) => T;
+  trackBuffer?: <T extends WebGLBuffer | null>(b: T) => T;
+  untrackBuffer?: <T extends WebGLBuffer | null>(b: T) => T;
+}
+
+export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOptions | WebGL2RenderingContext) => {
+  const gl = options instanceof WebGL2RenderingContext ? options : options.gl;
+  const trackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const untrackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const trackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const untrackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const trackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  const untrackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+
+  const compileShaderLocal = (
+    gl: WebGL2RenderingContext,
+    type: number,
+    source: string
+  ): WebGLShader | null => {
+    const shader = trackShader(gl.createShader(type));
+    if (!shader) return null;
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error('[MilkwaveShapes] Shader compile error:', gl.getShaderInfoLog(shader));
+      untrackShader(shader);
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  };
+
+  const createProgramLocal = ({
+    gl,
+    vertexSource,
+    fragmentSource
+  }: {
+    gl: WebGL2RenderingContext;
+    vertexSource: string;
+    fragmentSource: string;
+  }): WebGLProgram | null => {
+    const vs = compileShaderLocal(gl, gl.VERTEX_SHADER, vertexSource);
+    const fs = compileShaderLocal(gl, gl.FRAGMENT_SHADER, fragmentSource);
+    if (!vs || !fs) return null;
+    const program = trackProgram(gl.createProgram());
+    if (!program) return null;
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error('[MilkwaveShapes] Program link error:', gl.getProgramInfoLog(program));
+      untrackProgram(program);
+      gl.deleteProgram(program);
+      return null;
+    }
+
+    gl.detachShader(program, vs);
+    gl.detachShader(program, fs);
+    untrackShader(vs); gl.deleteShader(vs);
+    untrackShader(fs); gl.deleteShader(fs);
+
+    return program;
+  };
+
+  const program = createProgramLocal({
     gl,
     vertexSource: SHAPE_VERTEX_SHADER,
     fragmentSource: SHAPE_FRAGMENT_SHADER
   });
-  const texturedProgram = createProgram({
+  const texturedProgram = createProgramLocal({
     gl,
     vertexSource: TEXTURED_SHAPE_VERTEX_SHADER,
     fragmentSource: TEXTURED_SHAPE_FRAGMENT_SHADER
   });
-  const buffer = gl.createBuffer();
+  const buffer = trackBuffer(gl.createBuffer());
   const runtimeMemory = new Map<string, MilkwaveShapeRuntimeMemory>();
 
   const render = ({
@@ -615,9 +683,9 @@ export const createMilkwaveShapeRenderer = (gl: WebGL2RenderingContext) => {
   };
 
   const clear = () => {
-    if (program) gl.deleteProgram(program);
-    if (texturedProgram) gl.deleteProgram(texturedProgram);
-    if (buffer) gl.deleteBuffer(buffer);
+    if (program) { untrackProgram(program); gl.deleteProgram(program); }
+    if (texturedProgram) { untrackProgram(texturedProgram); gl.deleteProgram(texturedProgram); }
+    if (buffer) { untrackBuffer(buffer); gl.deleteBuffer(buffer); }
     runtimeMemory.clear();
   };
 

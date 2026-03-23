@@ -37,7 +37,9 @@ export interface MilkwaveOfflineTranslationPass {
 
 export interface MilkwaveOfflineTranslationReport {
   pipeline: 'milkwave-offline-v1';
-  supportTier: MilkwaveSupportTier;
+  supportTier: MilkwaveSupportTier; // @deprecated
+  staticSupportTier: MilkwaveSupportTier;
+  runtimeSupportTier: MilkwaveSupportTier;
   featureSummary: string[];
   runtimePatchRecommended: boolean;
   passes: {
@@ -459,7 +461,9 @@ export const translateMilkwaveIROffline = (
 
   return {
     pipeline: 'milkwave-offline-v1',
-    supportTier: capability.tier,
+    supportTier: capability.staticSupportTier,
+    staticSupportTier: capability.staticSupportTier,
+    runtimeSupportTier: capability.staticSupportTier, // defaults to static until audited
     featureSummary: capability.featureSummary,
     runtimePatchRecommended,
     passes: {

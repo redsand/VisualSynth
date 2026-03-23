@@ -8,7 +8,20 @@ import {
   DEFAULT_SCENE_ROLES
 } from './project';
 
-const CURRENT_VERSION = 3;
+const CURRENT_VERSION = 6;
+
+/**
+ * Deterministically sorts object keys for stable serialization.
+ */
+const sortObjectKeys = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sortObjectKeys);
+  const sorted: any = {};
+  Object.keys(obj).sort().forEach(key => {
+    sorted[key] = sortObjectKeys(obj[key]);
+  });
+  return sorted;
+};
 
 const ensureSceneDefaults = (scene: any) => {
   const next = {
@@ -79,9 +92,15 @@ upgraded = {
 export const serializeProject = (project: VisualSynthProject) => {
   const parsed = projectSchema.safeParse(project);
   if (!parsed.success) {
-    throw new Error('Invalid project data');
+    throw new Error('Invalid project data: ' + JSON.stringify(parsed.error.format()));
   }
-  return JSON.stringify(parsed.data, null, 2);
+  
+  const canonical = { ...parsed.data };
+  // Strictly remove non-canonical fields
+  delete (canonical as any).updatedAt;
+  delete (canonical as any).output;
+
+  return JSON.stringify(sortObjectKeys(canonical), null, 2);
 };
 
 export const deserializeProject = (payload: string): VisualSynthProject => {

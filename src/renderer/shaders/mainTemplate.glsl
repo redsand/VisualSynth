@@ -174,14 +174,18 @@ void main() {
   }
 
   if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5) {
-    color += pow(color, vec3(2.0)) * uBloom;
-    color = posterize(color, uPosterize);
+    // Apply Scene FX
+    APPLY_SCOPED_FX(color, effectUv, scene_scene_0)
+    
+    // Apply Global FX (Legacy names preserved for test compatibility)
+    if (uBloom > 0.01) color += pow(color, vec3(2.0)) * uBloom;
+    if (uPosterize > 0.01) color = posterize(color, uPosterize);
   }
-
+  
   if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uChroma > 0.01) {
     color = mix(color, vec3(color.r + uChroma * 0.02, color.g, color.b - uChroma * 0.02), 0.3);
   }
-
+  
   if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uBlur > 0.01) {
     color = mix(color, vec3((color.r + color.g + color.b) / 3.0), uBlur * 0.3);
   }

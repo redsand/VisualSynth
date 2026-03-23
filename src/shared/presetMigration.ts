@@ -357,7 +357,14 @@ export const presetV6Schema = z.object({
     milkwave: z.object({
       format: z.literal('milkwave-ir'),
       version: z.number(),
-      supportTier: z.enum(['native-supported', 'supported-with-degradation', 'fallback-only', 'unsupported']),
+      supportTier: z.enum(['native-supported', 'supported-with-degradation', 'fallback-only', 'unsupported']), // @deprecated
+      staticSupportTier: z.enum(['native-supported', 'supported-with-degradation', 'fallback-only', 'unsupported']).optional(),
+      runtimeSupportTier: z.enum(['native-supported', 'supported-with-degradation', 'fallback-only', 'unsupported']).optional(),
+      lastAuditAt: z.string().nullable().optional(),
+      auditWarnings: z.array(z.string()).optional(),
+      auditErrors: z.array(z.string()).optional(),
+      shapesRendered: z.number().optional(),
+      wavesRendered: z.number().optional(),
       featureSummary: z.array(z.string()),
       reasons: z.array(z.object({
         key: z.string(),

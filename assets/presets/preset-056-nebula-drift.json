@@ -24,7 +24,26 @@
       "triadic",
       "deep"
     ],
-    "activeEngineId": "engine-particle-flow"
+    "activeEngineId": "engine-particle-flow",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": {
+      "opener": 8,
+      "build": 5,
+      "drop": 4,
+      "breakdown": 9,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 5
+    },
+    "cpuCost": "medium",
+    "depthScore": 0.2,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "geometry",
+    "motionType": "static",
+    "repetitionRisk": "high"
   },
   "scenes": [
     {
@@ -123,10 +142,26 @@
       "id": "palette-nebula-warm",
       "name": "Nebula Warm",
       "colors": [
-        { "r": 0.15, "g": 0.02, "b": 0.25 },
-        { "r": 0.6, "g": 0.1, "b": 0.45 },
-        { "r": 0.95, "g": 0.35, "b": 0.55 },
-        { "r": 1.0, "g": 0.7, "b": 0.85 }
+        {
+          "r": 0.15,
+          "g": 0.02,
+          "b": 0.25
+        },
+        {
+          "r": 0.6,
+          "g": 0.1,
+          "b": 0.45
+        },
+        {
+          "r": 0.95,
+          "g": 0.35,
+          "b": 0.55
+        },
+        {
+          "r": 1,
+          "g": 0.7,
+          "b": 0.85
+        }
       ],
       "interpolation": "smooth",
       "locked": false

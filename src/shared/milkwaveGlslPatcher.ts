@@ -265,11 +265,15 @@ const preprocess = (source: string): string => {
   // `float2x3` etc. → `mat2x3`
   source = source.replace(/\bfloat(\d)x(\d)\b/g, 'mat$1x$2');
   // HLSL `sampler` declarations (e.g., `sampler sampler_rand00 = ;` or `sampler sampler_rand00;`)
-  source = source.replace(/^\s*sampler\s+\w+\s*(?:=[^;]*)?\s*;/gm, '');
+  source = source.replace(/\bsampler\s+[^;]+;/g, '');
   // HLSL semantics (`: COLOR0`, `: SV_TARGET`, etc.)
   source = source.replace(/\)\s*:\s*[A-Z_][A-Z0-9_]*/g, ')');
   // HLSL `tex3D()` → `texture()`
   source = source.replace(/\btex3D\b/g, 'texture');
+  // HLSL `tex2D()` / `tex2d()` → `texture()`
+  source = source.replace(/\btex2[Dd]\b/g, 'texture');
+  // HLSL `tex2Dbias()` → `textureBias()`
+  source = source.replace(/\btex2[Dd]bias\b/g, 'textureBias');
   // Line continuations: `\` at end of line followed by newline → join lines
   source = source.replace(/\\\s*\n/g, ' ');
   // `smooth` is a GLSL reserved keyword — rename if used as variable
@@ -552,10 +556,26 @@ const preprocess = (source: string): string => {
     ['sampler_noisevol_lq', 'sampler_noise_lq'], ['sampler_noisevol_hq', 'sampler_noise_hq'],
     ['sampler_FC_main', 'sampler_main'], ['sampler_PC_main', 'sampler_main'],
     ['sampler_FW_main', 'sampler_main'], ['sampler_PW_main', 'sampler_main'],
+    ['sampler_rand01', 'sampler_noise_lq'], ['sampler_rand02', 'sampler_noise_mq'],
+    ['sampler_rand03', 'sampler_noise_hq'], ['sampler_rand04', 'sampler_noise_lq'],
   ];
   for (const [alias, target] of samplerAliases) {
     if (source.includes(alias) && !beforeMain.includes(`uniform sampler2D ${alias}`) && !beforeMain.includes(`#define ${alias}`)) {
       additions.push(`#define ${alias} ${target}`);
+    }
+  }
+
+  // MilkDrop built-in constants
+  const builtinConstants: [string, string][] = [
+    ['M_PI', '3.14159265359'],
+    ['M_PI_2', '1.57079632679'],
+    ['M_INV_PI_2', '0.63661977236'],
+    ['PI', '3.14159265359'],
+    ['PI_2', '1.57079632679'],
+  ];
+  for (const [name, val] of builtinConstants) {
+    if (new RegExp(`\\b${name}\\b`).test(source) && !beforeMain.includes(`#define ${name}`)) {
+      additions.push(`#define ${name} ${val}`);
     }
   }
 
@@ -607,6 +627,18 @@ const preprocess = (source: string): string => {
   }
   if (/\bGetMain\s*\(/.test(source) && !beforeMain.includes('vec3 GetMain(')) {
     additions.push(`vec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }`);
+  }
+  if (/\bGetPixel\s*\(/.test(source) && !beforeMain.includes('vec3 GetPixel(')) {
+    additions.push(`vec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }`);
+  }
+  if (/\bGetBlur1\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur1(')) {
+    additions.push(`vec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }`);
+  }
+  if (/\bGetBlur2\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur2(')) {
+    additions.push(`vec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }`);
+  }
+  if (/\bGetBlur3\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur3(')) {
+    additions.push(`vec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }`);
   }
   if (/\bmultiply\s*\(/.test(source) && !beforeMain.includes('vec2 multiply(')) {
     additions.push(`vec2 multiply(vec2 v, mat2 m) { return m * v; }`);

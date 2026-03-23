@@ -12,9 +12,9 @@ import { collectActiveUniformLookup, hasUniform } from './uniformIntrospection';
 import {
   createMilkDropRenderer,
   type MilkDropRenderer,
-  type MilkDropCompileReport,
   type MilkDropNativeRuntimeReport
 } from './milkdropRenderer';
+import { type MilkDropCompileReport, type MilkwaveRuntimeStatus } from '../shared/milkwaveStatus';
 export type {
   RenderTelemetryState,
   RenderLayerEnabledState,
@@ -98,6 +98,24 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
   let uniformWarningsLogged = false;
   const generatorDiagnostics: Map<string, { enabled: boolean; opacity: number; uniformsBound: boolean }> = new Map();
 
+  // --- Resource Tracking ---
+  let textureCount = 0;
+  let framebufferCount = 0;
+  let bufferCount = 0;
+  let programCount = 0;
+  let shaderCount = 0;
+
+  const trackTexture = (tex: WebGLTexture | null) => { if (tex) textureCount++; return tex; };
+  const untrackTexture = (tex: WebGLTexture | null) => { if (tex) textureCount--; };
+  const trackFramebuffer = (fbo: WebGLFramebuffer | null) => { if (fbo) framebufferCount++; return fbo; };
+  const untrackFramebuffer = (fbo: WebGLFramebuffer | null) => { if (fbo) framebufferCount--; };
+  const trackBuffer = (buf: WebGLBuffer | null) => { if (buf) bufferCount++; return buf; };
+  const untrackBuffer = (buf: WebGLBuffer | null) => { if (buf) bufferCount--; };
+  const trackProgram = (prog: WebGLProgram | null) => { if (prog) programCount++; return prog; };
+  const untrackProgram = (prog: WebGLProgram | null) => { if (prog) programCount--; };
+  const trackShader = (shader: WebGLShader | null) => { if (shader) shaderCount++; return shader; };
+  const untrackShader = (shader: WebGLShader | null) => { if (shader) shaderCount--; };
+
   const vertexShaderSrc = `#version 300 es
 in vec2 position;
 out vec2 vUv;
@@ -121,11 +139,11 @@ void main() {
   let milkDropEnabled = false;
   let milkDropTexture: WebGLTexture | null = null;
   
-  const waveformTexture = gl.createTexture();
-  const spectrumTexture = gl.createTexture();
-  const modulatorTexture = gl.createTexture();
-  const midiTexture = gl.createTexture();
-  const previousFrameTexture = gl.createTexture();
+  const waveformTexture = trackTexture(gl.createTexture());
+  const spectrumTexture = trackTexture(gl.createTexture());
+  const modulatorTexture = trackTexture(gl.createTexture());
+  const midiTexture = trackTexture(gl.createTexture());
+  const previousFrameTexture = trackTexture(gl.createTexture());
   let previousFrameWidth = 0;
   let previousFrameHeight = 0;
 
@@ -176,7 +194,7 @@ void main() {
   };
 
   const compileShader = (type: number, source: string) => {
-    const shader = gl.createShader(type);
+    const shader = trackShader(gl.createShader(type));
     if (!shader) return null;
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
@@ -199,6 +217,7 @@ void main() {
       } else {
         console.error('Shader source omitted (too large).');
       }
+      untrackShader(shader);
       gl.deleteShader(shader);
       return null;
     }
@@ -208,9 +227,17 @@ void main() {
   const createProgram = (vSource: string, fSource: string, deferLinkCheck = false) => {
     const vs = compileShader(gl.VERTEX_SHADER, vSource);
     const fs = compileShader(gl.FRAGMENT_SHADER, fSource);
-    if (!vs || !fs) return null;
-    const prog = gl.createProgram();
-    if (!prog) return null;
+    if (!vs || !fs) {
+      if (vs) { untrackShader(vs); gl.deleteShader(vs); }
+      if (fs) { untrackShader(fs); gl.deleteShader(fs); }
+      return null;
+    }
+    const prog = trackProgram(gl.createProgram());
+    if (!prog) {
+      untrackShader(vs); gl.deleteShader(vs);
+      untrackShader(fs); gl.deleteShader(fs);
+      return null;
+    }
     gl.attachShader(prog, vs);
     gl.attachShader(prog, fs);
     gl.linkProgram(prog);
@@ -225,10 +252,20 @@ void main() {
           options.onError(log, 'link');
         }
 
+        untrackProgram(prog);
         gl.deleteProgram(prog);
+        untrackShader(vs); gl.deleteShader(vs);
+        untrackShader(fs); gl.deleteShader(fs);
         return null;
       }
     }
+    // Detach and delete shaders after successful link to prevent resource leaks.
+    // WebGL keeps them alive as long as they're attached to a program.
+    gl.detachShader(prog, vs);
+    gl.detachShader(prog, fs);
+    untrackShader(vs); gl.deleteShader(vs);
+    untrackShader(fs); gl.deleteShader(fs);
+
     return prog;
   };
   // Shader program cache to avoid recompiling the same shader variants
@@ -251,13 +288,14 @@ void main() {
     sdfMapBody = '10.0',
     plasmaSource: string | null = null,
     customBlocks: CustomShaderBlock[] = [],
-    deferLinkCheck = false
+    deferLinkCheck = false,
+    fxUniforms = ''
   ): WebGLProgram | null => {
     const customHash = [...customBlocks]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
       .join('|');
-    const key = shaderCacheKey(activeIds, sdfMapBody, plasmaSource ?? '', customHash);
+    const key = shaderCacheKey(activeIds, sdfMapBody, plasmaSource ?? '', customHash + fxUniforms);
 
     // Check cache first
     if (programCache.has(key)) {
@@ -270,11 +308,19 @@ void main() {
       { preamble: SHADER_PREAMBLE, mainTemplate: SHADER_MAIN_TEMPLATE },
       effectiveBlocks,
       activeIds,
-      sdfUniforms, sdfFunctions, sdfMapBody, plasmaSource
+      sdfUniforms, sdfFunctions, sdfMapBody, plasmaSource,
+      fxUniforms
     );
 
     const prog = createProgram(vertexShaderSrc, fSrc, deferLinkCheck);
     if (prog && !deferLinkCheck) {
+      if (programCache.has(key)) {
+        const oldProg = programCache.get(key);
+        if (oldProg) {
+          untrackProgram(oldProg);
+          gl.deleteProgram(oldProg);
+        }
+      }
       programCache.set(key, prog);
     }
     return prog ?? null;
@@ -361,27 +407,24 @@ void main() {
 
     const success = milkDropRenderer.compileShaders(shaderData);
     if (!success) {
-      console.warn('[GLRenderer] MilkDrop shaders failed to compile, attempting safe MilkDrop fallback');
-      const fallbackShaderData: MilkDropShaderData = {
-        ...shaderData,
-        warp: '',
-        comp: '',
-        perPixelCode: []
-      };
-      const fallbackSuccess = milkDropRenderer.compileShaders(fallbackShaderData);
-      if (fallbackSuccess) {
-        currentMilkDropShaderData = fallbackShaderData;
-        milkDropEnabled = true;
-        lastMilkDropWarp = '';
-        lastMilkDropComp = '';
-        console.warn('[GLRenderer] MilkDrop custom shader failed; using default MilkDrop fallback renderer');
-      } else {
-        console.warn('[GLRenderer] MilkDrop fallback renderer failed, disabling custom MilkDrop path');
-        currentMilkDropShaderData = null;
-        milkDropEnabled = false;
-      }
+      console.warn('[GLRenderer] MilkDrop shaders failed to compile even with fallbacks, disabling custom MilkDrop path');
+      currentMilkDropShaderData = null;
+      milkDropEnabled = false;
+      lastMilkDropWarp = '';
+      lastMilkDropComp = '';
     } else {
-      console.log('[GLRenderer] MilkDrop shaders compiled successfully');
+      const report = milkDropRenderer.getLastCompileReport();
+      const warpStatus = report?.warp.status;
+      const compStatus = report?.comp.status;
+      
+      if (warpStatus === 'failed' || compStatus === 'failed') {
+        console.warn('[GLRenderer] MilkDrop shaders have failures:', { warpStatus, compStatus });
+      } else if (warpStatus === 'fallback' || compStatus === 'fallback' || warpStatus === 'degraded') {
+        console.warn('[GLRenderer] MilkDrop shaders are degraded/fallback:', { warpStatus, compStatus, warpReport: report?.warp, compReport: report?.comp });
+      } else {
+        console.log('[GLRenderer] MilkDrop shaders compiled successfully');
+      }
+      
       currentMilkDropShaderData = shaderData;
       milkDropEnabled = true;
       lastMilkDropWarp = shaderData.warp;
@@ -389,7 +432,7 @@ void main() {
     }
   };
 
-  const positionBuffer = gl.createBuffer();
+  const positionBuffer = trackBuffer(gl.createBuffer());
   if (!positionBuffer) throw new Error('Buffer creation failed');
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
@@ -737,8 +780,8 @@ void main() {
 
   const loadImageAsset = (asset: AssetItem): Promise<AssetCacheEntry> =>
     new Promise((resolve) => {
-      const texture = gl.createTexture();
-      if (!texture) { resolve({ assetId: asset.id, texture: gl.createTexture()! }); return; }
+      const texture = trackTexture(gl.createTexture());
+      if (!texture) { resolve({ assetId: asset.id, texture: trackTexture(gl.createTexture())! }); return; }
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -766,8 +809,8 @@ void main() {
 
   const loadVideoAsset = (asset: AssetItem, videoOverride?: HTMLVideoElement): Promise<AssetCacheEntry> =>
     new Promise((resolve) => {
-      const texture = gl.createTexture();
-      if (!texture) { resolve({ assetId: asset.id, texture: gl.createTexture()! }); return; }
+      const texture = trackTexture(gl.createTexture());
+      if (!texture) { resolve({ assetId: asset.id, texture: trackTexture(gl.createTexture())! }); return; }
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -800,8 +843,8 @@ void main() {
 
   const loadTextAsset = (asset: AssetItem, canvas: HTMLCanvasElement): Promise<AssetCacheEntry> =>
     new Promise((resolve) => {
-      const texture = gl.createTexture();
-      if (!texture) { resolve({ assetId: asset.id, texture: gl.createTexture()! }); return; }
+      const texture = trackTexture(gl.createTexture());
+      if (!texture) { resolve({ assetId: asset.id, texture: trackTexture(gl.createTexture())! }); return; }
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -1163,7 +1206,7 @@ void main() {
     }
   };
 
-  const recompileForGenerators = (activeIds: Set<string>, customBlocks: CustomShaderBlock[] = [], forceSync = false): boolean => {
+  const recompileForGenerators = (activeIds: Set<string>, customBlocks: CustomShaderBlock[] = [], forceSync = false, fxUniforms = ''): boolean => {
     // Store the active IDs and custom blocks for future recompilations (e.g., when SDF changes)
     currentActiveIds = new Set(activeIds);
     currentCustomBlocks = customBlocks;
@@ -1173,7 +1216,7 @@ void main() {
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
       .join('|');
-    const key = shaderCacheKey(activeIds, currentSdfMapBody, currentPlasmaSource ?? '', customHash);
+    const key = shaderCacheKey(activeIds, currentSdfMapBody, currentPlasmaSource ?? '', customHash + fxUniforms);
 
     const wasCached = programCache.has(key);
     
@@ -1200,7 +1243,8 @@ void main() {
       currentSdfMapBody,
       currentPlasmaSource,
       customBlocks,
-      useAsync
+      useAsync,
+      fxUniforms
     );
 
     if (!prog) {
@@ -1223,19 +1267,19 @@ void main() {
     return true;
   };
 
-  const precompileVariant = (ids: Set<string>): void => {
+  const precompileVariant = (ids: Set<string>, fxUniforms = ''): void => {
     if (contextLost) return;
     const t0 = performance.now();
     const customHash = [...currentCustomBlocks]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
       .join('|');
-    const key = shaderCacheKey(ids, currentSdfMapBody, currentPlasmaSource ?? '', customHash);
+    const key = shaderCacheKey(ids, currentSdfMapBody, currentPlasmaSource ?? '', customHash + fxUniforms);
 
     if (programCache.has(key)) return;
 
     const useAsync = !!extParallel;
-    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync);
+    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, fxUniforms);
     
     if (prog) {
       if (useAsync) {
@@ -1252,7 +1296,96 @@ void main() {
 
   const setCustomShaderBlocks = (blocks: CustomShaderBlock[]): void => {
     currentCustomBlocks = blocks;
+    programCache.forEach(prog => {
+      untrackProgram(prog);
+      gl.deleteProgram(prog);
+    });
     programCache.clear();
+    activeUniformLookupCache.clear();
+    uniformLocationCache.clear();
+  };
+
+  const getResourceCounts = () => {
+    const mdCounts = milkDropRenderer?.getResourceCounts() ?? { textures: 0, framebuffers: 0, programs: 0, shaders: 0 };
+    return {
+      textures: textureCount + mdCounts.textures,
+      framebuffers: framebufferCount + mdCounts.framebuffers,
+      buffers: bufferCount,
+      programs: programCount + mdCounts.programs,
+      shaders: shaderCount + mdCounts.shaders
+    };
+  };
+
+  const dispose = () => {
+    programCache.forEach(prog => {
+      untrackProgram(prog);
+      gl.deleteProgram(prog);
+    });
+    programCache.clear();
+    activeUniformLookupCache.clear();
+    uniformLocationCache.clear();
+
+    if (advancedSdfProgram) {
+      untrackProgram(advancedSdfProgram);
+      gl.deleteProgram(advancedSdfProgram);
+      advancedSdfProgram = null;
+    }
+
+    if (milkDropCompositeProgram) {
+      untrackProgram(milkDropCompositeProgram);
+      gl.deleteProgram(milkDropCompositeProgram);
+      milkDropCompositeProgram = null;
+    }
+
+    if (milkDropRenderer) {
+      milkDropRenderer.clear();
+      milkDropRenderer = null;
+    }
+
+    [waveformTexture, spectrumTexture, modulatorTexture, midiTexture, previousFrameTexture].forEach(tex => {
+      if (tex) {
+        untrackTexture(tex);
+        gl.deleteTexture(tex);
+      }
+    });
+
+    if (positionBuffer) {
+      untrackBuffer(positionBuffer);
+      gl.deleteBuffer(positionBuffer);
+    }
+    
+    // Clear asset cache textures and stop videos
+    assetCache.forEach(entry => {
+      if (entry.texture) {
+        untrackTexture(entry.texture);
+        gl.deleteTexture(entry.texture);
+      }
+      if (entry.video) {
+        entry.video.pause();
+        entry.video.src = '';
+        entry.video.load();
+        entry.video.remove();
+      }
+    });
+    assetCache.clear();
+  };
+
+  const pruneUnusedAssets = (activeAssetIds: Set<string>) => {
+    assetCache.forEach((entry, id) => {
+      if (!activeAssetIds.has(id)) {
+        if (entry.texture) {
+          untrackTexture(entry.texture);
+          gl.deleteTexture(entry.texture);
+        }
+        if (entry.video) {
+          entry.video.pause();
+          entry.video.src = '';
+          entry.video.load();
+          entry.video.remove();
+        }
+        assetCache.delete(id);
+      }
+    });
   };
 
   return {
@@ -1270,6 +1403,9 @@ void main() {
     precompileVariant,
     setCustomShaderBlocks,
     updateMilkDropShaders,
+    getResourceCounts,
+    pruneUnusedAssets,
+    dispose,
     isContextLost: () => contextLost
   };
 };

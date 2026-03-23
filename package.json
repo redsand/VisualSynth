@@ -28,6 +28,8 @@
     "screenshots:effects": "node scripts/generate-visual-screenshots.js --category effects",
     "screenshots:test": "npm test -- screenshot.test.ts",
     "presets:migrate": "ts-node scripts/migrate-presets.ts",
+    "presets:audit-milkwave": "ts-node scripts/auditMilkwave.ts",
+    "presets:certify-milkwave": "ts-node scripts/certifyMilkwavePresets.ts",
     "visual-regression:v1": "node scripts/compare-v1-visuals.js",
     "visual-regression:v1:prepare": "node scripts/compare-v1-visuals.js --prepare-only",
     "visual-regression:v1:all": "node scripts/compare-v1-visuals.js --all-v1-presets"

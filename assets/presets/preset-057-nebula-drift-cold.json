@@ -24,7 +24,27 @@
       "triadic",
       "deep"
     ],
-    "activeEngineId": "engine-particle-flow"
+    "activeEngineId": "engine-particle-flow",
+    "tag": "variant",
+    "isCoreClubPack": false,
+    "scores": {
+      "opener": 8,
+      "build": 5,
+      "drop": 4,
+      "breakdown": 9,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 5
+    },
+    "basePresetId": "preset-056-nebula-drift",
+    "cpuCost": "medium",
+    "depthScore": 0.2,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "geometry",
+    "motionType": "static",
+    "repetitionRisk": "high"
   },
   "scenes": [
     {
@@ -123,10 +143,26 @@
       "id": "palette-nebula-cold",
       "name": "Nebula Cold",
       "colors": [
-        { "r": 0.02, "g": 0.05, "b": 0.15 },
-        { "r": 0.1, "g": 0.25, "b": 0.5 },
-        { "r": 0.3, "g": 0.6, "b": 0.9 },
-        { "r": 0.7, "g": 0.9, "b": 1.0 }
+        {
+          "r": 0.02,
+          "g": 0.05,
+          "b": 0.15
+        },
+        {
+          "r": 0.1,
+          "g": 0.25,
+          "b": 0.5
+        },
+        {
+          "r": 0.3,
+          "g": 0.6,
+          "b": 0.9
+        },
+        {
+          "r": 0.7,
+          "g": 0.9,
+          "b": 1
+        }
       ],
       "interpolation": "smooth",
       "locked": false

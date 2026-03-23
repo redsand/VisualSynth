@@ -30,7 +30,7 @@ describe('shaderLifecycle', () => {
     expect(renderer.setCustomShaderBlocks).toHaveBeenCalledWith(customBlocks);
     expect(renderer.recompileForGenerators).toHaveBeenCalledTimes(1);
     expect(renderer.recompileForGenerators.mock.calls[0][0]).toEqual(new Set(['layer-plasma']));
-    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['layer-plasma']), customBlocks);
+    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['layer-plasma']), customBlocks, false, '');
   });
 
   it('falls back to the active scene when compiling a project', () => {
@@ -67,7 +67,7 @@ describe('shaderLifecycle', () => {
     const count = compileActiveSceneShaders(renderer, project);
 
     expect(count).toBe(1);
-    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), []);
+    expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), [], false, '');
   });
 
   it('primes project shaders by compiling the active scene', () => {
@@ -115,7 +115,7 @@ describe('shaderLifecycle', () => {
       const count = primeProjectShaders(renderer, project, 250);
 
       expect(count).toBe(1);
-      expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), []);
+      expect(renderer.recompileForGenerators).toHaveBeenCalledWith(new Set(['gen-lightning']), [], false, '');
     } finally {
       vi.useRealTimers();
     }

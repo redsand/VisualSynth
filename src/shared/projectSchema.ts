@@ -469,7 +469,10 @@ const sceneSchema = z.object({
   }),
   layers: z.array(layerSchema).min(1),
   look: sceneLookSchema.optional(),
-  _shaderData: milkDropShaderDataSchema.optional()
+  _shaderData: milkDropShaderDataSchema.optional(),
+  depthScore: z.number().default(0),
+  complexity: z.number().default(0),
+  tags: z.array(z.string()).default([])
 });
 
 const lfoSchema = z.object({
@@ -665,8 +668,8 @@ export const projectSchema = z.object({
   intendedMusicStyle: z.string().optional(),
   visualIntentTags: z.array(z.string()).optional(),
   createdAt: z.string(),
-  updatedAt: z.string(),
-  output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
+  updatedAt: z.string().optional(),
+  output: outputConfigSchema.optional(),
   stylePresets: z.array(stylePresetSchema).default([]),
   activeStylePresetId: z.string().default('style-neutral'),
   palettes: z.array(colorPaletteSchema).default([]),

@@ -158,13 +158,6 @@ export type GeneratorId =
   | 'viz-spectrum'
   | 'viz-waveform'
   | 'viz-oscilloscope'
-  | 'fx-bloom'
-  | 'fx-feedback'
-  | 'fx-kaleidoscope'
-  | 'fx-chroma'
-  | 'fx-posterize'
-  | 'fx-blur'
-  | 'fx-trails'
   | 'gen-asset-vortex'
   | 'gen-asset-slices'
   | 'gen-asset-polar'
@@ -289,13 +282,6 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'viz-spectrum', name: 'Visualizer: Spectrum' },
   { id: 'viz-waveform', name: 'Visualizer: Waveform' },
   { id: 'viz-oscilloscope', name: 'Visualizer: Oscilloscope' },
-  { id: 'fx-bloom', name: 'Effect: Bloom' },
-  { id: 'fx-feedback', name: 'Effect: Feedback Tunnel' },
-  { id: 'fx-kaleidoscope', name: 'Effect: Kaleidoscope' },
-  { id: 'fx-chroma', name: 'Effect: Chromatic Aberration' },
-  { id: 'fx-posterize', name: 'Effect: Posterize' },
-  { id: 'fx-blur', name: 'Effect: Blur' },
-  { id: 'fx-trails', name: 'Effect: Trails' },
   { id: 'gen-cellular-growth', name: 'Generator: Cellular Growth' },
   { id: 'gen-bio-luminescent-forest', name: 'Generator: Bio-Luminescent Forest' },
   { id: 'gen-crystalline', name: 'Generator: Crystalline' },

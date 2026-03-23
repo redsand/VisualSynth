@@ -24,7 +24,27 @@
       "analog",
       "shifting"
     ],
-    "activeEngineId": "engine-radial-core"
+    "activeEngineId": "engine-radial-core",
+    "tag": "variant",
+    "isCoreClubPack": false,
+    "scores": {
+      "opener": 8,
+      "build": 5,
+      "drop": 4,
+      "breakdown": 9,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 5
+    },
+    "basePresetId": "preset-020-glitch-grid",
+    "cpuCost": "medium",
+    "depthScore": 0.2,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "fluid",
+    "motionType": "flow",
+    "repetitionRisk": "high"
   },
   "scenes": [
     {

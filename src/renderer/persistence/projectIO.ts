@@ -4,8 +4,11 @@ import {
   DEFAULT_SCENE_TRANSITION,
   DEFAULT_SCENE_TRIGGER,
   type OutputConfig,
-  type VisualSynthProject
+  type VisualSynthProject,
+  type AssetItem
 } from '../../shared/project';
+import { normalizeAssetPath } from '../../shared/assets';
+import { serializeProject } from '../../shared/serialization';
 import { actions } from '../state/actions';
 import type { Store } from '../state/store';
 import { setStatus } from '../state/events';
@@ -23,6 +26,7 @@ export interface ProjectIO {
   applyProject: (project: VisualSynthProject) => Promise<void>;
   loadProject: () => Promise<void>;
   saveProject: () => Promise<void>;
+  saveProjectAs: () => Promise<void>;
 }
 
 export const createProjectIO = ({
@@ -31,26 +35,33 @@ export const createProjectIO = ({
   setOutputEnabled,
   onProjectApplied
 }: ProjectIODeps): ProjectIO => {
-  const serializeProject = () => {
-    const now = new Date().toISOString();
+  const serializeProjectLocal = () => {
     const state = store.getState();
-    const payload: VisualSynthProject = {
-      ...state.project,
-      updatedAt: now,
-      output: state.outputConfig
-    };
-    return JSON.stringify(payload, null, 2);
+    const project = state.project;
+
+    // Normalize asset paths before saving
+    const normalizedAssets = project.assets.map((asset: AssetItem) => ({
+      ...asset,
+      path: normalizeAssetPath(asset.path)
+    }));
+
+    // Use unified shared serialization for deterministic canonical model
+    return serializeProject({
+      ...project,
+      assets: normalizedAssets
+    });
   };
 
-  const applyProject = async (project: VisualSynthProject) => {
+  const applyProject = async (project: VisualSynthProject, filePath: string | null = null) => {
     const applied = await applyLoadableProjectRuntime(project, {
       currentOutputConfig: store.getState().outputConfig,
       onResolvedProject: (normalized) => {
         actions.setProject(store, normalized);
+        actions.setProjectPath(store, filePath);
       },
       syncOutputConfig,
       setOutputEnabled
-    });
+    }, filePath);
     if (!applied.ok) {
       setStatus('Invalid project loaded.');
       return;
@@ -63,19 +74,38 @@ export const createProjectIO = ({
   const loadProject = async () => {
     const result = await window.visualSynth.openProject();
     if (!result.canceled && result.project) {
-      await applyProject(result.project);
+      await applyProject(result.project, result.filePath);
     }
   };
 
   const saveProject = async () => {
-    const payload = serializeProject();
-    await window.visualSynth.saveProject(payload);
+    const payload = serializeProjectLocal();
+    const currentPath = store.getState().projectPath;
+    const result = await window.visualSynth.saveProject(payload, currentPath ?? undefined);
+    if (!result.canceled) {
+      if (result.filePath) {
+        actions.setProjectPath(store, result.filePath);
+      }
+      setStatus(`Saved project: ${store.getState().project.name}`);
+    }
+  };
+
+  const saveProjectAs = async () => {
+    const payload = serializeProjectLocal();
+    const result = await window.visualSynth.saveProjectAs(payload);
+    if (!result.canceled) {
+      if (result.filePath) {
+        actions.setProjectPath(store, result.filePath);
+      }
+      setStatus(`Saved project as: ${store.getState().project.name}`);
+    }
   };
 
   return {
-    serializeProject,
+    serializeProject: serializeProjectLocal,
     applyProject,
     loadProject,
-    saveProject
+    saveProject,
+    saveProjectAs
   };
 };

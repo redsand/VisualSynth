@@ -198,6 +198,10 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
   const applySceneById = (sceneId: string) => {
     const activation = resolveSceneActivationRuntime(store.getState().project, sceneId);
     if (!activation) return;
+    
+    // Clear old scene resources before applying new one
+    renderGraph.dispose();
+    
     actions.setProject(store, activation.project);
     const runtime = applySceneActivationRuntime(activation, {
       transportTimeMs: store.getState().transport.timeMs,
@@ -378,6 +382,9 @@ export const bootstrap = async (): Promise<BootstrapResult> => {
     },
     triggerAction: (action: string, velocity = 1.0) => {
       renderGraph.handlePadAction(action, velocity);
+    },
+    runStressTest: (iterations?: number, intervalMs?: number) => {
+      return renderer.runStressTest(iterations, intervalMs);
     }
   };
   (window as any).__visualSynthInitialized = true;

@@ -95,6 +95,11 @@ export const actions = {
       state.project = project;
     });
   },
+  setProjectPath: (store: Store, path: string | null) => {
+    store.update((state) => {
+      state.projectPath = path;
+    });
+  },
   mutateProject: (store: Store, updater: (project: VisualSynthProject) => void, notify = true) => {
     store.update((state) => {
       updater(state.project);

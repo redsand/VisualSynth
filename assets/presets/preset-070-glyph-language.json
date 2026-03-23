@@ -24,7 +24,26 @@
       "analog",
       "smooth"
     ],
-    "activeEngineId": "engine-radial-core"
+    "activeEngineId": "engine-radial-core",
+    "tag": "hero",
+    "isCoreClubPack": true,
+    "scores": {
+      "opener": 8,
+      "build": 9,
+      "drop": 9,
+      "breakdown": 9,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 5
+    },
+    "cpuCost": "medium",
+    "depthScore": 0.6000000000000001,
+    "complexity": "high",
+    "role": "breakdown",
+    "visualFamily": "fluid",
+    "motionType": "flow",
+    "repetitionRisk": "low"
   },
   "scenes": [
     {

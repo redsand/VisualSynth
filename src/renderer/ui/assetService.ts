@@ -1,4 +1,5 @@
 import type { AssetItem } from '../../shared/project';
+import type { AssetRef } from '../../shared/assets';
 
 const livePreviewElements = new Map<string, HTMLVideoElement>();
 const liveStreams = new Map<string, MediaStream>();
@@ -81,5 +82,178 @@ export const assetService = {
   },
   cacheTextCanvas: (key: string, canvas: HTMLCanvasElement) => {
     textCanvasCache.set(key, canvas);
+  },
+  resolveAsset: async (asset: AssetItem, projectPath: string | null = null): Promise<AssetRef> => {
+    if (asset.kind === 'internal') {
+      return {
+        id: asset.id,
+        kind: asset.kind,
+        resolvedPath: '',
+        missing: false,
+        status: 'resolved'
+      };
+    }
+
+    if (!asset.path) {
+      return {
+        id: asset.id,
+        kind: asset.kind,
+        resolvedPath: '',
+        missing: true,
+        status: 'missing'
+      };
+    }
+
+    const check = await window.visualSynth.checkAssetPaths([asset.path]);
+    if (check[asset.path]) {
+      return {
+        id: asset.id,
+        kind: asset.kind,
+        resolvedPath: asset.path,
+        missing: false,
+        status: 'resolved'
+      };
+    }
+
+    // Attempt path remapping if projectPath is available
+    if (projectPath && asset.path) {
+      const projectDir = projectPath.substring(0, Math.max(projectPath.lastIndexOf('/'), projectPath.lastIndexOf('\\')));
+      const fileName = asset.path.substring(Math.max(asset.path.lastIndexOf('/'), asset.path.lastIndexOf('\\')) + 1);
+      const remappedPath = `${projectDir}/${fileName}`.replace(/\\/g, '/');
+
+      if (remappedPath !== asset.path) {
+        const recheck = await window.visualSynth.checkAssetPaths([remappedPath]);
+        if (recheck[remappedPath]) {
+          console.info(`[AssetService] Asset remapped: ${asset.name} -> ${remappedPath}`);
+          return {
+            id: asset.id,
+            kind: asset.kind,
+            resolvedPath: remappedPath,
+            originalPath: asset.path,
+            missing: false,
+            status: 'remapped'
+          };
+        }
+      }
+    }
+
+    console.warn(`[AssetService] Asset resolution failed: ${asset.name} (ID: ${asset.id})`);
+    console.warn(`[AssetService] Attempted path: ${asset.path}`);
+
+    return {
+      id: asset.id,
+      kind: asset.kind,
+      resolvedPath: asset.path,
+      originalPath: asset.path,
+      missing: true,
+      status: 'missing'
+    };
+  },
+  resolveAllAssets: async (assets: AssetItem[], projectPath: string | null = null): Promise<Record<string, AssetRef>> => {
+    const results: Record<string, AssetRef> = {};
+    const pathsToCheck = assets
+      .filter((a) => a.kind !== 'internal' && a.path)
+      .map((a) => a.path!);
+
+    const checkResults = pathsToCheck.length > 0
+      ? await window.visualSynth.checkAssetPaths(pathsToCheck)
+      : {};
+
+    const projectDir = projectPath ? projectPath.substring(0, Math.max(projectPath.lastIndexOf('/'), projectPath.lastIndexOf('\\'))) : null;
+    const remappingQueue: { asset: AssetItem; remappedPath: string }[] = [];
+
+    for (const asset of assets) {
+      if (asset.kind === 'internal') {
+        results[asset.id] = {
+          id: asset.id,
+          kind: asset.kind,
+          resolvedPath: '',
+          missing: false,
+          status: 'resolved'
+        };
+        continue;
+      }
+
+      if (!asset.path) {
+        results[asset.id] = {
+          id: asset.id,
+          kind: asset.kind,
+          resolvedPath: '',
+          missing: true,
+          status: 'missing'
+        };
+        continue;
+      }
+
+      if (checkResults[asset.path]) {
+        results[asset.id] = {
+          id: asset.id,
+          kind: asset.kind,
+          resolvedPath: asset.path,
+          missing: false,
+          status: 'resolved'
+        };
+      } else if (projectDir) {
+        const fileName = asset.path.substring(Math.max(asset.path.lastIndexOf('/'), asset.path.lastIndexOf('\\')) + 1);
+        const remappedPath = `${projectDir}/${fileName}`.replace(/\\/g, '/');
+        if (remappedPath !== asset.path) {
+          remappingQueue.push({ asset, remappedPath });
+        } else {
+          console.warn(`[AssetService] Asset resolution failed: ${asset.name} (ID: ${asset.id})`);
+          console.warn(`[AssetService] Attempted path: ${asset.path}`);
+          results[asset.id] = {
+            id: asset.id,
+            kind: asset.kind,
+            resolvedPath: asset.path,
+            originalPath: asset.path,
+            missing: true,
+            status: 'missing'
+          };
+        }
+      } else {
+        console.warn(`[AssetService] Asset resolution failed: ${asset.name} (ID: ${asset.id})`);
+        console.warn(`[AssetService] Attempted path: ${asset.path}`);
+        results[asset.id] = {
+          id: asset.id,
+          kind: asset.kind,
+          resolvedPath: asset.path,
+          originalPath: asset.path,
+          missing: true,
+          status: 'missing'
+        };
+      }
+    }
+
+    if (remappingQueue.length > 0) {
+      const remappedPaths = remappingQueue.map(q => q.remappedPath);
+      const recheckResults = await window.visualSynth.checkAssetPaths(remappedPaths);
+
+      for (const { asset, remappedPath } of remappingQueue) {
+        if (recheckResults[remappedPath]) {
+          console.info(`[AssetService] Asset remapped: ${asset.name} -> ${remappedPath}`);
+          results[asset.id] = {
+            id: asset.id,
+            kind: asset.kind,
+            resolvedPath: remappedPath,
+            originalPath: asset.path,
+            missing: false,
+            status: 'remapped'
+          };
+        } else {
+          console.warn(`[AssetService] Asset resolution failed: ${asset.name} (ID: ${asset.id})`);
+          console.warn(`[AssetService] Attempted path: ${asset.path} (and remapped: ${remappedPath})`);
+          results[asset.id] = {
+            id: asset.id,
+            kind: asset.kind,
+            resolvedPath: asset.path,
+            originalPath: asset.path,
+            missing: true,
+            status: 'missing'
+          };
+        }
+      }
+    }
+
+    return results;
   }
 };

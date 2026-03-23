@@ -83,8 +83,18 @@ export interface MilkwaveFeatureRequirements {
 }
 
 export interface MilkwaveCapabilityAssessment {
-  tier: MilkwaveSupportTier;
+  tier: MilkwaveSupportTier; // @deprecated use staticSupportTier
+  staticSupportTier: MilkwaveSupportTier;
   reasons: string[];
+}
+
+export interface MilkwaveAuditMetadata {
+  runtimeSupportTier: MilkwaveSupportTier;
+  lastAuditAt: string | null;
+  auditWarnings: string[];
+  auditErrors: string[];
+  shapesRendered: number;
+  wavesRendered: number;
 }
 
 export interface MilkwaveIR {
@@ -108,6 +118,7 @@ export interface MilkwaveIR {
   textures: string[];
   featureRequirements: MilkwaveFeatureRequirements;
   capability: MilkwaveCapabilityAssessment;
+  audit?: MilkwaveAuditMetadata;
 }
 
 const hasCustomSamplerReference = (source: string) =>
@@ -217,6 +228,7 @@ export const assessMilkwaveSupportTier = (
   const classified = classifyMilkwaveFeatures(features);
   return {
     tier: classified.tier,
+    staticSupportTier: classified.staticSupportTier,
     reasons: classified.reasons
   };
 };

@@ -2,7 +2,7 @@ import type { VisualSynthProject, SceneConfig } from './project';
 import { GENERATORS } from './generatorLibrary';
 
 const GENERATOR_ID_SET = new Set<string>(GENERATORS.map(g => g.id));
-const NON_RENDERING_GENERATOR_PREFIXES = ['viz-', 'fx-'];
+const NON_RENDERING_GENERATOR_PREFIXES = ['viz-'];
 const GENERATOR_ID_ALIASES = new Map<string, string>([
   ['layer-milkwave', 'gen-milkwave'],
   ['layer-milkwave-effects', 'gen-milkwave']
@@ -26,11 +26,8 @@ const resolveGeneratorId = (rawId: string | undefined): string | null => {
 export const collectActiveGeneratorIds = (project: VisualSynthProject): Set<string> => {
   const result = new Set<string>();
   for (const scene of project.scenes) {
-    for (const layer of scene.layers) {
-      if (!layer.enabled) continue;
-      const gid = resolveGeneratorId(layer.generatorId ?? layer.id);
-      if (gid) result.add(gid);
-    }
+    const sceneIds = collectSceneGeneratorIds(scene);
+    sceneIds.forEach(id => result.add(id));
   }
   return result;
 };
@@ -46,5 +43,46 @@ export const collectSceneGeneratorIds = (scene: SceneConfig): Set<string> => {
     const gid = resolveGeneratorId(layer.generatorId ?? layer.id);
     if (gid) result.add(gid);
   }
+
   return result;
+};
+
+/**
+ * Produces GLSL uniform declarations for all FX in a scene and project.
+ */
+export const getFxUniformsDeclarations = (project: VisualSynthProject, scene?: SceneConfig): string => {
+  let decls = '';
+  const params = ['bloom', 'blur', 'chroma', 'posterize', 'kaleidoscope', 'feedback', 'persistence'];
+
+  const addDecls = (scope: string, instanceId: string) => {
+    const prefix = `${scope}_${instanceId}`.replace(/:/g, '_').replace(/-/g, '_');
+    params.forEach(param => {
+      decls += `uniform float u${prefix}_${param};\n`;
+    });
+  };
+
+  // Global
+  if (project.effects) {
+    addDecls('global', 'master');
+  }
+
+  // Scene
+  if (scene?.look?.effects) {
+    scene.look.effects.forEach((_, i) => {
+      addDecls('scene', `scene_${i}`);
+    });
+  }
+
+  // Layers
+  if (scene?.layers) {
+    scene.layers.forEach(layer => {
+      if (layer.effects) {
+        layer.effects.forEach((_, i) => {
+          addDecls('layer', `${layer.id}_${i}`);
+        });
+      }
+    });
+  }
+
+  return decls;
 };

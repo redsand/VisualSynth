@@ -1,6 +1,8 @@
 import type { CustomShaderBlock } from './customShaderBlock';
 import type { MilkShapeConfig, MilkWaveConfig } from './milkwaveParser';
 import type { MilkwaveOfflineTranslationReport } from './milkwaveOfflineTranslation';
+import type { PerformanceModeConfig } from './performanceGuardrails';
+import { DEFAULT_PERFORMANCE_MODE_CONFIG } from './performanceGuardrails';
 
 export interface MilkDropShaderData {
   warp: string;
@@ -48,7 +50,7 @@ export interface LayerConfig {
   assetId?: string;
   generatorId?: string;
   params?: Record<string, any>;
-  effects?: any[]; // Chain of local effects
+  effects?: EffectConfig[]; // Chain of local effects
   sdfScene?: any;
 }
 
@@ -229,6 +231,9 @@ export interface SceneConfig {
   look?: SceneLook;
   _shaderData?: MilkDropShaderData;
   presetPath?: string;
+  depthScore?: number;
+  complexity?: number;
+  tags?: string[];
 }
 
 export interface MacroTarget {
@@ -550,8 +555,8 @@ export interface VisualSynthProject {
   intendedMusicStyle?: string;
   visualIntentTags?: string[];
   createdAt: string;
-  updatedAt: string;
-  output: OutputConfig;
+  updatedAt?: string;
+  output?: OutputConfig;
   stylePresets: StylePreset[];
   activeStylePresetId: string;
   palettes: ColorPalette[];
@@ -587,10 +592,16 @@ export interface VisualSynthProject {
   };
   overlays?: OverlayConfig[];
   customShaderBlocks?: CustomShaderBlock[];
+  performanceMode?: PerformanceModeConfig;
   _shaderData?: MilkDropShaderData;
 }
 
+export type FxScope = 'global' | 'scene' | 'layer';
+
 export interface EffectConfig {
+  id?: string;
+  name?: string;
+  scope?: FxScope;
   enabled: boolean;
   bloom: number;
   blur: number;
@@ -602,7 +613,7 @@ export interface EffectConfig {
 }
 
 export interface SceneLook {
-  effects?: EffectConfig;
+  effects?: EffectConfig[];
   particles?: ParticleConfig;
   sdf?: SdfConfig;
   visualizer?: {
@@ -1009,5 +1020,6 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   colorChemistry: ['analog', 'balanced'],
   roleWeights: { core: 1, support: 1, atmosphere: 1 },
   tempoSync: { bpm: 120, source: 'auto' },
-  customShaderBlocks: []
+  customShaderBlocks: [],
+  performanceMode: { ...DEFAULT_PERFORMANCE_MODE_CONFIG }
 };

@@ -58,7 +58,10 @@ export const createLayerPanel = ({
     'layer-media': 0.5
   };
 
-  const formatAssetLabel = (asset: AssetItem) => `${asset.name} (${asset.kind})`;
+  const formatAssetLabel = (asset: AssetItem) => {
+    const status = asset.missing ? ' [MISSING]' : '';
+    return `${asset.name} (${asset.kind})${status}`;
+  };
 
   const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
     if (!forceRefresh && layer.assetId === assetId) return;

@@ -264,18 +264,29 @@ app.on('before-quit', async () => {
   await cleanupOutputIntegrations();
 });
 
-ipcMain.handle('project:save', async (_event, payload: string) => {
+ipcMain.handle('project:save', async (_event, payload: string, filePath?: string) => {
   if (!mainWindow) return { canceled: true };
-  const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Save VisualSynth Project',
-    defaultPath: 'visualsynth-project.json',
-    filters: [{ name: 'VisualSynth Project', extensions: ['json'] }]
-  });
-  if (result.canceled || !result.filePath) {
-    return { canceled: true };
+
+  let targetPath = filePath;
+
+  if (!targetPath) {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save VisualSynth Project',
+      defaultPath: 'visualsynth-project.json',
+      filters: [{ name: 'VisualSynth Project', extensions: ['json'] }]
+    });
+    if (result.canceled || !result.filePath) {
+      return { canceled: true };
+    }
+    targetPath = result.filePath;
   }
-  fs.writeFileSync(result.filePath, payload, 'utf-8');
-  return { canceled: false, filePath: result.filePath };
+
+  try {
+    fs.writeFileSync(targetPath, payload, 'utf-8');
+    return { canceled: false, filePath: targetPath };
+  } catch (error) {
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('project:autosave', async (_event, payload: string) => {

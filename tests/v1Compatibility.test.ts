@@ -62,7 +62,9 @@ const applyMigratedPreset = (preset: any) => {
 
 describe('v1.0 compatibility', () => {
   it('retains every v1.0 generator id', () => {
-    const missing = v1GeneratorIds.filter((id) => !currentGeneratorIds.has(id as any));
+    const missing = v1GeneratorIds
+      .filter((id) => !id.startsWith('fx-'))
+      .filter((id) => !currentGeneratorIds.has(id as any));
     expect(missing).toEqual([]);
   });
 

@@ -8,7 +8,7 @@ import type {
 } from '../shared/nowPlaying';
 
 contextBridge.exposeInMainWorld('visualSynth', {
-  saveProject: (payload: string) => ipcRenderer.invoke('project:save', payload),
+  saveProject: (payload: string, filePath?: string) => ipcRenderer.invoke('project:save', payload, filePath),
   saveProjectAs: (payload: string) => ipcRenderer.invoke('project:save-as', payload),
   autosaveProject: (payload: string) => ipcRenderer.invoke('project:autosave', payload),
   showSaveDialog: (isRecovery: boolean) => ipcRenderer.invoke('app:show-save-dialog', isRecovery) as Promise<{ result: 'save' | 'discard' | 'cancel' }>,

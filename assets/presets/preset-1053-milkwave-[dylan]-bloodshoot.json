@@ -32,6 +32,13 @@
           "warp",
           "comp"
         ]
+      },
+      "certificationStatus": "broken-archive",
+      "lastCertifiedAt": "2026-03-23T00:16:16.963Z",
+      "qualityScores": {
+        "compile": 0.25,
+        "stability": 0,
+        "completeness": 0.5
       }
     },
     "activeEngineId": "engine-radial-core",

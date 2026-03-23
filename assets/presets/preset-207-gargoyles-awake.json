@@ -24,7 +24,26 @@
       "dark",
       "stone"
     ],
-    "activeEngineId": "engine-gargoyles-awake"
+    "activeEngineId": "engine-gargoyles-awake",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": {
+      "opener": 8,
+      "build": 5,
+      "drop": 4,
+      "breakdown": 9,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 5
+    },
+    "cpuCost": "medium",
+    "depthScore": 0.2,
+    "complexity": "medium",
+    "role": "breakdown",
+    "visualFamily": "fluid",
+    "motionType": "flow",
+    "repetitionRisk": "low"
   },
   "scenes": [
     {

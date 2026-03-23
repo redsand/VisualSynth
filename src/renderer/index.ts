@@ -47,6 +47,7 @@ import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
 import { createScenePreset } from '../shared/scenePreset';
 import type { PresetIndexEntry } from '../shared/presetIndex';
+import { getCertificationColor } from '../shared/certification';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
@@ -70,20 +71,11 @@ import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
-import {
-  DEFAULT_NOW_PLAYING_SETTINGS,
-  isNowPlayingMetadataSourceConfigured,
-  isNowPlayingLookupConfigured,
-  type NowPlayingRecognitionRequest,
-  type NowPlayingRecognitionResponse,
-  type NowPlayingSettings
-} from '../shared/nowPlaying';
+import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
 import { createSongChangeDetector } from './audio/songChangeDetector';
-import {
-  createRollingAudioCapture,
-  decodeClipToPcmWithDiagnostics,
-  type ExportResult
-} from './audio/rollingAudioCapture';
+import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult } from './audio/rollingAudioCapture';
+import { getAudioEngine } from './audio/AudioEngine';
+import { sessionHealthService } from './sessionHealthService';
 
 declare global {
   interface Window {
@@ -210,6 +202,13 @@ const requestMicPermissionButton = document.getElementById('request-mic-permissi
 const midiSelect = document.getElementById('midi-device') as HTMLSelectElement;
 const toggleMidiButton = document.getElementById('toggle-midi') as HTMLButtonElement;
 const nowPlayingStatus = document.getElementById('now-playing-status') as HTMLDivElement;
+const nowPlayingDiagnostics = document.getElementById('now-playing-diagnostics') as HTMLDivElement;
+const nowPlayingStateLabel = document.getElementById('now-playing-state') as HTMLSpanElement;
+const nowPlayingConfidenceBar = document.getElementById('now-playing-confidence-bar') as HTMLDivElement;
+const nowPlayingBufferBar = document.getElementById('now-playing-buffer-bar') as HTMLDivElement;
+const nowPlayingLastSuccessLabel = document.getElementById('now-playing-last-success') as HTMLSpanElement;
+const nowPlayingErrorContainer = document.getElementById('now-playing-error-container') as HTMLDivElement;
+const nowPlayingErrorText = document.getElementById('now-playing-error-text') as HTMLSpanElement;
 const nowPlayingConfigureButton = document.getElementById('now-playing-configure') as HTMLButtonElement;
 const nowPlayingModal = document.getElementById('now-playing-modal') as HTMLDivElement;
 const nowPlayingEnabledInput = document.getElementById('now-playing-enabled') as HTMLInputElement;
@@ -696,9 +695,6 @@ let currentProject: VisualSynthProject = DEFAULT_PROJECT;
 import { SceneCacheWarmer } from './scene/SceneCacheWarmer';
 let cacheWarmer: SceneCacheWarmer | null = null;
 const sceneManager = new SceneManager(() => currentProject);
-let audioContext: AudioContext | null = null;
-let analyser: AnalyserNode | null = null;
-let mediaStream: MediaStream | null = null;
 let midiAccess: MIDIAccess | null = null;
 let strobeIntensity = 0;
 let strobeDecay = 0.92;
@@ -1000,8 +996,16 @@ const audioState = {
   energyHigh: 0
 };
 
+const getAudioEngineSafe = () => {
+  const engine = getAudioEngine();
+  if (!engine) {
+    // Should not happen as bootstrap should have run
+    console.warn('[Now Playing] Audio engine not initialized yet.');
+  }
+  return engine;
+};
+
 const nowPlayingSettings = { ...DEFAULT_NOW_PLAYING_SETTINGS };
-const rollingAudioCapture = createRollingAudioCapture(30000);
 let nowPlayingLookupInFlight = false;
 let lastNowPlayingLookupAt = 0;
 let nowPlayingMetadataPollInFlight = false;
@@ -1762,8 +1766,11 @@ const getSortedPresetEntries = (entries: PresetIndexEntry[]) =>
 const getFilteredPresetEntries = () => {
   const search = presetSearchInput.value.trim().toLowerCase();
   const quickFilter = presetQuickFilterDefs.find((entry) => entry.id === presetQuickFilter) ?? presetQuickFilterDefs[0];
+  const restrictToSafe = currentProject.performanceMode?.enabled && currentProject.performanceMode?.restrictToSafePresets;
+
   return getSortedPresetEntries(
     presetLibrary.filter((preset) => {
+      if (restrictToSafe && preset.certification !== 'certified-safe') return false;
       if (presetCategoryFilter !== 'All' && preset.primaryCategory !== presetCategoryFilter) return false;
       if (!quickFilter.match(preset)) return false;
       if (!search) return true;
@@ -1832,6 +1839,15 @@ const buildPresetCard = (preset: PresetIndexEntry): HTMLElement => {
   meta.textContent = `${preset.primaryCategory} · ${preset.energy} energy · ${preset.motion}`;
   const tags = document.createElement('div');
   tags.className = 'preset-tags';
+  
+  if (preset.certification) {
+    const certTag = document.createElement('div');
+    certTag.className = 'preset-tag certification-tag';
+    certTag.textContent = preset.certification;
+    certTag.style.border = `1px solid ${getCertificationColor(preset.certification)}`;
+    tags.appendChild(certTag);
+  }
+
   [preset.primaryCategory, ...preset.visualFamilies.slice(0, 2), ...preset.riskFlags.slice(0, 1)].forEach((tagText) => {
     const tag = document.createElement('div');
     tag.className = 'preset-tag';
@@ -1924,6 +1940,16 @@ const renderPresetPreview = () => {
   presetPreviewMeta.textContent =
     `${preset.primaryCategory} · ${preset.subcategory} · ${preset.energy} energy · ${preset.motion} motion · ${preset.sourceDependency}`;
   presetPreviewBadges.innerHTML = '';
+
+  if (preset.certification) {
+    const certTag = document.createElement('div');
+    certTag.className = 'preset-tag certification-tag';
+    certTag.textContent = preset.certification;
+    certTag.style.background = getCertificationColor(preset.certification);
+    certTag.style.color = '#fff';
+    presetPreviewBadges.appendChild(certTag);
+  }
+
   [
     ...preset.visualFamilies,
     ...preset.useCases,
@@ -4871,7 +4897,10 @@ const getAssetBlendModeValue = (layerId: string): number =>
 const getAssetAudioReactValue = (layerId: string): number =>
   (assetLayerAudioReact as Record<string, number>)[layerId] ?? 0.5;
 
-const formatAssetLabel = (asset: AssetItem) => `${asset.name} (${asset.kind})`;
+const formatAssetLabel = (asset: AssetItem) => {
+  const status = asset.missing ? ' [MISSING]' : '';
+  return `${asset.name} (${asset.kind})${status}`;
+};
 
 const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
   if (!forceRefresh && layer.assetId === assetId) return;
@@ -9905,7 +9934,8 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
     return;
   }
 
-  if (!rollingAudioCapture.isActive()) {
+  const rollingAudioCapture = getAudioEngineSafe()?.getRollingAudioCapture();
+  if (!rollingAudioCapture || !rollingAudioCapture.isActive()) {
     nowPlayingTestStatus.textContent = 'Audio capture not active. Start audio input first.';
     return;
   }
@@ -10017,6 +10047,9 @@ const runNowPlayingLookup = async (detectedAt: number) => {
     return;
   }
 
+  const rollingAudioCapture = getAudioEngineSafe()?.getRollingAudioCapture();
+  if (!rollingAudioCapture) return;
+
   const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(nowPlayingSettings.clipDurationMs);
   if (!exportResult.success || !exportResult.clip) {
     setStatus(`Song change detected, but ${exportResult.error}`);
@@ -10069,220 +10102,82 @@ const pollNowPlayingMetadataSource = async () => {
   }
 };
 
-const songChangeDetector = createSongChangeDetector({
-  minTrackMs: nowPlayingSettings.minTrackMs,
-  silenceThreshold: nowPlayingSettings.silenceThreshold,
-  changeThreshold: nowPlayingSettings.changeThreshold,
-  confirmWindows: nowPlayingSettings.confirmWindows,
-  cooldownMs: nowPlayingSettings.cooldownMs,
-  onSongChange: ({ detectedAt }) => {
-    if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
-      setStatus('Song change detected. Configure Now Playing in the System tab to enable lookup.');
-      return;
-    }
-    void runNowPlayingLookup(detectedAt);
-  }
-});
-updateNowPlayingStatusText();
-
 const setupAudio = async (deviceId?: string) => {
-  if (mediaStream) {
-    mediaStream.getTracks().forEach((track) => track.stop());
-  }
-  rollingAudioCapture.stop();
-  audioContext?.close();
-
-  // Remove any existing audio-related safe mode reasons
-  safeModeReasons = safeModeReasons.filter(reason => !reason.toLowerCase().includes('audio'));
-
-  try {
-    audioContext = new AudioContext({ latencyHint: 'interactive' });
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: deviceId ? { deviceId: { exact: deviceId } } : true
-    });
-    mediaStream = stream;
-    const source = audioContext.createMediaStreamSource(stream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.7;
-    source.connect(analyser);
-    songChangeDetector.reset();
-    rollingAudioCapture.attach(stream);
-    latencyLabel.textContent = `Audio Latency: ${Math.round(audioContext.baseLatency * 1000)}ms`;
-    const outputLatency = audioContext.outputLatency ?? 0;
-    outputLatencyLabel.textContent = outputLatency
-      ? `Output Latency: ${Math.round(outputLatency * 1000)}ms`
-      : 'Output Latency: --';
-
-    // Clear safe mode if audio is working
-    updateSafeModeBanner();
-    if (safeModeReasons.length === 0) {
-      setStatus('Audio input connected.');
-    }
-  } catch (error) {
-    analyser = null;
-    audioContext = null;
-    rollingAudioCapture.stop();
-    songChangeDetector.reset();
-
-    // Provide helpful error message for desktop app
-    let errorMsg = 'AUDIO INPUT UNAVAILABLE';
-    if (error instanceof Error) {
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        errorMsg = 'MICROPHONE BLOCKED - Click "Grant Microphone Permission" button in System settings';
-      } else if (error.name === 'NotFoundError') {
-        errorMsg = 'NO MICROPHONE FOUND - Connect a microphone';
-      } else if (error.name === 'NotReadableError') {
-        errorMsg = 'MICROPHONE IN USE - Close other apps (Discord, OBS, etc.)';
+  const engine = getAudioEngineSafe();
+  if (engine) {
+    await engine.setup(deviceId);
+    engine.updateNowPlayingSettings(nowPlayingSettings);
+    engine.onSongChange(({ detectedAt }) => {
+      if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
+        setStatus('Song change detected. Configure Now Playing in the System tab to enable lookup.');
+        return;
       }
-    }
-
-    safeModeReasons.push(errorMsg);
-    updateSafeModeBanner();
-    setStatus(`Safe mode: ${errorMsg}`);
+      void runNowPlayingLookup(detectedAt);
+    });
   }
 };
 
-const updateAudioAnalysis = () => {
-  if (!analyser) return;
-  const bufferLength = analyser.frequencyBinCount;
-  const data = new Uint8Array(bufferLength);
-  analyser.getByteFrequencyData(data);
-  const timeData = new Uint8Array(analyser.fftSize);
-  analyser.getByteTimeDomainData(timeData);
-
-  let sum = 0;
-  let peak = 0;
-  for (let i = 0; i < bufferLength; i += 1) {
-    const value = data[i] / 255;
-    sum += value * value;
-    if (value > peak) peak = value;
-  }
-  const rms = Math.sqrt(sum / bufferLength);
-  audioState.rms = rms;
-  audioState.peak = peak;
-
-  const bandSize = Math.floor(bufferLength / 8);
-  for (let band = 0; band < 8; band += 1) {
-    let bandSum = 0;
-    for (let i = 0; i < bandSize; i += 1) {
-      bandSum += data[band * bandSize + i] / 255;
-    }
-    audioState.bands[band] = bandSum / bandSize;
-  }
-
-  for (let i = 0; i < 64; i += 1) {
-    const index = Math.floor((i / 64) * bufferLength);
-    audioState.spectrum[i] = data[index] / 255;
-  }
-  for (let i = 0; i < audioState.waveform.length; i += 1) {
-    const sample = timeData[Math.floor((i / audioState.waveform.length) * timeData.length)];
-    audioState.waveform[i] = (sample - 128) / 128;
-  }
-
-  songChangeDetector.update({
-    nowMs: performance.now(),
-    rms: audioState.rms,
-    spectrum: audioState.spectrum,
-    bands: audioState.bands
-  });
-
-  // Engine Grammar: Inertial Energy Accumulation
-  const engine = ENGINE_REGISTRY[currentProject.activeEngineId as EngineId];
+const updateAudioAnalysis = (deltaMs: number) => {
+  const engine = getAudioEngineSafe();
   if (engine) {
-    const mass = engine.grammar.mass;
-    const friction = engine.grammar.friction;
-    const elastic = engine.grammar.elasticity;
+    engine.update(deltaMs);
+    const context = engine.getContext();
+    if (context) {
+      latencyLabel.textContent = `Audio Latency: ${Math.round(context.baseLatency * 1000)}ms`;
+      const outputLatency = context.outputLatency ?? 0;
+      outputLatencyLabel.textContent = outputLatency
+        ? `Output Latency: ${Math.round(outputLatency * 1000)}ms`
+        : 'Output Latency: --';
+    }
+  }
+};
 
-    const rawLow = audioState.bands[0]; // Kick region
-    const rawMid = (audioState.bands[2] + audioState.bands[3] + audioState.bands[4]) / 3;
-    const rawHigh = (audioState.bands[6] + audioState.bands[7]) / 2;
+const updateNowPlayingDiagnosticsUI = () => {
+  const engine = getAudioEngineSafe();
+  if (!engine) return;
 
-    const targetLow = Math.pow(rawLow, 2.0 / elastic);
-    const targetMid = Math.pow(rawMid, 1.5 / elastic);
-    const targetHigh = Math.pow(rawHigh, 1.0 / elastic);
+  const diag = engine.getSongDetectionDiagnostics();
+  const { status, settings } = diag;
 
-    // Apply smoothing based on Mass (inertia)
-    audioState.energyLow = audioState.energyLow * friction + targetLow * (1.0 - mass);
-    audioState.energyMid = audioState.energyMid * friction + targetMid * (1.0 - mass);
-    audioState.energyHigh = audioState.energyHigh * friction + targetHigh * (1.0 - mass);
+  sessionHealthService.updateSongDetectionStatus(status);
+
+  if (!settings.enabled) {
+    nowPlayingDiagnostics.classList.add('hidden');
+    return;
+  }
+
+  nowPlayingDiagnostics.classList.remove('hidden');
+  nowPlayingStateLabel.textContent = status.state;
+  
+  // Update colors based on state
+  nowPlayingStateLabel.style.color = 
+    status.state === 'listening' ? '#1ec8ff' :
+    status.state === 'detected' ? '#4caf50' :
+    status.state === 'cooldown' ? '#ffd166' :
+    status.state === 'failed' ? '#ff4b4b' : '#fff';
+
+  if (status.details) {
+    const confidence = status.details.confidence ?? 0;
+    nowPlayingConfidenceBar.style.width = `${confidence * 100}%`;
+    nowPlayingConfidenceBar.style.backgroundColor = confidence > 0.8 ? '#4caf50' : '#1ec8ff';
+
+    const bufferHealth = status.details.bufferHealth ?? 0;
+    nowPlayingBufferBar.style.width = `${bufferHealth * 100}%`;
+    nowPlayingBufferBar.style.backgroundColor = bufferHealth < 0.5 ? '#ffd166' : '#1ec8ff';
+  }
+
+  if (diag.metrics.lastSuccessAt) {
+    const secondsAgo = Math.round((Date.now() - diag.metrics.lastSuccessAt) / 1000);
+    nowPlayingLastSuccessLabel.textContent = secondsAgo < 60 ? `${secondsAgo}s ago` : `${Math.round(secondsAgo / 60)}m ago`;
   } else {
-    audioState.energyLow = audioState.rms;
-    audioState.energyMid = audioState.rms;
-    audioState.energyHigh = audioState.rms;
+    nowPlayingLastSuccessLabel.textContent = '--';
   }
 
-  const now = performance.now();
-  if (!spectrumPrev || spectrumPrev.length !== bufferLength) {
-    spectrumPrev = new Float32Array(bufferLength);
-  }
-  let flux = 0;
-  
-  // Apply Filter Range to Flux calculation
-  const startBin = beatFilterRange === 'bass' ? 0 : beatFilterRange === 'mids' ? 8 : 0;
-  const endBin = beatFilterRange === 'bass' ? 8 : beatFilterRange === 'mids' ? 32 : bufferLength;
-
-  for (let i = startBin; i < endBin; i += 1) {
-    const value = data[i] / 255;
-    const delta = value - spectrumPrev[i];
-    if (delta > 0) flux += delta;
-    spectrumPrev[i] = value;
-  }
-  
-  // Track all spectrum for next frame
-  for (let i = 0; i < bufferLength; i += 1) {
-    spectrumPrev[i] = data[i] / 255;
-  }
-
-  fluxHistory.push({ time: now, value: flux });
-  fluxHistory = fluxHistory.filter((entry) => now - entry.time < 1000);
-
-  const mean =
-    fluxHistory.reduce((sum, entry) => sum + entry.value, 0) /
-    Math.max(1, fluxHistory.length);
-  const variance =
-    fluxHistory.reduce((sum, entry) => sum + (entry.value - mean) ** 2, 0) /
-    Math.max(1, fluxHistory.length);
-  const std = Math.sqrt(variance);
-  const threshold = mean + std * beatSensitivity;
-
-  if (fluxPrev > fluxPrevPrev && fluxPrev > flux && fluxPrev > threshold) {
-    if (now - lastBeatTime > beatHoldOffMs) {
-      onsetTimes.push(fluxPrevTime);
-      onsetTimes = onsetTimes.filter((time) => now - time < 8000);
-      glyphBeatPulse = 1;
-      lastBeatTime = now;
-    }
-  }
-  fluxPrevPrev = fluxPrev;
-  fluxPrev = flux;
-  fluxPrevTime = now;
-
-  if (now - lastTempoEstimateTime > 500 && onsetTimes.length >= 4) {
-    const intervals: number[] = [];
-    for (let i = 1; i < onsetTimes.length; i += 1) {
-      intervals.push(onsetTimes[i] - onsetTimes[i - 1]);
-    }
-    const histogram = new Map<number, number>();
-    for (const interval of intervals) {
-      const bpm = 60000 / interval;
-      const fitted = fitBpmToRange(bpm, bpmRange);
-      if (!fitted) continue;
-      const rounded = Math.round(fitted);
-      histogram.set(rounded, (histogram.get(rounded) ?? 0) + 1);
-    }
-    let bestBpm: number | null = null;
-    let bestScore = 0;
-    for (const [bpm, score] of histogram) {
-      if (score > bestScore) {
-        bestScore = score;
-        bestBpm = bpm;
-      }
-    }
-    if (bestBpm) {
-      autoBpm = autoBpm ? autoBpm * 0.85 + bestBpm * 0.15 : bestBpm;
-    }
-    lastTempoEstimateTime = now;
+  if (status.lastError) {
+    nowPlayingErrorContainer.classList.remove('hidden');
+    nowPlayingErrorText.textContent = status.lastError;
+  } else {
+    nowPlayingErrorContainer.classList.add('hidden');
   }
 };
 
@@ -12434,6 +12329,7 @@ const render = (time: number) => {
     currentFps = fpsTick.fps;
     fpsLabel.textContent = `FPS: ${currentFps}`;
     healthFps.textContent = `FPS: ${currentFps}`;
+    sessionHealthService.updateFps(currentFps, delta);
   }
   if (!isPlaying) {
     requestAnimationFrame(render);
@@ -12444,7 +12340,11 @@ const render = (time: number) => {
     const elapsed = time - recordingStartedAt;
     setCaptureStatus(`Recording... ${formatTimestamp(elapsed)}`);
   }
+  const prevDropScore = frameDropScore;
   frameDropScore = nextFrameDropScore(frameDropScore, delta);
+  if (frameDropScore > prevDropScore) {
+    sessionHealthService.reportDroppedFrame();
+  }
   const cadence = resolveFrameCadence({
     timeMs: time,
     lastWatchdogUpdateAt: lastWatchdogUpdate,
@@ -12514,7 +12414,8 @@ const render = (time: number) => {
     pendingSceneSwitch = null;
   }
 
-  updateAudioAnalysis();
+  updateAudioAnalysis(delta);
+  updateNowPlayingDiagnosticsUI();
   if (activeMode === 'mixer') {
     mixerPanel?.updateMeters(audioState.rms, audioState.peak, Array.from(audioState.bands));
   }
@@ -13399,6 +13300,10 @@ const render = (time: number) => {
       ],
       masterBusFrameId: Math.floor(time),
       uniformsUpdatedFrameId: Math.floor(time),
+      lastShaderError,
+      milkdropCompileReport: renderer.getMilkDropCompileReport(),
+      milkdropRuntimeReport: renderer.getMilkDropNativeRuntimeReport(),
+      sessionHealth: sessionHealthService.getHealth(),
       laser: {
         enabled: (gu.LaserEnabled ?? 0) > 0,
         opacity: gu.LaserOpacity ?? 0,

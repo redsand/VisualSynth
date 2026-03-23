@@ -85,6 +85,7 @@ export const classifyMilkwaveFeatures = (
 
   return {
     tier,
+    staticSupportTier: tier,
     reasons: reasonsDetailed.map((reason) => reason.message),
     reasonsDetailed,
     featureSummary: summarizeFeatures(features)

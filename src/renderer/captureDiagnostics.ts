@@ -1,24 +1,12 @@
 import type { SceneConfig, VisualSynthProject } from '../shared/project';
 import { collectSceneGeneratorIds } from '../shared/shaderUtils';
+import type { MilkDropCompileReport } from '../shared/milkwaveStatus';
 
 type GeneratorDiagnostic = {
   name: string;
   enabled: boolean;
   opacity: number;
   uniformsBound: boolean;
-};
-
-type MilkDropCompileReport = {
-  warp: {
-    requested: boolean;
-    compiled: boolean;
-    fallbackUsed: boolean;
-  };
-  comp: {
-    requested: boolean;
-    compiled: boolean;
-    fallbackUsed: boolean;
-  };
 };
 
 type MilkDropNativeRuntimeReport = {

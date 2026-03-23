@@ -1282,6 +1282,32 @@
               <div class="scene-row">
                 <button id="now-playing-configure" type="button">Configure...</button>
               </div>
+              
+              <div id="now-playing-diagnostics" class="diagnostics-panel hidden">
+                <div class="diag-row">
+                  <span class="diag-label">State:</span>
+                  <span id="now-playing-state" class="diag-value">idle</span>
+                </div>
+                <div class="diag-row">
+                  <span class="diag-label">Confidence:</span>
+                  <div class="mixer-meter-container mini-meter">
+                    <div id="now-playing-confidence-bar" class="mixer-meter-fill"></div>
+                  </div>
+                </div>
+                <div class="diag-row">
+                  <span class="diag-label">Buffer Health:</span>
+                  <div class="mixer-meter-container mini-meter">
+                    <div id="now-playing-buffer-bar" class="mixer-meter-fill"></div>
+                  </div>
+                </div>
+                <div class="diag-row">
+                  <span class="diag-label">Last Success:</span>
+                  <span id="now-playing-last-success" class="diag-value">--</span>
+                </div>
+                <div id="now-playing-error-container" class="diag-error hidden">
+                  <span id="now-playing-error-text"></span>
+                </div>
+              </div>
             </div>
             <div class="panel-block">
               <h3>Project Diff/Merge</h3>
@@ -1306,8 +1332,12 @@
             </div>
             <div class="panel-block">
               <h3>Performance Guardrails</h3>
+              <label class="scene-label scene-label-inline">
+                <input type="checkbox" id="perf-mode-enabled" /> Club-Safe Mode (Performance)
+              </label>
               <div id="guardrail-status" class="output-hint">Guardrails: OK</div>
               <div id="guardrail-hint" class="output-hint">Output scale: 100%</div>
+              <div class="output-hint">When active, only certified presets are shown and experimental engines are hidden.</div>
             </div>
             <div class="panel-block">
               <h3>Latency Dashboard</h3>

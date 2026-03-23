@@ -24,7 +24,26 @@
     "colorChemistry": [
       "complementary"
     ],
-    "activeEngineId": "engine-rock"
+    "activeEngineId": "engine-rock",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": {
+      "opener": 4,
+      "build": 5,
+      "drop": 9,
+      "breakdown": 3,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 5
+    },
+    "cpuCost": "medium",
+    "depthScore": 0.2,
+    "complexity": "medium",
+    "role": "drop",
+    "visualFamily": "geometry",
+    "motionType": "static",
+    "repetitionRisk": "low"
   },
   "scenes": [
     {

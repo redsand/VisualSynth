@@ -39,11 +39,17 @@ export const normalizeAssetTags = (value: string | undefined) =>
     .map((tag) => tag.trim())
     .filter(Boolean);
 
+export const normalizeAssetPath = (path: string | undefined): string | undefined => {
+  if (!path) return path;
+  // Use forward slashes for consistency across platforms
+  return path.replace(/\\/g, '/');
+};
+
 export const createAssetItem = (input: AssetCreationOptions): AssetItem => ({
   id: `asset-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
   name: input.name,
   kind: input.kind,
-  path: input.path,
+  path: normalizeAssetPath(input.path),
   tags: input.tags ?? [],
   addedAt: new Date().toISOString(),
   hash: input.metadata?.hash,
@@ -54,3 +60,12 @@ export const createAssetItem = (input: AssetCreationOptions): AssetItem => ({
   options: input.options,
   thumbnail: input.metadata?.thumbnail
 });
+
+export interface AssetRef {
+  id: string;
+  kind: AssetItem['kind'];
+  resolvedPath: string;
+  originalPath?: string;
+  missing: boolean;
+  status: 'resolved' | 'remapped' | 'missing';
+}

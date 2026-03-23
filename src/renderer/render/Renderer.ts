@@ -28,6 +28,7 @@ export interface RendererDeps {
 
 export interface Renderer {
   start: () => void;
+  dispose: () => void;
   setLayerAsset: ReturnType<typeof createGLRenderer>['setLayerAsset'];
   getLastShaderError: () => string | null;
   getGeneratorDiagnostics: ReturnType<typeof createGLRenderer>['getGeneratorDiagnostics'];
@@ -37,6 +38,7 @@ export interface Renderer {
   setCustomShaderBlocks: (blocks: CustomShaderBlock[]) => void;
   getMilkDropCompileReport: ReturnType<typeof createGLRenderer>['getMilkDropCompileReport'];
   getMilkDropNativeRuntimeReport: ReturnType<typeof createGLRenderer>['getMilkDropNativeRuntimeReport'];
+  runStressTest: (iterations?: number, intervalMs?: number) => Promise<void>;
 }
 
 export const createRenderer = ({
@@ -188,6 +190,27 @@ export const createRenderer = ({
     actions.setQuantizeHud(store, sceneSwitch.quantizeHudMessage);
     if (sceneSwitch.shouldApplyScene && pending) {
       actions.setPendingSceneSwitch(store, null);
+      renderGraph.dispose(); // Recreate FX nodes cleanly on scene switch
+      
+      // Prune unused assets from GL renderer to prevent resource leaks (e.g. video elements)
+      const project = store.getState().project;
+      const targetScene = project.scenes.find(s => s.id === pending.targetSceneId);
+      if (targetScene && renderer.pruneUnusedAssets) {
+        const activeAssetIds = new Set<string>();
+        targetScene.layers.forEach(layer => {
+          if (layer.assetId) activeAssetIds.add(layer.assetId);
+        });
+        project.overlays?.forEach(overlay => {
+          if (overlay.assetPath) {
+            // Find asset by path to get ID, or use path as ID if that's how it's cached
+            const asset = project.assets.find(a => a.path === overlay.assetPath);
+            if (asset) activeAssetIds.add(asset.id);
+            else activeAssetIds.add(overlay.assetPath);
+          }
+        });
+        renderer.pruneUnusedAssets(activeAssetIds);
+      }
+
       onSceneApplied(pending.targetSceneId);
     }
 
@@ -197,7 +220,7 @@ export const createRenderer = ({
     const renderState = renderGraph.buildRenderState(time, delta, {
       width: canvas.width,
       height: canvas.height
-    }) as RenderState & { debugTint?: number };
+    }, renderer.getResourceCounts?.()) as RenderState & { debugTint?: number };
 
     renderer.render(renderState);
     drawVisualizer();
@@ -223,24 +246,64 @@ export const createRenderer = ({
       );
     }
 
-    requestAnimationFrame(renderLoop);
+    if (!isDisposed) {
+      requestAnimationFrame(renderLoop);
+    }
   };
+
+  let isDisposed = false;
 
   return {
     start: () => {
       requestAnimationFrame(renderLoop);
+    },
+    dispose: () => {
+      isDisposed = true;
+      renderer.dispose?.();
+      renderGraph.dispose();
+      outputChannel.close();
     },
     setLayerAsset: renderer.setLayerAsset,
     getLastShaderError: renderer.getLastShaderError,
     getGeneratorDiagnostics: renderer.getGeneratorDiagnostics,
     getMissingUniforms: renderer.getMissingUniforms,
     recompileForGenerators: (activeIds: Set<string>, customBlocks?: CustomShaderBlock[]) =>
-      renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds, customBlocks) : false,
+      renderer.recompileForGenerators ? renderer.recompileForGenerators(activeIds, customBlocks, false, renderGraph.getFxUniformsDeclarations()) : false,
     precompileVariant: (ids: Set<string>) =>
       renderer.precompileVariant ? renderer.precompileVariant(ids) : undefined,
     setCustomShaderBlocks: (blocks: CustomShaderBlock[]) =>
       renderer.setCustomShaderBlocks ? renderer.setCustomShaderBlocks(blocks) : undefined,
     getMilkDropCompileReport: renderer.getMilkDropCompileReport,
-    getMilkDropNativeRuntimeReport: renderer.getMilkDropNativeRuntimeReport
+    getMilkDropNativeRuntimeReport: renderer.getMilkDropNativeRuntimeReport,
+    runStressTest: async (iterations = 100, intervalMs = 100) => {
+      console.log(`[StressTest] Starting stress test: ${iterations} transitions...`);
+      const { project } = store.getState();
+      const sceneIds = project.scenes.map(s => s.id);
+      if (sceneIds.length === 0) {
+        console.warn('[StressTest] No scenes available for stress test');
+        return;
+      }
+
+      const initialResources = renderer.getResourceCounts?.();
+      console.log('[StressTest] Initial resources:', initialResources);
+
+      for (let i = 0; i < iterations; i++) {
+        const sceneId = sceneIds[i % sceneIds.length];
+        const sceneName = project.scenes.find(s => s.id === sceneId)?.name;
+        console.log(`[StressTest] Transition ${i + 1}/${iterations} to scene: ${sceneName}`);
+        onSceneApplied(sceneId);
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+
+      const finalResources = renderer.getResourceCounts?.();
+      console.log('[StressTest] Final resources after stress test:', finalResources);
+      console.log('[StressTest] Resource delta:', {
+        textures: (finalResources?.textures ?? 0) - (initialResources?.textures ?? 0),
+        framebuffers: (finalResources?.framebuffers ?? 0) - (initialResources?.framebuffers ?? 0),
+        programs: (finalResources?.programs ?? 0) - (initialResources?.programs ?? 0),
+        shaders: (finalResources?.shaders ?? 0) - (initialResources?.shaders ?? 0)
+      });
+      console.log('[StressTest] Stress test complete.');
+    }
   };
 };

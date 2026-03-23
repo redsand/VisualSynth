@@ -2,6 +2,11 @@ import { fitBpmToRange } from '../../shared/bpm';
 import type { Store } from '../state/store';
 import { actions } from '../state/actions';
 import { setStatus } from '../state/events';
+import { createRollingAudioCapture } from './rollingAudioCapture';
+import { createSongChangeDetector, SongChangeEvent } from './songChangeDetector';
+import { SongDetectionDiagnostics, SongDetectionStatus } from '../../shared/songDetectionStatus';
+import { NowPlayingSettings, DEFAULT_NOW_PLAYING_SETTINGS } from '../../shared/nowPlaying';
+import { ENGINE_REGISTRY, EngineId } from '../../shared/engines';
 
 export interface AudioEngine {
   initDevices: (select: HTMLSelectElement) => Promise<void>;
@@ -10,9 +15,30 @@ export interface AudioEngine {
   initModulators: () => void;
   getContext: () => AudioContext | null;
   getActiveBpm: () => number;
+  getState: () => {
+    rms: number;
+    peak: number;
+    bands: Float32Array;
+    spectrum: Float32Array;
+    waveform: Float32Array;
+    energyLow: number;
+    energyMid: number;
+    energyHigh: number;
+  };
+  // Song Detection
+  getSongDetectionDiagnostics: () => SongDetectionDiagnostics;
+  updateNowPlayingSettings: (settings: Partial<NowPlayingSettings>) => void;
+  onSongChange: (handler: (event: SongChangeEvent) => void) => void;
+  getRollingAudioCapture: () => ReturnType<typeof createRollingAudioCapture>;
 }
 
+let instance: AudioEngine | null = null;
+
+export const getAudioEngine = () => instance;
+
 export const createAudioEngine = (store: Store): AudioEngine => {
+  if (instance) return instance;
+  
   let audioContext: AudioContext | null = null;
   let analyser: AnalyserNode | null = null;
   let mediaStream: MediaStream | null = null;
@@ -23,6 +49,65 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   let fluxHistory: { time: number; value: number }[] = [];
   let onsetTimes: number[] = [];
   let spectrumPrev: Float32Array | null = null;
+  let currentDeviceId: string | null = null;
+
+  // Song Detection State
+  let nowPlayingSettings: NowPlayingSettings = { ...DEFAULT_NOW_PLAYING_SETTINGS };
+  let songChangeHandler: ((event: SongChangeEvent) => void) | null = null;
+  const rollingAudioCapture = createRollingAudioCapture(30000);
+  
+  let totalDetections = 0;
+  let failedDetections = 0;
+  let lastSuccessAt: number | undefined;
+  let lastFailureAt: number | undefined;
+
+  let detectionStatus: SongDetectionStatus = {
+    state: 'idle',
+    enteredAt: Date.now(),
+    lastUpdateAt: Date.now(),
+    reason: 'Initial state'
+  };
+
+  const transitionTo = (state: SongDetectionStatus['state'], reason?: string, lastError?: string) => {
+    if (detectionStatus.state === state && !reason && !lastError) return;
+    
+    detectionStatus = {
+      ...detectionStatus,
+      state,
+      enteredAt: detectionStatus.state === state ? detectionStatus.enteredAt : Date.now(),
+      lastUpdateAt: Date.now(),
+      reason: reason || detectionStatus.reason,
+      lastError: lastError || detectionStatus.lastError
+    };
+
+    if (lastError) {
+      console.error(`[Song Detection] Error (${state}): ${lastError}${reason ? ` - ${reason}` : ''}`);
+    } else {
+      console.log(`[Song Detection] State: ${state}${reason ? ` (${reason})` : ''}`);
+    }
+  };
+
+  const songChangeDetector = createSongChangeDetector({
+    minTrackMs: nowPlayingSettings.minTrackMs,
+    silenceThreshold: nowPlayingSettings.silenceThreshold,
+    changeThreshold: nowPlayingSettings.changeThreshold,
+    confirmWindows: nowPlayingSettings.confirmWindows,
+    cooldownMs: nowPlayingSettings.cooldownMs,
+    onSongChange: (event) => {
+      totalDetections++;
+      lastSuccessAt = Date.now();
+      transitionTo('detected', 'Song change detected');
+      songChangeHandler?.(event);
+      
+      // Return to listening after detection (cooldown is handled by detector internally, 
+      // but we reflect it in our state machine too)
+      setTimeout(() => {
+        if (detectionStatus.state === 'detected') {
+          transitionTo('listening');
+        }
+      }, 2000);
+    }
+  });
 
   const initDevices = async (select: HTMLSelectElement) => {
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -37,10 +122,13 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   };
 
   const setup = async (deviceId?: string) => {
+    currentDeviceId = deviceId || null;
     if (mediaStream) {
       mediaStream.getTracks().forEach((track) => track.stop());
     }
+    rollingAudioCapture.stop();
     audioContext?.close();
+    transitionTo('initializing', `Opening audio device: ${deviceId || 'default'}`);
 
     try {
       audioContext = new AudioContext({ latencyHint: 'interactive' });
@@ -53,9 +141,19 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0.7;
       source.connect(analyser);
+
+      songChangeDetector.reset();
+      rollingAudioCapture.attach(stream);
+      transitionTo('listening', 'Audio input connected');
     } catch (error) {
       analyser = null;
       audioContext = null;
+      rollingAudioCapture.stop();
+      songChangeDetector.reset();
+
+      const errorMsg = (error as Error).message || 'Audio input unavailable';
+      transitionTo('failed', 'Setup failed', errorMsg);
+      
       actions.addSafeModeReason(store, 'Audio input unavailable');
       setStatus('Audio input unavailable. Safe mode enabled.');
     }
@@ -115,17 +213,64 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       audioState.waveform[i] = (sample - 128) / 128;
     }
 
+    if (nowPlayingSettings.enabled) {
+      songChangeDetector.update({
+        nowMs: performance.now(),
+        rms: audioState.rms,
+        spectrum: audioState.spectrum,
+        bands: audioState.bands
+      });
+    }
+
+    // Engine Grammar: Inertial Energy Accumulation
+    const state = store.getState();
+    const engine = ENGINE_REGISTRY[state.project.activeEngineId as EngineId];
+    if (engine) {
+      const mass = engine.grammar.mass;
+      const friction = engine.grammar.friction;
+      const elastic = engine.grammar.elasticity;
+
+      const rawLow = audioState.bands[0]; // Kick region
+      const rawMid = (audioState.bands[2] + audioState.bands[3] + audioState.bands[4]) / 3;
+      const rawHigh = (audioState.bands[6] + audioState.bands[7]) / 2;
+
+      const targetLow = Math.pow(rawLow, 2.0 / elastic);
+      const targetMid = Math.pow(rawMid, 1.5 / elastic);
+      const targetHigh = Math.pow(rawHigh, 1.0 / elastic);
+
+      // Apply smoothing based on Mass (inertia)
+      audioState.energyLow = audioState.energyLow * friction + targetLow * (1.0 - mass);
+      audioState.energyMid = audioState.energyMid * friction + targetMid * (1.0 - mass);
+      audioState.energyHigh = audioState.energyHigh * friction + targetHigh * (1.0 - mass);
+    } else {
+      audioState.energyLow = audioState.rms;
+      audioState.energyMid = audioState.rms;
+      audioState.energyHigh = audioState.rms;
+    }
+
     const now = performance.now();
     if (!spectrumPrev || spectrumPrev.length !== bufferLength) {
       spectrumPrev = new Float32Array(bufferLength);
     }
     let flux = 0;
-    for (let i = 0; i < bufferLength; i += 1) {
+    
+    // Apply Filter Range to Flux calculation
+    const beatFilterRange = state.bpm.filterRange || 'full';
+    const startBin = beatFilterRange === 'bass' ? 0 : beatFilterRange === 'mids' ? 8 : 0;
+    const endBin = beatFilterRange === 'bass' ? 8 : beatFilterRange === 'mids' ? 32 : bufferLength;
+
+    for (let i = startBin; i < endBin; i += 1) {
       const value = data[i] / 255;
       const delta = value - spectrumPrev[i];
       if (delta > 0) flux += delta;
       spectrumPrev[i] = value;
     }
+
+    // Track all spectrum for next frame
+    for (let i = 0; i < bufferLength; i += 1) {
+      spectrumPrev[i] = data[i] / 255;
+    }
+
     fluxHistory.push({ time: now, value: flux });
     fluxHistory = fluxHistory.filter((entry) => now - entry.time < 1000);
 
@@ -136,12 +281,20 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       fluxHistory.reduce((sumEntry, entry) => sumEntry + (entry.value - mean) ** 2, 0) /
       Math.max(1, fluxHistory.length);
     const std = Math.sqrt(variance);
-    const threshold = mean + std * 1.5;
+    const beatSensitivity = state.bpm.sensitivity || 1.5;
+    const threshold = mean + std * beatSensitivity;
+
+    const beatHoldOffMs = state.bpm.holdOffMs || 200;
+    const lastBeatTime = state.runtime.lastBeatTime || 0;
 
     if (fluxPrev > fluxPrevPrev && fluxPrev > flux && fluxPrev > threshold) {
-      onsetTimes.push(fluxPrevTime);
-      onsetTimes = onsetTimes.filter((time) => now - time < 8000);
-      store.getState().runtime.glyphBeatPulse = 1;
+      if (now - lastBeatTime > beatHoldOffMs) {
+        onsetTimes.push(fluxPrevTime);
+        onsetTimes = onsetTimes.filter((time) => now - time < 8000);
+        
+        state.runtime.glyphBeatPulse = 1;
+        state.runtime.lastBeatTime = now;
+      }
     }
     fluxPrevPrev = fluxPrev;
     fluxPrev = flux;
@@ -295,12 +448,78 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     return state.bpm.manualBpm || 120;
   };
 
-  return {
+  const getSongDetectionDiagnostics = (): SongDetectionDiagnostics => {
+    const stats = rollingAudioCapture.getStats();
+    const detectorState = songChangeDetector.getState();
+    const now = Date.now();
+    
+    // Enrich detection status with details
+    const currentStatus = { ...detectionStatus };
+    if (nowPlayingSettings.enabled && currentStatus.state === 'listening') {
+      const cooldownRemainingMs = Math.max(0, (detectorState.lastDetectionAt + nowPlayingSettings.cooldownMs) - performance.now());
+      currentStatus.details = {
+        confidence: detectorState.consecutiveChanges / nowPlayingSettings.confirmWindows,
+        lastDetectionTime: detectorState.lastDetectionAt,
+        cooldownRemainingMs,
+        bufferHealth: Math.min(1, stats.captureDurationMs / (nowPlayingSettings.clipDurationMs || 12000)),
+        activeChunks: stats.totalChunks,
+        totalBytes: stats.totalBytes
+      };
+      
+      if (cooldownRemainingMs > 0) {
+        currentStatus.state = 'cooldown';
+      }
+    }
+
+    return {
+      status: currentStatus,
+      captureActive: rollingAudioCapture.isActive(),
+      streamActive: !!mediaStream,
+      deviceId: currentDeviceId,
+      settings: {
+        enabled: nowPlayingSettings.enabled,
+        minTrackMs: nowPlayingSettings.minTrackMs,
+        changeThreshold: nowPlayingSettings.changeThreshold,
+        cooldownMs: nowPlayingSettings.cooldownMs
+      },
+      metrics: {
+        totalDetections,
+        failedDetections,
+        lastSuccessAt,
+        lastFailureAt
+      }
+    };
+  };
+
+  const updateNowPlayingSettings = (settings: Partial<NowPlayingSettings>) => {
+    const oldEnabled = nowPlayingSettings.enabled;
+    nowPlayingSettings = { ...nowPlayingSettings, ...settings };
+    
+    if (nowPlayingSettings.enabled && !oldEnabled) {
+      songChangeDetector.reset();
+      transitionTo('listening', 'Song detection enabled');
+    } else if (!nowPlayingSettings.enabled && oldEnabled) {
+      transitionTo('idle', 'Song detection disabled');
+    }
+  };
+
+  const onSongChange = (handler: (event: SongChangeEvent) => void) => {
+    songChangeHandler = handler;
+  };
+
+  instance = {
     initDevices,
     setup,
     update,
     initModulators,
     getContext: () => audioContext,
-    getActiveBpm
+    getActiveBpm,
+    getState: () => store.getState().audio,
+    getSongDetectionDiagnostics,
+    updateNowPlayingSettings,
+    onSongChange,
+    getRollingAudioCapture: () => rollingAudioCapture
   };
+
+  return instance;
 };

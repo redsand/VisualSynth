@@ -227,9 +227,69 @@ const createBaseWaveContext = ({
   return ctx;
 };
 
-export const createMilkwaveWaveRenderer = (gl: WebGL2RenderingContext) => {
-  const program = createProgram(gl);
-  const buffer = gl.createBuffer();
+export interface MilkwaveWaveRendererOptions {
+  gl: WebGL2RenderingContext;
+  trackProgram?: <T extends WebGLProgram | null>(p: T) => T;
+  untrackProgram?: <T extends WebGLProgram | null>(p: T) => T;
+  trackShader?: <T extends WebGLShader | null>(s: T) => T;
+  untrackShader?: <T extends WebGLShader | null>(s: T) => T;
+  trackBuffer?: <T extends WebGLBuffer | null>(b: T) => T;
+  untrackBuffer?: <T extends WebGLBuffer | null>(b: T) => T;
+}
+
+export const createMilkwaveWaveRenderer = (options: MilkwaveWaveRendererOptions | WebGL2RenderingContext) => {
+  const gl = options instanceof WebGL2RenderingContext ? options : options.gl;
+  const trackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const untrackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const trackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const untrackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const trackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  const untrackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+
+  const compileShaderLocal = (
+    gl: WebGL2RenderingContext,
+    type: number,
+    source: string
+  ): WebGLShader | null => {
+    const shader = trackShader(gl.createShader(type));
+    if (!shader) return null;
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error('[MilkwaveWaves] Shader compile error:', gl.getShaderInfoLog(shader));
+      untrackShader(shader);
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  };
+
+  const createProgramLocal = (gl: WebGL2RenderingContext): WebGLProgram | null => {
+    const vs = compileShaderLocal(gl, gl.VERTEX_SHADER, WAVE_VERTEX_SHADER);
+    const fs = compileShaderLocal(gl, gl.FRAGMENT_SHADER, WAVE_FRAGMENT_SHADER);
+    if (!vs || !fs) return null;
+    const program = trackProgram(gl.createProgram());
+    if (!program) return null;
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error('[MilkwaveWaves] Program link error:', gl.getProgramInfoLog(program));
+      untrackProgram(program);
+      gl.deleteProgram(program);
+      return null;
+    }
+
+    gl.detachShader(program, vs);
+    gl.detachShader(program, fs);
+    untrackShader(vs); gl.deleteShader(vs);
+    untrackShader(fs); gl.deleteShader(fs);
+
+    return program;
+  };
+
+  const program = createProgramLocal(gl);
+  const buffer = trackBuffer(gl.createBuffer());
   const runtimeMemory = new Map<string, MilkwaveWaveRuntimeMemory>();
 
   const render = ({
@@ -370,8 +430,8 @@ export const createMilkwaveWaveRenderer = (gl: WebGL2RenderingContext) => {
   };
 
   const clear = () => {
-    if (program) gl.deleteProgram(program);
-    if (buffer) gl.deleteBuffer(buffer);
+    if (program) { untrackProgram(program); gl.deleteProgram(program); }
+    if (buffer) { untrackBuffer(buffer); gl.deleteBuffer(buffer); }
     runtimeMemory.clear();
   };
 

@@ -24,7 +24,27 @@
       "monochromatic",
       "sharp"
     ],
-    "activeEngineId": "engine-kaleido-pulse"
+    "activeEngineId": "engine-kaleido-pulse",
+    "tag": "variant",
+    "isCoreClubPack": false,
+    "scores": {
+      "opener": 8,
+      "build": 9,
+      "drop": 9,
+      "breakdown": 9,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 9
+    },
+    "basePresetId": "preset-007-sdf-monolith",
+    "cpuCost": "high",
+    "depthScore": 1,
+    "complexity": "medium",
+    "role": "breakdown",
+    "visualFamily": "geometry",
+    "motionType": "flow",
+    "repetitionRisk": "low"
   },
   "scenes": [
     {

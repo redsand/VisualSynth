@@ -47,7 +47,8 @@ export const buildFragmentShader = (
   sdfUniforms = '',
   sdfFunctions = '',
   sdfMapBody = '10.0',
-  plasmaSource: string | null = null
+  plasmaSource: string | null = null,
+  fxUniforms = ''
 ): string => {
   const activeBlocks = blocks.filter(b => activeIds.has(b.id));
 
@@ -58,7 +59,7 @@ export const buildFragmentShader = (
   const allFunctions = generatorFunctions + sdfFunctions;
 
   const preambleWithUniforms = parts.preamble
-    .replace('/* @@GENERATOR_UNIFORMS */', generatorUniforms + sdfUniforms);
+    .replace('/* @@GENERATOR_UNIFORMS */', generatorUniforms + sdfUniforms + fxUniforms);
 
   // If preamble has a functions placeholder, inject there; otherwise prepend to main
   const hasFunctionsPlaceholder = preambleWithUniforms.includes('/* @@GENERATOR_FUNCTIONS */');

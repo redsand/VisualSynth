@@ -361,3 +361,10 @@ vec3 hueRotate(vec3 col, float angle) {
   );
   return clamp(m * col, 0.0, 1.0);
 }
+
+// Scoped FX Helper
+#define APPLY_SCOPED_FX(col, uv, prefix) \
+    if (u##prefix##_bloom > 0.01) col += pow(col, vec3(2.0)) * u##prefix##_bloom; \
+    if (u##prefix##_chroma > 0.01) col = mix(col, vec3(col.r + u##prefix##_chroma * 0.02, col.g, col.b - u##prefix##_chroma * 0.02), 0.3); \
+    if (u##prefix##_blur > 0.01) col = mix(col, vec3((col.r + col.g + col.b) / 3.0), u##prefix##_blur * 0.3); \
+    if (u##prefix##_posterize > 0.01) col = posterize(col, u##prefix##_posterize);

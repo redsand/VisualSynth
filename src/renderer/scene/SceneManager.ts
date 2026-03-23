@@ -233,11 +233,71 @@ export class SceneManager {
   private transition: SceneTransitionState | null = null;
   private activeSceneStartMs = 0;
   private lastAudioTriggerMs = -Infinity;
+  private history: string[] = [];
+  private readonly MAX_HISTORY = 10;
 
   constructor(private getProject: () => VisualSynthProject) {}
 
   markSceneActivated(timeMs: number) {
     this.activeSceneStartMs = timeMs;
+    const project = this.getProject();
+    const activeId = project.activeSceneId;
+    if (activeId && this.history[this.history.length - 1] !== activeId) {
+      this.history.push(activeId);
+      if (this.history.length > this.MAX_HISTORY) {
+        this.history.shift();
+      }
+    }
+  }
+
+  calculateSimilarity(sceneA: SceneConfig, sceneB: SceneConfig): number {
+    let score = 0;
+    // Base intent match
+    if (sceneA.intent === sceneB.intent) score += 0.4;
+
+    // Tag match
+    const tagsA = sceneA.tags ?? [];
+    const tagsB = sceneB.tags ?? [];
+    if (tagsA.length > 0 && tagsB.length > 0) {
+      const intersection = tagsA.filter(t => tagsB.includes(t));
+      const union = new Set([...tagsA, ...tagsB]);
+      score += (intersection.length / union.size) * 0.6;
+    }
+
+    return score;
+  }
+
+  getNextBestScene(): string | null {
+    const project = this.getProject();
+    if (project.scenes.length < 2) return null;
+
+    const currentScene = project.scenes.find(s => s.id === project.activeSceneId);
+    if (!currentScene) return null;
+
+    const candidates = project.scenes.filter(s => s.id !== currentScene.id);
+    
+    const scoredCandidates = candidates.map(scene => {
+      let score = (scene.depthScore ?? 0) * 0.5; // Weight depthScore
+      score += (scene.complexity ?? 0) * 0.2; // Weight complexity
+
+      // Penalize similarity to current scene
+      const similarity = this.calculateSimilarity(currentScene, scene);
+      score -= similarity * 0.5;
+
+      // Penalize repetition based on history
+      const historyIndex = this.history.lastIndexOf(scene.id);
+      if (historyIndex !== -1) {
+        const recency = (historyIndex + 1) / this.history.length;
+        score -= recency * 1.0; // Heavy penalty for recent scenes
+      }
+
+      return { id: scene.id, score };
+    });
+
+    // Sort by score descending
+    scoredCandidates.sort((a, b) => b.score - a.score);
+
+    return scoredCandidates[0]?.id ?? null;
   }
 
   clearTransition() {
@@ -324,31 +384,31 @@ export class SceneManager {
     const project = this.getProject();
     const activeScene = project.scenes.find((item) => item.id === project.activeSceneId);
     if (!activeScene) return null;
+    
     const trigger =
       activeScene.trigger?.type ??
       ((activeScene.duration ?? 0) > 0 ? 'time' : 'manual');
+    
     if (trigger === 'manual') return null;
     if (project.scenes.length < 2) return null;
-    const activeIndex = project.scenes.findIndex((scene) => scene.id === activeScene.id);
-    const nextIndex = (activeIndex + 1) % project.scenes.length;
-    const nextScene = project.scenes[nextIndex];
-    if (!nextScene) return null;
 
     if (trigger === 'time') {
       const duration = Math.max(0, activeScene.duration ?? 0);
       if (!duration) return null;
       if (transportMs - this.activeSceneStartMs >= duration) {
-        return nextScene.id;
+        return this.getNextBestScene();
       }
       return null;
     }
 
     const threshold = activeScene.trigger?.threshold ?? 0.7;
     const minIntervalMs = activeScene.trigger?.minIntervalMs ?? 1200;
+    
     if (audio.peak >= threshold && transportMs - this.lastAudioTriggerMs >= minIntervalMs) {
       this.lastAudioTriggerMs = transportMs;
-      return nextScene.id;
+      return this.getNextBestScene();
     }
+    
     return null;
   }
 

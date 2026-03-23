@@ -1,6 +1,7 @@
 import type { OutputConfig, VisualSynthProject } from '../shared/project';
 import { resolveLoadableProject } from './loadableProject';
 import { resolveProjectOutputConfig } from './outputRuntime';
+import { assetService } from './ui/assetService';
 
 interface ApplyLoadableProjectRuntimeDeps {
   currentOutputConfig?: OutputConfig;
@@ -23,7 +24,8 @@ export type ApplyLoadableProjectRuntimeResult =
 
 export const applyLoadableProjectRuntime = async (
   project: VisualSynthProject,
-  deps: ApplyLoadableProjectRuntimeDeps
+  deps: ApplyLoadableProjectRuntimeDeps,
+  projectPath: string | null = null
 ): Promise<ApplyLoadableProjectRuntimeResult> => {
   const resolved = resolveLoadableProject(project);
   if (!resolved.ok) {
@@ -35,6 +37,17 @@ export const applyLoadableProjectRuntime = async (
   }
 
   const normalized = resolved.project;
+
+  // Resolve assets and update missing flag during load
+  if (normalized.assets && normalized.assets.length > 0) {
+    const resolvedAssets = await assetService.resolveAllAssets(normalized.assets, projectPath);
+    normalized.assets = normalized.assets.map((asset) => ({
+      ...asset,
+      missing: resolvedAssets[asset.id]?.missing ?? asset.missing,
+      path: resolvedAssets[asset.id]?.resolvedPath ?? asset.path
+    }));
+  }
+
   await deps.onResolvedProject(normalized);
   const outputConfig = resolveProjectOutputConfig(normalized, deps.currentOutputConfig);
   await deps.syncOutputConfig(outputConfig);

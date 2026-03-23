@@ -103,6 +103,7 @@ export interface DebugFlags {
 
 export interface AppState {
   project: VisualSynthProject;
+  projectPath: string | null;
   outputConfig: OutputConfig;
   outputOpen: boolean;
   uiMode: UiMode;
@@ -126,6 +127,7 @@ export interface AppState {
 
 export const createInitialState = (): AppState => ({
   project: DEFAULT_PROJECT,
+  projectPath: null,
   outputConfig: { ...DEFAULT_OUTPUT_CONFIG },
   outputOpen: false,
   uiMode: 'performance',

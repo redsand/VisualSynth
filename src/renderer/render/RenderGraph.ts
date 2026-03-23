@@ -1,12 +1,21 @@
+import { getActiveScene } from '../shaderLifecycle';
 import { applyModMatrix } from '../../shared/modMatrix';
 import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
-import { DEFAULT_PROJECT, LayerConfig, type VisualSynthProject } from '../../shared/project';
+import {
+  DEFAULT_PROJECT,
+  LayerConfig,
+  type VisualSynthProject,
+  type EffectConfig,
+  type FxScope
+} from '../../shared/project';
+import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
+import { NodeInstance } from '../../shared/visualNode';
 import { EDM_DROP_COLLECTION, getEdmPreset } from '../sdf/presets/edmPresets';
 import { registerSdfNodes, sdfRegistry } from '../sdf/nodes';
 import {
@@ -62,6 +71,9 @@ export interface GeneratorDebugInfo {
   generatorId: string;
 }
 
+import { type MilkDropCompileReport } from '../../shared/milkwaveStatus';
+import { type MilkDropNativeRuntimeReport } from '../milkdropRenderer';
+
 export interface RenderDebugState {
   frameId: number;
   activeSceneId: string;
@@ -75,6 +87,9 @@ export interface RenderDebugState {
   generators: GeneratorDebugInfo[];
   masterBusFrameId: number;
   uniformsUpdatedFrameId: number;
+  lastShaderError?: string | null;
+  milkdropCompileReport?: MilkDropCompileReport | null;
+  milkdropRuntimeReport?: MilkDropNativeRuntimeReport | null;
   laser: {
     enabled: boolean;
     opacity: number;
@@ -88,6 +103,12 @@ export interface RenderDebugState {
     idBytes: string;
     matchTarget: string;
     matchNormalized: string;
+  };
+  glResources?: {
+    textures: number;
+    framebuffers: number;
+    programs: number;
+    shaders: number;
   };
 }
 
@@ -263,6 +284,7 @@ export class RenderGraph {
   private shapeBurstActives = new Float32Array(8);
   private lastShapeBurstSpawn = 0;
   private shapeBurstSlotIndex = 0;
+  private activeFxNodes = new Map<string, NodeInstance>();
   private debugState: RenderDebugState = {
     frameId: 0,
     activeSceneName: '',
@@ -312,6 +334,46 @@ export class RenderGraph {
   constructor(private store: Store) {
     // Initialize with Launchpad layout by default
     this.midiSceneConfig = createLaunchpadLayout();
+  }
+
+  /**
+   * Dispose of resources
+   */
+  dispose(): void {
+    console.log('[RenderGraph] Disposing...');
+    burstSdfManager.clearBursts();
+    this.midiSum = {};
+    this.activeFxNodes.clear();
+    this.lastSceneId = null;
+    this.fxDeltaUntil = {
+      bloom: 0,
+      blur: 0,
+      chroma: 0,
+      posterize: 0,
+      kaleidoscope: 0,
+      feedback: 0,
+      persistence: 0
+    };
+    // Clear portals
+    this.portals.forEach(p => p.active = false);
+    // Clear gravity wells
+    this.gravityWells.forEach(w => w.active = false);
+    // Clear shape bursts
+    this.shapeBurstSlots.forEach(s => s.active = false);
+  }
+
+  /**
+   * Get debug stats for instrumentation
+   */
+  getDebugStats() {
+    return {
+      activeFxNodes: this.activeFxNodes.size,
+      activePortals: this.portals.filter(p => p.active).length,
+      activeGravityWells: this.gravityWells.filter(w => w.active).length,
+      activeShapeBursts: this.shapeBurstSlots.filter(s => s.active).length,
+      activeTextures: 0, // Managed by glRenderer
+      activeFramebuffers: 0 // Managed by glRenderer
+    };
   }
 
   /**
@@ -1174,9 +1236,133 @@ export class RenderGraph {
     return cloned;
   }
 
-  buildRenderState(time: number, deltaMs: number, canvasSize: { width: number; height: number }): RenderState {
+  private lastSceneId: string | null = null;
+
+  private rebuildFxNodes(project: VisualSynthProject) {
+    this.activeFxNodes.clear();
+
+    // Global FX
+    if (project.effects) {
+      this.createFxNode('global', 'master', project.effects);
+    }
+
+    // Scene FX
+    const scene = getActiveScene(project);
+    if (scene?.look?.effects) {
+      scene.look.effects.forEach((fx, i) => {
+        this.createFxNode('scene', `scene-${i}`, fx);
+      });
+    }
+
+    // Layer FX
+    if (scene?.layers) {
+      scene.layers.forEach((layer) => {
+        if (layer.effects) {
+          layer.effects.forEach((fx, i) => {
+            this.createFxNode('layer', `${layer.id}-${i}`, fx);
+          });
+        }
+      });
+    }
+    console.log(`[RenderGraph] Recreated ${this.activeFxNodes.size} FX nodes for scene: ${scene?.name}`);
+  }
+
+  private createFxNode(scope: FxScope, instanceId: string, config: EffectConfig) {
+    const node: NodeInstance = {
+      nodeId: config.id || `fx-standard`,
+      instanceId: `${scope}:${instanceId}`,
+      enabled: config.enabled,
+      bypass: false,
+      soloPreview: false,
+      parameterValues: {
+        bloom: config.bloom,
+        blur: config.blur,
+        chroma: config.chroma,
+        posterize: config.posterize,
+        kaleidoscope: config.kaleidoscope,
+        feedback: config.feedback,
+        persistence: config.persistence
+      },
+      inputConnections: {}
+    };
+    this.activeFxNodes.set(node.instanceId, node);
+  }
+
+  /**
+   * Get GLSL declarations for all active scoped FX uniforms
+   */
+  getFxUniformsDeclarations(): string {
+    const state = this.store.getState();
+    const scene = getActiveScene(state.project);
+    return getFxUniformsDeclarations(state.project, scene);
+  }
+
+  /**
+   * Resolve scoped FX uniforms for global, scene, and layer scopes
+   */
+  private resolveScopedFxUniforms(project: VisualSynthProject, activeScene: any, modValue: (target: string, base: number) => number): Record<string, number> {
+    const uniforms: Record<string, number> = {};
+
+    // 1. Global FX (Master)
+    const globalEffects = project.effects ?? DEFAULT_PROJECT.effects;
+    if (globalEffects.enabled) {
+      uniforms['uglobal_master_bloom'] = modValue('effects.bloom', globalEffects.bloom);
+      uniforms['uglobal_master_chroma'] = modValue('effects.chroma', globalEffects.chroma);
+      uniforms['uglobal_master_blur'] = modValue('effects.blur', globalEffects.blur);
+      uniforms['uglobal_master_posterize'] = modValue('effects.posterize', globalEffects.posterize);
+    } else {
+      uniforms['uglobal_master_bloom'] = 0;
+      uniforms['uglobal_master_chroma'] = 0;
+      uniforms['uglobal_master_blur'] = 0;
+      uniforms['uglobal_master_posterize'] = 0;
+    }
+
+    // 2. Scene FX
+    const sceneEffects = activeScene?.effects;
+    if (sceneEffects && sceneEffects.enabled) {
+      uniforms['uscene_scene_0_bloom'] = modValue('scene.effects.bloom', sceneEffects.bloom);
+      uniforms['uscene_scene_0_chroma'] = modValue('scene.effects.chroma', sceneEffects.chroma);
+      uniforms['uscene_scene_0_blur'] = modValue('scene.effects.blur', sceneEffects.blur);
+      uniforms['uscene_scene_0_posterize'] = modValue('scene.effects.posterize', sceneEffects.posterize);
+    } else {
+      uniforms['uscene_scene_0_bloom'] = 0;
+      uniforms['uscene_scene_0_chroma'] = 0;
+      uniforms['uscene_scene_0_blur'] = 0;
+      uniforms['uscene_scene_0_posterize'] = 0;
+    }
+
+    // 3. Layer FX
+    if (activeScene?.layers) {
+      activeScene.layers.forEach((layer: any) => {
+        const layerId = normalizeLayerId(layer.id || layer.generatorId || 'unknown');
+        const prefix = `layer_${layerId.replace(/-/g, '_')}_0`;
+        const layerEffects = layer.effects;
+        
+        if (layerEffects && layerEffects.enabled) {
+          uniforms[`u${prefix}_bloom`] = modValue(`layer.${layerId}.effects.bloom`, layerEffects.bloom);
+          uniforms[`u${prefix}_chroma`] = modValue(`layer.${layerId}.effects.chroma`, layerEffects.chroma);
+          uniforms[`u${prefix}_blur`] = modValue(`layer.${layerId}.effects.blur`, layerEffects.blur);
+          uniforms[`u${prefix}_posterize`] = modValue(`layer.${layerId}.effects.posterize`, layerEffects.posterize);
+        } else {
+          uniforms[`u${prefix}_bloom`] = 0;
+          uniforms[`u${prefix}_chroma`] = 0;
+          uniforms[`u${prefix}_blur`] = 0;
+          uniforms[`u${prefix}_posterize`] = 0;
+        }
+      });
+    }
+
+    return uniforms;
+  }
+
+  buildRenderState(time: number, deltaMs: number, canvasSize: { width: number; height: number }, glResources?: RenderDebugState['glResources']): RenderState {
     const state = this.store.getState();
     const runtime = state.runtime;
+
+    if (state.project.activeSceneId !== this.lastSceneId) {
+      this.rebuildFxNodes(state.project);
+      this.lastSceneId = state.project.activeSceneId;
+    }
     const deltaSeconds = deltaMs * 0.001;
 
     this.updateGravityWells(time, deltaSeconds);
@@ -1198,6 +1384,20 @@ export class RenderGraph {
     runtime.topoQuake = Math.max(0, runtime.topoQuake - deltaMs * 0.002);
     runtime.topoSlide = Math.max(0, runtime.topoSlide - deltaMs * 0.002);
     runtime.topoPlate = Math.max(0, runtime.topoPlate - deltaMs * 0.002);
+    runtime.topoTravel = (runtime.topoTravel ?? 0) + deltaMs * 0.0001 * (state.project.topo?.speed ?? 1.0);
+
+    const activeScene = getActiveScene(state.project);
+    const activePalette = state.project.palettes?.find(p => p.id === state.project.activePaletteId) ?? state.project.palettes?.[0];
+
+    // Update debug state
+    this.debugState.frameId++;
+    this.debugState.activeSceneId = state.project.activeSceneId;
+    this.debugState.activeSceneName = activeScene?.name ?? '';
+    this.debugState.activeModeId = state.project.activeModeId ?? '';
+    this.debugState.activeEngineId = state.project.activeEngineId ?? '';
+    this.debugState.activePaletteId = state.project.activePaletteId ?? '';
+    this.debugState.layerCount = activeScene?.layers.length ?? 0;
+    this.debugState.glResources = glResources;
     runtime.topoTravel += deltaMs * 0.0002;
     runtime.strobeIntensity *= runtime.strobeDecay;
 
@@ -1389,7 +1589,7 @@ export class RenderGraph {
       {} as Record<string, number>
     );
 
-    const activeScene = state.project.scenes.find((scene) => scene.id === state.project.activeSceneId);
+    const scopedFxUniforms = this.resolveScopedFxUniforms(state.project, activeScene, modValue);
     const legacyNeutral = isLegacyNeutralProject(state.project);
     const activeIntent = activeScene?.intent ?? 'ambient';
     const resolveExpressiveMacro = (
@@ -1609,6 +1809,17 @@ export class RenderGraph {
       findLayerById: (layers, id) => findLayerById(layers as LayerConfig[], id),
       buildLegacyTarget,
       roleWeights
+    });
+
+    // Scoped FX Uniforms
+    this.activeFxNodes.forEach((node) => {
+      const prefix = node.instanceId.replace(/:/g, '_').replace(/-/g, '_');
+      Object.entries(node.parameterValues).forEach(([key, value]) => {
+        if (typeof value === 'number') {
+          const uniformKey = `${prefix}_${key}`;
+          genUniforms[uniformKey] = node.enabled ? modValue(`fx.${key}`, value) : 0;
+        }
+      });
     });
 
     const plasmaBaseSpeed = getLayerParamNumber(plasmaLayer, 'speed', 1.0);
@@ -1940,7 +2151,8 @@ export class RenderGraph {
       shapeBurstSpawnTimes: this.shapeBurstSpawnTimes,
       shapeBurstActives: this.shapeBurstActives,
       milkDropShaderData: activeScene?._shaderData ?? null,
-      genUniforms
+      genUniforms,
+      ...scopedFxUniforms
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);
@@ -2057,6 +2269,7 @@ export class RenderGraph {
     };
     this.debugState.masterBusFrameId = frameId;
     this.debugState.uniformsUpdatedFrameId = frameId;
+    this.debugState.glResources = renderState.glResources;
   }
 
   private buildModSources(bpm: number) {

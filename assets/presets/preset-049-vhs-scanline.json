@@ -24,7 +24,26 @@
       "analog",
       "balanced"
     ],
-    "activeEngineId": "engine-radial-core"
+    "activeEngineId": "engine-radial-core",
+    "tag": "hero",
+    "isCoreClubPack": true,
+    "scores": {
+      "opener": 8,
+      "build": 5,
+      "drop": 4,
+      "breakdown": 9,
+      "transition": 7,
+      "utility": 6,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 5
+    },
+    "cpuCost": "medium",
+    "depthScore": 0.2,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "geometry",
+    "motionType": "static",
+    "repetitionRisk": "high"
   },
   "scenes": [
     {
@@ -108,10 +127,26 @@
       "id": "palette-vhs",
       "name": "VHS Haze",
       "colors": [
-        { "r": 0.1, "g": 0.08, "b": 0.15 },
-        { "r": 0.5, "g": 0.2, "b": 0.6 },
-        { "r": 0.9, "g": 0.5, "b": 0.7 },
-        { "r": 0.7, "g": 0.9, "b": 1.0 }
+        {
+          "r": 0.1,
+          "g": 0.08,
+          "b": 0.15
+        },
+        {
+          "r": 0.5,
+          "g": 0.2,
+          "b": 0.6
+        },
+        {
+          "r": 0.9,
+          "g": 0.5,
+          "b": 0.7
+        },
+        {
+          "r": 0.7,
+          "g": 0.9,
+          "b": 1
+        }
       ],
       "interpolation": "smooth",
       "locked": false
