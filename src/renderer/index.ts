@@ -10248,7 +10248,7 @@ const updateNowPlayingDiagnosticsUI = () => {
   const diag = engine.getSongDetectionDiagnostics();
   const { status, settings } = diag;
 
-  sessionHealthService.updateSongDetectionStatus(status);
+  sessionHealthService.updateSongDetection(status.state);
 
   if (!settings.enabled) {
     nowPlayingDiagnostics.classList.add('hidden');

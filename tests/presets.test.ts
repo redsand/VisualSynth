@@ -19,7 +19,18 @@ const presetsDir = path.resolve(__dirname, '..', 'assets', 'presets');
 const templatesDir = path.resolve(__dirname, '..', 'assets', 'templates');
 
 describe('preset library', () => {
-  const presetFiles = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json'));
+  // Exclude metadata/manifest files that aren't presets
+  const metadataFiles = new Set([
+    'archive_list.json',
+    'coreClubPack.json',
+    'core_club_pack.json',
+    'milkwave_audit_report.json',
+    'milkwave_certification_report.json',
+    'presetArchive.json',
+    'presetVariants.json',
+    'variant_mapping.json'
+  ]);
+  const presetFiles = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json') && !metadataFiles.has(file));
 
   it('contains at least 10 presets', () => {
     expect(presetFiles.length).toBeGreaterThanOrEqual(10);

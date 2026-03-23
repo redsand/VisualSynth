@@ -20,7 +20,7 @@ describe('Milkwave offline translation', () => {
     expect(result.translation.passes.warp.generated).toBe(true);
     expect(result.translation.passes.warp.backend).toBe('milkwave-direct-v2');
     expect(result.translation.passes.warp.normalized?.hasShaderBodyBlock).toBe(true);
-    expect(result.translation.passes.warp.normalized?.dialectSource).toContain('mix(GetPixel(uv),GetBlur1(uv).xy,0.2)');
+    expect(result.translation.passes.warp.normalized?.dialectSource).toContain('mix(GetPixel(uv),GetBlur1(uv),0.2)');
     expect(result.translation.passes.warp.source).toContain('float lum(vec3 x)');
     expect(result.translation.passes.warp.source).toContain('vec4 textureBias(sampler2D s, vec4 uv4)');
     expect(result.translation.passes.warp.source).toContain('void main()');
@@ -196,7 +196,7 @@ describe('Milkwave offline translation', () => {
     const result = translateMilkwavePresetOffline(preset!);
     const source = result.translation.passes.comp.source;
 
-    expect(source).toContain('vec2 uv2 = uv*( vec2( 1.0 ) - .2*GetBlur3(clamp01(ret.xy)).xy-.05*GetBlur1(clamp01(ret.xy)).xy);');
+    expect(source).toContain('vec2 uv2 = uv*(1-.2*GetBlur3(clamp01(ret.xy)).xy-.05*GetBlur1(clamp01(ret.xy)).xy);');
     expect(source).toContain('uv2 += .1*GetBlur3(clamp01(ret.xy)).xy+.025*GetBlur1(clamp01(ret.xy)).xy;');
     expect(source).toContain('ret = mix(vec3(dot(ret, vec3(0.3333))), ret, 3.0);');
     expect(source).toContain('ret = mix(ret, vec3(lum(ret)), 0.2);');

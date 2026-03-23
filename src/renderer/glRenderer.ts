@@ -1326,6 +1326,16 @@ void main() {
     programCache.clear();
     activeUniformLookupCache.clear();
     uniformLocationCache.clear();
+    // Discard any in-flight async compile — its cache key is now stale.
+    if (pendingProgram) {
+      gl.deleteProgram(pendingProgram.program);
+      pendingProgram = null;
+    }
+    // Null out program references so the render loop skips frames gracefully
+    // until recompileForGenerators provides a fresh program.
+    standardProgram = null;
+    advancedSdfProgram = null;
+    currentProgram = null;
   };
 
   const getResourceCounts = () => {
