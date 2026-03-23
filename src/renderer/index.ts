@@ -1050,7 +1050,7 @@ const audioStoreBridge: Store = {
     outputOpen,
     uiMode: activeMode,
     transport: { isPlaying, timeMs: transportTimeMs },
-    midi: { lastLatencyMs },
+    midi: { lastLatencyMs: lastMidiLatencyMs },
     pad: { states: [], activeBank: 0, activeMapBank: 0 },
     diagnostics: { 
       fps: 0, 
