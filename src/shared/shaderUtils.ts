@@ -70,7 +70,7 @@ export const getFxUniformsDeclarations = (project: VisualSynthProject, scene: Sc
   addDecls('scene', 'scene_0');
 
   // Global
-  if (project.effects) {
+  if (project?.effects) {
     addDecls('global', 'master');
   }
 

@@ -330,9 +330,11 @@ void main() {
   const EMPTY_GENERATOR_SET = new Set<string>();
 
   // Start from a minimal shader and switch to scene/project-specific variants once loaded.
+  // We MUST include basic FX uniforms because mainTemplate refers to them (uscene_scene_0_bloom etc)
+  const initialFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\n';
   let standardProgram = getOrCompileProgram(
     EMPTY_GENERATOR_SET,
-    '', '', '10.0', null
+    '', '', '10.0', null, [], false, initialFx
   );
   if (!standardProgram) {
     throw new Error('Failed to compile standard shader program.');
@@ -1225,14 +1227,15 @@ void main() {
     // Store the active IDs, custom blocks, and FX uniforms for future recompilations (e.g., when SDF changes)
     currentActiveIds = new Set(activeIds);
     currentCustomBlocks = customBlocks;
-    currentFxUniforms = fxUniforms;
+    const effectiveFx = fxUniforms || initialFx;
+    currentFxUniforms = effectiveFx;
 
     const t0 = performance.now();
     const customHash = [...customBlocks]
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
       .join('|');
-    const key = shaderCacheKey(activeIds, currentSdfMapBody, currentPlasmaSource ?? '', customHash + fxUniforms);
+    const key = shaderCacheKey(activeIds, currentSdfMapBody, currentPlasmaSource ?? '', customHash + effectiveFx);
 
     const wasCached = programCache.has(key);
     
@@ -1260,7 +1263,7 @@ void main() {
       currentPlasmaSource,
       customBlocks,
       useAsync,
-      fxUniforms
+      effectiveFx
     );
 
     if (!prog) {
@@ -1290,15 +1293,16 @@ void main() {
       .sort((a, b) => a.id.localeCompare(b.id))
       .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
       .join('|');
-    const key = shaderCacheKey(ids, currentSdfMapBody, currentPlasmaSource ?? '', customHash + fxUniforms);
+    const effectiveFx = fxUniforms || initialFx;
+    const key = shaderCacheKey(ids, currentSdfMapBody, currentPlasmaSource ?? '', customHash + effectiveFx);
 
     if (programCache.has(key)) return;
 
     // Ensure we track these for future recompilations if needed
-    currentFxUniforms = fxUniforms;
+    currentFxUniforms = effectiveFx;
 
     const useAsync = !!extParallel;
-    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, fxUniforms);
+    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, effectiveFx);
     
     if (prog) {
       if (useAsync) {

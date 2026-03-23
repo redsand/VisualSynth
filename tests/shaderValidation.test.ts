@@ -188,4 +188,29 @@ describe('GLSL shader static validation', () => {
     }
     expect(violations).toEqual([]);
   });
+
+  it('declares scene FX uniforms even with no project/scene (minimal boot case)', () => {
+    // This replicates the case where glRenderer boots with an empty generator set
+    // before any project is loaded.
+    const initialFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\n';
+    const minimalShader = buildFragmentShader(
+      { preamble: SHADER_PREAMBLE, mainTemplate: SHADER_MAIN_TEMPLATE },
+      [], // no blocks
+      new Set(), // no active IDs
+      '', '', '10.0', null,
+      initialFx
+    );
+
+    const declared = extractDeclaredUniforms(minimalShader);
+    expect(declared.has('uscene_scene_0_bloom')).toBe(true);
+    expect(declared.has('uscene_scene_0_chroma')).toBe(true);
+    expect(declared.has('uscene_scene_0_blur')).toBe(true);
+    expect(declared.has('uscene_scene_0_posterize')).toBe(true);
+
+    const referenced = findUniformReferences(minimalShader);
+    const undeclared = [...referenced].filter(
+      name => !declared.has(name) && !KNOWN_NON_UNIFORMS.has(name)
+    );
+    expect(undeclared).toEqual([]);
+  });
 });
