@@ -1520,7 +1520,6 @@ void main() {
     dispose,
     isContextLost: () => contextLost,
     hasPendingProgram: () => pendingProgram !== null,
-    getProgramCacheSize: () => programCache.size,
     asyncCompilationAvailable: () => !!extParallel,
     getCurrentProgramGenerators: () => [...currentActiveIds],
     getPendingProgramGenerators: () => pendingProgram ? [...pendingProgram.activeIds] : null
