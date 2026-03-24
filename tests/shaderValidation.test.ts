@@ -264,9 +264,7 @@ describe('GLSL shader static validation', () => {
 
   it('keeps finishing effects gated behind actual scene content', () => {
     expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5) {');
-    expect(builtShader).toContain('color = posterize(color, uPosterize);');
-    expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uChroma > 0.01)');
-    expect(builtShader).toContain('if (sceneColorEnergy > 0.001 && uEffectsEnabled > 0.5 && uBlur > 0.01)');
+    expect(builtShader).toContain('applyScopedFx(color, effectUv, uBloom, uChroma, uBlur, uPosterize)');
     expect(builtShader).toContain('color = shiftPalette(color, uPaletteShift);');
     expect(builtShader).toContain('color = color / max(vec3(1.0), color + vec3(0.001));');
     expect(builtShader).toContain('color = pow(color, vec3(1.0 / 1.35));');

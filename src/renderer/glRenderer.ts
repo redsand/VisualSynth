@@ -330,7 +330,9 @@ void main() {
   const EMPTY_GENERATOR_SET = new Set<string>();
 
   // Start from a minimal shader and switch to scene/project-specific variants once loaded.
-  // We MUST include basic FX uniforms because mainTemplate refers to them (uscene_scene_0_bloom etc)
+  // initialFx provides uscene_scene_0_* uniform declarations for the boot shader before any project
+  // is loaded, keeping getFxUniformsDeclarations cache keys consistent.  mainTemplate itself uses
+  // the global uBloom/uChroma/uBlur/uPosterize uniforms (declared in preamble.glsl).
   const initialFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\n';
   let standardProgram = getOrCompileProgram(
     EMPTY_GENERATOR_SET,
