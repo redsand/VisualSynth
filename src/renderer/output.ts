@@ -4,6 +4,7 @@ import { createSafeModeRenderer } from './safeModeRenderer';
 import { createOverlayRenderer } from './overlayRenderer';
 import { syncRenderState } from './render/autoSync';
 import type { SerializedOutputAsset } from './render/outputPayload';
+import { OutputDiagnostics } from './outputDiagnostics';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
 const outputOverlayCanvas = document.getElementById('output-overlay-canvas') as HTMLCanvasElement;
@@ -14,6 +15,26 @@ type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
 const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};
+
+const diag = new OutputDiagnostics();
+
+// Expose diagnostics globally for DevTools inspection
+(window as any).__outputDiagnostics = diag;
+(window as any).__outputDump = () => {
+  const snap = diag.captureForensicSnapshot({
+    activeGenerators: lastActiveGeneratorIds,
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    lastMessageAgeMs: lastMessageAt ? performance.now() - lastMessageAt : -1,
+    messageCount: diag.messageCount,
+    lastShaderError: renderer?.getLastShaderError?.() ?? null,
+    contextLost: renderer?.isContextLost?.() ?? false,
+    programCacheSize: renderer?.getProgramCacheSize?.() ?? -1,
+  });
+  console.log('[OutputDiag] Manual dump:', snap);
+  console.table(snap?.recentEvents ?? []);
+  console.table(snap?.recentMetrics ?? []);
+};
 
 const hiddenVideoContainer = document.createElement('div');
 hiddenVideoContainer.style.position = 'absolute';
@@ -42,6 +63,9 @@ const createVideoElement = (asset: SerializedOutputAsset): HTMLVideoElement => {
   if (asset.path) {
     video.src = toFileUrl(asset.path);
   }
+  video.addEventListener('error', () => {
+    diag.logEvent('video-error', `asset=${asset.id} src=${asset.path}`);
+  });
   hiddenVideoContainer.appendChild(video);
   return video;
 };
@@ -51,7 +75,7 @@ const createLiveVideoElement = async (asset: SerializedOutputAsset): Promise<HTM
   video.muted = true;
   video.playsInline = true;
   video.autoplay = true;
-  
+
   const liveSource = asset.options?.liveSource;
   try {
     let stream: MediaStream;
@@ -67,6 +91,7 @@ const createLiveVideoElement = async (asset: SerializedOutputAsset): Promise<HTM
     });
   } catch (err) {
     console.warn('[Output] Failed to create live stream:', err);
+    diag.logEvent('video-error', `live stream failed: ${err}`);
   }
   hiddenVideoContainer.appendChild(video);
   return video;
@@ -84,6 +109,7 @@ const cleanupLayerVideo = (layerId: AssetLayerId) => {
     existing.load();
     existing.remove();
     delete layerVideoElements[layerId];
+    diag.logEvent('asset-unbound', layerId);
   }
 };
 
@@ -160,8 +186,53 @@ const getTextCanvas = (asset: SerializedOutputAsset): HTMLCanvasElement | null =
   return canvas;
 };
 
+// ----- Generator deduplication: only call recompileForGenerators when the
+//       active set actually changes.  Calling it 30×/sec with the same set
+//       is wasteful and shadows the cache-hit log spam.
+let lastActiveGeneratorsKey = '';
+let lastActiveGeneratorIds: string[] = [];
+
+const applyGeneratorIds = (ids: string[]) => {
+  const key = [...ids].sort().join(',');
+  if (key === lastActiveGeneratorsKey) return;
+  lastActiveGeneratorsKey = key;
+  lastActiveGeneratorIds = ids;
+  diag.logEvent('generators-changed', `ids=[${key}]`);
+
+  if (renderer?.recompileForGenerators) {
+    renderer.recompileForGenerators(new Set(ids));
+  }
+
+  // Cap the output renderer's program cache to prevent GPU resource exhaustion
+  // over long slideshows.  Keep 4 programs: the active one plus a buffer for
+  // scenes that cycle back to earlier generator sets.
+  if ((renderer as any).trimProgramCache) {
+    const evicted = (renderer as any).trimProgramCache(4) as number;
+    if (evicted > 0) {
+      diag.logEvent('program-cache-pruned', `evicted ${evicted} programs`);
+    }
+  }
+};
+
+// ----- Canvas resize heartbeat
+canvas.addEventListener('visualsynth-contextlost', () => {
+  diag.logEvent('context-lost');
+});
+canvas.addEventListener('visualsynth-contextrestored', () => {
+  diag.logEvent('context-restored');
+});
+
+// Track last known canvas dimensions to detect resize events
+let lastCanvasWidth = 0;
+let lastCanvasHeight = 0;
+
 try {
-  renderer = createGLRenderer(canvas, {});
+  renderer = createGLRenderer(canvas, {
+    onError: (msg, type) => {
+      diag.logEvent('shader-compile-failed', `${type}: ${msg.slice(0, 120)}`);
+      console.error(`[Output] Shader ${type} error:`, msg);
+    }
+  });
 } catch (error) {
   if (debugOverlay) {
     debugOverlay.textContent = error instanceof Error ? error.message : 'WebGL2 not supported.';
@@ -169,6 +240,9 @@ try {
   }
   renderer = createSafeModeRenderer(canvas, 'Safe mode: Output WebGL2 unavailable');
 }
+
+// Grab the GL context for pixel sampling (preserveDrawingBuffer:true was set by createGLRenderer)
+const gl = canvas.getContext('webgl2');
 
 const requestExitFullscreen = async () => {
   try {
@@ -369,10 +443,10 @@ const state: RenderState = {
 
 const channel = new BroadcastChannel('visualsynth-output');
 let lastMessageAt = 0;
-let messageCount = 0;
+
 channel.onmessage = (event) => {
   lastMessageAt = performance.now();
-  messageCount += 1;
+  diag.messageCount += 1;
   const data = event.data as Partial<RenderState> & {
     layerAssets?: Partial<Record<AssetLayerId, SerializedOutputAsset | null>>;
   };
@@ -387,9 +461,8 @@ channel.onmessage = (event) => {
       renderer.setPalette(colors.slice(0, 5) as [string, string, string, string, string]);
     }
   }
-  if (Array.isArray((data as any).activeGeneratorIds) && renderer?.recompileForGenerators) {
-    const ids = new Set((data as any).activeGeneratorIds as string[]);
-    renderer.recompileForGenerators(ids);
+  if (Array.isArray((data as any).activeGeneratorIds)) {
+    applyGeneratorIds((data as any).activeGeneratorIds as string[]);
   }
   if (data.layerAssets) {
     (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
@@ -400,26 +473,29 @@ channel.onmessage = (event) => {
           ? `${asset.id}-${asset.options?.text ?? ''}-${asset.options?.font ?? ''}-${asset.options?.fontColor ?? ''}`
           : asset?.id ?? null;
       if (layerAssetIds[layerId] === nextId && layerAssetKeys[layerId] === assetKey) return;
-      
+
       cleanupLayerVideo(layerId);
       layerAssetIds[layerId] = nextId;
       layerAssetKeys[layerId] = assetKey;
-      
+
       const textCanvas = asset?.kind === 'text' ? getTextCanvas(asset) ?? undefined : undefined;
-      
+
       if (asset?.kind === 'live') {
         createLiveVideoElement(asset).then((videoElement) => {
           layerVideoElements[layerId] = videoElement;
           void videoElement.play().catch(() => undefined);
           renderer.setLayerAsset(layerId, asset as any, videoElement, textCanvas);
+          diag.logEvent('asset-bound', `${layerId} live`);
         });
       } else if (asset?.kind === 'video') {
         const videoElement = createVideoElement(asset);
         layerVideoElements[layerId] = videoElement;
         void videoElement.play().catch(() => undefined);
         renderer.setLayerAsset(layerId, asset as any, videoElement, textCanvas);
+        diag.logEvent('asset-bound', `${layerId} video`);
       } else {
         renderer.setLayerAsset(layerId, asset as any, undefined, textCanvas);
+        if (asset) diag.logEvent('asset-bound', `${layerId} ${asset.kind}`);
       }
     });
   }
@@ -428,32 +504,130 @@ channel.onmessage = (event) => {
   }
 };
 
+// Stale-message watchdog: warn when no message received for 3+ seconds while
+// rendering.  This disambiguates "render loop alive but channel died" from
+// "render loop died".
+const MESSAGE_STALE_THRESHOLD_MS = 3000;
+let lastStaleWarningAt = 0;
+
+const checkMessageStaleness = (now: number) => {
+  if (lastMessageAt === 0) return; // never received any — not started yet
+  if (now - lastMessageAt > MESSAGE_STALE_THRESHOLD_MS) {
+    if (now - lastStaleWarningAt > MESSAGE_STALE_THRESHOLD_MS) {
+      lastStaleWarningAt = now;
+      diag.logEvent('message-stale', `${Math.round(now - lastMessageAt)}ms since last message`);
+    }
+  }
+};
+
+// Blank-for-too-long protective fallback: after 8 seconds of confirmed blank
+// output, show a visual indicator in the debug overlay so the user knows it
+// is degraded (even with the debug overlay hidden).
+const BLANK_FALLBACK_THRESHOLD_MS = 8000;
+let fallbackBannerVisible = false;
+let fallbackBanner: HTMLDivElement | null = null;
+
+const ensureFallbackBanner = () => {
+  if (fallbackBanner) return;
+  fallbackBanner = document.createElement('div');
+  fallbackBanner.style.cssText = [
+    'position:fixed', 'bottom:8px', 'left:50%', 'transform:translateX(-50%)',
+    'background:rgba(220,40,40,0.85)', 'color:#fff', 'font:bold 13px monospace',
+    'padding:6px 16px', 'border-radius:4px', 'z-index:9999',
+    'pointer-events:none', 'display:none'
+  ].join(';');
+  document.body.appendChild(fallbackBanner);
+};
+
+const updateFallbackBanner = (now: number) => {
+  ensureFallbackBanner();
+  const blankDuration = diag.isCurrentlyBlank && diag.lastGoodFrameMs > 0
+    ? now - diag.lastGoodFrameMs
+    : 0;
+
+  if (blankDuration > BLANK_FALLBACK_THRESHOLD_MS) {
+    if (!fallbackBannerVisible) {
+      fallbackBannerVisible = true;
+      diag.logEvent('fallback-triggered', `blank for ${Math.round(blankDuration)}ms`);
+      console.warn(`[Output] DEGRADED — blank output for ${Math.round(blankDuration / 1000)}s`);
+    }
+    fallbackBanner!.style.display = 'block';
+    fallbackBanner!.textContent = `⚠ Output degraded — blank for ${Math.round(blankDuration / 1000)}s (press D for diagnostics)`;
+  } else {
+    if (fallbackBannerVisible) fallbackBannerVisible = false;
+    fallbackBanner!.style.display = 'none';
+  }
+};
+
 let lastDebugUpdate = 0;
 let frameCount = 0;
+
 const render = (time: number) => {
-  resizeCanvasToDisplaySize(canvas);
+  const now = performance.now();
+  const didResize = resizeCanvasToDisplaySize(canvas);
+  if (didResize) {
+    diag.logEvent('canvas-resize', `${canvas.width}x${canvas.height}`);
+    lastCanvasWidth  = canvas.width;
+    lastCanvasHeight = canvas.height;
+  }
+
   renderer.render({
     ...state,
     timeMs: Number.isFinite(state.timeMs) ? state.timeMs : time
   });
+  diag.drawCallCount += 1;
+
   outputOverlayRenderer.draw();
   frameCount += 1;
-  if (debugOverlay) {
-    const now = performance.now();
-    if (now - lastDebugUpdate > 500) {
-      lastDebugUpdate = now;
-      const ageMs = lastMessageAt ? Math.round(now - lastMessageAt) : -1;
-      const rect = canvas.getBoundingClientRect();
-      if (debugVisible) {
-        debugOverlay.textContent =
-          `Output Debug\n` +
-          `Size: ${Math.round(rect.width)}x${Math.round(rect.height)}\n` +
-          `Frames: ${frameCount}\n` +
-          `Messages: ${messageCount}\n` +
-          `Last msg: ${ageMs >= 0 ? ageMs + 'ms' : 'never'}`;
+  diag.frameCount += 1;
+
+  // --- Frame watchdog: periodically sample pixels ---
+  if (gl && diag.shouldSample()) {
+    const metrics = diag.sampleFrame(gl, canvas);
+
+    // On blank detection, emit a forensic snapshot (throttled)
+    if (diag.isCurrentlyBlank) {
+      const snap = diag.captureForensicSnapshot({
+        activeGenerators: lastActiveGeneratorIds,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        lastMessageAgeMs: lastMessageAt ? now - lastMessageAt : -1,
+        messageCount: diag.messageCount,
+        lastShaderError: renderer?.getLastShaderError?.() ?? null,
+        contextLost: renderer?.isContextLost?.() ?? false,
+        programCacheSize: renderer?.getProgramCacheSize?.() ?? -1,
+      });
+      if (snap) {
+        console.warn('[Output] Blank frame detected — forensic snapshot:', snap);
+        console.table(snap.recentEvents);
       }
     }
   }
+
+  // --- Stale message / fallback checks ---
+  checkMessageStaleness(now);
+  updateFallbackBanner(now);
+
+  // --- Debug overlay update (every 500 ms) ---
+  if (debugOverlay && now - lastDebugUpdate > 500) {
+    lastDebugUpdate = now;
+    const ageMs = lastMessageAt ? Math.round(now - lastMessageAt) : -1;
+    const rect = canvas.getBoundingClientRect();
+    if (debugVisible) {
+      const cacheSize = renderer?.getProgramCacheSize?.() ?? '?';
+      debugOverlay.textContent =
+        `Output Debug\n` +
+        `Canvas: ${canvas.width}x${canvas.height} (display ${Math.round(rect.width)}x${Math.round(rect.height)})\n` +
+        `Frames: ${frameCount}  DrawCalls: ${diag.drawCallCount}\n` +
+        `Messages: ${diag.messageCount}  Last: ${ageMs >= 0 ? ageMs + 'ms' : 'never'}\n` +
+        `Generators (${lastActiveGeneratorIds.length}): ${lastActiveGeneratorIds.join(', ') || 'none'}\n` +
+        `ProgramCache: ${cacheSize}\n` +
+        `\n` +
+        diag.getDebugText() +
+        `\n\nPress D to hide  |  __outputDump() to dump forensics`;
+    }
+  }
+
   requestAnimationFrame(render);
 };
 

@@ -1272,6 +1272,13 @@ void main() {
     }
 
     if (useAsync) {
+      // If there was a previous in-flight async compile for a DIFFERENT variant,
+      // release its program object now.  The driver will finish the link internally
+      // but deleteProgram is deferred until it's no longer in use, so this is safe.
+      if (pendingProgram && pendingProgram.cacheKey !== key) {
+        untrackProgram(pendingProgram.program);
+        gl.deleteProgram(pendingProgram.program);
+      }
       pendingProgram = { program: prog, activeIds, cacheKey: key };
       // Continue rendering old program while async compiling
     } else {
@@ -1347,6 +1354,33 @@ void main() {
       programs: programCount + mdCounts.programs,
       shaders: shaderCount + mdCounts.shaders
     };
+  };
+
+  const getProgramCacheSize = (): number => programCache.size;
+
+  /**
+   * Evict cached programs (oldest first by insertion order) until at most
+   * `maxSize` remain.  Programs that are currently active as standardProgram
+   * or advancedSdfProgram are never evicted.  Returns the number evicted.
+   *
+   * Intended for the output renderer, which accumulates one program per unique
+   * generator set across a long slideshow and never prunes the cache on its own.
+   */
+  const trimProgramCache = (maxSize: number): number => {
+    if (programCache.size <= maxSize) return 0;
+    let evicted = 0;
+    for (const [key, prog] of programCache) {
+      // programCache.size decreases as we delete entries, so compare it directly.
+      if (programCache.size <= maxSize) break;
+      if (prog === standardProgram || prog === advancedSdfProgram || prog === currentProgram) continue;
+      untrackProgram(prog);
+      gl.deleteProgram(prog);
+      activeUniformLookupCache.delete(prog);
+      uniformLocationCache.delete(prog);
+      programCache.delete(key);
+      evicted++;
+    }
+    return evicted;
   };
 
   const dispose = () => {
@@ -1437,6 +1471,8 @@ void main() {
     setCustomShaderBlocks,
     updateMilkDropShaders,
     getResourceCounts,
+    getProgramCacheSize,
+    trimProgramCache,
     pruneUnusedAssets,
     dispose,
     isContextLost: () => contextLost

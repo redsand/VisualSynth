@@ -72,7 +72,6 @@ import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
 import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
-import { createSongChangeDetector } from './audio/songChangeDetector';
 import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult } from './audio/rollingAudioCapture';
 import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
 import type { Store } from './state/store';
@@ -11367,7 +11366,7 @@ nowPlayingSaveButton.addEventListener('click', async () => {
   Object.assign(nowPlayingSettings, buildNowPlayingDraftSettings());
   const savedSettings = await window.visualSynth.saveNowPlayingSettings({ ...nowPlayingSettings });
   applyNowPlayingSettings(savedSettings);
-  songChangeDetector.reset();
+  getAudioEngineSafe()?.updateNowPlayingSettings(savedSettings);
   closeNowPlayingModal();
   setStatus('Now Playing configuration saved.');
 });

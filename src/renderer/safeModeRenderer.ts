@@ -39,5 +39,7 @@ export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Saf
   updateMilkDropShaders: () => {},
   getMilkDropCompileReport: () => null,
   getMilkDropNativeRuntimeReport: () => null,
+  getProgramCacheSize: () => 0,
+  trimProgramCache: (_maxSize: number) => 0,
   isContextLost: () => false,
 });

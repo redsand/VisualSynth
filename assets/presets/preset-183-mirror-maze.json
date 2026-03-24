@@ -3,132 +3,1264 @@
   "metadata": {
     "version": 6,
     "name": "Mirror Maze",
-    "createdAt": "2026-02-06T01:44:33.612Z",
-    "updatedAt": "2026-02-06T01:44:33.612Z",
-    "category": "Showcase",
+    "createdAt": "2026-03-23T22:00:08.568Z",
+    "updatedAt": "2026-03-23T22:00:08.568Z",
+    "category": "Scene Preset",
     "compatibility": {
       "minVersion": "1.4.0"
     },
     "presetType": "scene",
-    "intendedMusicStyle": "Techno",
-    "activeEngineId": "engine-radial-core",
-    "activeModeId": "mode-cosmic",
-    "visualIntentTags": [
-      "visual",
-      "immersive"
-    ],
+    "intendedMusicStyle": "Any",
+    "visualIntentTags": [],
     "colorChemistry": [
+      "analog",
       "balanced"
     ],
     "defaultTransition": {
       "durationMs": 600,
-      "curve": "easeInOut"
+      "curve": "easeInOut",
+      "type": "fade"
     },
-    "tag": "hero",
-    "isCoreClubPack": false,
-    "scores": {
-      "opener": 4,
-      "build": 5,
-      "drop": 4,
-      "breakdown": 3,
-      "transition": 7,
-      "utility": 6,
-      "crowdReadability": 8,
-      "perceivedDepth3D": 5
-    },
-    "cpuCost": "medium",
-    "depthScore": 0.2,
-    "complexity": "low",
-    "role": "groove",
-    "visualFamily": "geometry",
-    "motionType": "static",
-    "repetitionRisk": "high"
+    "activeModeId": "mode-performance",
+    "activeEngineId": "engine-radial-core"
   },
-  "name": "Mirror Maze",
-  "createdAt": "2026-02-06T01:44:33.612Z",
-  "updatedAt": "2026-02-06T01:44:33.612Z",
-  "activeSceneId": "scene-1",
   "scenes": [
     {
-      "id": "scene-1",
-      "name": "Main",
+      "id": "showcase-59",
+      "scene_id": "showcase-59",
+      "name": "Mirror Maze",
       "intent": "chaos",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut",
+        "type": "fade"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut",
+        "type": "fade"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [],
+        "support": [],
+        "atmosphere": []
+      },
       "layers": [
         {
-          "id": "gen-mirror-maze",
+          "id": "layer-gen-mirror-maze-1",
           "name": "Mirror Maze",
           "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "screen",
-          "generatorId": "gen-mirror-maze",
-          "params": {
-            "recursion": 6,
-            "angle": 0.5
-          },
           "transform": {
             "x": 0,
             "y": 0,
             "scale": 1,
             "rotation": 0
-          }
+          },
+          "generatorId": "gen-mirror-maze",
+          "params": {
+            "recursion": 6,
+            "angle": 0.5
+          },
+          "effects": []
         }
-      ]
+      ],
+      "look": {
+        "effects": {
+          "enabled": true,
+          "bloom": 0.5,
+          "blur": 0.05,
+          "chroma": 0.2,
+          "posterize": 0,
+          "kaleidoscope": 0,
+          "feedback": 0.1,
+          "persistence": 0.2
+        },
+        "particles": {
+          "enabled": true,
+          "density": 0.5,
+          "speed": 0.3,
+          "size": 0.5,
+          "glow": 0.8
+        },
+        "sdf": {
+          "enabled": false,
+          "shape": "circle",
+          "scale": 0,
+          "edge": 0,
+          "glow": 0,
+          "rotation": 0,
+          "fill": 0
+        },
+        "visualizer": {
+          "enabled": false,
+          "mode": "off",
+          "opacity": 0.8,
+          "macroEnabled": false,
+          "macroId": 8
+        },
+        "stylePresets": [],
+        "activeStylePresetId": "style-neutral",
+        "palettes": [
+          {
+            "id": "heat",
+            "name": "Heat",
+            "colors": [
+              "#000000",
+              "#ff0000",
+              "#ff7f00",
+              "#ffff00",
+              "#ffffff"
+            ]
+          },
+          {
+            "id": "ocean",
+            "name": "Ocean",
+            "colors": [
+              "#000000",
+              "#0000ff",
+              "#007fff",
+              "#00ffff",
+              "#ffffff"
+            ]
+          },
+          {
+            "id": "forest",
+            "name": "Forest",
+            "colors": [
+              "#000000",
+              "#004000",
+              "#008000",
+              "#00c000",
+              "#ffffff"
+            ]
+          },
+          {
+            "id": "synthwave",
+            "name": "Synthwave",
+            "colors": [
+              "#000000",
+              "#ff00ff",
+              "#7f00ff",
+              "#00ffff",
+              "#ffffff"
+            ]
+          },
+          {
+            "id": "industrial",
+            "name": "Industrial",
+            "colors": [
+              "#000000",
+              "#808080",
+              "#c0c0c0",
+              "#ffffff",
+              "#ff0000"
+            ]
+          },
+          {
+            "id": "grayscale",
+            "name": "Grayscale",
+            "colors": [
+              "#000000",
+              "#404040",
+              "#808080",
+              "#c0c0c0",
+              "#ffffff"
+            ]
+          },
+          {
+            "id": "citrus-pop",
+            "name": "Citrus Pop",
+            "colors": [
+              "#ff6b00",
+              "#ffb100",
+              "#ffe100",
+              "#a6ff00",
+              "#2aff8a"
+            ]
+          },
+          {
+            "id": "aurora",
+            "name": "Aurora",
+            "colors": [
+              "#2a00ff",
+              "#00b3ff",
+              "#00ff9d",
+              "#a6ff00",
+              "#ff4fd8"
+            ]
+          },
+          {
+            "id": "lagoon",
+            "name": "Lagoon",
+            "colors": [
+              "#0057ff",
+              "#00b3ff",
+              "#00f5d4",
+              "#7cff6b",
+              "#ffd166"
+            ]
+          },
+          {
+            "id": "ember",
+            "name": "Ember",
+            "colors": [
+              "#7a0011",
+              "#ff2d00",
+              "#ff6a00",
+              "#ff9f1c",
+              "#ffd000"
+            ]
+          },
+          {
+            "id": "prism",
+            "name": "Prism",
+            "colors": [
+              "#ff2a6d",
+              "#ff8c42",
+              "#f6e05e",
+              "#5ef38c",
+              "#3a86ff"
+            ]
+          },
+          {
+            "id": "tropical",
+            "name": "Tropical",
+            "colors": [
+              "#ff4d6d",
+              "#f8c046",
+              "#2ec4b6",
+              "#00a6fb",
+              "#6a4c93"
+            ]
+          },
+          {
+            "id": "velvet",
+            "name": "Velvet",
+            "colors": [
+              "#3a0ca3",
+              "#7209b7",
+              "#b5179e",
+              "#f72585",
+              "#4cc9f0"
+            ]
+          },
+          {
+            "id": "voltage",
+            "name": "Voltage",
+            "colors": [
+              "#fb5607",
+              "#ffbe0b",
+              "#3a86ff",
+              "#8338ec",
+              "#ff006e"
+            ]
+          },
+          {
+            "id": "desert-bloom",
+            "name": "Desert Bloom",
+            "colors": [
+              "#ff9f1c",
+              "#ff6b6b",
+              "#f9844a",
+              "#90be6d",
+              "#43aa8b"
+            ]
+          }
+        ],
+        "activePaletteId": "heat",
+        "macros": [],
+        "modMatrix": [
+          {
+            "id": "mod-drag-1774303182409",
+            "source": "lfo-1",
+            "target": "layer-mirror-maze.angle",
+            "amount": 0.5,
+            "curve": "linear",
+            "smoothing": 0.1,
+            "bipolar": false,
+            "min": 0,
+            "max": 3.14,
+            "enabled": true
+          }
+        ]
+      },
+      "depthScore": 0,
+      "complexity": 0,
+      "tags": []
     }
   ],
-  "effects": {
-    "enabled": true,
-    "bloom": 0.5,
-    "blur": 0.05,
-    "chroma": 0.2,
-    "posterize": 0,
-    "kaleidoscope": 0,
-    "feedback": 0.1,
-    "persistence": 0.2
-  },
-  "particles": {
-    "enabled": true,
-    "density": 0.5,
-    "speed": 0.3,
-    "size": 0.5,
-    "glow": 0.8
-  },
-  "sdf": {
-    "enabled": false,
-    "shape": "circle",
-    "scale": 0.5,
-    "edge": 0.05,
-    "glow": 0.1,
-    "rotation": 0,
-    "fill": 0
-  },
-  "visualizer": {
-    "enabled": false,
-    "mode": "off",
-    "opacity": 0.8,
-    "macroEnabled": false,
-    "macroId": 8
-  },
-  "modMatrix": [],
-  "midiMappings": [],
+  "activeSceneId": "showcase-59",
   "assets": [],
-  "plugins": [],
-  "lfos": [],
-  "envelopes": [],
-  "sampleHold": [],
-  "activeModeId": "mode-performance",
-  "activeEngineId": "engine-radial-core",
-  "colorChemistry": [
-    "analog",
-    "balanced"
-  ],
   "roleWeights": {
-    "core": 1,
-    "support": 1,
-    "atmosphere": 1
+    "core": 1.3,
+    "support": 1.95,
+    "atmosphere": 0.55
   },
   "tempoSync": {
-    "bpm": 124,
+    "bpm": 120,
     "source": "manual"
+  },
+  "modulations": [],
+  "macros": [],
+  "project": {
+    "version": 6,
+    "name": "Master Showcase - Varied Palettes",
+    "createdAt": "2026-02-06T19:39:45.348Z",
+    "updatedAt": "2026-03-23T21:59:51.692Z",
+    "output": {
+      "enabled": true,
+      "fullscreen": false,
+      "scale": 1
+    },
+    "stylePresets": [],
+    "activeStylePresetId": "style-neutral",
+    "palettes": [
+      {
+        "id": "heat",
+        "name": "Heat",
+        "colors": [
+          "#000000",
+          "#ff0000",
+          "#ff7f00",
+          "#ffff00",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "ocean",
+        "name": "Ocean",
+        "colors": [
+          "#000000",
+          "#0000ff",
+          "#007fff",
+          "#00ffff",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "forest",
+        "name": "Forest",
+        "colors": [
+          "#000000",
+          "#004000",
+          "#008000",
+          "#00c000",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "synthwave",
+        "name": "Synthwave",
+        "colors": [
+          "#000000",
+          "#ff00ff",
+          "#7f00ff",
+          "#00ffff",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "industrial",
+        "name": "Industrial",
+        "colors": [
+          "#000000",
+          "#808080",
+          "#c0c0c0",
+          "#ffffff",
+          "#ff0000"
+        ]
+      },
+      {
+        "id": "grayscale",
+        "name": "Grayscale",
+        "colors": [
+          "#000000",
+          "#404040",
+          "#808080",
+          "#c0c0c0",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "citrus-pop",
+        "name": "Citrus Pop",
+        "colors": [
+          "#ff6b00",
+          "#ffb100",
+          "#ffe100",
+          "#a6ff00",
+          "#2aff8a"
+        ]
+      },
+      {
+        "id": "aurora",
+        "name": "Aurora",
+        "colors": [
+          "#2a00ff",
+          "#00b3ff",
+          "#00ff9d",
+          "#a6ff00",
+          "#ff4fd8"
+        ]
+      },
+      {
+        "id": "lagoon",
+        "name": "Lagoon",
+        "colors": [
+          "#0057ff",
+          "#00b3ff",
+          "#00f5d4",
+          "#7cff6b",
+          "#ffd166"
+        ]
+      },
+      {
+        "id": "ember",
+        "name": "Ember",
+        "colors": [
+          "#7a0011",
+          "#ff2d00",
+          "#ff6a00",
+          "#ff9f1c",
+          "#ffd000"
+        ]
+      },
+      {
+        "id": "prism",
+        "name": "Prism",
+        "colors": [
+          "#ff2a6d",
+          "#ff8c42",
+          "#f6e05e",
+          "#5ef38c",
+          "#3a86ff"
+        ]
+      },
+      {
+        "id": "tropical",
+        "name": "Tropical",
+        "colors": [
+          "#ff4d6d",
+          "#f8c046",
+          "#2ec4b6",
+          "#00a6fb",
+          "#6a4c93"
+        ]
+      },
+      {
+        "id": "velvet",
+        "name": "Velvet",
+        "colors": [
+          "#3a0ca3",
+          "#7209b7",
+          "#b5179e",
+          "#f72585",
+          "#4cc9f0"
+        ]
+      },
+      {
+        "id": "voltage",
+        "name": "Voltage",
+        "colors": [
+          "#fb5607",
+          "#ffbe0b",
+          "#3a86ff",
+          "#8338ec",
+          "#ff006e"
+        ]
+      },
+      {
+        "id": "desert-bloom",
+        "name": "Desert Bloom",
+        "colors": [
+          "#ff9f1c",
+          "#ff6b6b",
+          "#f9844a",
+          "#90be6d",
+          "#43aa8b"
+        ]
+      }
+    ],
+    "activePaletteId": "synthwave",
+    "macros": [],
+    "effects": {
+      "enabled": true,
+      "bloom": 0.5,
+      "blur": 0.05,
+      "chroma": 0.2,
+      "posterize": 0,
+      "kaleidoscope": 0,
+      "feedback": 0.1,
+      "persistence": 0.2
+    },
+    "expressiveFx": {
+      "enabled": true,
+      "energyBloom": {
+        "enabled": false,
+        "macro": 0.35,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "threshold": 0.55,
+          "accumulation": 0.65
+        }
+      },
+      "radialGravity": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "strength": 0.6,
+          "radius": 0.65,
+          "focusX": 0.5,
+          "focusY": 0.5
+        }
+      },
+      "motionEcho": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "decay": 0.6,
+          "warp": 0.35
+        }
+      },
+      "spectralSmear": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "offset": 0.4,
+          "mix": 0.6
+        }
+      }
+    },
+    "particles": {
+      "enabled": true,
+      "density": 0.5,
+      "speed": 0.3,
+      "size": 0.5,
+      "glow": 0.8
+    },
+    "sdf": {
+      "enabled": false,
+      "shape": "circle",
+      "scale": 0,
+      "edge": 0,
+      "glow": 0,
+      "rotation": 0,
+      "fill": 0
+    },
+    "visualizer": {
+      "enabled": false,
+      "mode": "off",
+      "opacity": 0.8,
+      "macroEnabled": false,
+      "macroId": 8
+    },
+    "lfos": [
+      {
+        "id": "lfo-1",
+        "name": "LFO 1",
+        "shape": "sine",
+        "rate": 8,
+        "sync": true,
+        "phase": 0,
+        "syncDivision": "2 beats"
+      },
+      {
+        "id": "lfo-2",
+        "name": "LFO 2",
+        "shape": "triangle",
+        "rate": 1,
+        "sync": true,
+        "phase": 0.25
+      },
+      {
+        "id": "lfo-3",
+        "name": "LFO 3",
+        "shape": "saw",
+        "rate": 0.75,
+        "sync": true,
+        "phase": 0.5
+      },
+      {
+        "id": "lfo-4",
+        "name": "LFO 4",
+        "shape": "square",
+        "rate": 0.35,
+        "sync": false,
+        "phase": 0.1
+      }
+    ],
+    "envelopes": [
+      {
+        "id": "env-1",
+        "name": "Env 1",
+        "attack": 0.05,
+        "decay": 0.2,
+        "sustain": 0.4,
+        "release": 0.8,
+        "hold": 0.1,
+        "trigger": "engine.low",
+        "threshold": 0.65
+      },
+      {
+        "id": "env-2",
+        "name": "Env 2",
+        "attack": 0.1,
+        "decay": 0.3,
+        "sustain": 0.5,
+        "release": 0.4,
+        "hold": 0.5,
+        "trigger": "strobe",
+        "threshold": 0.4
+      },
+      {
+        "id": "env-3",
+        "name": "Env 3",
+        "attack": 0.08,
+        "decay": 0.25,
+        "sustain": 0.5,
+        "release": 0.35,
+        "hold": 0.3,
+        "trigger": "audio.peak",
+        "threshold": 0.5
+      },
+      {
+        "id": "env-4",
+        "name": "Env 4",
+        "attack": 0.15,
+        "decay": 0.35,
+        "sustain": 0.45,
+        "release": 0.5,
+        "hold": 0.45,
+        "trigger": "strobe",
+        "threshold": 0.35
+      }
+    ],
+    "sampleHold": [
+      {
+        "id": "sh-1",
+        "name": "S&H 1",
+        "rate": 0.5,
+        "sync": true,
+        "smooth": 0.2
+      },
+      {
+        "id": "sh-2",
+        "name": "S&H 2",
+        "rate": 2,
+        "sync": false,
+        "smooth": 0.1
+      }
+    ],
+    "padMappings": [
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "origami-mountain",
+      "origami-valley",
+      "origami-collapse",
+      "origami-explode",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+    ],
+    "timelineMarkers": [],
+    "assets": [],
+    "plugins": [],
+    "scenes": [
+      {
+        "id": "showcase-59",
+        "scene_id": "showcase-59",
+        "name": "Mirror Maze",
+        "intent": "chaos",
+        "duration": 0,
+        "transition_in": {
+          "durationMs": 600,
+          "curve": "easeInOut",
+          "type": "fade"
+        },
+        "transition_out": {
+          "durationMs": 600,
+          "curve": "easeInOut",
+          "type": "fade"
+        },
+        "trigger": {
+          "type": "manual"
+        },
+        "assigned_layers": {
+          "core": [],
+          "support": [],
+          "atmosphere": []
+        },
+        "layers": [
+          {
+            "id": "layer-gen-mirror-maze-1",
+            "name": "Mirror Maze",
+            "role": "core",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "generatorId": "gen-mirror-maze",
+            "params": {
+              "recursion": 6,
+              "angle": 0.5
+            },
+            "effects": []
+          }
+        ],
+        "look": {
+          "effects": {
+            "enabled": true,
+            "bloom": 0.5,
+            "blur": 0.05,
+            "chroma": 0.2,
+            "posterize": 0,
+            "kaleidoscope": 0,
+            "feedback": 0.1,
+            "persistence": 0.2
+          },
+          "particles": {
+            "enabled": true,
+            "density": 0.5,
+            "speed": 0.3,
+            "size": 0.5,
+            "glow": 0.8
+          },
+          "sdf": {
+            "enabled": false,
+            "shape": "circle",
+            "scale": 0,
+            "edge": 0,
+            "glow": 0,
+            "rotation": 0,
+            "fill": 0
+          },
+          "visualizer": {
+            "enabled": false,
+            "mode": "off",
+            "opacity": 0.8,
+            "macroEnabled": false,
+            "macroId": 8
+          },
+          "stylePresets": [],
+          "activeStylePresetId": "style-neutral",
+          "palettes": [
+            {
+              "id": "heat",
+              "name": "Heat",
+              "colors": [
+                "#000000",
+                "#ff0000",
+                "#ff7f00",
+                "#ffff00",
+                "#ffffff"
+              ]
+            },
+            {
+              "id": "ocean",
+              "name": "Ocean",
+              "colors": [
+                "#000000",
+                "#0000ff",
+                "#007fff",
+                "#00ffff",
+                "#ffffff"
+              ]
+            },
+            {
+              "id": "forest",
+              "name": "Forest",
+              "colors": [
+                "#000000",
+                "#004000",
+                "#008000",
+                "#00c000",
+                "#ffffff"
+              ]
+            },
+            {
+              "id": "synthwave",
+              "name": "Synthwave",
+              "colors": [
+                "#000000",
+                "#ff00ff",
+                "#7f00ff",
+                "#00ffff",
+                "#ffffff"
+              ]
+            },
+            {
+              "id": "industrial",
+              "name": "Industrial",
+              "colors": [
+                "#000000",
+                "#808080",
+                "#c0c0c0",
+                "#ffffff",
+                "#ff0000"
+              ]
+            },
+            {
+              "id": "grayscale",
+              "name": "Grayscale",
+              "colors": [
+                "#000000",
+                "#404040",
+                "#808080",
+                "#c0c0c0",
+                "#ffffff"
+              ]
+            },
+            {
+              "id": "citrus-pop",
+              "name": "Citrus Pop",
+              "colors": [
+                "#ff6b00",
+                "#ffb100",
+                "#ffe100",
+                "#a6ff00",
+                "#2aff8a"
+              ]
+            },
+            {
+              "id": "aurora",
+              "name": "Aurora",
+              "colors": [
+                "#2a00ff",
+                "#00b3ff",
+                "#00ff9d",
+                "#a6ff00",
+                "#ff4fd8"
+              ]
+            },
+            {
+              "id": "lagoon",
+              "name": "Lagoon",
+              "colors": [
+                "#0057ff",
+                "#00b3ff",
+                "#00f5d4",
+                "#7cff6b",
+                "#ffd166"
+              ]
+            },
+            {
+              "id": "ember",
+              "name": "Ember",
+              "colors": [
+                "#7a0011",
+                "#ff2d00",
+                "#ff6a00",
+                "#ff9f1c",
+                "#ffd000"
+              ]
+            },
+            {
+              "id": "prism",
+              "name": "Prism",
+              "colors": [
+                "#ff2a6d",
+                "#ff8c42",
+                "#f6e05e",
+                "#5ef38c",
+                "#3a86ff"
+              ]
+            },
+            {
+              "id": "tropical",
+              "name": "Tropical",
+              "colors": [
+                "#ff4d6d",
+                "#f8c046",
+                "#2ec4b6",
+                "#00a6fb",
+                "#6a4c93"
+              ]
+            },
+            {
+              "id": "velvet",
+              "name": "Velvet",
+              "colors": [
+                "#3a0ca3",
+                "#7209b7",
+                "#b5179e",
+                "#f72585",
+                "#4cc9f0"
+              ]
+            },
+            {
+              "id": "voltage",
+              "name": "Voltage",
+              "colors": [
+                "#fb5607",
+                "#ffbe0b",
+                "#3a86ff",
+                "#8338ec",
+                "#ff006e"
+              ]
+            },
+            {
+              "id": "desert-bloom",
+              "name": "Desert Bloom",
+              "colors": [
+                "#ff9f1c",
+                "#ff6b6b",
+                "#f9844a",
+                "#90be6d",
+                "#43aa8b"
+              ]
+            }
+          ],
+          "activePaletteId": "heat",
+          "macros": [],
+          "modMatrix": [
+            {
+              "id": "mod-drag-1774303182409",
+              "source": "lfo-1",
+              "target": "layer-mirror-maze.angle",
+              "amount": 0.5,
+              "curve": "linear",
+              "smoothing": 0.1,
+              "bipolar": false,
+              "min": 0,
+              "max": 3.14,
+              "enabled": true
+            }
+          ]
+        },
+        "depthScore": 0,
+        "complexity": 0,
+        "tags": []
+      }
+    ],
+    "modMatrix": [],
+    "midiMappings": [],
+    "activeSceneId": "showcase-59",
+    "activeModeId": "mode-performance",
+    "activeEngineId": "engine-radial-core",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "roleWeights": {
+      "core": 1.3,
+      "support": 1.95,
+      "atmosphere": 0.55
+    },
+    "tempoSync": {
+      "bpm": 120,
+      "source": "manual"
+    },
+    "customShaderBlocks": [],
+    "overlays": [
+      {
+        "id": "now-playing-title",
+        "name": "Now Playing",
+        "type": "text",
+        "enabled": true,
+        "x": 0.009320531757754803,
+        "y": 0.8437226277372263,
+        "width": 0.41840472673559825,
+        "height": 0.25226277372262773,
+        "opacity": 1,
+        "rotation": 0,
+        "includeInFx": false,
+        "text": "Shoop\nSalt-N-Pepa\nIcon",
+        "fontSize": 30,
+        "fontColor": "#ffffff",
+        "fontWeight": "bold",
+        "textShadow": true
+      },
+      {
+        "id": "now-playing-artwork",
+        "name": "Now Playing Artwork",
+        "type": "image",
+        "enabled": true,
+        "x": 0.019660265878877398,
+        "y": 0.62,
+        "width": 0.14,
+        "height": 0.18,
+        "opacity": 0.95,
+        "rotation": 0,
+        "includeInFx": false
+      }
+    ]
   }
 }
