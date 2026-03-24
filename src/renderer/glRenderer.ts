@@ -1371,7 +1371,6 @@ void main() {
     };
   };
 
-
   const getProgramCacheSize = (): number => programCache.size;
 
   /**
@@ -1398,6 +1397,7 @@ void main() {
     }
     return evicted;
   }
+
 
   const captureFrameBrightness = (): { avgBrightness: number; nonBlackRatio: number } => {
     if (contextLost) return { avgBrightness: 0, nonBlackRatio: 0 };
