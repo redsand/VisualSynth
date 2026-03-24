@@ -68,6 +68,7 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     programCache.clear();
     activeUniformLookupCache.clear();
     uniformLocationCache.clear();
+    currentCustomBlocksHash = '';
     missingUniforms.clear();
     uniformWarningsLogged = false;
     advancedSdfProgram = null;
@@ -281,6 +282,7 @@ void main() {
   let currentFxUniforms = '';
   let currentActiveIds = new Set<string>();
   let currentCustomBlocks: CustomShaderBlock[] = [];
+  let currentCustomBlocksHash = '';
 
   const getOrCompileProgram = (
     activeIds: Set<string>,
@@ -1326,7 +1328,18 @@ void main() {
     console.log(`[Shader] Precompile request for ${ids.size} generators handled in ${elapsed}ms (async: ${useAsync})`);
   };
 
+  const computeCustomBlocksHash = (blocks: CustomShaderBlock[]): string =>
+    [...blocks]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(b => b.id + ':' + (b.uniforms ?? '').replace(/\s+/g, '') + (b.functions ?? '').replace(/\s+/g, '') + (b.mainCall ?? '').replace(/\s+/g, ''))
+      .join('|');
+
   const setCustomShaderBlocks = (blocks: CustomShaderBlock[]): void => {
+    const newHash = computeCustomBlocksHash(blocks);
+    if (newHash === currentCustomBlocksHash) {
+      return;
+    }
+    currentCustomBlocksHash = newHash;
     currentCustomBlocks = blocks;
     programCache.forEach(prog => {
       untrackProgram(prog);
@@ -1358,6 +1371,7 @@ void main() {
     };
   };
 
+
   const getProgramCacheSize = (): number => programCache.size;
 
   /**
@@ -1383,6 +1397,32 @@ void main() {
       evicted++;
     }
     return evicted;
+  }
+
+  const captureFrameBrightness = (): { avgBrightness: number; nonBlackRatio: number } => {
+    if (contextLost) return { avgBrightness: 0, nonBlackRatio: 0 };
+    const sampleSize = 64;
+    const pixels = new Uint8Array(sampleSize * sampleSize * 4);
+    const x = Math.floor((canvas.width - sampleSize) / 2);
+    const y = Math.floor((canvas.height - sampleSize) / 2);
+    try {
+      gl.readPixels(
+        Math.max(0, x), Math.max(0, y),
+        Math.min(sampleSize, canvas.width), Math.min(sampleSize, canvas.height),
+        gl.RGBA, gl.UNSIGNED_BYTE, pixels
+      );
+    } catch {
+      return { avgBrightness: 0, nonBlackRatio: 0 };
+    }
+    let total = 0;
+    let nonBlack = 0;
+    const count = pixels.length / 4;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const luma = (pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114) / 255;
+      total += luma;
+      if (luma > 0.02) nonBlack++;
+    }
+    return { avgBrightness: total / count, nonBlackRatio: nonBlack / count };
   };
 
   const dispose = () => {
@@ -1475,8 +1515,14 @@ void main() {
     getResourceCounts,
     getProgramCacheSize,
     trimProgramCache,
+    captureFrameBrightness,
     pruneUnusedAssets,
     dispose,
-    isContextLost: () => contextLost
+    isContextLost: () => contextLost,
+    hasPendingProgram: () => pendingProgram !== null,
+    getProgramCacheSize: () => programCache.size,
+    asyncCompilationAvailable: () => !!extParallel,
+    getCurrentProgramGenerators: () => [...currentActiveIds],
+    getPendingProgramGenerators: () => pendingProgram ? [...pendingProgram.activeIds] : null
   };
 };
