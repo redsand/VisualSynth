@@ -13,6 +13,32 @@ type SafeModeRenderer = {
   updateMilkDropShaders: () => void;
   getMilkDropCompileReport: () => null;
   getMilkDropNativeRuntimeReport: () => null;
+  getProgramCacheSize: () => number;
+  trimProgramCache: (_maxSize: number) => number;
+  getResourceCounts: () => { textures: number; framebuffers: number; buffers: number; programs: number; shaders: number };
+  captureFrameBrightness: () => { avgBrightness: number; nonBlackRatio: number };
+  pruneUnusedAssets: (_activeAssetIds: Set<string>) => void;
+  dispose: () => void;
+  hasPendingProgram: () => boolean;
+  asyncCompilationAvailable: () => boolean;
+  getCurrentProgramGenerators: () => string[];
+  getPendingProgramGenerators: () => string[] | null;
+  getCurrentShaderVariantKey: () => string | null;
+  getPendingShaderVariantKey: () => string | null;
+  getLastRenderSnapshot: () => {
+    timestampMs: number;
+    drawCallCount: number;
+    currentProgramKind: 'none';
+    passNames: string[];
+    framebufferAllocated: boolean;
+    framebufferRebound: boolean;
+    uniformsApplied: boolean;
+    finalCompositeAttached: boolean;
+    shaderVariantKey: string | null;
+    pendingShaderVariantKey: string | null;
+    currentProgramGenerators: string[];
+    pendingProgramGenerators: string[] | null;
+  };
   isContextLost: () => boolean;
 };
 
@@ -31,8 +57,8 @@ export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Saf
   setPalette: () => {},
   setPlasmaShaderSource: (_source: string | null) => ({ ok: false }),
   getLastShaderError: () => null,
-  getGeneratorDiagnostics: () => [],
-  getMissingUniforms: () => [],
+  getGeneratorDiagnostics: () => [] as never[],
+  getMissingUniforms: () => [] as never[],
   recompileForGenerators: () => false,
   precompileVariant: () => {},
   setCustomShaderBlocks: () => {},
@@ -41,5 +67,29 @@ export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Saf
   getMilkDropNativeRuntimeReport: () => null,
   getProgramCacheSize: () => 0,
   trimProgramCache: (_maxSize: number) => 0,
+  getResourceCounts: () => ({ textures: 0, framebuffers: 0, buffers: 0, programs: 0, shaders: 0 }),
+  captureFrameBrightness: () => ({ avgBrightness: 0, nonBlackRatio: 0 }),
+  pruneUnusedAssets: (_activeAssetIds: Set<string>) => {},
+  dispose: () => {},
+  hasPendingProgram: () => false,
+  asyncCompilationAvailable: () => false,
+  getCurrentProgramGenerators: () => [],
+  getPendingProgramGenerators: () => null,
+  getCurrentShaderVariantKey: () => null,
+  getPendingShaderVariantKey: () => null,
+  getLastRenderSnapshot: () => ({
+    timestampMs: 0,
+    drawCallCount: 0,
+    currentProgramKind: 'none',
+    passNames: [],
+    framebufferAllocated: false,
+    framebufferRebound: false,
+    uniformsApplied: false,
+    finalCompositeAttached: false,
+    shaderVariantKey: null,
+    pendingShaderVariantKey: null,
+    currentProgramGenerators: [],
+    pendingProgramGenerators: null
+  }),
   isContextLost: () => false,
 });

@@ -176,4 +176,33 @@ describe('TransitionTracer', () => {
     });
     expect(tracer.getCurrentSeq()).toBe(seq);
   });
+
+  it('captures shader variant mismatch as the differing init step for black output', () => {
+    const tracer = createTransitionTracer();
+    const seq = tracer.beginTransition({
+      prevSceneId: 'scene-a',
+      prevSceneName: 'Scene A',
+      nextSceneId: 'scene-b',
+      nextSceneName: 'Scene B',
+      source: 'slideshow',
+      expectedShaderVariantKey: 'scene-b::expected'
+    });
+    tracer.recordStep(seq, 'sceneStateSwapped');
+    tracer.recordStep(seq, 'generatorInitStarted');
+    tracer.recordStep(seq, 'shaderProgramSelected');
+    for (let i = 0; i < 3; i++) {
+      tracer.recordFrameSample(seq, {
+        drawCallCount: 1,
+        avgBrightness: 0,
+        nonBlackRatio: 0,
+        activeGenerators: ['gen-plasma'],
+        activeFx: ['bloom'],
+        currentShaderVariantKey: 'scene-a::stale'
+      });
+    }
+
+    const dump = tracer.getDump();
+    expect(dump.flaggedBlackCount).toBe(1);
+    expect(dump.successVsFailAnalysis[0]?.failSample?.suspectedDifferingInitStep).toBe('shaderProgramSelected');
+  });
 });

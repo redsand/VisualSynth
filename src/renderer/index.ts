@@ -66,7 +66,10 @@ import {
   resolveSceneSwitch,
   tickFpsTracker
 } from './render/renderLoopHelpers';
-import { buildRendererOutputBroadcastPayload } from './render/outputPayload';
+import {
+  buildRendererOutputBroadcastPayload,
+  type OutputTransitionPayload
+} from './render/outputPayload';
 import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
@@ -705,6 +708,22 @@ const transitionTracer = createTransitionTracer(20);
 let transitionTracerSeq: number | null = null;
 let postTransitionFramesLeft = 0;
 let lastKnownCustomBlocksHash = '';
+const getLatestTransitionPayload = (): OutputTransitionPayload | null => {
+  const latest = transitionTracer.getRecentTransitions(1)[0];
+  if (!latest) return null;
+  return {
+    seq: latest.seq,
+    prevSceneId: latest.prevSceneId,
+    prevSceneName: latest.prevSceneName,
+    nextSceneId: latest.nextSceneId,
+    nextSceneName: latest.nextSceneName,
+    source: latest.source,
+    timestamp: latest.timestamp,
+    flaggedBlack: latest.flaggedBlack
+  };
+};
+const getRendererShaderVariantKey = (): string | null =>
+  renderer.getPendingShaderVariantKey?.() ?? renderer.getCurrentShaderVariantKey?.() ?? null;
 let midiAccess: MIDIAccess | null = null;
 let strobeIntensity = 0;
 let strobeDecay = 0.92;
@@ -6282,7 +6301,13 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean; tran
 
   const prevScene = currentProject.scenes.find(s => s.id === currentProject.activeSceneId) ?? null;
   const prevGenIds = prevScene ? [...collectSceneGeneratorIds(prevScene)] : [];
+  if (currentProject.sdf?.enabled) {
+    prevGenIds.push('gen-sdf');
+  }
   const nextGenIds = [...collectSceneGeneratorIds(scene)];
+  if (activation.project.sdf?.enabled) {
+    nextGenIds.push('gen-sdf');
+  }
   const newCustomBlocksHash = (currentProject.customShaderBlocks ?? []).map(b => b.id).sort().join(',');
   const customBlocksDidChange = newCustomBlocksHash !== lastKnownCustomBlocksHash;
   transitionTracerSeq = transitionTracer.beginTransition({
@@ -6347,6 +6372,9 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean; tran
       if (seq !== null) {
         const wasAsync = renderer.hasPendingProgram?.() ?? false;
         const wasCacheHit = !wasAsync;
+        transitionTracer.setExpectedShaderVariantKey(seq, getRendererShaderVariantKey());
+        transitionTracer.recordStep(seq, 'generatorReinitialized', prevGenIds.join(',') !== nextGenIds.join(',') || customBlocksDidChange);
+        transitionTracer.recordStep(seq, 'fxGraphRebuilt', true);
         transitionTracer.recordStep(seq, 'shaderProgramSelected');
         transitionTracer.recordCompileResult(seq, wasCacheHit, wasAsync);
       }
@@ -8638,7 +8666,9 @@ const broadcastCurrentOutputState = () => {
       activePaletteId:
         broadcastScene?.look?.activePaletteId ??
         currentProject.activePaletteId,
-      activeGeneratorIds: [...generatorIds]
+      activeGeneratorIds: [...generatorIds],
+      shaderVariantKey: getRendererShaderVariantKey(),
+      transition: getLatestTransitionPayload()
     })
   );
 };
@@ -13408,6 +13438,7 @@ const render = (time: number) => {
 
   if (postTransitionFramesLeft > 0 && transitionTracerSeq !== null) {
     const brightness = renderer.captureFrameBrightness?.() ?? { avgBrightness: 0, nonBlackRatio: 0 };
+    const renderSnapshot = renderer.getLastRenderSnapshot?.();
     const activeScene_ = currentProject.scenes.find(s => s.id === currentProject.activeSceneId);
     const activeGens = activeScene_ ? [...collectSceneGeneratorIds(activeScene_)] : [];
     const activeFxNames: string[] = [];
@@ -13418,17 +13449,33 @@ const render = (time: number) => {
       if (currentProject.effects.posterize > 0) activeFxNames.push('posterize');
     }
     transitionTracer.recordFrameSample(transitionTracerSeq, {
-      drawCallCount: 1,
+      drawCallCount: renderSnapshot?.drawCallCount ?? 1,
       avgBrightness: brightness.avgBrightness,
       nonBlackRatio: brightness.nonBlackRatio,
       activeGenerators: activeGens,
       activeFx: activeFxNames,
       asyncPending: renderer.hasPendingProgram?.() ?? false,
       pendingGenerators: renderer.getPendingProgramGenerators?.() ?? null,
-      currentProgramGenerators: renderer.getCurrentProgramGenerators?.() ?? null
+      currentProgramGenerators: renderer.getCurrentProgramGenerators?.() ?? null,
+      currentPasses: renderSnapshot?.passNames ?? null,
+      currentProgramKind: renderSnapshot?.currentProgramKind ?? null,
+      expectedShaderVariantKey: transitionTracer.getRecentTransitions(1)[0]?.expectedShaderVariantKey ?? null,
+      currentShaderVariantKey: renderer.getCurrentShaderVariantKey?.() ?? null,
+      pendingShaderVariantKey: renderer.getPendingShaderVariantKey?.() ?? null
     });
-    if (brightness.avgBrightness > 0.01) {
+    if (renderSnapshot?.framebufferAllocated) {
+      transitionTracer.recordStep(transitionTracerSeq, 'framebufferAllocated');
+    }
+    if (renderSnapshot?.framebufferRebound) {
+      transitionTracer.recordStep(transitionTracerSeq, 'framebufferRebound');
+    }
+    if ((renderSnapshot?.passNames.length ?? 0) > 0) {
+      transitionTracer.recordStep(transitionTracerSeq, 'fxGraphRebound');
+    }
+    if (renderSnapshot?.uniformsApplied || brightness.avgBrightness > 0.01) {
       transitionTracer.recordStep(transitionTracerSeq, 'uniformsApplied');
+    }
+    if (renderSnapshot?.finalCompositeAttached || brightness.avgBrightness > 0.01) {
       transitionTracer.recordStep(transitionTracerSeq, 'compositeAttached');
     }
     postTransitionFramesLeft--;
@@ -13553,7 +13600,9 @@ const render = (time: number) => {
         activePaletteId:
           broadcastScene?.look?.activePaletteId ??
           currentProject.activePaletteId,
-        activeGeneratorIds: [...generatorIds]
+        activeGeneratorIds: [...generatorIds],
+        shaderVariantKey: getRendererShaderVariantKey(),
+        transition: getLatestTransitionPayload()
       })
     );
   }
@@ -13842,24 +13891,46 @@ const init = async () => {
       applyScene(sceneId);
     },
     getTransitionDump: () => {
-      return transitionTracer.getDump();
+      return transitionTracer.getDump({
+        programCacheSize: renderer.getProgramCacheSize?.() ?? -1,
+        asyncCompilationSupported: renderer.asyncCompilationAvailable?.() ?? false
+      });
     },
-    runTransitionRegressionCycle: async (iterations = 10, delayMs = 200) => {
-      const sceneIds = currentProject.scenes.map(s => s.id);
-      if (sceneIds.length < 2) {
+    runTransitionRegressionCycle: async (iterations = 10, delayMs = 200, sceneIds?: string[]) => {
+      const pool = sceneIds?.length
+        ? sceneIds.filter((sceneId) => currentProject.scenes.some((scene) => scene.id === sceneId))
+        : currentProject.scenes.slice(0, 3).map(s => s.id);
+      const sources: TransitionSource[] = ['slideshow', 'manual', 'recover'];
+      const sceneIdsToUse = pool.length > 0 ? pool : currentProject.scenes.map(s => s.id);
+      const startingCount = transitionTracer.getDump().totalTransitions;
+      if (sceneIdsToUse.length < 2) {
         console.warn('[TransitionRegression] Need at least 2 scenes');
         return transitionTracer.getDump();
       }
-      console.log(`[TransitionRegression] Starting ${iterations} cycles across ${sceneIds.length} scenes...`);
+      console.log(`[TransitionRegression] Starting ${iterations} cycles across ${sceneIdsToUse.length} scenes...`);
       for (let i = 0; i < iterations; i++) {
-        const targetId = sceneIds[i % sceneIds.length];
-        applyScene(targetId, { transitionSource: 'recover' });
+        const targetId = sceneIdsToUse[i % sceneIdsToUse.length];
+        const source = sources[i % sources.length];
+        applyScene(targetId, { transitionSource: source });
         await new Promise<void>(resolve => setTimeout(resolve, delayMs));
       }
       const dump = transitionTracer.getDump();
+      const runTransitions = dump.recentTransitions.filter((transition) => transition.seq > startingCount);
+      const flagged = runTransitions.filter((transition) => transition.flaggedBlack);
       console.log(
-        `[TransitionRegression] Done. Total: ${dump.totalTransitions}, Black: ${dump.flaggedBlackCount}`,
-        dump
+        `[TransitionRegression] Done. Run transitions: ${runTransitions.length}, Black: ${flagged.length}`,
+        {
+          flagged: flagged.map((transition) => ({
+            seq: transition.seq,
+            source: transition.source,
+            prevScene: transition.prevSceneName,
+            nextScene: transition.nextSceneName,
+            suspectedDifferingInitStep: transition.suspectedDifferingInitStep,
+            expectedShaderVariantKey: transition.expectedShaderVariantKey,
+            observedShaderVariantKeys: transition.observedShaderVariantKeys
+          })),
+          dump
+        }
       );
       return dump;
     },

@@ -41,6 +41,21 @@ export interface RendererOptions {
   onError?: (error: string, type: 'vertex' | 'fragment' | 'link') => void;
 }
 
+export interface RenderDebugSnapshot {
+  timestampMs: number;
+  drawCallCount: number;
+  currentProgramKind: 'standard' | 'advanced-sdf' | 'none';
+  passNames: string[];
+  framebufferAllocated: boolean;
+  framebufferRebound: boolean;
+  uniformsApplied: boolean;
+  finalCompositeAttached: boolean;
+  shaderVariantKey: string | null;
+  pendingShaderVariantKey: string | null;
+  currentProgramGenerators: string[];
+  pendingProgramGenerators: string[] | null;
+}
+
 export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOptions = {}) => {
   const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
   if (!gl) {
@@ -91,6 +106,9 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
       currentCustomBlocks
     );
     currentProgram = standardProgram;
+    currentShaderVariantKey = standardProgram
+      ? shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomBlocksHash + currentFxUniforms)
+      : null;
     canvas.dispatchEvent(new CustomEvent('visualsynth-contextrestored'));
   });
 
@@ -169,12 +187,13 @@ void main() {
 
   const ensurePreviousFrameTextureSize = () => {
     if (canvas.width === previousFrameWidth && canvas.height === previousFrameHeight) {
-      return;
+      return false;
     }
     gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, Math.max(1, canvas.width), Math.max(1, canvas.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     previousFrameWidth = canvas.width;
     previousFrameHeight = canvas.height;
+    return true;
   };
 
   const clearHistory = () => {
@@ -283,6 +302,21 @@ void main() {
   let currentActiveIds = new Set<string>();
   let currentCustomBlocks: CustomShaderBlock[] = [];
   let currentCustomBlocksHash = '';
+  let currentShaderVariantKey: string | null = null;
+  let lastRenderSnapshot: RenderDebugSnapshot = {
+    timestampMs: 0,
+    drawCallCount: 0,
+    currentProgramKind: 'none',
+    passNames: [],
+    framebufferAllocated: false,
+    framebufferRebound: false,
+    uniformsApplied: false,
+    finalCompositeAttached: false,
+    shaderVariantKey: null,
+    pendingShaderVariantKey: null,
+    currentProgramGenerators: [],
+    pendingProgramGenerators: null
+  };
 
   const getOrCompileProgram = (
     activeIds: Set<string>,
@@ -343,6 +377,7 @@ void main() {
   if (!standardProgram) {
     throw new Error('Failed to compile standard shader program.');
   }
+  currentShaderVariantKey = shaderCacheKey(EMPTY_GENERATOR_SET, '10.0', '', initialFx);
   let currentProgram: WebGLProgram | null = standardProgram;
   let lastSdfSceneJson = '';
 
@@ -457,6 +492,7 @@ void main() {
 
   const updateStandardUniforms = (prog: WebGLProgram, state: RenderState) => {
     gl.useProgram(prog);
+    lastRenderSnapshot.uniformsApplied = true;
     const activeUniformLookup = getActiveUniformLookup(prog);
     let programUniformLocations = uniformLocationCache.get(prog);
     if (!programUniformLocations) {
@@ -1039,6 +1075,20 @@ void main() {
 
   const render = (state: RenderState) => {
     if (contextLost) return;
+    lastRenderSnapshot = {
+      timestampMs: performance.now(),
+      drawCallCount: 0,
+      currentProgramKind: 'none',
+      passNames: [],
+      framebufferAllocated: false,
+      framebufferRebound: false,
+      uniformsApplied: false,
+      finalCompositeAttached: false,
+      shaderVariantKey: currentShaderVariantKey,
+      pendingShaderVariantKey: pendingProgram?.cacheKey ?? null,
+      currentProgramGenerators: [...currentActiveIds],
+      pendingProgramGenerators: pendingProgram ? [...pendingProgram.activeIds] : null
+    };
 
     if (extParallel) {
       if (pendingProgram && gl.getProgramParameter(pendingProgram.program, extParallel.COMPLETION_STATUS_KHR)) {
@@ -1076,6 +1126,7 @@ void main() {
       console.error('Render program unavailable; skipping frame.');
       return;
     }
+    lastRenderSnapshot.currentProgramKind = currentProgram === advancedSdfProgram ? 'advanced-sdf' : 'standard';
     updateStandardUniforms(currentProgram, state);
     applyInternalTextures(currentProgram);
     updateVideoTextures();
@@ -1126,6 +1177,8 @@ void main() {
     // Main shader draw — must happen BEFORE the MilkDrop composite so the composite
     // renders on top rather than being overwritten by the main pass.
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    lastRenderSnapshot.drawCallCount += 1;
+    lastRenderSnapshot.passNames.push('main');
 
     // Render MilkDrop if enabled and composite its output over the main render
     const milwaveEnabledUniform = state.genUniforms?.MilkwaveEnabled ?? 0;
@@ -1168,15 +1221,19 @@ void main() {
             gl.enableVertexAttribArray(posLoc);
             gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
+            lastRenderSnapshot.drawCallCount += 1;
+            lastRenderSnapshot.finalCompositeAttached = true;
+            lastRenderSnapshot.passNames.push('milkdrop-composite');
             gl.disable(gl.BLEND);
           }
         }
       }
     }
 
-    ensurePreviousFrameTextureSize();
+    lastRenderSnapshot.framebufferAllocated = ensurePreviousFrameTextureSize();
     gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
     gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, canvas.width, canvas.height);
+    lastRenderSnapshot.framebufferRebound = true;
   };
 
   const getLastShaderError = () => lastShaderError;
@@ -1219,6 +1276,7 @@ void main() {
     if (pending.cacheKey === currentCacheKey) {
       standardProgram = pending.program;
       currentProgram = standardProgram;
+      currentShaderVariantKey = pending.cacheKey;
       uniformLocationCache.set(pending.program, new Map());
       const elapsed = (performance.now() - t0).toFixed(1);
       console.log(`[Shader] Async compiled & swapped ${pending.activeIds.size} generators in ${elapsed}ms`);
@@ -1247,6 +1305,7 @@ void main() {
       const prog = programCache.get(key)!;
       standardProgram = prog;
       currentProgram = standardProgram;
+      currentShaderVariantKey = key;
       const elapsed = (performance.now() - t0).toFixed(1);
       console.log(`[Shader] Swapped to cached program for ${activeIds.size} generators in ${elapsed}ms`);
       return true;
@@ -1289,6 +1348,7 @@ void main() {
       programCache.set(key, prog);
       standardProgram = prog;
       currentProgram = standardProgram;
+      currentShaderVariantKey = key;
       uniformLocationCache.set(prog, new Map());
       const elapsed = (performance.now() - t0).toFixed(1);
       console.log(`[Shader] Sync compiled ${activeIds.size} generators in ${elapsed}ms (cached: false)`);
@@ -1358,6 +1418,7 @@ void main() {
     standardProgram = null;
     advancedSdfProgram = null;
     currentProgram = null;
+    currentShaderVariantKey = null;
   };
 
   const getResourceCounts = () => {
@@ -1522,6 +1583,16 @@ void main() {
     hasPendingProgram: () => pendingProgram !== null,
     asyncCompilationAvailable: () => !!extParallel,
     getCurrentProgramGenerators: () => [...currentActiveIds],
-    getPendingProgramGenerators: () => pendingProgram ? [...pendingProgram.activeIds] : null
+    getPendingProgramGenerators: () => pendingProgram ? [...pendingProgram.activeIds] : null,
+    getCurrentShaderVariantKey: () => currentShaderVariantKey,
+    getPendingShaderVariantKey: () => pendingProgram?.cacheKey ?? null,
+    getLastRenderSnapshot: () => ({
+      ...lastRenderSnapshot,
+      passNames: [...lastRenderSnapshot.passNames],
+      currentProgramGenerators: [...lastRenderSnapshot.currentProgramGenerators],
+      pendingProgramGenerators: lastRenderSnapshot.pendingProgramGenerators
+        ? [...lastRenderSnapshot.pendingProgramGenerators]
+        : null
+    })
   };
 };

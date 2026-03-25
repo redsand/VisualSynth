@@ -1,10 +1,31 @@
 import type { RenderState } from '../glRenderer';
 import type { AssetItem, OverlayConfig, SceneConfig, VisualSynthProject } from '../../shared/project';
+import type { CustomShaderBlock } from '../../shared/customShaderBlock';
+import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
 
 type ExcludedOutputField = 'sdfScene' | 'debugTint';
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 
 export type RendererOutputPayload = Omit<RenderState, ExcludedOutputField>;
+export interface OutputShaderVariantPayload {
+  sceneId: string | null;
+  sceneName: string | null;
+  key: string;
+  fxUniforms: string;
+  customBlocks: CustomShaderBlock[];
+}
+
+export interface OutputTransitionPayload {
+  seq: number;
+  prevSceneId: string | null;
+  prevSceneName: string | null;
+  nextSceneId: string;
+  nextSceneName: string;
+  source: string;
+  timestamp: number;
+  flaggedBlack: boolean;
+}
+
 export interface SerializedOutputAsset {
   id: string;
   name: string;
@@ -21,6 +42,8 @@ export interface RendererOutputBroadcastPayload extends RendererOutputPayload {
   layerAssets?: Partial<Record<AssetLayerId, SerializedOutputAsset | null>>;
   activeGeneratorIds?: string[];
   overlays?: OverlayConfig[];
+  shaderVariant?: OutputShaderVariantPayload;
+  transition?: OutputTransitionPayload | null;
 }
 
 export const buildRendererOutputPayload = (
@@ -64,23 +87,60 @@ const resolveLayerAsset = (
   return serializeAssetForOutput(asset);
 };
 
+const buildCustomBlocksHash = (customBlocks: CustomShaderBlock[]): string =>
+  [...customBlocks]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((block) =>
+      [
+        block.id,
+        (block.uniforms ?? '').replace(/\s+/g, ''),
+        (block.functions ?? '').replace(/\s+/g, ''),
+        (block.mainCall ?? '').replace(/\s+/g, '')
+      ].join(':')
+    )
+    .join('|');
+
+export const buildOutputShaderVariantPayload = (
+  project: VisualSynthProject,
+  scene: SceneConfig | undefined,
+  activeGeneratorIds: string[] = [],
+  keyOverride?: string | null
+): OutputShaderVariantPayload => {
+  const customBlocks = project.customShaderBlocks ?? [];
+  const fxUniforms = getFxUniformsDeclarations(project, scene ?? null);
+  const generatorKey = [...activeGeneratorIds].sort().join(',');
+  const customHash = buildCustomBlocksHash(customBlocks);
+  return {
+    sceneId: scene?.id ?? null,
+    sceneName: scene?.name ?? null,
+    key: keyOverride ?? [scene?.id ?? 'none', generatorKey, fxUniforms.replace(/\s+/g, ''), customHash].join('::'),
+    fxUniforms,
+    customBlocks: customBlocks.map((block) => ({ ...block }))
+  };
+};
+
 export const buildRendererOutputBroadcastPayload = ({
   renderState,
   project,
   scene,
   activePaletteId,
-  activeGeneratorIds
+  activeGeneratorIds,
+  shaderVariantKey,
+  transition
 }: {
   renderState: RenderState;
   project: VisualSynthProject;
   scene?: SceneConfig;
   activePaletteId?: string;
   activeGeneratorIds?: string[];
+  shaderVariantKey?: string | null;
+  transition?: OutputTransitionPayload | null;
 }): RendererOutputBroadcastPayload => {
   const base = buildRendererOutputPayload(renderState);
   const palette =
     project.palettes.find((candidate) => candidate.id === (activePaletteId ?? project.activePaletteId)) ??
     project.palettes[0];
+  const shaderVariant = buildOutputShaderVariantPayload(project, scene, activeGeneratorIds ?? [], shaderVariantKey);
 
   return {
     ...base,
@@ -91,6 +151,8 @@ export const buildRendererOutputBroadcastPayload = ({
       'layer-media': resolveLayerAsset(project, scene, 'layer-media')
     },
     activeGeneratorIds,
-    overlays: project.overlays ?? []
+    overlays: project.overlays ?? [],
+    shaderVariant,
+    transition: transition ?? null
   };
 };

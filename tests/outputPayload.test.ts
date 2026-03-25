@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildOutputShaderVariantPayload,
   buildRendererOutputBroadcastPayload,
   buildRendererOutputPayload
 } from '../src/renderer/render/outputPayload';
@@ -77,5 +78,30 @@ describe('buildRendererOutputPayload', () => {
     });
     expect(payload.layerAssets?.['layer-media']).toBeNull();
     expect((payload as any).sdfScene).toBeUndefined();
+    expect(payload.shaderVariant).toMatchObject({
+      sceneId: 'scene-a',
+      sceneName: 'Scene A'
+    });
+  });
+
+  it('builds a shader variant payload that changes with scene-local FX declarations', () => {
+    const variant = buildOutputShaderVariantPayload(
+      {
+        customShaderBlocks: [{ id: 'block-1', uniforms: 'uniform float uFoo;', functions: '', mainCall: '' }],
+        effects: { enabled: true },
+        scenes: [],
+      } as any,
+      {
+        id: 'scene-b',
+        name: 'Scene B',
+        layers: [{ id: 'layer-plasma', generatorId: 'layer-plasma', enabled: true }]
+      } as any,
+      ['gen-plasma']
+    );
+
+    expect(variant.sceneId).toBe('scene-b');
+    expect(variant.key).toContain('scene-b');
+    expect(variant.fxUniforms).toContain('uniform float');
+    expect(variant.customBlocks).toHaveLength(1);
   });
 });

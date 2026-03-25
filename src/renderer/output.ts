@@ -3,7 +3,11 @@ import type { AssetItem, OverlayConfig } from '../shared/project';
 import { createSafeModeRenderer } from './safeModeRenderer';
 import { createOverlayRenderer } from './overlayRenderer';
 import { syncRenderState } from './render/autoSync';
-import type { SerializedOutputAsset } from './render/outputPayload';
+import type {
+  OutputShaderVariantPayload,
+  OutputTransitionPayload,
+  SerializedOutputAsset
+} from './render/outputPayload';
 import { OutputDiagnostics } from './outputDiagnostics';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
@@ -17,6 +21,10 @@ const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
 const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};
 
 const diag = new OutputDiagnostics();
+const recentTransitions: OutputTransitionPayload[] = [];
+const MAX_RECENT_TRANSITIONS = 20;
+let lastTransition: OutputTransitionPayload | null = null;
+let lastShaderVariant: OutputShaderVariantPayload | null = null;
 
 // Expose diagnostics globally for DevTools inspection
 (window as any).__outputDiagnostics = diag;
@@ -31,9 +39,19 @@ const diag = new OutputDiagnostics();
     contextLost: renderer?.isContextLost?.() ?? false,
     programCacheSize: renderer?.getProgramCacheSize?.() ?? -1,
   });
-  console.log('[OutputDiag] Manual dump:', snap);
+  const result = {
+    snapshot: snap,
+    recentTransitions: [...recentTransitions],
+    lastTransition,
+    shaderVariant: lastShaderVariant,
+    renderSnapshot: renderer?.getLastRenderSnapshot?.() ?? null,
+    firstBlackPass: recentTransitions.find((transition) => transition.flaggedBlack)?.seq ?? null,
+    lastNonBlackPass: [...recentTransitions].reverse().find((transition) => !transition.flaggedBlack)?.seq ?? null
+  };
+  console.log('[OutputDiag] Manual dump:', result);
   console.table(snap?.recentEvents ?? []);
   console.table(snap?.recentMetrics ?? []);
+  return result;
 };
 
 const hiddenVideoContainer = document.createElement('div');
@@ -192,15 +210,21 @@ const getTextCanvas = (asset: SerializedOutputAsset): HTMLCanvasElement | null =
 let lastActiveGeneratorsKey = '';
 let lastActiveGeneratorIds: string[] = [];
 
-const applyGeneratorIds = (ids: string[]) => {
-  const key = [...ids].sort().join(',');
+const applyGeneratorIds = (ids: string[], shaderVariant?: OutputShaderVariantPayload | null) => {
+  const key = shaderVariant?.key ?? [...ids].sort().join(',');
   if (key === lastActiveGeneratorsKey) return;
   lastActiveGeneratorsKey = key;
   lastActiveGeneratorIds = ids;
-  diag.logEvent('generators-changed', `ids=[${key}]`);
+  lastShaderVariant = shaderVariant ?? null;
+  diag.logEvent('generators-changed', `ids=[${[...ids].sort().join(',')}] variant=${shaderVariant?.sceneId ?? 'none'}`);
 
   if (renderer?.recompileForGenerators) {
-    renderer.recompileForGenerators(new Set(ids));
+    renderer.recompileForGenerators(
+      new Set(ids),
+      shaderVariant?.customBlocks ?? [],
+      false,
+      shaderVariant?.fxUniforms ?? ''
+    );
   }
 
   // Cap the output renderer's program cache to prevent GPU resource exhaustion
@@ -449,10 +473,23 @@ channel.onmessage = (event) => {
   diag.messageCount += 1;
   const data = event.data as Partial<RenderState> & {
     layerAssets?: Partial<Record<AssetLayerId, SerializedOutputAsset | null>>;
+    shaderVariant?: OutputShaderVariantPayload;
+    transition?: OutputTransitionPayload | null;
   };
 
   // Auto-sync all standard RenderState fields
   syncRenderState(data, state);
+
+  if (data.transition) {
+    lastTransition = data.transition;
+    recentTransitions.push(data.transition);
+    if (recentTransitions.length > MAX_RECENT_TRANSITIONS) {
+      recentTransitions.shift();
+    }
+  }
+  if (data.shaderVariant) {
+    lastShaderVariant = data.shaderVariant;
+  }
 
   // Handle special broadcast-only fields (palette, generators, assets, overlays)
   if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
@@ -462,7 +499,7 @@ channel.onmessage = (event) => {
     }
   }
   if (Array.isArray((data as any).activeGeneratorIds)) {
-    applyGeneratorIds((data as any).activeGeneratorIds as string[]);
+    applyGeneratorIds((data as any).activeGeneratorIds as string[], data.shaderVariant);
   }
   if (data.layerAssets) {
     (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
@@ -561,6 +598,7 @@ const updateFallbackBanner = (now: number) => {
 
 let lastDebugUpdate = 0;
 let frameCount = 0;
+let lastVariantMismatchKey = '';
 
 const render = (time: number) => {
   const now = performance.now();
@@ -576,6 +614,23 @@ const render = (time: number) => {
     timeMs: Number.isFinite(state.timeMs) ? state.timeMs : time
   });
   diag.drawCallCount += 1;
+  const renderSnapshot = renderer?.getLastRenderSnapshot?.() ?? null;
+  if (
+    lastShaderVariant?.key &&
+    renderSnapshot?.shaderVariantKey &&
+    lastShaderVariant.key !== renderSnapshot.shaderVariantKey
+  ) {
+    const mismatchKey = `${lastShaderVariant.key}=>${renderSnapshot.shaderVariantKey}`;
+    if (mismatchKey !== lastVariantMismatchKey) {
+      lastVariantMismatchKey = mismatchKey;
+      diag.logEvent(
+        'draw-call-skipped',
+        `shader-variant-mismatch expected=${lastShaderVariant.key} actual=${renderSnapshot.shaderVariantKey}`
+      );
+    }
+  } else {
+    lastVariantMismatchKey = '';
+  }
 
   outputOverlayRenderer.draw();
   frameCount += 1;
@@ -598,7 +653,12 @@ const render = (time: number) => {
         programCacheSize: renderer?.getProgramCacheSize?.() ?? -1,
       });
       if (snap) {
-        console.warn('[Output] Blank frame detected — forensic snapshot:', snap);
+        console.warn('[Output] Blank frame detected — forensic snapshot:', {
+          ...snap,
+          transition: lastTransition,
+          shaderVariant: lastShaderVariant,
+          renderSnapshot
+        });
         console.table(snap.recentEvents);
       }
     }
@@ -621,6 +681,8 @@ const render = (time: number) => {
         `Frames: ${frameCount}  DrawCalls: ${diag.drawCallCount}\n` +
         `Messages: ${diag.messageCount}  Last: ${ageMs >= 0 ? ageMs + 'ms' : 'never'}\n` +
         `Generators (${lastActiveGeneratorIds.length}): ${lastActiveGeneratorIds.join(', ') || 'none'}\n` +
+        `Transition: ${lastTransition ? `#${lastTransition.seq} ${lastTransition.prevSceneName ?? '—'} -> ${lastTransition.nextSceneName} (${lastTransition.source})` : 'none'}\n` +
+        `Variant: ${lastShaderVariant?.sceneId ?? 'none'}\n` +
         `ProgramCache: ${cacheSize}\n` +
         `\n` +
         diag.getDebugText() +

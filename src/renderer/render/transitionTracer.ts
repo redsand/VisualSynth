@@ -4,10 +4,13 @@ export interface TransitionStepFlags {
   sceneStateSwapped: boolean;
   generatorInitStarted: boolean;
   generatorInitSync: boolean;
+  generatorReinitialized: boolean;
   layerStateApplied: boolean;
   shaderProgramSelected: boolean;
   framebufferAllocated: boolean;
+  framebufferRebound: boolean;
   fxGraphRebuilt: boolean;
+  fxGraphRebound: boolean;
   uniformsApplied: boolean;
   compositeAttached: boolean;
 }
@@ -23,6 +26,11 @@ export interface TransitionFrameSample {
   asyncPending: boolean;
   pendingGenerators: string[] | null;
   currentProgramGenerators: string[] | null;
+  currentPasses: string[] | null;
+  currentProgramKind: string | null;
+  expectedShaderVariantKey: string | null;
+  currentShaderVariantKey: string | null;
+  pendingShaderVariantKey: string | null;
 }
 
 export interface TransitionRecord {
@@ -44,6 +52,10 @@ export interface TransitionRecord {
   blendTransitionStarted: boolean;
   customBlocksChanged: boolean;
   brightnessRecoveryFrame: number | null;
+  expectedShaderVariantKey: string | null;
+  observedShaderVariantKeys: string[];
+  initSucceeded: boolean;
+  suspectedDifferingInitStep: string | null;
 }
 
 export interface SceneComparisonEntry {
@@ -56,6 +68,9 @@ export interface SceneComparisonEntry {
   customBlocksChanged: boolean;
   generatorsDiff: string[];
   stepsDiff: string[];
+  expectedShaderVariantKey: string | null;
+  observedShaderVariantKeys: string[];
+  suspectedDifferingInitStep: string | null;
 }
 
 export interface SuccessVsFailAnalysis {
@@ -97,13 +112,16 @@ export interface TransitionTracer {
     blendTransitionStarted?: boolean;
     customBlocksChanged?: boolean;
     compilePendingGenerators?: string[] | null;
+    expectedShaderVariantKey?: string | null;
   }): number;
+  setExpectedShaderVariantKey(seq: number, key: string | null): void;
   recordStep(seq: number, step: keyof TransitionStepFlags, value?: boolean): void;
   recordCompileResult(seq: number, wasCacheHit: boolean, wasAsync: boolean): void;
   setBlendTransitionStarted(seq: number): void;
   recordFrameSample(
     seq: number,
-    sample: Omit<TransitionFrameSample, 'frameIndex' | 'frameTimestampMs'> & { asyncPending?: boolean; pendingGenerators?: string[] | null; currentProgramGenerators?: string[] | null }
+    sample: Pick<TransitionFrameSample, 'drawCallCount' | 'avgBrightness' | 'nonBlackRatio' | 'activeGenerators' | 'activeFx'> &
+      Partial<Pick<TransitionFrameSample, 'asyncPending' | 'pendingGenerators' | 'currentProgramGenerators' | 'currentPasses' | 'currentProgramKind' | 'expectedShaderVariantKey' | 'currentShaderVariantKey' | 'pendingShaderVariantKey'>>
   ): void;
   getCurrentSeq(): number | null;
   getRecentTransitions(n?: number): TransitionRecord[];
@@ -114,10 +132,13 @@ const makeDefaultSteps = (): TransitionStepFlags => ({
   sceneStateSwapped: false,
   generatorInitStarted: false,
   generatorInitSync: false,
+  generatorReinitialized: false,
   layerStateApplied: false,
   shaderProgramSelected: false,
   framebufferAllocated: false,
+  framebufferRebound: false,
   fxGraphRebuilt: false,
+  fxGraphRebound: false,
   uniformsApplied: false,
   compositeAttached: false
 });
@@ -137,7 +158,10 @@ const buildComparison = (r: TransitionRecord): SceneComparisonEntry => ({
   blendTransitionStarted: r.blendTransitionStarted,
   customBlocksChanged: r.customBlocksChanged,
   generatorsDiff: r.toGenerators.filter(g => !r.fromGenerators.includes(g)),
-  stepsDiff: stepsToArray(r.steps)
+  stepsDiff: stepsToArray(r.steps),
+  expectedShaderVariantKey: r.expectedShaderVariantKey,
+  observedShaderVariantKeys: [...r.observedShaderVariantKeys],
+  suspectedDifferingInitStep: r.suspectedDifferingInitStep
 });
 
 export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
@@ -155,7 +179,7 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
     beginTransition({
       prevSceneId, prevSceneName, nextSceneId, nextSceneName, source,
       fromGenerators = [], toGenerators = [], blendTransitionStarted = false,
-      customBlocksChanged = false, compilePendingGenerators = null
+      customBlocksChanged = false, compilePendingGenerators = null, expectedShaderVariantKey = null
     }) {
       globalSeq++;
       const record: TransitionRecord = {
@@ -176,7 +200,11 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
         wasAsync: false,
         blendTransitionStarted,
         customBlocksChanged,
-        brightnessRecoveryFrame: null
+        brightnessRecoveryFrame: null,
+        expectedShaderVariantKey,
+        observedShaderVariantKeys: [],
+        initSucceeded: false,
+        suspectedDifferingInitStep: null
       };
       history.push(record);
       if (history.length > maxHistory) {
@@ -186,10 +214,17 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
       return globalSeq;
     },
 
+    setExpectedShaderVariantKey(seq, key) {
+      const record = findRecord(seq);
+      if (record) {
+        record.expectedShaderVariantKey = key;
+      }
+    },
+
     recordStep(seq, step, value = true) {
       const record = findRecord(seq);
       if (record) {
-        (record.steps as Record<string, boolean>)[step] = value;
+        record.steps[step] = value;
       }
     },
 
@@ -215,14 +250,38 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
       const record = findRecord(seq);
       if (!record) return;
       const frameIndex = record.frameSamples.length;
+      const {
+        asyncPending = false,
+        pendingGenerators = null,
+        currentProgramGenerators = null,
+        currentPasses = null,
+        currentProgramKind = null,
+        expectedShaderVariantKey = record.expectedShaderVariantKey,
+        currentShaderVariantKey = null,
+        pendingShaderVariantKey = null,
+        ...baseSample
+      } = sample;
       record.frameSamples.push({
         frameIndex,
         frameTimestampMs: Date.now(),
-        asyncPending: false,
-        pendingGenerators: null,
-        currentProgramGenerators: null,
-        ...sample
+        ...baseSample,
+        asyncPending,
+        pendingGenerators,
+        currentProgramGenerators,
+        currentPasses,
+        currentProgramKind,
+        expectedShaderVariantKey,
+        currentShaderVariantKey,
+        pendingShaderVariantKey
       });
+      record.initSucceeded =
+        record.steps.sceneStateSwapped &&
+        record.steps.generatorInitStarted &&
+        record.steps.shaderProgramSelected;
+
+      if (sample.currentShaderVariantKey && !record.observedShaderVariantKeys.includes(sample.currentShaderVariantKey)) {
+        record.observedShaderVariantKeys.push(sample.currentShaderVariantKey);
+      }
 
       if (record.brightnessRecoveryFrame === null && sample.avgBrightness >= 0.01 && frameIndex > 0) {
         record.brightnessRecoveryFrame = frameIndex;
@@ -242,6 +301,17 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
       ) {
         const blackFrames = record.frameSamples.filter(s => s.avgBrightness < 0.01).length;
         if (blackFrames >= 3) {
+          if (
+            record.expectedShaderVariantKey &&
+            sample.currentShaderVariantKey &&
+            sample.currentShaderVariantKey !== record.expectedShaderVariantKey
+          ) {
+            record.suspectedDifferingInitStep = 'shaderProgramSelected';
+          } else if (!record.steps.fxGraphRebuilt || !record.steps.fxGraphRebound) {
+            record.suspectedDifferingInitStep = 'fxGraphRebuilt';
+          } else if (!record.steps.framebufferAllocated || !record.steps.framebufferRebound) {
+            record.suspectedDifferingInitStep = 'framebufferAllocated';
+          }
           if (!record.flaggedBlack) {
             record.flaggedBlack = true;
             console.warn(
@@ -250,7 +320,9 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
               `(source: ${record.source}, cacheHit: ${record.wasCacheHit}, ` +
               `async: ${record.wasAsync}, asyncPending@frame: ${sample.asyncPending ?? false}, ` +
               `pendingGens: [${(sample.pendingGenerators ?? []).join(', ')}], ` +
-              `newGens: [${record.toGenerators.filter(g => !record.fromGenerators.includes(g)).join(', ')}])`
+              `newGens: [${record.toGenerators.filter(g => !record.fromGenerators.includes(g)).join(', ')}], ` +
+              `expectedVariant: ${record.expectedShaderVariantKey ?? 'none'}, ` +
+              `currentVariant: ${sample.currentShaderVariantKey ?? 'none'})`
             );
           }
         }
@@ -287,6 +359,10 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
         const differingSteps = successSample
           ? diffSteps(successSample.steps, failSample.steps)
           : [];
+        const suspectedDifferingInitStep =
+          failSample.suspectedDifferingInitStep ??
+          differingSteps[0] ??
+          null;
         successVsFailAnalysis.push({
           targetSceneId: sceneId,
           targetSceneName: name,
@@ -294,7 +370,10 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
           failCount: failed.length,
           differingSteps,
           successSample: successSample ? buildComparison(successSample) : null,
-          failSample: buildComparison(failSample)
+          failSample: {
+            ...buildComparison(failSample),
+            suspectedDifferingInitStep
+          }
         });
       }
 

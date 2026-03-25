@@ -31,6 +31,8 @@
     "screenshots:test": "npm test -- screenshot.test.ts",
     "presets:migrate": "ts-node scripts/migrate-presets.ts",
     "presets:audit-milkwave": "ts-node scripts/auditMilkwave.ts",
+    "presets:audit-milkwave:focus": "ts-node scripts/auditMilkwave.ts --focus",
+    "presets:audit-milkwave:target": "ts-node scripts/auditMilkwave.ts --preset target",
     "presets:certify-milkwave": "ts-node scripts/certifyMilkwavePresets.ts",
     "showcase:generate": "ts-node scripts/generate-non-milkwave-showcase.ts",
     "visual-regression:v1": "node scripts/compare-v1-visuals.js",
