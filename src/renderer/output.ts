@@ -558,41 +558,34 @@ const checkMessageStaleness = (now: number) => {
 };
 
 // Blank-for-too-long protective fallback: after 8 seconds of confirmed blank
-// output, show a visual indicator in the debug overlay so the user knows it
-// is degraded (even with the debug overlay hidden).
+// output, inform the main control program so it can show a visual indicator.
 const BLANK_FALLBACK_THRESHOLD_MS = 8000;
-let fallbackBannerVisible = false;
-let fallbackBanner: HTMLDivElement | null = null;
+let fallbackActive = false;
+let lastFallbackBroadcastAt = 0;
 
-const ensureFallbackBanner = () => {
-  if (fallbackBanner) return;
-  fallbackBanner = document.createElement('div');
-  fallbackBanner.style.cssText = [
-    'position:fixed', 'bottom:8px', 'left:50%', 'transform:translateX(-50%)',
-    'background:rgba(220,40,40,0.85)', 'color:#fff', 'font:bold 13px monospace',
-    'padding:6px 16px', 'border-radius:4px', 'z-index:9999',
-    'pointer-events:none', 'display:none'
-  ].join(';');
-  document.body.appendChild(fallbackBanner);
-};
-
-const updateFallbackBanner = (now: number) => {
-  ensureFallbackBanner();
+const updateFallbackState = (now: number) => {
   const blankDuration = diag.isCurrentlyBlank && diag.lastGoodFrameMs > 0
     ? now - diag.lastGoodFrameMs
     : 0;
 
-  if (blankDuration > BLANK_FALLBACK_THRESHOLD_MS) {
-    if (!fallbackBannerVisible) {
-      fallbackBannerVisible = true;
+  const isDegraded = blankDuration > BLANK_FALLBACK_THRESHOLD_MS;
+
+  // Broadcast whenever state changes, OR every second if degraded (to update timer)
+  if (isDegraded !== fallbackActive || (isDegraded && now - lastFallbackBroadcastAt > 1000)) {
+    if (isDegraded && !fallbackActive) {
       diag.logEvent('fallback-triggered', `blank for ${Math.round(blankDuration)}ms`);
       console.warn(`[Output] DEGRADED — blank output for ${Math.round(blankDuration / 1000)}s`);
     }
-    fallbackBanner!.style.display = 'block';
-    fallbackBanner!.textContent = `⚠ Output degraded — blank for ${Math.round(blankDuration / 1000)}s (press D for diagnostics)`;
-  } else {
-    if (fallbackBannerVisible) fallbackBannerVisible = false;
-    fallbackBanner!.style.display = 'none';
+
+    fallbackActive = isDegraded;
+    lastFallbackBroadcastAt = now;
+
+    channel.postMessage({
+      type: 'output-health',
+      isCurrentlyBlank: diag.isCurrentlyBlank,
+      blankDurationMs: blankDuration,
+      isDegraded: fallbackActive
+    });
   }
 };
 
@@ -666,7 +659,7 @@ const render = (time: number) => {
 
   // --- Stale message / fallback checks ---
   checkMessageStaleness(now);
-  updateFallbackBanner(now);
+  updateFallbackState(now);
 
   // --- Debug overlay update (every 500 ms) ---
   if (debugOverlay && now - lastDebugUpdate > 500) {

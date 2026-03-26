@@ -1969,6 +1969,94 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
     params: [
       { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true }
     ]
+  },
+  {
+    id: 'asset-vortex',
+    name: 'Asset Vortex',
+    description: 'Warp asset into a swirling vortex',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'strength', name: 'Strength', type: 'number', min: 0, max: 5, default: 2.0, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0, max: 5, default: 1.0, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'asset-slices',
+    name: 'Asset Slices',
+    description: 'Slice asset into audio-reactive bands',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Slices', type: 'number', min: 2, max: 64, default: 16.0, modulatable: true, midiMappable: true },
+      { id: 'shift', name: 'Shift Amount', type: 'number', min: 0, max: 2, default: 0.3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'asset-polar',
+    name: 'Asset Polar Warp',
+    description: 'Warp asset into polar coordinates',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'radius', name: 'Radius', type: 'number', min: 0.1, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'twist', name: 'Twist', type: 'number', min: -5, max: 5, default: 1.0, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'asset-mosaic',
+    name: 'Asset Mosaic',
+    description: 'Tile and flip asset in a grid',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'tiles', name: 'Tiles', type: 'number', min: 1, max: 20, default: 8.0, modulatable: true, midiMappable: true },
+      { id: 'flip', name: 'Audio Flip', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'asset-ripple',
+    name: 'Asset Ripples',
+    description: 'Concentric ripples on asset',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'amplitude', name: 'Amplitude', type: 'number', min: 0, max: 0.5, default: 0.03, modulatable: true, midiMappable: true },
+      { id: 'frequency', name: 'Frequency', type: 'number', min: 1, max: 100, default: 20.0, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'asset-scatter',
+    name: 'Asset Scatter',
+    description: 'Randomly scatter pixels of asset',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'amount', name: 'Amount', type: 'number', min: 0, max: 0.5, default: 0.02, modulatable: true, midiMappable: true },
+      { id: 'seed', name: 'Seed', type: 'number', min: 0, max: 100, default: 1.0, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'asset-echo',
+    name: 'Asset Echo Ghosts',
+    description: 'Multiple delayed ghost copies of asset',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Echo Count', type: 'number', min: 1, max: 5, default: 3.0, modulatable: true, midiMappable: true },
+      { id: 'spread', name: 'Spread', type: 'number', min: 0, max: 1, default: 0.15, modulatable: true, midiMappable: true },
+      { id: 'fade', name: 'Fade', type: 'number', min: 0.1, max: 1, default: 0.6, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'signal-noise',
+    name: 'Signal Noise',
+    description: 'Generative signal noise and scanlines',
+    sinceVersion: '1.8.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1.0, modulatable: true, midiMappable: true },
+      { id: 'amount', name: 'Amount', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
   }
 ];
 
@@ -2003,6 +2091,13 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-pyro-burst': 'pyro-burst',
     'gen-geo-wireframe': 'geo-wireframe',
     'gen-signal-noise': 'signal-noise',
+    'gen-asset-vortex': 'asset-vortex',
+    'gen-asset-slices': 'asset-slices',
+    'gen-asset-polar': 'asset-polar',
+    'gen-asset-mosaic': 'asset-mosaic',
+    'gen-asset-ripple': 'asset-ripple',
+    'gen-asset-scatter': 'asset-scatter',
+    'gen-asset-echo': 'asset-echo',
     'gen-infinite-wormhole': 'infinite-wormhole',
     'gen-ribbon-tunnel': 'ribbon-tunnel',
     'gen-fractal-tunnel': 'fractal-tunnel',
@@ -2075,6 +2170,13 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-pixel-rain': 'pixel-rain',
     'gen-boss-health': 'boss-health',
     'gen-milkwave': 'milkwave',
+    'gen-asset-vortex': 'asset-vortex',
+    'gen-asset-slices': 'asset-slices',
+    'gen-asset-polar': 'asset-polar',
+    'gen-asset-mosaic': 'asset-mosaic',
+    'gen-asset-ripple': 'asset-ripple',
+    'gen-asset-scatter': 'asset-scatter',
+    'gen-asset-echo': 'asset-echo',
     'gen-sdf': 'sdf',
     'gen-sdf-scene': 'sdf-scene',
     'gen-tunnel-warp': 'tunnel-warp',

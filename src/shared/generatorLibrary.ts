@@ -171,11 +171,12 @@ export interface GeneratorEntry {
   name: string;
   visible?: boolean;
   supportsAsset?: boolean;
+  inputRequired?: boolean;
 }
 
 export const GENERATORS: GeneratorEntry[] = [
-  { id: 'layer-plasma', name: 'Shader Plasma', supportsAsset: true },
-  { id: 'layer-spectrum', name: 'Spectrum Bars', supportsAsset: true },
+  { id: 'layer-plasma', name: 'Shader Plasma', supportsAsset: true, inputRequired: true },
+  { id: 'layer-spectrum', name: 'Spectrum Bars', supportsAsset: true, inputRequired: true },
   { id: 'layer-origami', name: 'Origami Fold' },
   { id: 'layer-glyph', name: 'Glyph Language' },
   { id: 'layer-crystal', name: 'Crystal Harmonics' },
@@ -183,7 +184,7 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'layer-topo', name: 'Topo Terrain' },
   { id: 'layer-weather', name: 'Audio Weather' },
   { id: 'layer-portal', name: 'Wormhole Portal' },
-  { id: 'layer-media', name: 'Media Overlay', supportsAsset: true },
+  { id: 'layer-media', name: 'Media Overlay', supportsAsset: true, inputRequired: true },
   { id: 'layer-oscillo', name: 'Sacred Oscilloscope' },
   { id: 'variant-plasma-vortex', name: 'Plasma: Vortex' },
   { id: 'variant-plasma-liquid', name: 'Plasma: Liquid Metal' },
@@ -233,7 +234,7 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-electric-arc', name: 'Generator: Electric Arc' },
   { id: 'gen-pyro-burst', name: 'Generator: Pyro Burst' },
   { id: 'gen-geo-wireframe', name: 'Generator: Geo Wireframe' },
-  { id: 'gen-signal-noise', name: 'Generator: Signal Noise' },
+  { id: 'gen-signal-noise', name: 'Generator: Signal Noise', supportsAsset: true, inputRequired: true },
   { id: 'gen-infinite-wormhole', name: 'Generator: Infinite Wormhole' },
   { id: 'gen-ribbon-tunnel', name: 'Generator: Ribbon Tunnel' },
   { id: 'gen-fractal-tunnel', name: 'Generator: Fractal Tunnel' },
@@ -312,13 +313,13 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-score-counter', name: 'Generator: Score Counter' },
   { id: 'gen-pixel-rain', name: 'Generator: Pixel Rain' },
   { id: 'gen-boss-health', name: 'Generator: Boss Health' },
-  { id: 'gen-asset-vortex', name: 'Asset Vortex', supportsAsset: true },
-  { id: 'gen-asset-slices', name: 'Asset Slices', supportsAsset: true },
-  { id: 'gen-asset-polar', name: 'Asset Polar Warp', supportsAsset: true },
-  { id: 'gen-asset-mosaic', name: 'Asset Mosaic', supportsAsset: true },
-  { id: 'gen-asset-ripple', name: 'Asset Ripples', supportsAsset: true },
-  { id: 'gen-asset-scatter', name: 'Asset Scatter', supportsAsset: true },
-  { id: 'gen-asset-echo', name: 'Asset Echo Ghosts', supportsAsset: true },
+  { id: 'gen-asset-vortex', name: 'Asset Vortex', supportsAsset: true, inputRequired: true },
+  { id: 'gen-asset-slices', name: 'Asset Slices', supportsAsset: true, inputRequired: true },
+  { id: 'gen-asset-polar', name: 'Asset Polar Warp', supportsAsset: true, inputRequired: true },
+  { id: 'gen-asset-mosaic', name: 'Asset Mosaic', supportsAsset: true, inputRequired: true },
+  { id: 'gen-asset-ripple', name: 'Asset Ripples', supportsAsset: true, inputRequired: true },
+  { id: 'gen-asset-scatter', name: 'Asset Scatter', supportsAsset: true, inputRequired: true },
+  { id: 'gen-asset-echo', name: 'Asset Echo Ghosts', supportsAsset: true, inputRequired: true },
   { id: 'gen-milkwave', name: 'Generator: Milkwave Import', visible: false }
 ];
 
@@ -342,4 +343,9 @@ export const toggleFavorite = (favorites: GeneratorId[], id: GeneratorId) => {
 export const supportsAsset = (generatorId: string): boolean => {
   const entry = GENERATORS.find((g) => g.id === generatorId);
   return entry?.supportsAsset === true;
+};
+
+export const needsInput = (generatorId: string): boolean => {
+  const entry = GENERATORS.find((g) => g.id === generatorId);
+  return entry?.inputRequired === true;
 };

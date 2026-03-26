@@ -591,35 +591,6 @@ void main() {
     gl.uniform1fv(getLocation('uMediaBurstRadius[0]'), state.mediaBurstRadii);
     gl.uniform1fv(getLocation('uMediaBurstType[0]'), state.mediaBurstTypes);
     gl.uniform1fv(getLocation('uMediaBurstActive[0]'), state.mediaBurstActives);
-    gl.uniform1f(getLocation('uAssetVortexEnabled'), getSafeEnabled(state.assetVortexEnabled, 'high'));
-    gl.uniform1f(getLocation('uAssetVortexOpacity'), state.assetVortexOpacity ?? 0.8);
-    gl.uniform1f(getLocation('uAssetVortexStrength'), state.assetVortexStrength ?? 2.0);
-    gl.uniform1f(getLocation('uAssetVortexSpeed'), state.assetVortexSpeed ?? 1.0);
-    gl.uniform1f(getLocation('uAssetSlicesEnabled'), getSafeEnabled(state.assetSlicesEnabled, 'high'));
-    gl.uniform1f(getLocation('uAssetSlicesOpacity'), state.assetSlicesOpacity ?? 0.8);
-    gl.uniform1f(getLocation('uAssetSlicesCount'), state.assetSlicesCount ?? 16.0);
-    gl.uniform1f(getLocation('uAssetSlicesShift'), state.assetSlicesShift ?? 0.3);
-    gl.uniform1f(getLocation('uAssetPolarEnabled'), getSafeEnabled(state.assetPolarEnabled, 'high'));
-    gl.uniform1f(getLocation('uAssetPolarOpacity'), state.assetPolarOpacity ?? 0.8);
-    gl.uniform1f(getLocation('uAssetPolarRadius'), state.assetPolarRadius ?? 0.5);
-    gl.uniform1f(getLocation('uAssetPolarTwist'), state.assetPolarTwist ?? 1.0);
-    gl.uniform1f(getLocation('uAssetMosaicEnabled'), getSafeEnabled(state.assetMosaicEnabled, 'high'));
-    gl.uniform1f(getLocation('uAssetMosaicOpacity'), state.assetMosaicOpacity ?? 0.8);
-    gl.uniform1f(getLocation('uAssetMosaicTiles'), state.assetMosaicTiles ?? 8.0);
-    gl.uniform1f(getLocation('uAssetMosaicFlip'), state.assetMosaicFlip ?? 0.5);
-    gl.uniform1f(getLocation('uAssetRippleEnabled'), getSafeEnabled(state.assetRippleEnabled, 'high'));
-    gl.uniform1f(getLocation('uAssetRippleOpacity'), state.assetRippleOpacity ?? 0.8);
-    gl.uniform1f(getLocation('uAssetRippleAmplitude'), state.assetRippleAmplitude ?? 0.03);
-    gl.uniform1f(getLocation('uAssetRippleFrequency'), state.assetRippleFrequency ?? 20.0);
-    gl.uniform1f(getLocation('uAssetScatterEnabled'), getSafeEnabled(state.assetScatterEnabled, 'high'));
-    gl.uniform1f(getLocation('uAssetScatterOpacity'), state.assetScatterOpacity ?? 0.8);
-    gl.uniform1f(getLocation('uAssetScatterAmount'), state.assetScatterAmount ?? 0.02);
-    gl.uniform1f(getLocation('uAssetScatterSeed'), state.assetScatterSeed ?? 1.0);
-    gl.uniform1f(getLocation('uAssetEchoEnabled'), getSafeEnabled(state.assetEchoEnabled, 'high'));
-    gl.uniform1f(getLocation('uAssetEchoOpacity'), state.assetEchoOpacity ?? 0.8);
-    gl.uniform1f(getLocation('uAssetEchoCount'), state.assetEchoCount ?? 3.0);
-    gl.uniform1f(getLocation('uAssetEchoSpread'), state.assetEchoSpread ?? 0.15);
-    gl.uniform1f(getLocation('uAssetEchoFade'), state.assetEchoFade ?? 0.6);
     gl.uniform1f(getLocation('uOscilloEnabled'), getSafeEnabled(state.oscilloEnabled, 'low'));
     gl.uniform1f(getLocation('uOscilloOpacity'), state.oscilloOpacity);
     gl.uniform1f(getLocation('uOscilloMode'), state.oscilloMode);
@@ -1010,7 +981,8 @@ void main() {
       'gen-asset-mosaic': { enabled: 'uAssetMosaicEnabled', sampler: 'uAssetMosaicAsset' },
       'gen-asset-ripple': { enabled: 'uAssetRippleEnabled', sampler: 'uAssetRippleAsset' },
       'gen-asset-scatter': { enabled: 'uAssetScatterEnabled', sampler: 'uAssetScatterAsset' },
-      'gen-asset-echo': { enabled: 'uAssetEchoEnabled', sampler: 'uAssetEchoAsset' }
+      'gen-asset-echo': { enabled: 'uAssetEchoEnabled', sampler: 'uAssetEchoAsset' },
+      'gen-signal-noise': { enabled: 'uSignalNoiseAssetEnabled', sampler: 'uSignalNoiseAsset' }
     };
     
     const names = uniformNames[layerId];
@@ -1140,6 +1112,7 @@ void main() {
     applyLayerBinding(currentProgram, 'gen-asset-ripple');
     applyLayerBinding(currentProgram, 'gen-asset-scatter');
     applyLayerBinding(currentProgram, 'gen-asset-echo');
+    applyLayerBinding(currentProgram, 'gen-signal-noise');
     
     if (currentProgram === advancedSdfProgram && state.sdfScene) {
       const s = state.sdfScene;

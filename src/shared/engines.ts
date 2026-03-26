@@ -52,8 +52,8 @@ export interface VisualEngine {
 export const ENGINE_REGISTRY: Record<EngineId, VisualEngine> = {
   'engine-none': {
     id: 'engine-none',
-    name: 'None (Keep Current Layers)',
-    description: 'Leaves existing layers and macros untouched.',
+    name: 'None',
+    description: 'Resets engine FX and clears active engine constraints.',
     curatedPalette: COLOR_PALETTES[0],
     semantics: {
       kick: 'none',

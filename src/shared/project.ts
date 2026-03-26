@@ -49,6 +49,7 @@ export interface LayerConfig {
   };
   assetId?: string;
   generatorId?: string;
+  inputRequired?: boolean;
   params?: Record<string, any>;
   effects?: EffectConfig[]; // Chain of local effects
   sdfScene?: any;

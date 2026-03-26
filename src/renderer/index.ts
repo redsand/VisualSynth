@@ -763,8 +763,64 @@ let previewSceneId: string | null = null;
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
 const outputChannel = new BroadcastChannel('visualsynth-output');
+
+let outputFallbackBanner: HTMLDivElement | null = null;
+const ensureOutputFallbackBanner = () => {
+  if (outputFallbackBanner) return;
+  outputFallbackBanner = document.createElement('div');
+  outputFallbackBanner.id = 'output-fallback-banner';
+  outputFallbackBanner.style.cssText = [
+    'position:fixed', 'bottom:12px', 'right:12px',
+    'background:rgba(220,40,40,0.9)', 'color:#fff', 'font:bold 12px monospace',
+    'padding:8px 16px', 'border-radius:4px', 'z-index:10000',
+    'pointer-events:none', 'display:none', 'box-shadow: 0 4px 12px rgba(0,0,0,0.5)',
+    'border: 1px solid rgba(255,255,255,0.2)'
+  ].join(';');
+  document.body.appendChild(outputFallbackBanner);
+};
+
+outputChannel.onmessage = (event) => {
+  const data = event.data;
+  if (data?.type === 'output-health') {
+    ensureOutputFallbackBanner();
+    if (data.isDegraded) {
+      outputFallbackBanner!.style.display = 'block';
+      outputFallbackBanner!.textContent = `⚠ REMOTE OUTPUT DEGRADED — blank for ${Math.round(data.blankDurationMs / 1000)}s`;
+    } else {
+      outputFallbackBanner!.style.display = 'none';
+    }
+  }
+};
 let lastOutputBroadcast = 0;
 const WEBCAM_STORAGE_KEY = 'visualsynth.webcamDeviceId';
+const ASSET_LAYER_HISTORY_KEY = 'visualsynth.assetLayerHistory';
+
+const getAssetLayerHistory = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(ASSET_LAYER_HISTORY_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+};
+
+const saveAssetLayerHistory = (history: Record<string, string>) => {
+  try {
+    localStorage.setItem(ASSET_LAYER_HISTORY_KEY, JSON.stringify(history));
+  } catch {
+    // Ignore
+  }
+};
+
+const recordAssetLayerAssignment = (assetKind: string, layerId: string) => {
+  const history = getAssetLayerHistory();
+  history[assetKind] = layerId;
+  saveAssetLayerHistory(history);
+};
+
+const getLastAssignedLayerForKind = (assetKind: string): string | null => {
+  const history = getAssetLayerHistory();
+  return history[assetKind] ?? null;
+};
 let lastMidiLatencyMs: number | null = null;
 let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number; transitionOverride?: SceneTransition | null } | null = null;
 let sdfPanel: { render: () => void } | null = null;
@@ -1526,8 +1582,26 @@ const applyVisualEngine = (engineId: EngineId) => {
   }
 
   if (engineId === 'engine-none') {
-    (currentProject as any).engineGrammar = {};
-    (currentProject as any).engineFinish = { grain: 0, vignette: 0, ca: 0 };
+    currentProject.engineGrammar = {};
+    currentProject.engineFinish = { grain: 0, vignette: 0, ca: 0 };
+    
+    // Reset core FX systems to defaults
+    currentProject.effects = JSON.parse(JSON.stringify(DEFAULT_PROJECT.effects));
+    currentProject.macros = JSON.parse(JSON.stringify(DEFAULT_PROJECT.macros));
+    currentProject.modMatrix = [];
+    currentProject.expressiveFx = JSON.parse(JSON.stringify(DEFAULT_PROJECT.expressiveFx));
+    currentProject.particles = JSON.parse(JSON.stringify(DEFAULT_PROJECT.particles));
+    
+    // Reset palette to default if it was changed by a previous engine
+    currentProject.activePaletteId = DEFAULT_PROJECT.activePaletteId;
+    if (paletteSelect) paletteSelect.value = DEFAULT_PROJECT.activePaletteId;
+
+    initMacros();
+    initEffects();
+    initParticles();
+    renderLayerList();
+    renderModMatrix();
+    renderSceneStrip();
     return;
   }
 
@@ -5047,6 +5121,7 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, fo
     const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
     await renderer.setLayerAsset(layer.id, target, previewVideo, textCanvas);
     if (target) {
+      recordAssetLayerAssignment(target.kind, layer.id);
       setStatus(`${layer.name} now using ${target.name}`);
     } else {
       setStatus(`${layer.name} asset cleared`);
@@ -5060,12 +5135,26 @@ const syncLayerAsset = (layer: LayerConfig) => {
   void assignAssetToLayer(layer, layer.assetId ?? null);
 };
 
+const findPrioritizedAsset = (): AssetItem | null => {
+  const assets = currentProject.assets;
+  // Order: webcam (live), then video, then image (texture), then text
+  const live = assets.find((a) => a.kind === 'live' && !a.missing);
+  if (live) return live;
+  const video = assets.find((a) => a.kind === 'video' && !a.missing);
+  if (video) return video;
+  const texture = assets.find((a) => a.kind === 'texture' && !a.missing);
+  if (texture) return texture;
+  const text = assets.find((a) => a.kind === 'text' && !a.missing);
+  if (text) return text;
+  return assets[0] ?? null;
+};
+
 const autoAssignFirstAsset = (layer: LayerConfig) => {
   if (!supportsAsset(layer.id)) return;
   if (layer.assetId) return;
-  const firstAsset = currentProject.assets[0];
-  if (firstAsset) {
-    void assignAssetToLayer(layer, firstAsset.id);
+  const prioritized = findPrioritizedAsset();
+  if (prioritized) {
+    void assignAssetToLayer(layer, prioritized.id);
   }
 };
 
@@ -5216,9 +5305,27 @@ const importAsset = async () => {
       }
     })
   ];
+  const newAsset = currentProject.assets[currentProject.assets.length - 1];
   if (assetTagsInput) assetTagsInput.value = '';
   renderAssets();
   renderLayerList();
+
+  // Auto-assignment for newly imported asset
+  const lastLayerId = getLastAssignedLayerForKind(kind);
+  const targetScene = getActiveScene();
+  if (targetScene) {
+    const allowedLayers = targetScene.layers.filter((l) => supportsAsset(l.id));
+    const rememberedLayer = allowedLayers.find((l) => l.id === lastLayerId);
+    if (rememberedLayer && !rememberedLayer.assetId) {
+      void assignAssetToLayer(rememberedLayer, newAsset.id);
+    } else {
+      const needsInputLayer = allowedLayers.find((l) => needsInput(l.id) && !l.assetId);
+      if (needsInputLayer) {
+        void assignAssetToLayer(needsInputLayer, newAsset.id);
+      }
+    }
+  }
+
   setStatus(`Asset imported: ${name}`);
 };
 
@@ -5250,9 +5357,27 @@ const importVideoAsset = async () => {
       options
     })
   ];
+  const newAsset = currentProject.assets[currentProject.assets.length - 1];
   if (assetTagsInput) assetTagsInput.value = '';
   renderAssets();
   renderLayerList();
+
+  // Auto-assignment for newly imported video
+  const lastLayerId = getLastAssignedLayerForKind('video');
+  const targetScene = getActiveScene();
+  if (targetScene) {
+    const allowedLayers = targetScene.layers.filter((l) => supportsAsset(l.id));
+    const rememberedLayer = allowedLayers.find((l) => l.id === lastLayerId);
+    if (rememberedLayer && !rememberedLayer.assetId) {
+      void assignAssetToLayer(rememberedLayer, newAsset.id);
+    } else {
+      const needsInputLayer = allowedLayers.find((l) => needsInput(l.id) && !l.assetId);
+      if (needsInputLayer) {
+        void assignAssetToLayer(needsInputLayer, newAsset.id);
+      }
+    }
+  }
+
   setStatus(`Video imported: ${name}`);
 };
 
@@ -5374,6 +5499,7 @@ const createTextAsset = () => {
   if (mediaLayer) {
     mediaLayer.assetId = asset.id;
     mediaLayer.enabled = true;
+    recordAssetLayerAssignment('text', mediaLayer.id);
     void assignAssetToLayer(mediaLayer, asset.id, true);
   }
 
@@ -5541,6 +5667,35 @@ const startLiveCapture = async (source: 'webcam' | 'screen') => {
     if (assetTagsInput) assetTagsInput.value = '';
     renderAssets();
     renderLayerList();
+
+    // Auto-assignment for newly started live capture
+    const lastLayerId = getLastAssignedLayerForKind('live');
+    const targetScene = getActiveScene();
+    if (targetScene) {
+      const allowedLayers = targetScene.layers.filter((l) => supportsAsset(l.id));
+      const alreadyAssigned = allowedLayers.some((l) => l.assetId === asset.id);
+
+      if (!alreadyAssigned) {
+        // 1. Try last assigned layer if it exists and is allowed
+        const rememberedLayer = allowedLayers.find((l) => l.id === lastLayerId);
+        if (rememberedLayer && !rememberedLayer.assetId) {
+          void assignAssetToLayer(rememberedLayer, asset.id);
+        } else {
+          // 2. Try first allowed layer that needs input and is empty
+          const needsInputLayer = allowedLayers.find((l) => needsInput(l.id) && !l.assetId);
+          if (needsInputLayer) {
+            void assignAssetToLayer(needsInputLayer, asset.id);
+          } else {
+            // 3. Try any empty allowed layer
+            const emptyLayer = allowedLayers.find((l) => !l.assetId);
+            if (emptyLayer) {
+              void assignAssetToLayer(emptyLayer, asset.id);
+            }
+          }
+        }
+      }
+    }
+
     setStatus(`Live capture started: ${name}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -13201,7 +13356,8 @@ const render = (time: number) => {
     portalEnabled,
     mediaEnabled,
     oscilloEnabled,
-    // Special-case array uniforms not handled by genUniforms
+    // --- Dynamic gen-* uniform resolution — replaces hundreds of explicit extraction lines
+    genUniforms,
     shapeBurstSpawnTimes,
     shapeBurstActives,
     milkDropShaderData: renderScene?._shaderData ?? null,
@@ -13270,35 +13426,6 @@ const render = (time: number) => {
     spectrumAssetAudioReact: spectrumAssetAudioReact,
     mediaAssetBlendMode: mediaAssetBlendMode,
     mediaAssetAudioReact: mediaAssetAudioReact,
-    assetVortexEnabled: assetVortexLayer?.enabled ?? false,
-    assetVortexOpacity: assetVortexLayer?.opacity ?? 0.8,
-    assetVortexStrength: 2.0,
-    assetVortexSpeed: 1.0,
-    assetSlicesEnabled: assetSlicesLayer?.enabled ?? false,
-    assetSlicesOpacity: assetSlicesLayer?.opacity ?? 0.8,
-    assetSlicesCount: 16.0,
-    assetSlicesShift: 0.3,
-    assetPolarEnabled: assetPolarLayer?.enabled ?? false,
-    assetPolarOpacity: assetPolarLayer?.opacity ?? 0.8,
-    assetPolarRadius: 0.5,
-    assetPolarTwist: 1.0,
-    assetMosaicEnabled: assetMosaicLayer?.enabled ?? false,
-    assetMosaicOpacity: assetMosaicLayer?.opacity ?? 0.8,
-    assetMosaicTiles: 8.0,
-    assetMosaicFlip: 0.5,
-    assetRippleEnabled: assetRippleLayer?.enabled ?? false,
-    assetRippleOpacity: assetRippleLayer?.opacity ?? 0.8,
-    assetRippleAmplitude: 0.03,
-    assetRippleFrequency: 20.0,
-    assetScatterEnabled: assetScatterLayer?.enabled ?? false,
-    assetScatterOpacity: assetScatterLayer?.opacity ?? 0.8,
-    assetScatterAmount: 0.02,
-    assetScatterSeed: 1.0,
-    assetEchoEnabled: assetEchoLayer?.enabled ?? false,
-    assetEchoOpacity: assetEchoLayer?.opacity ?? 0.8,
-    assetEchoCount: 3.0,
-    assetEchoSpread: 0.15,
-    assetEchoFade: 0.6,
     roleWeights: currentProject.roleWeights || { core: 1, support: 1, atmosphere: 1 },
     transitionAmount: currentTransitionAmount,
     transitionType: currentTransitionType,

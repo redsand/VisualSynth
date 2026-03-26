@@ -55,7 +55,7 @@ vec3 samplePlasma(vec2 uv, float t) {
     mainCall: `  if (uPlasmaEnabled > 0.5) {
     vec3 plasmaColor = samplePlasma(effectUv, uTime);
     applyScopedFx(plasmaColor, effectUv, ulayer_layer_plasma_0_bloom, ulayer_layer_plasma_0_chroma, ulayer_layer_plasma_0_blur, ulayer_layer_plasma_0_posterize);
-    color += plasmaColor * uPlasmaOpacity * uRoleWeights.x;
+    color += plasmaColor * uPlasmaOpacity;
   }
   if (uPlasmaAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
@@ -64,7 +64,7 @@ vec3 samplePlasma(vec2 uv, float t) {
     centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
     vec4 assetSample = texture(uPlasmaAsset, centeredAssetUv);
     vec3 assetColor = assetSample.rgb * (0.85 + audioMod * 0.15);
-    float alpha = assetSample.a * clamp(uPlasmaOpacity, 0.0, 1.0) * uRoleWeights.x;
+    float alpha = assetSample.a * clamp(uPlasmaOpacity, 0.0, 1.0);
     color = applyBlendMode(color, assetColor, uPlasmaAssetBlend, alpha);
   }
 `
@@ -89,8 +89,8 @@ uniform float uSpectrumAssetAudioReact;
     float trailBar = step(effectUv.y, trail);
     vec3 specColor = getPaletteColor(amp) * bar * 0.8;
     applyScopedFx(specColor, effectUv, ulayer_layer_spectrum_0_bloom, ulayer_layer_spectrum_0_chroma, ulayer_layer_spectrum_0_blur, ulayer_layer_spectrum_0_posterize);
-    color += specColor * uSpectrumOpacity * uRoleWeights.y;
-    if (uPersistence > 0.01) { color += getPaletteColor(trail) * trailBar * 0.5 * uPersistence * uRoleWeights.y; }
+    color += specColor * uSpectrumOpacity;
+    if (uPersistence > 0.01) { color += getPaletteColor(trail) * trailBar * 0.5 * uPersistence; }
   }
   if (uSpectrumAssetEnabled > 0.5) {
     vec2 assetUv = effectUv;
@@ -102,7 +102,7 @@ uniform float uSpectrumAssetAudioReact;
     centeredAssetUv = clamp(centeredAssetUv, 0.0, 1.0);
     vec4 assetSample = texture(uSpectrumAsset, centeredAssetUv);
     vec3 assetColor = assetSample.rgb * (0.8 + audioMod * 0.2);
-    float alpha = assetSample.a * clamp(uSpectrumOpacity, 0.0, 1.0) * uRoleWeights.y;
+    float alpha = assetSample.a * clamp(uSpectrumOpacity, 0.0, 1.0);
     color = applyBlendMode(color, assetColor, uSpectrumAssetBlend, alpha);
   }
 `
@@ -126,7 +126,7 @@ uniform float uOrigamiFoldSharpness;
     float crease = smoothstep(sharp, 0.0, foldField);
     vec3 creaseCol = getPaletteColor(0.9) * (0.5 + high * 0.5);
     applyScopedFx(creaseCol, effectUv, ulayer_layer_origami_0_bloom, ulayer_layer_origami_0_chroma, ulayer_layer_origami_0_blur, ulayer_layer_origami_0_posterize);
-    color += creaseCol * crease * uOrigamiOpacity * uRoleWeights.y;
+    color += creaseCol * crease * uOrigamiOpacity;
   }
 `,
   },
@@ -170,7 +170,7 @@ uniform float uGlyphSeed;
     vec3 glyphColor = getPaletteColor(fract(float(bandIndex) * 0.15 + uTime * 0.05));
     glyphColor *= 0.55 + complexity * 0.75;
     applyScopedFx(glyphColor, effectUv, ulayer_layer_glyph_0_bloom, ulayer_layer_glyph_0_chroma, ulayer_layer_glyph_0_blur, ulayer_layer_glyph_0_posterize);
-    color += glyphColor * stroke * uGlyphOpacity * uRoleWeights.y;
+    color += glyphColor * stroke * uGlyphOpacity;
   }
 `,
   },
@@ -212,7 +212,7 @@ uniform float uCrystalBrittleness;
     crystal *= growth + (uCrystalMode < 0.5 ? 0.15 : uCrystalMode < 1.5 ? 0.35 : uCrystalMode < 2.5 ? 0.7 : 0.05);
     crystal *= 0.4 + (1.0 - clamp(uCrystalBrittleness, 0.0, 1.0)) * 0.6;
     applyScopedFx(crystal, effectUv, ulayer_layer_crystal_0_bloom, ulayer_layer_crystal_0_chroma, ulayer_layer_crystal_0_blur, ulayer_layer_crystal_0_posterize);
-    color += crystal * shard * uCrystalOpacity * uRoleWeights.y;
+    color += crystal * shard * uCrystalOpacity;
   }
 `,
   },
@@ -239,7 +239,7 @@ uniform float uInkBrush;
     vec3 inkColor = getPaletteColor(uInkBrush < 0.5 ? 0.1 : uInkBrush < 1.5 ? 0.4 : 0.7);
     if (uInkBrush > 0.5 && uInkBrush < 1.5) stroke *= 0.6 + abs(sin(inkUv.x * 12.0 + uTime * 0.4 * uInkSpeed)) * 0.6;
     applyScopedFx(inkColor, effectUv, ulayer_layer_inkflow_0_bloom, ulayer_layer_inkflow_0_chroma, ulayer_layer_inkflow_0_blur, ulayer_layer_inkflow_0_posterize);
-    color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity * uRoleWeights.z;
+    color += inkColor * stroke * mix(0.3, 0.9, uInkLifespan) * uInkOpacity;
   }
 `,
   },
@@ -267,7 +267,7 @@ uniform float uTopoSlide;
     float mask = smoothstep(0.12, 0.02, abs(sin(terrain * mix(6.0, 18.0, high))) * mix(0.2, 1.0, mid));
     vec3 topoColor = mix(vec3(0.18, 0.28, 0.35), vec3(0.4, 0.6, 0.7), clamp(terrain, 0.0, 1.0));
     applyScopedFx(topoColor, effectUv, ulayer_layer_topo_0_bloom, ulayer_layer_topo_0_chroma, ulayer_layer_topo_0_blur, ulayer_layer_topo_0_posterize);
-    color += topoColor * mask * uTopoOpacity * uRoleWeights.z;
+    color += topoColor * mask * uTopoOpacity;
   }
 `,
   },
@@ -296,7 +296,7 @@ uniform float uWeatherIntensity;
     float snow = smoothstep(0.65, 0.0, abs(sin((wUv.y - uTime * 0.2 * uWeatherSpeed) * 18.0)) * pHigh) * (uWeatherMode > 0.5 && uWeatherMode < 1.5 ? 1.0 : 0.0);
     vec3 weatherColor = (cCol * cloud + vec3(0.4, 0.55, 0.8) * rain + vec3(0.8, 0.85, 0.9) * snow + vec3(1.2, 1.1, 0.9) * smoothstep(0.9, 1.0, pHigh) * (uWeatherMode < 0.5 ? 1.0 : 0.0) * uGlyphBeat) * (0.5 + uWeatherIntensity * 0.6);
     applyScopedFx(weatherColor, effectUv, ulayer_layer_weather_0_bloom, ulayer_layer_weather_0_chroma, ulayer_layer_weather_0_blur, ulayer_layer_weather_0_posterize);
-    color += weatherColor * uWeatherOpacity * uRoleWeights.z;
+    color += weatherColor * uWeatherOpacity;
   }
 `,
   },
@@ -330,7 +330,7 @@ uniform float uPortalActive[4];
     if (style >= 1.5) baseCol = vec3(0.2, 0.9, 0.55);
     vec3 portalColor = (baseCol + vec3(0.2, 0.1, 0.3) * uPortalShift) * ringGlow;
     applyScopedFx(portalColor, effectUv, ulayer_layer_portal_0_bloom, ulayer_layer_portal_0_chroma, ulayer_layer_portal_0_blur, ulayer_layer_portal_0_posterize);
-    color += portalColor * uPortalOpacity * uRoleWeights.z;
+    color += portalColor * uPortalOpacity;
   }
 `,
   },
@@ -357,7 +357,7 @@ uniform float uMediaBurstType[8];
     vec4 assetSample = texture(uMediaAsset, centeredAssetUv);
     vec3 assetColor = assetSample.rgb * (0.85 + audioMod * 0.15);
     applyScopedFx(assetColor, effectUv, ulayer_layer_media_0_bloom, ulayer_layer_media_0_chroma, ulayer_layer_media_0_blur, ulayer_layer_media_0_posterize);
-    float alpha = assetSample.a * clamp(uMediaOpacity, 0.0, 1.0) * uRoleWeights.y;
+    float alpha = assetSample.a * clamp(uMediaOpacity, 0.0, 1.0);
     color = applyBlendMode(color, assetColor, uMediaAssetBlend, alpha);
   }
   if (uMediaEnabled > 0.5) {
@@ -369,7 +369,7 @@ uniform float uMediaBurstType[8];
         float ring = smoothstep(r, r * 0.7, length(delta)) * smoothstep(r * 0.3, r * 0.6, length(delta));
         vec3 burstColor = vec3(1.0, 0.9, 0.8) * ring * activeAmt;
         applyScopedFx(burstColor, effectUv, ulayer_layer_media_0_bloom, ulayer_layer_media_0_chroma, ulayer_layer_media_0_blur, ulayer_layer_media_0_posterize);
-        color += burstColor * uMediaOpacity * uRoleWeights.y;
+        color += burstColor * uMediaOpacity;
       }
   }
 `,
@@ -396,7 +396,7 @@ uniform float uAssetVortexSpeed;
     vec2 warpedUv = vortexWarp(effectUv, uTime * uAssetVortexSpeed, uAssetVortexStrength + uPeak * 2.0);
     warpedUv = clamp(warpedUv, 0.0, 1.0);
     vec4 tex = texture(uAssetVortexAsset, warpedUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetVortexOpacity * uRoleWeights.y);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetVortexOpacity);
   }
 `,
   },
@@ -418,7 +418,7 @@ uniform float uAssetSlicesShift;
     float shift = amp * uAssetSlicesShift;
     vec2 slicedUv = vec2(fract(effectUv.x + shift), effectUv.y);
     vec4 tex = texture(uAssetSlicesAsset, slicedUv);
-    color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetSlicesOpacity * uRoleWeights.y);
+    color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetSlicesOpacity);
   }
 `,
   },
@@ -440,7 +440,7 @@ uniform float uAssetPolarTwist;
     mainCall: `  if (uAssetPolarEnabled > 0.5) {
     vec2 polarUv = polarCoords(effectUv, uAssetPolarRadius + uRms * 0.2, uAssetPolarTwist + uTime * 0.1);
     vec4 tex = texture(uAssetPolarAsset, clamp(polarUv, 0.0, 1.0));
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetPolarOpacity * uRoleWeights.y);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetPolarOpacity);
   }
 `,
   },
@@ -462,7 +462,7 @@ uniform float uAssetMosaicFlip;
     float flip = step(0.5 + uPeak * uAssetMosaicFlip, hash);
     tileUv = mix(tileUv, 1.0 - tileUv, flip);
     vec4 tex = texture(uAssetMosaicAsset, tileUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetMosaicOpacity * uRoleWeights.y);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetMosaicOpacity);
   }
 `,
   },
@@ -486,7 +486,7 @@ uniform float uAssetRippleFrequency;
     vec2 rippledUv = rippleWarp(effectUv, uTime, amp, uAssetRippleFrequency);
     rippledUv = clamp(rippledUv, 0.0, 1.0);
     vec4 tex = texture(uAssetRippleAsset, rippledUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetRippleOpacity * uRoleWeights.y);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetRippleOpacity);
   }
 `,
   },
@@ -508,7 +508,7 @@ uniform float uAssetScatterSeed;
     float scatter = uAssetScatterAmount * (1.0 + uPeak * 5.0);
     vec2 scatteredUv = scatterWarp(effectUv, scatter, uAssetScatterSeed + uTime * 0.1);
     vec4 tex = texture(uAssetScatterAsset, clamp(scatteredUv, 0.0, 1.0));
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetScatterOpacity * uRoleWeights.y);
+    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetScatterOpacity);
   }
 `,
   },
@@ -532,7 +532,7 @@ uniform float uAssetEchoFade;
       echoUv = clamp(echoUv, 0.0, 1.0);
       vec4 tex = texture(uAssetEchoAsset, echoUv);
       float fade = pow(uAssetEchoFade, i);
-      color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetEchoOpacity * fade * uRoleWeights.y);
+      color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetEchoOpacity * fade);
     }
   }
 `,
@@ -562,7 +562,7 @@ uniform float uOscillo[64];
     }
     vec3 oscColor = (mix(vec3(0.95, 0.82, 0.6), vec3(0.6, 0.8, 1.0), uSpectrum[28]) * (0.6 + smoothstep(0.2, 0.7, uRms) * 0.5) + mix(vec3(0.95, 0.5, 0.2), vec3(0.7, 0.9, 1.0), uSpectrum[8]) * (0.2 + uPeak * 0.6) + vec3(0.2, 0.15, 0.4) * arcGlow) * (smoothstep(0.07, 0.0, minDist) + smoothstep(0.18, 0.0, minDist) * 0.35 + arcGlow);
     applyScopedFx(oscColor, effectUv, ulayer_layer_oscillo_0_bloom, ulayer_layer_oscillo_0_chroma, ulayer_layer_oscillo_0_blur, ulayer_layer_oscillo_0_posterize);
-    color += oscColor * uOscilloOpacity * uRoleWeights.y;
+    color += oscColor * uOscilloOpacity;
   }
 `,
   },
@@ -842,8 +842,10 @@ uniform float uGeoWireframeOpacity;
     uniforms: `uniform float uSignalNoiseEnabled;
 uniform float uSignalNoiseOpacity;
 uniform float uSignalNoiseAmount;
+uniform float uSignalNoiseAssetEnabled;
+uniform sampler2D uSignalNoiseAsset;
 `,
-    functions: `vec3 signalNoise(vec2 uv, float t) {
+    functions: `vec3 signalNoise(vec2 uv, float t, vec3 baseColor) {
   float n = hash21(uv * 200.0 + t * 10.0);
   float n2 = hash21(floor(uv * 80.0) + t * 5.0);
 
@@ -852,13 +854,17 @@ uniform float uSignalNoiseAmount;
   float staticGrain = n * 0.5 + n2 * 0.3;
   float burst = scanline * 1.5;
 
-  vec3 col = getPaletteColor(fract(n + t * 0.1)) * (staticGrain + burst);
-  col += vec3(scanline) * 0.4;
+  vec3 noiseCol = getPaletteColor(fract(n + t * 0.1)) * (staticGrain + burst);
+  noiseCol += vec3(scanline) * 0.4;
 
-  return col * uSignalNoiseOpacity * uSignalNoiseAmount;
+  return mix(baseColor, noiseCol, uSignalNoiseAmount) * uSignalNoiseOpacity;
 }`,
     mainCall: `  if (uSignalNoiseEnabled > 0.5) {
-    color += signalNoise(effectUv, uTime);
+    vec3 base = vec3(0.0);
+    if (uSignalNoiseAssetEnabled > 0.5) {
+      base = texture(uSignalNoiseAsset, effectUv).rgb;
+    }
+    color += signalNoise(effectUv, uTime, base);
   }
 `,
   },
@@ -5024,7 +5030,7 @@ uniform float uMilkwaveOpacity;
   return col * (0.35 + haze * 0.85);
 }
 `,
-    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity * uRoleWeights.y;
+    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity;
 `,
   },
 
