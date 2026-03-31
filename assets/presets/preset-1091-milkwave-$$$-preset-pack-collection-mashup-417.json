@@ -37,12 +37,14 @@
         ]
       },
       "certificationStatus": "degraded-usable",
-      "lastCertifiedAt": "2026-03-23T00:16:16.963Z",
+      "lastCertifiedAt": "2026-03-31T13:52:00.358Z",
       "qualityScores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 0.35
-      }
+      },
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",

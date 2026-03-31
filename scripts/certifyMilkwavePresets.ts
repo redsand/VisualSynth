@@ -17,6 +17,8 @@ interface CertificationResult {
     completeness: number; // 0-1
   };
   reasons: string[];
+  proofPassed: boolean;
+  proofFailedSteps: string[];
 }
 
 function calculateScores(report: MilkwaveAuditReport) {
@@ -51,10 +53,14 @@ function certify() {
   for (const report of auditData.results as (MilkwaveAuditReport & { expectedSupport: string })[]) {
     const scores = calculateScores(report);
     const reasons: string[] = [];
+    const proofPassed = report.proof?.proven ?? false;
+    const proofFailedSteps = (report.proof?.steps ?? [])
+      .filter(step => !step.passed)
+      .map(step => step.id);
 
     let status: 'certified-safe' | 'degraded-usable' | 'broken-archive' = 'broken-archive';
 
-    if (report.classification === 'native-supported' && !report.fallbackUsed && report.errors.length === 0) {
+    if (proofPassed && report.classification === 'native-supported' && !report.fallbackUsed && report.errors.length === 0) {
       status = 'certified-safe';
     } else if (report.classification === 'runtime-failed') {
       status = 'broken-archive';
@@ -64,13 +70,18 @@ function certify() {
       if (report.fallbackUsed) reasons.push('Fallback used for some features');
       if (report.errors.length > 0) reasons.push(...report.errors);
     }
+    if (!proofPassed) {
+      reasons.push(`Proof failed: ${proofFailedSteps.join(', ') || 'unknown-steps'}`);
+    }
 
     results.push({
       id: report.id,
       name: report.name,
       certificationStatus: status,
       scores,
-      reasons
+      reasons,
+      proofPassed,
+      proofFailedSteps
     });
   }
 
@@ -104,6 +115,11 @@ function certify() {
     md += `- **${r.name}** (${r.id}) - Score: ${((r.scores.compile + r.scores.stability + r.scores.completeness) / 3).toFixed(2)}\n`;
   });
 
+  md += `\n## Proof Failures ⚠️\n\n`;
+  results.filter(r => !r.proofPassed).forEach(r => {
+    md += `- **${r.name}** (${r.id}) - Failed steps: ${r.proofFailedSteps.join(', ') || 'unknown'}\n`;
+  });
+
   md += `\n## Broken / Archive Candidates ❌\n\n`;
   results.filter(r => r.certificationStatus === 'broken-archive').forEach(r => {
     md += `- **${r.name}** (${r.id}) - Reasons: ${r.reasons.join(', ')}\n`;
@@ -123,7 +139,9 @@ function certify() {
           ...content.metadata.milkwave,
           certificationStatus: res.certificationStatus,
           lastCertifiedAt: certificationReport.timestamp,
-          qualityScores: res.scores
+          qualityScores: res.scores,
+          proofPassed: res.proofPassed,
+          proofFailedSteps: res.proofFailedSteps
         };
         fs.writeFileSync(presetPath, JSON.stringify(content, null, 2));
       }

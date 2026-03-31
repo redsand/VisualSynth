@@ -269,7 +269,8 @@ const createProgram = (
   fs: WebGLShader,
   trackProgram: <T extends WebGLProgram | null>(p: T) => T,
   untrackProgram: <T extends WebGLProgram | null>(p: T) => T,
-  untrackShader: <T extends WebGLShader | null>(s: T) => T
+  untrackShader: <T extends WebGLShader | null>(s: T) => T,
+  deleteShadersAfterLink: boolean = true
 ): { program: WebGLProgram | null, error?: string } => {
   const program = trackProgram(gl.createProgram());
   if (!program) return { program: null, error: 'Failed to create program' };
@@ -283,11 +284,13 @@ const createProgram = (
     gl.deleteProgram(program);
     return { program: null, error: info };
   }
-  // Detach and delete shaders after successful link to prevent resource leaks.
+  // Detach and optionally delete shaders after successful link.
   gl.detachShader(program, vs);
   gl.detachShader(program, fs);
-  untrackShader(vs); gl.deleteShader(vs);
-  untrackShader(fs); gl.deleteShader(fs);
+  if (deleteShadersAfterLink) {
+    untrackShader(vs); gl.deleteShader(vs);
+    untrackShader(fs); gl.deleteShader(fs);
+  }
 
   return { program };
 };
@@ -752,10 +755,19 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (!vs) return;
     gl.shaderSource(vs, BLUR_VERTEX_SHADER);
     gl.compileShader(vs);
-    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) return;
-    const fs = createMilkDropFragmentShader(gl, BLUR_FRAGMENT_SHADER, trackShader);
-    if (!fs) return;
-    blurProgram = createProgram(gl, vs, fs, trackProgram, untrackProgram, untrackShader);
+    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+      untrackShader(vs);
+      gl.deleteShader(vs);
+      return;
+    }
+    const fsResult = createMilkDropFragmentShader(gl, BLUR_FRAGMENT_SHADER, trackShader);
+    if (!fsResult.shader) {
+      untrackShader(vs);
+      gl.deleteShader(vs);
+      return;
+    }
+    const linkResult = createProgram(gl, vs, fsResult.shader, trackProgram, untrackProgram, untrackShader);
+    blurProgram = linkResult.program;
   };
   initBlurProgram();
 
@@ -901,7 +913,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       });
       const warpFsResult = createMilkDropFragmentShader(gl, patchedWarp, trackShader);
       if (warpFsResult.shader) {
-        const linkResult = createProgram(gl, vs, warpFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        const linkResult = createProgram(gl, vs, warpFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
         warpProgram = linkResult.program;
         if (!warpProgram) {
           lastCompileReport.warp.status = 'failed';
@@ -916,7 +928,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         const fallbackWarp = createFallbackWarpShader();
         const fallbackFsResult = createMilkDropFragmentShader(gl, fallbackWarp, trackShader);
         if (fallbackFsResult.shader) {
-          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader);
+          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
           warpProgram = linkResult.program;
           if (warpProgram) {
             lastCompileReport.warp.status = 'fallback';
@@ -930,7 +942,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       const nativeWarp = createNativePerPixelWarpShader(shaderData.originalParameters, shaderData.perPixelCode);
       const nativeFsResult = createMilkDropFragmentShader(gl, nativeWarp, trackShader);
       if (nativeFsResult.shader) {
-        const linkResult = createProgram(gl, vs, nativeFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        const linkResult = createProgram(gl, vs, nativeFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
         warpProgram = linkResult.program;
         if (warpProgram) {
           lastCompileReport.warp.status = 'success';
@@ -944,7 +956,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         const fallbackWarp = createDefaultWarpShader(shaderData.originalParameters);
         const fallbackFsResult = createMilkDropFragmentShader(gl, fallbackWarp, trackShader);
         if (fallbackFsResult.shader) {
-          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader);
+          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
           warpProgram = linkResult.program;
           if (warpProgram) {
             lastCompileReport.warp.status = 'degraded';
@@ -958,7 +970,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       const defaultWarp = createDefaultWarpShader(shaderData.originalParameters);
       const defaultFsResult = createMilkDropFragmentShader(gl, defaultWarp, trackShader);
       if (defaultFsResult.shader) {
-        const linkResult = createProgram(gl, vs, defaultFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        const linkResult = createProgram(gl, vs, defaultFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
         warpProgram = linkResult.program;
         if (warpProgram) {
           lastCompileReport.warp.status = 'success';
@@ -987,7 +999,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       });
       const compFsResult = createMilkDropFragmentShader(gl, patchedComp, trackShader);
       if (compFsResult.shader) {
-        const linkResult = createProgram(gl, vs, compFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        const linkResult = createProgram(gl, vs, compFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
         compProgram = linkResult.program;
         if (!compProgram) {
           lastCompileReport.comp.status = 'failed';
@@ -1002,7 +1014,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         const fallbackComp = createFallbackCompShader();
         const fallbackFsResult = createMilkDropFragmentShader(gl, fallbackComp, trackShader);
         if (fallbackFsResult.shader) {
-          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader);
+          const linkResult = createProgram(gl, vs, fallbackFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
           compProgram = linkResult.program;
           if (compProgram) {
             lastCompileReport.comp.status = 'fallback';
@@ -1016,7 +1028,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       const defaultComp = createFallbackCompShader();
       const defaultFsResult = createMilkDropFragmentShader(gl, defaultComp, trackShader);
       if (defaultFsResult.shader) {
-        const linkResult = createProgram(gl, vs, defaultFsResult.shader, trackProgram, untrackProgram, untrackShader);
+        const linkResult = createProgram(gl, vs, defaultFsResult.shader, trackProgram, untrackProgram, untrackShader, false);
         compProgram = linkResult.program;
         if (compProgram) {
           lastCompileReport.comp.status = 'success';

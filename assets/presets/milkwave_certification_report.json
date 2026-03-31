@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-03-23T00:16:16.963Z",
+  "timestamp": "2026-03-31T13:52:00.358Z",
   "stats": {
     "total": 100,
-    "certifiedSafe": 13,
-    "degradedUsable": 72,
+    "certifiedSafe": 0,
+    "degradedUsable": 85,
     "brokenArchive": 15
   },
   "results": [
@@ -17,8 +17,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1001-milkwave-!!-!!-!!-!!-v-violas-rainbows-qradjo-pw-ps32yax240",
@@ -30,8 +33,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1002-milkwave-!!-!!-!!-!!-v-violas-rainbows-qradjo-pw-ps32yax240",
@@ -43,8 +49,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1003-milkwave-!!-!!-!!-!!-v-violas-rainbows-qradjo-pw-ps32yax240",
@@ -56,8 +65,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1004-milkwave-!!-!!-!!-!!-v-violas-rainbows-qradjo-pw-ps32yax240",
@@ -69,8 +81,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1005-milkwave-!!-!!-!!-!!-v-violas-rainbows-qradjo-pw-ps32yax240",
@@ -82,8 +97,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1006-milkwave-!!-!!-!!-!!-v-violas-rainbows46700",
@@ -95,8 +113,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1007-milkwave-threads-of-fate0",
@@ -108,8 +129,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1008-milkwave-!!!!!!!!!!!gedxitfar-suz-99978899h796jj0!000000000",
@@ -121,8 +145,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1009-milkwave-!!!!!!!!!!!gedxitfar-suz-99978899h796jj0!000000000",
@@ -134,8 +161,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1010-milkwave-!!!aaa00000000000000000000000000000000000000000000",
@@ -147,8 +177,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1011-milkwave-!!!aaa00000000000000000000000000000000000000000000",
@@ -160,8 +193,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1012-milkwave-!!!dear!wno-words-cseame-cum2363112qqyww0",
@@ -173,8 +209,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1013-milkwave-!!zzz3-log10",
@@ -186,8 +225,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1014-milkwave-!!zzz3-log1000000",
@@ -199,8 +241,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1015-milkwave-!!zzz3-log1000000000",
@@ -212,8 +257,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1016-milkwave-!!zzz3-log100000000000000000000000",
@@ -225,8 +273,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1017-milkwave-!!zzz3-log1000000000000000000000000",
@@ -238,8 +289,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1018-milkwave-!!zzz3-log10000000000000000000000000",
@@ -251,8 +305,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1019-milkwave-!!zzz3-log1000000000000000000000000000000",
@@ -264,8 +321,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1020-milkwave-!!zzz3-log10000000000000000000000000000000",
@@ -277,8 +337,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1021-milkwave-!!zzz3-log100000000000000000000000000000000",
@@ -290,8 +353,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1022-milkwave-!!zzz3-log1000000000000000000000000000000000",
@@ -303,8 +369,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1023-milkwave-!!zzz3-log10000000000000000000000000000000000",
@@ -316,8 +385,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1024-milkwave-!!zzz3-log100000000000000000000000000000000000",
@@ -329,8 +401,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1025-milkwave-!!zzz3",
@@ -342,8 +417,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1026-milkwave-!!zzz30",
@@ -355,8 +433,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1027-milkwave-mashup-(364)",
@@ -368,8 +449,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1028-milkwave-!44-!-!-ra05",
@@ -381,8 +465,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1029-milkwave-001500500000004044043000000000s000000000",
@@ -394,19 +481,26 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1030-milkwave-tumbling-cubes-gedit",
       "name": "tumbling cubes gedit",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1031-milkwave-poweramp-special-(smailicona-eedit)",
@@ -418,8 +512,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1032-milkwave-!qflmnqqqt-014cogs00000000000000",
@@ -431,8 +528,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1033-milkwave-......aztro-n-m",
@@ -444,8 +544,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1034-milkwave-......aztro-speaker-sq-1-c",
@@ -457,8 +560,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1035-milkwave-......aztro-speaker-sq-1",
@@ -470,8 +576,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1036-milkwave-...aztro-disco-2-strobem",
@@ -483,8 +592,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1037-milkwave-shadowharlequin,-distant-electro-storm",
@@ -496,8 +608,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1038-milkwave-shadowharlequin,-ft-shifter-feathers-do-fly-in-hd",
@@ -509,8 +624,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1039-milkwave-.milktop-hdfx-presets-ft-aderrasi,adamfx,rovastar,",
@@ -522,8 +640,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1040-milkwave-bitstorm-aftermathfx-j",
@@ -535,85 +656,116 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1041-milkwave-shards-(fast)",
       "name": "Shards (Fast)",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1042-milkwave-shards-(in-the-dark)",
       "name": "Shards (In the Dark)",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1043-milkwave-shards",
       "name": "Shards",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1044-milkwave-bass-detector---arms-3",
       "name": "bass detector - arms 3",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1045-milkwave-bass-detector---arms-4",
       "name": "bass detector - arms 4",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1046-milkwave-bass-detector---arms-5",
       "name": "bass detector - arms 5",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1047-milkwave-bass-detector---arms-6",
       "name": "bass detector - arms 6",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1048-milkwave-[dylan]-8bit-printer-(spectratex)",
@@ -625,8 +777,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1049-milkwave-[dylan]-8bit-printer-mod-(spectratex)-semitudinal-",
@@ -638,8 +793,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1050-milkwave-[dylan]-8bit-printer-mod-(spectratex)-semitudinal",
@@ -651,8 +809,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1051-milkwave-[dylan]-8bit-printer-mod-(spectratex)",
@@ -664,8 +825,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1052-milkwave-[dylan]-blank-(spectratex)",
@@ -677,8 +841,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1053-milkwave-[dylan]-bloodshoot",
@@ -690,8 +857,11 @@
         "completeness": 0.5
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1054-milkwave-no-effects---code-is-very-messy-disproporth",
@@ -703,8 +873,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1055-milkwave-no-effects---code-is-very-messy-escapist's-quandry",
@@ -716,8 +889,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1056-milkwave-no-effects---code-is-very-messy-fraidy-catting-egr",
@@ -729,8 +905,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1057-milkwave-no-effects---code-is-very-messy-fraidy-catting",
@@ -742,8 +921,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1058-milkwave-no-effects---code-is-very-messy-garbonzo-negentroo",
@@ -755,8 +937,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1059-milkwave-no-effects---code-is-very-messy-nz+-aedd-mnauz",
@@ -768,8 +953,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1060-milkwave-no-effects---code-is-very-messy-nz+-i-hope-you-and",
@@ -781,8 +969,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1061-milkwave-no-effects---code-is-very-messy-nz+-my-nephew-star",
@@ -794,8 +985,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1062-milkwave-no-effects---code-is-very-messy-nz+-stop-downloadi",
@@ -807,8 +1001,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1063-milkwave-no-effects---code-is-very-messy-nz+-vampiric-re-co",
@@ -820,8 +1017,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1064-milkwave-no-effects---code-is-very-messy-phruedendian-schle",
@@ -833,8 +1033,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1065-milkwave-no-effects---code-is-very-messy",
@@ -846,8 +1049,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1066-milkwave-[dylan]-insidejackshead-(spectratex)-nz+-fizun",
@@ -859,8 +1065,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1067-milkwave-[dylan]-insidejackshead-(spectratex)",
@@ -872,8 +1081,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1068-milkwave-[dylan]-lazycube-(spectratex)",
@@ -885,8 +1097,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1069-milkwave-[dylan]-lazycube2-(spectratex)",
@@ -898,8 +1113,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1070-milkwave-[dylan]-led-(spectratex)-modded",
@@ -911,8 +1129,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1071-milkwave-[dylan]-led-(spectratex)",
@@ -924,8 +1145,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1072-milkwave-[dylan]-led-ravers-addition-(spectratex)",
@@ -937,8 +1161,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1073-milkwave-[dylan]-potato-painter-(specratex)",
@@ -950,8 +1177,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1074-milkwave-[dylan]-sonic-errosion-(spectratex)",
@@ -963,8 +1193,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1075-milkwave-[dylan]-sonic-errosion-squgqle-(spectratex)",
@@ -976,8 +1209,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1076-milkwave-[dylan]-sonic-layers-(spectratex)",
@@ -989,8 +1225,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1077-milkwave-[dylan]-sonic-layers-squgqle-(spectratex)",
@@ -1002,19 +1241,26 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1078-milkwave-anuera",
       "name": "Anuera",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1079-milkwave-drug-addict-(jelly-v3)",
@@ -1026,52 +1272,71 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1080-milkwave-drug-addict",
       "name": "Drug Addict",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1081-milkwave-soul-amplifier",
       "name": "Soul Amplifier",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1082-milkwave-soul-amplifier(unreal-remix)",
       "name": "Soul Amplifier(Unreal remix)",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1083-milkwave-[mashup-by-tony]-a-thousand-time-to-play-this-game",
       "name": "[MASHUP by Tony] A Thousand Time To Play This Game, Escape The Worm, Julian Sploosh, Bitterfeld, Artificial Poles Of The Continuum",
-      "certificationStatus": "certified-safe",
+      "certificationStatus": "degraded-usable",
       "scores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 1
       },
-      "reasons": []
+      "reasons": [
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1084-milkwave-hexcollie---armandio-c---geiss---martin-(notherfou",
@@ -1083,8 +1348,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1085-milkwave-hexcollie---armandio-c---geiss---martin-(notherfou",
@@ -1096,8 +1364,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1086-milkwave-martin---glassball-dance-with-journey-into-space-(",
@@ -1109,8 +1380,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1087-milkwave-$$$-preset-pack-collection-mashup-209",
@@ -1122,8 +1396,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1088-milkwave-$$$-preset-pack-collection-mashup-224",
@@ -1135,8 +1412,11 @@
         "completeness": 0.5
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1089-milkwave-$$$-preset-pack-collection-mashup-297",
@@ -1148,8 +1428,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1090-milkwave-$$$-preset-pack-collection-mashup-338",
@@ -1161,8 +1444,11 @@
         "completeness": 0.5
       },
       "reasons": [
-        "[link] Failed to link comp program"
-      ]
+        "[link] Failed to link comp program",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1091-milkwave-$$$-preset-pack-collection-mashup-417",
@@ -1174,8 +1460,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1092-milkwave-$$$-preset-pack-collection-mashup-432",
@@ -1187,8 +1476,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1093-milkwave-$$$-preset-pack-collection-mashup-457",
@@ -1200,8 +1492,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1094-milkwave-mashup-(1)",
@@ -1213,8 +1508,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1095-milkwave-mashup-(10)",
@@ -1226,8 +1524,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1096-milkwave-mashup-(100)",
@@ -1239,8 +1540,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1097-milkwave-mashup-(102)",
@@ -1252,8 +1556,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1098-milkwave-mashup-(104)",
@@ -1265,8 +1572,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     },
     {
       "id": "preset-1099-milkwave-mashup-(109)",
@@ -1278,8 +1588,11 @@
         "completeness": 0.35
       },
       "reasons": [
-        "Fallback used for some features"
-      ]
+        "Fallback used for some features",
+        "Proof failed: unknown-steps"
+      ],
+      "proofPassed": false,
+      "proofFailedSteps": []
     }
   ]
 }

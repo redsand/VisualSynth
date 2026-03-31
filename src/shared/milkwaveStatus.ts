@@ -1,6 +1,28 @@
 import type { MilkwaveShaderDiagnostics } from './milkwaveDiagnostics';
 
 export type MilkwaveRuntimeStatus = 'success' | 'degraded' | 'fallback' | 'failed';
+export type MilkwaveProofStepId =
+  | 'compile-warp'
+  | 'compile-comp'
+  | 'render-activity'
+  | 'no-fallback'
+  | 'no-errors';
+
+export interface MilkwaveProofStep {
+  id: MilkwaveProofStepId;
+  label: string;
+  passed: boolean;
+  details: string;
+}
+
+export interface MilkwaveAuditProof {
+  proven: boolean;
+  fallbackReached: boolean;
+  visibleActivity: boolean;
+  stepCount: number;
+  passedStepCount: number;
+  steps: MilkwaveProofStep[];
+}
 
 export interface MilkwaveAuditReport {
   id: string;
@@ -14,6 +36,7 @@ export interface MilkwaveAuditReport {
   errors: string[];
   warnings: string[];
   auditAt: string;
+  proof: MilkwaveAuditProof;
 }
 
 export interface MilkDropCompileReportPass {
