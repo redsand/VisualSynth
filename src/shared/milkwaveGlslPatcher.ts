@@ -366,6 +366,28 @@ const preprocess = (source: string): string => {
   // ── 0b. Strip HLSL sampler declarations ──
   source = source.replace(/\bsampler\s+[^;]+;/g, '');
 
+  // ── 0b.5. Move #define statements from inside shader_body to before void main() ──
+  // Some presets have #define aliases inside shader_body that need to be moved.
+  const mainIdx2 = source.indexOf('void main()');
+  if (mainIdx2 !== -1) {
+    const beforeMain = source.substring(0, mainIdx2);
+    const afterMain = source.substring(mainIdx2);
+    // Find #define lines inside main body (after void main() {)
+    const mainBrace2 = afterMain.indexOf('{');
+    if (mainBrace2 !== -1) {
+      const mainBody = afterMain.substring(mainBrace2);
+      const definesInside: string[] = [];
+      const mainBodyWithoutDefines = mainBody.replace(/^(\s*#define\s+\w+\s+\w+\s*)$/gm, (match) => {
+        definesInside.push(match.trim());
+        return '';
+      });
+      if (definesInside.length > 0) {
+        // Move defines to before main
+        source = beforeMain + definesInside.join('\n') + '\n\n' + afterMain.substring(0, mainBrace2) + mainBodyWithoutDefines;
+      }
+    }
+  }
+
   // ── 0c. Strip shader_body keyword everywhere ──
   source = source.replace(/\bshader_body\b/g, '');
 
@@ -652,7 +674,7 @@ const collectDeclaredNames = (ast: Program): Set<string> => {
 
 /**
  * Collect all identifier usages relevant for undeclared variable detection.
- * Only captures LHS of assignments (actual variable assignments, not swizzle reads).
+ * Captures LHS of assignments, including swizzle targets like `cnt.xyz = ...`.
  */
 const collectIdentifier = (ast: Program): { assignments: Set<string>; assignmentNodes: Map<string, AssignmentNode> } => {
   const assignments = new Set<string>();
@@ -666,6 +688,16 @@ const collectIdentifier = (ast: Program): { assignments: Set<string>; assignment
           const name = (node.left as IdentifierNode).identifier;
           assignments.add(name);
           assignmentNodes.set(name, node);
+        } else if (node.left.type === 'postfix') {
+          // Handle swizzle assignments like cnt.xyz = ...
+          const postfix = node.left as PostfixNode;
+          if (postfix.expression && postfix.expression.type === 'identifier') {
+            const name = (postfix.expression as IdentifierNode).identifier;
+            assignments.add(name);
+            if (!assignmentNodes.has(name)) {
+              assignmentNodes.set(name, node);
+            }
+          }
         }
       },
     },
@@ -831,7 +863,23 @@ const astTransform = (source: string): string => {
   for (const name of undeclared) {
     const assignNode = assignmentNodes.get(name);
     if (assignNode) {
-      const dim = inferDim(assignNode.right, typeMap);
+      // Infer from RHS dimension
+      let dim = inferDim(assignNode.right, typeMap);
+
+      // Also check LHS swizzle dimension (for assignments like cnt.xyz = ...)
+      if (assignNode.left.type === 'postfix') {
+        const postfix = assignNode.left as PostfixNode;
+        if (postfix.postfix && postfix.postfix.type === 'field_selection') {
+          const fs = postfix.postfix as FieldSelectionNode;
+          const swizzle = fs.selection.type === 'literal'
+            ? (fs.selection as LiteralNode).literal
+            : '';
+          if (/^[xyzwrgba]+$/.test(swizzle) && swizzle.length >= 2) {
+            dim = Math.max(dim, swizzle.length);
+          }
+        }
+      }
+
       if (dim === 2) inferredTypes.set(name, 'vec2');
       else if (dim === 3) inferredTypes.set(name, 'vec3');
       else if (dim === 4) inferredTypes.set(name, 'vec4');
