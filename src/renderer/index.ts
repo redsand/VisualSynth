@@ -13494,7 +13494,6 @@ const render = (time: number) => {
     gravityPolarities,
     gravityActives,
     gravityCollapse,
-    genUniforms,
     sessionHealth: sessionHealthService.getHealth(),
     performanceMode: currentProject.performanceMode?.enabled,
   };
@@ -13961,33 +13960,39 @@ const init = async () => {
     hideLoadingSplash();
   }, 300);
 
-  // Handle close request from main process
-  window.visualSynth?.onCloseRequested(async () => {
-    if (!projectDirty) {
-      await window.visualSynth.confirmClose();
-      return;
-    }
+  // Handle close request from main process (Electron only)
+  try {
+    if (typeof window.visualSynth?.onCloseRequested === 'function') {
+      window.visualSynth.onCloseRequested(async () => {
+        if (!projectDirty) {
+          await window.visualSynth.confirmClose();
+          return;
+        }
 
-    const { result } = await window.visualSynth.showSaveDialog(isRecoveryProject);
-    
-    if (result === 'cancel') {
-      return;
+        const { result } = await window.visualSynth.showSaveDialog(isRecoveryProject);
+
+        if (result === 'cancel') {
+          return;
+        }
+
+        if (result === 'save') {
+          const payload = serializeProject();
+          const saveResult = isRecoveryProject
+            ? await window.visualSynth.saveProjectAs(payload)
+            : await window.visualSynth.saveProject(payload);
+
+          if (saveResult.canceled) {
+            return;
+          }
+          projectDirty = false;
+        }
+
+        await window.visualSynth.confirmClose();
+      });
     }
-    
-    if (result === 'save') {
-      const payload = serializeProject();
-      const saveResult = isRecoveryProject
-        ? await window.visualSynth.saveProjectAs(payload)
-        : await window.visualSynth.saveProject(payload);
-      
-      if (saveResult.canceled) {
-        return;
-      }
-      projectDirty = false;
-    }
-    
-    await window.visualSynth.confirmClose();
-  });
+  } catch {
+    // Running outside Electron (browser testing) — no close handler needed
+  }
 
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {
