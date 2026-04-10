@@ -68,6 +68,21 @@ const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const normalizeMilkDropShaderData = (shaderData: any) => {
   if (!shaderData) return undefined;
+
+  const normalizeShapeCodeArrays = (shape: any) => ({
+    ...shape,
+    initCode: Array.isArray(shape.initCode) ? shape.initCode.filter((l: any) => typeof l === 'string') : [],
+    perFrameCode: Array.isArray(shape.perFrameCode) ? shape.perFrameCode.filter((l: any) => typeof l === 'string') : [],
+    perPointCode: Array.isArray(shape.perPointCode) ? shape.perPointCode.filter((l: any) => typeof l === 'string') : []
+  });
+
+  const normalizeWaveCodeArrays = (wave: any) => ({
+    ...wave,
+    initCode: Array.isArray(wave.initCode) ? wave.initCode.filter((l: any) => typeof l === 'string') : [],
+    perFrameCode: Array.isArray(wave.perFrameCode) ? wave.perFrameCode.filter((l: any) => typeof l === 'string') : [],
+    perPointCode: Array.isArray(wave.perPointCode) ? wave.perPointCode.filter((l: any) => typeof l === 'string') : []
+  });
+
   return {
     ...shaderData,
     warp: typeof shaderData.warp === 'string' ? shaderData.warp : '',
@@ -75,8 +90,8 @@ const normalizeMilkDropShaderData = (shaderData: any) => {
     perFrameCode: Array.isArray(shaderData.perFrameCode) ? shaderData.perFrameCode : [],
     perFrameInitCode: Array.isArray(shaderData.perFrameInitCode) ? shaderData.perFrameInitCode : [],
     perPixelCode: Array.isArray(shaderData.perPixelCode) ? shaderData.perPixelCode : [],
-    waves: Array.isArray(shaderData.waves) ? cloneJson(shaderData.waves) : [],
-    shapes: Array.isArray(shaderData.shapes) ? cloneJson(shaderData.shapes) : [],
+    waves: Array.isArray(shaderData.waves) ? shaderData.waves.map(normalizeWaveCodeArrays) : [],
+    shapes: Array.isArray(shaderData.shapes) ? shaderData.shapes.map(normalizeShapeCodeArrays) : [],
     originalParameters:
       shaderData.originalParameters && typeof shaderData.originalParameters === 'object'
         ? shaderData.originalParameters

@@ -71,9 +71,9 @@ export const createMilkwaveShapePlan = ({
     b: clamp01(shape.b2),
     a: clamp01(shape.a2)
   },
-  hasInitCode: shape.initCode.some((line) => line.trim().length > 0),
-  hasFrameCode: shape.perFrameCode.some((line) => line.trim().length > 0),
-  hasPointCode: shape.perPointCode.some((line) => line.trim().length > 0)
+  hasInitCode: (shape.initCode ?? []).some((line) => typeof line === 'string' && line.trim().length > 0),
+  hasFrameCode: (shape.perFrameCode ?? []).some((line) => typeof line === 'string' && line.trim().length > 0),
+  hasPointCode: (shape.perPointCode ?? []).some((line) => typeof line === 'string' && line.trim().length > 0)
 });
 
 export const createMilkwaveShapePlans = (ir: MilkwaveIR): MilkwaveShapePlan[] =>

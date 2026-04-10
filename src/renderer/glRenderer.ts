@@ -745,9 +745,9 @@ void main() {
     }
   };
 
-  type AssetLayerId = 
-    | 'layer-plasma' 
-    | 'layer-spectrum' 
+  type AssetLayerId =
+    | 'layer-plasma'
+    | 'layer-spectrum'
     | 'layer-media'
     | 'gen-asset-vortex'
     | 'gen-asset-slices'
@@ -755,8 +755,9 @@ void main() {
     | 'gen-asset-mosaic'
     | 'gen-asset-ripple'
     | 'gen-asset-scatter'
-    | 'gen-asset-echo';
-  
+    | 'gen-asset-echo'
+    | 'gen-signal-noise';
+
   const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = {
     'layer-plasma': 1,
     'layer-spectrum': 2,
@@ -767,7 +768,8 @@ void main() {
     'gen-asset-mosaic': 7,
     'gen-asset-ripple': 8,
     'gen-asset-scatter': 9,
-    'gen-asset-echo': 10
+    'gen-asset-echo': 10,
+    'gen-signal-noise': 14
   };
 
   interface AssetCacheEntry {
@@ -992,11 +994,11 @@ void main() {
     if (enabledLoc) gl.uniform1f(enabledLoc, entry ? 1 : 0);
     
     if (entry?.internalSourceId) {
-        let internalUnit = 10;
-        if (entry.internalSourceId === 'audio-spectrum') internalUnit = 11;
-        if (entry.internalSourceId === 'modulators') internalUnit = 12;
-        if (entry.internalSourceId === 'midi-history') internalUnit = 13;
-        
+        let internalUnit = 15;
+        if (entry.internalSourceId === 'audio-spectrum') internalUnit = 16;
+        if (entry.internalSourceId === 'modulators') internalUnit = 17;
+        if (entry.internalSourceId === 'midi-history') internalUnit = 18;
+
         if (samplerLoc) gl.uniform1i(samplerLoc, internalUnit);
     } else {
         if (samplerLoc) gl.uniform1i(samplerLoc, unitIndex);

@@ -631,6 +631,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     throw new Error('[MilkDrop] WebGL2 required');
   }
 
+  // Query GPU texture unit limit once at init
+  const maxTextureUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
+
   let warpProgram: WebGLProgram | null = null;
   let compProgram: WebGLProgram | null = null;
   let blurProgram: WebGLProgram | null = null;
@@ -857,6 +860,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (compProgram) { untrackProgram(compProgram); gl.deleteProgram(compProgram); }
     warpProgram = null;
     compProgram = null;
+    perFrameInitRun = false; // Reset so new preset's per-frame init code runs
+    variables.frame = 0;
     const warpRawDiagnostics = analyzeMilkwaveShaderSource({
       source: shaderData.warp ?? '',
       pass: 'warp',
@@ -1434,7 +1439,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     // Clean up GL state — milkdrop shares the GL context with the main renderer.
     // Leaving textures/FBOs bound causes feedback loops and corrupts rendering.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < maxTextureUnits; i++) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, null);
       gl.bindTexture(gl.TEXTURE_3D, null);

@@ -3842,7 +3842,8 @@ const renderSceneTimeline = () => {
           scene,
           currentProject,
           currentProject.customShaderBlocks ?? [],
-          currentProject.sdf?.enabled ?? false
+          currentProject.sdf?.enabled ?? false,
+          true // forceSync for immediate preview feedback
         );
       }
       renderSceneStrip();
@@ -11344,7 +11345,7 @@ sceneViewSelect.addEventListener('change', () => {
     previewSceneId = sceneId;
     const scene = currentProject.scenes.find(s => s.id === sceneId);
     if (scene) {
-      compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+      compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
       updateSceneContextUI(scene);
       renderLayerList();
       setStatus(`Viewing scene: ${scene.name}`);
@@ -11360,7 +11361,7 @@ if (sceneEditSelect) {
       previewSceneId = sceneId;
       const scene = currentProject.scenes.find(s => s.id === sceneId);
       if (scene) {
-        compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+        compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
         updateSceneContextUI(scene);
         renderLayerList();
         setStatus(`Editing scene: ${scene.name}`);
