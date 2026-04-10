@@ -396,7 +396,7 @@ uniform float uAssetVortexSpeed;
     vec2 warpedUv = vortexWarp(effectUv, uTime * uAssetVortexSpeed, uAssetVortexStrength + uPeak * 2.0);
     warpedUv = clamp(warpedUv, 0.0, 1.0);
     vec4 tex = texture(uAssetVortexAsset, warpedUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetVortexOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetVortexOpacity);
   }
 `,
   },
@@ -418,7 +418,7 @@ uniform float uAssetSlicesShift;
     float shift = amp * uAssetSlicesShift;
     vec2 slicedUv = vec2(fract(effectUv.x + shift), effectUv.y);
     vec4 tex = texture(uAssetSlicesAsset, slicedUv);
-    color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetSlicesOpacity);
+    color = applyBlendMode(color, tex.rgb, 1.0, tex.a * uAssetSlicesOpacity);
   }
 `,
   },
@@ -440,7 +440,7 @@ uniform float uAssetPolarTwist;
     mainCall: `  if (uAssetPolarEnabled > 0.5) {
     vec2 polarUv = polarCoords(effectUv, uAssetPolarRadius + uRms * 0.2, uAssetPolarTwist + uTime * 0.1);
     vec4 tex = texture(uAssetPolarAsset, clamp(polarUv, 0.0, 1.0));
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetPolarOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetPolarOpacity);
   }
 `,
   },
@@ -462,7 +462,7 @@ uniform float uAssetMosaicFlip;
     float flip = step(0.5 + uPeak * uAssetMosaicFlip, hash);
     tileUv = mix(tileUv, 1.0 - tileUv, flip);
     vec4 tex = texture(uAssetMosaicAsset, tileUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetMosaicOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetMosaicOpacity);
   }
 `,
   },
@@ -486,7 +486,7 @@ uniform float uAssetRippleFrequency;
     vec2 rippledUv = rippleWarp(effectUv, uTime, amp, uAssetRippleFrequency);
     rippledUv = clamp(rippledUv, 0.0, 1.0);
     vec4 tex = texture(uAssetRippleAsset, rippledUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetRippleOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetRippleOpacity);
   }
 `,
   },
@@ -508,7 +508,7 @@ uniform float uAssetScatterSeed;
     float scatter = uAssetScatterAmount * (1.0 + uPeak * 5.0);
     vec2 scatteredUv = scatterWarp(effectUv, scatter, uAssetScatterSeed + uTime * 0.1);
     vec4 tex = texture(uAssetScatterAsset, clamp(scatteredUv, 0.0, 1.0));
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetScatterOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetScatterOpacity);
   }
 `,
   },
@@ -532,7 +532,7 @@ uniform float uAssetEchoFade;
       echoUv = clamp(echoUv, 0.0, 1.0);
       vec4 tex = texture(uAssetEchoAsset, echoUv);
       float fade = pow(uAssetEchoFade, i);
-      color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetEchoOpacity * fade);
+      color = applyBlendMode(color, tex.rgb, 1.0, tex.a * uAssetEchoOpacity * fade);
     }
   }
 `,

@@ -472,7 +472,7 @@ const sceneSchema = z.object({
     support: [],
     atmosphere: []
   }),
-  layers: z.array(layerSchema).min(1),
+  layers: z.array(layerSchema).default([]),
   look: sceneLookSchema.optional(),
   _shaderData: milkDropShaderDataSchema.optional(),
   depthScore: z.number().default(0),

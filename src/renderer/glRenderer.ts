@@ -103,7 +103,9 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
       currentSdfFunctions,
       currentSdfMapBody,
       currentPlasmaSource,
-      currentCustomBlocks
+      currentCustomBlocks,
+      false,
+      currentFxUniforms
     );
     currentProgram = standardProgram;
     currentShaderVariantKey = standardProgram

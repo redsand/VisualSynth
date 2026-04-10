@@ -5004,9 +5004,12 @@ const configurePreviewVideo = (video: HTMLVideoElement, asset: AssetItem, isLive
 
 const createAssetPreviewElement = (asset: AssetItem) => {
   const preview = document.createElement('div');
-  preview.className = asset.missing ? 'asset-preview asset-preview-missing' : 'asset-preview';
 
-  if (asset.missing) {
+  // Check if asset is truly missing (embedded assets are never missing)
+  const isTrulyMissing = asset.missing && !asset.embeddedData;
+  preview.className = isTrulyMissing ? 'asset-preview asset-preview-missing' : 'asset-preview';
+
+  if (isTrulyMissing) {
     const missingIcon = document.createElement('span');
     missingIcon.className = 'asset-preview-missing-icon';
     missingIcon.textContent = '⚠';
@@ -5015,7 +5018,8 @@ const createAssetPreviewElement = (asset: AssetItem) => {
   }
 
   if (asset.kind === 'texture') {
-    const previewUrl = asset.thumbnail ?? (asset.path ? toFileUrl(asset.path) : undefined);
+    // Use embeddedData if available, otherwise use thumbnail or path
+    const previewUrl = asset.embeddedData ?? asset.thumbnail ?? (asset.path ? toFileUrl(asset.path) : undefined);
     if (previewUrl) {
       preview.style.backgroundImage = `url(${previewUrl})`;
       return preview;
@@ -5176,13 +5180,19 @@ const createMetadataPanel = (asset: AssetItem) => {
 
 const checkMissingAssets = async () => {
   const paths = currentProject.assets
-    .filter((asset) => asset.path && !asset.options?.liveSource)
+    .filter((asset) => asset.path && !asset.options?.liveSource && !asset.embeddedData)
     .map((asset) => asset.path!);
   if (paths.length === 0) return;
   const results = await window.visualSynth.checkAssetPaths(paths);
   let changed = false;
   currentProject.assets.forEach((asset) => {
-    if (asset.path && !asset.options?.liveSource) {
+    if (asset.embeddedData) {
+      // Embedded assets are always resolved
+      if (asset.missing) {
+        asset.missing = false;
+        changed = true;
+      }
+    } else if (asset.path && !asset.options?.liveSource) {
       const exists = results[asset.path] ?? false;
       if (asset.missing !== !exists) {
         asset.missing = !exists;
@@ -5233,17 +5243,26 @@ const renderAssets = () => {
     const wrapper = document.createElement('div');
     wrapper.className = 'asset-row-wrapper';
 
+    // Embedded assets are never truly missing
+    const isTrulyMissing = asset.missing && !asset.embeddedData;
+
     const row = document.createElement('div');
-    row.className = asset.missing ? 'asset-row asset-missing' : 'asset-row';
+    row.className = isTrulyMissing ? 'asset-row asset-missing' : 'asset-row';
     const preview = createAssetPreviewElement(asset);
     const kind = document.createElement('div');
     kind.className = 'asset-kind';
     kind.textContent = asset.kind;
-    if (asset.missing) {
+    if (isTrulyMissing) {
       const missingBadge = document.createElement('span');
       missingBadge.className = 'asset-missing-badge';
       missingBadge.textContent = 'MISSING';
       kind.appendChild(missingBadge);
+    }
+    if (asset.embeddedData) {
+      const embeddedBadge = document.createElement('span');
+      embeddedBadge.className = 'asset-embedded-badge';
+      embeddedBadge.textContent = '📦 Embedded';
+      kind.appendChild(embeddedBadge);
     }
     const info = document.createElement('div');
     info.className = 'asset-info';

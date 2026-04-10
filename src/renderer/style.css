@@ -3082,6 +3082,18 @@ body[data-mode='matrix'] .safe-mode {
   vertical-align: middle;
 }
 
+.asset-embedded-badge {
+  display: inline-block;
+  background: #4ecdc4;
+  color: #0a1a18;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .asset-relink-btn {
   background: #2d4a3d !important;
   color: #7dffb3 !important;
