@@ -446,8 +446,20 @@ export const createLayerPanel = ({
       if (!entry) return;
       const chip = document.createElement('div');
       chip.className = 'generator-chip';
+      if (entry.supportsAsset) {
+        chip.classList.add('supports-asset');
+        chip.title = 'Supports image/video assets';
+      }
       const label = document.createElement('span');
       label.textContent = entry.name;
+      if (entry.supportsAsset) {
+        const assetIcon = document.createElement('span');
+        assetIcon.className = 'asset-support-icon';
+        assetIcon.textContent = '🖼️';
+        assetIcon.style.marginLeft = '4px';
+        assetIcon.style.fontSize = '10px';
+        label.appendChild(assetIcon);
+      }
       const addButton = document.createElement('button');
       addButton.textContent = '+';
       addButton.title = 'Add generator';
@@ -472,7 +484,7 @@ export const createLayerPanel = ({
     visibleGenerators.forEach((gen) => {
       const option = document.createElement('option');
       option.value = gen.id;
-      option.textContent = gen.name;
+      option.textContent = gen.supportsAsset ? `${gen.name} 🖼️` : gen.name;
       generatorSelect.appendChild(option);
     });
     renderGeneratorList(generatorFavorites, generatorFavoritesState);

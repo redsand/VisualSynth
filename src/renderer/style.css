@@ -1720,6 +1720,11 @@ body[data-mode='matrix'] .safe-mode {
   font-size: 11px;
 }
 
+.generator-chip.supports-asset {
+  border-color: #4ecdc4;
+  background: linear-gradient(135deg, #162335, #1a3a3a);
+}
+
 .generator-chip button {
   border: none;
   background: transparent;
