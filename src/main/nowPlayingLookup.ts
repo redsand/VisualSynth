@@ -308,27 +308,40 @@ const postAudDLookup = async (
     return { matched: false, error: 'AudD requires an API token.' };
   }
 
+  const audioBlob = decodeAudioBlob(request);
+  const clipSizeKb = Math.round(audioBlob.size / 1024 * 10) / 10;
+  console.log(`[AudD] Sending lookup: ${clipSizeKb}KB, ${request.durationMs}ms, mimeType=${request.mimeType}`);
+
   const form = new FormData();
   form.set('api_token', request.apiKey);
   form.set('return', 'apple_music,spotify');
-  form.set('file', decodeAudioBlob(request), 'clip.webm');
+  form.set('file', audioBlob, 'clip.webm');
 
+  const startTime = Date.now();
   const response = await fetchImpl('https://api.audd.io/', {
     method: 'POST',
     body: form
   });
+  const elapsedMs = Date.now() - startTime;
+
+  // Extract rate limit headers
+  const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
+  const rateLimitLimit = response.headers.get('X-RateLimit-Limit');
+  const rateLimitReset = response.headers.get('X-RateLimit-Reset');
 
   if (!response.ok) {
+    console.error(`[AudD] HTTP ${response.status} (${elapsedMs}ms)`);
     return {
       matched: false,
       error:
         response.status === 401 || response.status === 403
           ? 'AudD authentication failed. Check the API token.'
           : response.status === 429
-            ? 'AudD rate limit reached.'
+            ? 'AudD rate limit reached. Wait a moment and try again.'
             : response.status >= 500
               ? 'AudD is unavailable.'
-              : `AudD request failed (${response.status}).`
+              : `AudD request failed (${response.status}).`,
+      raw: { rateLimitRemaining, rateLimitLimit, rateLimitReset }
     };
   }
 
@@ -338,34 +351,94 @@ const postAudDLookup = async (
       title?: string;
       artist?: string;
       album?: string;
+      label?: string;
+      date?: string;
+      release_date?: string;
+      genres?: string[];
       song_link?: string;
-      apple_music?: { artwork?: { url?: string } };
-      spotify?: { album?: { images?: { url?: string }[] }; artists?: { name?: string }[] };
+      lyrics?: { lyrics?: string; copyright?: string };
+      apple_music?: {
+        artwork?: { url?: string; width?: number; height?: number };
+        url?: string;
+        previews?: Array<{ url?: string }>;
+      };
+      spotify?: {
+        album?: {
+          images?: { url?: string; height?: number; width?: number }[];
+          name?: string;
+          release_date?: string;
+        };
+        artists?: { name?: string; external_urls?: { spotify?: string } }[];
+        external_urls?: { spotify?: string };
+        preview_url?: string;
+      };
+      deezer?: {
+        album?: { cover_xl?: string; cover?: string };
+        artist?: { name?: string };
+      };
     } | null;
-    error?: { error_message?: string };
+    error?: { error_message?: string; error_code?: string };
   };
 
   if (payload.status !== 'success' || !payload.result) {
+    console.log(`[AudD] No match (${elapsedMs}ms): ${payload.error?.error_message || 'unknown'}`);
     return {
       matched: false,
       error: summarizeAudDError(payload.error?.error_message),
-      raw: payload
+      raw: { ...payload, rateLimitRemaining, rateLimitLimit, rateLimitReset }
     };
   }
 
+  const result = payload.result;
+
+  // Extract comprehensive metadata
   const artworkUrl =
-    payload.result.apple_music?.artwork?.url ||
-    payload.result.spotify?.album?.images?.[0]?.url;
+    result.apple_music?.artwork?.url ||
+    result.spotify?.album?.images?.[0]?.url ||
+    result.deezer?.album?.cover_xl ||
+    result.deezer?.album?.cover;
+
+  const spotifyUrl = result.spotify?.external_urls?.spotify;
+  const appleMusicUrl = result.apple_music?.url;
+
+  const releaseDate = result.date || result.release_date || result.spotify?.album?.release_date;
+  const genres = result.genres?.filter(Boolean) || [];
+  const lyrics = result.lyrics?.lyrics;
+  const label = result.label;
+
+  const spotifyArtists = result.spotify?.artists?.map(a => a.name).filter(Boolean) || [];
+  const artistName = result.artist || spotifyArtists.join(', ') || result.deezer?.artist?.name;
+
+  console.log(`[AudD] Match found: ${artistName} - ${result.title} (${elapsedMs}ms)`);
+  if (genres.length > 0) console.log(`[AudD] Genres: ${genres.join(', ')}`);
+  if (releaseDate) console.log(`[AudD] Release: ${releaseDate}`);
+  if (lyrics) console.log(`[AudD] Lyrics available: ${lyrics.length} chars`);
 
   return {
     matched: true,
-    title: payload.result.title,
-    artist: payload.result.artist,
-    album: payload.result.album,
+    title: result.title,
+    artist: artistName,
+    album: result.album || result.spotify?.album?.name,
     artworkUrl,
+    artistImageUrl: result.apple_music?.artwork?.url,
     confidence: 1,
     provider: 'AudD',
-    raw: payload
+    raw: {
+      ...payload,
+      rateLimitRemaining,
+      rateLimitLimit,
+      rateLimitReset,
+      // Extended metadata
+      externalUrls: {
+        spotify: spotifyUrl,
+        appleMusic: appleMusicUrl
+      },
+      releaseDate,
+      genres,
+      lyrics: lyrics ? { text: lyrics, copyright: result.lyrics?.copyright } : undefined,
+      label,
+      previewUrl: result.spotify?.preview_url || result.apple_music?.previews?.[0]?.url
+    }
   };
 };
 
@@ -492,12 +565,21 @@ const postShazamLookup = async (
   const rawBuf = Buffer.from(request.audioBase64, 'base64');
   const s16 = new Int16Array(rawBuf.buffer, rawBuf.byteOffset, rawBuf.byteLength / 2);
 
+  console.log(`[Shazam] Received PCM: ${s16.length} samples (${(s16.length / 16000).toFixed(1)}s)`);
+
   // Build signature
   const gen = new ShazamSignatureGenerator();
   gen.feed(s16);
   const sigBytes = gen.encode();
   const sigBase64 = Buffer.from(sigBytes).toString('base64');
   const sampleMs = Math.trunc(gen.numSamples / SHAZAM_SAMPLE_RATE * 1000);
+
+  console.log(`[Shazam] Generated fingerprint: ${gen.totalPeaks} peaks, ${sampleMs}ms duration`);
+
+  if (gen.totalPeaks < 30) {
+    console.warn('[Shazam] Warning: very few peaks detected, recognition may fail');
+  }
+
   const sigUri = `data:audio/vnd.shazam.sig;base64,${sigBase64}`;
 
   // Build request URL with two random UUIDs

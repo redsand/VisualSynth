@@ -227,22 +227,42 @@ body {
   outline: none;
 }
 
-.scene-timeline-import-plus {
-  width: 28px;
-  height: 28px;
+.scene-timeline-import-icon {
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  border: 1px solid rgba(98, 231, 255, 0.35);
-  color: #62e7ff;
-  font-size: 22px;
-  line-height: 1;
-  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid rgba(98, 231, 255, 0.25);
+  background: rgba(98, 231, 255, 0.06);
+}
+
+.scene-timeline-import-icon img {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .scene-timeline-name {
   font-size: 12px;
   font-weight: 600;
+}
+
+.scene-timeline-name-input {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 24px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #e0e0e0;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #62e7ff;
+  border-radius: 3px;
+  padding: 2px 6px;
+  outline: none;
+  z-index: 10;
 }
 
 .scene-timeline-meta {
@@ -281,6 +301,17 @@ body {
   width: 10px;
   height: 10px;
   display: block;
+}
+
+.scene-timeline-item.dragging {
+  opacity: 0.4;
+  border-style: dashed;
+}
+
+.scene-timeline-item.drag-over {
+  border-color: #1ec8ff;
+  box-shadow: 0 0 12px rgba(30, 200, 255, 0.4);
+  background: rgba(30, 200, 255, 0.08);
 }
 
 .brand {

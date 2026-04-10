@@ -95,7 +95,6 @@ const VEC4_FNS = new Set(['texture', 'textureLod', 'textureBias', 'noise3', 'tex
 /** Known scalar-returning function names. */
 const SCALAR_FNS = new Set([
   'lum', 'dot', 'length', 'distance', 'float',
-  'pow', 'mod',
   'step', 'smoothstep',
 ]);
 
@@ -107,6 +106,8 @@ const PRESERVE_DIM_FNS = new Set([
   'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
   'exp', 'exp2', 'log', 'log2', 'log10', 'sqrt', 'inversesqrt',
   'degrees', 'radians',
+  // mod and pow are component-wise in GLSL
+  'mod', 'pow',
 ]);
 
 /** Known sampler2D-returning function names (for declaration inference). */
@@ -338,6 +339,40 @@ const preprocess = (source: string): string => {
   // Only handle <= and >= when followed by arithmetic operators (not in while/if conditions)
   source = source.replace(/\(([^()]+?)\s*<=\s*([^()]+?)\)(?=\s*[\*\/+\-])/g, '($1 <= $2 ? 1.0 : 0.0)');
   source = source.replace(/\(([^()]+?)\s*>=\s*([^()]+?)\)(?=\s*[\*\/+\-])/g, '($1 >= $2 ? 1.0 : 0.0)');
+
+  // ── 0a.1. Pre-alias unknown sampler_XXX names used in texture() calls ──
+  // Use direct text replacement instead of #define to avoid shader_body block issues
+  const knownSamplers = new Set([
+    'sampler_main', 'sampler_blur1', 'sampler_blur2', 'sampler_blur3',
+    'sampler_noise_lq', 'sampler_noise_mq', 'sampler_noise_hq',
+    'sampler_fc_main', 'sampler_pc_main', 'sampler_fw_main', 'sampler_pw_main',
+    'sampler_FC_main', 'sampler_PC_main', 'sampler_FW_main', 'sampler_PW_main',
+    'sampler_noise_lq_lite', 'sampler_noisevol_lq', 'sampler_noisevol_hq',
+    'sampler_fw_noise_lq', 'sampler_fw_noise_mq', 'sampler_fw_noise_hq',
+    'sampler_pw_noise_lq', 'sampler_pw_noise_mq', 'sampler_pw_noise_hq',
+    'sampler_rand00', 'sampler_rand01', 'sampler_rand02', 'sampler_rand03',
+    'sampler_rand04', 'sampler_rand05', 'sampler_rand06', 'sampler_rand07',
+    'sampler_rand08', 'sampler_rand09',
+  ]);
+  // Find all sampler_XXX used in texture() calls
+  const textureSamplerRe = /\btexture\s*\(\s*(sampler_\w+)\s*,/g;
+  const samplersToAlias = new Set<string>();
+  let tm: RegExpExecArray | null;
+  while ((tm = textureSamplerRe.exec(source)) !== null) {
+    const name = tm[1];
+    if (!knownSamplers.has(name)) {
+      samplersToAlias.add(name);
+    }
+  }
+  if (samplersToAlias.size > 0) {
+    console.log(`[GLSL Patcher] Pre-aliasing unknown samplers: ${Array.from(samplersToAlias).join(', ')}`);
+    // Direct text replacement - replace each unknown sampler with sampler_noise_lq
+    for (const name of samplersToAlias) {
+      const re = new RegExp(`\\b${name}\\b`, 'g');
+      source = source.replace(re, 'sampler_noise_lq');
+    }
+  }
+
   // ── 0a. Strip invalid swizzles from scalar function results ──
   // The offline translator sometimes adds .xyz/.xy etc. to scalar function results.
   // Handle both simple and nested parentheses cases.
@@ -368,10 +403,10 @@ const preprocess = (source: string): string => {
 
   // ── 0b.5. Move #define statements from inside shader_body to before void main() ──
   // Some presets have #define aliases inside shader_body that need to be moved.
-  const mainIdx2 = source.indexOf('void main()');
-  if (mainIdx2 !== -1) {
-    const beforeMain = source.substring(0, mainIdx2);
-    const afterMain = source.substring(mainIdx2);
+  const mainIdxForMove = source.indexOf('void main()');
+  if (mainIdxForMove !== -1) {
+    const beforeMain = source.substring(0, mainIdxForMove);
+    const afterMain = source.substring(mainIdxForMove);
     // Find #define lines inside main body (after void main() {)
     const mainBrace2 = afterMain.indexOf('{');
     if (mainBrace2 !== -1) {
@@ -1102,8 +1137,23 @@ const astTransform = (source: string): string => {
         if (leftDim === rightDim) return;
         if (leftDim === 1 || rightDim === 1) return; // GLSL allows vec * scalar
 
-        // Wrap the smaller side in a vec constructor with padding
+        // For vec2 + vec4 or vec3 + vec4, truncate the wider operand instead of padding
+        // This preserves semantics better than padding with zeros
         const maxDim = Math.max(leftDim, rightDim);
+        const minDim = Math.min(leftDim, rightDim);
+
+        if (maxDim === 4 && minDim >= 2) {
+          // Truncate vec4 to vec2/vec3 using swizzle
+          const swizzle = minDim === 2 ? 'xy' : 'xyz';
+          if (leftDim === 4) {
+            p.node.left = mkPostfixSwizzle(left, swizzle) as unknown as AstNode;
+          } else {
+            p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
+          }
+          return;
+        }
+
+        // Otherwise wrap the smaller side in a vec constructor with padding
         const vecType = `vec${maxDim}`;
 
         if (leftDim < maxDim) {
@@ -1306,16 +1356,48 @@ const astTransform = (source: string): string => {
         if (args.length < 3) return;
 
         const firstDim = inferDim(args[0], typeMap);
+        const secondDim = inferDim(args[1], typeMap);
         const thirdDim = inferDim(args[2], typeMap);
         if (firstDim <= 0 || thirdDim <= 0) return;
+
+        // Helper to fix dimension mismatch - swizzle or wrap in vec constructor
+        const fixDim = (arg: AstNode, targetDim: number): AstNode => {
+          const currentDim = inferDim(arg, typeMap);
+          if (currentDim === targetDim || currentDim <= 0) return arg;
+
+          // If it's a literal or scalar, wrap in vec constructor
+          if (currentDim === 1) {
+            return mkFnCall(`vec${targetDim}`, [arg], ' ') as unknown as AstNode;
+          }
+
+          // Otherwise swizzle down
+          const swizzle = targetDim === 1 ? 'x' : targetDim === 2 ? 'xy' : 'xyz';
+          return mkPostfixSwizzle(arg, swizzle) as unknown as AstNode;
+        };
+
+        // Handle case where arg0 and arg1 have mismatching dimensions
+        if (firstDim !== secondDim && firstDim > 0 && secondDim > 0) {
+          const maxDim = Math.max(firstDim, secondDim);
+          const allArgs = p.node.args;
+          for (let i = 0; i < allArgs.length; i++) {
+            if (allArgs[i] === args[0] && firstDim < maxDim) {
+              allArgs[i] = fixDim(args[0], maxDim);
+              break;
+            }
+            if (allArgs[i] === args[1] && secondDim < maxDim) {
+              allArgs[i] = fixDim(args[1], maxDim);
+              break;
+            }
+          }
+        }
+
         if (firstDim >= thirdDim) return; // OK: third is scalar or same dim
 
-        // Third arg is wider than first two — swizzle it down
-        const swizzle = firstDim === 1 ? 'x' : firstDim === 2 ? 'xy' : 'xyz';
+        // Third arg is wider than first two — swizzle/wrap it down
         const allArgs = p.node.args;
         for (let i = 0; i < allArgs.length; i++) {
           if (allArgs[i] === args[2]) {
-            allArgs[i] = mkPostfixSwizzle(args[2], swizzle) as unknown as AstNode;
+            allArgs[i] = fixDim(args[2], firstDim);
             break;
           }
         }
@@ -1376,6 +1458,36 @@ const astTransform = (source: string): string => {
     /\b(texture|textureLod|textureBias)\s*\(\s*([^,]+)\s*,\s*(vec3\s*\([^)]+\)\s*[\+\-\*\/][^)]*)\s*\)/g,
     (_match, fn, sampler, coord) => {
       return `${fn}(${sampler}, (${coord}).xy)`;
+    }
+  );
+
+  // ── Post-generation fix: float/var = vecN_expr dimension mismatch ──
+  // When a float variable is initialized with a vec3 expression (e.g., from mix/texture),
+  // change the declared type to match. e.g. float x = texture(...).xyz → vec3 x = texture(...).xyz
+  // This catches cases the AST Pass 10 misses.
+  patched = patched.replace(
+    /(\bfloat\b\s+)(\w+\s*=\s*(?:mix|texture|textureLod|textureBias|GetPixel|GetBlur\d|GetMain|clamp01|sat)\b[^;])/g,
+    (_match, floatKw, rest) => {
+      // Count the vector dimension from common patterns in the RHS
+      if (/vec3\s*\(|\.xyz/.test(rest)) return `vec3 ${rest}`;
+      if (/vec2\s*\(|\.xy[^z]/.test(rest)) return `vec2 ${rest}`;
+      if (/vec4\s*\(|\.xyzw/.test(rest)) return `vec4 ${rest}`;
+      return _match; // Not a vector expr, leave as-is
+    }
+  );
+
+  // Also fix compound assignments: float_var += vec3_expr → float_var += vec3_expr.xyz
+  patched = patched.replace(
+    /\b(\w+)\s*(\+=|-=|\*=|\/=)\s*((?:mix|texture|textureLod|textureBias|GetPixel|GetBlur\d|GetMain|vec[234])\s*\([^)]+\)[\.\w]*)/g,
+    (_match, varName, op, rhsExpr) => {
+      // If RHS has .xyz and we're assigning to what might be a scalar, add .xyz truncation
+      if (rhsExpr.includes('.xyz') && !rhsExpr.includes('.xyzw')) {
+        return _match; // Already has swizzle
+      }
+      if (/vec3|GetPixel|GetBlur|GetMain/.test(rhsExpr) && !/\.xyzw?/.test(rhsExpr)) {
+        return `${varName} ${op} ${rhsExpr}.xyz`;
+      }
+      return _match;
     }
   );
 
@@ -1449,17 +1561,68 @@ const injectMissingConstants = (source: string): string => {
     ['PI_2', '1.57079632679'],
   ];
 
+  // Extract any existing #define lines from the entire source
+  const defineRegex = /^#define\s+(\w+)\s+(.+)$/gm;
+  const existingDefines = new Map<string, { line: string; pos: number }>();
+  let match: RegExpExecArray | null;
+  while ((match = defineRegex.exec(source)) !== null) {
+    existingDefines.set(match[1], { line: match[0], pos: match.index });
+  }
+
   const additions: string[] = [];
+  const definesToRemove = new Set<string>();
+
   for (const [name, val] of constants) {
-    if (source.includes(name) && !beforeMain.includes(`#define ${name}`)) {
+    // Check if the constant is used anywhere in the source
+    const usageRegex = new RegExp(`\\b${name}\\b`);
+    if (!usageRegex.test(source)) continue;
+
+    // Find the FIRST usage position
+    const firstUsageMatch = source.match(usageRegex);
+    const firstUsagePos = firstUsageMatch && firstUsageMatch.index !== undefined ? firstUsageMatch.index : -1;
+
+    if (existingDefines.has(name)) {
+      const existing = existingDefines.get(name)!;
+      // If the #define comes AFTER its first usage, relocate it
+      if (existing.pos > firstUsagePos) {
+        definesToRemove.add(name);
+        additions.push(existing.line);
+      }
+      // Otherwise it's already in the right place
+    } else {
+      // Not defined at all - inject
       additions.push(`#define ${name} ${val}`);
     }
   }
 
   if (additions.length === 0) return source;
-  return source.substring(0, mainIdx) +
+
+  // Remove relocated defines from their original positions
+  let patchedSource = source;
+  for (const name of definesToRemove) {
+    const existing = existingDefines.get(name);
+    if (existing) {
+      patchedSource = patchedSource.substring(0, existing.pos) + patchedSource.substring(existing.pos + existing.line.length);
+    }
+  }
+
+  // Find the earliest position where any of these constants are used
+  let earliestUsagePos = patchedSource.length;
+  for (const [name] of constants) {
+    const regex = new RegExp(`\\b${name}\\b`);
+    const m = patchedSource.match(regex);
+    if (m && m.index !== undefined && m.index < earliestUsagePos) {
+      earliestUsagePos = m.index;
+    }
+  }
+
+  // Find the start of the line containing the earliest usage
+  const lineStart = patchedSource.lastIndexOf('\n', earliestUsagePos - 1) + 1;
+
+  // Insert constants before that line
+  return patchedSource.substring(0, lineStart) +
     '// --- MilkDrop constants ---\n' + additions.join('\n') + '\n\n' +
-    source.substring(mainIdx);
+    patchedSource.substring(lineStart);
 };
 
 /** Inject missing sampler #define aliases before void main(). */
@@ -1505,7 +1668,37 @@ const injectMissingSamplers = (source: string): string => {
     ['rand10', 'sampler_noise_lq'], ['rand11', 'sampler_noise_mq'],
     ['rand12', 'sampler_noise_hq'], ['rand13', 'sampler_noise_lq'],
     ['rand14', 'sampler_noise_mq'], ['rand15', 'sampler_noise_hq'],
+    // Common custom sampler names from community presets
+    ['sampler_fw_clouds', 'sampler_noise_lq'], ['sampler_pw_clouds', 'sampler_noise_lq'],
+    ['sampler_fw_warp', 'sampler_main'], ['sampler_pw_warp', 'sampler_main'],
   ];
+
+  // Also detect and alias any sampler_fw_* or sampler_pw_* patterns not explicitly listed
+  const samplerPattern = /\b(sampler_[fp][w]_\w+)\b/g;
+  let m: RegExpExecArray | null;
+  const foundSamplers = new Set<string>();
+  while ((m = samplerPattern.exec(source)) !== null) {
+    foundSamplers.add(m[1]);
+  }
+  for (const samplerName of foundSamplers) {
+    if (!aliases.some(([a]) => a === samplerName)) {
+      // Default unknown fw/pw samplers to noise_lq
+      aliases.push([samplerName, 'sampler_noise_lq']);
+    }
+  }
+
+  // Detect ANY sampler_XXX pattern used in texture() calls that isn't already defined
+  // This catches custom preset-specific samplers like sampler_SOCS_20
+  const textureSamplerPattern = /\btexture\s*\(\s*(sampler_\w+)\s*,/g;
+  while ((m = textureSamplerPattern.exec(source)) !== null) {
+    const samplerName = m[1];
+    if (!aliases.some(([a]) => a === samplerName) &&
+        !beforeMain.includes(`uniform sampler2D ${samplerName}`) &&
+        !beforeMain.includes(`#define ${samplerName}`)) {
+      // Default unknown samplers to noise_lq (safe fallback)
+      aliases.push([samplerName, 'sampler_noise_lq']);
+    }
+  }
 
   const additions: string[] = [];
   for (const [alias, target] of aliases) {
@@ -1633,6 +1826,54 @@ const injectMissingHelpers = (source: string): string => {
     additions.push('vec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }');
     additions.push('vec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }');
     additions.push('vec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }');
+  }
+
+  // UV transformation helpers (common in community MilkDrop presets)
+  if (/\buv_rotate\s*\(/.test(source) && !beforeMain.includes('vec2 uv_rotate(')) {
+    additions.push(
+      'vec2 uv_rotate(vec2 domain, vec2 center, float sinw, float cosw, float scale) {',
+      '  vec2 uv_r = (domain - center);',
+      '  return center + vec2(cosw * uv_r.x - sinw * uv_r.y, sinw * uv_r.x + cosw * uv_r.y) * scale;',
+      '}'
+    );
+  }
+  if (/\buv_polar\s*\(/.test(source) && !beforeMain.includes('vec2 uv_polar(')) {
+    additions.push(
+      'vec2 uv_polar(vec2 domain, vec2 center) {',
+      '  vec2 c = domain - center;',
+      '  float rad_hq = length(c);',
+      '  float ang_hq = atan(c.x, c.y);',
+      '  return vec2(ang_hq * M_INV_PI_2, rad_hq);',
+      '}'
+    );
+  }
+  if (/\buv_polar_logarithmic\s*\(/.test(source) && !beforeMain.includes('vec2 uv_polar_logarithmic(')) {
+    additions.push(
+      'vec2 uv_polar_logarithmic(vec2 domain, vec2 center, int fins, float log_factor, vec2 coord) {',
+      '  vec2 polar = uv_polar(domain, center);',
+      '  return vec2(polar.x * float(fins) + coord.x, log_factor * log(polar.y) + coord.y);',
+      '}'
+    );
+  }
+  if (/\buv_moebius_transformation\s*\(/.test(source) && !beforeMain.includes('vec2 uv_moebius_transformation(')) {
+    additions.push(
+      'vec2 complex_div(vec2 a, vec2 b) {',
+      '  float denom = b.x * b.x + b.y * b.y;',
+      '  if (denom == 0.0) return vec2(0.0);',
+      '  return vec2((a.x * b.x + a.y * b.y) / denom, (a.y * b.x - a.x * b.y) / denom);',
+      '}',
+      'vec2 uv_moebius_transformation(vec2 domain, vec2 zeroPoint, vec2 infinityPoint, float zoom) {',
+      '  return complex_div((domain - zeroPoint) * zoom, domain - infinityPoint) + 0.5;',
+      '}'
+    );
+  }
+  if (/\buv_bipolar\s*\(/.test(source) && !beforeMain.includes('vec2 uv_bipolar(')) {
+    additions.push(
+      'vec2 uv_bipolar(vec2 domain, vec2 northPole, vec2 southPole, int fins, float log_factor, vec2 coord) {',
+      '  vec2 help_uv = uv_moebius_transformation(domain, northPole, southPole, 1.0);',
+      '  return uv_polar_logarithmic(help_uv, vec2(0.5), fins, log_factor, coord);',
+      '}'
+    );
   }
 
   if (additions.length === 0) return source;

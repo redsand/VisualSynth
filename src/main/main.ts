@@ -654,7 +654,7 @@ ipcMain.handle(
         const fileBuffer = fs.readFileSync(filePath);
         const fileBase64 = fileBuffer.toString('base64');
         const mimeType = mimeMap[ext] ?? 'application/octet-stream';
-        
+
         // Default seek position (25% into song, aiming for first drop/chorus)
         const seekSeconds = 20;
         const durationSeconds = 5; // Shazam needs ~3.1 sec, we give 5 sec
@@ -723,6 +723,92 @@ ipcMain.handle(
       }
     }
 
+    // For AudD, extract a 10-12 second clip from the middle of the file for optimal recognition
+    // AudD accepts various formats but works best with 6-12 second clips
+    if (request.provider === 'audd') {
+      try {
+        const fileStats = fs.statSync(filePath);
+        const fileSizeMB = fileStats.size / (1024 * 1024);
+
+        // For files > 5MB, extract a clip to reduce upload size and improve recognition
+        if (fileSizeMB > 5) {
+          console.log(`[AudD] Large file detected (${fileSizeMB.toFixed(1)}MB), extracting clip...`);
+
+          const fileBuffer = fs.readFileSync(filePath);
+          const fileBase64 = fileBuffer.toString('base64');
+          const mimeType = mimeMap[ext] ?? 'application/octet-stream';
+
+          // Extract 12 second clip starting at 25% into the file
+          const seekSeconds = 15;
+          const durationSeconds = 12;
+
+          // Send to renderer for decoding (reuses Shazam decode infrastructure)
+          const rendererClip = await new Promise<{ base64: string | null; mimeType: string; durationMs: number } | null>((resolve) => {
+            const requestId = `audd-decode-${Date.now()}`;
+            const timeout = setTimeout(() => resolve(null), 30000);
+            ipcMain.once(requestId, (_ev, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
+              clearTimeout(timeout);
+              resolve(result);
+            });
+            if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+              mainWindow.webContents.send('audd:decode-file', {
+                requestId,
+                fileBase64,
+                mimeType,
+                seekSeconds,
+                durationSeconds
+              });
+            } else {
+              resolve(null);
+            }
+          });
+
+          if (rendererClip && rendererClip.base64) {
+            console.log(`[AudD] Using extracted clip: ${(rendererClip.base64.length / 1024).toFixed(1)}KB, ${rendererClip.durationMs}ms`);
+            const lookup = await identifyNowPlaying({
+              ...request,
+              audioBase64: rendererClip.base64,
+              mimeType: rendererClip.mimeType,
+              durationMs: rendererClip.durationMs,
+              detectedAt: Date.now()
+            });
+
+            return {
+              ...lookup,
+              selectedFilePath: filePath,
+              canceled: false
+            };
+          }
+
+          console.log('[AudD] Clip extraction failed, falling back to full file');
+        }
+
+        // For smaller files, send the full file
+        const buffer = fs.readFileSync(filePath);
+        const lookup = await identifyNowPlaying({
+          ...request,
+          audioBase64: buffer.toString('base64'),
+          mimeType: mimeMap[ext] ?? 'application/octet-stream',
+          durationMs: 0,
+          detectedAt: Date.now()
+        });
+
+        return {
+          ...lookup,
+          selectedFilePath: filePath,
+          canceled: false
+        };
+      } catch (error) {
+        return {
+          matched: false,
+          canceled: false,
+          selectedFilePath: filePath,
+          error: `AudD file processing failed: ${(error as Error).message}`
+        };
+      }
+    }
+
+    // Generic provider: send full file as-is
     const buffer = fs.readFileSync(filePath);
     const lookup = await identifyNowPlaying({
       ...request,

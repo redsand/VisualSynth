@@ -1027,3 +1027,14 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   customShaderBlocks: [],
   performanceMode: { ...DEFAULT_PERFORMANCE_MODE_CONFIG }
 };
+
+export const reorderScenes = (project: VisualSynthProject, fromIndex: number, toIndex: number): VisualSynthProject => {
+  const { scenes } = project;
+  if (fromIndex < 0 || fromIndex >= scenes.length || toIndex < 0 || toIndex >= scenes.length) {
+    return project;
+  }
+  const next = [...scenes];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return { ...project, scenes: next };
+};

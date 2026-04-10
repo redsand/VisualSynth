@@ -74,6 +74,7 @@ import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
+import { reorderScenes } from '../shared/project';
 import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
 import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult } from './audio/rollingAudioCapture';
 import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
@@ -1288,6 +1289,140 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
   }
   return mono;
 };
+
+// AudD file decode handler - extracts a clip from longer files
+(window as any).visualSynth?.onAuddDecodeFile?.(async (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => {
+  try {
+    const { requestId, fileBase64, seekSeconds, durationSeconds } = data;
+
+    // Decode base64 to ArrayBuffer
+    const binaryString = atob(fileBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Create blob and decode
+    const blob = new Blob([bytes.buffer], { type: data.mimeType });
+    const arrayBuffer = await blob.arrayBuffer();
+
+    // Decode audio data
+    const audioCtx = new AudioContext();
+    let decoded: AudioBuffer;
+    try {
+      decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    } catch {
+      (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, { base64: null, mimeType: '', durationMs: 0, error: 'Failed to decode audio file' });
+      await audioCtx.close();
+      return;
+    }
+
+    // Calculate seek position
+    const originalSampleRate = decoded.sampleRate;
+    const seekSamples = Math.floor(seekSeconds * originalSampleRate);
+    const captureSamples = Math.floor(durationSeconds * originalSampleRate);
+
+    // Get channel data (mix to mono if multi-channel)
+    const channelData = decoded.numberOfChannels > 1
+      ? mixToMonoBuffer(decoded)
+      : decoded.getChannelData(0);
+
+    // Extract section
+    const startIdx = Math.min(seekSamples, channelData.length - captureSamples);
+    const endIdx = Math.min(startIdx + captureSamples, channelData.length);
+    const actualDurationMs = Math.round(((endIdx - startIdx) / originalSampleRate) * 1000);
+
+    // Create a new blob with just the clip
+    // Re-encode to original format by creating a new AudioBuffer and exporting
+    const clipBuffer = audioCtx.createBuffer(1, endIdx - startIdx, originalSampleRate);
+    clipBuffer.copyToChannel(channelData.slice(startIdx, endIdx), 0);
+
+    // Convert to WAV for reliable re-encoding
+    const wavBlob = audioBufferToWavBlob(clipBuffer);
+
+    // Convert blob to base64
+    const wavArrayBuffer = await wavBlob.arrayBuffer();
+    const wavBytes = new Uint8Array(wavArrayBuffer);
+    let binary = '';
+    for (let i = 0; i < wavBytes.length; i++) {
+      binary += String.fromCharCode(wavBytes[i]);
+    }
+    const base64 = btoa(binary);
+
+    (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, {
+      base64,
+      mimeType: 'audio/wav',
+      durationMs: actualDurationMs
+    });
+
+    await audioCtx.close();
+  } catch (error) {
+    const requestId = (data as any).requestId;
+    (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, {
+      base64: null,
+      mimeType: '',
+      durationMs: 0,
+      error: (error as Error).message
+    });
+  }
+});
+
+/**
+ * Converts an AudioBuffer to a WAV blob for reliable re-encoding.
+ */
+function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const dataLength = buffer.length * blockAlign;
+  const headerLength = 44;
+  const totalLength = headerLength + dataLength;
+
+  const arrayBuffer = new ArrayBuffer(totalLength);
+  const view = new DataView(arrayBuffer);
+
+  // WAV header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, totalLength - 8, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // Subchunk1Size
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  // Write interleaved audio data
+  const channels: Float32Array[] = [];
+  for (let c = 0; c < numChannels; c++) {
+    channels.push(buffer.getChannelData(c));
+  }
+
+  let offset = headerLength;
+  for (let i = 0; i < buffer.length; i++) {
+    for (let c = 0; c < numChannels; c++) {
+      const sample = Math.max(-1, Math.min(1, channels[c][i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += bytesPerSample;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view: DataView, offset: number, str: string) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
 
 const gravityWells = Array.from({ length: 8 }, () => ({
   x: 0,
@@ -3857,11 +3992,62 @@ const renderSceneTimeline = () => {
       removeScene(sceneId);
       closeSceneTimelineMenu();
     },
+    onRename: (sceneId, newName) => {
+      const scene = currentProject.scenes.find((s) => s.id === sceneId);
+      if (scene) {
+        scene.name = newName;
+        renderSceneTimeline();
+        renderSceneStrip();
+        refreshSceneSelect();
+        setStatus(`Renamed scene to: ${newName}`);
+      }
+    },
+    onIntentChange: (sceneId, newIntent) => {
+      const scene = currentProject.scenes.find((s) => s.id === sceneId);
+      if (scene) {
+        scene.intent = newIntent as any;
+        renderSceneTimeline();
+        setStatus(`Scene "${scene.name}" intent: ${newIntent}`);
+      }
+    },
     onContextMenu: (sceneId, sceneName, event) => {
       showSceneTimelineMenu(event.clientX, event.clientY, sceneId, sceneName);
     },
     onImport: () => {
       void importSceneFromDisk();
+    },
+    onNewScene: () => {
+      const id = getNextSceneId();
+      const newScene: SceneConfig = {
+        id,
+        scene_id: id,
+        name: getUniqueSceneName('Empty Scene'),
+        intent: 'ambient',
+        duration: 0,
+        transition_in: { ...DEFAULT_SCENE_TRANSITION },
+        transition_out: { ...DEFAULT_SCENE_TRANSITION },
+        trigger: { ...DEFAULT_SCENE_TRIGGER },
+        assigned_layers: { core: [], support: [], atmosphere: [] },
+        layers: [],
+        look: {
+          effects: [{ enabled: true, bloom: 0, blur: 0, chroma: 0, posterize: 0, kaleidoscope: 0, feedback: 0, persistence: 0 }],
+          particles: { enabled: false, density: 0, speed: 0, size: 0, glow: 0 },
+          sdf: { enabled: false, shape: 'circle', scale: 0, edge: 0, glow: 0, rotation: 0, fill: 0 },
+          visualizer: { enabled: false, mode: 'off', opacity: 0, macroEnabled: false, macroId: 0 }
+        }
+      };
+      currentProject.scenes = [...currentProject.scenes, newScene];
+      refreshSceneSelect();
+      renderSceneTimeline();
+      renderSceneStrip();
+      setStatus(`Created empty scene: ${newScene.name}`);
+    },
+    onReorder: (fromIndex, toIndex) => {
+      currentProject = reorderScenes(currentProject, fromIndex, toIndex);
+      renderSceneTimeline();
+      renderSceneStrip();
+      const movedScene = currentProject.scenes[toIndex];
+      setStatus(`Moved "${movedScene.name}" to position ${toIndex + 1}`);
     }
   });
 };
@@ -3998,6 +4184,18 @@ const renderLayerList = () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
 
+  // Reset all layer toggle references (they may point to elements from the previous scene)
+  plasmaToggle = undefined;
+  spectrumToggle = undefined;
+  origamiToggle = undefined;
+  glyphToggle = undefined;
+  crystalToggle = undefined;
+  inkToggle = undefined;
+  topoToggle = undefined;
+  weatherToggle = undefined;
+  portalToggle = undefined;
+  oscilloToggle = undefined;
+
   // Count modulation connections for each layer
   const getModCountForLayer = (layerId: string): number => {
     const prefix = `${layerId}.`;
@@ -4008,6 +4206,17 @@ const renderLayerList = () => {
   const getMidiCountForLayer = (layerId: string): number => {
     return currentProject.midiMappings.filter(map => map.target.startsWith(layerId)).length;
   };
+
+  if (scene.layers.length === 0) {
+    // Empty scene: show placeholder message
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'layer-list-empty';
+    emptyMsg.textContent = 'No layers in this scene';
+    layerList.appendChild(emptyMsg);
+    layerListScene.appendChild(emptyMsg.cloneNode(true));
+    if (layerListDesign) layerListDesign.appendChild(emptyMsg.cloneNode(true));
+    return;
+  }
 
   scene.layers.forEach((layer, index) => {
     const createLayerRow = (targetList: HTMLDivElement) => {
@@ -10266,6 +10475,12 @@ const buildRecognitionRequest = async (
 };
 
 const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
+  const logMessages: string[] = [];
+  const log = (msg: string) => {
+    logMessages.push(msg);
+    console.log(msg);
+  };
+  log('[Now Playing Test] testNowPlayingLiveInput called, provider: ' + settings.provider + ', enabled: ' + settings.enabled);
   if (!isNowPlayingLookupConfigured(settings)) {
     nowPlayingTestStatus.textContent = 'Provider settings are incomplete.';
     return;
@@ -10274,10 +10489,12 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
   const rollingAudioCapture = getAudioEngineSafe()?.getRollingAudioCapture();
   if (!rollingAudioCapture || !rollingAudioCapture.isActive()) {
     nowPlayingTestStatus.textContent = 'Audio capture not active. Start audio input first.';
+    log('[Now Playing Test] Audio capture not active');
     return;
   }
 
   const stats = rollingAudioCapture.getStats();
+  log('[Now Playing Test] Capture stats: ' + JSON.stringify(stats));
   const minWaitMs = 10000;
   if (stats.captureDurationMs < minWaitMs && stats.totalChunks < 8) {
     const waitSeconds = Math.ceil((minWaitMs - stats.captureDurationMs) / 1000);
@@ -10286,22 +10503,63 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
   }
 
   nowPlayingTestStatus.textContent = `Exporting ${Math.round(settings.clipDurationMs / 1000)}s clip from ${stats.totalChunks} chunks...`;
+  log('[Now Playing Test] Exporting clip...');
 
   const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(settings.clipDurationMs);
   if (!exportResult.success || !exportResult.clip) {
     const detail = exportResult.errorDetail;
     if (detail) {
       nowPlayingTestStatus.textContent = `${exportResult.error} (${detail.selectedChunks}/${detail.totalChunks} chunks, ${(detail.totalBytes / 1024).toFixed(1)}KB)`;
+      log('[Now Playing Test] Export failed: ' + JSON.stringify(detail));
     } else {
       nowPlayingTestStatus.textContent = exportResult.error || 'Failed to export audio clip.';
+      log('[Now Playing Test] Export failed: ' + exportResult.error);
     }
+    alert('SHAZAM TEST FAILED:\n\n' + logMessages.join('\n') + '\n\nStatus: ' + nowPlayingTestStatus.textContent);
     return;
   }
 
   const clip = exportResult.clip;
+  log('[Now Playing Test] Clip exported: ' + clip.blob.size + ' bytes, mimeType: ' + clip.mimeType);
   nowPlayingTestStatus.textContent = `Validating ${(clip.blob.size / 1024).toFixed(1)}KB audio...`;
 
+  log('[Now Playing Test] Calling decodeClipToPcmWithDiagnostics...');
+
+  // For Shazam, try raw PCM export first (bypasses WebM/Opus decode issues)
+  if (settings.provider === 'shazam') {
+    log('[Now Playing Test] Using raw PCM export for Shazam...');
+    const pcmData = rollingAudioCapture.exportRecentPcm(settings.clipDurationMs);
+    if (pcmData && pcmData.pcmS16le.length >= 48000) {
+      log(`[Now Playing Test] PCM export success: ${pcmData.numSamples} samples, ${pcmData.durationMs}ms`);
+      const rawCopy = new Uint8Array(pcmData.pcmS16le.byteLength);
+      rawCopy.set(new Uint8Array(pcmData.pcmS16le.buffer, pcmData.pcmS16le.byteOffset, pcmData.pcmS16le.byteLength));
+      const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
+
+      const buildResult = await buildRecognitionRequest(
+        { blob: new Blob([rawCopy.buffer as ArrayBuffer]), mimeType: 'audio/pcm-s16le', startedAt: pcmData.startedAt, endedAt: pcmData.endedAt },
+        settings,
+        Date.now()
+      );
+      if (buildResult.request) {
+        buildResult.request.audioBase64 = audioBase64;
+        buildResult.request.mimeType = 'audio/pcm-s16le';
+        buildResult.request.numSamples = pcmData.numSamples;
+        buildResult.request.durationMs = pcmData.durationMs;
+        log(`[Now Playing Test] Built Shazam request: ${buildResult.request.numSamples} samples, ${buildResult.request.durationMs}ms`);
+        const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
+        log(`[Now Playing Test] Shazam result: matched=${result.matched}, title=${result.title}, artist=${result.artist}`);
+        await consumeNowPlayingResult(result, 'Shazam live test');
+        return;
+      }
+    }
+    log('[Now Playing Test] PCM export failed or too short, falling back to blob decode...');
+  }
+
   const diagnosticDecode = await decodeClipToPcmWithDiagnostics(clip);
+  log('[Now Playing Test] Decode result: ' + diagnosticDecode.success + ' ' + (diagnosticDecode.error || ''));
+  if (diagnosticDecode.errorDetail) {
+    log('[Now Playing Test] Error detail: ' + JSON.stringify(diagnosticDecode.errorDetail));
+  }
   let actualDurationSec: string;
   let energy = 0;
   
@@ -12486,7 +12744,8 @@ overlayAddImageBtn.addEventListener('click', async () => {
     opacity: 1,
     rotation: 0,
     includeInFx: false,
-    assetPath: result.filePath
+    assetPath: result.filePath,
+    targetSceneId: previewSceneId ?? currentProject.activeSceneId  // Scope to current scene
   };
   if (!currentProject.overlays) currentProject.overlays = [];
   currentProject.overlays.push(overlay);
@@ -12495,7 +12754,7 @@ overlayAddImageBtn.addEventListener('click', async () => {
   renderOverlayList();
   syncOverlayProps(overlay);
   overlayPropsEl.classList.remove('hidden');
-  setStatus(`Overlay added: ${name}`);
+  setStatus(`Overlay added: ${name} (scene: ${currentProject.scenes.find(s => s.id === (previewSceneId ?? currentProject.activeSceneId))?.name ?? 'current'})`);
 });
 
 overlayAddTextBtn.addEventListener('click', () => {
@@ -12514,7 +12773,8 @@ overlayAddTextBtn.addEventListener('click', () => {
     fontSize: 24,
     fontColor: '#ffffff',
     fontWeight: 'normal',
-    textShadow: true
+    textShadow: true,
+    targetSceneId: previewSceneId ?? currentProject.activeSceneId  // Scope to current scene
   };
   if (!currentProject.overlays) currentProject.overlays = [];
   currentProject.overlays.push(overlay);
