@@ -482,15 +482,28 @@ ipcMain.handle('project:open', async () => {
     properties: ['openFile']
   });
   if (result.canceled || result.filePaths.length === 0) {
+    console.log('[Main] Project open canceled or no file selected.');
     return { canceled: true };
   }
   const filePath = result.filePaths[0];
-  const data = fs.readFileSync(filePath, 'utf-8');
-  const parsed = projectSchema.safeParse(JSON.parse(data));
-  if (!parsed.success) {
-    return { canceled: true, error: 'Invalid project file.' };
+  console.log(`[Main] Opening project file: ${filePath}`);
+  try {
+    const data = fs.readFileSync(filePath, 'utf-8');
+    const parsed = projectSchema.safeParse(JSON.parse(data));
+    if (!parsed.success) {
+      console.error('[Main] Project parse failed:', parsed.error.flatten());
+      return { canceled: true, error: 'Invalid project file.', filePath };
+    }
+    console.log(`[Main] Project file parsed successfully: ${filePath}`);
+    return { canceled: false, filePath, project: parsed.data };
+  } catch (error) {
+    console.error('[Main] Project open failed:', error);
+    return {
+      canceled: true,
+      filePath,
+      error: error instanceof Error ? error.message : 'Project open failed.'
+    };
   }
-  return { canceled: false, filePath, project: parsed.data };
 });
 
 ipcMain.handle('scene:open', async () => {

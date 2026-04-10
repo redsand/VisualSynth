@@ -1023,10 +1023,11 @@ void main() {
     clearHistory();
   };
 
-  const setPlasmaShaderSource = (source: string | null) => {
+  const setPlasmaShaderSource = (source: string | null, fxUniformsOverride?: string) => {
     const trimmed = source?.trim();
     const nextSource = trimmed ? trimmed : null;
     const activeIds = currentActiveIds;
+    const effectiveFxUniforms = fxUniformsOverride ?? currentFxUniforms;
     const nextProgram = getOrCompileProgram(
       activeIds,
       currentSdfUniforms,
@@ -1035,7 +1036,7 @@ void main() {
       nextSource,
       currentCustomBlocks,
       false,
-      currentFxUniforms
+      effectiveFxUniforms
     );
     if (!nextProgram) {
       return { ok: false };
@@ -1043,6 +1044,7 @@ void main() {
     standardProgram = nextProgram;
     customPlasmaSource = nextSource;
     currentPlasmaSource = nextSource;
+    currentFxUniforms = effectiveFxUniforms;
     uniformLocationCache.clear();
     return { ok: true };
   };

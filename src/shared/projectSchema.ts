@@ -196,7 +196,7 @@ const stylePresetDefaults = [
   }
 ];
 
-const effectsSchema = z.object({
+const effectsObjectSchema = z.object({
   enabled: z.boolean(),
   bloom: z.number(),
   blur: z.number(),
@@ -206,6 +206,11 @@ const effectsSchema = z.object({
   feedback: z.number(),
   persistence: z.number()
 });
+
+const effectsSchema = z.union([
+  effectsObjectSchema,
+  z.array(effectsObjectSchema).length(1).transform(([effects]) => effects)
+]);
 
 
 const particlesSchema = z.object({

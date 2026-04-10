@@ -53,4 +53,45 @@ describe('project serialization', () => {
     expect(reloaded.scenes.some((scene) => scene.name === 'Bad Bunny')).toBe(true);
     expect(reloaded.activeSceneId).toBe('scene-69');
   });
+
+  it('loads legacy projects with array-shaped effects blocks', () => {
+    const legacy = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    legacy.effects = [
+      {
+        enabled: true,
+        bloom: 0,
+        blur: 0,
+        chroma: 0,
+        posterize: 0,
+        kaleidoscope: 0,
+        feedback: 0,
+        persistence: 0
+      }
+    ];
+    legacy.scenes = legacy.scenes.map((scene: any) => ({
+      ...scene,
+      look: {
+        ...(scene.look ?? {}),
+        effects: [
+          {
+            enabled: true,
+            bloom: 0,
+            blur: 0,
+            chroma: 0,
+            posterize: 0,
+            kaleidoscope: 0,
+            feedback: 0,
+            persistence: 0
+          }
+        ]
+      }
+    }));
+
+    const reloaded = deserializeProject(JSON.stringify(legacy));
+
+    expect(Array.isArray(reloaded.effects)).toBe(false);
+    expect(reloaded.effects.enabled).toBe(true);
+    expect(Array.isArray(reloaded.scenes[0].look?.effects)).toBe(false);
+    expect(reloaded.scenes[0].look?.effects?.enabled).toBe(true);
+  });
 });

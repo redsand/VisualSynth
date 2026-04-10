@@ -23,6 +23,7 @@ import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 import { compileSceneShaders, primeProjectShaders } from './shaderLifecycle';
+import { getFxUniformsDeclarations } from '../shared/shaderUtils';
 import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './ui/panels/LayerPanel';
 import { createMixerPanel } from './ui/panels/MixerPanel';
@@ -2747,14 +2748,15 @@ const loadShaderSourceForAsset = async (asset: AssetItem) => {
   }
 };
 
-const applyPlasmaShaderSource = (source: string | null, label: string) => {
-  if (typeof (renderer as { setPlasmaShaderSource?: (s: string | null) => { ok: boolean } })
+const applyPlasmaShaderSource = (source: string | null, label: string, scene: SceneConfig | null = null) => {
+  if (typeof (renderer as { setPlasmaShaderSource?: (s: string | null, fxUniformsOverride?: string) => { ok: boolean } })
     .setPlasmaShaderSource !== 'function') {
     setStatus(`Shader system unavailable (${label}).`);
     shaderStatus.textContent = 'Shader system unavailable in this build.';
     return false;
   }
-  const result = renderer.setPlasmaShaderSource(source);
+  const fxUniforms = getFxUniformsDeclarations(currentProject, scene);
+  const result = renderer.setPlasmaShaderSource(source, fxUniforms);
   if (!result.ok) {
     setStatus(`Shader compile failed (${label}).`);
     shaderStatus.textContent = `Shader compile failed for ${label}.`;
@@ -4033,7 +4035,7 @@ const renderSceneTimeline = () => {
         assigned_layers: { core: [], support: [], atmosphere: [] },
         layers: [],
         look: {
-          effects: [{ enabled: true, bloom: 0, blur: 0, chroma: 0, posterize: 0, kaleidoscope: 0, feedback: 0, persistence: 0 }],
+          effects: { enabled: true, bloom: 0, blur: 0, chroma: 0, posterize: 0, kaleidoscope: 0, feedback: 0, persistence: 0 },
           particles: { enabled: false, density: 0, speed: 0, size: 0, glow: 0 },
           sdf: { enabled: false, shape: 'circle', scale: 0, edge: 0, glow: 0, rotation: 0, fill: 0 },
           visualizer: { enabled: false, mode: 'off', opacity: 0, macroEnabled: false, macroId: 0 }
@@ -4163,7 +4165,9 @@ const populateSceneSelectors = () => {
     currentProject.scenes.forEach((scene, index) => {
       const option = document.createElement('option');
       option.value = scene.id;
-      option.textContent = `Scene ${index + 1}${scene.intent ? ` (${scene.intent})` : ''}`;
+      option.textContent = scene.name?.trim()
+        ? `${scene.name}${scene.intent ? ` (${scene.intent})` : ''}`
+        : `Scene ${index + 1}${scene.intent ? ` (${scene.intent})` : ''}`;
       select.appendChild(option);
     });
     select.value = sceneId;
@@ -6673,17 +6677,17 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
   const shaderId = plasmaLayer?.params?.shaderId as string | undefined;
   const asset = getShaderAssetById(shaderId ?? null);
   if (!asset) {
-    applyPlasmaShaderSource(null, 'Default');
+    applyPlasmaShaderSource(null, 'Default', scene);
     shaderTargetSelect.value = shaderTargetDraftValue;
     return;
   }
   const source = await loadShaderSourceForAsset(asset);
   if (!source) {
-    applyPlasmaShaderSource(null, 'Default');
+    applyPlasmaShaderSource(null, 'Default', scene);
     shaderTargetSelect.value = shaderTargetDraftValue;
     return;
   }
-  applyPlasmaShaderSource(source, asset.name);
+  applyPlasmaShaderSource(source, asset.name, scene);
   shaderTargetSelect.value = `${shaderTargetAssetPrefix}${asset.id}`;
 };
 
@@ -11046,6 +11050,11 @@ const applyProject = async (project: VisualSynthProject) => {
 
       const activeGeneratorCount = primeProjectShaders(renderer, currentProject, 200);
       console.log(`[Project] Applied project "${currentProject.name}", active scene shader primed for ${activeGeneratorCount} generators and scene variants queued for precompile`);
+      console.log(
+        `[Project] Loaded scenes (${currentProject.scenes.length}): ${currentProject.scenes
+          .map((scene) => `${scene.id}:${scene.name || 'Unnamed Scene'}`)
+          .join(', ')}`
+      );
     },
     syncOutputConfig,
     setOutputEnabled
@@ -11131,10 +11140,26 @@ const savePerformanceToDisk = async () => {
 const loadProjectFromDisk = async () => {
   suppressStartupRecovery = true;
   console.log('[Project] Manual open requested; suppressing startup recovery.');
-  const result = await window.visualSynth.openProject();
-  if (!result.canceled && result.project) {
-    console.log(`[Project] Opening file: ${result.filePath ?? 'unknown path'}`);
-    await applyProject(result.project);
+  try {
+    const result = await window.visualSynth.openProject();
+    console.log('[Project] Open dialog result:', {
+      canceled: result?.canceled,
+      filePath: result?.filePath,
+      hasProject: Boolean(result?.project),
+      error: result?.error
+    });
+    if (!result.canceled && result.project) {
+      console.log(`[Project] Opening file: ${result.filePath ?? 'unknown path'}`);
+      await applyProject(result.project);
+      return;
+    }
+    if (result?.error) {
+      console.error(`[Project] Open failed: ${result.error}`);
+      setStatus(`Open project failed: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('[Project] Open request threw:', error);
+    setStatus('Open project failed.');
   }
 };
 
