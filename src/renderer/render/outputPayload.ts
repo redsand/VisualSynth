@@ -4,7 +4,7 @@ import type { CustomShaderBlock } from '../../shared/customShaderBlock';
 import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
 
 type ExcludedOutputField = 'sdfScene' | 'debugTint';
-type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
+type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media' | 'gen-asset-vortex' | 'gen-asset-slices' | 'gen-asset-polar' | 'gen-asset-mosaic' | 'gen-asset-ripple' | 'gen-asset-scatter' | 'gen-asset-echo';
 
 export type RendererOutputPayload = Omit<RenderState, ExcludedOutputField>;
 export interface OutputShaderVariantPayload {
@@ -148,7 +148,14 @@ export const buildRendererOutputBroadcastPayload = ({
     layerAssets: {
       'layer-plasma': resolveLayerAsset(project, scene, 'layer-plasma'),
       'layer-spectrum': resolveLayerAsset(project, scene, 'layer-spectrum'),
-      'layer-media': resolveLayerAsset(project, scene, 'layer-media')
+      'layer-media': resolveLayerAsset(project, scene, 'layer-media'),
+      'gen-asset-vortex': resolveLayerAsset(project, scene, 'gen-asset-vortex'),
+      'gen-asset-slices': resolveLayerAsset(project, scene, 'gen-asset-slices'),
+      'gen-asset-polar': resolveLayerAsset(project, scene, 'gen-asset-polar'),
+      'gen-asset-mosaic': resolveLayerAsset(project, scene, 'gen-asset-mosaic'),
+      'gen-asset-ripple': resolveLayerAsset(project, scene, 'gen-asset-ripple'),
+      'gen-asset-scatter': resolveLayerAsset(project, scene, 'gen-asset-scatter'),
+      'gen-asset-echo': resolveLayerAsset(project, scene, 'gen-asset-echo')
     },
     activeGeneratorIds,
     overlays: project.overlays ?? [],

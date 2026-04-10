@@ -5321,7 +5321,7 @@ const renderAssets = () => {
   refreshShaderTargetOptions();
 };
 
-const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum', 'layer-media'] as const;
+const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum', 'layer-media', 'gen-asset-vortex', 'gen-asset-slices', 'gen-asset-polar', 'gen-asset-mosaic', 'gen-asset-ripple', 'gen-asset-scatter', 'gen-asset-echo'] as const;
 type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
 const isAssetLayerId = (layerId: string): layerId is AssetLayerId =>
   (ASSET_LAYER_IDS as readonly string[]).includes(layerId);
@@ -5329,12 +5329,26 @@ const isAssetLayerId = (layerId: string): layerId is AssetLayerId =>
 const assetLayerBlendModes: Record<AssetLayerId, number> = {
   'layer-plasma': 3,
   'layer-spectrum': 1,
-  'layer-media': 3
+  'layer-media': 3,
+  'gen-asset-vortex': 3,
+  'gen-asset-slices': 1,
+  'gen-asset-polar': 3,
+  'gen-asset-mosaic': 3,
+  'gen-asset-ripple': 3,
+  'gen-asset-scatter': 3,
+  'gen-asset-echo': 1
 };
 const assetLayerAudioReact: Record<AssetLayerId, number> = {
   'layer-plasma': 0.6,
   'layer-spectrum': 0.8,
-  'layer-media': 0.5
+  'layer-media': 0.5,
+  'gen-asset-vortex': 0.5,
+  'gen-asset-slices': 0.5,
+  'gen-asset-polar': 0.5,
+  'gen-asset-mosaic': 0.5,
+  'gen-asset-ripple': 0.5,
+  'gen-asset-scatter': 0.5,
+  'gen-asset-echo': 0.5
 };
 const getAssetBlendModeValue = (layerId: string): number =>
   (assetLayerBlendModes as Record<string, number>)[layerId] ?? 0;
