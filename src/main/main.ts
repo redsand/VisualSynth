@@ -11,9 +11,12 @@ import {
   OUTPUT_BASE_HEIGHT,
   OUTPUT_BASE_WIDTH,
   OutputConfig,
-  AssetColorSpace
+  AssetColorSpace,
+  type OverlayConfig,
+  type VisualSynthProject
 } from '../shared/project';
-import { deserializeProject } from '../shared/serialization';
+import { deserializeProject, serializeProject } from '../shared/serialization';
+import { normalizeAssetPath } from '../shared/assets';
 import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
 import { buildPresetIndexEntry } from '../shared/presetIndex';
 import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
@@ -264,6 +267,95 @@ app.on('before-quit', async () => {
   await cleanupOutputIntegrations();
 });
 
+const clearRecoverySession = () => {
+  try {
+    const recoveryPath = path.join(app.getPath('userData'), 'sessions', 'recovery.json');
+    if (fs.existsSync(recoveryPath)) {
+      fs.unlinkSync(recoveryPath);
+    }
+  } catch (error) {
+    console.warn('[Recovery] Failed to clear recovery session:', error);
+  }
+};
+
+const copyProjectAssetToPortableLocation = (
+  sourcePath: string,
+  projectAssetsDir: string
+) => {
+  if (!fs.existsSync(sourcePath)) {
+    return normalizeAssetPath(sourcePath);
+  }
+  fs.mkdirSync(projectAssetsDir, { recursive: true });
+  const ext = path.extname(sourcePath);
+  const hash = hashFile(sourcePath);
+  const fileName = `${hash}${ext}`;
+  const destPath = path.join(projectAssetsDir, fileName);
+  if (!fs.existsSync(destPath)) {
+    fs.copyFileSync(sourcePath, destPath);
+  }
+  return normalizeAssetPath(path.join('assets', fileName));
+};
+
+const readEmbeddedImageData = (sourcePath: string) => {
+  if (!fs.existsSync(sourcePath)) return undefined;
+  const ext = path.extname(sourcePath).toLowerCase();
+  if (!IMAGE_EXTENSIONS.has(ext)) return undefined;
+  const mime =
+    ext === '.png' ? 'image/png'
+    : ext === '.webp' ? 'image/webp'
+    : 'image/jpeg';
+  const data = fs.readFileSync(sourcePath).toString('base64');
+  return `data:${mime};base64,${data}`;
+};
+
+const rewritePortableProjectAssets = (project: VisualSynthProject, targetPath: string) => {
+  const projectDir = path.dirname(targetPath);
+  const projectAssetsDir = path.join(projectDir, 'assets');
+  const portablePathByAssetId = new Map<string, string>();
+
+  project.assets = project.assets.map((asset) => {
+    if (asset.kind === 'internal' || !asset.path) {
+      return asset;
+    }
+    if (asset.kind === 'texture') {
+      const embeddedData = readEmbeddedImageData(asset.path);
+      if (embeddedData) {
+        return {
+          ...asset,
+          embeddedData,
+          path: undefined
+        };
+      }
+    }
+    const portablePath = copyProjectAssetToPortableLocation(asset.path, projectAssetsDir);
+    portablePathByAssetId.set(asset.id, portablePath ?? asset.path);
+    return {
+      ...asset,
+      path: portablePath
+    };
+  });
+
+  project.overlays = (project.overlays ?? []).map((overlay: OverlayConfig) => {
+    if (overlay.type !== 'image') {
+      return overlay;
+    }
+    const portableFromAssetId = overlay.assetId ? portablePathByAssetId.get(overlay.assetId) : undefined;
+    const portablePath = portableFromAssetId
+      ?? (overlay.assetPath ? copyProjectAssetToPortableLocation(overlay.assetPath, projectAssetsDir) : undefined);
+    return {
+      ...overlay,
+      assetPath: portablePath
+    };
+  });
+
+  return project;
+};
+
+const buildPortableProjectPayload = (payload: string, targetPath: string) => {
+  const project = rewritePortableProjectAssets(deserializeProject(payload), targetPath);
+  return serializeProject(project);
+};
+
 ipcMain.handle('project:save', async (_event, payload: string, filePath?: string) => {
   if (!mainWindow) return { canceled: true };
 
@@ -282,7 +374,9 @@ ipcMain.handle('project:save', async (_event, payload: string, filePath?: string
   }
 
   try {
-    fs.writeFileSync(targetPath, payload, 'utf-8');
+    const portablePayload = buildPortableProjectPayload(payload, targetPath);
+    fs.writeFileSync(targetPath, portablePayload, 'utf-8');
+    clearRecoverySession();
     return { canceled: false, filePath: targetPath };
   } catch (error) {
     return { canceled: true, error: error instanceof Error ? error.message : String(error) };
@@ -314,7 +408,9 @@ ipcMain.handle('preset:save', async (_event, payload: string, defaultName: strin
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, payload, 'utf-8');
+  const portablePayload = buildPortableProjectPayload(payload, result.filePath);
+  fs.writeFileSync(result.filePath, portablePayload, 'utf-8');
+  clearRecoverySession();
   return { canceled: false, filePath: result.filePath };
 });
 

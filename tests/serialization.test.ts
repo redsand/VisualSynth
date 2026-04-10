@@ -26,4 +26,31 @@ describe('project serialization', () => {
     expect(upgraded.stylePresets).toBeDefined();
     expect(upgraded.macros.length).toBeGreaterThan(0);
   });
+
+  it('preserves added scenes and scene names across a save/load round-trip', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.scenes = [
+      ...project.scenes,
+      {
+        ...project.scenes[0],
+        id: 'scene-67',
+        scene_id: 'scene-67',
+        name: 'Selena'
+      },
+      {
+        ...project.scenes[0],
+        id: 'scene-69',
+        scene_id: 'scene-69',
+        name: 'Bad Bunny'
+      }
+    ];
+    project.activeSceneId = 'scene-69';
+
+    const payload = serializeProject(project);
+    const reloaded = deserializeProject(payload);
+
+    expect(reloaded.scenes.some((scene) => scene.name === 'Selena')).toBe(true);
+    expect(reloaded.scenes.some((scene) => scene.name === 'Bad Bunny')).toBe(true);
+    expect(reloaded.activeSceneId).toBe('scene-69');
+  });
 });

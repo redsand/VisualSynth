@@ -32,7 +32,7 @@ import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './ui/panels/ModulationPanel';
 import { getBeatMs, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
-import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset } from '../shared/generatorLibrary';
+import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset, needsInput } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
 import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
@@ -841,6 +841,7 @@ let fluxPrev = 0;
 let fluxPrevPrev = 0;
 let projectDirty = false;
 let isRecoveryProject = false;
+let suppressStartupRecovery = false;
 
 const markProjectDirty = () => {
   projectDirty = true;
@@ -10995,9 +10996,9 @@ const serializePerformance = () => {
   return JSON.stringify(performance, null, 2);
 };
 
-const serializeProject = () => {
+const buildProjectSnapshotForSave = (): VisualSynthProject => {
   const now = new Date().toISOString();
-  currentProject = {
+  return {
     ...currentProject,
     updatedAt: now,
     output: outputConfig,
@@ -11008,17 +11009,23 @@ const serializeProject = () => {
     scenes: currentProject.scenes.map((scene) => ({
       ...scene,
       layers: scene.layers.map((layer) => {
+        if (scene.id !== currentProject.activeSceneId) {
+          return { ...layer };
+        }
         if (layer.id === 'layer-plasma') {
           return { ...layer, enabled: plasmaToggle?.checked ?? layer.enabled };
         }
         if (layer.id === 'layer-spectrum') {
           return { ...layer, enabled: spectrumToggle?.checked ?? layer.enabled };
         }
-        return layer;
+        return { ...layer };
       })
     }))
   };
-  return JSON.stringify(currentProject, null, 2);
+};
+
+const serializeProject = () => {
+  return JSON.stringify(buildProjectSnapshotForSave(), null, 2);
 };
 
 const applyProject = async (project: VisualSynthProject) => {
@@ -11102,17 +11109,31 @@ const applyProject = async (project: VisualSynthProject) => {
 
 const saveProjectToDisk = async () => {
   const payload = serializeProject();
-  await window.visualSynth.saveProject(payload);
+  const saveResult = isRecoveryProject
+    ? await window.visualSynth.saveProjectAs(payload)
+    : await window.visualSynth.saveProject(payload);
+  if (!saveResult.canceled) {
+    projectDirty = false;
+    isRecoveryProject = false;
+    setStatus(`Saved project: ${currentProject.name}`);
+  }
 };
 
 const savePerformanceToDisk = async () => {
   const payload = serializePerformance();
-  await window.visualSynth.saveProject(payload);
+  const saveResult = await window.visualSynth.saveProject(payload);
+  if (!saveResult.canceled) {
+    projectDirty = false;
+    setStatus(`Saved project: ${currentProject.name}`);
+  }
 };
 
 const loadProjectFromDisk = async () => {
+  suppressStartupRecovery = true;
+  console.log('[Project] Manual open requested; suppressing startup recovery.');
   const result = await window.visualSynth.openProject();
   if (!result.canceled && result.project) {
+    console.log(`[Project] Opening file: ${result.filePath ?? 'unknown path'}`);
     await applyProject(result.project);
   }
 };
@@ -14253,6 +14274,9 @@ const init = async () => {
   if (window.visualSynth) {
     console.log('[Init] Starting recovery check...');
     try {
+      if (suppressStartupRecovery) {
+        console.log('[Init] Recovery check skipped because a manual project open was requested.');
+      } else {
       const startupSelection = await selectStartupProject(window.visualSynth, localStorage);
       await applyStartupSelection(startupSelection, {
         applyProject,
@@ -14265,6 +14289,7 @@ const init = async () => {
           projectDirty = true;
         }
       });
+      }
     } catch {
       setStatus('Recovery session found but failed to load.');
     }

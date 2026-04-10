@@ -276,6 +276,7 @@ export interface OverlayConfig {
   opacity: number;
   rotation: number;
   includeInFx: boolean;
+  assetId?: string;
   assetPath?: string;
   text?: string;
   fontFamily?: string;
@@ -443,6 +444,7 @@ export interface AssetItem {
   name: string;
   kind: 'texture' | 'video' | 'shader' | 'live' | 'text' | 'internal';
   path?: string;
+  embeddedData?: string;
   tags: string[];
   addedAt: string;
   missing?: boolean;

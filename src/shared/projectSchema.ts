@@ -588,6 +588,7 @@ const assetItemSchema = z.object({
   name: z.string(),
   kind: z.enum(['texture', 'shader', 'video', 'live', 'text', 'internal']),
   path: z.string().optional(),
+  embeddedData: z.string().optional(),
   tags: z.array(z.string()),
   addedAt: z.string(),
   hash: z.string().optional(),
@@ -877,13 +878,15 @@ export const projectSchema = z.object({
     opacity: z.number().default(1),
     rotation: z.number().default(0),
     includeInFx: z.boolean().default(false),
+    assetId: z.string().optional(),
     assetPath: z.string().optional(),
     text: z.string().optional(),
     fontFamily: z.string().optional(),
     fontSize: z.number().optional(),
     fontColor: z.string().optional(),
     fontWeight: z.enum(['normal', 'bold']).optional(),
-    textShadow: z.boolean().optional()
+    textShadow: z.boolean().optional(),
+    targetSceneId: z.string().optional()
   })).default([]),
   _shaderData: milkDropShaderDataSchema.optional()
 });
