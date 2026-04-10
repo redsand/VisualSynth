@@ -596,6 +596,49 @@ export const createLayerPanel = ({
       onSetVisualizerMode('oscilloscope');
       setStatus('Visualizer: Oscilloscope.');
     }
+    // Asset-based generators
+    if (id === 'gen-asset-vortex') {
+      actions.ensureLayer(store, 'gen-asset-vortex');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Vortex enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-slices') {
+      actions.ensureLayer(store, 'gen-asset-slices');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Slices enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-polar') {
+      actions.ensureLayer(store, 'gen-asset-polar');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Polar Warp enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-mosaic') {
+      actions.ensureLayer(store, 'gen-asset-mosaic');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Mosaic enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-ripple') {
+      actions.ensureLayer(store, 'gen-asset-ripple');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Ripples enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-scatter') {
+      actions.ensureLayer(store, 'gen-asset-scatter');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Scatter enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-echo') {
+      actions.ensureLayer(store, 'gen-asset-echo');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Echo Ghosts enabled. Add an asset in Layers panel.');
+    }
     if (id === 'gen-particles') {
       onEnableParticles();
       setStatus('Particle field enabled.');

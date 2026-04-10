@@ -7570,6 +7570,63 @@ const addGenerator = (id: GeneratorId) => {
     if (oscilloToggle) oscilloToggle.checked = true;
     setStatus('Sacred oscilloscope layer enabled.');
   }
+  // Asset-based generators
+  if (id === 'gen-asset-vortex') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-vortex', 'Asset Vortex');
+      renderLayerList();
+    }
+    setStatus('Asset Vortex enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-slices') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-slices', 'Asset Slices');
+      renderLayerList();
+    }
+    setStatus('Asset Slices enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-polar') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-polar', 'Asset Polar Warp');
+      renderLayerList();
+    }
+    setStatus('Asset Polar Warp enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-mosaic') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-mosaic', 'Asset Mosaic');
+      renderLayerList();
+    }
+    setStatus('Asset Mosaic enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-ripple') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-ripple', 'Asset Ripples');
+      renderLayerList();
+    }
+    setStatus('Asset Ripples enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-scatter') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-scatter', 'Asset Scatter');
+      renderLayerList();
+    }
+    setStatus('Asset Scatter enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-echo') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-echo', 'Asset Echo Ghosts');
+      renderLayerList();
+    }
+    setStatus('Asset Echo Ghosts enabled. Add an asset in Layers panel.');
+  }
   if (id === 'variant-plasma-vortex') {
     applyGeneratorVariant('layer-plasma', {
       name: 'Shader Plasma',
