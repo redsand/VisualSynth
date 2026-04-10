@@ -48,6 +48,7 @@ import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
 import { createScenePreset } from '../shared/scenePreset';
 import type { PresetIndexEntry } from '../shared/presetIndex';
 import { getCertificationColor } from '../shared/certification';
+import { syncActiveSceneLookSection } from '../shared/sceneLookSync';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
@@ -2680,6 +2681,7 @@ const setVisualizerMode = (mode: typeof visualizerMode) => {
   visualizerMode = mode;
   visualizerModeSelect.value = mode;
   currentProject.visualizer.mode = mode;
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
   visualizerEnabledToggle.checked = currentProject.visualizer.enabled;
   visualizerOpacityInput.value = String(currentProject.visualizer.opacity);
   visualizerMacroToggle.checked = currentProject.visualizer.macroEnabled;
@@ -5297,6 +5299,8 @@ const renderAssets = () => {
 
 const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum', 'layer-media'] as const;
 type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
+const isAssetLayerId = (layerId: string): layerId is AssetLayerId =>
+  (ASSET_LAYER_IDS as readonly string[]).includes(layerId);
 
 const assetLayerBlendModes: Record<AssetLayerId, number> = {
   'layer-plasma': 3,
@@ -5318,6 +5322,28 @@ const formatAssetLabel = (asset: AssetItem) => {
   return `${asset.name} (${asset.kind})${status}`;
 };
 
+const rendererLayerAssetBindings: Partial<Record<AssetLayerId, string | null>> = {};
+
+const bindRendererLayerAsset = async (layerId: AssetLayerId, assetId: string | null) => {
+  if (rendererLayerAssetBindings[layerId] === assetId) return;
+  rendererLayerAssetBindings[layerId] = assetId;
+  const target = assetId ? currentProject.assets.find((item) => item.id === assetId) ?? null : null;
+  const previewVideo = target ? livePreviewElements.get(target.id) : undefined;
+  const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
+  try {
+    await renderer.setLayerAsset(layerId, target, previewVideo, textCanvas);
+  } catch {
+    rendererLayerAssetBindings[layerId] = null;
+  }
+};
+
+const syncRendererAssetBindingsForScene = (scene: SceneConfig | undefined) => {
+  (ASSET_LAYER_IDS as readonly AssetLayerId[]).forEach((layerId) => {
+    const assetId = scene?.layers.find((layer) => layer.id === layerId)?.assetId ?? null;
+    void bindRendererLayerAsset(layerId, assetId);
+  });
+};
+
 const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
   if (!forceRefresh && layer.assetId === assetId) return;
   layer.assetId = assetId ?? undefined;
@@ -5330,6 +5356,9 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, fo
     const previewVideo = target ? livePreviewElements.get(target.id) : undefined;
     const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
     await renderer.setLayerAsset(layer.id, target, previewVideo, textCanvas);
+    if (isAssetLayerId(layer.id)) {
+      rendererLayerAssetBindings[layer.id] = assetId;
+    }
     if (target) {
       recordAssetLayerAssignment(target.kind, layer.id);
       setStatus(`${layer.name} now using ${target.name}`);
@@ -5412,6 +5441,9 @@ const unassignAssetFromLayers = (assetId: string) => {
       if (layer.assetId === assetId) {
         layer.assetId = undefined;
         void renderer.setLayerAsset(layer.id as AssetLayerId, null);
+        if (isAssetLayerId(layer.id)) {
+          rendererLayerAssetBindings[layer.id] = null;
+        }
         removed = true;
       }
     });
@@ -9163,6 +9195,8 @@ const applyStyleControls = () => {
   preset.settings.contrast = Number(styleContrast.value);
   preset.settings.saturation = Number(styleSaturation.value);
   preset.settings.paletteShift = Number(styleShift.value);
+  syncActiveSceneLookSection(currentProject, 'stylePresets', currentProject.stylePresets);
+  syncActiveSceneLookSection(currentProject, 'activeStylePresetId', currentProject.activeStylePresetId);
 };
 
 const initMacros = () => {
@@ -9363,10 +9397,7 @@ const macroHeroInputs = [macroEnergy, macroMotion, macroColor, macroDensity];
 const macroHeroValues = [macroEnergyValue, macroMotionValue, macroColorValue, macroDensityValue];
 
 const syncMacrosToActiveScene = () => {
-  const scene = getActiveScene();
-  if (!scene) return;
-  if (!scene.look) scene.look = {};
-  scene.look.macros = cloneValue(currentProject.macros);
+  syncActiveSceneLookSection(currentProject, 'macros', currentProject.macros);
 };
 
 const syncMacroHeroFromProject = () => {
@@ -9496,6 +9527,7 @@ const applyEffectControls = () => {
     feedback: Number(effectFeedback.value),
     persistence: Number(effectPersistence.value)
   };
+  syncActiveSceneLookSection(currentProject, 'effects', currentProject.effects as any);
 };
 
 const applyExpressiveFxControls = () => {
@@ -9566,6 +9598,7 @@ const applyParticleControls = () => {
     size: Number(particlesSize.value),
     glow: Number(particlesGlow.value)
   };
+  syncActiveSceneLookSection(currentProject, 'particles', currentProject.particles);
 };
 
 const applySdfControls = () => {
@@ -9583,6 +9616,7 @@ const applySdfControls = () => {
         parseInt(sdfColor.value.slice(5, 7), 16) / 255
     ]
   };
+  syncActiveSceneLookSection(currentProject, 'sdf', currentProject.sdf);
   if (sdfAdvancedToggle.checked) {
     sdfPanel?.render();
   }
@@ -10312,6 +10346,8 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
   let overlay = currentProject.overlays.find((item) => item.id === overlayId);
   if (overlay) return overlay;
 
+  const targetSceneId = previewSceneId ?? currentProject.activeSceneId;
+
   overlay =
     type === 'text'
       ? {
@@ -10330,7 +10366,8 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
           fontSize: 30,
           fontColor: '#ffffff',
           fontWeight: 'bold',
-          textShadow: true
+          textShadow: true,
+          targetSceneId
         }
       : {
           id: overlayId,
@@ -10343,7 +10380,8 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
           height: 0.18,
           opacity: 0.95,
           rotation: 0,
-          includeInFx: false
+          includeInFx: false,
+          targetSceneId
         };
 
   currentProject.overlays.push(overlay);
@@ -10425,6 +10463,34 @@ const buildRecognitionRequest = async (
   };
 
   if (settings.provider === 'shazam') {
+    // Try raw PCM export first (bypasses WebM/Opus decode issues)
+    const pcmClip = rollingAudioCapture.exportRecentPcm?.(settings.clipDurationMs);
+    if (pcmClip && pcmClip.pcmS16le.length >= 48000) {
+      const rawCopy = new Uint8Array(pcmClip.pcmS16le.byteLength);
+      rawCopy.set(new Uint8Array(
+        pcmClip.pcmS16le.buffer,
+        pcmClip.pcmS16le.byteOffset,
+        pcmClip.pcmS16le.byteLength
+      ));
+      const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
+      diagnostics.pcmSamples = pcmClip.numSamples;
+      diagnostics.pcmDurationMs = pcmClip.durationMs;
+      console.log(`[Now Playing] Shazam using raw PCM: ${pcmClip.numSamples} samples, ${pcmClip.durationMs}ms`);
+      return {
+        request: {
+          provider: 'shazam',
+          audioBase64,
+          mimeType: 'audio/pcm-s16le',
+          numSamples: pcmClip.numSamples,
+          durationMs: pcmClip.durationMs,
+          market: settings.market || undefined,
+          detectedAt
+        },
+        diagnostics
+      };
+    }
+    console.warn('[Now Playing] PCM capture unavailable for Shazam, falling back to blob decode...');
+
     const decodeResult = await decodeClipToPcmWithDiagnostics(clip);
     if (!decodeResult.success || !decodeResult.pcm) {
       return {
@@ -11385,6 +11451,7 @@ visualizerModeSelect.addEventListener('change', () => {
 
 visualizerEnabledToggle.addEventListener('change', () => {
   currentProject.visualizer.enabled = visualizerEnabledToggle.checked;
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
   visualizerCanvas.classList.toggle(
     'hidden',
     visualizerMode === 'off' || !currentProject.visualizer.enabled
@@ -11394,13 +11461,16 @@ visualizerEnabledToggle.addEventListener('change', () => {
 
 visualizerOpacityInput.addEventListener('input', () => {
   currentProject.visualizer.opacity = Number(visualizerOpacityInput.value);
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
 });
 visualizerMacroToggle.addEventListener('change', () => {
   currentProject.visualizer.macroEnabled = visualizerMacroToggle.checked;
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
   visualizerMacroSelect.disabled = !visualizerMacroToggle.checked;
 });
 visualizerMacroSelect.addEventListener('change', () => {
   currentProject.visualizer.macroId = Number(visualizerMacroSelect.value);
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
 });
 
 generatorAddButton.addEventListener('click', () => {
@@ -12734,6 +12804,22 @@ overlayAddImageBtn.addEventListener('click', async () => {
   const result = await window.visualSynth.importAsset('texture');
   if (result.canceled || !result.filePath) return;
   const name = result.filePath.split(/[\\/]/).pop() ?? 'Image';
+  currentProject.assets = [
+    ...currentProject.assets,
+    createAssetItem({
+      name,
+      kind: 'texture',
+      path: result.filePath,
+      tags: ['overlay'],
+      metadata: {
+        hash: result.hash,
+        mime: result.mime,
+        width: result.width,
+        height: result.height,
+        colorSpace: result.colorSpace
+      }
+    })
+  ];
   const overlay: OverlayConfig = {
     id: generateOverlayId(),
     name,
@@ -12751,6 +12837,7 @@ overlayAddImageBtn.addEventListener('click', async () => {
   currentProject.overlays.push(overlay);
   selectedOverlayId = overlay.id;
   overlayRenderer.setSelected(overlay.id);
+  renderAssets();
   renderOverlayList();
   syncOverlayProps(overlay);
   overlayPropsEl.classList.remove('hidden');
@@ -13163,6 +13250,7 @@ const render = (time: number) => {
     ? currentProject.scenes.find((scene) => scene.id === previewSceneId) ?? activeScene
     : blendSnapshot?.scene ?? activeScene;
   const outputScene = blendSnapshot?.scene ?? activeScene;
+  syncRendererAssetBindingsForScene(outputScene);
   const legacyNeutral = isLegacyNeutralProject(currentProject);
   const hasActiveEngine = Boolean(currentProject.activeEngineId && currentProject.activeEngineId !== 'engine-none');
 

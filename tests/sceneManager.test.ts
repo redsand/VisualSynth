@@ -53,4 +53,28 @@ describe('SceneManager blending', () => {
     const done = manager.getBlendSnapshot(200);
     expect(done).toBeNull();
   });
+
+  it('keeps scene-specific asset ids when switching and chooses the destination asset in the second half of the blend', () => {
+    const project = makeProject();
+    project.scenes[0].layers = [
+      { ...project.scenes[0].layers[0], id: 'layer-media', assetId: 'asset-a', enabled: true, opacity: 1 }
+    ];
+    project.scenes[1].layers = [
+      { ...project.scenes[1].layers[0], id: 'layer-media', assetId: 'asset-b', enabled: true, opacity: 1 }
+    ];
+
+    const from = captureSceneSnapshot(project, 'scene-a');
+    const to = captureSceneSnapshot(project, 'scene-b');
+    expect(from?.scene.layers[0].assetId).toBe('asset-a');
+    expect(to?.scene.layers[0].assetId).toBe('asset-b');
+
+    const manager = new SceneManager(() => project);
+    manager.startTransition(from!, to!, 0, 1000, 'linear');
+
+    const early = manager.getBlendSnapshot(250);
+    const late = manager.getBlendSnapshot(750);
+
+    expect(early?.scene.layers.find((layer) => layer.id === 'layer-media')?.assetId).toBe('asset-a');
+    expect(late?.scene.layers.find((layer) => layer.id === 'layer-media')?.assetId).toBe('asset-b');
+  });
 });

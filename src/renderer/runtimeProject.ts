@@ -3,11 +3,14 @@ import {
   DEFAULT_SCENE_ROLES,
   DEFAULT_SCENE_TRANSITION,
   DEFAULT_SCENE_TRIGGER,
+  type AssetItem,
   type SceneConfig,
   type SceneIntent,
+  type OverlayConfig,
   type VisualSynthProject
 } from '../shared/project';
 import { getLayerType } from '../shared/parameterRegistry';
+import { createAssetItem, normalizeAssetPath } from '../shared/assets';
 
 const cloneValue = <T>(value: T): T => {
   if (value === undefined) return value;
@@ -206,12 +209,49 @@ const ensureProjectScenes = (project: VisualSynthProject) => {
   }
 };
 
+const inferOverlayAssetName = (overlay: OverlayConfig) => {
+  const normalizedPath = normalizeAssetPath(overlay.assetPath);
+  const fromPath = normalizedPath?.split('/').pop()?.trim();
+  if (fromPath) return fromPath;
+  return overlay.name?.trim() || 'Overlay Image';
+};
+
+const ensureOverlayAssets = (project: VisualSynthProject) => {
+  if (!Array.isArray(project.assets)) {
+    project.assets = [];
+  }
+  const existingPaths = new Set(
+    project.assets
+      .map((asset) => normalizeAssetPath(asset.path))
+      .filter((path): path is string => Boolean(path))
+  );
+  const overlayAssets: AssetItem[] = [];
+  (project.overlays ?? []).forEach((overlay) => {
+    if (overlay.type !== 'image' || !overlay.assetPath) return;
+    const normalizedPath = normalizeAssetPath(overlay.assetPath);
+    if (!normalizedPath || existingPaths.has(normalizedPath)) return;
+    existingPaths.add(normalizedPath);
+    overlayAssets.push(
+      createAssetItem({
+        name: inferOverlayAssetName(overlay),
+        kind: 'texture',
+        path: normalizedPath,
+        tags: ['overlay']
+      })
+    );
+  });
+  if (overlayAssets.length > 0) {
+    project.assets = [...project.assets, ...overlayAssets];
+  }
+};
+
 export const prepareProjectForRuntime = (project: VisualSynthProject): VisualSynthProject => {
   ensureProjectMacros(project);
   ensureProjectPalettes(project);
   ensureProjectExpressiveFx(project);
   ensureProjectModulators(project);
   ensureProjectScenes(project);
+  ensureOverlayAssets(project);
   project.version = Math.max(project.version ?? 0, DEFAULT_PROJECT.version);
   return project;
 };
