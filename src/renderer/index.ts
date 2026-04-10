@@ -11134,9 +11134,8 @@ const applyProject = async (project: VisualSynthProject) => {
       currentProject = normalized;
       initEngineSelect();
       refreshSceneSelect();
-      applyScene(currentProject.activeSceneId, { skipShaderWarmup: true });
-
       const activeGeneratorCount = primeProjectShaders(renderer, currentProject, 200);
+      applyScene(currentProject.activeSceneId, { skipShaderWarmup: true });
       console.log(`[Project] Applied project "${currentProject.name}", active scene shader primed for ${activeGeneratorCount} generators and scene variants queued for precompile`);
       console.log(
         `[Project] Loaded scenes (${currentProject.scenes.length}): ${currentProject.scenes
