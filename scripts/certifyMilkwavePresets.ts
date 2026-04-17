@@ -87,6 +87,7 @@ function certify() {
 
   const certificationReport = {
     timestamp: new Date().toISOString(),
+    selection: auditData.selection ?? null,
     stats: {
       total: results.length,
       certifiedSafe: results.filter(r => r.certificationStatus === 'certified-safe').length,
@@ -101,7 +102,12 @@ function certify() {
   // Markdown Summary
   let md = `# Milkwave Certification Report\n\n`;
   md += `**Date**: ${certificationReport.timestamp}\n`;
-  md += `**Total Presets**: ${certificationReport.stats.total}\n\n`;
+  md += `**Total Presets**: ${certificationReport.stats.total}\n`;
+  if (certificationReport.selection?.mode === 'pack') {
+    md += `**Pack**: ${certificationReport.selection.pack}\n`;
+    md += `**Pack Size**: ${certificationReport.selection.packSize}\n`;
+  }
+  md += `\n`;
 
   md += `## Summary\n\n`;
   md += `| Status | Count | Description |\n`;

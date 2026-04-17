@@ -3,7 +3,6 @@ export type GeneratorId =
   | 'gen-cellular-growth'
   | 'gen-bioluminescent-forest'
   | 'gen-crystalline-structures'
-  | 'gen-audio-dna-helix'
   | 'gen-liquid-metal'
   | 'gen-neon-cityscape'
   | 'gen-cosmic-aurora'
@@ -164,7 +163,47 @@ export type GeneratorId =
   | 'gen-asset-mosaic'
   | 'gen-asset-ripple'
   | 'gen-asset-scatter'
-  | 'gen-asset-echo';
+  | 'gen-asset-echo'
+  | 'gen-voronoi-tessellation'
+  | 'gen-choropleth-wave'
+  | 'gen-sankey-flow'
+  | 'gen-scatter-plot'
+  | 'gen-radial-bar'
+  | 'gen-reaction-diffusion'
+  | 'gen-penrose-tiling'
+  | 'gen-strange-attractor'
+  | 'gen-l-system'
+  | 'gen-raymarch-terrain'
+  | 'gen-spirograph'
+  | 'gen-uv-feedback'
+  | 'gen-droste-effect'
+  | 'gen-equalizer-matrix'
+  | 'gen-metaball'
+  | 'gen-interference-pattern'
+  | 'gen-terrain-hypsometric'
+  | 'gen-phyllotaxis'
+  | 'gen-deep-ocean'
+  | 'gen-holographic-prism'
+  | 'gen-boids'
+  | 'gen-flow-field'
+  | 'gen-stained-glass'
+  | 'gen-hillshade'
+  | 'gen-truchet-tiles'
+  | 'gen-spectrogram'
+  | 'gen-crosshatch'
+  | 'gen-shatter'
+  | 'gen-seigaiha'
+  | 'gen-sierpinski'
+  | 'gen-orbital'
+  | 'gen-conic-gradient'
+  | 'gen-barcode'
+  | 'gen-ferrofluid'
+  | 'gen-halftone'
+  | 'gen-pixel-sort'
+  | 'gen-ripple-pond'
+  | 'gen-hex-grid'
+  | 'gen-woven'
+  | 'gen-chromatic-aberr';
 
 export interface GeneratorEntry {
   id: GeneratorId;
@@ -320,7 +359,47 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-asset-ripple', name: 'Asset Ripples', supportsAsset: true, inputRequired: true },
   { id: 'gen-asset-scatter', name: 'Asset Scatter', supportsAsset: true, inputRequired: true },
   { id: 'gen-asset-echo', name: 'Asset Echo Ghosts', supportsAsset: true, inputRequired: true },
-  { id: 'gen-milkwave', name: 'Generator: Milkwave Import', visible: false }
+  { id: 'gen-milkwave', name: 'Generator: Milkwave Import', visible: false },
+  { id: 'gen-voronoi-tessellation', name: 'Generator: Voronoi Tessellation' },
+  { id: 'gen-choropleth-wave', name: 'Generator: Choropleth Wave' },
+  { id: 'gen-sankey-flow', name: 'Generator: Sankey Flow' },
+  { id: 'gen-scatter-plot', name: 'Generator: Scatter Plot' },
+  { id: 'gen-radial-bar', name: 'Generator: Radial Bar' },
+  { id: 'gen-reaction-diffusion', name: 'Generator: Reaction Diffusion' },
+  { id: 'gen-penrose-tiling', name: 'Generator: Penrose Tiling' },
+  { id: 'gen-strange-attractor', name: 'Generator: Strange Attractor' },
+  { id: 'gen-l-system', name: 'Generator: L-System' },
+  { id: 'gen-raymarch-terrain', name: 'Generator: Raymarch Terrain' },
+  { id: 'gen-spirograph', name: 'Generator: Spirograph' },
+  { id: 'gen-uv-feedback', name: 'Generator: UV Feedback' },
+  { id: 'gen-droste-effect', name: 'Generator: Droste Effect' },
+  { id: 'gen-equalizer-matrix', name: 'Generator: Equalizer Matrix' },
+  { id: 'gen-metaball', name: 'Generator: Metaball' },
+  { id: 'gen-interference-pattern', name: 'Generator: Interference Pattern' },
+  { id: 'gen-terrain-hypsometric', name: 'Generator: Terrain Hypsometric' },
+  { id: 'gen-phyllotaxis', name: 'Generator: Phyllotaxis' },
+  { id: 'gen-deep-ocean', name: 'Generator: Deep Ocean' },
+  { id: 'gen-holographic-prism', name: 'Generator: Holographic Prism' },
+  { id: 'gen-boids', name: 'Generator: Boids' },
+  { id: 'gen-flow-field', name: 'Generator: Flow Field' },
+  { id: 'gen-stained-glass', name: 'Generator: Stained Glass' },
+  { id: 'gen-hillshade', name: 'Generator: Hillshade' },
+  { id: 'gen-truchet-tiles', name: 'Generator: Truchet Tiles' },
+  { id: 'gen-spectrogram', name: 'Generator: Spectrogram' },
+  { id: 'gen-crosshatch', name: 'Generator: Crosshatch' },
+  { id: 'gen-shatter', name: 'Generator: Shatter' },
+  { id: 'gen-seigaiha', name: 'Generator: Seigaiha' },
+  { id: 'gen-sierpinski', name: 'Generator: Sierpinski' },
+  { id: 'gen-orbital', name: 'Generator: Orbital' },
+  { id: 'gen-conic-gradient', name: 'Generator: Conic Gradient' },
+  { id: 'gen-barcode', name: 'Generator: Barcode' },
+  { id: 'gen-ferrofluid', name: 'Generator: Ferrofluid' },
+  { id: 'gen-halftone', name: 'Generator: Halftone' },
+  { id: 'gen-pixel-sort', name: 'Generator: Pixel Sort' },
+  { id: 'gen-ripple-pond', name: 'Generator: Ripple Pond' },
+  { id: 'gen-hex-grid', name: 'Generator: Hex Grid' },
+  { id: 'gen-woven', name: 'Generator: Woven' },
+  { id: 'gen-chromatic-aberr', name: 'Generator: Chromatic Aberr' }
 ];
 
 export const isVisibleGeneratorEntry = (entry: GeneratorEntry) => entry.visible !== false;

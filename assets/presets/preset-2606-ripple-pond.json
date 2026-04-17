@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Ripple Caustics",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Liquid/Organic",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Ambient",
+    "visualIntentTags": ["water", "ripple", "caustics", "reflection"],
+    "defaultTransition": { "durationMs": 800, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "cool"],
+    "activeEngineId": "engine-particle-flow",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Ripple Caustics",
+    "intent": "ambient",
+    "duration": 0,
+    "transition_in": { "durationMs": 800, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 800, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-ripple-pond"], "support": ["layer-inkflow"], "atmosphere": ["layer-topo"] },
+    "layers": [
+      {
+        "id": "gen-ripple-pond",
+        "name": "Ripple Pond",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-ripple-pond",
+        "params": { "opacity": 1, "speed": 0.5, "drops": 3, "decay": 0.8, "refraction": 1 }
+      },
+      {
+        "id": "layer-inkflow",
+        "name": "Ink Flow",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.25,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      },
+      {
+        "id": "layer-topo",
+        "name": "Topo Terrain",
+        "role": "atmosphere",
+        "enabled": true,
+        "opacity": 0.15,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
+  "tempoSync": { "bpm": 110, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

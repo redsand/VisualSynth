@@ -11,6 +11,10 @@ import {
 
 const presetsDir = path.resolve(__dirname, '..', 'assets', 'presets');
 const auditReportPath = path.join(presetsDir, 'milkwave_audit_report.json');
+const readAuditReport = () => {
+  expect(fs.existsSync(auditReportPath)).toBe(true);
+  return JSON.parse(fs.readFileSync(auditReportPath, 'utf-8'));
+};
 
 describe('Milkwave focused preset suite', () => {
   it('tracks exactly twenty focused presets', () => {
@@ -24,9 +28,25 @@ describe('Milkwave focused preset suite', () => {
     }
   });
 
+  it('runtime audit includes every focused preset id', () => {
+    const auditReport = readAuditReport();
+    const resultIds = new Set((auditReport.results ?? []).map((entry: { id: string }) => entry.id));
+    const missingIds = FOCUSED_MILKWAVE_PRESETS
+      .map((preset) => preset.id)
+      .filter((id) => !resultIds.has(id));
+
+    expect(missingIds).toEqual([]);
+  });
+
   describe.each(FOCUSED_MILKWAVE_PRESETS)('$id', (focusedPreset) => {
     const presetPath = path.join(presetsDir, focusedPreset.file);
     const preset = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+    const enabledShapeCount = (preset._shaderData?.shapes ?? []).filter(
+      (shape: { enabled?: boolean }) => shape.enabled !== false
+    ).length;
+    const enabledWaveCount = (preset._shaderData?.waves ?? []).filter(
+      (wave: { enabled?: boolean }) => wave.enabled !== false
+    ).length;
 
     it('exists and matches the expected preset identity', () => {
       expect(fs.existsSync(presetPath)).toBe(true);
@@ -40,11 +60,19 @@ describe('Milkwave focused preset suite', () => {
       expect(result.success).toBe(true);
     });
 
+    it('contains at least one enabled native Milkwave shape or wave', () => {
+      expect(preset.metadata?.milkwave?.supportTier).toBe('native-supported');
+      expect(preset._shaderData?.warp ?? '').toBe('');
+      expect(preset._shaderData?.comp ?? '').toBe('');
+      expect(enabledShapeCount + enabledWaveCount).toBeGreaterThan(0);
+    });
+
     it('is present in the runtime audit with the expected instrumentation status', () => {
-      expect(fs.existsSync(auditReportPath)).toBe(true);
-      const auditReport = JSON.parse(fs.readFileSync(auditReportPath, 'utf-8'));
+      const auditReport = readAuditReport();
       const auditEntry = auditReport.results.find((entry: { id: string }) => entry.id === focusedPreset.id);
-      expect(auditEntry).toBeDefined();
+      if (!auditEntry) {
+        throw new Error(`Audit report is stale or incomplete for focused preset ${focusedPreset.id}. Rerun npm run presets:audit-milkwave:focus.`);
+      }
       expect(auditEntry.classification).toBe(focusedPreset.expectedAuditClassification);
       expect(auditEntry.fallbackUsed).toBe(focusedPreset.expectedFallbackUsed);
       expect(auditEntry.warpCompiled).toBe(true);
@@ -63,6 +91,12 @@ describe('Milkwave focused preset suite', () => {
 describe('Milkwave primary target preset', () => {
   const presetPath = path.join(presetsDir, TARGET_MILKWAVE_PRESET_FILE);
   const preset = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+  const enabledShapeCount = (preset._shaderData?.shapes ?? []).filter(
+    (shape: { enabled?: boolean }) => shape.enabled !== false
+  ).length;
+  const enabledWaveCount = (preset._shaderData?.waves ?? []).filter(
+    (wave: { enabled?: boolean }) => wave.enabled !== false
+  ).length;
 
   it('exists and matches the expected preset identity', () => {
     expect(fs.existsSync(presetPath)).toBe(true);
@@ -80,12 +114,11 @@ describe('Milkwave primary target preset', () => {
     expect(preset.metadata?.milkwave?.supportTier).toBe('native-supported');
     expect(preset._shaderData?.warp ?? '').toBe('');
     expect(preset._shaderData?.comp ?? '').toBe('');
-    expect((preset._shaderData?.waves?.length ?? 0) + (preset._shaderData?.shapes?.length ?? 0)).toBeGreaterThan(0);
+    expect(enabledShapeCount + enabledWaveCount).toBeGreaterThan(0);
   });
 
   it('is tracked in the runtime audit as a no-fallback baseline candidate', () => {
-    expect(fs.existsSync(auditReportPath)).toBe(true);
-    const auditReport = JSON.parse(fs.readFileSync(auditReportPath, 'utf-8'));
+    const auditReport = readAuditReport();
     const targetResult = auditReport.results.find((entry: { id: string }) => entry.id === TARGET_MILKWAVE_PRESET_ID);
     expect(targetResult).toBeDefined();
     expect(targetResult.classification).toBe('native-supported');

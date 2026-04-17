@@ -31,7 +31,19 @@
         "generatedPasses": [
           "comp"
         ]
-      }
+      },
+      "certificationStatus": "degraded-usable",
+      "lastCertifiedAt": "2026-04-01T01:47:50.110Z",
+      "qualityScores": {
+        "compile": 1,
+        "stability": 1,
+        "completeness": 0.35
+      },
+      "proofPassed": false,
+      "proofFailedSteps": [
+        "compile-comp",
+        "no-fallback"
+      ]
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",

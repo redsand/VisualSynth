@@ -24,6 +24,8 @@ const parseArgs = () => {
   let presetId: string | null = null;
   let presetIds: string[] | null = null;
   let limit = 100;
+  let pack: number | null = null;
+  let packSize = 100;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -49,12 +51,34 @@ const parseArgs = () => {
       i += 1;
       continue;
     }
+    if (arg === '--pack') {
+      const value = Number(args[i + 1]);
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new Error('Invalid value for --pack');
+      }
+      pack = Math.floor(value);
+      i += 1;
+      continue;
+    }
+    if (arg === '--pack-size') {
+      const value = Number(args[i + 1]);
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new Error('Invalid value for --pack-size');
+      }
+      packSize = Math.floor(value);
+      i += 1;
+      continue;
+    }
     if (arg === '--all') {
       limit = Number.MAX_SAFE_INTEGER;
     }
   }
 
-  return { presetId, presetIds, limit };
+  if (pack !== null && (presetId || presetIds)) {
+    throw new Error('--pack cannot be combined with --preset or --focus');
+  }
+
+  return { presetId, presetIds, limit, pack, packSize };
 };
 
 const escapeForTemplateLiteral = (value: string) =>
@@ -73,7 +97,7 @@ const exposeMilkdropRendererFromDistBundle = () => {
 
   return source.replace(
     marker,
-    '$1window.__createMilkDropRenderer = createMilkDropRenderer;\n$1void init();\n})();'
+    '$1window.__createMilkDropRenderer = createMilkDropRenderer;\n})();'
   );
 };
 
@@ -392,18 +416,62 @@ const resolveBrowserExecutablePath = () => {
 
 const CHROMIUM_AUDIT_ARGS = [
   '--headless=new',
-  '--single-process',
   '--no-sandbox',
   '--disable-gpu',
-  '--disable-crash-reporter',
-  '--disable-breakpad',
-  '--use-gl=angle',
-  '--use-angle=vulkan'
+  '--test-type',
+  '--no-first-run',
+  '--no-default-browser-check',
+  '--disable-background-networking',
+  '--disable-component-update',
+  '--metrics-recording-only',
+  '--remote-allow-origins=*'
 ];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const connectToExistingBrowser = async ({
+  browserUrl,
+  wsEndpoint,
+  attempts = 20,
+  delayMs = 1000
+}: {
+  browserUrl?: string;
+  wsEndpoint?: string;
+  attempts?: number;
+  delayMs?: number;
+}) => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      if (browserUrl) {
+        if (attempt > 1) {
+          console.log(`Retrying browser URL connection (${attempt}/${attempts})...`);
+        }
+        return await puppeteer.connect({ browserURL: browserUrl });
+      }
+      if (wsEndpoint) {
+        if (attempt > 1) {
+          console.log(`Retrying browser WS connection (${attempt}/${attempts})...`);
+        }
+        return await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+      }
+      throw new Error('No browser connection target provided.');
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) {
+        break;
+      }
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+};
 
 async function runAudit() {
   console.log('--- Milkwave Runtime Audit ---');
-  const { presetId, presetIds, limit } = parseArgs();
+  const { presetId, presetIds, limit, pack, packSize } = parseArgs();
 
   // 1. Identify Milkwave presets
   const files = fs.readdirSync(PRESETS_DIR)
@@ -411,6 +479,9 @@ async function runAudit() {
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
   const milkwavePresets: any[] = [];
   let count = 0;
+  const packStart = pack !== null ? (pack - 1) * packSize : 0;
+  const packEnd = pack !== null ? packStart + packSize : Number.MAX_SAFE_INTEGER;
+  let matchedMilkwaveCount = 0;
 
   for (const file of files) {
     if (presetIds && !presetIds.includes(file.replace('.json', ''))) {
@@ -424,6 +495,15 @@ async function runAudit() {
     try {
       const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       if (content._shaderData && content.metadata?.importedFrom === 'Milkwave') {
+        if (pack !== null) {
+          if (matchedMilkwaveCount < packStart) {
+            matchedMilkwaveCount += 1;
+            continue;
+          }
+          if (matchedMilkwaveCount >= packEnd) {
+            break;
+          }
+        }
         milkwavePresets.push({
           id: file.replace('.json', ''),
           name: content.metadata.name,
@@ -431,6 +511,7 @@ async function runAudit() {
           expectedSupport: content.metadata.milkwave?.supportTier || 'unknown'
         });
         count++;
+        matchedMilkwaveCount += 1;
       }
     } catch (e) {
       console.warn(`Failed to parse ${file}: ${e}`);
@@ -450,6 +531,8 @@ async function runAudit() {
     console.log(`Auditing single preset: ${presetId}`);
   } else if (presetIds) {
     console.log(`Auditing focused preset suite (${presetIds.length} presets)`);
+  } else if (pack !== null) {
+    console.log(`Auditing Milkwave pack ${pack} (size ${packSize})`);
   } else {
     console.log(`Auditing first ${Math.min(limit, milkwavePresets.length)} presets`);
   }
@@ -476,15 +559,13 @@ async function runAudit() {
     console.log('Using Puppeteer default browser executable');
   }
 
-  const browser = browserUrl
-    ? await puppeteer.connect({ browserURL: browserUrl })
-    : wsEndpoint
-      ? await puppeteer.connect({ browserWSEndpoint: wsEndpoint })
-      : await puppeteer.launch({
-          headless: true,
-          executablePath,
-          args: CHROMIUM_AUDIT_ARGS
-        });
+  const browser = browserUrl || wsEndpoint
+    ? await connectToExistingBrowser({ browserUrl, wsEndpoint })
+    : await puppeteer.launch({
+        headless: true,
+        executablePath,
+        args: CHROMIUM_AUDIT_ARGS
+      });
 
   const page = await browser.newPage();
   await page.goto('about:blank', { waitUntil: 'domcontentloaded' });
@@ -531,6 +612,15 @@ async function runAudit() {
   const report = {
     timestamp: new Date().toISOString(),
     totalPresets: allResults.length,
+    selection: {
+      mode: presetId ? 'preset' : presetIds ? 'focus' : pack !== null ? 'pack' : 'limit',
+      presetId,
+      presetIds: presetIds ?? null,
+      limit: presetIds || presetId || pack !== null ? null : limit,
+      pack,
+      packSize: pack !== null ? packSize : null,
+      ids: milkwavePresets.map((preset) => preset.id)
+    },
     results: allResults.map(r => {
       const preset = milkwavePresets.find(p => p.id === r.id);
       return {
@@ -551,6 +641,10 @@ async function runAudit() {
   let md = `# Milkwave Runtime Audit Report\n\n`;
   md += `**Date**: ${report.timestamp}\n`;
   md += `**Total Presets Audited**: ${report.totalPresets}\n`;
+  if (report.selection.mode === 'pack') {
+    md += `**Pack**: ${report.selection.pack}\n`;
+    md += `**Pack Size**: ${report.selection.packSize}\n`;
+  }
   md += `**Runtime Failed**: ${totalFailed}\n`;
   md += `**Native-Supported Regression**: ${nativeFailed.length}\n`;
   md += `**Proof Passed**: ${totalProven}\n`;

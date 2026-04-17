@@ -29,14 +29,14 @@
         "runtimePatchRecommended": false,
         "generatedPasses": []
       },
-      "certificationStatus": "degraded-usable",
-      "lastCertifiedAt": "2026-03-31T13:52:00.358Z",
+      "certificationStatus": "certified-safe",
+      "lastCertifiedAt": "2026-04-01T00:32:43.988Z",
       "qualityScores": {
-        "compile": 0.5,
+        "compile": 1,
         "stability": 1,
         "completeness": 1
       },
-      "proofPassed": false,
+      "proofPassed": true,
       "proofFailedSteps": []
     },
     "activeEngineId": "engine-radial-core",

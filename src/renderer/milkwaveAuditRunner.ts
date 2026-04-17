@@ -3,6 +3,56 @@ import type { MilkDropShaderData } from '../shared/project';
 import type { RenderState } from './renderState';
 import type { MilkwaveAuditProof, MilkwaveProofStep } from '../shared/milkwaveStatus';
 
+const sampleRenderedTexture = (
+  gl: WebGL2RenderingContext,
+  texture: WebGLTexture,
+  width: number,
+  height: number,
+  framebuffer: WebGLFramebuffer,
+  sampleBuffer: Uint8Array
+) => {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return {
+      classification: 'blank',
+      avgBrightness: 0,
+      nonBlackPercent: 0
+    } as const;
+  }
+
+  const sampleDim = 16;
+  const cx = Math.max(0, Math.floor((width - sampleDim) / 2));
+  const cy = Math.max(0, Math.floor((height - sampleDim) / 2));
+  gl.readPixels(cx, cy, sampleDim, sampleDim, gl.RGBA, gl.UNSIGNED_BYTE, sampleBuffer);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  let totalBrightness = 0;
+  let nonBlackCount = 0;
+  const pixelCount = sampleDim * sampleDim;
+  for (let i = 0; i < pixelCount; i++) {
+    const r = sampleBuffer[i * 4];
+    const g = sampleBuffer[i * 4 + 1];
+    const b = sampleBuffer[i * 4 + 2];
+    totalBrightness += (r + g + b) / 3;
+    if (r > 5 || g > 5 || b > 5) nonBlackCount++;
+  }
+
+  const avgBrightness = totalBrightness / pixelCount;
+  const nonBlackPercent = nonBlackCount / pixelCount;
+  const classification =
+    nonBlackPercent < 0.01 && avgBrightness < 2 ? 'blank'
+      : avgBrightness < 4 ? 'low-content'
+      : 'healthy';
+
+  return {
+    classification,
+    avgBrightness,
+    nonBlackPercent
+  } as const;
+};
+
 interface AuditResult {
   id: string;
   name: string;
@@ -176,10 +226,14 @@ const createAuditRenderState = (frame: number): RenderState => {
 };
 
 export async function runMilkwaveAudit(presets: { id: string, name: string, shaderData: MilkDropShaderData }[]) {
+  const auditFrames = 16;
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
   // document.body.appendChild(canvas); // Optional: for debugging if needed
+  const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
+  const sampleFramebuffer = gl ? gl.createFramebuffer() : null;
+  const sampleBuffer = gl ? new Uint8Array(16 * 16 * 4) : null;
 
   const errors: string[] = [];
   const renderer = createMilkDropRenderer({
@@ -193,6 +247,11 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
 
   for (const preset of presets) {
     errors.length = 0;
+    let visibleCanvasActivity = false;
+    let lastFrameClassification = 'unsampled';
+    let lastFrameBrightness = 0;
+    let lastFrameNonBlackPercent = 0;
+
     try {
       renderer.compileShaders(preset.shaderData);
     } catch (e) {
@@ -201,10 +260,29 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
 
     const compileReport = renderer.getLastCompileReport();
     
-    // Render a few frames to trigger runtime evaluation
-    for (let i = 0; i < 5; i++) {
+    // Many feedback-driven presets need a few iterations before visible output emerges.
+    for (let i = 0; i < auditFrames; i++) {
       try {
-        renderer.render(createAuditRenderState(i), preset.shaderData, false);
+        renderer.render(createAuditRenderState(i), preset.shaderData, true);
+        if (gl && sampleFramebuffer && sampleBuffer) {
+          const mainTexture = renderer.getMainTexture();
+          if (mainTexture) {
+            const metrics = sampleRenderedTexture(
+              gl,
+              mainTexture,
+              canvas.width,
+              canvas.height,
+              sampleFramebuffer,
+              sampleBuffer
+            );
+            lastFrameClassification = metrics.classification;
+            lastFrameBrightness = metrics.avgBrightness;
+            lastFrameNonBlackPercent = metrics.nonBlackPercent;
+            if (metrics.classification !== 'blank') {
+              visibleCanvasActivity = true;
+            }
+          }
+        }
       } catch (e) {
         errors.push(`Runtime exception during render: ${e}`);
         break;
@@ -220,7 +298,9 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
     function reportStatus(s?: string) { return s; }
 
     const hasVisibleMilkwaveActivity =
-      (runtimeReport?.shapes.rendered ?? 0) > 0 || (runtimeReport?.waves.rendered ?? 0) > 0;
+      (runtimeReport?.shapes.rendered ?? 0) > 0 ||
+      (runtimeReport?.waves.rendered ?? 0) > 0 ||
+      visibleCanvasActivity;
 
     if (warpStatus === 'success' && compStatus === 'success' && hasVisibleMilkwaveActivity) {
       classification = 'native-supported';
@@ -256,7 +336,10 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
         id: 'render-activity',
         label: 'Milkwave runtime renders visible activity',
         passed: hasVisibleMilkwaveActivity,
-        details: `shapes=${runtimeReport?.shapes.rendered ?? 0}, waves=${runtimeReport?.waves.rendered ?? 0}`
+        details:
+          `shapes=${runtimeReport?.shapes.rendered ?? 0}, waves=${runtimeReport?.waves.rendered ?? 0}, ` +
+          `canvasVisible=${visibleCanvasActivity}, frame=${lastFrameClassification}, ` +
+          `brightness=${lastFrameBrightness.toFixed(1)}, nonBlack=${(lastFrameNonBlackPercent * 100).toFixed(1)}%`
       },
       {
         id: 'no-fallback',

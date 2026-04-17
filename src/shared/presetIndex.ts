@@ -1,5 +1,6 @@
 import type { AssetItem, LayerConfig, SceneConfig } from './project';
 import type { CertificationLevel } from './certification';
+import type { PresetMode } from './presetMigration';
 
 export type PresetEnergy = 'low' | 'medium' | 'high' | 'peak';
 export type PresetDensity = 'minimal' | 'balanced' | 'dense';
@@ -38,6 +39,10 @@ export interface PresetIndexEntry {
   importedFrom?: string;
   thumbnail?: string;
   searchText: string;
+  presetMode?: PresetMode;
+  playlistDuration?: number;
+  playlistTransition?: number;
+  midiPadIndex?: number;
 }
 
 const FAMILY_PATTERNS: Array<{ family: string; patterns: string[] }> = [
@@ -315,7 +320,8 @@ export const buildPresetIndexEntry = (presetPath: string, data: any): PresetInde
     sourceDependency,
     energy,
     density,
-    motion
+    motion,
+    data?.metadata?.presetMode ?? ''
   );
 
   return {
@@ -335,6 +341,10 @@ export const buildPresetIndexEntry = (presetPath: string, data: any): PresetInde
     certification,
     importedFrom,
     thumbnail,
-    searchText
+    searchText,
+    presetMode: data?.metadata?.presetMode as PresetMode | undefined,
+    playlistDuration: data?.metadata?.playlistDuration as number | undefined,
+    playlistTransition: data?.metadata?.playlistTransition as number | undefined,
+    midiPadIndex: data?.metadata?.midiPadIndex as number | undefined
   };
 };

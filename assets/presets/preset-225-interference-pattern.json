@@ -1,0 +1,77 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Interference Pattern",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Data Viz Generators",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Ambient",
+    "visualIntentTags": ["waves", "interference", "ripple", "scientific"],
+    "defaultTransition": { "durationMs": 800, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["cool", "ethereal"],
+    "activeEngineId": "engine-radial-core",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": { "opener": 7, "build": 6, "drop": 5, "breakdown": 10, "transition": 8, "utility": 6, "crowdReadability": 7, "perceivedDepth3D": 5 },
+    "cpuCost": "medium",
+    "depthScore": 0.5,
+    "complexity": "medium",
+    "role": "breakdown",
+    "visualFamily": "wave",
+    "motionType": "flow",
+    "repetitionRisk": "low"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Interference Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 800, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 800, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-interference-pattern"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-interference-pattern",
+          "name": "Interference Pattern",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-interference-pattern",
+          "params": { "opacity": 1, "speed": 0.8, "sourceCount": 4, "wavelength": 0.2, "mode": 0 }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 1, "atmosphere": 1 },
+  "tempoSync": { "bpm": 120, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "interference-pattern", "param": "wavelength" }, "amount": -0.1 },
+    { "source": "audio.peak", "target": { "type": "interference-pattern", "param": "sourceCount" }, "amount": 0.15 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Sources", "value": 0.5, "targets": [{ "target": "interference-pattern.sourceCount", "amount": 0.6 }] },
+    { "id": "macro-2", "name": "Frequency", "value": 0.5, "targets": [{ "target": "interference-pattern.wavelength", "amount": -0.5 }] },
+    { "id": "macro-3", "name": "Ripple", "value": 0.5, "targets": [{ "target": "interference-pattern.speed", "amount": 0.5 }, { "target": "interference-pattern.mode", "amount": 0.3 }] }
+  ],
+  "name": "Interference Pattern",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

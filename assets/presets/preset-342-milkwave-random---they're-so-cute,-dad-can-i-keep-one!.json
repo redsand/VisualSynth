@@ -25,7 +25,19 @@
         "pipeline": "milkwave-offline-v1",
         "runtimePatchRecommended": false,
         "generatedPasses": []
-      }
+      },
+      "certificationStatus": "degraded-usable",
+      "lastCertifiedAt": "2026-04-01T01:37:40.431Z",
+      "qualityScores": {
+        "compile": 1,
+        "stability": 1,
+        "completeness": 0.35
+      },
+      "proofPassed": false,
+      "proofFailedSteps": [
+        "compile-warp",
+        "no-fallback"
+      ]
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",

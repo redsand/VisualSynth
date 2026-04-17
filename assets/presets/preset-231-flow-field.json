@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Flow Field",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Experimental",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Experimental",
+    "visualIntentTags": ["curl-noise", "flow", "streams"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["complementary", "vivid"],
+    "activeEngineId": "engine-radial-core",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "presetMode": "performance",
+    "scores": { "opener": 7, "build": 8, "drop": 6, "breakdown": 7, "transition": 7, "utility": 5, "crowdReadability": 6, "perceivedDepth3D": 6 },
+    "cpuCost": "medium",
+    "depthScore": 0.6,
+    "complexity": "medium",
+    "role": "build",
+    "visualFamily": "organic",
+    "motionType": "flow",
+    "repetitionRisk": "low"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Curl Noise Streams",
+    "intent": "ambient",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-flow-field"], "support": ["gen-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-flow-field",
+        "name": "Flow Field",
+        "role": "core",
+        "enabled": true,
+        "opacity": 1,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-flow-field",
+        "params": { "opacity": 1, "speed": 0.7, "scale": 1.2, "curlIntensity": 0.8, "lineCount": 200 }
+      },
+      {
+        "id": "gen-plasma",
+        "name": "Plasma Background",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.25,
+        "blendMode": "multiply",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-plasma",
+        "params": { "opacity": 0.25, "speed": 0.3, "scale": 1.8, "complexity": 0.5, "colorShift": 0.3 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.5, "atmosphere": 1 },
+  "tempoSync": { "bpm": 120, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "flow-field.curlIntensity", "param": "curlIntensity" }, "amount": 0.35 },
+    { "source": "audio.rms", "target": { "type": "flow-field.lineCount", "param": "lineCount" }, "amount": 0.2 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Curl Force", "value": 0.6, "targets": [{ "target": "flow-field.curlIntensity", "amount": 0.7 }] },
+    { "id": "macro-2", "name": "Stream Count", "value": 0.5, "targets": [{ "target": "flow-field.lineCount", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Plasma Depth", "value": 0.25, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.4 }] }
+  ],
+  "name": "Flow Field",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

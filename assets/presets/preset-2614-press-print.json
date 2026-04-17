@@ -1,0 +1,54 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6, "name": "Press Print", "createdAt": "2026-04-16T00:00:00.000Z", "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Print Art", "compatibility": { "minVersion": "0.9.0" }, "presetType": "scene",
+    "intendedMusicStyle": "Breaks", "visualIntentTags": ["halftone","print","dots","CMYK"],
+    "defaultTransition": { "durationMs": 200, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic", "colorChemistry": ["triadic", "balanced"], "activeEngineId": "engine-none",
+    "tag": "live", "isCoreClubPack": false, "presetMode": "live",
+    "playlistDuration": 12, "playlistTransition": 200, "midiPadIndex": 4,
+    "scores": { "opener": 6, "build": 7, "drop": 4, "breakdown": 5, "transition": 6, "utility": 4, "crowdReadability": 8, "perceivedDepth3D": 4 },
+    "cpuCost": "medium", "depthScore": 0.5, "complexity": "medium", "role": "build", "visualFamily": "print-art", "motionType": "slow", "repetitionRisk": "medium"
+  },
+  "scenes": [{ "id": "scene-1", "scene_id": "scene-1", "name": "Press Print", "intent": "build", "duration": 0,
+    "transition_in": { "durationMs": 200, "curve": "easeInOut" }, "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+    "trigger": { "type": "manual" }, "assigned_layers": { "core": ["gen-halftone"], "support": [], "atmosphere": [] },
+    "layers": [{ "id": "gen-halftone", "name": "Press Print", "role": "core", "enabled": true, "opacity": 1, "blendMode": "screen",
+      "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }, "generatorId": "gen-halftone",
+      "params": [
+        { "key": "opacity", "value": 1 },
+        { "key": "speed", "value": 0.5 },
+        { "key": "scale", "value": 25 },
+        { "key": "angle", "value": 0.5 },
+        { "key": "style", "value": 0.33 }
+      ] }]
+  }],
+  "activeSceneId": "scene-1", "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 }, "tempoSync": { "bpm": 126, "source": "auto" },
+  "modulations": [], "macros": [],
+  "project": { "version": 6, "name": "Press Print", "createdAt": "2026-04-16T00:00:00.000Z", "updatedAt": "2026-04-16T00:00:00.000Z",
+    "output": { "enabled": true, "fullscreen": false, "scale": 1 },
+    "stylePresets": [{ "id": "style-neutral", "name": "Neutral", "settings": { "contrast": 1, "saturation": 1, "paletteShift": 0 } }],
+    "activeStylePresetId": "style-neutral",
+    "palettes": [{ "id": "heat", "name": "Heat", "colors": ["#000000","#ff0000","#ff7f00","#ffff00","#ffffff"] }, { "id": "ocean", "name": "Ocean", "colors": ["#000000","#0000ff","#007fff","#00ffff","#ffffff"] }, { "id": "synthwave", "name": "Synthwave", "colors": ["#000000","#ff00ff","#00ffff","#ff0080","#ffffff"] }, { "id": "prism", "name": "Prism", "colors": ["#ff2a6d","#ff8c42","#f6e05e","#5ef38c","#3a86ff"] }, { "id": "voltage", "name": "Voltage", "colors": ["#fb5607","#ffbe0b","#3a86ff","#8338ec","#ff006e"] }],
+    "activePaletteId": "ocean",
+    "macros": [{ "id": "macro-1", "name": "Energy", "value": 0.4, "targets": [{ "target": "effects.bloom", "amount": 0.6 }] }, { "id": "macro-2", "name": "Motion", "value": 0.4, "targets": [{ "target": "halftone.speed", "amount": 0.5 }] }, { "id": "macro-3", "name": "Color", "value": 0.5, "targets": [] }, { "id": "macro-4", "name": "Density", "value": 0.5, "targets": [{ "target": "halftone.scale", "amount": 0.5 }] }, { "id": "macro-5", "name": "Macro 5", "value": 0.5, "targets": [] }, { "id": "macro-6", "name": "Macro 6", "value": 0.5, "targets": [] }, { "id": "macro-7", "name": "Macro 7", "value": 0.5, "targets": [] }, { "id": "macro-8", "name": "Macro 8", "value": 0.5, "targets": [] }],
+    "effects": { "enabled": true, "bloom": 0.4, "blur": 0.1, "chroma": 0.15, "posterize": 0.05, "kaleidoscope": 0, "feedback": 0.1, "persistence": 0.2 },
+    "expressiveFx": { "enabled": true, "energyBloom": { "enabled": true, "macro": 0.35, "intentBinding": { "enabled": true, "intent": "build", "amount": 0.35 }, "expert": { "threshold": 0.55, "accumulation": 0.65 } }, "radialGravity": { "enabled": false, "macro": 0.3, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "strength": 0.6, "radius": 0.65, "focusX": 0.5, "focusY": 0.5 } }, "motionEcho": { "enabled": true, "macro": 0.3, "intentBinding": { "enabled": true, "intent": "build", "amount": 0.3 }, "expert": { "decay": 0.6, "warp": 0.35 } }, "spectralSmear": { "enabled": false, "macro": 0.3, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "offset": 0.4, "mix": 0.6 } } },
+    "particles": { "enabled": false, "density": 0.5, "speed": 0.5, "size": 0.5, "glow": 0.5 },
+    "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+    "visualizer": { "enabled": false, "mode": "spectrum", "opacity": 0.8, "macroEnabled": false, "macroId": 0 },
+    "lfos": [{ "id": "lfo-1", "name": "LFO 1", "shape": "sine", "rate": 0.5, "sync": true, "phase": 0 }, { "id": "lfo-2", "name": "LFO 2", "shape": "triangle", "rate": 1, "sync": true, "phase": 0.25 }],
+    "envelopes": [{ "id": "env-1", "name": "Env 1", "trigger": "audio.peak", "threshold": 0.65, "attack": 0.05, "decay": 0.2, "sustain": 0.4, "hold": 0.1, "release": 0.8 }, { "id": "env-2", "name": "Env 2", "attack": 0.1, "decay": 0.3, "sustain": 0.5, "release": 0.4, "hold": 0.5, "trigger": "strobe", "threshold": 0.4 }],
+    "sampleHold": [{ "id": "sh-1", "name": "S&H 1", "rate": 0.5, "sync": true, "smooth": 0.2 }],
+    "padMappings": [], "timelineMarkers": [], "assets": [], "plugins": [],
+    "scenes": [{ "id": "scene-1", "scene_id": "scene-1", "name": "Press Print", "intent": "build", "duration": 0, "transition_in": { "durationMs": 200, "curve": "easeInOut" }, "transition_out": { "durationMs": 200, "curve": "easeInOut" }, "trigger": { "type": "manual" }, "assigned_layers": { "core": ["gen-halftone"], "support": [], "atmosphere": [] }, "layers": [{ "id": "gen-halftone", "name": "Press Print", "role": "core", "enabled": true, "opacity": 1, "blendMode": "screen", "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }, "generatorId": "gen-halftone", "params": [
+      { "key": "opacity", "value": 1 },
+      { "key": "speed", "value": 0.5 },
+      { "key": "scale", "value": 25 },
+      { "key": "angle", "value": 0.5 },
+      { "key": "style", "value": 0.33 }
+    ] }] }],
+    "modMatrix": [], "midiMappings": [], "activeSceneId": "scene-1", "activeModeId": "mode-cosmic", "activeEngineId": "engine-none", "colorChemistry": ["triadic", "balanced"], "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 }, "tempoSync": { "bpm": 126, "source": "auto" }, "customShaderBlocks": [], "overlays": []
+  }
+}

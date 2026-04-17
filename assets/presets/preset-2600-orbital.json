@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Orbital Mechanics",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Fractal/Geometric",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Techno",
+    "visualIntentTags": ["orbital", "gravity", "planets", "simulation"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "balanced"],
+    "activeEngineId": "engine-radial-core",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Orbital Mechanics",
+    "intent": "pulse",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-orbital"], "support": ["layer-spectrum"], "atmosphere": ["layer-plasma"] },
+    "layers": [
+      {
+        "id": "gen-orbital",
+        "name": "Orbital",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.9,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-orbital",
+        "params": { "opacity": 1, "speed": 0.8, "count": 5, "trailLen": 0.6, "gravity": 1.2 }
+      },
+      {
+        "id": "layer-spectrum",
+        "name": "Spectrum Bars",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.4,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      },
+      {
+        "id": "layer-plasma",
+        "name": "Shader Plasma",
+        "role": "atmosphere",
+        "enabled": true,
+        "opacity": 0.3,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.5, "atmosphere": 0.3 },
+  "tempoSync": { "bpm": 128, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

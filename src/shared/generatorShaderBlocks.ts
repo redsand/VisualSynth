@@ -5114,6 +5114,1896 @@ uniform float uBossHealthOpacity;
 `
   },
 
+  // Traditional Visualization Generators
+  {
+    id: 'gen-voronoi-tessellation',
+    uniforms: `uniform float uVoronoiEnabled;
+uniform float uVoronoiOpacity;
+uniform float uVoronoiSpeed;
+uniform float uVoronoiScale;
+uniform float uVoronoiEdgeWidth;
+uniform float uVoronoiColorMode;
+`,
+    functions: `vec2 voronoiPoint(vec2 uv, float t) {
+  return vec2(fract(sin(dot(uv, vec2(127.1, 311.7))) * 43758.5453),
+              fract(cos(dot(uv, vec2(269.5, 183.3))) * 43758.5453)) + sin(t * uVoronoiSpeed + uv * 6.28318) * 0.15;
+}
+
+vec3 voronoiTessellation(vec2 uv, float t) {
+  vec2 p = uv * uVoronoiScale;
+  vec2 ip = floor(p);
+  vec2 fp = fract(p);
+  float minDist = 8.0;
+  float secondDist = 8.0;
+  vec2 closestCell = ip;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 neighbor = vec2(float(x), float(y));
+      vec2 cell = ip + neighbor;
+      vec2 point = voronoiPoint(cell, t);
+      float d = length(neighbor + point - fp);
+      if (d < minDist) {
+        secondDist = minDist;
+        minDist = d;
+        closestCell = cell;
+      } else if (d < secondDist) {
+        secondDist = d;
+      }
+    }
+  }
+  float edge = secondDist - minDist;
+  float edgeLine = smoothstep(uVoronoiEdgeWidth, 0.0, edge);
+  float cellId = fract(sin(dot(closestCell, vec2(12.9898, 78.233))) * 43758.5453);
+  float audioVal = uSpectrum[int(cellId * 64.0)] * 0.5 + uRms * 0.5;
+  vec3 cellColor = getPaletteColor(cellId + audioVal * 0.3);
+  vec3 edgeColor = getPaletteColor(0.8 + uPeak * 0.15);
+  vec3 col = mix(cellColor * (0.4 + audioVal * 0.6), edgeColor, edgeLine);
+  col *= (0.6 + smoothstep(0.3, 0.0, minDist) * 0.4);
+  return col * uVoronoiOpacity;
+}`,
+    mainCall: `  if (uVoronoiEnabled > 0.5) color += voronoiTessellation(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-choropleth-wave',
+    uniforms: `uniform float uChoroplethEnabled;
+uniform float uChoroplethOpacity;
+uniform float uChoroplethSpeed;
+uniform float uChoroplethGridSize;
+uniform float uChoroplethHeatMode;
+uniform float uChoroplethSmoothing;
+`,
+    functions: `vec3 choroplethWave(vec2 uv, float t) {
+  float gridSize = uChoroplethGridSize;
+  vec2 cell = floor(uv * gridSize);
+  vec2 cellUv = fract(uv * gridSize);
+  float cellHash = hash21(cell);
+  float bandIdx = cell.x / gridSize;
+  int specIdx = int(clamp(bandIdx * 63.0, 0.0, 63.0));
+  float specVal = uSpectrum[specIdx];
+  float heat = mix(cellHash * 0.3, specVal, 0.5 + uChoroplethHeatMode * 0.3);
+  heat += sin(cell.y * 0.8 + t * uChoroplethSpeed) * 0.15;
+  heat = clamp(heat, 0.0, 1.0);
+  float smooth2 = uChoroplethSmoothing;
+  vec3 cold = vec3(0.1, 0.2, 0.8);
+  vec3 mid2 = vec3(0.1, 0.8, 0.3);
+  vec3 hot = vec3(0.9, 0.2, 0.1);
+  vec3 heatColor = heat < 0.5 ? mix(cold, mid2, heat * 2.0) : mix(mid2, hot, (heat - 0.5) * 2.0);
+  float border = smoothstep(smooth2, 0.0, min(cellUv.x, cellUv.y)) + smoothstep(1.0 - smooth2, 1.0, max(cellUv.x, cellUv.y));
+  border = clamp(border, 0.0, 1.0);
+  vec3 col = mix(heatColor, vec3(0.05), border * 0.6);
+  col *= (0.5 + uPeak * 0.5);
+  return col * uChoroplethOpacity;
+}`,
+    mainCall: `  if (uChoroplethEnabled > 0.5) color += choroplethWave(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-sankey-flow',
+    uniforms: `uniform float uSankeyEnabled;
+uniform float uSankeyOpacity;
+uniform float uSankeySpeed;
+uniform float uSankeyFlowCount;
+uniform float uSankeySpread;
+uniform float uSankeyColorSeed;
+`,
+    functions: `vec3 sankeyFlow(vec2 uv, float t) {
+  float count = max(2.0, uSankeyFlowCount);
+  vec3 col = vec3(0.0);
+  for (float i = 0.0; i < 8.0; i++) {
+    if (i >= count) break;
+    float yBase = (i + 0.5) / count;
+    float audio = uSpectrum[int(i * 8.0)];
+    float flowWidth = (0.3 + audio * 0.5) / count * uSankeySpread;
+    float drift = sin(t * uSankeySpeed * 0.5 + i * 2.1) * 0.08;
+    float bend = sin(uv.x * 3.14159 + i * 1.7) * 0.06 * (1.0 + mid);
+    float y = yBase + drift + bend * uv.x;
+    float dist = abs(uv.y - y);
+    float flow = smoothstep(flowWidth, flowWidth * 0.3, dist);
+    float fade = smoothstep(0.0, 0.15, uv.x) * smoothstep(1.0, 0.85, uv.x);
+    float seed = uSankeyColorSeed + i * 0.12;
+    vec3 flowColor = getPaletteColor(seed + audio * 0.2);
+    float pulse = sin(uv.x * 20.0 - t * uSankeySpeed * 2.0 + i) * 0.5 + 0.5;
+    col += flowColor * flow * fade * (0.5 + pulse * 0.5 + audio * 0.3);
+  }
+  return col * uSankeyOpacity;
+}`,
+    mainCall: `  if (uSankeyEnabled > 0.5) color += sankeyFlow(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-scatter-plot',
+    uniforms: `uniform float uScatterEnabled;
+uniform float uScatterOpacity;
+uniform float uScatterSpeed;
+uniform float uScatterDensity;
+uniform float uScatterPointSize;
+uniform float uScatterTrail;
+`,
+    functions: `vec3 scatterPlot(vec2 uv, float t) {
+  vec3 col = vec3(0.0);
+  float count = uScatterDensity * 80.0;
+  for (float i = 0.0; i < 80.0; i++) {
+    if (i >= count) break;
+    float hash1 = fract(sin(i * 127.1) * 43758.5453);
+    float hash2 = fract(sin(i * 269.5) * 43758.5453);
+    int specIdx = int(clamp(hash1 * 63.0, 0.0, 63.0));
+    float spec = uSpectrum[specIdx];
+    float x = hash1 + sin(t * uScatterSpeed * 0.3 + i * 0.7) * 0.08;
+    float y = hash2 + cos(t * uScatterSpeed * 0.2 + i * 0.5) * 0.06 + spec * 0.15;
+    vec2 point = vec2(x, y);
+    float dist = length(uv - point);
+    float size = uScatterPointSize * (1.0 + spec * 2.0);
+    float dot = smoothstep(size, size * 0.3, dist);
+    float glow = exp(-dist * 30.0) * 0.3;
+    vec3 dotColor = getPaletteColor(hash1 + uPeak * 0.1);
+    col += dotColor * (dot + glow);
+    if (uScatterTrail > 0.01) {
+      for (float j = 1.0; j < 4.0; j++) {
+        float trailT = t - j * 0.05 * uScatterTrail;
+        float tx = hash1 + sin(trailT * uScatterSpeed * 0.3 + i * 0.7) * 0.08;
+        float ty = hash2 + cos(trailT * uScatterSpeed * 0.2 + i * 0.5) * 0.06;
+        float trailDist = length(uv - vec2(tx, ty));
+        col += dotColor * exp(-trailDist * 40.0) * 0.15 / j;
+      }
+    }
+  }
+  return col * uScatterOpacity;
+}`,
+    mainCall: `  if (uScatterEnabled > 0.5) color += scatterPlot(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-radial-bar',
+    uniforms: `uniform float uRadialBarEnabled;
+uniform float uRadialBarOpacity;
+uniform float uRadialBarSpeed;
+uniform float uRadialBarCount;
+uniform float uRadialBarWidth;
+uniform float uRadialBarInnerRadius;
+`,
+    functions: `vec3 radialBar(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  float dist = length(centered);
+  float angle = atan(centered.y, centered.x);
+  float normAngle = (angle + 3.14159) / 6.28318;
+  float count = max(4.0, uRadialBarCount);
+  float barIdx = floor(normAngle * count);
+  float barFrac = fract(normAngle * count);
+  float barCenter = abs(barFrac - 0.5) * 2.0;
+  float inBar = smoothstep(1.0, 0.85, barCenter);
+  int specIdx = int(clamp(barIdx / count * 63.0, 0.0, 63.0));
+  float spec = uSpectrum[specIdx];
+  float barLen = uRadialBarInnerRadius + (1.0 - uRadialBarInnerRadius) * spec;
+  float barLenAnim = mix(barLen, 1.0 - uRadialBarInnerRadius, sin(t * uRadialBarSpeed + barIdx * 0.5) * 0.5 + 0.5);
+  barLenAnim = max(barLenAnim, uRadialBarInnerRadius);
+  float inRadius = smoothstep(uRadialBarInnerRadius - 0.01, uRadialBarInnerRadius + 0.01, dist);
+  float inLength = smoothstep(barLenAnim + 0.01, barLenAnim - 0.01, dist);
+  float bar = inBar * inRadius * inLength;
+  float width = uRadialBarWidth;
+  float edge = smoothstep(width, width * 0.5, abs(dist - barLenAnim));
+  vec3 barColor = getPaletteColor(barIdx / count + spec * 0.15);
+  barColor *= 0.5 + spec * 0.5 + edge * 0.3;
+  float innerGlow = smoothstep(uRadialBarInnerRadius + 0.05, uRadialBarInnerRadius, dist) * smoothstep(uRadialBarInnerRadius - 0.05, uRadialBarInnerRadius, dist);
+  vec3 col = barColor * bar + vec3(0.3, 0.4, 0.6) * innerGlow * 0.3;
+  return col * uRadialBarOpacity;
+}`,
+    mainCall: `  if (uRadialBarEnabled > 0.5) color += radialBar(effectUv, uTime);
+`
+  },
+
+  // Complex Visual Generators
+  {
+    id: 'gen-reaction-diffusion',
+    uniforms: `uniform float uReactionDiffusionEnabled;
+uniform float uReactionDiffusionOpacity;
+uniform float uReactionDiffusionSpeed;
+uniform float uReactionDiffusionFeed;
+uniform float uReactionDiffusionKill;
+uniform float uReactionDiffusionScale;
+`,
+    functions: `vec3 reactionDiffusion(vec2 uv, float t) {
+  vec2 p = uv * uReactionDiffusionScale;
+  float feed = uReactionDiffusionFeed;
+  float kill = uReactionDiffusionKill;
+  float a = 1.0;
+  float b = 0.0;
+  for (float i = 0.0; i < 20.0; i++) {
+    float phase = i * 0.31415 + t * uReactionDiffusionSpeed;
+    vec2 samplePt = p + vec2(cos(phase), sin(phase * 1.3)) * 0.1;
+    float n = fbm(samplePt + i * 0.1);
+    float audio = uSpectrum[int(clamp(abs(n) * 63.0, 0.0, 63.0))];
+    float lapA = sin(p.x * 6.0 + phase) * cos(p.y * 6.0 - phase) * 0.5;
+    float lapB = cos(p.x * 5.0 - phase * 0.7) * sin(p.y * 5.0 + phase * 0.7) * 0.5;
+    lapA += audio * 0.2;
+    float reaction = a * b * b;
+    float dA = 1.0 * lapA - reaction + feed * (1.0 - a);
+    float dB = 0.5 * lapB + reaction - (kill + feed) * b;
+    a = clamp(a + dA * 0.03, 0.0, 1.0);
+    b = clamp(b + dB * 0.03, 0.0, 1.0);
+  }
+  float pattern = a - b;
+  vec3 col = getPaletteColor(pattern * 0.5 + 0.5);
+  col *= (0.4 + abs(pattern) * 0.6) * (0.8 + uRms * 0.4);
+  return col * uReactionDiffusionOpacity;
+}`,
+    mainCall: `  if (uReactionDiffusionEnabled > 0.5) color += reactionDiffusion(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-penrose-tiling',
+    uniforms: `uniform float uPenroseEnabled;
+uniform float uPenroseOpacity;
+uniform float uPenroseSpeed;
+uniform float uPenroseScale;
+uniform float uPenroseRotation;
+uniform float uPenroseHighlight;
+`,
+    functions: `vec3 penroseTiling(vec2 uv, float t) {
+  vec2 p = (uv - 0.5) * uPenroseScale * 2.0;
+  float rot = uPenroseRotation + t * uPenroseSpeed * 0.1;
+  float c = cos(rot), s = sin(rot);
+  p = mat2(c, -s, s, c) * p;
+  float phi = 1.6180339887498;
+  float golden = phi;
+  float tileVal = 0.0;
+  for (float i = 0.0; i < 6.0; i++) {
+    float angle = i * 3.14159 / 5.0;
+    vec2 axis = vec2(cos(angle), sin(angle));
+    float proj = dot(p, axis);
+    float stripe = abs(fract(proj * golden * 0.5 + t * uPenroseSpeed * 0.05) - 0.5) * 2.0;
+    tileVal += stripe;
+  }
+  tileVal /= 6.0;
+  float accent = smoothstep(uPenroseHighlight, uPenroseHighlight * 0.5, tileVal);
+  float audio = uSpectrum[int(clamp(tileVal * 63.0, 0.0, 63.0))];
+  vec3 col = getPaletteColor(tileVal + audio * 0.2);
+  col = mix(col, col * 1.5 + vec3(0.2, 0.3, 0.5), accent * 0.3);
+  col *= (0.5 + audio * 0.5);
+  float edgeDetect = fwidth(tileVal);
+  float edge = smoothstep(0.02, 0.0, abs(fract(tileVal * 5.0) - 0.5) - 0.45);
+  col += vec3(0.3, 0.4, 0.6) * edge * 0.2;
+  return col * uPenroseOpacity;
+}`,
+    mainCall: `  if (uPenroseEnabled > 0.5) color += penroseTiling(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-strange-attractor',
+    uniforms: `uniform float uStrangeAttractorEnabled;
+uniform float uStrangeAttractorOpacity;
+uniform float uStrangeAttractorSpeed;
+uniform float uStrangeAttractorType;
+uniform float uStrangeAttractorTrail;
+uniform float uStrangeAttractorColor;
+`,
+    functions: `vec3 strangeAttractor(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float trailLen = uStrangeAttractorTrail * 200.0;
+  float atype = uStrangeAttractorType;
+  for (float i = 0.0; i < 200.0; i++) {
+    float tt = t * uStrangeAttractorSpeed - i * 0.005;
+    float x = 0.1, y = 0.1;
+    for (float j = 0.0; j < 50.0; j++) {
+      float step2 = tt + j * 0.01;
+      float xn, yn;
+      if (atype < 0.5) {
+        xn = sin(1.4 * y) - cos(1.4 * x) + step2 * 0.001;
+        yn = sin(2.0 * x) - cos(2.0 * y);
+      } else if (atype < 1.5) {
+        float a2 = -2.24, b2 = 0.43, c2 = -0.65, d2 = -2.43;
+        xn = sin(a2 * y) - cos(b2 * x);
+        yn = sin(c2 * x) - cos(d2 * y);
+      } else {
+        float a2 = 1.7, b2 = 1.7;
+        xn = sin(a2 * y) + cos(a2 * x);
+        yn = sin(b2 * x) - cos(b2 * y);
+      }
+      x = xn; y = yn;
+    }
+    vec2 pt = vec2(x, y) * 0.35;
+    float dist = length(centered - pt);
+    float fade = 1.0 - i / trailLen;
+    float glow = exp(-dist * 60.0) * fade;
+    vec3 ptColor = getPaletteColor(uStrangeAttractorColor + i * 0.003);
+    col += ptColor * glow;
+  }
+  col *= (0.5 + uRms * 0.5);
+  return col * uStrangeAttractorOpacity;
+}`,
+    mainCall: `  if (uStrangeAttractorEnabled > 0.5) color += strangeAttractor(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-l-system',
+    uniforms: `uniform float uLSystemEnabled;
+uniform float uLSystemOpacity;
+uniform float uLSystemSpeed;
+uniform float uLSystemGenerations;
+uniform float uLSystemAngle;
+uniform float uLSystemBranchScale;
+`,
+    functions: `vec3 lSystem(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float gens = max(2.0, uLSystemGenerations);
+  float angle = uLSystemAngle;
+  float branchScale = uLSystemBranchScale;
+  for (float branch = 0.0; branch < 6.0; branch++) {
+    float bAngle = branch * 6.28318 / 6.0 + t * uLSystemSpeed * 0.1;
+    vec2 pos = vec2(0.0);
+    vec2 dir = vec2(cos(bAngle), sin(bAngle));
+    float len = 0.4;
+    float audio = uSpectrum[int(branch * 10.0)] * 0.5;
+    for (float g = 0.0; g < 8.0; g++) {
+      if (g >= gens) break;
+      vec2 end = pos + dir * len;
+      float dist = sdSegment(centered, pos, end);
+      float width = 0.005 * (1.0 - g / gens) * (1.0 + audio * 0.5);
+      float line = smoothstep(width, width * 0.3, dist);
+      float glow = exp(-dist * 200.0) * 0.2;
+      vec3 branchColor = getPaletteColor(branch / 6.0 + g * 0.05 + t * uLSystemSpeed * 0.02);
+      col += branchColor * (line + glow) * (1.0 - g / gens * 0.5);
+      pos = end;
+      float twist = angle + sin(t * uLSystemSpeed + g * 1.5 + branch) * 0.2;
+      float ca = cos(twist), sa = sin(twist);
+      dir = vec2(dir.x * ca - dir.y * sa, dir.x * sa + dir.y * ca);
+      len *= branchScale;
+    }
+  }
+  col *= (0.5 + uPeak * 0.5);
+  return col * uLSystemOpacity;
+}`,
+    mainCall: `  if (uLSystemEnabled > 0.5) color += lSystem(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-raymarch-terrain',
+    uniforms: `uniform float uRaymarchTerrainEnabled;
+uniform float uRaymarchTerrainOpacity;
+uniform float uRaymarchTerrainSpeed;
+uniform float uRaymarchTerrainHeight;
+uniform float uRaymarchTerrainDetail;
+uniform float uRaymarchTerrainFog;
+`,
+    functions: `float terrainHeight(vec2 p, float t) {
+  float h = 0.0;
+  float amp = 1.0;
+  float freq = 1.0;
+  for (float i = 0.0; i < 8.0; i++) {
+    if (i >= uRaymarchTerrainDetail) break;
+    h += fbm(p * freq + t * uRaymarchTerrainSpeed * 0.1) * amp;
+    freq *= 2.0;
+    amp *= 0.5;
+  }
+  return h * uRaymarchTerrainHeight;
+}
+
+vec3 raymarchTerrain(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  float camAngle = t * uRaymarchTerrainSpeed * 0.15;
+  vec3 ro = vec3(sin(camAngle) * 2.0, 1.5, cos(camAngle) * 2.0 - 3.0);
+  vec3 rd = normalize(vec3(centered.x * uAspect, centered.y - 0.3, 1.0));
+  float totalDist = 0.0;
+  vec3 col = vec3(0.0);
+  for (float i = 0.0; i < 64.0; i++) {
+    vec3 p = ro + rd * totalDist;
+    float h = terrainHeight(p.xz, t);
+    float audio = uSpectrum[int(clamp(abs(p.x) * 10.0, 0.0, 63.0))];
+    h += audio * 0.3 * uRaymarchTerrainHeight;
+    float surfaceY = h - p.y;
+    if (surfaceY < 0.01) {
+      vec3 normal = vec3(0.0, 1.0, 0.0);
+      float slope = 1.0 - dot(normal, normalize(vec3(h - terrainHeight(p.xz + vec2(0.01, 0.0), t), 0.01, 0.0)));
+      vec3 terrainCol = h < -0.2 ? vec3(0.2, 0.4, 0.8) : h < 0.3 ? vec3(0.2, 0.6, 0.2) : vec3(0.5, 0.4, 0.3);
+      terrainCol = mix(terrainCol, vec3(0.9, 0.9, 0.95), smoothstep(0.6, 1.0, h));
+      float fog = exp(-totalDist * uRaymarchTerrainFog);
+      col = terrainCol * fog * (0.8 + uRms * 0.3);
+      break;
+    }
+    totalDist += max(surfaceY * 0.5, 0.02);
+  }
+  if (totalDist > 30.0) col = mix(vec3(0.4, 0.5, 0.7), vec3(0.1, 0.15, 0.3), length(centered));
+  return col * uRaymarchTerrainOpacity;
+}`,
+    mainCall: `  if (uRaymarchTerrainEnabled > 0.5) color += raymarchTerrain(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-spirograph',
+    uniforms: `uniform float uSpirographEnabled;
+uniform float uSpirographOpacity;
+uniform float uSpirographSpeed;
+uniform float uSpirographInnerRatio;
+uniform float uSpirographPenOffset;
+uniform float uSpirographRotations;
+`,
+    functions: `vec3 spirograph(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float R = 1.0;
+  float r = R * uSpirographInnerRatio;
+  float d = r * uSpirographPenOffset;
+  float rotations = max(1.0, uSpirographRotations);
+  float speed = uSpirographSpeed;
+  float audio = uRms * 0.3 + uPeak * 0.2;
+  float minDist = 10.0;
+  for (float i = 0.0; i < 500.0; i++) {
+    float theta = i / 500.0 * rotations * 6.28318 + t * speed * 0.2;
+    float specIdx = i / 500.0;
+    float spec = uSpectrum[int(specIdx * 63.0)];
+    float angle = theta + audio * spec * 0.5;
+    float x = (R - r) * cos(angle) + d * cos((R - r) / r * angle);
+    float y = (R - r) * sin(angle) - d * sin((R - r) / r * angle);
+    vec2 pt = vec2(x, y) * 0.4;
+    float dist = length(centered - pt);
+    minDist = min(minDist, dist);
+    float glow = exp(-dist * 200.0) * (0.02 + spec * 0.03);
+    col += getPaletteColor(i / 500.0 + t * 0.05) * glow;
+  }
+  float lineGlow = exp(-minDist * 400.0) * 0.8 + smoothstep(0.005, 0.0, minDist);
+  vec3 lineColor = getPaletteColor(0.3 + audio * 0.3);
+  col += lineColor * lineGlow;
+  return col * uSpirographOpacity;
+}`,
+    mainCall: `  if (uSpirographEnabled > 0.5) color += spirograph(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-uv-feedback',
+    uniforms: `uniform float uUvFeedbackEnabled;
+uniform float uUvFeedbackOpacity;
+uniform float uUvFeedbackSpeed;
+uniform float uUvFeedbackIterations;
+uniform float uUvFeedbackDistortion;
+uniform float uUvFeedbackZoom;
+`,
+    functions: `vec3 uvFeedback(vec2 uv, float t) {
+  vec2 p = uv;
+  float iterations = max(2.0, uUvFeedbackIterations);
+  float distortion = uUvFeedbackDistortion;
+  float zoom = uUvFeedbackZoom;
+  float speed = uUvFeedbackSpeed;
+  vec3 col = vec3(0.0);
+  for (float i = 0.0; i < 10.0; i++) {
+    if (i >= iterations) break;
+    float angle = i * 0.618033 * 6.28318 + t * speed * 0.1;
+    float ca = cos(angle), sa = sin(angle);
+    vec2 centered = p - 0.5;
+    centered = vec2(centered.x * ca - centered.y * sa, centered.x * sa + centered.y * ca);
+    float dist = length(centered);
+    centered *= 1.0 + zoom * 0.02;
+    centered += vec2(sin(t * speed * 0.3 + i * 1.7) * distortion * 0.02, cos(t * speed * 0.2 + i * 2.3) * distortion * 0.02);
+    p = centered + 0.5;
+    float audio = uSpectrum[int(clamp(dist * 63.0, 0.0, 63.0))];
+    float warp = sin(p.x * 10.0 + t * speed) * cos(p.y * 10.0 - t * speed) * 0.02 * (1.0 + audio * distortion);
+    p += vec2(warp, warp * 0.7);
+    if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0) break;
+    float fade = 1.0 - i / iterations;
+    float band = fract(i * 0.618033);
+    col += getPaletteColor(band + t * speed * 0.02) * fade * 0.15 * (1.0 + audio * 0.5);
+  }
+  return col * uUvFeedbackOpacity;
+}`,
+    mainCall: `  if (uUvFeedbackEnabled > 0.5) color += uvFeedback(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-droste-effect',
+    uniforms: `uniform float uDrosteEnabled;
+uniform float uDrosteOpacity;
+uniform float uDrosteSpeed;
+uniform float uDrosteZoomRate;
+uniform float uDrosteRotations;
+uniform float uDrosteFrameCount;
+`,
+    functions: `vec3 drosteEffect(vec2 uv, float t) {
+  vec2 p = uv - 0.5;
+  float rot = uDrosteRotations;
+  float zoomRate = uDrosteZoomRate;
+  float count = max(2.0, uDrosteFrameCount);
+  float speed = uDrosteSpeed;
+  vec3 col = vec3(0.0);
+  float angle = atan(p.y, p.x);
+  float radius = length(p);
+  for (float i = 0.0; i < 12.0; i++) {
+    if (i >= count) break;
+    float phase = (t * speed * 0.15 + i * zoomRate) * 6.28318;
+    float frameRadius = fract(t * speed * 0.15 + i * zoomRate);
+    float frameAngle = phase * rot;
+    float ca = cos(frameAngle), sa = sin(frameAngle);
+    vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
+    vec2 scaled = rotated / (0.5 + frameRadius * 1.5) + 0.5;
+    if (scaled.x < 0.0 || scaled.x > 1.0 || scaled.y < 0.0 || scaled.y > 1.0) continue;
+    float specIdx = int(clamp(scaled.x * 63.0, 0.0, 63.0));
+    float audio = uSpectrum[specIdx];
+    float fade = 1.0 - i / count;
+    float innerMask = smoothstep(0.5, 0.45, radius);
+    vec3 frameColor = getPaletteColor(i / count * 0.5 + angle / 6.28318 * 0.5 + audio * 0.15);
+    float border = smoothstep(0.02, 0.0, abs(radius - (0.3 + frameRadius * 0.2)));
+    col = mix(col, frameColor, innerMask * fade * 0.5);
+    col += getPaletteColor(0.7) * border * fade * 0.3;
+  }
+  col *= (0.6 + uRms * 0.4);
+  return col * uDrosteOpacity;
+}`,
+    mainCall: `  if (uDrosteEnabled > 0.5) color += drosteEffect(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-equalizer-matrix',
+    uniforms: `uniform float uEqualizerMatrixEnabled;
+uniform float uEqualizerMatrixOpacity;
+uniform float uEqualizerMatrixSpeed;
+uniform float uEqualizerMatrixRows;
+uniform float uEqualizerMatrixGap;
+uniform float uEqualizerMatrixDepth;
+`,
+    functions: `vec3 equalizerMatrix(vec2 uv, float t) {
+  vec3 col = vec3(0.0);
+  float rows = max(4.0, uEqualizerMatrixRows);
+  float gap = uEqualizerMatrixGap;
+  float depth = uEqualizerMatrixDepth;
+  for (float row = 0.0; row < 16.0; row++) {
+    if (row >= rows) break;
+    float yBase = (row + 0.5) / rows;
+    float rowDist = abs(uv.y - yBase) - gap * 0.5 / rows;
+    if (rowDist > 0.02) continue;
+    float timeOffset = row * 0.15 + t * uEqualizerMatrixSpeed;
+    float perspectiveScale = 1.0 - row / rows * depth * 0.3;
+    float xScale = (uv.x - 0.5) / perspectiveScale + 0.5;
+    if (xScale < 0.0 || xScale > 1.0) continue;
+    float bandIdx = floor(xScale * 32.0);
+    int specIdx = int(clamp(bandIdx * 2.0, 0.0, 63.0));
+    float amp = uSpectrum[specIdx];
+    float trailAmp = uTrailSpectrum[specIdx];
+    float barHeight = amp * 0.8 + trailAmp * 0.2;
+    float barWidth = 1.0 / 32.0 * 0.85;
+    float barX = (bandIdx + 0.5) / 32.0;
+    float barDist = abs(xScale - barX);
+    if (barDist > barWidth * 0.5) continue;
+    float barTop = yBase - barHeight * 0.5 / rows;
+    float inBar = smoothstep(yBase + gap * 0.5 / rows, yBase, uv.y) * smoothstep(barTop - 0.005, barTop + 0.005, uv.y);
+    float fadeRow = 1.0 - row / rows * 0.5;
+    vec3 barColor = getPaletteColor(bandIdx / 32.0 + amp * 0.2) * (0.5 + amp);
+    float pulse = sin(t * uEqualizerMatrixSpeed * 2.0 + bandIdx * 0.5 + row) * 0.5 + 0.5;
+    col += barColor * inBar * fadeRow * (0.7 + pulse * 0.3);
+  }
+  return col * uEqualizerMatrixOpacity;
+}`,
+    mainCall: `  if (uEqualizerMatrixEnabled > 0.5) color += equalizerMatrix(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-metaball',
+    uniforms: `uniform float uMetaballEnabled;
+uniform float uMetaballOpacity;
+uniform float uMetaballSpeed;
+uniform float uMetaballCount;
+uniform float uMetaballThreshold;
+uniform float uMetaballScale;
+`,
+    functions: `vec3 metaball(vec2 uv, float t) {
+  vec2 p = uv * uMetaballScale;
+  float threshold = uMetaballThreshold;
+  float count = max(2.0, uMetaballCount);
+  float field = 0.0;
+  float closestDist = 10.0;
+  vec2 closestId = vec2(0.0);
+  for (float i = 0.0; i < 8.0; i++) {
+    if (i >= count) break;
+    float phase = i * 2.399 + t * uMetaballSpeed * 0.3;
+    float radius = 0.15 + uSpectrum[int(i * 8.0)] * 0.15;
+    vec2 center = vec2(0.5 + sin(phase) * 0.25, 0.5 + cos(phase * 1.3) * 0.25) * uMetaballScale;
+    float dist = length(p - center);
+    field += radius * radius / (dist * dist + 0.001);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestId = center;
+    }
+  }
+  float surface = smoothstep(threshold - 0.1, threshold + 0.1, field);
+  float edge = smoothstep(threshold, threshold - 0.02, field) * smoothstep(threshold - 0.15, threshold - 0.1, field);
+  float glow = exp(-abs(field - threshold) * 8.0) * 0.3;
+  vec3 innerColor = getPaletteColor(hash21(closestId) + uRms * 0.2);
+  vec3 edgeColor = getPaletteColor(0.8 + uPeak * 0.1);
+  vec3 col = innerColor * surface + edgeColor * edge + edgeColor * glow;
+  col *= (0.5 + uRms * 0.5);
+  return col * uMetaballOpacity;
+}`,
+    mainCall: `  if (uMetaballEnabled > 0.5) color += metaball(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-interference-pattern',
+    uniforms: `uniform float uInterferenceEnabled;
+uniform float uInterferenceOpacity;
+uniform float uInterferenceSpeed;
+uniform float uInterferenceSourceCount;
+uniform float uInterferenceWavelength;
+uniform float uInterferenceMode;
+`,
+    functions: `vec3 interferencePattern(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  float count = max(2.0, uInterferenceSourceCount);
+  float wavelength = uInterferenceWavelength;
+  float mode = uInterferenceMode;
+  float wave = 0.0;
+  for (float i = 0.0; i < 8.0; i++) {
+    if (i >= count) break;
+    float angle = i / count * 6.28318 + t * uInterferenceSpeed * 0.1;
+    float radius = 0.3 + uSpectrum[int(i * 8.0)] * 0.2;
+    vec2 source = vec2(cos(angle), sin(angle)) * radius;
+    float dist = length(centered - source);
+    float phase = dist / wavelength * 6.28318 - t * uInterferenceSpeed;
+    if (mode < 0.5) {
+      wave += sin(phase);
+    } else if (mode < 1.5) {
+      wave += cos(phase) * exp(-dist * 2.0);
+    } else {
+      wave += sin(phase) * (1.0 / (1.0 + dist * 3.0));
+    }
+  }
+  wave /= count;
+  float pattern = wave * 0.5 + 0.5;
+  vec3 bright = getPaletteColor(pattern + uPeak * 0.1);
+  vec3 dark = getPaletteColor(pattern * 0.3);
+  vec3 col = mix(dark, bright, smoothstep(0.45, 0.55, pattern));
+  float rings = abs(wave);
+  col += getPaletteColor(0.9) * smoothstep(0.03, 0.0, rings) * 0.5;
+  return col * uInterferenceOpacity;
+}`,
+    mainCall: `  if (uInterferenceEnabled > 0.5) color += interferencePattern(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-terrain-hypsometric',
+    uniforms: `uniform float uTerrainHypsometricEnabled;
+uniform float uTerrainHypsometricOpacity;
+uniform float uTerrainHypsometricSpeed;
+uniform float uTerrainHypsometricScale;
+uniform float uTerrainHypsometricContourInterval;
+uniform float uTerrainHypsometricElevation;
+`,
+    functions: `vec3 terrainHypsometric(vec2 uv, float t) {
+  vec2 p = (uv - 0.5) * uTerrainHypsometricScale * 2.0;
+  float elevation = 0.0;
+  float amp = 1.0;
+  float freq = 1.0;
+  for (float i = 0.0; i < 6.0; i++) {
+    elevation += sin(p.x * freq * 2.0 + t * uTerrainHypsometricSpeed * 0.1 * (i + 1.0) * 0.3) * amp;
+    elevation += cos(p.y * freq * 1.8 - t * uTerrainHypsometricSpeed * 0.08 * (i + 1.0) * 0.3) * amp;
+    elevation += sin((p.x + p.y) * freq * 1.5 + t * uTerrainHypsometricSpeed * 0.05) * amp * 0.5;
+    freq *= 2.0;
+    amp *= 0.5;
+  }
+  float audio = uSpectrum[int(clamp(abs(elevation) * 30.0, 0.0, 63.0))];
+  elevation = elevation * uTerrainHypsometricElevation + audio * 0.3;
+  float norm = elevation * 0.5 + 0.5;
+  norm = clamp(norm, 0.0, 1.0);
+  float contour = uTerrainHypsometricContourInterval;
+  float contourLine = 1.0 - smoothstep(0.0, 0.04, abs(fract(norm / contour) - 0.5) * contour * 2.0);
+  vec3 deep = vec3(0.05, 0.15, 0.5);
+  vec3 shallow = vec3(0.1, 0.4, 0.6);
+  vec3 lowland = vec3(0.2, 0.6, 0.25);
+  vec3 highland = vec3(0.6, 0.5, 0.2);
+  vec3 mountain = vec3(0.5, 0.35, 0.2);
+  vec3 snow = vec3(0.95, 0.95, 1.0);
+  vec3 bandColor;
+  if (norm < 0.2) bandColor = mix(deep, shallow, norm / 0.2);
+  else if (norm < 0.4) bandColor = mix(shallow, lowland, (norm - 0.2) / 0.2);
+  else if (norm < 0.6) bandColor = mix(lowland, highland, (norm - 0.4) / 0.2);
+  else if (norm < 0.8) bandColor = mix(highland, mountain, (norm - 0.6) / 0.2);
+  else bandColor = mix(mountain, snow, (norm - 0.8) / 0.2);
+  vec3 col = bandColor + vec3(0.3, 0.35, 0.4) * contourLine;
+  return col * uTerrainHypsometricOpacity;
+}`,
+    mainCall: `  if (uTerrainHypsometricEnabled > 0.5) color += terrainHypsometric(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-phyllotaxis',
+    uniforms: `uniform float uPhyllotaxisEnabled;
+uniform float uPhyllotaxisOpacity;
+uniform float uPhyllotaxisSpeed;
+uniform float uPhyllotaxisCount;
+uniform float uPhyllotaxisPointSize;
+uniform float uPhyllotaxisSpread;
+`,
+    functions: `vec3 phyllotaxis(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float goldenAngle = 2.39996323;
+  float count = max(20.0, uPhyllotaxisCount);
+  float spread = uPhyllotaxisSpread;
+  for (float i = 0.0; i < 300.0; i++) {
+    if (i >= count) break;
+    float angle = i * goldenAngle + t * uPhyllotaxisSpeed * 0.1;
+    float r = sqrt(i / count) * spread;
+    int specIdx = int(clamp(i / count * 63.0, 0.0, 63.0));
+    float audio = uSpectrum[specIdx];
+    r *= (1.0 + audio * 0.15);
+    vec2 pt = vec2(cos(angle), sin(angle)) * r;
+    float dist = length(centered - pt);
+    float size = uPhyllotaxisPointSize * (1.0 + audio * 1.5) * (1.0 - i / count * 0.3);
+    float dot2 = smoothstep(size, size * 0.3, dist);
+    float glow = exp(-dist * 80.0) * 0.2;
+    vec3 petalColor = getPaletteColor(i / count + sin(t * 0.2) * 0.1);
+    float ring = 1.0 + sin(i * 0.1 + t * uPhyllotaxisSpeed) * 0.15;
+    col += petalColor * (dot2 + glow) * ring;
+  }
+  return col * uPhyllotaxisOpacity;
+}`,
+    mainCall: `  if (uPhyllotaxisEnabled > 0.5) color += phyllotaxis(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-deep-ocean',
+    uniforms: `uniform float uDeepOceanEnabled;
+uniform float uDeepOceanOpacity;
+uniform float uDeepOceanSpeed;
+uniform float uDeepOceanDepth;
+uniform float uDeepOceanBiolum;
+uniform float uDeepOceanCaustic;
+`,
+    functions: `vec3 deepOcean(vec2 uv, float t) {
+  vec3 col = vec3(0.0);
+  float speed = uDeepOceanSpeed;
+  float depth = uDeepOceanDepth;
+  vec2 p = uv;
+  float causticStrength = uDeepOceanCaustic;
+  float c1 = sin(p.x * 12.0 + t * speed * 0.5) * sin(p.y * 14.0 - t * speed * 0.4);
+  float c2 = sin(p.x * 8.0 - t * speed * 0.3 + 1.5) * cos(p.y * 10.0 + t * speed * 0.35);
+  float caustics = (c1 + c2) * 0.5 * causticStrength;
+  caustics = max(caustics, 0.0);
+  caustics *= smoothstep(0.6, 1.0, caustics + 0.5);
+  vec3 deepBlue = vec3(0.0, 0.02, 0.08) * (1.0 - depth * 0.5);
+  vec3 midWater = vec3(0.0, 0.05, 0.15);
+  vec3 causticColor = vec3(0.1, 0.3, 0.5) * caustics;
+  col = mix(deepBlue, midWater, uv.y) + causticColor;
+  float biolum = uDeepOceanBiolum;
+  for (float i = 0.0; i < 20.0; i++) {
+    float hash = fract(sin(i * 127.1) * 43758.5453);
+    int specIdx = int(hash * 63.0);
+    float audio = uSpectrum[specIdx];
+    float x = fract(sin(i * 269.5 + t * speed * 0.05) * 0.5 + 0.5);
+    float y = fract(cos(i * 183.3 - t * speed * 0.03) * 0.5 + 0.5);
+    vec2 pt = vec2(x, y);
+    float dist = length(uv - pt);
+    float glow = exp(-dist * 100.0) * biolum * (0.3 + audio * 0.7);
+    float pulse = sin(t * 2.0 + i * 3.7) * 0.5 + 0.5;
+    vec3 bioColor = mix(vec3(0.0, 0.8, 0.6), vec3(0.2, 0.5, 1.0), hash) * glow * pulse;
+    col += bioColor;
+  }
+  float waveDistortion = sin(uv.y * 20.0 + t * speed) * 0.01;
+  col += vec3(0.0, 0.02, 0.05) * smoothstep(0.5, 0.0, abs(sin(uv.x * 40.0 + t * speed + waveDistortion * 100.0)));
+  col *= (0.8 + uRms * 0.2);
+  return col * uDeepOceanOpacity;
+}`,
+    mainCall: `  if (uDeepOceanEnabled > 0.5) color += deepOcean(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-holographic-prism',
+    uniforms: `uniform float uHolographicPrismEnabled;
+uniform float uHolographicPrismOpacity;
+uniform float uHolographicPrismSpeed;
+uniform float uHolographicPrismDispersion;
+uniform float uHolographicPrismAngle;
+uniform float uHolographicPrismFacets;
+`,
+    functions: `vec3 holographicPrism(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  float facets = max(3.0, uHolographicPrismFacets);
+  float angle = atan(centered.y, centered.x);
+  float dist = length(centered);
+  float dispersion = uHolographicPrismDispersion;
+  float prismAngle = uHolographicPrismAngle + t * uHolographicPrismSpeed * 0.05;
+  float wedge = 6.28318 / facets;
+  float sectorAngle = mod(angle - prismAngle, wedge);
+  float halfWedge = wedge * 0.5;
+  float fromCenter = abs(sectorAngle - halfWedge) / halfWedge;
+  float prismShape = smoothstep(1.0, 0.7, dist) * smoothstep(0.0, 0.05, dist);
+  float r = prismShape * (0.5 + fromCenter * dispersion);
+  float g = prismShape * (0.5 + fromCenter * dispersion * 0.7);
+  float b = prismShape * (0.5 + fromCenter * dispersion * 0.4);
+  r += sin(dist * 20.0 - t * uHolographicPrismSpeed * 2.0) * 0.15;
+  g += sin(dist * 20.0 - t * uHolographicPrismSpeed * 2.0 + 2.094) * 0.15;
+  b += sin(dist * 20.0 - t * uHolographicPrismSpeed * 2.0 + 4.189) * 0.15;
+  float specIdx = int(clamp(abs(angle) * 10.0, 0.0, 63.0));
+  float audio = uSpectrum[specIdx];
+  vec3 rainbow = vec3(
+    sin(fromCenter * 6.28318 + t * uHolographicPrismSpeed * 0.3) * 0.5 + 0.5,
+    sin(fromCenter * 6.28318 + t * uHolographicPrismSpeed * 0.3 + 2.094) * 0.5 + 0.5,
+    sin(fromCenter * 6.28318 + t * uHolographicPrismSpeed * 0.3 + 4.189) * 0.5 + 0.5
+  );
+  vec3 col = rainbow * prismShape * (0.5 + audio * 0.5);
+  float edgeGlow = smoothstep(0.05, 0.0, abs(dist - 0.5)) * 2.0;
+  col += vec3(0.8, 0.9, 1.0) * edgeGlow * (0.3 + audio * 0.5);
+  float scanline = sin(uv.y * 200.0 + t * uHolographicPrismSpeed) * 0.5 + 0.5;
+  col *= 0.9 + scanline * 0.1;
+  col *= (0.6 + uRms * 0.4);
+  return col * uHolographicPrismOpacity;
+}`,
+    mainCall: `  if (uHolographicPrismEnabled > 0.5) color += holographicPrism(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-boids',
+    uniforms: `uniform float uBoidsEnabled;
+uniform float uBoidsOpacity;
+uniform float uBoidsSpeed;
+uniform float uBoidsCount;
+uniform float uBoidsCohesion;
+uniform float uBoidsVisualRange;
+`,
+    functions: `vec3 boids(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float count = max(10.0, uBoidsCount);
+  float speed = uBoidsSpeed;
+  float cohesion = uBoidsCohesion;
+  float range = uBoidsVisualRange;
+  for (float i = 0.0; i < 60.0; i++) {
+    if (i >= count) break;
+    float hash1 = fract(sin(i * 127.1) * 43758.5453);
+    float hash2 = fract(sin(i * 269.5) * 43758.5453);
+    float hash3 = fract(sin(i * 419.3) * 43758.5453);
+    int specIdx = int(clamp(i * 1.0, 0.0, 63.0));
+    float audio = uSpectrum[specIdx];
+    float px = hash1 * 2.0 - 1.0 + sin(t * speed * 0.4 + i * 0.7) * 0.3;
+    float py = hash2 * 2.0 - 1.0 + cos(t * speed * 0.35 + i * 0.5) * 0.3;
+    float vx = cos(t * speed * 0.2 + i * 2.1 + hash3 * 6.28) * 0.3;
+    float vy = sin(t * speed * 0.25 + i * 1.7 + hash3 * 3.14) * 0.3;
+    for (float j = 0.0; j < 60.0; j++) {
+      if (j >= count) break;
+      if (i == j) continue;
+      float h1 = fract(sin(j * 127.1) * 43758.5453);
+      float h2 = fract(sin(j * 269.5) * 43758.5453);
+      float ox = h1 * 2.0 - 1.0 + sin(t * speed * 0.4 + j * 0.7) * 0.3;
+      float oy = h2 * 2.0 - 1.0 + cos(t * speed * 0.35 + j * 0.5) * 0.3;
+      float dist = length(vec2(px - ox, py - oy));
+      if (dist < range) {
+        vx += (ox - px) * cohesion * 0.01;
+        vy += (oy - py) * cohesion * 0.01;
+        if (dist < range * 0.3) {
+          vx -= (px - ox) * 0.02;
+          vy -= (py - oy) * 0.02;
+        }
+        float avgVx = cos(t * speed * 0.2 + j * 2.1) * 0.3;
+        float avgVy = sin(t * speed * 0.25 + j * 1.7) * 0.3;
+        vx += (avgVx - vx) * 0.05;
+        vy += (avgVy - vy) * 0.05;
+      }
+    }
+    vx += sin(t * speed * 0.15 + i * 3.7) * audio * 0.2;
+    vy += cos(t * speed * 0.12 + i * 2.9) * audio * 0.2;
+    vec2 boidPos = vec2(px, py);
+    vec2 boidDir = normalize(vec2(vx, vy));
+    vec2 toPixel = centered - boidPos;
+    float dist = length(toPixel);
+    float headDist = length(centered - (boidPos + boidDir * 0.03));
+    float tailDist = length(centered - (boidPos - boidDir * 0.02));
+    float body = smoothstep(0.04, 0.015, dist) * 0.5 + smoothstep(0.02, 0.005, headDist);
+    float trail = exp(-dist * 50.0) * 0.15;
+    vec3 boidColor = getPaletteColor(i / count + audio * 0.15);
+    col += boidColor * (body + trail) * (0.6 + audio * 0.4);
+  }
+  return col * uBoidsOpacity;
+}`,
+    mainCall: `  if (uBoidsEnabled > 0.5) color += boids(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-flow-field',
+    uniforms: `uniform float uFlowFieldEnabled;
+uniform float uFlowFieldOpacity;
+uniform float uFlowFieldSpeed;
+uniform float uFlowFieldScale;
+uniform float uFlowFieldCurlIntensity;
+uniform float uFlowFieldLineCount;
+`,
+    functions: `vec2 curlNoise(vec2 p, float t) {
+  float e = 0.01;
+  float n1 = fbm(p + vec2(e, 0.0) + t * 0.1);
+  float n2 = fbm(p - vec2(e, 0.0) + t * 0.1);
+  float n3 = fbm(p + vec2(0.0, e) + t * 0.1);
+  float n4 = fbm(p - vec2(0.0, e) + t * 0.1);
+  return vec2((n3 - n4) / (2.0 * e), -(n1 - n2) / (2.0 * e)) * uFlowFieldCurlIntensity;
+}
+
+vec3 flowField(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float scale = uFlowFieldScale;
+  float speed = uFlowFieldSpeed;
+  float count = max(20.0, uFlowFieldLineCount);
+  for (float i = 0.0; i < 80.0; i++) {
+    if (i >= count) break;
+    float hash1 = fract(sin(i * 127.1) * 43758.5453);
+    float hash2 = fract(sin(i * 269.5) * 43758.5453);
+    vec2 pos = vec2(hash1 * 2.0 - 1.0, hash2 * 2.0 - 1.0);
+    vec2 prevPos = pos;
+    float trailLen = 8.0;
+    float totalDist = 0.0;
+    int specIdx = int(clamp(i / count * 63.0, 0.0, 63.0));
+    float audio = uSpectrum[specIdx];
+    for (float step2 = 0.0; step2 < 8.0; step2++) {
+      vec2 field = curlNoise(pos * scale, t * speed * 0.2);
+      field *= (1.0 + audio * 0.5);
+      prevPos = pos;
+      pos += normalize(field + 0.0001) * 0.015 * (1.0 + audio * 0.3);
+      float dist = length(centered - pos);
+      float prevDist = length(centered - prevPos);
+      float lineDist = sdSegment(centered, prevPos, pos);
+      float line = smoothstep(0.005, 0.001, lineDist);
+      float fade = 1.0 - step2 / trailLen;
+      vec3 lineColor = getPaletteColor(i / count + step2 * 0.02);
+      col += lineColor * line * fade * 0.3;
+      if (pos.x < -1.5 || pos.x > 1.5 || pos.y < -1.5 || pos.y > 1.5) break;
+    }
+    float headDist = length(centered - pos);
+    col += getPaletteColor(i / count) * exp(-headDist * 60.0) * 0.4 * (0.5 + audio * 0.5);
+  }
+  return col * uFlowFieldOpacity;
+}`,
+    mainCall: `  if (uFlowFieldEnabled > 0.5) color += flowField(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-stained-glass',
+    uniforms: `uniform float uStainedGlassEnabled;
+uniform float uStainedGlassOpacity;
+uniform float uStainedGlassSpeed;
+uniform float uStainedGlassScale;
+uniform float uStainedGlassLightAngle;
+uniform float uStainedGlassLeadWidth;
+`,
+    functions: `vec3 stainedGlass(vec2 uv, float t) {
+  vec2 p = uv * uStainedGlassScale;
+  vec2 ip = floor(p);
+  vec2 fp = fract(p);
+  float minDist = 8.0;
+  vec2 closestCell = ip;
+  float closestId = 0.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 neighbor = vec2(float(x), float(y));
+      vec2 cell = ip + neighbor;
+      vec2 pt = vec2(fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453),
+                     fract(cos(dot(cell, vec2(269.5, 183.3))) * 43758.5453));
+      pt += sin(t * uStainedGlassSpeed * 0.3 + cell * 0.5) * 0.08;
+      float d = length(neighbor + pt - fp);
+      if (d < minDist) {
+        minDist = d;
+        closestCell = cell;
+        closestId = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+      }
+    }
+  }
+  float lead = uStainedGlassLeadWidth;
+  float edgeLine = smoothstep(lead, lead * 0.3, minDist);
+  int specIdx = int(clamp(closestId * 63.0, 0.0, 63.0));
+  float audio = uSpectrum[specIdx];
+  float lightAngle = uStainedGlassLightAngle + t * uStainedGlassSpeed * 0.05;
+  vec2 lightDir = vec2(cos(lightAngle), sin(lightAngle));
+  float lightIntensity = dot(normalize(closestCell), lightDir) * 0.5 + 0.5;
+  float innerGlow = exp(-minDist * 8.0) * 0.3;
+  vec3 glassColor = getPaletteColor(closestId + audio * 0.2);
+  glassColor *= (0.3 + lightIntensity * 0.7 + audio * 0.3);
+  glassColor += vec3(1.0, 0.95, 0.8) * innerGlow * lightIntensity;
+  vec3 leadColor = vec3(0.08, 0.06, 0.05);
+  vec3 col = mix(leadColor, glassColor, edgeLine);
+  return col * uStainedGlassOpacity;
+}`,
+    mainCall: `  if (uStainedGlassEnabled > 0.5) color += stainedGlass(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-hillshade',
+    uniforms: `uniform float uHillshadeEnabled;
+uniform float uHillshadeOpacity;
+uniform float uHillshadeSpeed;
+uniform float uHillshadeScale;
+uniform float uHillshadeLightAzimuth;
+uniform float uHillshadeVertical;
+`,
+    functions: `float terrainElev(vec2 p, float t) {
+  float e = 0.0;
+  float amp = 1.0;
+  float freq = 1.0;
+  for (float i = 0.0; i < 5.0; i++) {
+    e += sin(p.x * freq * 2.0 + t * uHillshadeSpeed * 0.08) * amp;
+    e += cos(p.y * freq * 1.7 - t * uHillshadeSpeed * 0.06) * amp;
+    e += sin((p.x + p.y) * freq * 1.3) * amp * 0.5;
+    freq *= 2.1;
+    amp *= 0.45;
+  }
+  return e;
+}
+
+vec3 hillshade(vec2 uv, float t) {
+  vec2 p = (uv - 0.5) * uHillshadeScale * 2.0;
+  float e = 0.01;
+  float h = terrainElev(p, t);
+  float hx = terrainElev(p + vec2(e, 0.0), t);
+  float hy = terrainElev(p + vec2(0.0, e), t);
+  vec3 normal = normalize(vec3((h - hx) / e, (h - hy) / e, uHillshadeVertical));
+  float azimuth = uHillshadeLightAzimuth + t * uHillshadeSpeed * 0.02;
+  float altitude = 0.6;
+  vec3 lightDir = normalize(vec3(cos(azimuth) * cos(altitude), sin(azimuth) * cos(altitude), sin(altitude)));
+  float diffuse = max(dot(normal, lightDir), 0.0);
+  float specIdx2 = int(clamp(abs(h) * 20.0, 0.0, 63.0));
+  float audio = uSpectrum[specIdx2];
+  float ambient = 0.25 + audio * 0.1;
+  float shade = ambient + diffuse * 0.75;
+  float normH = clamp(h * 0.3 + 0.5, 0.0, 1.0);
+  vec3 low = vec3(0.15, 0.35, 0.12);
+  vec3 mid2 = vec3(0.55, 0.45, 0.25);
+  vec3 high = vec3(0.85, 0.85, 0.9);
+  vec3 terrainCol = normH < 0.5 ? mix(low, mid2, normH * 2.0) : mix(mid2, high, (normH - 0.5) * 2.0);
+  float contour = 1.0 - smoothstep(0.0, 0.06, abs(fract(normH / 0.1) - 0.5) * 0.2);
+  vec3 col = terrainCol * shade + vec3(0.3, 0.35, 0.4) * contour * 0.2;
+  col += vec3(1.0, 0.95, 0.85) * pow(max(dot(reflect(-lightDir, normal), vec3(0.0, 0.0, 1.0)), 0.0), 16.0) * 0.15;
+  return col * uHillshadeOpacity;
+}`,
+    mainCall: `  if (uHillshadeEnabled > 0.5) color += hillshade(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-truchet-tiles',
+    uniforms: `uniform float uTruchetEnabled;
+uniform float uTruchetOpacity;
+uniform float uTruchetSpeed;
+uniform float uTruchetScale;
+uniform float uTruchetArcWidth;
+uniform float uTruchetStyle;
+`,
+    functions: `vec3 truchetTiles(vec2 uv, float t) {
+  vec2 p = uv * uTruchetScale;
+  vec2 ip = floor(p);
+  vec2 fp = fract(p);
+  float cellHash = hash21(ip + 0.5);
+  float orient = step(0.5, fract(sin(dot(ip, vec2(7.23, 157.2))) * 43758.5453 + t * uTruchetSpeed * 0.05));
+  vec2 q = orient > 0.5 ? fp : vec2(1.0 - fp.x, fp.y);
+  int specIdx = int(clamp(cellHash * 63.0, 0.0, 63.0));
+  float audio = uSpectrum[specIdx];
+  float d1 = abs(q.x - q.y);
+  float d2 = abs(q.x + q.y - 1.0);
+  float arc1 = smoothstep(uTruchetArcWidth, uTruchetArcWidth * 0.3, d1);
+  float arc2 = smoothstep(uTruchetArcWidth, uTruchetArcWidth * 0.3, d2);
+  float style = uTruchetStyle;
+  float pattern;
+  if (style < 0.5) {
+    pattern = arc1;
+  } else if (style < 1.5) {
+    pattern = max(arc1, arc2);
+  } else {
+    pattern = arc1 * 0.7 + arc2 * 0.3;
+  }
+  pattern *= (0.7 + audio * 0.3);
+  vec3 tileColor = getPaletteColor(cellHash + audio * 0.15);
+  vec3 arcColor = tileColor * pattern;
+  float nodeCenter = length(fp - 0.5);
+  float nodeGlow = exp(-nodeCenter * 20.0) * 0.2 * audio;
+  arcColor += tileColor * nodeGlow;
+  return arcColor * uTruchetOpacity;
+}`,
+    mainCall: `  if (uTruchetEnabled > 0.5) color += truchetTiles(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-spectrogram',
+    uniforms: `uniform float uSpectrogramEnabled;
+uniform float uSpectrogramOpacity;
+uniform float uSpectrogramSpeed;
+uniform float uSpectrogramFreqScale;
+uniform float uSpectrogramHistory;
+uniform float uSpectrogramColorMap;
+`,
+    functions: `vec3 spectrogram(vec2 uv, float t) {
+  float history = max(2.0, uSpectrogramHistory);
+  float freqScale = uSpectrogramFreqScale;
+  float speed = uSpectrogramSpeed;
+  float colorMap = uSpectrogramColorMap;
+  float timeAxis = 1.0 - uv.x;
+  float freqAxis = uv.y;
+  vec3 col = vec3(0.0);
+  for (float h = 0.0; h < 20.0; h++) {
+    if (h >= history) break;
+    float histTime = h / history;
+    float histStart = 1.0 - histTime * speed * 0.02;
+    float histEnd = 1.0 - (histTime + 1.0 / history) * speed * 0.02;
+    if (timeAxis < histStart && timeAxis >= histEnd) {
+      float band = freqAxis * freqScale;
+      int bandIdx = int(clamp(band * 63.0, 0.0, 63.0));
+      float amp = uTrailSpectrum[bandIdx] * (1.0 - h / history * 0.8);
+      amp = clamp(amp, 0.0, 1.0);
+      if (colorMap < 0.5) {
+        vec3 cold = vec3(0.0, 0.0, 0.3);
+        vec3 warm = vec3(1.0, 0.3, 0.0);
+        vec3 hot = vec3(1.0, 1.0, 0.8);
+        col = amp < 0.5 ? mix(cold, warm, amp * 2.0) : mix(warm, hot, (amp - 0.5) * 2.0);
+      } else if (colorMap < 1.5) {
+        col = getPaletteColor(amp * 0.8 + h / history * 0.2);
+      } else {
+        float v = amp;
+        col = vec3(v * v, v, sqrt(v)) * (0.5 + v * 0.5);
+      }
+      break;
+    }
+  }
+  float nowLine = smoothstep(0.01, 0.0, abs(uv.x - 0.98));
+  float currentBand = uv.y * freqScale;
+  int curIdx = int(clamp(currentBand * 63.0, 0.0, 63.0));
+  float curAmp = uSpectrum[curIdx];
+  col += vec3(1.0) * nowLine * 0.3;
+  col += getPaletteColor(0.9) * smoothstep(0.01, 0.0, abs(uv.x - 0.98)) * curAmp * 0.5;
+  return col * uSpectrogramOpacity;
+}`,
+    mainCall: `  if (uSpectrogramEnabled > 0.5) color += spectrogram(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-crosshatch',
+    uniforms: `uniform float uCrosshatchEnabled;
+uniform float uCrosshatchOpacity;
+uniform float uCrosshatchSpeed;
+uniform float uCrosshatchDensity;
+uniform float uCrosshatchAngle1;
+uniform float uCrosshatchAngle2;
+`,
+    functions: `vec3 crosshatch(vec2 uv, float t) {
+  vec2 p = uv * 2.0 - 1.0;
+  p.x *= uAspect;
+  float density = uCrosshatchDensity;
+  float a1 = uCrosshatchAngle1;
+  float a2 = uCrosshatchAngle2;
+  float speed = uCrosshatchSpeed;
+  float brightness = fbm(p * 2.0 + t * speed * 0.05) * 0.5 + 0.5;
+  brightness += uRms * 0.3;
+  brightness = clamp(brightness, 0.0, 1.0);
+  vec2 d1 = vec2(cos(a1), sin(a1));
+  vec2 d2 = vec2(cos(a2), sin(a2));
+  float line1 = abs(dot(p, vec2(-d1.y, d1.x)));
+  float line2 = abs(dot(p, vec2(-d2.y, d2.x)));
+  float hatch1 = smoothstep(0.02 / density, 0.005 / density, abs(fract(line1 * density) - 0.5));
+  float hatch2 = smoothstep(0.02 / density, 0.005 / density, abs(fract(line2 * density) - 0.5));
+  float mask1 = smoothstep(0.8, 0.2, brightness);
+  float mask2 = smoothstep(0.5, 0.1, brightness);
+  vec3 inkColor = getPaletteColor(0.1 + uPeak * 0.1);
+  vec3 paperColor = getPaletteColor(0.95);
+  vec3 col = paperColor;
+  col = mix(col, inkColor, hatch1 * mask1);
+  col = mix(col, inkColor * 0.8, hatch2 * mask2);
+  float stipple = smoothstep(0.08, 0.0, abs(fract(length(p) * density * 3.0 + hash21(floor(p * density * 10.0))) - 0.5)) * smoothstep(0.3, 0.0, brightness) * 0.3;
+  col = mix(col, inkColor * 0.6, stipple);
+  col *= (0.9 + uRms * 0.1);
+  return col * uCrosshatchOpacity;
+}`,
+    mainCall: `  if (uCrosshatchEnabled > 0.5) color += crosshatch(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-shatter',
+    uniforms: `uniform float uShatterEnabled;
+uniform float uShatterOpacity;
+uniform float uShatterSpeed;
+uniform float uShatterSpread;
+uniform float uShatterShardCount;
+uniform float uShatterRotation;
+`,
+    functions: `vec3 shatter(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  centered.x *= uAspect;
+  vec3 col = vec3(0.0);
+  float spread = uShatterSpread;
+  float shardCount = max(5.0, uShatterShardCount);
+  float speed = uShatterSpeed;
+  float rot = uShatterRotation;
+  float impact = t * speed * 0.5;
+  for (float i = 0.0; i < 20.0; i++) {
+    if (i >= shardCount) break;
+    float hash1 = fract(sin(i * 127.1) * 43758.5453);
+    float hash2 = fract(sin(i * 269.5) * 43758.5453);
+    float hash3 = fract(sin(i * 419.3) * 43758.5453);
+    vec2 origin = vec2(hash1 * 2.0 - 1.0, hash2 * 2.0 - 1.0) * 0.3;
+    vec2 dir = normalize(origin + 0.0001);
+    float dist = length(origin);
+    float shardProgress = clamp(impact - i * 0.15, 0.0, 3.0);
+    vec2 offset = dir * shardProgress * spread;
+    float shardRot = rot * shardProgress * (hash3 - 0.5) * 2.0;
+    float ca = cos(shardRot), sa = sin(shardRot);
+    vec2 localUv = centered - origin - offset;
+    localUv = vec2(localUv.x * ca - localUv.y * sa, localUv.x * sa + localUv.y * ca);
+    float size = 0.08 + hash3 * 0.12;
+    int specIdx = int(clamp(hash1 * 63.0, 0.0, 63.0));
+    float audio = uSpectrum[specIdx];
+    size *= (1.0 + audio * 0.3);
+    float halfSize = size * 0.5;
+    float inShard = step(-halfSize, localUv.x) * step(localUv.x, halfSize) * step(-halfSize, localUv.y) * step(localUv.y, halfSize);
+    float edgeX = smoothstep(halfSize, halfSize - 0.01, abs(localUv.x));
+    float edgeY = smoothstep(halfSize, halfSize - 0.01, abs(localUv.y));
+    float edge = max(edgeX, edgeY);
+    vec3 shardColor = getPaletteColor(hash1 + audio * 0.15);
+    vec3 edgeColor = vec3(0.9, 0.95, 1.0);
+    col += mix(shardColor * (0.4 + audio * 0.3), edgeColor, edge) * inShard * (1.0 - shardProgress * 0.3);
+  }
+  float crackCount = shardCount * 0.5;
+  for (float c = 0.0; c < 10.0; c++) {
+    if (c >= crackCount) break;
+    float h = fract(sin(c * 57.3) * 43758.5453);
+    float angle = h * 6.28318;
+    vec2 crackDir = vec2(cos(angle), sin(angle));
+    float crackLen = 0.5 + h * 0.5;
+    vec2 crackStart = vec2(fract(sin(c * 127.1) * 43758.5453) * 2.0 - 1.0, fract(sin(c * 269.5) * 43758.5453) * 2.0 - 1.0) * 0.3;
+    float crackDist = sdSegment(centered, crackStart, crackStart + crackDir * crackLen);
+    float crackLine = smoothstep(0.005, 0.001, crackDist) * smoothstep(impact, impact - 0.5, c * 0.1);
+    col += vec3(0.8, 0.9, 1.0) * crackLine * 0.3;
+  }
+  return col * uShatterOpacity;
+}`,
+    mainCall: `  if (uShatterEnabled > 0.5) color += shatter(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-seigaiha',
+    uniforms: `uniform float uSeigaihaEnabled;
+uniform float uSeigaihaOpacity;
+uniform float uSeigaihaSpeed;
+uniform float uSeigaihaScale;
+uniform float uSeigaihaWaveCount;
+uniform float uSeigaihaLineWeight;
+`,
+    functions: `vec3 seigaiha(vec2 uv, float t) {
+  vec2 p = uv * uSeigaihaScale;
+  float speed = uSeigaihaSpeed;
+  float waveCount = max(2.0, uSeigaihaWaveCount);
+  float lineWeight = uSeigaihaLineWeight;
+  float rowHeight = 0.5;
+  float colWidth = 0.5;
+  float rowIdx = floor(p.y / rowHeight);
+  float colOffset = mod(rowIdx, 2.0) * colWidth * 0.5;
+  vec2 centered = vec2(mod(p.x + colOffset, colWidth), mod(p.y, rowHeight));
+  vec2 cellCenter = vec2(colWidth * 0.5, rowHeight * 0.3);
+  vec2 toCenter = centered - cellCenter;
+  float dist = length(toCenter);
+  float audio = uSpectrum[int(clamp(abs(rowIdx) * 4.0, 0.0, 63.0))];
+  float wave = 0.0;
+  for (float i = 0.0; i < 6.0; i++) {
+    if (i >= waveCount) break;
+    float radius = 0.15 + i * 0.1;
+    float animOffset = sin(t * speed * 0.5 + rowIdx * 0.3 + i * 0.5) * 0.02;
+    radius += animOffset + audio * 0.02 * i;
+    float ring = smoothstep(lineWeight, lineWeight * 0.3, abs(dist - radius));
+    float fade = 1.0 - i / waveCount * 0.4;
+    wave += ring * fade;
+  }
+  vec3 waveColor = getPaletteColor(rowIdx * 0.1 + t * speed * 0.02 + audio * 0.1);
+  vec3 bgColor = getPaletteColor(0.95 - waveCount * 0.02);
+  vec3 col = mix(bgColor, waveColor, clamp(wave, 0.0, 1.0));
+  float shimmer = sin(dist * 30.0 - t * speed * 2.0) * 0.5 + 0.5;
+  col += waveColor * shimmer * 0.05 * wave;
+  return col * uSeigaihaOpacity;
+}`,
+    mainCall: `  if (uSeigaihaEnabled > 0.5) color += seigaiha(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-sierpinski',
+    uniforms: `uniform float uSierpinskiEnabled;
+uniform float uSierpinskiOpacity;
+uniform float uSierpinskiSpeed;
+uniform float uSierpinskiDepth;
+uniform float uSierpinskiRotation;
+uniform float uSierpinskiVariant;
+`,
+    functions: `vec3 sierpinski(vec2 uv, float t) {
+  vec2 centered = uv * 2.0 - 1.0;
+  float rot = uSierpinskiRotation + t * uSierpinskiSpeed * 0.05;
+  float ca = cos(rot), sa = sin(rot);
+  centered = vec2(centered.x * ca - centered.y * sa, centered.x * sa + centered.y * ca);
+  vec3 col = vec3(0.0);
+  float depth = max(1.0, uSierpinskiDepth);
+  float variant = uSierpinskiVariant;
+  vec2 p = centered;
+  float sierpinskiVal = 1.0;
+  for (float i = 0.0; i < 8.0; i++) {
+    if (i >= depth) break;
+    if (variant < 0.5) {
+      p = fract(p * 2.0) * 2.0 - 1.0;
+      float mask = 1.0 - step(0.0, -p.x) * step(0.0, -p.y) * step(p.x + p.y, 0.0);
+      sierpinskiVal *= mask;
+    } else if (variant < 1.5) {
+      p = fract(p * 3.0);
+      float cx = step(1.0 / 3.0, p.x) * step(p.x, 2.0 / 3.0);
+      float cy = step(1.0 / 3.0, p.y) * step(p.y, 2.0 / 3.0);
+      sierpinskiVal *= 1.0 - cx * cy;
+      p = p * 3.0 - 1.0;
+    } else {
+      vec2 cell = floor(p * 2.0);
+      float cellId = hash21(cell);
+      p = fract(p * 2.0) * 2.0 - 1.0;
+      float mask = step(0.5, cellId + sin(t * uSierpinskiSpeed * 0.3 + cell.x + cell.y) * 0.3);
+      sierpinskiVal *= mask;
+    }
+  }
+  int specIdx = int(clamp(abs(centered.x + centered.y) * 30.0, 0.0, 63.0));
+  float audio = uSpectrum[specIdx];
+  vec3 fractalColor = getPaletteColor(length(centered) * 0.5 + t * uSierpinskiSpeed * 0.02);
+  float edgeGlow = fwidth(sierpinskiVal) * 30.0;
+  edgeGlow = clamp(edgeGlow, 0.0, 1.0);
+  col = fractalColor * sierpinskiVal * (0.5 + audio * 0.5);
+  col += getPaletteColor(0.8) * edgeGlow * 0.5;
+  col *= (0.7 + uRms * 0.3);
+  return col * uSierpinskiOpacity;
+}`,
+    mainCall: `  if (uSierpinskiEnabled > 0.5) color += sierpinski(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-orbital',
+    uniforms: `uniform float uOrbitalEnabled;
+uniform float uOrbitalOpacity;
+uniform float uOrbitalSpeed;
+uniform float uOrbitalCount;
+uniform float uOrbitalTrailLen;
+uniform float uOrbitalGravity;`,
+    functions: `vec3 orbital(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float aspect = uResolution.x / uResolution.y;
+  centered.x *= aspect;
+  float audio = uRms;
+  int count = int(uOrbitalCount + 2.0);
+  float trailLen = uOrbitalTrailLen;
+  vec3 col = vec3(0.0);
+  float grav = uOrbitalGravity;
+  for (int i = 0; i < 8; i++) {
+    if (i >= count) break;
+    float fi = float(i);
+    float phase = fi * 2.094 + t * uOrbitalSpeed * (0.5 + fi * 0.15);
+    float r = 0.08 + fi * 0.04 + audio * 0.02 * fi;
+    float eccentricity = 0.3 + fi * 0.08;
+    vec2 orbit = vec2(
+      r * cos(phase) * (1.0 + eccentricity * sin(phase * 0.7)),
+      r * sin(phase) * (1.0 - eccentricity * cos(phase * 1.3)) * 0.6
+    );
+    vec2 vel = vec2(-sin(phase), cos(phase)) * uOrbitalSpeed * 0.1;
+    for (int j = 0; j < 12; j++) {
+      float fj = float(j) / 12.0;
+      float trailAlpha = 1.0 - fj * fj;
+      vec2 trailPos = orbit - vel * fj * trailLen * 0.3;
+      float d = length(centered - trailPos);
+      float glow = 0.003 / (d * d + 0.0001);
+      glow *= trailAlpha;
+      float hue = fi / float(count) + fj * 0.05;
+      vec3 orbColor = getPaletteColor(hue);
+      col += orbColor * glow * 0.15;
+    }
+    float bodyDist = length(centered - orbit);
+    float bodyGlow = 0.0015 / (bodyDist * bodyDist + 0.00005);
+    col += getPaletteColor(fi / float(count)) * bodyGlow * 0.5;
+    float gravPull = grav / (bodyDist * bodyDist + 0.001);
+    float gravLine = smoothstep(0.005, 0.0, abs(length(centered) - length(orbit)) - 0.01);
+  }
+  float centerGlow = 0.008 / (dot(centered, centered) + 0.001);
+  col += getPaletteColor(0.1) * centerGlow * (0.5 + audio * 0.5);
+  return col * uOrbitalOpacity;
+}`,
+    mainCall: `  if (uOrbitalEnabled > 0.5) color += orbital(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-conic-gradient',
+    uniforms: `uniform float uConicGradientEnabled;
+uniform float uConicGradientOpacity;
+uniform float uConicGradientSpeed;
+uniform float uConicGradientSegments;
+uniform float uConicGradientRotation;
+uniform float uConicGradientSharpness;`,
+    functions: `vec3 conicGradient(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float angle = atan(centered.y, centered.x) + uConicGradientRotation + t * uConicGradientSpeed * 0.5;
+  float radius = length(centered);
+  float segments = uConicGradientSegments;
+  float audio = uRms;
+  float segAngle = angle * segments / 6.2832;
+  float sharpness = uConicGradientSharpness;
+  float seg = fract(segAngle + t * uConicGradientSpeed * 0.1);
+  float edge = abs(seg - 0.5) * 2.0;
+  float gradVal = mix(seg, edge, sharpness);
+  gradVal += sin(radius * 20.0 - t * uOrbitalSpeed * 2.0) * 0.15 * (1.0 - sharpness);
+  gradVal = clamp(gradVal, 0.0, 1.0);
+  float radialFade = smoothstep(0.55, 0.15, radius);
+  float segIndex = floor(segAngle);
+  float hue = segIndex / segments + t * 0.02;
+  vec3 segColor1 = getPaletteColor(hue);
+  vec3 segColor2 = getPaletteColor(hue + 0.5 / segments);
+  vec3 col = mix(segColor1, segColor2, gradVal) * radialFade;
+  col += getPaletteColor(0.3) * smoothstep(0.03, 0.0, radius) * (0.8 + audio * 0.2);
+  float ring = sin(radius * 40.0 - t * 3.0) * 0.5 + 0.5;
+  col *= 0.85 + ring * 0.15 * (1.0 - sharpness);
+  col *= 0.7 + audio * 0.3;
+  return col * uConicGradientOpacity;
+}`,
+    mainCall: `  if (uConicGradientEnabled > 0.5) color += conicGradient(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-barcode',
+    uniforms: `uniform float uBarcodeEnabled;
+uniform float uBarcodeOpacity;
+uniform float uBarcodeSpeed;
+uniform float uBarcodeDensity;
+uniform float uBarcodeThickness;
+uniform float uBarcodeMirror;`,
+    functions: `vec3 barcode(vec2 uv, float t) {
+  float audio = uRms;
+  float peak = uPeak;
+  vec2 centered = uv - 0.5;
+  float density = uBarcodeDensity;
+  float thickness = uBarcodeThickness;
+  float x = uv.x * density + t * uBarcodeSpeed * 0.5;
+  float specIdx = uv.x * 63.0;
+  int idx = int(clamp(specIdx, 0.0, 63.0));
+  float specVal = uSpectrum[idx];
+  float barHeight = specVal * (0.3 + peak * 0.4) + 0.05;
+  float thinBar = step(0.5, fract(sin(floor(x * 8.0) * 43.7585) * 234.21));
+  float medBar = step(0.5, fract(sin(floor(x * 4.0) * 17.31) * 98.47));
+  float wideBar = step(0.5, fract(sin(floor(x * 2.0) * 7.93) * 42.13));
+  float barMask = mix(thinBar * thickness, mix(medBar, wideBar, 0.5), 0.5);
+  float yDist = abs(centered.y);
+  float barRegion = smoothstep(barHeight, barHeight - 0.02, yDist);
+  float guardBars = smoothstep(0.01, 0.0, abs(uv.x - 0.5)) * step(0.45, yDist);
+  float quietZone = smoothstep(0.05, 0.1, uv.x) * smoothstep(0.95, 0.9, uv.x);
+  vec3 barColor = getPaletteColor(uv.x * 0.3 + specVal * 0.2);
+  vec3 bgColor = getPaletteColor(0.7) * 0.1;
+  vec3 col = mix(bgColor, barColor, barMask * barRegion * quietZone);
+  col += getPaletteColor(0.9) * guardBars * 0.3;
+  float mirrorX = 1.0 - uv.x;
+  float mirrorMask = uBarcodeMirror;
+  if (mirrorMask > 0.5) {
+    float mirrorSpec = mirrorX * 63.0;
+    int mIdx = int(clamp(mirrorSpec, 0.0, 63.0));
+    float mSpecVal = uSpectrum[mIdx];
+    float mBarHeight = mSpecVal * (0.3 + peak * 0.4) + 0.05;
+    float mBarRegion = smoothstep(mBarHeight, mBarHeight - 0.02, yDist);
+    vec3 mirrorCol = getPaletteColor(mirrorX * 0.3 + mSpecVal * 0.2);
+    col = mix(col, mirrorCol * barMask * mBarRegion, 0.5);
+  }
+  col *= 0.7 + audio * 0.3;
+  float scanLine = smoothstep(0.003, 0.0, abs(uv.y - fract(t * 0.3)) - 0.001);
+  col += vec3(1.0, 0.2, 0.1) * scanLine * 0.3;
+  return col * uBarcodeOpacity;
+}`,
+    mainCall: `  if (uBarcodeEnabled > 0.5) color += barcode(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-ferrofluid',
+    uniforms: `uniform float uFerrofluidEnabled;
+uniform float uFerrofluidOpacity;
+uniform float uFerrofluidSpeed;
+uniform float uFerrofluidSpikes;
+uniform float uFerrofluidMagnetism;
+uniform float uFerrofluidSmooth;`,
+    functions: `vec3 ferrofluid(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float spikeCount = uFerrofluidSpikes;
+  float magnetism = uFerrofluidMagnetism;
+  float smoothness = uFerrofluidSmooth;
+  float r = length(centered);
+  float angle = atan(centered.y, centered.x);
+  float baseR = 0.15 + audio * 0.03;
+  float spike = 0.0;
+  for (int i = 0; i < 8; i++) {
+    if (i >= int(spikeCount)) break;
+    float fi = float(i);
+    float spikeAngle = fi * 6.2832 / spikeCount + t * uFerrofluidSpeed * 0.2 * (0.5 + fi * 0.1);
+    float alignment = cos(angle - spikeAngle);
+    float spikeMag = pow(max(alignment, 0.0), 3.0 + magnetism * 5.0);
+    float audioSpike = uSpectrum[int(mod(fi * 8.0, 64.0))];
+    spike += spikeMag * (0.04 + magnetism * 0.08 + audioSpike * 0.04);
+  }
+  float surface = baseR + spike;
+  float smoothSurf = mix(surface, baseR + spike * 0.3, smoothness);
+  float interior = smoothstep(smoothSurf + 0.005, smoothSurf - 0.005, r);
+  float edgeGlow = smoothstep(smoothSurf + 0.02, smoothSurf, r) * smoothstep(smoothSurf - 0.01, smoothSurf, r);
+  float reflect = pow(max(1.0 - abs(dot(normalize(centered), vec2(cos(angle), sin(angle)))), 0.0), 8.0);
+  vec3 fluidColor = getPaletteColor(0.05 + reflect * 0.15);
+  vec3 spikeColor = getPaletteColor(0.4 + audio * 0.2);
+  vec3 col = mix(vec3(0.0), fluidColor, interior);
+  col = mix(col, spikeColor, edgeGlow * (0.8 + magnetism * 0.2));
+  col += vec3(1.0) * reflect * interior * 0.3;
+  float highlight = smoothstep(0.04, 0.02, length(centered - vec2(-0.04, 0.04)));
+  col += vec3(1.0, 0.95, 0.9) * highlight * interior * 0.6;
+  float ripple = sin(r * 60.0 - t * 4.0) * 0.5 + 0.5;
+  col *= 0.9 + ripple * 0.1 * interior;
+  col *= (0.7 + audio * 0.3);
+  return col * uFerrofluidOpacity;
+}`,
+    mainCall: `  if (uFerrofluidEnabled > 0.5) color += ferrofluid(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-halftone',
+    uniforms: `uniform float uHalftoneEnabled;
+uniform float uHalftoneOpacity;
+uniform float uHalftoneSpeed;
+uniform float uHalftoneScale;
+uniform float uHalftoneAngle;
+uniform float uHalftoneStyle;`,
+    functions: `vec3 halftone(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float scale = uHalftoneScale;
+  float angle = uHalftoneAngle;
+  float styleVal = uHalftoneStyle;
+  float ca = cos(angle);
+  float sa = sin(angle);
+  vec2 rotUv = vec2(centered.x * ca - centered.y * sa, centered.x * sa + centered.y * ca);
+  vec2 gridUv = rotUv * scale;
+  vec2 cellId = floor(gridUv);
+  vec2 cellUv = fract(gridUv) - 0.5;
+  float cellHash = hash21(cellId);
+  float dist = length(centered);
+  float brightness = smoothstep(0.55, 0.1, dist);
+  float audioMod = uSpectrum[int(abs(cellHash) * 63.0)] * 0.3;
+  brightness += audioMod;
+  float dotSize = brightness * 0.45;
+  if (styleVal < 0.33) {
+    float d = length(cellUv);
+    float dot = smoothstep(dotSize, dotSize - 0.02, d);
+    vec3 inkColor = getPaletteColor(cellHash * 0.3 + dist * 0.5 + t * uHalftoneSpeed * 0.02);
+    vec3 paperColor = getPaletteColor(0.9) * 0.15;
+    vec3 col = mix(paperColor, inkColor, dot);
+    return col * uHalftoneOpacity;
+  } else if (styleVal < 0.66) {
+    float d = abs(cellUv.x) + abs(cellUv.y);
+    float diamond = smoothstep(dotSize, dotSize - 0.02, d * 0.7);
+    vec3 inkColor = getPaletteColor(cellHash * 0.4 + t * uHalftoneSpeed * 0.01);
+    vec3 paperColor = getPaletteColor(0.8) * 0.12;
+    vec3 col = mix(paperColor, inkColor, diamond);
+    return col * uHalftoneOpacity;
+  } else {
+    float lineW = brightness * 0.4;
+    float line = smoothstep(lineW, lineW - 0.015, abs(cellUv.y));
+    vec3 inkColor = getPaletteColor(cellHash * 0.2 + dist * 0.6);
+    vec3 paperColor = getPaletteColor(0.85) * 0.1;
+    vec3 col = mix(paperColor, inkColor, line);
+    return col * uHalftoneOpacity;
+  }
+}`,
+    mainCall: `  if (uHalftoneEnabled > 0.5) color += halftone(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-pixel-sort',
+    uniforms: `uniform float uPixelSortEnabled;
+uniform float uPixelSortOpacity;
+uniform float uPixelSortSpeed;
+uniform float uPixelSortThreshold;
+uniform float uPixelSortDirection;
+uniform float uPixelSortGlitch;`,
+    functions: `vec3 pixelSort(vec2 uv, float t) {
+  float audio = uRms;
+  float peak = uPeak;
+  float threshold = uPixelSortThreshold;
+  float direction = uPixelSortDirection;
+  float glitch = uPixelSortGlitch;
+  float sortDir = direction < 0.5 ? uv.x : uv.y;
+  float sortPerp = direction < 0.5 ? uv.y : uv.x;
+  float sortLen = 0.02 + glitch * 0.15 + audio * 0.08;
+  float triggerBand = int(sortPerp * 8.0 + t * uPixelSortSpeed * 2.0) % 8;
+  float trigger = step(threshold, sin(triggerBand * 3.14159 + t * uPixelSortSpeed));
+  float sortOffset = trigger * sortLen * sin(sortPerp * 50.0 + t * 5.0);
+  float glitchBand = step(0.95, fract(sin(floor(sortPerp * 20.0 + t * uPixelSortSpeed) * 43.7) * 17.3));
+  sortOffset += glitchBand * glitch * 0.2;
+  vec2 sortedUv = uv;
+  if (direction < 0.5) {
+    sortedUv.x = fract(uv.x + sortOffset);
+  } else {
+    sortedUv.y = fract(uv.y + sortOffset);
+  }
+  vec2 centered = sortedUv - 0.5;
+  float dist = length(centered);
+  float angle = atan(centered.y, centered.x);
+  float brightness = sin(dist * 10.0 + t * uPixelSortSpeed) * 0.5 + 0.5;
+  brightness += sin(angle * 3.0 + dist * 5.0 - t * 2.0) * 0.3;
+  float audioBright = uSpectrum[int(abs(angle) * 10.0) % 64] * 0.2;
+  brightness += audioBright;
+  vec3 col = getPaletteColor(brightness * 0.5 + dist * 0.3 + t * uPixelSortSpeed * 0.01);
+  float bandIntensity = sin(sortPerp * 40.0 + t * 3.0) * 0.5 + 0.5;
+  col *= 0.6 + bandIntensity * 0.4;
+  float shift = glitch * 0.01 * trigger;
+  vec3 colShift;
+  colShift.r = getPaletteColor(brightness * 0.5 + dist * 0.3 + shift).r;
+  colShift.g = col.g;
+  colShift.b = getPaletteColor(brightness * 0.5 + dist * 0.3 - shift).b;
+  col = mix(col, colShift, trigger * glitch);
+  col *= 0.7 + peak * 0.3;
+  return col * uPixelSortOpacity;
+}`,
+    mainCall: `  if (uPixelSortEnabled > 0.5) color += pixelSort(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-ripple-pond',
+    uniforms: `uniform float uRipplePondEnabled;
+uniform float uRipplePondOpacity;
+uniform float uRipplePondSpeed;
+uniform float uRipplePondDrops;
+uniform float uRipplePondDecay;
+uniform float uRipplePondRefraction;`,
+    functions: `vec3 ripplePond(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float peak = uPeak;
+  int dropCount = int(uRipplePondDrops + 1.0);
+  float decay = uRipplePondDecay;
+  float refraction = uRipplePondRefraction;
+  float height = 0.0;
+  for (int i = 0; i < 8; i++) {
+    if (i >= dropCount) break;
+    float fi = float(i);
+    vec2 dropPos = vec2(
+      sin(fi * 1.7 + t * uRipplePondSpeed * 0.3) * 0.3,
+      cos(fi * 2.3 + t * uRipplePondSpeed * 0.4) * 0.3
+    );
+    float dropTime = mod(t * uRipplePondSpeed + fi * 1.5, 4.0);
+    float dist = length(centered - dropPos);
+    float waveAge = dropTime;
+    float waveRadius = waveAge * 0.3;
+    float waveFront = abs(dist - waveRadius);
+    float amplitude = exp(-waveAge * decay) * exp(-dist * 2.0);
+    float audioAmp = uSpectrum[int(fi * 8.0) % 64] * 0.5;
+    height += sin(dist * 30.0 - waveAge * 8.0) * amplitude * (0.5 + audioAmp);
+    height += smoothstep(0.02, 0.0, waveFront) * amplitude * peak;
+  }
+  float dhdx = height - sin((length(centered - vec2(0.001, 0.0)) - dropPos) * 30.0) * 0.001;
+  float dhdy = height - sin((length(centered - vec2(0.0, 0.001)) - dropPos) * 30.0) * 0.001;
+  vec2 refractedUv = uv + vec2(dhdx, dhdy) * refraction * 0.1;
+  float depth = length(refractedUv - 0.5);
+  vec3 deepColor = getPaletteColor(0.15 + audio * 0.1);
+  vec3 shallowColor = getPaletteColor(0.6);
+  vec3 col = mix(shallowColor, deepColor, smoothstep(0.0, 0.4, depth));
+  float caustic = pow(max(sin(height * 8.0) * 0.5 + 0.5, 0.0), 3.0);
+  col += getPaletteColor(0.3) * caustic * 0.3;
+  float specHighlight = pow(max(height, 0.0), 2.0) * 0.5;
+  col += vec3(1.0) * specHighlight * (0.3 + peak * 0.3);
+  col *= 0.7 + audio * 0.3;
+  return col * uRipplePondOpacity;
+}`,
+    mainCall: `  if (uRipplePondEnabled > 0.5) color += ripplePond(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-hex-grid',
+    uniforms: `uniform float uHexGridEnabled;
+uniform float uHexGridOpacity;
+uniform float uHexGridSpeed;
+uniform float uHexGridScale;
+uniform float uHexGridPulse;
+uniform float uHexGridBorder;`,
+    functions: `vec3 hexGrid(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float scale = uHexGridScale;
+  float pulse = uHexGridPulse;
+  float border = uHexGridBorder;
+  float sq3 = 1.7320508;
+  vec2 hexUv = vec2(centered.x * sq3, centered.y * 2.0) * scale;
+  vec2 hexId;
+  float cellType;
+  vec2 rUv = vec2(hexUv.x / sq3, hexUv.y);
+  vec2 rUv2 = vec2(hexUv.x / sq3 + 0.5, hexUv.y + 0.5);
+  if (fract(rUv.y) > fract(rUv2.y)) {
+    hexId = floor(rUv);
+    cellType = 0.0;
+  } else {
+    hexId = floor(rUv2);
+    cellType = 1.0;
+  }
+  vec2 cellCenter;
+  if (cellType < 0.5) {
+    cellCenter = (hexId + 0.5) * vec2(sq3, 1.0);
+  } else {
+    cellCenter = (hexId + 0.5) * vec2(sq3, 1.0) + vec2(sq3 * 0.5, 0.5);
+  }
+  vec2 diff = hexUv - cellCenter;
+  float hexDist = max(abs(diff.x), abs(diff.y) * 0.5 + abs(diff.x) * 0.577350269);
+  float hexBorder = smoothstep(0.48, 0.46, hexDist);
+  float hexFill = smoothstep(0.44, 0.42, hexDist);
+  float cellHash = hash21(hexId + cellType * 100.0);
+  float audioCell = uSpectrum[int(abs(cellHash) * 63.0)];
+  float distFromCenter = length(cellCenter / scale);
+  float pulseWave = sin(distFromCenter * 10.0 - t * uHexGridSpeed * 3.0) * 0.5 + 0.5;
+  float fillVal = mix(cellHash, pulseWave, pulse);
+  fillVal += audioCell * 0.4;
+  fillVal = clamp(fillVal, 0.0, 1.0);
+  float age = mod(t * uHexGridSpeed + cellHash * 6.28, 2.0);
+  float birthFade = smoothstep(0.0, 0.3, age);
+  fillVal *= birthFade;
+  vec3 cellColor = getPaletteColor(fillVal * 0.4 + distFromCenter * 0.3);
+  vec3 borderColor = getPaletteColor(0.7) * border;
+  vec3 col = mix(vec3(0.0), cellColor * fillVal, hexFill);
+  col += borderColor * hexBorder * (1.0 - hexFill);
+  col *= 0.7 + audio * 0.3;
+  return col * uHexGridOpacity;
+}`,
+    mainCall: `  if (uHexGridEnabled > 0.5) color += hexGrid(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-woven',
+    uniforms: `uniform float uWovenEnabled;
+uniform float uWovenOpacity;
+uniform float uWovenSpeed;
+uniform float uWovenScale;
+uniform float uWovenThreadWidth;
+uniform float uWovenPattern;`,
+    functions: `vec3 woven(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float scale = uWovenScale;
+  float threadWidth = uWovenThreadWidth;
+  float pattern = uWovenPattern;
+  vec2 gridUv = centered * scale;
+  vec2 cellSize = vec2(1.0);
+  vec2 cellId = floor(gridUv / cellSize);
+  vec2 cellUv = fract(gridUv / cellSize);
+  float warpCell = hash21(cellId);
+  float weftCell = hash21(cellId + 100.0);
+  float warpAudio = uSpectrum[int(abs(warpCell) * 63.0)];
+  float weftAudio = uSpectrum[int(abs(weftCell) * 63.0)];
+  float twillShift = 0.5 * step(0.5, pattern) * step(1.0, mod(cellId.x + cellId.y, 2.0));
+  float satinShift = 0.5 * step(0.66, pattern) * step(3.0, mod(cellId.x * 3.0 + cellId.y, 4.0));
+  float shift = mix(0.0, mix(twillShift, satinShift, pattern), min(pattern * 2.0, 1.0));
+  float warp = smoothstep(threadWidth * 0.5, threadWidth * 0.5 - 0.01, abs(cellUv.y - 0.5 + shift));
+  float weft = smoothstep(threadWidth * 0.5, threadWidth * 0.5 - 0.01, abs(cellUv.x - 0.5 + shift));
+  float overUnder = step(0.5, hash21(cellId * 2.0 + floor(t * uWovenSpeed * 0.5)));
+  float warpVisible = mix(warp * (1.0 - weft) + warp * weft * overUnder, warp, 0.3);
+  float weftVisible = mix(weft * (1.0 - warp) + weft * warp * (1.0 - overUnder), weft, 0.3);
+  float warpShade = 0.8 + warpAudio * 0.2 + sin(cellUv.x * 20.0 + t * uWovenSpeed) * 0.05;
+  float weftShade = 0.9 + weftAudio * 0.2 + cos(cellUv.y * 20.0 + t * uWovenSpeed * 1.3) * 0.05;
+  float warpHue = warpCell * 0.4 + sin(t * uWovenSpeed * 0.3) * 0.1;
+  float weftHue = weftCell * 0.4 + 0.5 + cos(t * uWovenSpeed * 0.2) * 0.1;
+  vec3 warpColor = getPaletteColor(warpHue) * warpShade;
+  vec3 weftColor = getPaletteColor(weftHue) * weftShade;
+  vec3 bgColor = getPaletteColor(0.95) * 0.05;
+  vec3 col = bgColor;
+  col += warpColor * warpVisible;
+  col += weftColor * weftVisible;
+  float threadHighlight = sin(cellUv.x * 15.0) * 0.5 + 0.5;
+  col += vec3(1.0) * threadHighlight * warpVisible * 0.05;
+  float threadHighlight2 = cos(cellUv.y * 15.0) * 0.5 + 0.5;
+  col += vec3(1.0) * threadHighlight2 * weftVisible * 0.05;
+  col *= 0.7 + audio * 0.3;
+  return col * uWovenOpacity;
+}`,
+    mainCall: `  if (uWovenEnabled > 0.5) color += woven(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-chromatic-aberr',
+    uniforms: `uniform float uChromaticAberrEnabled;
+uniform float uChromaticAberrOpacity;
+uniform float uChromaticAberrSpeed;
+uniform float uChromaticAberrDispersion;
+uniform float uChromaticAberrRings;
+uniform float uChromaticAberrIntensity;`,
+    functions: `vec3 chromaticAberr(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float peak = uPeak;
+  float dispersion = uChromaticAberrDispersion;
+  float rings = uChromaticAberrRings;
+  float intensity = uChromaticAberrIntensity;
+  float dist = length(centered);
+  float angle = atan(centered.y, centered.x);
+  float prismAngle = t * uChromaticAberrSpeed * 0.5;
+  float chromaticShift = dispersion * dist * 0.1;
+  float audioShift = audio * dispersion * 0.05;
+  float rShift = chromaticShift + audioShift;
+  float gShift = chromaticShift * 0.5;
+  float bShift = -chromaticShift - audioShift;
+  float rDist = dist + rShift;
+  float gDist = dist + gShift;
+  float bDist = dist + bShift;
+  float rRing = sin(rDist * rings * 20.0 + t * uChromaticAberrSpeed * 2.0) * 0.5 + 0.5;
+  float gRing = sin(gDist * rings * 20.0 + t * uChromaticAberrSpeed * 2.0 + 0.5) * 0.5 + 0.5;
+  float bRing = sin(bDist * rings * 20.0 + t * uChromaticAberrSpeed * 2.0 + 1.0) * 0.5 + 0.5;
+  float specR = uSpectrum[int(mod(abs(angle) * 10.0, 64.0))];
+  float specG = uSpectrum[int(mod(abs(angle) * 10.0 + 21.0, 64.0))];
+  float specB = uSpectrum[int(mod(abs(angle) * 10.0 + 42.0, 64.0))];
+  float rVal = rRing * (0.5 + specR * 0.5);
+  float gVal = gRing * (0.5 + specG * 0.5);
+  float bVal = bRing * (0.5 + specB * 0.5);
+  float radialFade = smoothstep(0.55, 0.15, dist);
+  float centerGlow = smoothstep(0.08, 0.0, dist);
+  vec3 col = vec3(rVal, gVal, bVal) * radialFade * intensity;
+  col += getPaletteColor(0.1) * centerGlow * (0.5 + peak * 0.3);
+  float flareAngle = prismAngle;
+  float flare1 = smoothstep(0.01, 0.0, abs(angle - flareAngle) - 0.05 * dist);
+  float flare2 = smoothstep(0.01, 0.0, abs(angle - flareAngle - 2.094) - 0.05 * dist);
+  float flare3 = smoothstep(0.01, 0.0, abs(angle - flareAngle + 2.094) - 0.05 * dist);
+  float flareMask = (flare1 + flare2 + flare3) * radialFade;
+  col += getPaletteColor(0.3) * flareMask * 0.3 * intensity;
+  col *= 0.7 + audio * 0.3;
+  return col * uChromaticAberrOpacity;
+}`,
+    mainCall: `  if (uChromaticAberrEnabled > 0.5) color += chromaticAberr(effectUv, uTime);
+`
+  },
+
 ];
 
 /** Returns the block for a given generator ID, or null if not found */

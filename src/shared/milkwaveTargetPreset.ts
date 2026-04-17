@@ -17,12 +17,12 @@ export const FOCUSED_MILKWAVE_PRESETS: FocusedMilkwavePreset[] = [
     notes: 'Primary baseline: no custom warp/comp, waves and shapes only.'
   },
   {
-    id: 'preset-1041-milkwave-shards-(fast)',
-    file: 'preset-1041-milkwave-shards-(fast).json',
-    name: 'Shards (Fast)',
+    id: 'preset-755-milkwave-brain-coral-(left-brained)',
+    file: 'preset-755-milkwave-brain-coral-(left-brained).json',
+    name: 'brain coral (left brained)',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Secondary baseline: shard-style visual with no reported fallback.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
     id: 'preset-1042-milkwave-shards-(in-the-dark)',
@@ -33,12 +33,12 @@ export const FOCUSED_MILKWAVE_PRESETS: FocusedMilkwavePreset[] = [
     notes: 'Shard preset variant with native-only baseline path.'
   },
   {
-    id: 'preset-1043-milkwave-shards',
-    file: 'preset-1043-milkwave-shards.json',
-    name: 'Shards',
+    id: 'preset-756-milkwave-brain-coral',
+    file: 'preset-756-milkwave-brain-coral.json',
+    name: 'brain coral',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Shard preset variant with native-only baseline path.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
     id: 'preset-1044-milkwave-bass-detector---arms-3',
@@ -73,68 +73,68 @@ export const FOCUSED_MILKWAVE_PRESETS: FocusedMilkwavePreset[] = [
     notes: 'Audio-reactive baseline candidate.'
   },
   {
-    id: 'preset-1078-milkwave-anuera',
-    file: 'preset-1078-milkwave-anuera.json',
-    name: 'Anuera',
+    id: 'preset-762-milkwave-lazerspecs_phat_edit',
+    file: 'preset-762-milkwave-lazerspecs_phat_edit.json',
+    name: 'lazerspecs_phat_edit',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'High-confidence native-supported preset with active shapes and waves.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
-    id: 'preset-1080-milkwave-drug-addict',
-    file: 'preset-1080-milkwave-drug-addict.json',
-    name: 'Drug Addict',
+    id: 'preset-852-milkwave-290---sonic-brainstorm',
+    file: 'preset-852-milkwave-290---sonic-brainstorm.json',
+    name: '290 - Sonic brainstorm',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'High-confidence native-supported preset with active shapes and waves.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
-    id: 'preset-1081-milkwave-soul-amplifier',
-    file: 'preset-1081-milkwave-soul-amplifier.json',
-    name: 'Soul Amplifier',
+    id: 'preset-853-milkwave-300---daydreamer',
+    file: 'preset-853-milkwave-300---daydreamer.json',
+    name: '300 - Daydreamer',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Previously certified-safe baseline candidate.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
-    id: 'preset-1082-milkwave-soul-amplifier(unreal-remix)',
-    file: 'preset-1082-milkwave-soul-amplifier(unreal-remix).json',
-    name: 'Soul Amplifier(Unreal remix)',
+    id: 'preset-863-milkwave-crosshair-dimension-(light-of-ages)',
+    file: 'preset-863-milkwave-crosshair-dimension-(light-of-ages).json',
+    name: 'Crosshair Dimension (Light of Ages)',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Previously certified-safe baseline candidate.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
-    id: 'preset-1083-milkwave-[mashup-by-tony]-a-thousand-time-to-play-this-game',
-    file: 'preset-1083-milkwave-[mashup-by-tony]-a-thousand-time-to-play-this-game.json',
-    name: '[MASHUP by Tony] A Thousand Time To Play This Game, Escape The Worm, Julian Sploosh, Bitterfeld, Artificial Poles Of The Continuum',
+    id: 'preset-1896-milkwave-blitz-3',
+    file: 'preset-1896-milkwave-blitz-3.json',
+    name: 'blitz 3',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Previously certified-safe baseline candidate.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
-    id: 'preset-305-milkwave-airhandler-(principle-of-sharing)',
-    file: 'preset-305-milkwave-airhandler-(principle-of-sharing).json',
-    name: 'Airhandler (Principle of Sharing)',
+    id: 'preset-1901-milkwave-circuit-2',
+    file: 'preset-1901-milkwave-circuit-2.json',
+    name: 'circuit 2',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Shaderless native candidate selected for proof expansion.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
-    id: 'preset-314-milkwave-hard-drink-(half-infinitea)',
-    file: 'preset-314-milkwave-hard-drink-(half-infinitea).json',
-    name: 'Hard Drink (Half-Infinitea)',
+    id: 'preset-1922-milkwave-final-hour',
+    file: 'preset-1922-milkwave-final-hour.json',
+    name: 'final hour',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Shaderless native candidate selected for proof expansion.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
-    id: 'preset-317-milkwave-potion-of-spirits',
-    file: 'preset-317-milkwave-potion-of-spirits.json',
-    name: 'Potion of Spirits',
+    id: 'preset-1928-milkwave-fly',
+    file: 'preset-1928-milkwave-fly.json',
+    name: 'fly',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Shaderless native candidate selected for proof expansion.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
     id: 'preset-319-milkwave-songflower-(hybrid-plant)',
@@ -145,12 +145,12 @@ export const FOCUSED_MILKWAVE_PRESETS: FocusedMilkwavePreset[] = [
     notes: 'Shaderless native candidate selected for proof expansion.'
   },
   {
-    id: 'preset-320-milkwave-songflower-(moss-posy)',
-    file: 'preset-320-milkwave-songflower-(moss-posy).json',
-    name: 'Songflower (Moss Posy)',
+    id: 'preset-1943-milkwave-jazz-singer-2',
+    file: 'preset-1943-milkwave-jazz-singer-2.json',
+    name: 'jazz singer 2',
     expectedAuditClassification: 'native-supported',
     expectedFallbackUsed: false,
-    notes: 'Shaderless native candidate selected for proof expansion.'
+    notes: 'Enabled-wave and enabled-shape native candidate.'
   },
   {
     id: 'preset-329-milkwave-river-of-illusion-(infected-acid-mix)',

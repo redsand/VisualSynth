@@ -122,7 +122,7 @@ const eelSplitArgs = (inner: string): string[] => {
 // EEL functions that need special JS translation.
 // Any other function call (sin, cos, abs, …) passes through as-is since the
 // fnBody header already imports them from Math.
-const EEL_FN_RE = /\b(if|above|below|equal)\s*\(/;
+const EEL_FN_RE = /\b(if|above|below|equal|sqr)\s*\(/;
 
 const transpileEelExpr = (s: string): string => {
   let out = '';
@@ -140,13 +140,15 @@ const transpileEelExpr = (s: string): string => {
     const args = eelSplitArgs(s.slice(openIdx + 1, closeIdx)).map(a => transpileEelExpr(a));
 
     if (fnName === 'if' && args.length >= 3) {
-      out += `((${args[0]}) ? (${args[1]}) : (${args[2]}))`;
+      out += `(((${args[0]}) != 0.0) ? (${args[1]}) : (${args[2]}))`;
     } else if (fnName === 'above' && args.length >= 2) {
-      out += `((${args[0]}) > (${args[1]}) ? 1 : 0)`;
+      out += `((${args[0]}) > (${args[1]}) ? 1.0 : 0.0)`;
     } else if (fnName === 'below' && args.length >= 2) {
-      out += `((${args[0]}) < (${args[1]}) ? 1 : 0)`;
+      out += `((${args[0]}) < (${args[1]}) ? 1.0 : 0.0)`;
     } else if (fnName === 'equal' && args.length >= 2) {
-      out += `((${args[0]}) == (${args[1]}) ? 1 : 0)`;
+      out += `((${args[0]}) == (${args[1]}) ? 1.0 : 0.0)`;
+    } else if (fnName === 'sqr' && args.length >= 1) {
+      out += `((${args[0]})*(${args[0]}))`;
     } else {
       out += `${fnName}(${args.join(', ')})`;
     }
@@ -158,6 +160,12 @@ const transpileEelExpr = (s: string): string => {
 
 const transpileEelLine = (line: string): string => {
   let l = line.trim();
+  if (!l || l.startsWith('//')) return l;
+  l = l.replace(/\bif\s+\(/g, 'if(');
+  l = l.replace(/\bmekdx\b/g, 'kdx');
+  l = l.replace(/\bdy-r\b/g, 'dy_r');
+  l = l.replace(/\ba\s*\*\s*bass_att\b/g, 'ang * bass_att');
+  l = l.replace(/\bbass_att\s*\+\s*a\b/g, 'bass_att + ang');
   // megabuf(idx) = value  →  megabuf(idx, value)
   l = l.replace(/\b(megabuf|gmegabuf)\s*\(([^)]+)\)\s*=\s*([^;]+)/g, '$1($2, $3)');
   // loop(n, body)  →  best-effort for loop (many presets won't use this)
@@ -167,11 +175,82 @@ const transpileEelLine = (line: string): string => {
   }
   // if / above / below / equal  with nested paren support
   l = transpileEelExpr(l);
+  if (!/[;{}]\s*$/.test(l)) {
+    l += ';';
+  }
   return l;
 };
 
+const splitTopLevelEelStatements = (line: string): string[] => {
+  const statements: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (ch === ';' && depth === 0) {
+      const statement = line.slice(start, i).trim();
+      if (statement) statements.push(statement);
+      start = i + 1;
+    }
+  }
+  const tail = line.slice(start).trim();
+  if (tail) statements.push(tail);
+  return statements;
+};
+
+const normalizeEelLines = (code: string[]): string[] => {
+  const normalized: string[] = [];
+  let pending = '';
+
+  const flushPending = () => {
+    if (pending.trim()) {
+      normalized.push(pending);
+    }
+    pending = '';
+  };
+
+  for (const rawLine of code) {
+    const raw = `${rawLine ?? ''}`.replace(/\/\/.*$/g, '').trim();
+    if (!raw) {
+      flushPending();
+      continue;
+    }
+    if (raw.startsWith('//')) {
+      flushPending();
+      normalized.push(raw);
+      continue;
+    }
+
+    const statements = splitTopLevelEelStatements(raw);
+    for (const line of statements) {
+      if (!pending) {
+        pending = line;
+        continue;
+      }
+
+      const pendingContinues =
+        /[+\-*/,(]\s*$/.test(pending) ||
+        /(?:\b(?:if|above|below|equal|pow|min|max|atan|log|sqrt)\s*\([^)]*)$/.test(pending);
+      const lineContinues = /^[+\-*/),]/.test(line);
+
+      if (pendingContinues || lineContinues) {
+        pending = `${pending} ${line}`;
+        continue;
+      }
+
+      flushPending();
+      pending = line;
+    }
+  }
+
+  flushPending();
+  return normalized;
+};
+
 const transpileEelToGlsl = (code: string[]): string => {
-  return code.map(line => {
+  return normalizeEelLines(code).map(line => {
     let l = transpileEelLine(line);
     // Remove megabuf/gmegabuf for GLSL compatibility
     l = l.replace(/\b(megabuf|gmegabuf)\b[^;]*;/g, '/* megabuf stubbed */');
@@ -181,7 +260,6 @@ const transpileEelToGlsl = (code: string[]): string => {
     // Math builtins renaming
     l = l.replace(/\bint\s*\(/g, 'trunc(');
     l = l.replace(/\bfrac\s*\(/g, 'fract(');
-    l = l.replace(/\bsqr\s*\(([^)]+)\)/g, '(($1)*($1))');
     l = l.replace(/\bsigmoid\s*\(([^,]+),\s*([^)]+)\)/g, '(1.0 / (1.0 + exp(-($1) * ($2))))');
     l = l.replace(/\bband\s*\(([^,]+),\s*([^)]+)\)/g, '((($1) != 0.0 && ($2) != 0.0) ? 1.0 : 0.0)');
     l = l.replace(/\bbor\s*\(([^,]+),\s*([^)]+)\)/g, '((($1) != 0.0 || ($2) != 0.0) ? 1.0 : 0.0)');
@@ -195,6 +273,16 @@ const transpileEelToGlsl = (code: string[]): string => {
     
     // EEL modulo
     l = l.replace(/([a-zA-Z0-9_.)]+)\s*%\s*([a-zA-Z0-9_.(]+)/g, 'mod($1, $2)');
+
+    // Avoid collisions with GLSL built-ins when EEL uses the same identifier as a variable.
+    l = l.replace(/\bmod\b(?!\s*\()/g, 'eel_mod');
+
+    // GLSL ES 3.00 is strict about int/float mixing; floatize bare integer literals early
+    // so the shader stays valid even when the AST patcher cannot recover malformed code.
+    l = l.replace(/(^|[^\w.])(-?\d+)(?=([^\w.]|$))/g, (_match, prefix, digits) => {
+      if (digits.includes('.')) return `${prefix}${digits}`;
+      return `${prefix}${digits}.0`;
+    });
     
     return l;
   }).join('\n');
@@ -470,7 +558,50 @@ void main() {
 
 const createNativePerPixelWarpShader = (params: Record<string, number | boolean>, perPixelCode: string[]): string => {
   const decay = Number(params.fDecay ?? 0.95);
-  const glslBody = transpileEelToGlsl(perPixelCode);
+  let glslBody = transpileEelToGlsl(perPixelCode);
+  const qShadowLines = Array.from({ length: 32 }, (_, index) => {
+    const qName = `q${index + 1}`;
+    const localName = `${qName}_local`;
+    glslBody = glslBody.replace(new RegExp(`\\b${qName}\\b`, 'g'), localName);
+    return `  float ${localName} = ${qName};`;
+  });
+  const nativeStateLocals = [
+    'bass_thresh',
+    'mid_thresh',
+    'mid_mid_att',
+    'treb_thresh',
+    'vol_thresh',
+    'pfthresh'
+  ]
+    .filter((name) => new RegExp(`\\b${name}\\b`).test(glslBody))
+    .map((name) => `  float ${name} = 0.0;`);
+  const nativeDeclaredNames = new Set([
+    'x', 'y', 'rad', 'ang',
+    'zoom', 'zoomexp', 'rot', 'cx', 'cy', 'dx', 'dy', 'sx', 'sy', 'warp',
+    'time', 'fps', 'frame',
+    'bass', 'mid', 'treb', 'bass_att', 'mid_att', 'treb_att',
+    'uv', 'center', 'z', 'ca', 'sa', 'color'
+  ]);
+  for (let index = 1; index <= 32; index++) {
+    nativeDeclaredNames.add(`q${index}_local`);
+  }
+  [
+    'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'abs', 'sqrt', 'pow', 'exp', 'log', 'mod',
+    'min', 'max', 'clamp', 'mix', 'fract', 'floor', 'ceil', 'trunc', 'sign', 'length', 'dot',
+    'normalize', 'reflect', 'refract', 'step', 'smoothstep'
+  ].forEach((name) => nativeDeclaredNames.add(name));
+  const autoDeclaredNativeLocals = new Set<string>();
+  const nativeAssignRe = /^\s*([a-zA-Z_]\w*)\s*=(?!=)/gm;
+  let nativeAssignMatch: RegExpExecArray | null;
+  while ((nativeAssignMatch = nativeAssignRe.exec(glslBody)) !== null) {
+    const name = nativeAssignMatch[1];
+    if (!nativeDeclaredNames.has(name)) {
+      autoDeclaredNativeLocals.add(name);
+      nativeDeclaredNames.add(name);
+    }
+  }
+  const autoDeclaredNativeLines = [...autoDeclaredNativeLocals].map((name) => `  float ${name} = 0.0;`);
+  const nativePrelude = [...qShadowLines, ...nativeStateLocals, ...autoDeclaredNativeLines].join('\n');
   
   const rawGlsl = `#version 300 es
 precision highp float;
@@ -539,6 +670,7 @@ void main() {
   float bass_att = audioLowSmooth;
   float mid_att = audioMidSmooth;
   float treb_att = audioHighSmooth;
+${nativePrelude ? `\n${nativePrelude}\n` : ''}
   
   // --- EEL Per-Pixel Code ---
   ${glslBody}
@@ -630,6 +762,10 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   if (!gl) {
     throw new Error('[MilkDrop] WebGL2 required');
   }
+  const maxTextureUnits = Math.max(
+    1,
+    Number(gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) ?? 1)
+  );
 
   let warpProgram: WebGLProgram | null = null;
   let compProgram: WebGLProgram | null = null;
@@ -844,12 +980,27 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const seedFeedbackFrame = (shaderData: MilkDropShaderData, width: number, height: number) => {
     if (!mainFbo) return;
     const [r, g, b] = deriveMilkDropSeedColor(shaderData.originalParameters ?? {}, randomPreset as [number, number]);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, mainFbo.fbo);
-    gl.viewport(0, 0, width, height);
-    gl.disable(gl.BLEND);
-    gl.clearColor(r, g, b, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const seed = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      const ny = y / Math.max(1, height - 1);
+      for (let x = 0; x < width; x++) {
+        const nx = x / Math.max(1, width - 1);
+        const idx = (y * width + x) * 4;
+        const radial = Math.hypot(nx - 0.5, ny - 0.5);
+        const stripe = 0.5 + 0.5 * Math.sin(nx * 18 + ny * 11 + randomPreset[0] * Math.PI * 2);
+        const checker = ((Math.floor(nx * 8) + Math.floor(ny * 8)) % 2) ? 0.18 : -0.08;
+        const grain = 0.85 + 0.3 * Math.sin((x + 3) * 12.9898 + (y + 7) * 78.233 + randomPreset[1] * 437.585);
+        const envelope = Math.max(0.15, 1 - radial * 1.35);
+        const mix = Math.max(0, Math.min(1, (0.35 + stripe * 0.45 + checker) * envelope));
+        seed[idx] = Math.max(0, Math.min(255, Math.round(255 * r * mix * grain)));
+        seed[idx + 1] = Math.max(0, Math.min(255, Math.round(255 * g * (0.2 + mix * 0.9) * grain)));
+        seed[idx + 2] = Math.max(0, Math.min(255, Math.round(255 * b * (0.3 + (1 - mix) * 0.7) * grain)));
+        seed[idx + 3] = 255;
+      }
+    }
+    gl.bindTexture(gl.TEXTURE_2D, mainFbo.texture);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, seed);
+    gl.bindTexture(gl.TEXTURE_2D, null);
   };
 
   const compileShaders = (shaderData: MilkDropShaderData): boolean => {
@@ -1294,7 +1445,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           noiseVolHqTexture,
           customTextures
         },
-        phase: 'warp'
+        phase: 'warp',
+        maxTextureUnits
       });
 
       const posLoc = gl.getAttribLocation(activeWarpProgram, 'position');
@@ -1406,7 +1558,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
           noiseVolHqTexture,
           customTextures
         },
-        phase: 'comp'
+        phase: 'comp',
+        maxTextureUnits
       });
 
       const posLoc = gl.getAttribLocation(activeCompProgram, 'position');
@@ -1434,7 +1587,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     // Clean up GL state — milkdrop shares the GL context with the main renderer.
     // Leaving textures/FBOs bound causes feedback loops and corrupts rendering.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < maxTextureUnits; i++) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, null);
       gl.bindTexture(gl.TEXTURE_3D, null);

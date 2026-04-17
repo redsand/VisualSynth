@@ -1,0 +1,77 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Terrain Hypsometric",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Data Viz Generators",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Downtempo",
+    "visualIntentTags": ["terrain", "topographic", "contour", "cartographic"],
+    "defaultTransition": { "durationMs": 700, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["earth", "natural"],
+    "activeEngineId": "engine-vapor-grid",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": { "opener": 6, "build": 5, "drop": 4, "breakdown": 10, "transition": 8, "utility": 7, "crowdReadability": 7, "perceivedDepth3D": 4 },
+    "cpuCost": "medium",
+    "depthScore": 0.4,
+    "complexity": "medium",
+    "role": "breakdown",
+    "visualFamily": "terrain",
+    "motionType": "flow",
+    "repetitionRisk": "low"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Hypsometric Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 700, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 700, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-terrain-hypsometric"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-terrain-hypsometric",
+          "name": "Terrain Hypsometric",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-terrain-hypsometric",
+          "params": { "opacity": 1, "speed": 0.6, "scale": 3, "contourInterval": 0.12, "elevation": 1 }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 1, "atmosphere": 1 },
+  "tempoSync": { "bpm": 100, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "terrain-hypsometric", "param": "elevation" }, "amount": 0.3 },
+    { "source": "audio.low", "target": { "type": "terrain-hypsometric", "param": "contourInterval" }, "amount": -0.05 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Relief", "value": 0.5, "targets": [{ "target": "terrain-hypsometric.elevation", "amount": 0.5 }, { "target": "terrain-hypsometric.scale", "amount": 0.3 }] },
+    { "id": "macro-2", "name": "Contours", "value": 0.5, "targets": [{ "target": "terrain-hypsometric.contourInterval", "amount": -0.4 }] },
+    { "id": "macro-3", "name": "Drift", "value": 0.5, "targets": [{ "target": "terrain-hypsometric.speed", "amount": 0.5 }] }
+  ],
+  "name": "Terrain Hypsometric",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

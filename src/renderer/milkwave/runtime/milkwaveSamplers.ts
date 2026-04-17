@@ -13,10 +13,12 @@ export interface MilkwaveSamplerResources {
 type SamplerGL = Pick<
   WebGL2RenderingContext,
   | 'TEXTURE0'
+  | 'MAX_COMBINED_TEXTURE_IMAGE_UNITS'
   | 'TEXTURE_2D'
   | 'TEXTURE_3D'
   | 'activeTexture'
   | 'bindTexture'
+  | 'getParameter'
   | 'uniform1i'
 >;
 
@@ -24,13 +26,19 @@ export const bindMilkwaveSamplers = ({
   gl,
   loc,
   resources,
-  phase
+  phase,
+  maxTextureUnits
 }: {
   gl: SamplerGL;
   loc: (name: string) => WebGLUniformLocation | null;
   resources: MilkwaveSamplerResources;
   phase: 'warp' | 'comp';
+  maxTextureUnits?: number;
 }) => {
+  const availableTextureUnits = Math.max(
+    1,
+    maxTextureUnits ?? Number(gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) ?? 1)
+  );
   const mainTexture = phase === 'warp' ? resources.previousFrameTexture : resources.warpTexture;
   const samplerMain = loc('sampler_main');
   if (samplerMain && mainTexture) {
@@ -41,7 +49,7 @@ export const bindMilkwaveSamplers = ({
 
   const bind2d = (uniformName: string, texture: WebGLTexture | null | undefined, unit: number) => {
     const target = loc(uniformName);
-    if (!target || !texture) return;
+    if (!target || !texture || unit >= availableTextureUnits) return;
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(target, unit);
@@ -49,7 +57,7 @@ export const bindMilkwaveSamplers = ({
 
   const bind3d = (uniformName: string, texture: WebGLTexture | null | undefined, unit: number) => {
     const target = loc(uniformName);
-    if (!target || !texture) return;
+    if (!target || !texture || unit >= availableTextureUnits) return;
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_3D, texture);
     gl.uniform1i(target, unit);

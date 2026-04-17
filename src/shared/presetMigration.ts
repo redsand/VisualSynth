@@ -148,6 +148,8 @@ export interface PresetMetadataV5 extends PresetMetadata {
   defaultTransition: SceneTransition;
 }
 
+export type PresetMode = 'performance' | 'live';
+
 export interface PresetMetadataV6 extends PresetMetadata {
   version: 6;
   activeEngineId: string;
@@ -162,6 +164,14 @@ export interface PresetMetadataV6 extends PresetMetadata {
   source?: string;
   /** Source system (e.g., "Milkwave", "MilkDrop", "VisualSynth") */
   importedFrom?: string;
+  /** Preset mode: "performance" = multi-layer engine-driven, "live" = single-shader hero MIDI-pad triggerable */
+  presetMode?: PresetMode;
+  /** Live mode: playlist duration in bars (0 = manual trigger only) */
+  playlistDuration?: number;
+  /** Live mode: transition time between playlist entries in ms */
+  playlistTransition?: number;
+  /** Live mode: MIDI pad index (0-15) for triggering this preset */
+  midiPadIndex?: number;
   /** Imported Milkwave runtime support report */
   milkwave?: {
     format: 'milkwave-ir';
@@ -354,6 +364,10 @@ export const presetV6Schema = z.object({
     author: z.string().optional(),
     source: z.string().optional(),
     importedFrom: z.string().optional(),
+    presetMode: z.enum(['performance', 'live']).optional(),
+    playlistDuration: z.number().optional(),
+    playlistTransition: z.number().optional(),
+    midiPadIndex: z.number().min(0).max(15).optional(),
     milkwave: z.object({
       format: z.literal('milkwave-ir'),
       version: z.number(),
@@ -1155,11 +1169,20 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
   // Scoped fresh project
   const project: VisualSynthProject = JSON.parse(JSON.stringify(preset.project ?? currentProject ?? DEFAULT_PROJECT));
 
-  project.activeEngineId = preset.metadata?.activeEngineId ?? project.activeEngineId ?? '';
+  const presetMode = preset.metadata?.presetMode as PresetMode | undefined;
+  const isLiveMode = presetMode === 'live';
+
+  project.activeEngineId = isLiveMode
+    ? 'engine-none'
+    : (preset.metadata?.activeEngineId ?? project.activeEngineId ?? '');
   project.activeModeId = preset.metadata?.activeModeId ?? project.activeModeId ?? '';
   project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
   project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
+
+  if (isLiveMode) {
+    project.activeEngineId = 'engine-none';
+  }
 
   if (preset.palettes && Array.isArray(preset.palettes)) {
     project.palettes = preset.palettes;
@@ -1217,6 +1240,13 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
       }
     } else {
       project.macros = normalizeMacroTargets(preset.macros);
+    }
+  }
+
+  if (isLiveMode && preset.metadata?.midiPadIndex !== undefined) {
+    const padIndex = Math.floor(preset.metadata.midiPadIndex) as number;
+    if (padIndex >= 0 && padIndex < 256) {
+      (project as any)._livePadIndex = padIndex;
     }
   }
 

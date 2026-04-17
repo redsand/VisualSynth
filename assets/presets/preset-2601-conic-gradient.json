@@ -1,0 +1,57 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Conic Sweep",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Fractal/Geometric",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "House",
+    "visualIntentTags": ["gradient", "radial", "sweep", "prismatic"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "balanced"],
+    "activeEngineId": "engine-kaleido-pulse",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Conic Sweep",
+    "intent": "pulse",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-conic-gradient"], "support": ["layer-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-conic-gradient",
+        "name": "Conic Gradient",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-conic-gradient",
+        "params": { "opacity": 1, "speed": 0.7, "segments": 8, "rotation": 0, "sharpness": 0.3 }
+      },
+      {
+        "id": "layer-plasma",
+        "name": "Shader Plasma",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.25,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0 },
+  "tempoSync": { "bpm": 124, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

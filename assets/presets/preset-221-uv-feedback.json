@@ -1,0 +1,77 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "UV Feedback",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Data Viz Generators",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Experimental",
+    "visualIntentTags": ["feedback", "recursive", "psychedelic"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-acid",
+    "colorChemistry": ["shifting", "vivid"],
+    "activeEngineId": "engine-kaleido-pulse",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": { "opener": 6, "build": 8, "drop": 9, "breakdown": 7, "transition": 5, "utility": 4, "crowdReadability": 7, "perceivedDepth3D": 8 },
+    "cpuCost": "high",
+    "depthScore": 0.8,
+    "complexity": "high",
+    "role": "drop",
+    "visualFamily": "fractal",
+    "motionType": "spiral",
+    "repetitionRisk": "low"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "UV Feedback Scene",
+      "intent": "chaos",
+      "duration": 0,
+      "transition_in": { "durationMs": 400, "curve": "easeIn" },
+      "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-uv-feedback"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-uv-feedback",
+          "name": "UV Feedback",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-uv-feedback",
+          "params": { "opacity": 1, "speed": 1.2, "iterations": 6, "distortion": 1.5, "zoom": 0.8 }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 1, "atmosphere": 1 },
+  "tempoSync": { "bpm": 128, "source": "auto" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "uv-feedback", "param": "distortion" }, "amount": 0.4 },
+    { "source": "audio.peak", "target": { "type": "uv-feedback", "param": "zoom" }, "amount": 0.3 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Recursion", "value": 0.5, "targets": [{ "target": "uv-feedback.iterations", "amount": 0.6 }, { "target": "uv-feedback.zoom", "amount": 0.4 }] },
+    { "id": "macro-2", "name": "Warp", "value": 0.5, "targets": [{ "target": "uv-feedback.distortion", "amount": 0.7 }] },
+    { "id": "macro-3", "name": "Speed", "value": 0.5, "targets": [{ "target": "uv-feedback.speed", "amount": 0.5 }] }
+  ],
+  "name": "UV Feedback",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

@@ -2057,6 +2057,526 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
       { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1.0, modulatable: true, midiMappable: true },
       { id: 'amount', name: 'Amount', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
     ]
+  },
+  {
+    id: 'voronoi-tessellation',
+    name: 'Voronoi Tessellation',
+    description: 'Cell-based Voronoi diagram with audio-reactive coloring',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 2, max: 20, default: 8, modulatable: true, midiMappable: true },
+      { id: 'edgeWidth', name: 'Edge Width', type: 'number', min: 0.01, max: 0.3, default: 0.05, modulatable: true, midiMappable: true },
+      { id: 'colorMode', name: 'Color Mode', type: 'enum', default: 0, options: [{value: 0, label: 'Spectrum'}, {value: 1, label: 'Heat'}, {value: 2, label: 'Neon'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'choropleth-wave',
+    name: 'Choropleth Wave',
+    description: 'Heatmap-style grid with spectrum-driven color bands',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'gridSize', name: 'Grid Size', type: 'number', min: 4, max: 32, default: 12, modulatable: true, midiMappable: true },
+      { id: 'heatMode', name: 'Heat Mode', type: 'enum', default: 0, options: [{value: 0, label: 'Spectrum'}, {value: 1, label: 'RMS'}, {value: 2, label: 'Peak'}], modulatable: false, midiMappable: true },
+      { id: 'smoothing', name: 'Border Smooth', type: 'number', min: 0.01, max: 0.2, default: 0.05, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'sankey-flow',
+    name: 'Sankey Flow',
+    description: 'Flowing sankey diagram with audio-driven stream widths',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'flowCount', name: 'Flow Count', type: 'number', min: 2, max: 8, default: 5, modulatable: false, midiMappable: true },
+      { id: 'spread', name: 'Spread', type: 'number', min: 0.5, max: 3, default: 1.5, modulatable: true, midiMappable: true },
+      { id: 'colorSeed', name: 'Color Seed', type: 'number', min: 0, max: 1, default: 0.3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'scatter-plot',
+    name: 'Scatter Plot',
+    description: 'Audio-reactive scattered data points with trails',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0.1, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'pointSize', name: 'Point Size', type: 'number', min: 0.002, max: 0.03, default: 0.008, modulatable: true, midiMappable: true },
+      { id: 'trail', name: 'Trail Length', type: 'number', min: 0, max: 1, default: 0.3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'radial-bar',
+    name: 'Radial Bar',
+    description: 'Circular bar chart with spectrum-driven arc lengths',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Bar Count', type: 'number', min: 4, max: 64, default: 24, modulatable: false, midiMappable: true },
+      { id: 'width', name: 'Bar Width', type: 'number', min: 0.01, max: 0.1, default: 0.04, modulatable: true, midiMappable: true },
+      { id: 'innerRadius', name: 'Inner Radius', type: 'number', min: 0.05, max: 0.5, default: 0.2, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'reaction-diffusion',
+    name: 'Reaction Diffusion',
+    description: 'Turing-pattern reaction-diffusion simulation',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'feed', name: 'Feed Rate', type: 'number', min: 0.01, max: 0.1, default: 0.055, modulatable: true, midiMappable: true },
+      { id: 'kill', name: 'Kill Rate', type: 'number', min: 0.01, max: 0.1, default: 0.062, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 2, max: 10, default: 5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'penrose-tiling',
+    name: 'Penrose Tiling',
+    description: 'Aperiodic golden-ratio tiling with audio color shifts',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 1, max: 10, default: 3, modulatable: true, midiMappable: true },
+      { id: 'rotation', name: 'Rotation', type: 'number', min: 0, max: 6.28, default: 0, modulatable: true, midiMappable: true },
+      { id: 'highlight', name: 'Highlight', type: 'number', min: 0.1, max: 0.8, default: 0.4, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'strange-attractor',
+    name: 'Strange Attractor',
+    description: 'De Jong/Clifford strange attractor with luminous trails',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'type', name: 'Attractor Type', type: 'enum', default: 0, options: [{value: 0, label: 'Clifford'}, {value: 1, label: 'De Jong'}, {value: 2, label: 'Bedhead'}], modulatable: false, midiMappable: true },
+      { id: 'trail', name: 'Trail Length', type: 'number', min: 0.1, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'color', name: 'Color Offset', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'l-system',
+    name: 'L-System',
+    description: 'Recursive fractal branching with audio growth',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'generations', name: 'Generations', type: 'number', min: 2, max: 8, default: 5, modulatable: false, midiMappable: true },
+      { id: 'angle', name: 'Branch Angle', type: 'number', min: 0.2, max: 1.5, default: 0.78, modulatable: true, midiMappable: true },
+      { id: 'branchScale', name: 'Branch Scale', type: 'number', min: 0.3, max: 0.9, default: 0.7, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'raymarch-terrain',
+    name: 'Raymarch Terrain',
+    description: '3D raymarched terrain with fog and height coloring',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'height', name: 'Height Scale', type: 'number', min: 0.1, max: 2, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'detail', name: 'Detail Octaves', type: 'number', min: 2, max: 8, default: 5, modulatable: false, midiMappable: true },
+      { id: 'fog', name: 'Fog Density', type: 'number', min: 0.01, max: 0.3, default: 0.08, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'spirograph',
+    name: 'Spirograph',
+    description: 'Harmonograph spirograph with parametric curve rendering',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'innerRatio', name: 'Inner Ratio', type: 'number', min: 0.1, max: 0.9, default: 0.35, modulatable: true, midiMappable: true },
+      { id: 'penOffset', name: 'Pen Offset', type: 'number', min: 0.1, max: 2, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'rotations', name: 'Rotations', type: 'number', min: 1, max: 20, default: 8, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'uv-feedback',
+    name: 'UV Feedback',
+    description: 'Recursive UV distortion feedback loop',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'iterations', name: 'Iterations', type: 'number', min: 2, max: 10, default: 5, modulatable: false, midiMappable: true },
+      { id: 'distortion', name: 'Distortion', type: 'number', min: 0, max: 5, default: 1, modulatable: true, midiMappable: true },
+      { id: 'zoom', name: 'Zoom', type: 'number', min: 0, max: 3, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'droste-effect',
+    name: 'Droste Effect',
+    description: 'Recursive picture-in-picture infinite zoom',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'zoomRate', name: 'Zoom Rate', type: 'number', min: 0.05, max: 0.5, default: 0.15, modulatable: true, midiMappable: true },
+      { id: 'rotations', name: 'Rotations', type: 'number', min: 0, max: 3, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'frameCount', name: 'Frame Count', type: 'number', min: 2, max: 12, default: 6, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'equalizer-matrix',
+    name: 'Equalizer Matrix',
+    description: 'Multi-row perspective equalizer with depth',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'rows', name: 'Rows', type: 'number', min: 4, max: 16, default: 8, modulatable: false, midiMappable: true },
+      { id: 'gap', name: 'Row Gap', type: 'number', min: 0, max: 0.5, default: 0.1, modulatable: true, midiMappable: true },
+      { id: 'depth', name: 'Perspective Depth', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'metaball',
+    name: 'Metaball',
+    description: 'Isosurface metaball blob merging with audio-reactive radii',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Ball Count', type: 'number', min: 2, max: 8, default: 5, modulatable: false, midiMappable: true },
+      { id: 'threshold', name: 'Threshold', type: 'number', min: 0.5, max: 3, default: 1.5, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 1, max: 4, default: 2, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'interference-pattern',
+    name: 'Interference Pattern',
+    description: 'Wave interference from multiple point sources',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'sourceCount', name: 'Sources', type: 'number', min: 2, max: 8, default: 4, modulatable: false, midiMappable: true },
+      { id: 'wavelength', name: 'Wavelength', type: 'number', min: 0.05, max: 0.5, default: 0.2, modulatable: true, midiMappable: true },
+      { id: 'mode', name: 'Decay Mode', type: 'enum', default: 0, options: [{value: 0, label: 'None'}, {value: 1, label: 'Exponential'}, {value: 2, label: 'Inverse'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'terrain-hypsometric',
+    name: 'Terrain Hypsometric',
+    description: 'Color-banded hypsometric terrain with contour lines',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 1, max: 10, default: 3, modulatable: true, midiMappable: true },
+      { id: 'contourInterval', name: 'Contour Interval', type: 'number', min: 0.05, max: 0.3, default: 0.12, modulatable: true, midiMappable: true },
+      { id: 'elevation', name: 'Elevation', type: 'number', min: 0.1, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'phyllotaxis',
+    name: 'Phyllotaxis',
+    description: 'Fibonacci sunflower spiral phyllotaxis arrangement',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Element Count', type: 'number', min: 20, max: 300, default: 150, modulatable: false, midiMappable: true },
+      { id: 'pointSize', name: 'Point Size', type: 'number', min: 0.002, max: 0.03, default: 0.01, modulatable: true, midiMappable: true },
+      { id: 'spread', name: 'Spread Radius', type: 'number', min: 0.3, max: 1, default: 0.7, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'deep-ocean',
+    name: 'Deep Ocean',
+    description: 'Bioluminescent deep ocean with caustic light shafts',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'depth', name: 'Depth', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'biolum', name: 'Bioluminescence', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'caustic', name: 'Caustic Strength', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'holographic-prism',
+    name: 'Holographic Prism',
+    description: 'Rainbow prism refraction with holographic scanlines',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'dispersion', name: 'Dispersion', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'angle', name: 'Prism Angle', type: 'number', min: 0, max: 6.28, default: 0, modulatable: true, midiMappable: true },
+      { id: 'facets', name: 'Facets', type: 'number', min: 3, max: 12, default: 6, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'boids',
+    name: 'Boids',
+    description: 'Flocking simulation with separation, alignment, and cohesion',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Boid Count', type: 'number', min: 10, max: 60, default: 30, modulatable: false, midiMappable: true },
+      { id: 'cohesion', name: 'Cohesion', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'visualRange', name: 'Visual Range', type: 'number', min: 0.1, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'flow-field',
+    name: 'Flow Field',
+    description: 'Curl noise flow field with visible streamlines',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Noise Scale', type: 'number', min: 0.5, max: 5, default: 2, modulatable: true, midiMappable: true },
+      { id: 'curlIntensity', name: 'Curl Intensity', type: 'number', min: 0.5, max: 5, default: 2, modulatable: true, midiMappable: true },
+      { id: 'lineCount', name: 'Streamlines', type: 'number', min: 20, max: 80, default: 40, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'stained-glass',
+    name: 'Stained Glass',
+    description: 'Voronoi stained glass with directional light transmission',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 3, max: 15, default: 6, modulatable: true, midiMappable: true },
+      { id: 'lightAngle', name: 'Light Angle', type: 'number', min: 0, max: 6.28, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'leadWidth', name: 'Lead Width', type: 'number', min: 0.01, max: 0.15, default: 0.05, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'hillshade',
+    name: 'Hillshade',
+    description: 'Directional hillshading with normal-based lighting',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 1, max: 10, default: 3, modulatable: true, midiMappable: true },
+      { id: 'lightAzimuth', name: 'Light Azimuth', type: 'number', min: 0, max: 6.28, default: 2.5, modulatable: true, midiMappable: true },
+      { id: 'vertical', name: 'Relief Height', type: 'number', min: 0.5, max: 5, default: 2, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'truchet-tiles',
+    name: 'Truchet Tiles',
+    description: 'Arc-based Truchet tile patterns with audio-reactive nodes',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 3, max: 20, default: 8, modulatable: true, midiMappable: true },
+      { id: 'arcWidth', name: 'Arc Width', type: 'number', min: 0.01, max: 0.15, default: 0.06, modulatable: true, midiMappable: true },
+      { id: 'style', name: 'Style', type: 'enum', default: 0, options: [{value: 0, label: 'Diagonal'}, {value: 1, label: 'Cross'}, {value: 2, label: 'Mixed'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'spectrogram',
+    name: 'Spectrogram',
+    description: 'Scrolling time-frequency spectrogram display',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.5, max: 5, default: 2, modulatable: true, midiMappable: true },
+      { id: 'freqScale', name: 'Freq Scale', type: 'number', min: 0.5, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'history', name: 'History Depth', type: 'number', min: 2, max: 20, default: 10, modulatable: false, midiMappable: true },
+      { id: 'colorMap', name: 'Color Map', type: 'enum', default: 0, options: [{value: 0, label: 'Heat'}, {value: 1, label: 'Palette'}, {value: 2, label: 'Viridis'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'crosshatch',
+    name: 'Crosshatch',
+    description: 'Crosshatch and stipple engraving pattern',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 5, max: 40, default: 15, modulatable: true, midiMappable: true },
+      { id: 'angle1', name: 'Angle 1', type: 'number', min: 0, max: 3.14, default: 0.78, modulatable: true, midiMappable: true },
+      { id: 'angle2', name: 'Angle 2', type: 'number', min: 0, max: 3.14, default: 2.35, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'shatter',
+    name: 'Shatter',
+    description: 'Voronoi shatter fracture with crack propagation',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'spread', name: 'Spread', type: 'number', min: 0.1, max: 1, default: 0.4, modulatable: true, midiMappable: true },
+      { id: 'shardCount', name: 'Shard Count', type: 'number', min: 5, max: 20, default: 12, modulatable: false, midiMappable: true },
+      { id: 'rotation', name: 'Rotation', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'seigaiha',
+    name: 'Seigaiha',
+    description: 'Japanese seigaiha overlapping concentric wave pattern',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 3, max: 15, default: 6, modulatable: true, midiMappable: true },
+      { id: 'waveCount', name: 'Rings', type: 'number', min: 2, max: 6, default: 4, modulatable: false, midiMappable: true },
+      { id: 'lineWeight', name: 'Line Weight', type: 'number', min: 0.01, max: 0.1, default: 0.04, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'sierpinski',
+    name: 'Sierpinski',
+    description: 'Recursive Sierpinski fractal subdivision',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'depth', name: 'Depth', type: 'number', min: 1, max: 8, default: 5, modulatable: false, midiMappable: true },
+      { id: 'rotation', name: 'Rotation', type: 'number', min: 0, max: 6.28, default: 0, modulatable: true, midiMappable: true },
+      { id: 'variant', name: 'Variant', type: 'enum', default: 0, options: [{value: 0, label: 'Triangle'}, {value: 1, label: 'Carpet'}, {value: 2, label: 'Chaos'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'orbital',
+    name: 'Orbital',
+    description: 'Planetary orbital mechanics simulation with gravity wells',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Body Count', type: 'number', min: 2, max: 8, default: 5, modulatable: false, midiMappable: true },
+      { id: 'trailLen', name: 'Trail Length', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'gravity', name: 'Gravity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'conic-gradient',
+    name: 'Conic Gradient',
+    description: 'Conic/radial sweep gradient with audio reactivity',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'segments', name: 'Segments', type: 'number', min: 2, max: 32, default: 8, modulatable: false, midiMappable: true },
+      { id: 'rotation', name: 'Rotation', type: 'number', min: 0, max: 6.28, default: 0, modulatable: true, midiMappable: true },
+      { id: 'sharpness', name: 'Sharpness', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'barcode',
+    name: 'Barcode',
+    description: 'Audio spectrum driven barcode/strip visualization',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 5, max: 80, default: 30, modulatable: true, midiMappable: true },
+      { id: 'thickness', name: 'Thickness', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'mirror', name: 'Mirror', type: 'number', min: 0, max: 1, default: 0, modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'ferrofluid',
+    name: 'Ferrofluid',
+    description: 'Magnetic fluid simulation with spike formations',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'spikes', name: 'Spike Count', type: 'number', min: 3, max: 12, default: 6, modulatable: false, midiMappable: true },
+      { id: 'magnetism', name: 'Magnetism', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'smooth', name: 'Smoothness', type: 'number', min: 0, max: 1, default: 0.3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'halftone',
+    name: 'Halftone',
+    description: 'Halftone dot pattern print simulation',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 5, max: 60, default: 20, modulatable: true, midiMappable: true },
+      { id: 'angle', name: 'Angle', type: 'number', min: 0, max: 6.28, default: 0.785, modulatable: true, midiMappable: true },
+      { id: 'style', name: 'Style', type: 'enum', default: 0, options: [{value: 0, label: 'Dots'}, {value: 0.33, label: 'Diamonds'}, {value: 0.66, label: 'Lines'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'pixel-sort',
+    name: 'Pixel Sort',
+    description: 'Pixel sorting glitch art effect driven by audio',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'threshold', name: 'Threshold', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'direction', name: 'Direction', type: 'number', min: 0, max: 1, default: 0, modulatable: false, midiMappable: true },
+      { id: 'glitch', name: 'Glitch Amount', type: 'number', min: 0, max: 1, default: 0.3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'ripple-pond',
+    name: 'Ripple Pond',
+    description: 'Ripple interference pattern on water surface',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'drops', name: 'Drop Sources', type: 'number', min: 1, max: 8, default: 3, modulatable: false, midiMappable: true },
+      { id: 'decay', name: 'Decay', type: 'number', min: 0.1, max: 2, default: 0.8, modulatable: true, midiMappable: true },
+      { id: 'refraction', name: 'Refraction', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'hex-grid',
+    name: 'Hex Grid',
+    description: 'Hexagonal grid with audio-reactive cells',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 3, max: 30, default: 10, modulatable: true, midiMappable: true },
+      { id: 'pulse', name: 'Pulse', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'border', name: 'Border', type: 'number', min: 0, max: 1, default: 0.3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'woven',
+    name: 'Woven',
+    description: 'Woven textile/fabric pattern generator',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'scale', name: 'Scale', type: 'number', min: 5, max: 40, default: 15, modulatable: true, midiMappable: true },
+      { id: 'threadWidth', name: 'Thread Width', type: 'number', min: 0.1, max: 0.9, default: 0.6, modulatable: true, midiMappable: true },
+      { id: 'pattern', name: 'Pattern', type: 'enum', default: 0, options: [{value: 0, label: 'Plain'}, {value: 0.5, label: 'Twill'}, {value: 1, label: 'Satin'}], modulatable: false, midiMappable: true }
+    ]
+  },
+  {
+    id: 'chromatic-aberr',
+    name: 'Chromatic Aberr',
+    description: 'Chromatic aberration and prismatic light dispersion',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'dispersion', name: 'Dispersion', type: 'number', min: 0, max: 2, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'rings', name: 'Rings', type: 'number', min: 1, max: 10, default: 3, modulatable: false, midiMappable: true },
+      { id: 'intensity', name: 'Intensity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
   }
 ];
 
@@ -2186,6 +2706,46 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-typography-reveal': 'typography-reveal',
     'gen-radar-hud': 'radar-hud',
     'gen-audio-geometry': 'audio-geometry',
+    'gen-voronoi-tessellation': 'voronoi-tessellation',
+    'gen-choropleth-wave': 'choropleth-wave',
+    'gen-sankey-flow': 'sankey-flow',
+    'gen-scatter-plot': 'scatter-plot',
+    'gen-radial-bar': 'radial-bar',
+    'gen-reaction-diffusion': 'reaction-diffusion',
+    'gen-penrose-tiling': 'penrose-tiling',
+    'gen-strange-attractor': 'strange-attractor',
+    'gen-l-system': 'l-system',
+    'gen-raymarch-terrain': 'raymarch-terrain',
+    'gen-spirograph': 'spirograph',
+    'gen-uv-feedback': 'uv-feedback',
+    'gen-droste-effect': 'droste-effect',
+    'gen-equalizer-matrix': 'equalizer-matrix',
+    'gen-metaball': 'metaball',
+    'gen-interference-pattern': 'interference-pattern',
+    'gen-terrain-hypsometric': 'terrain-hypsometric',
+    'gen-phyllotaxis': 'phyllotaxis',
+    'gen-deep-ocean': 'deep-ocean',
+    'gen-holographic-prism': 'holographic-prism',
+    'gen-boids': 'boids',
+    'gen-flow-field': 'flow-field',
+    'gen-stained-glass': 'stained-glass',
+    'gen-hillshade': 'hillshade',
+    'gen-truchet-tiles': 'truchet-tiles',
+    'gen-spectrogram': 'spectrogram',
+    'gen-crosshatch': 'crosshatch',
+    'gen-shatter': 'shatter',
+    'gen-seigaiha': 'seigaiha',
+    'gen-sierpinski': 'sierpinski',
+    'gen-orbital': 'orbital',
+    'gen-conic-gradient': 'conic-gradient',
+    'gen-barcode': 'barcode',
+    'gen-ferrofluid': 'ferrofluid',
+    'gen-halftone': 'halftone',
+    'gen-pixel-sort': 'pixel-sort',
+    'gen-ripple-pond': 'ripple-pond',
+    'gen-hex-grid': 'hex-grid',
+    'gen-woven': 'woven',
+    'gen-chromatic-aberr': 'chromatic-aberr',
   };
 
   const type = idMapping[layerId] || layerId;
@@ -2367,7 +2927,47 @@ export const buildLegacyTarget = (layerType: string, param: string): string => {
     'score-counter': 'layer-score-counter',
     'pixel-rain': 'layer-pixel-rain',
     'boss-health': 'layer-boss-health',
-    'milkwave': 'layer-milkwave'
+    'milkwave': 'layer-milkwave',
+    'voronoi-tessellation': 'gen-voronoi-tessellation',
+    'choropleth-wave': 'gen-choropleth-wave',
+    'sankey-flow': 'gen-sankey-flow',
+    'scatter-plot': 'gen-scatter-plot',
+    'radial-bar': 'gen-radial-bar',
+    'reaction-diffusion': 'gen-reaction-diffusion',
+    'penrose-tiling': 'gen-penrose-tiling',
+    'strange-attractor': 'gen-strange-attractor',
+    'l-system': 'gen-l-system',
+    'raymarch-terrain': 'gen-raymarch-terrain',
+    'spirograph': 'gen-spirograph',
+    'uv-feedback': 'gen-uv-feedback',
+    'droste-effect': 'gen-droste-effect',
+    'equalizer-matrix': 'gen-equalizer-matrix',
+    'metaball': 'gen-metaball',
+    'interference-pattern': 'gen-interference-pattern',
+    'terrain-hypsometric': 'gen-terrain-hypsometric',
+    'phyllotaxis': 'gen-phyllotaxis',
+    'deep-ocean': 'gen-deep-ocean',
+    'holographic-prism': 'gen-holographic-prism',
+    'boids': 'gen-boids',
+    'flow-field': 'gen-flow-field',
+    'stained-glass': 'gen-stained-glass',
+    'hillshade': 'gen-hillshade',
+    'truchet-tiles': 'gen-truchet-tiles',
+    'spectrogram': 'gen-spectrogram',
+    'crosshatch': 'gen-crosshatch',
+    'shatter': 'gen-shatter',
+    'seigaiha': 'gen-seigaiha',
+    'sierpinski': 'gen-sierpinski',
+    'orbital': 'gen-orbital',
+    'conic-gradient': 'gen-conic-gradient',
+    'barcode': 'gen-barcode',
+    'ferrofluid': 'gen-ferrofluid',
+    'halftone': 'gen-halftone',
+    'pixel-sort': 'gen-pixel-sort',
+    'ripple-pond': 'gen-ripple-pond',
+    'hex-grid': 'gen-hex-grid',
+    'woven': 'gen-woven',
+    'chromatic-aberr': 'gen-chromatic-aberr'
   };
 
   const layerId = reverseMapping[layerType] || `layer-${layerType}`;

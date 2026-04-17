@@ -107,13 +107,13 @@ uniform sampler2D sampler_noise_hq;
 uniform sampler2D sampler_blur1;
 uniform sampler2D sampler_blur2;
 uniform sampler2D sampler_blur3;
+uniform highp sampler3D sampler_noisevol_lq;
+uniform highp sampler3D sampler_noisevol_hq;
 #define sampler_fc_main sampler_main
 #define sampler_pc_main sampler_main
 #define sampler_fw_main sampler_main
 #define sampler_pw_main sampler_main
 #define sampler_noise_lq_lite sampler_noise_lq
-#define sampler_noisevol_lq sampler_noise_lq
-#define sampler_noisevol_hq sampler_noise_hq
 
 // MilkDrop q-variable uniforms (q1–q32)
 uniform float q1; uniform float q2; uniform float q3; uniform float q4;

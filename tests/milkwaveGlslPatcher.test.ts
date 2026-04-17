@@ -104,6 +104,121 @@ describe('patchMilkDropGlsl – unit', () => {
     const out = patchMilkDropGlsl(src);
     expect(out).toMatch(/vec3 GetPixel\(/);
   });
+
+  it('promotes scalar vec initializers to the declared vector dimension', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec2 uv2 = 0.5;\n  vec3 col = lum(vec3(1.0));\n  fragColor = vec4(col + vec3(uv2, 0.0), 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/vec2 uv2 = vec2\(0\.5\)/);
+    expect(out).toMatch(/vec3 col = vec3\(lum\(vec3\(1\.0\)\)\)/);
+  });
+
+  it('promotes scalar assignments to the target vector dimension', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec4 color = vec4(0.0);\n  color = 1.0;\n  fragColor = color;\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/color = vec4\(1\.0\)/);
+  });
+
+  it('normalizes mix calls that blend vectors with scalars', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec3 ret = vec3(0.0);\n  ret = mix(ret, lum(ret), 0.2);\n  ret = mix(0.5, ret, 0.2);\n  fragColor = vec4(ret, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/mix\(ret,\s*vec3\(lum\(ret\)\),\s*0\.2\)/);
+    expect(out).toMatch(/mix\(vec3\(0\.5\),\s*ret,\s*0\.2\)/);
+  });
+
+  it('normalizes pow calls that raise vectors by scalar exponents', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec3 ret = vec3(0.5);\n  ret = pow(ret, 2.0);\n  fragColor = vec4(ret, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/pow\(ret,\s*vec3\(2\.0\)\)/);
+  });
+
+  it('collapses redundant nested vector constructors created during pow normalization', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec3 ret = vec3(0.5);\n  ret = pow(ret, vec3(0.5, 0.8, 1.0));\n  fragColor = vec4(ret, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('pow(ret, vec3(0.5, 0.8, 1.0))');
+    expect(out).not.toContain('vec3(vec3(');
+  });
+
+  it('expands uAspect z and zw swizzles to inverse aspect terms', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nuniform vec2 uAspect;\nvoid main() {\n  float invAspect = uAspect.z;\n  vec2 invTerms = uAspect.zw;\n  fragColor = vec4(invAspect, invTerms.x, invTerms.y, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('(1.0/uAspect.x)');
+    expect(out).toContain('(vec2(1.0)/uAspect)');
+    expect(out).not.toContain('uAspect.z');
+    expect(out).not.toContain('uAspect.zw');
+  });
+
+  it('cleans up numeric literal swizzles before parsing', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec2 uv = 1.0.xy;\n  fragColor = vec4(uv, 0.0, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('vec2(1.0).xy');
+    expect(out).not.toContain('1.0.xy');
+  });
+
+  it('converts dangling statement commas to semicolons without touching argument lists', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec3 ret = vec3(0.0);\n  ret = vec3(1.0),\n  ret = mix(\n    vec3(0.0),\n    ret,\n    0.5);\n  fragColor = vec4(ret, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('ret = vec3(1.0);');
+    expect(out).toContain('ret = mix(');
+    expect(out).toContain('ret,');
+  });
+
+  it('closes unterminated main-body blocks before fragColor', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec3 ret = vec3(0.0);\n  while (ret.x < 1.0) {\n    ret += vec3(0.5);\n  fragColor = vec4(ret, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/\n}\nfragColor = vec4\(ret,\s*1\.0\);/);
+  });
+
+  it('repairs truncated mix calls with a missing third argument', () => {
+    const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nvoid main() {\n  vec3 ret = vec3(0.0);\n  ret = mix(\n    vec3(1.0),\n    vec3(0.0),\n  );\n  fragColor = vec4(ret, 1.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('mix(');
+    expect(out).toContain('vec3(0.0), 0.5)');
+  });
+
+  it('flattens moved shader_body fragments so they do not leave unmatched braces in main', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'out vec4 fragColor;',
+      'float helper = 1.0;',
+      '{',
+      'ret = abs(ret) * 2.0;',
+      '}',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  shader_body',
+      '  {',
+      '    ret = abs(ret) * 2.0;',
+      '  }',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('fragColor = vec4(ret, 1.0);');
+    expect(out).not.toContain('\n  // --- moved from shader_body ---\n  {\n');
+  });
+
+  it('drops trailing moved shader_body braces even when they carry line comments', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'out vec4 fragColor;',
+      '{',
+      'ret = 1.0;',
+      '}//:D',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  shader_body',
+      '  {',
+      '    ret = 1.0;',
+      '  }//:D',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('fragColor = vec4(ret, 1.0);');
+    expect(out).not.toContain('}//:D\nfragColor');
+  });
 });
 
 // ── Preset corpus integration tests ────────────────────────────────────────

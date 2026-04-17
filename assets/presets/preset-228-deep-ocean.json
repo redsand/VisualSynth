@@ -1,0 +1,88 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Deep Ocean",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Data Viz Generators",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Deep House",
+    "visualIntentTags": ["ocean", "bioluminescent", "caustic", "underwater"],
+    "defaultTransition": { "durationMs": 1000, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["cool", "bioluminescent"],
+    "activeEngineId": "engine-particle-flow",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": { "opener": 6, "build": 7, "drop": 6, "breakdown": 10, "transition": 9, "utility": 5, "crowdReadability": 8, "perceivedDepth3D": 7 },
+    "cpuCost": "high",
+    "depthScore": 0.7,
+    "complexity": "high",
+    "role": "breakdown",
+    "visualFamily": "organic",
+    "motionType": "flow",
+    "repetitionRisk": "low"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Deep Ocean Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 1000, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 1000, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-deep-ocean"], "support": ["gen-glow-worms"], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-deep-ocean",
+          "name": "Deep Ocean",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-deep-ocean",
+          "params": { "opacity": 1, "speed": 0.8, "depth": 0.5, "biolum": 1, "caustic": 1 }
+        },
+        {
+          "id": "gen-glow-worms",
+          "name": "Jellyfish",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.4,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-glow-worms",
+          "params": { "opacity": 0.4, "speed": 0.5 }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.7, "atmosphere": 1 },
+  "tempoSync": { "bpm": 120, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "deep-ocean", "param": "biolum" }, "amount": 0.3 },
+    { "source": "audio.high", "target": { "type": "deep-ocean", "param": "caustic" }, "amount": 0.25 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Glow", "value": 0.5, "targets": [{ "target": "deep-ocean.biolum", "amount": 0.6 }, { "target": "deep-ocean.caustic", "amount": 0.3 }] },
+    { "id": "macro-2", "name": "Abyss", "value": 0.5, "targets": [{ "target": "deep-ocean.depth", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Currents", "value": 0.5, "targets": [{ "target": "deep-ocean.speed", "amount": 0.4 }] }
+  ],
+  "name": "Deep Ocean",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

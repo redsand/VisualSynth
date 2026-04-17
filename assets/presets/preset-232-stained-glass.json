@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Stained Glass",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Downtempo",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Downtempo",
+    "visualIntentTags": ["cathedral", "glass", "light"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "warm"],
+    "activeEngineId": "engine-radial-core",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "presetMode": "performance",
+    "scores": { "opener": 5, "build": 6, "drop": 4, "breakdown": 9, "transition": 6, "utility": 4, "crowdReadability": 7, "perceivedDepth3D": 7 },
+    "cpuCost": "low",
+    "depthScore": 0.7,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "geometric",
+    "motionType": "flow",
+    "repetitionRisk": "medium"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Cathedral Glass",
+    "intent": "ambient",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-stained-glass"], "support": ["gen-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-stained-glass",
+        "name": "Stained Glass",
+        "role": "core",
+        "enabled": true,
+        "opacity": 1,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-stained-glass",
+        "params": { "opacity": 1, "speed": 0.4, "scale": 1.0, "lightAngle": 0.6, "leadWidth": 0.3 }
+      },
+      {
+        "id": "gen-plasma",
+        "name": "Plasma Background",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "multiply",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-plasma",
+        "params": { "opacity": 0.2, "speed": 0.2, "scale": 2.0, "complexity": 0.4, "colorShift": 0.5 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 1 },
+  "tempoSync": { "bpm": 100, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "stained-glass.lightAngle", "param": "lightAngle" }, "amount": 0.4 },
+    { "source": "audio.rms", "target": { "type": "stained-glass.leadWidth", "param": "leadWidth" }, "amount": 0.15 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Light Sweep", "value": 0.5, "targets": [{ "target": "stained-glass.lightAngle", "amount": 0.6 }] },
+    { "id": "macro-2", "name": "Lead Width", "value": 0.3, "targets": [{ "target": "stained-glass.leadWidth", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Plasma Warmth", "value": 0.2, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.3 }] }
+  ],
+  "name": "Stained Glass",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

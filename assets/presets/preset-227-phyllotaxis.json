@@ -1,0 +1,77 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Phyllotaxis",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Data Viz Generators",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "World",
+    "visualIntentTags": ["fibonacci", "sunflower", "spiral", "organic"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["warm", "natural"],
+    "activeEngineId": "engine-radial-core",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": { "opener": 8, "build": 6, "drop": 5, "breakdown": 9, "transition": 7, "utility": 6, "crowdReadability": 9, "perceivedDepth3D": 4 },
+    "cpuCost": "medium",
+    "depthScore": 0.4,
+    "complexity": "medium",
+    "role": "breakdown",
+    "visualFamily": "organic",
+    "motionType": "bloom",
+    "repetitionRisk": "low"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Phyllotaxis Scene",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-phyllotaxis"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-phyllotaxis",
+          "name": "Phyllotaxis",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-phyllotaxis",
+          "params": { "opacity": 1, "speed": 0.6, "count": 150, "pointSize": 0.01, "spread": 0.7 }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 1, "atmosphere": 1 },
+  "tempoSync": { "bpm": 110, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "phyllotaxis", "param": "spread" }, "amount": 0.2 },
+    { "source": "audio.peak", "target": { "type": "phyllotaxis", "param": "pointSize" }, "amount": 0.15 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Density", "value": 0.5, "targets": [{ "target": "phyllotaxis.count", "amount": 0.6 }] },
+    { "id": "macro-2", "name": "Bloom", "value": 0.5, "targets": [{ "target": "phyllotaxis.spread", "amount": 0.5 }, { "target": "phyllotaxis.pointSize", "amount": 0.3 }] },
+    { "id": "macro-3", "name": "Rotate", "value": 0.5, "targets": [{ "target": "phyllotaxis.speed", "amount": 0.5 }] }
+  ],
+  "name": "Phyllotaxis",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

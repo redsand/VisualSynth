@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Hex Matrix",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Fractal/Geometric",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Techno",
+    "visualIntentTags": ["hexagonal", "grid", "honeycomb", "audio-reactive"],
+    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["triadic", "balanced"],
+    "activeEngineId": "engine-radial-core",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Hex Matrix",
+    "intent": "pulse",
+    "duration": 0,
+    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-hex-grid"], "support": ["layer-spectrum"], "atmosphere": ["layer-plasma"] },
+    "layers": [
+      {
+        "id": "gen-hex-grid",
+        "name": "Hex Grid",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-hex-grid",
+        "params": { "opacity": 1, "speed": 0.8, "scale": 10, "pulse": 0.6, "border": 0.3 }
+      },
+      {
+        "id": "layer-spectrum",
+        "name": "Spectrum Bars",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.3,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      },
+      {
+        "id": "layer-plasma",
+        "name": "Shader Plasma",
+        "role": "atmosphere",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
+  "tempoSync": { "bpm": 130, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Hillshade",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Ambient",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Ambient",
+    "visualIntentTags": ["terrain", "relief", "topographic"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["monochromatic", "earthy"],
+    "activeEngineId": "engine-vapor-grid",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "presetMode": "performance",
+    "scores": { "opener": 5, "build": 6, "drop": 3, "breakdown": 9, "transition": 5, "utility": 6, "crowdReadability": 7, "perceivedDepth3D": 8 },
+    "cpuCost": "low",
+    "depthScore": 0.8,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "organic",
+    "motionType": "flow",
+    "repetitionRisk": "medium"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Relief Terrain",
+    "intent": "ambient",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-hillshade"], "support": ["gen-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-hillshade",
+        "name": "Hillshade Relief",
+        "role": "core",
+        "enabled": true,
+        "opacity": 1,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-hillshade",
+        "params": { "opacity": 1, "speed": 0.3, "scale": 1.5, "lightAzimuth": 0.7, "vertical": 0.5 }
+      },
+      {
+        "id": "gen-plasma",
+        "name": "Plasma Background",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.15,
+        "blendMode": "multiply",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-plasma",
+        "params": { "opacity": 0.15, "speed": 0.2, "scale": 2.0, "complexity": 0.3, "colorShift": 0.6 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.3, "atmosphere": 1 },
+  "tempoSync": { "bpm": 100, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "hillshade.lightAzimuth", "param": "lightAzimuth" }, "amount": 0.35 },
+    { "source": "audio.rms", "target": { "type": "hillshade.vertical", "param": "vertical" }, "amount": 0.2 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Sun Position", "value": 0.5, "targets": [{ "target": "hillshade.lightAzimuth", "amount": 0.7 }] },
+    { "id": "macro-2", "name": "Terrain Scale", "value": 0.6, "targets": [{ "target": "hillshade.scale", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Plasma Mist", "value": 0.15, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.3 }] }
+  ],
+  "name": "Hillshade",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

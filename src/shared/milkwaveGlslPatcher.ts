@@ -53,6 +53,7 @@ const getFnName = (node: FunctionCallNode): string => {
     const spec = id.specifier;
     if (spec.type === 'keyword') return spec.token;
     if (spec.type === 'identifier') return spec.identifier;
+    if (spec.type === 'type_name') return spec.identifier;
   }
   return '';
 };
@@ -86,22 +87,36 @@ const isInIntContext = (p: Path<any>): boolean => {
 /** Known vec3 variable names in MilkDrop shaders. */
 const VEC3_VARS = new Set(['ret', 'col', 'color', 'orig', 'warped']);
 
+type DimLookup = ReadonlyMap<string, number>;
+
 /** Known scalar-returning function names. */
 const SCALAR_FNS = new Set([
-  'lum', 'dot', 'length', 'distance', 'float', 'abs', 'sign',
-  'floor', 'ceil', 'fract', 'mod', 'min', 'max', 'clamp',
-  'pow', 'sqrt', 'inversesqrt', 'log', 'exp',
+  'lum', 'dot', 'length', 'distance', 'float',
   'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
-  'step', 'smoothstep', 'mix',
   'degrees', 'radians', 'round', 'trunc',
 ]);
 
+/** Functions whose output dimension follows their first argument. */
+const PRESERVE_FIRST_ARG_DIM_FNS = new Set([
+  'abs', 'sign', 'floor', 'ceil', 'fract',
+  'sqrt', 'inversesqrt', 'log', 'exp',
+  'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
+  'sat', 'clamp01', 'pow',
+]);
+
+/** Functions whose output dimension follows the largest vector argument. */
+const PRESERVE_MAX_ARG_DIM_FNS = new Set([
+  'mod', 'min', 'max', 'clamp', 'step', 'smoothstep',
+]);
+
 /** Infer the vec dimensionality of an expression. Returns 1/2/3/4 or 0 if unknown. */
-const inferDim = (node: AstNode): number => {
+const inferDim = (node: AstNode, declaredDims?: DimLookup): number => {
   if (node.type === 'float_constant' || node.type === 'int_constant' || node.type === 'double_constant') return 1;
 
   if (node.type === 'identifier') {
     const name = (node as IdentifierNode).identifier;
+    const declared = declaredDims?.get(name);
+    if (declared) return declared;
     if (VEC3_VARS.has(name)) return 3;
     if (name === 'uv' || name === 'vUv') return 2;
     if (name === 'fragColor') return 4;
@@ -110,6 +125,7 @@ const inferDim = (node: AstNode): number => {
 
   if (node.type === 'function_call') {
     const fn = getFnName(node as FunctionCallNode);
+    const args = getArgs(node as FunctionCallNode);
     if (fn === 'texture' || fn === 'textureLod' || fn === 'textureBias') return 4;
     if (fn === 'vec2') return 2;
     if (fn === 'vec3') return 3;
@@ -117,12 +133,15 @@ const inferDim = (node: AstNode): number => {
     if (fn === 'GetPixel' || fn === 'GetBlur1' || fn === 'GetBlur2' || fn === 'GetBlur3' || fn === 'GetMain') return 3;
     if (fn === 'GetBlurX') return 3;
     if (fn === 'noise3') return 4;
-    if (fn === 'sat') return 0; // depends on arg
-    if (fn === 'clamp01') return 0;
+    if (PRESERVE_FIRST_ARG_DIM_FNS.has(fn)) {
+      return args.length > 0 ? inferDim(args[0], declaredDims) : 0;
+    }
+    if (PRESERVE_MAX_ARG_DIM_FNS.has(fn)) {
+      return args.reduce((maxDim, arg) => Math.max(maxDim, inferDim(arg, declaredDims)), 0);
+    }
     if (fn === 'mix') {
       // mix preserves the dimensionality of its first arg
-      const args = getArgs(node as FunctionCallNode);
-      return args.length > 0 ? inferDim(args[0]) : 0;
+      return args.length > 0 ? inferDim(args[0], declaredDims) : 0;
     }
     if (SCALAR_FNS.has(fn)) return 1;
     return 0;
@@ -139,25 +158,25 @@ const inferDim = (node: AstNode): number => {
     }
     // array access → scalar
     if (pf.type === 'quantifier' || pf.type === 'array_specifier') return 1;
-    return inferDim((node as PostfixNode).expression);
+    return inferDim((node as PostfixNode).expression, declaredDims);
   }
 
   if (node.type === 'binary') {
-    const left = inferDim((node as BinaryNode).left);
-    const right = inferDim((node as BinaryNode).right);
+    const left = inferDim((node as BinaryNode).left, declaredDims);
+    const right = inferDim((node as BinaryNode).right, declaredDims);
     return Math.max(left, right);
   }
 
   if (node.type === 'unary') {
-    return inferDim((node as UnaryNode).expression);
+    return inferDim((node as UnaryNode).expression, declaredDims);
   }
 
   if (node.type === 'group') {
-    return inferDim((node as GroupNode).expression);
+    return inferDim((node as GroupNode).expression, declaredDims);
   }
 
   if (node.type === 'assignment') {
-    return inferDim((node as AssignmentNode).left);
+    return inferDim((node as AssignmentNode).left, declaredDims);
   }
 
   return 0;
@@ -167,12 +186,12 @@ const inferDim = (node: AstNode): number => {
  * Find the enclosing statement's LHS to determine vec context.
  * Returns the inferred dimension of the assignment target, or 0 if unknown.
  */
-const findEnclosingAssignmentDim = (p: Path<any>): number => {
+const findEnclosingAssignmentDim = (p: Path<any>, declaredDims?: DimLookup): number => {
   let ctx: Path<any> | undefined = p;
   while (ctx) {
     const n = ctx.node;
     if (n.type === 'assignment') {
-      return inferDim((n as AssignmentNode).left);
+      return inferDim((n as AssignmentNode).left, declaredDims);
     }
     if (n.type === 'declarator_list') {
       const kw = getTypeKeyword(n as DeclaratorListNode);
@@ -187,6 +206,131 @@ const findEnclosingAssignmentDim = (p: Path<any>): number => {
   }
   return 0;
 };
+
+const getVecDimFromKeyword = (kw: string): number => {
+  if (kw === 'float') return 1;
+  if (kw === 'vec2') return 2;
+  if (kw === 'vec3') return 3;
+  if (kw === 'vec4') return 4;
+  return 0;
+};
+
+const wrapScalarForDim = (node: AstNode, dim: number): AstNode => {
+  if (dim <= 1) return node;
+  return mkFnCall(`vec${dim}`, [node]) as unknown as AstNode;
+};
+
+const collectDeclaredDims = (ast: Program): Map<string, number> => {
+  const declaredDims = new Map<string, number>();
+  visit(ast, {
+    declarator_list: {
+      enter: (p) => {
+        const dim = getVecDimFromKeyword(getTypeKeyword(p.node));
+        if (dim === 0) return;
+        for (const decl of p.node.declarations) {
+          declaredDims.set(decl.identifier.identifier, dim);
+        }
+      },
+    },
+  });
+  return declaredDims;
+};
+
+const sanitizeAstArrays = (node: unknown): void => {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    for (let i = node.length - 1; i >= 0; i--) {
+      if (node[i] == null) node.splice(i, 1);
+      else sanitizeAstArrays(node[i]);
+    }
+    return;
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    sanitizeAstArrays(value);
+  }
+};
+
+const getConstructorDimForSwizzle = (swizzle: string): number => {
+  const componentDim = [...swizzle].reduce((maxDim, component) => {
+    if (component === 'x' || component === 'r') return Math.max(maxDim, 1);
+    if (component === 'y' || component === 'g') return Math.max(maxDim, 2);
+    if (component === 'z' || component === 'b') return Math.max(maxDim, 3);
+    if (component === 'w' || component === 'a') return Math.max(maxDim, 4);
+    return maxDim;
+  }, 0);
+  return Math.max(componentDim, swizzle.length);
+};
+
+const normalizeDanglingStatementCommas = (source: string): string => {
+  const lines = source.split('\n');
+  let parenDepth = 0;
+
+  return lines.map((line) => {
+    const code = line.replace(/\/\/.*$/, '');
+    let lineEndParenDepth = parenDepth;
+    for (const ch of code) {
+      if (ch === '(') lineEndParenDepth++;
+      else if (ch === ')') lineEndParenDepth = Math.max(0, lineEndParenDepth - 1);
+    }
+
+    const trimmed = code.trim();
+    const shouldConvertTrailingComma =
+      parenDepth === 0 &&
+      lineEndParenDepth === 0 &&
+      /,\s*$/.test(trimmed) &&
+      /(=|[+\-*/]=|\breturn\b)/.test(trimmed) &&
+      !/^\s*(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|uvec[234]|bvec[234])\b/.test(trimmed);
+
+    parenDepth = lineEndParenDepth;
+
+    if (!shouldConvertTrailingComma) return line;
+    return line.replace(/,\s*$/, ';');
+  }).join('\n');
+};
+
+const closeUnbalancedMainBlocks = (source: string): string => {
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx === -1) return source;
+  const mainBraceIdx = source.indexOf('{', mainIdx);
+  if (mainBraceIdx === -1) return source;
+  const fragColorIdx = source.lastIndexOf('fragColor');
+  if (fragColorIdx === -1 || fragColorIdx <= mainBraceIdx) return source;
+
+  const segment = source.slice(mainBraceIdx + 1, fragColorIdx);
+  let braceDepth = 1;
+  for (const ch of segment) {
+    if (ch === '{') braceDepth++;
+    else if (ch === '}') braceDepth = Math.max(0, braceDepth - 1);
+  }
+
+  if (braceDepth <= 1) return source;
+  const missingClosers = '}\n'.repeat(braceDepth - 1);
+  return source.slice(0, fragColorIdx) + missingClosers + source.slice(fragColorIdx);
+};
+
+const stripRawTextLines = (source: string): string =>
+  source
+    .split('\n')
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return true;
+      if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) return true;
+      if (trimmed.startsWith('#')) return true;
+      const isRawText =
+        !/[;{}()=+\-*/<>!&|,#]/.test(trimmed) &&
+        !/^\s*(float|vec|mat|int|uint|bool|void|uniform|in|out|const|precision|layout)\b/.test(trimmed);
+      return !isRawText;
+    })
+    .join('\n');
+
+const repairTruncatedMixCalls = (source: string): string =>
+  source.replace(/\bmix\s*\(([\s\S]*?),\s*([\s\S]*?),\s*\)/g, (_match, a: string, b: string) => {
+    const first = a.trim();
+    const second = b.trim();
+    if (!first || !second) return _match;
+    if (/[;{}]$/.test(first) || /[;{}]$/.test(second)) return _match;
+    return `mix(${a},${b}, 0.5)`;
+  });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AST node factories
@@ -266,6 +410,9 @@ const preprocess = (source: string): string => {
   source = source.replace(/\bfloat(\d)x(\d)\b/g, 'mat$1x$2');
   // HLSL `sampler` declarations (e.g., `sampler sampler_rand00 = ;` or `sampler sampler_rand00;`)
   source = source.replace(/\bsampler\s+[^;]+;/g, '');
+  // Local GLSL sampler declarations from imported presets are not valid inside shader bodies.
+  source = source.replace(/^\s*sampler(?:2D|3D|Cube)?\s+\w+\s*;.*$/gm, '');
+  source = source.replace(/^\s*vec4\s+texsize_[a-zA-Z0-9_]+\s*;.*$/gm, '');
   // HLSL semantics (`: COLOR0`, `: SV_TARGET`, etc.)
   source = source.replace(/\)\s*:\s*[A-Z_][A-Z0-9_]*/g, ')');
   // HLSL `tex3D()` → `texture()`
@@ -276,17 +423,76 @@ const preprocess = (source: string): string => {
   source = source.replace(/\btex2[Dd]bias\b/g, 'textureBias');
   // Line continuations: `\` at end of line followed by newline → join lines
   source = source.replace(/\\\s*\n/g, ' ');
+  // Imported shaders sometimes preserve unary `+` after a multiplication token.
+  source = source.replace(/\*\s*\+/g, '* ');
   // `smooth` is a GLSL reserved keyword — rename if used as variable
   source = source.replace(/\bfloat\s+smooth\b/g, 'float smooth_');
   source = source.replace(/\bsmooth\s*(?=[+\-*/=;,)])/g, 'smooth_');
   // Mixed-type comma declarations: `float x, y,\nvec2 a, b;` → split with `;`
   source = source.replace(/,\s*\n\s*(vec[234]|mat[234x]*|float|int|uint|bool|ivec[234]|bvec[234]|uvec[234])\s/g, ';\n$1 ');
+  source = normalizeDanglingStatementCommas(source);
 
   // ── 0b. Strip shader_body keyword everywhere ──
   source = source.replace(/\bshader_body\b/g, '');
+  // Legacy offline-generated aliases mapped volume samplers to 2D noise samplers.
+  // The runtime now binds real 3D textures, so these defines must be removed.
+  source = source.replace(/^\s*#define\s+sampler_noisevol_lq\s+sampler_noise_lq\s*$/gm, '');
+  source = source.replace(/^\s*#define\s+sampler_noisevol_hq\s+sampler_noise_hq\s*$/gm, '');
 
   // ── 0c. Strip double semicolons (empty statements not valid at file scope) ──
   source = source.replace(/;;/g, ';');
+
+  // Helper colors are vec3 in the runtime. Legacy generated shaders sometimes swizzle only one
+  // side of color arithmetic down to .xy, which creates vec3/vec2 mismatches in WebGL2.
+  source = source.replace(
+    /(\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\)\s*[-+]\s*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
+    '$1'
+  );
+  source = source.replace(
+    /(\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\)\s*\+\s*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
+    '$1'
+  );
+  source = source.replace(
+    /(\bclamp01\s*\([^()\n]*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
+    '$1'
+  );
+  source = source.replace(
+    /(\bdot\s*\([^,\n]+,\s*[^()\n]*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
+    '$1'
+  );
+  source = source.replace(
+    /(\b(?:texture(?:Lod)?\s*\((?:[^()]|\([^()]*\))*\)|GetPixel\((?:[^()]|\([^()]*\))*\)|GetMain\((?:[^()]|\([^()]*\))*\)|GetBlur[123]\((?:[^()]|\([^()]*\))*\))\s*[-+]\s*GetPixel\((?:[^()]|\([^()]*\))*\))\.xy/g,
+    '$1'
+  );
+  source = source.replace(
+    /([*+\-/]\s*)(\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy\b/g,
+    '$1$2'
+  );
+  source = source.replace(/\bpow\s*\(\s*ret\s*,\s*([^)]+)\)/g, 'pow(ret, vec3($1))');
+  source = source.replace(/\bpow\s*\(\s*abs\(([^()]*\b(?:GetPixel|GetMain|GetBlur[123])\([^)]*\)[^()]*)\)\s*,\s*([^)]+)\)/g, 'pow(abs($1), vec3($2))');
+  source = source.replace(/\bvec3\s*\(\s*pow\(\s*([^\n]*)\s*,\s*([0-9.]+)\s*\)\s*\)/g, 'pow($1, vec3($2))');
+  source = source.replace(
+    /ret\s*=\s*vec3\s*\(\s*pow\s*\(\s*abs\(([^;\n]+)\)\s*\*\s*1\.0\s*,\s*1\.0\s*\)\s*\)\s*;/g,
+    'ret = pow(abs($1) * 1.0, vec3(1.0));'
+  );
+  source = repairTruncatedMixCalls(source);
+  source = source.replace(/\bsand\s*\*=\s*([a-zA-Z_]\w*)\s*;/g, 'sand *= lum($1);');
+  source = source.replace(/\bsand\s*\+=\s*(Get(?:Pixel|Main|Blur[123])\((?:[^()]|\([^()]*\))*\))\s*;/g, 'sand += lum($1);');
+  source = source.replace(
+    /(?<![\w.)])(-?(?:\d+\.\d+|\d+\.\d*|\d+|\.\d+))\s*\.(xyzw|rgba|xyz|rgb|xy|rg|x|y|z|w|r|g|b|a)\b/g,
+    (_match, literal, swizzle: string) => {
+      const dim = getConstructorDimForSwizzle(swizzle);
+      return dim === 1 ? literal : `vec${dim}(${literal}).${swizzle}`;
+    }
+  );
+  source = source.replace(
+    /(?<![\w])\(\s*(-?(?:\d+\.\d+|\d+\.\d*|\d+|\.\d+))\s*\)\s*\.(xyzw|rgba|xyz|rgb|xy|rg|x|y|z|w|r|g|b|a)\b/g,
+    (_match, literal, swizzle: string) => {
+      const dim = getConstructorDimForSwizzle(swizzle);
+      return dim === 1 ? literal : `vec${dim}(${literal}).${swizzle}`;
+    }
+  );
+  source = source.replace(/\b(vec[234])\s*\(\s*\1\s*\(([^()]*)\)\s*\)/g, '$1($2)');
 
   const mainIdxPre = source.indexOf('void main()');
   if (mainIdxPre !== -1) {
@@ -466,7 +672,12 @@ const preprocess = (source: string): string => {
       }
     }
 
-    source = keepLines.join('\n') + '\n' + afterMain;
+    source = normalizeDanglingStatementCommas(keepLines.join('\n') + '\n' + afterMain);
+    source = source.replace(/(\n\s*\/\/ --- moved from shader_body ---\n)\s*\{\s*\n/g, '$1');
+    source = source.replace(
+      /(\n\s*\/\/ --- moved from shader_body ---[\s\S]*?)\s*}\s*(?:\/\/[^\n]*)?\n(\s*fragColor\s*=)/g,
+      '$1\n$2'
+    );
 
     // ── 0e. Inside void main(): remove nested function definitions ──
     // GLSL doesn't allow function definitions inside other functions.
@@ -553,7 +764,6 @@ const preprocess = (source: string): string => {
     ['sampler_fc_main', 'sampler_main'], ['sampler_pc_main', 'sampler_main'],
     ['sampler_fw_main', 'sampler_main'], ['sampler_pw_main', 'sampler_main'],
     ['sampler_noise_lq_lite', 'sampler_noise_lq'],
-    ['sampler_noisevol_lq', 'sampler_noise_lq'], ['sampler_noisevol_hq', 'sampler_noise_hq'],
     ['sampler_FC_main', 'sampler_main'], ['sampler_PC_main', 'sampler_main'],
     ['sampler_FW_main', 'sampler_main'], ['sampler_PW_main', 'sampler_main'],
     ['sampler_rand01', 'sampler_noise_lq'], ['sampler_rand02', 'sampler_noise_mq'],
@@ -597,6 +807,7 @@ const preprocess = (source: string): string => {
     ['_qe', 'vec4'], ['_qf', 'vec4'], ['_qg', 'vec4'], ['_qh', 'vec4'],
     ['rand_frame', 'vec4'], ['rand_preset', 'vec4'],
     ['texsize_noise_lq', 'vec4'], ['texsize_noise_mq', 'vec4'], ['texsize_noise_hq', 'vec4'],
+    ['sampler_noisevol_lq', 'highp sampler3D'], ['sampler_noisevol_hq', 'highp sampler3D'],
   ];
   for (const [name, type] of builtinUniforms) {
     if (new RegExp(`\\b${name}\\b`).test(source) && !beforeMain.includes(`uniform ${type} ${name}`)) {
@@ -615,6 +826,9 @@ const preprocess = (source: string): string => {
   if (/\blum\s*\(/.test(source) && !beforeMain.includes('float lum(')) {
     additions.push(`float lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }`);
     additions.push(`float lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }`);
+  }
+  if (/\bhue_shader\b/.test(source) && !beforeMain.includes('uniform vec3 hue_shader') && !beforeMain.includes('vec3 hue_shader')) {
+    additions.push(`vec3 hue_shader = vec3(1.0);`);
   }
   if (/\bsat\s*\(/.test(source) && !beforeMain.includes('float sat(')) {
     additions.push(`float sat(float x) { return clamp(x, 0.0, 1.0); }`);
@@ -782,6 +996,14 @@ const preprocess = (source: string): string => {
   patched = patched.replace(/\buTexSize\.z\b/g, '(1.0/uTexSize.x)');
   patched = patched.replace(/\buTexSize\.w\b/g, '(1.0/uTexSize.y)');
   patched = patched.replace(/\buTexSize\.xyzw\b/g, 'vec4(uTexSize, 1.0/uTexSize)');
+  patched = patched.replace(/\buAspect\.zw\b/g, '(vec2(1.0)/uAspect)');
+  patched = patched.replace(/\buAspect\.z\b/g, '(1.0/uAspect.x)');
+  patched = patched.replace(/\buAspect\.w\b/g, '(1.0/uAspect.y)');
+  patched = patched.replace(/\buAspect\.xyzw\b/g, 'vec4(uAspect, vec2(1.0)/uAspect)');
+  patched = normalizeDanglingStatementCommas(patched);
+  patched = closeUnbalancedMainBlocks(patched);
+  patched = stripRawTextLines(patched);
+  patched = repairTruncatedMixCalls(patched);
 
   return patched;
 };
@@ -796,6 +1018,7 @@ const preprocess = (source: string): string => {
  */
 const astTransform = (source: string): string => {
   const ast = parse(source, { stage: 'fragment', quiet: true });
+  sanitizeAstArrays(ast);
 
   // ── Pass 1: int_constant → float_constant ──
   // GLSL ES 3.00 has no implicit int→float promotion.
@@ -845,6 +1068,8 @@ const astTransform = (source: string): string => {
     },
   });
 
+  let declaredDims = collectDeclaredDims(ast as Program);
+
   // ── Pass 3: texture() → texture().xyz in vec3 contexts ──
   visit(ast, {
     function_call: {
@@ -856,7 +1081,7 @@ const astTransform = (source: string): string => {
         if (p.parent?.type === 'postfix') return;
 
         // Check enclosing assignment dimension
-        const dim = findEnclosingAssignmentDim(p);
+        const dim = findEnclosingAssignmentDim(p, declaredDims);
         if (dim === 3) {
           p.replaceWith(mkPostfixSwizzle(p.node as unknown as AstNode, 'xyz') as unknown as AstNode);
         } else if (dim === 2) {
@@ -894,6 +1119,8 @@ const astTransform = (source: string): string => {
     },
   });
 
+  declaredDims = collectDeclaredDims(ast as Program);
+
   // ── Pass 5: fragColor = ret → fragColor = vec4(ret, 1.0) ──
   visit(ast, {
     assignment: {
@@ -922,8 +1149,8 @@ const astTransform = (source: string): string => {
         const args = getArgs(p.node);
         if (args.length !== 2) return;
         const [first, second] = args;
-        const firstDim = inferDim(first);
-        const secondDim = inferDim(second);
+        const firstDim = inferDim(first, declaredDims);
+        const secondDim = inferDim(second, declaredDims);
         if (firstDim >= 2 && secondDim === 1) {
           // Wrap second arg in vec constructor matching first's dimension
           const vecType = `vec${firstDim}`;
@@ -940,7 +1167,35 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 7: min/max(scalar, vec) → min/max(vec, scalar) ──
+  // ── Pass 7: mix(vec, scalar, t) / mix(scalar, vec, t) → mix(vec, vec, t) ──
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (name !== 'mix') return;
+        const args = getArgs(p.node);
+        if (args.length !== 3) return;
+        const [first, second] = args;
+        const firstDim = inferDim(first, declaredDims);
+        const secondDim = inferDim(second, declaredDims);
+        const allArgs = p.node.args;
+
+        if (firstDim >= 2 && secondDim === 1) {
+          const secondIdx = allArgs.indexOf(second);
+          if (secondIdx !== -1) {
+            allArgs[secondIdx] = wrapScalarForDim(second, firstDim);
+          }
+        } else if (firstDim === 1 && secondDim >= 2) {
+          const firstIdx = allArgs.indexOf(first);
+          if (firstIdx !== -1) {
+            allArgs[firstIdx] = wrapScalarForDim(first, secondDim);
+          }
+        }
+      },
+    },
+  });
+
+  // ── Pass 8: min/max(scalar, vec) → min/max(vec, scalar) ──
   // GLSL ES has min/max(genType, float) but NOT min/max(float, genType).
   visit(ast, {
     function_call: {
@@ -950,8 +1205,8 @@ const astTransform = (source: string): string => {
         const args = getArgs(p.node);
         if (args.length !== 2) return;
         const [first, second] = args;
-        const firstDim = inferDim(first);
-        const secondDim = inferDim(second);
+        const firstDim = inferDim(first, declaredDims);
+        const secondDim = inferDim(second, declaredDims);
         if (firstDim === 1 && secondDim >= 2) {
           // Swap args in the raw args array (preserving comma literals)
           const allArgs = p.node.args;
@@ -966,27 +1221,48 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 8: ret = scalar_fn(...) → ret = vec3(scalar_fn(...)) ──
-  // e.g. ret = lum(ret); → ret = vec3(lum(ret));
+  // ── Pass 9: vec declaration initializer promotion ──
+  // e.g. vec3 color = lum(ret); → vec3 color = vec3(lum(ret));
   visit(ast, {
-    assignment: {
+    declarator_list: {
       enter: (p) => {
-        const left = p.node.left;
-        if (left.type !== 'identifier') return;
-        const varName = (left as IdentifierNode).identifier;
-        if (!VEC3_VARS.has(varName)) return;
+        const targetDim = (() => {
+          const kw = getTypeKeyword(p.node);
+          if (kw === 'vec2') return 2;
+          if (kw === 'vec3') return 3;
+          if (kw === 'vec4') return 4;
+          return 0;
+        })();
+        if (targetDim < 2) return;
 
-        const right = p.node.right;
-        const rightDim = inferDim(right);
-        if (rightDim === 1) {
-          // Wrap in vec3()
-          (p.node as any).right = mkFnCall('vec3', [right], ' ') as unknown as AstNode;
+        for (const decl of p.node.declarations) {
+          if (!decl.initializer) continue;
+          if (inferDim(decl.initializer, declaredDims) !== 1) continue;
+          decl.initializer = wrapScalarForDim(decl.initializer, targetDim) as any;
         }
       },
     },
   });
 
-  // ── Pass 9: Binary Dimension Rebalancing (vec3 - vec2 → vec3.xy - vec2) ──
+  declaredDims = collectDeclaredDims(ast as Program);
+
+  // ── Pass 10: vec assignment promotion ──
+  // e.g. ret = lum(ret); → ret = vec3(lum(ret));
+  visit(ast, {
+    assignment: {
+      enter: (p) => {
+        const left = p.node.left;
+        const targetDim = inferDim(left, declaredDims);
+        if (targetDim < 2) return;
+        const right = p.node.right;
+        if (inferDim(right, declaredDims) === 1) {
+          (p.node as any).right = wrapScalarForDim(right, targetDim);
+        }
+      },
+    },
+  });
+
+  // ── Pass 11: Binary Dimension Rebalancing (vec3 - vec2 → vec3.xy - vec2) ──
   visit(ast, {
     binary: {
       enter: (p: Path<BinaryNode>) => {
@@ -996,8 +1272,8 @@ const astTransform = (source: string): string => {
         
         if (!['+', '-', '*', '/'].includes(op)) return;
 
-        const leftDim = inferDim(left);
-        const rightDim = inferDim(right);
+        const leftDim = inferDim(left, declaredDims);
+        const rightDim = inferDim(right, declaredDims);
 
         if (leftDim === 0 || rightDim === 0) return;
         if (leftDim === rightDim) return;

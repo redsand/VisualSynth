@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Sierpinski",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Trance",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Trance",
+    "visualIntentTags": ["fractal", "subdivision", "recursive"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["triadic", "hypnotic"],
+    "activeEngineId": "engine-radial-core",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "presetMode": "performance",
+    "scores": { "opener": 7, "build": 8, "drop": 7, "breakdown": 6, "transition": 7, "utility": 4, "crowdReadability": 7, "perceivedDepth3D": 8 },
+    "cpuCost": "medium",
+    "depthScore": 0.8,
+    "complexity": "high",
+    "role": "build",
+    "visualFamily": "fractal",
+    "motionType": "pulse",
+    "repetitionRisk": "low"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Fractal Subdivision",
+    "intent": "build",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-sierpinski"], "support": ["gen-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-sierpinski",
+        "name": "Sierpinski",
+        "role": "core",
+        "enabled": true,
+        "opacity": 1,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-sierpinski",
+        "params": { "opacity": 1, "speed": 0.8, "depth": 0.7, "rotation": 0.3, "variant": 0 }
+      },
+      {
+        "id": "gen-plasma",
+        "name": "Plasma Background",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.25,
+        "blendMode": "multiply",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-plasma",
+        "params": { "opacity": 0.25, "speed": 0.4, "scale": 1.5, "complexity": 0.6, "colorShift": 0.2 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.5, "atmosphere": 1 },
+  "tempoSync": { "bpm": 138, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "sierpinski.depth", "param": "depth" }, "amount": 0.3 },
+    { "source": "audio.rms", "target": { "type": "sierpinski.rotation", "param": "rotation" }, "amount": 0.25 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Fractal Depth", "value": 0.5, "targets": [{ "target": "sierpinski.depth", "amount": 0.7 }] },
+    { "id": "macro-2", "name": "Spin Rate", "value": 0.5, "targets": [{ "target": "sierpinski.rotation", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Plasma Void", "value": 0.25, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.4 }] }
+  ],
+  "name": "Sierpinski",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

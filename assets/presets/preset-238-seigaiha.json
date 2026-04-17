@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Seigaiha",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "World",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "World",
+    "visualIntentTags": ["japanese", "waves", "circular"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "serene"],
+    "activeEngineId": "engine-kaleido-pulse",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "presetMode": "performance",
+    "scores": { "opener": 6, "build": 6, "drop": 4, "breakdown": 8, "transition": 6, "utility": 5, "crowdReadability": 7, "perceivedDepth3D": 6 },
+    "cpuCost": "low",
+    "depthScore": 0.6,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "organic",
+    "motionType": "flow",
+    "repetitionRisk": "medium"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Japanese Waves",
+    "intent": "ambient",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-seigaiha"], "support": ["gen-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-seigaiha",
+        "name": "Seigaiha Waves",
+        "role": "core",
+        "enabled": true,
+        "opacity": 1,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-seigaiha",
+        "params": { "opacity": 1, "speed": 0.5, "scale": 1.2, "waveCount": 5, "lineWeight": 0.4 }
+      },
+      {
+        "id": "gen-plasma",
+        "name": "Plasma Background",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "multiply",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-plasma",
+        "params": { "opacity": 0.2, "speed": 0.2, "scale": 1.8, "complexity": 0.4, "colorShift": 0.5 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 1 },
+  "tempoSync": { "bpm": 105, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "seigaiha.waveCount", "param": "waveCount" }, "amount": 0.3 },
+    { "source": "audio.rms", "target": { "type": "seigaiha.lineWeight", "param": "lineWeight" }, "amount": 0.2 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Wave Layers", "value": 0.5, "targets": [{ "target": "seigaiha.waveCount", "amount": 0.6 }] },
+    { "id": "macro-2", "name": "Line Weight", "value": 0.5, "targets": [{ "target": "seigaiha.lineWeight", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Plasma Calm", "value": 0.2, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.3 }] }
+  ],
+  "name": "Seigaiha",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Spectrogram",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Any",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Any",
+    "visualIntentTags": ["frequency", "scrolling", "heatmap"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["heat", "analytical"],
+    "activeEngineId": "engine-radial-core",
+    "tag": "utility",
+    "isCoreClubPack": false,
+    "presetMode": "performance",
+    "scores": { "opener": 5, "build": 6, "drop": 6, "breakdown": 5, "transition": 5, "utility": 9, "crowdReadability": 8, "perceivedDepth3D": 3 },
+    "cpuCost": "low",
+    "depthScore": 0.3,
+    "complexity": "low",
+    "role": "utility",
+    "visualFamily": "analytical",
+    "motionType": "scroll",
+    "repetitionRisk": "low"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Scrolling Spectrogram",
+    "intent": "ambient",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-spectrogram"], "support": ["gen-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-spectrogram",
+        "name": "Spectrogram",
+        "role": "core",
+        "enabled": true,
+        "opacity": 1,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-spectrogram",
+        "params": { "opacity": 1, "speed": 1.0, "freqScale": 1.0, "history": 0.7, "colorMap": 0 }
+      },
+      {
+        "id": "gen-plasma",
+        "name": "Plasma Background",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "multiply",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-plasma",
+        "params": { "opacity": 0.2, "speed": 0.3, "scale": 1.5, "complexity": 0.5, "colorShift": 0.4 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 1 },
+  "tempoSync": { "bpm": 120, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "spectrogram.freqScale", "param": "freqScale" }, "amount": 0.25 },
+    { "source": "audio.rms", "target": { "type": "spectrogram.history", "param": "history" }, "amount": 0.2 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Freq Scale", "value": 0.5, "targets": [{ "target": "spectrogram.freqScale", "amount": 0.6 }] },
+    { "id": "macro-2", "name": "Color Map", "value": 0, "targets": [{ "target": "spectrogram.colorMap", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Plasma Backdrop", "value": 0.2, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.3 }] }
+  ],
+  "name": "Spectrogram",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

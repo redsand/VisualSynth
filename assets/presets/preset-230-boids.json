@@ -1,0 +1,87 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Boids",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Ambient",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Ambient",
+    "visualIntentTags": ["flocking", "emergent", "organic"],
+    "defaultTransition": { "durationMs": 600, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["triadic", "balanced"],
+    "activeEngineId": "engine-particle-flow",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "presetMode": "performance",
+    "scores": { "opener": 6, "build": 7, "drop": 5, "breakdown": 8, "transition": 6, "utility": 5, "crowdReadability": 6, "perceivedDepth3D": 5 },
+    "cpuCost": "medium",
+    "depthScore": 0.5,
+    "complexity": "medium",
+    "role": "breakdown",
+    "visualFamily": "organic",
+    "motionType": "flow",
+    "repetitionRisk": "low"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Flocking Emergence",
+    "intent": "ambient",
+    "duration": 0,
+    "transition_in": { "durationMs": 600, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-boids"], "support": ["gen-plasma"], "atmosphere": [] },
+    "layers": [
+      {
+        "id": "gen-boids",
+        "name": "Boids Flock",
+        "role": "core",
+        "enabled": true,
+        "opacity": 1,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-boids",
+        "params": { "opacity": 1, "speed": 0.8, "count": 120, "cohesion": 0.6, "visualRange": 0.5 }
+      },
+      {
+        "id": "gen-plasma",
+        "name": "Plasma Background",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.3,
+        "blendMode": "multiply",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-plasma",
+        "params": { "opacity": 0.3, "speed": 0.4, "scale": 1.5, "complexity": 0.6, "colorShift": 0.2 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.5, "atmosphere": 1 },
+  "tempoSync": { "bpm": 120, "source": "manual" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "boids.speed", "param": "speed" }, "amount": 0.3 },
+    { "source": "audio.rms", "target": { "type": "boids.cohesion", "param": "cohesion" }, "amount": 0.2 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Flock Density", "value": 0.5, "targets": [{ "target": "boids.count", "amount": 0.6 }] },
+    { "id": "macro-2", "name": "Swarm Speed", "value": 0.5, "targets": [{ "target": "boids.speed", "amount": 0.5 }] },
+    { "id": "macro-3", "name": "Plasma Glow", "value": 0.3, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.4 }] }
+  ],
+  "name": "Boids",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}

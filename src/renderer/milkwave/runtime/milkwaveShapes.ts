@@ -36,6 +36,8 @@ export interface MilkwaveShapeVertex {
 }
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+const hasCodeLines = (lines: Array<string | null | undefined>) =>
+  lines.some((line) => typeof line === 'string' && line.trim().length > 0);
 
 export const createMilkwaveShapePlan = ({
   index,
@@ -71,9 +73,9 @@ export const createMilkwaveShapePlan = ({
     b: clamp01(shape.b2),
     a: clamp01(shape.a2)
   },
-  hasInitCode: shape.initCode.some((line) => line.trim().length > 0),
-  hasFrameCode: shape.perFrameCode.some((line) => line.trim().length > 0),
-  hasPointCode: shape.perPointCode.some((line) => line.trim().length > 0)
+  hasInitCode: hasCodeLines(shape.initCode),
+  hasFrameCode: hasCodeLines(shape.perFrameCode),
+  hasPointCode: hasCodeLines(shape.perPointCode)
 });
 
 export const createMilkwaveShapePlans = (ir: MilkwaveIR): MilkwaveShapePlan[] =>

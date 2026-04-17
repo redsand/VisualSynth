@@ -1,0 +1,77 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Metaball",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Data Viz Generators",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Techno",
+    "visualIntentTags": ["organic", "blob", "merging", "isosurface"],
+    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "activeModeId": "mode-ignite",
+    "colorChemistry": ["warm", "fluid"],
+    "activeEngineId": "engine-particle-flow",
+    "tag": "hero",
+    "isCoreClubPack": false,
+    "scores": { "opener": 7, "build": 8, "drop": 9, "breakdown": 6, "transition": 6, "utility": 5, "crowdReadability": 8, "perceivedDepth3D": 6 },
+    "cpuCost": "high",
+    "depthScore": 0.6,
+    "complexity": "high",
+    "role": "drop",
+    "visualFamily": "organic",
+    "motionType": "flow",
+    "repetitionRisk": "low"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Metaball Scene",
+      "intent": "chaos",
+      "duration": 0,
+      "transition_in": { "durationMs": 500, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 500, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-metaball"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-metaball",
+          "name": "Metaball",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "normal",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-metaball",
+          "params": { "opacity": 1, "speed": 1, "count": 5, "threshold": 1.5, "scale": 2 }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 1, "atmosphere": 1 },
+  "tempoSync": { "bpm": 130, "source": "auto" },
+  "modulations": [
+    { "source": "audio.rms", "target": { "type": "metaball", "param": "threshold" }, "amount": -0.3 },
+    { "source": "audio.low", "target": { "type": "metaball", "param": "scale" }, "amount": 0.2 }
+  ],
+  "macros": [
+    { "id": "macro-1", "name": "Blobs", "value": 0.5, "targets": [{ "target": "metaball.count", "amount": 0.5 }, { "target": "metaball.threshold", "amount": -0.3 }] },
+    { "id": "macro-2", "name": "Goo", "value": 0.5, "targets": [{ "target": "metaball.threshold", "amount": -0.4 }, { "target": "metaball.scale", "amount": 0.3 }] },
+    { "id": "macro-3", "name": "Motion", "value": 0.5, "targets": [{ "target": "metaball.speed", "amount": 0.6 }] }
+  ],
+  "name": "Metaball",
+  "createdAt": "2026-04-16T00:00:00.000Z",
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "modMatrix": [],
+  "midiMappings": [],
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "assets": [],
+  "plugins": [],
+  "lfos": [],
+  "envelopes": [],
+  "sampleHold": []
+}
