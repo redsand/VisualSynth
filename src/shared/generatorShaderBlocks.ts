@@ -6093,7 +6093,7 @@ vec3 flowField(vec2 uv, float t) {
     col += getPaletteColor(i / count) * exp(-headDist * 40.0) * 0.5 * (0.5 + bandAudio * 0.5);
   }
   return col * uFlowFieldOpacity;
-}`,`,
+}`,
     mainCall: `  if (uFlowFieldEnabled > 0.5) color += flowField(effectUv, uTime);
 `
   },
