@@ -1,0 +1,582 @@
+{
+  "version": 6,
+  "name": "Live Mode Showcase",
+  "createdAt": "2026-04-18T00:00:00.000Z",
+  "updatedAt": "2026-04-18T00:00:00.000Z",
+  "output": { "enabled": true, "fullscreen": false, "scale": 1 },
+  "stylePresets": [
+    { "id": "style-neutral", "name": "Neutral", "settings": { "contrast": 1, "saturation": 1, "paletteShift": 0 } }
+  ],
+  "activeStylePresetId": "style-neutral",
+  "palettes": [
+    { "id": "heat", "name": "Heat", "colors": ["#000000", "#ff0000", "#ff7f00", "#ffff00", "#ffffff"] },
+    { "id": "ocean", "name": "Ocean", "colors": ["#000000", "#0000ff", "#007fff", "#00ffff", "#ffffff"] },
+    { "id": "synthwave", "name": "Synthwave", "colors": ["#000000", "#ff00ff", "#00ffff", "#ff0080", "#ffffff"] },
+    { "id": "prism", "name": "Prism", "colors": ["#ff2a6d", "#ff8c42", "#f6e05e", "#5ef38c", "#3a86ff"] },
+    { "id": "velvet", "name": "Velvet", "colors": ["#3a0ca3", "#7209b7", "#b5179e", "#f72585", "#4cc9f0"] },
+    { "id": "voltage", "name": "Voltage", "colors": ["#fb5607", "#ffbe0b", "#3a86ff", "#8338ec", "#ff006e"] }
+  ],
+  "activePaletteId": "velvet",
+  "macros": [
+    { "id": "macro-1", "name": "Energy", "value": 0.5, "targets": [{ "target": "effects.bloom", "amount": 0.6 }] },
+    { "id": "macro-2", "name": "Motion", "value": 0.5, "targets": [] },
+    { "id": "macro-3", "name": "Color", "value": 0.5, "targets": [] },
+    { "id": "macro-4", "name": "Density", "value": 0.5, "targets": [] },
+    { "id": "macro-5", "name": "Macro 5", "value": 0.5, "targets": [] },
+    { "id": "macro-6", "name": "Macro 6", "value": 0.5, "targets": [] },
+    { "id": "macro-7", "name": "Macro 7", "value": 0.5, "targets": [] },
+    { "id": "macro-8", "name": "Macro 8", "value": 0.5, "targets": [] }
+  ],
+  "effects": {
+    "enabled": true,
+    "bloom": 0.4,
+    "blur": 0.1,
+    "chroma": 0.15,
+    "posterize": 0.05,
+    "kaleidoscope": 0,
+    "feedback": 0.1,
+    "persistence": 0.2
+  },
+  "expressiveFx": {
+    "enabled": true,
+    "energyBloom": {
+      "enabled": true,
+      "macro": 0.35,
+      "intentBinding": { "enabled": true, "intent": "build", "amount": 0.35 },
+      "expert": { "threshold": 0.55, "accumulation": 0.65 }
+    },
+    "radialGravity": {
+      "enabled": false,
+      "macro": 0.3,
+      "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 },
+      "expert": { "strength": 0.6, "radius": 0.65, "focusX": 0.5, "focusY": 0.5 }
+    },
+    "motionEcho": {
+      "enabled": true,
+      "macro": 0.3,
+      "intentBinding": { "enabled": true, "intent": "build", "amount": 0.3 },
+      "expert": { "decay": 0.6, "warp": 0.35 }
+    },
+    "spectralSmear": {
+      "enabled": false,
+      "macro": 0.3,
+      "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 },
+      "expert": { "offset": 0.4, "mix": 0.6 }
+    }
+  },
+  "particles": { "enabled": false, "density": 0.5, "speed": 0.5, "size": 0.5, "glow": 0.5 },
+  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "visualizer": { "enabled": false, "mode": "off", "opacity": 0.8, "macroEnabled": false, "macroId": 8 },
+  "lfos": [
+    { "id": "lfo-1", "name": "LFO 1", "shape": "sine", "rate": 0.5, "sync": true, "phase": 0 },
+    { "id": "lfo-2", "name": "LFO 2", "shape": "triangle", "rate": 1, "sync": true, "phase": 0.25 },
+    { "id": "lfo-3", "name": "LFO 3", "shape": "saw", "rate": 0.75, "sync": true, "phase": 0.5 },
+    { "id": "lfo-4", "name": "LFO 4", "shape": "square", "rate": 0.35, "sync": false, "phase": 0.1 }
+  ],
+  "envelopes": [
+    { "id": "env-1", "name": "Env 1", "trigger": "engine.low", "threshold": 0.65, "attack": 0.05, "decay": 0.2, "sustain": 0.4, "hold": 0.1, "release": 0.8 },
+    { "id": "env-2", "name": "Env 2", "attack": 0.1, "decay": 0.3, "sustain": 0.5, "release": 0.4, "hold": 0.5, "trigger": "strobe", "threshold": 0.4 },
+    { "id": "env-3", "name": "Env 3", "attack": 0.08, "decay": 0.25, "sustain": 0.5, "release": 0.35, "hold": 0.3, "trigger": "audio.peak", "threshold": 0.5 },
+    { "id": "env-4", "name": "Env 4", "attack": 0.15, "decay": 0.35, "sustain": 0.45, "release": 0.5, "hold": 0.45, "trigger": "strobe", "threshold": 0.35 }
+  ],
+  "sampleHold": [
+    { "id": "sh-1", "name": "S&H 1", "rate": 0.5, "sync": true, "smooth": 0.2 },
+    { "id": "sh-2", "name": "S&H 2", "rate": 2, "sync": false, "smooth": 0.1 }
+  ],
+  "padMappings": [],
+  "timelineMarkers": [],
+  "assets": [],
+  "plugins": [],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Dimensional Rift",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-dimensional-rift"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-dimensional-rift",
+          "name": "Dimensional Rift",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-dimensional-rift",
+          "params": { "opacity": 1, "speed": 1.2, "intensity": 0.8, "depth": 1.5 }
+        }
+      ]
+    },
+    {
+      "id": "scene-2",
+      "scene_id": "scene-2",
+      "name": "Noir Cuts",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-noir-cuts"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-noir-cuts",
+          "name": "Noir Cuts",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-noir-cuts",
+          "params": { "opacity": 1, "speed": 1, "bladeCount": 8, "contrast": 0.7 }
+        }
+      ]
+    },
+    {
+      "id": "scene-3",
+      "scene_id": "scene-3",
+      "name": "Shattered Illusions",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-shatter"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-shatter",
+          "name": "Shattered Illusions",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-shatter",
+          "params": { "opacity": 1, "speed": 0.8, "shards": 12, "spread": 0.5, "rotation": 0.3 }
+        }
+      ]
+    },
+    {
+      "id": "scene-4",
+      "scene_id": "scene-4",
+      "name": "Cyber Spells",
+      "intent": "chaos",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-boids"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-boids",
+          "name": "Cyber Spells",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-boids",
+          "params": { "opacity": 1, "speed": 1, "count": 30, "separation": 0.5, "cohesion": 0.3 }
+        }
+      ]
+    },
+    {
+      "id": "scene-5",
+      "scene_id": "scene-5",
+      "name": "Retro Riot",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-crosshatch"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-crosshatch",
+          "name": "Retro Riot",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-crosshatch",
+          "params": { "opacity": 1, "speed": 0.8, "density": 20, "angle": 0.785, "lineWidth": 0.5 }
+        }
+      ]
+    },
+    {
+      "id": "scene-6",
+      "scene_id": "scene-6",
+      "name": "Raw Reflections",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-flow-field"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-flow-field",
+          "name": "Raw Reflections",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-flow-field",
+          "params": { "opacity": 1, "speed": 0.8, "scale": 5, "turbulence": 1, "particleCount": 200 }
+        }
+      ]
+    },
+    {
+      "id": "scene-7",
+      "scene_id": "scene-7",
+      "name": "Offset Flow",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-truchet-tiles"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-truchet-tiles",
+          "name": "Offset Flow",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-truchet-tiles",
+          "params": { "opacity": 1, "speed": 0.6, "scale": 8, "style": 0, "lineWidth": 0.3 }
+        }
+      ]
+    },
+    {
+      "id": "scene-8",
+      "scene_id": "scene-8",
+      "name": "Glitch & Doom",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-seigaiha"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-seigaiha",
+          "name": "Glitch & Doom",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-seigaiha",
+          "params": { "opacity": 1, "speed": 0.5, "scale": 6, "layers": 4, "waveHeight": 0.5 }
+        }
+      ]
+    },
+    {
+      "id": "scene-9",
+      "scene_id": "scene-9",
+      "name": "Textural Memories",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-spectrogram"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-spectrogram",
+          "name": "Textural Memories",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-spectrogram",
+          "params": { "opacity": 1, "speed": 1, "timeWindow": 2, "colorMap": 0, "gain": 1 }
+        }
+      ]
+    },
+    {
+      "id": "scene-10",
+      "scene_id": "scene-10",
+      "name": "Retina Refill",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-halftone"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-halftone",
+          "name": "Retina Refill",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-halftone",
+          "params": { "opacity": 1, "speed": 0.6, "scale": 20, "angle": 0.785, "style": 0 }
+        }
+      ]
+    },
+    {
+      "id": "scene-11",
+      "scene_id": "scene-11",
+      "name": "Gravity Well",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-orbital"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-orbital",
+          "name": "Gravity Well",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-orbital",
+          "params": { "opacity": 1, "speed": 0.9, "count": 6, "trailLen": 0.7, "gravity": 1.5 }
+        }
+      ]
+    },
+    {
+      "id": "scene-12",
+      "scene_id": "scene-12",
+      "name": "Conic Sweep",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-conic-gradient"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-conic-gradient",
+          "name": "Conic Sweep",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-conic-gradient",
+          "params": { "opacity": 1, "speed": 0.8, "segments": 12, "rotation": 0.3, "sharpness": 0.2 }
+        }
+      ]
+    },
+    {
+      "id": "scene-13",
+      "scene_id": "scene-13",
+      "name": "Strip Scan",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-barcode"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-barcode",
+          "name": "Strip Scan",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-barcode",
+          "params": { "opacity": 1, "speed": 1.5, "density": 40, "thickness": 0.6, "mirror": 1 }
+        }
+      ]
+    },
+    {
+      "id": "scene-14",
+      "scene_id": "scene-14",
+      "name": "Iron Spike",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-ferrofluid"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-ferrofluid",
+          "name": "Iron Spike",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-ferrofluid",
+          "params": { "opacity": 1, "speed": 0.9, "spikes": 8, "magnetism": 1.5, "smooth": 0.2 }
+        }
+      ]
+    },
+    {
+      "id": "scene-15",
+      "scene_id": "scene-15",
+      "name": "Press Print",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-halftone"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-halftone",
+          "name": "Press Print",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-halftone",
+          "params": { "opacity": 1, "speed": 0.5, "scale": 25, "angle": 0.5, "style": 0.33 }
+        }
+      ]
+    },
+    {
+      "id": "scene-16",
+      "scene_id": "scene-16",
+      "name": "Data Corrupt",
+      "intent": "chaos",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-pixel-sort"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-pixel-sort",
+          "name": "Data Corrupt",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-pixel-sort",
+          "params": { "opacity": 1, "speed": 2, "threshold": 0.3, "direction": 0, "glitch": 0.7 }
+        }
+      ]
+    },
+    {
+      "id": "scene-17",
+      "scene_id": "scene-17",
+      "name": "Water Surface",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-ripple-pond"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-ripple-pond",
+          "name": "Water Surface",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-ripple-pond",
+          "params": { "opacity": 1, "speed": 0.4, "drops": 4, "decay": 0.6, "refraction": 1.2 }
+        }
+      ]
+    },
+    {
+      "id": "scene-18",
+      "scene_id": "scene-18",
+      "name": "Hex Hive",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-hex-grid"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-hex-grid",
+          "name": "Hex Hive",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-hex-grid",
+          "params": { "opacity": 1, "speed": 0.9, "scale": 12, "pulse": 0.7, "border": 0.4 }
+        }
+      ]
+    },
+    {
+      "id": "scene-19",
+      "scene_id": "scene-19",
+      "name": "Thread Count",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-woven"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-woven",
+          "name": "Thread Count",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-woven",
+          "params": { "opacity": 1, "speed": 0.3, "scale": 18, "threadWidth": 0.7, "pattern": 0.5 }
+        }
+      ]
+    },
+    {
+      "id": "scene-20",
+      "scene_id": "scene-20",
+      "name": "Prism Flare",
+      "intent": "build",
+      "duration": 0,
+      "transition_in": { "durationMs": 200, "curve": "easeInOut" },
+      "transition_out": { "durationMs": 200, "curve": "easeInOut" },
+      "trigger": { "type": "manual" },
+      "assigned_layers": { "core": ["gen-chromatic-aberr"], "support": [], "atmosphere": [] },
+      "layers": [
+        {
+          "id": "gen-chromatic-aberr",
+          "name": "Prism Flare",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "generatorId": "gen-chromatic-aberr",
+          "params": { "opacity": 1, "speed": 1, "dispersion": 0.8, "rings": 4, "intensity": 1.2 }
+        }
+      ]
+    }
+  ],
+  "modMatrix": [],
+  "midiMappings": [],
+  "activeSceneId": "scene-1",
+  "activeModeId": "mode-cosmic",
+  "activeEngineId": "engine-none",
+  "colorChemistry": ["velvet", "balanced"],
+  "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 },
+  "tempoSync": { "bpm": 128, "source": "auto" },
+  "customShaderBlocks": [],
+  "overlays": []
+}

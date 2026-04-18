@@ -225,11 +225,30 @@ const ensureOverlayAssets = (project: VisualSynthProject) => {
       .map((asset) => normalizeAssetPath(asset.path))
       .filter((path): path is string => Boolean(path))
   );
+  // Index existing embedded assets by filename so we can resolve relative overlay paths
+  const embeddedByFilename = new Map<string, AssetItem>();
+  for (const asset of project.assets) {
+    if (asset.embeddedData) {
+      const filename = asset.name.split(/[\\/]/).pop() ?? asset.name;
+      embeddedByFilename.set(filename, asset);
+    }
+  }
   const overlayAssets: AssetItem[] = [];
   (project.overlays ?? []).forEach((overlay) => {
     if (overlay.type !== 'image' || !overlay.assetPath) return;
     const normalizedPath = normalizeAssetPath(overlay.assetPath);
-    if (!normalizedPath || existingPaths.has(normalizedPath)) return;
+    if (!normalizedPath) return;
+    // If the overlay path is already registered (exact match), skip
+    if (existingPaths.has(normalizedPath)) return;
+    // If there's an existing embedded asset whose filename matches the overlay path's
+    // filename, rewrite the overlay's assetPath to the embedded data URL instead of
+    // creating a new asset entry that would show up as missing.
+    const filename = normalizedPath.split('/').pop() ?? normalizedPath;
+    const matchingEmbedded = embeddedByFilename.get(filename);
+    if (matchingEmbedded?.embeddedData) {
+      overlay.assetPath = matchingEmbedded.embeddedData;
+      return;
+    }
     existingPaths.add(normalizedPath);
     overlayAssets.push(
       createAssetItem({

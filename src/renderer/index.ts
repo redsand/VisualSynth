@@ -102,7 +102,7 @@ declare global {
         defaultName: string
       ) => Promise<{ canceled: boolean; filePath?: string }>;
       openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; error?: string }>;
-      openSceneFile: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
+      openSceneFile: () => Promise<{ canceled: boolean; files?: { filePath: string; payload: string }[] }>;
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
@@ -3922,15 +3922,12 @@ const saveSceneAsPreset = async (sceneId: string) => {
   }
 };
 
-const importSceneFromDisk = async () => {
-  const result = await window.visualSynth.openSceneFile();
-  if (result.canceled || !result.payload) return;
-
+const importOneSceneFile = async (filePath: string, payload: string) => {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(result.payload);
+    parsed = JSON.parse(payload);
   } catch {
-    setStatus('Scene import failed: invalid JSON.');
+    setStatus(`Scene import failed: invalid JSON (${filePath.split(/[\\/]/).pop()}).`);
     return;
   }
 
@@ -3951,7 +3948,7 @@ const importSceneFromDisk = async () => {
         parsedProject.data.scenes[0]?.look?.activePaletteId ||
         undefined,
       statusLabel: 'Scene imported',
-      presetPath: result.filePath
+      presetPath: filePath
     });
     return;
   }
@@ -4000,8 +3997,16 @@ const importSceneFromDisk = async () => {
       migratedPreset.project?.scenes?.[0]?.look?.activePaletteId ||
       undefined,
     statusLabel: 'Scene imported',
-    presetPath: result.filePath
+    presetPath: filePath
   });
+};
+
+const importSceneFromDisk = async () => {
+  const result = await window.visualSynth.openSceneFile();
+  if (result.canceled || !result.files?.length) return;
+  for (const { filePath, payload } of result.files) {
+    await importOneSceneFile(filePath, payload);
+  }
 };
 
 const ACTIVATE_NOW_TRANSITION_OPTIONS: Array<{ label: string; transition: SceneTransition | null }> = [
@@ -14558,6 +14563,7 @@ const init = async () => {
   console.log('[Init] Starting initPresets...');
   await initPresets();
   console.log('[Init] initPresets completed');
+  if (activeMode === 'live') renderLivePadGrid();
 
   updateLoadingProgress(20, 'Loading templates...');
   console.log('[Init] Starting initTemplates...');

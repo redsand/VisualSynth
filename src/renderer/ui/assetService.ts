@@ -128,7 +128,7 @@ export const assetService = {
       return {
         id: asset.id,
         kind: asset.kind,
-        resolvedPath: asset.path,
+        resolvedPath: asset.path ?? '',
         missing: false,
         status: 'resolved'
       };
@@ -186,7 +186,7 @@ export const assetService = {
   resolveAllAssets: async (assets: AssetItem[], projectPath: string | null = null): Promise<Record<string, AssetRef>> => {
     const results: Record<string, AssetRef> = {};
     const pathsToCheck = assets
-      .filter((a) => a.kind !== 'internal' && a.path)
+      .filter((a) => a.kind !== 'internal' && a.path && !a.embeddedData && !a.path.startsWith('data:'))
       .map((a) => a.path!);
 
     const checkResults = pathsToCheck.length > 0
@@ -235,7 +235,7 @@ export const assetService = {
         results[asset.id] = {
           id: asset.id,
           kind: asset.kind,
-          resolvedPath: asset.path,
+          resolvedPath: asset.path ?? '',
           missing: false,
           status: 'resolved'
         };
@@ -255,7 +255,7 @@ export const assetService = {
           results[asset.id] = {
             id: asset.id,
             kind: asset.kind,
-            resolvedPath: asset.path,
+            resolvedPath: asset.path ?? '',
             originalPath: asset.path,
             missing: true,
             status: 'missing'
@@ -267,7 +267,7 @@ export const assetService = {
         results[asset.id] = {
           id: asset.id,
           kind: asset.kind,
-          resolvedPath: asset.path,
+          resolvedPath: asset.path ?? '',
           originalPath: asset.path,
           missing: true,
           status: 'missing'
@@ -296,7 +296,7 @@ export const assetService = {
           results[asset.id] = {
             id: asset.id,
             kind: asset.kind,
-            resolvedPath: asset.path,
+            resolvedPath: asset.path ?? '',
             originalPath: asset.path,
             missing: true,
             status: 'missing'

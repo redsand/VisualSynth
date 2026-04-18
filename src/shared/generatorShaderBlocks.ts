@@ -5650,7 +5650,7 @@ uniform float uDrosteFrameCount;
     vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
     vec2 scaled = rotated / (0.5 + frameRadius * 1.5) + 0.5;
     if (scaled.x < 0.0 || scaled.x > 1.0 || scaled.y < 0.0 || scaled.y > 1.0) continue;
-    float specIdx = int(clamp(scaled.x * 63.0, 0.0, 63.0));
+    int specIdx = int(clamp(scaled.x * 63.0, 0.0, 63.0));
     float audio = uSpectrum[specIdx];
     float fade = 1.0 - i / count;
     float innerMask = smoothstep(0.5, 0.45, radius);
@@ -5955,7 +5955,7 @@ uniform float uHolographicPrismFacets;
   r += sin(dist * 20.0 - t * uHolographicPrismSpeed * 2.0) * 0.15;
   g += sin(dist * 20.0 - t * uHolographicPrismSpeed * 2.0 + 2.094) * 0.15;
   b += sin(dist * 20.0 - t * uHolographicPrismSpeed * 2.0 + 4.189) * 0.15;
-  float specIdx = int(clamp(abs(angle) * 10.0, 0.0, 63.0));
+  int specIdx = int(clamp(abs(angle) * 10.0, 0.0, 63.0));
   float audio = uSpectrum[specIdx];
   vec3 rainbow = vec3(
     sin(fromCenter * 6.28318 + t * uHolographicPrismSpeed * 0.3) * 0.5 + 0.5,
@@ -6184,7 +6184,7 @@ vec3 hillshade(vec2 uv, float t) {
   float altitude = 0.6;
   vec3 lightDir = normalize(vec3(cos(azimuth) * cos(altitude), sin(azimuth) * cos(altitude), sin(altitude)));
   float diffuse = max(dot(normal, lightDir), 0.0);
-  float specIdx2 = int(clamp(abs(h) * 20.0, 0.0, 63.0));
+  int specIdx2 = int(clamp(abs(h) * 20.0, 0.0, 63.0));
   float audio = uSpectrum[specIdx2];
   float ambient = 0.25 + audio * 0.1;
   float shade = ambient + diffuse * 0.75;
@@ -6758,7 +6758,7 @@ uniform float uPixelSortGlitch;`,
   float sortDir = direction < 0.5 ? uv.x : uv.y;
   float sortPerp = direction < 0.5 ? uv.y : uv.x;
   float sortLen = 0.02 + glitch * 0.15 + audio * 0.08;
-  float triggerBand = int(sortPerp * 8.0 + t * uPixelSortSpeed * 2.0) % 8;
+  int triggerBand = int(sortPerp * 8.0 + t * uPixelSortSpeed * 2.0) % 8;
   float trigger = step(threshold, sin(triggerBand * 3.14159 + t * uPixelSortSpeed));
   float sortOffset = trigger * sortLen * sin(sortPerp * 50.0 + t * 5.0);
   float glitchBand = step(0.95, fract(sin(floor(sortPerp * 20.0 + t * uPixelSortSpeed) * 43.7) * 17.3));

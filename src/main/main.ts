@@ -511,14 +511,16 @@ ipcMain.handle('scene:open', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Open VisualSynth Scene',
     filters: [{ name: 'VisualSynth JSON', extensions: ['json'] }],
-    properties: ['openFile']
+    properties: ['openFile', 'multiSelections']
   });
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true };
   }
-  const filePath = result.filePaths[0];
-  const payload = fs.readFileSync(filePath, 'utf-8');
-  return { canceled: false, filePath, payload };
+  const files = result.filePaths.map((filePath) => ({
+    filePath,
+    payload: fs.readFileSync(filePath, 'utf-8'),
+  }));
+  return { canceled: false, files };
 });
 
 ipcMain.handle('project:load-showcase', async () => {

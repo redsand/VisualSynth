@@ -23,7 +23,9 @@ const loadImage = (path: string): HTMLImageElement | null => {
   const cached = imageCache.get(path);
   if (cached && cached.path === path) return cached.img;
   const img = new Image();
-  img.src = path.startsWith('file:') ? path : `file:///${path.replace(/\\/g, '/')}`;
+  img.src = (path.startsWith('file:') || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('http'))
+    ? path
+    : `file:///${path.replace(/\\/g, '/')}`;
   img.onload = () => imageCache.set(path, { img, path });
   img.onerror = () => console.warn('[Overlay] Failed to load image:', path);
   imageCache.set(path, { img, path });

@@ -767,9 +767,6 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     Number(gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) ?? 1)
   );
 
-  // Query GPU texture unit limit once at init
-  const maxTextureUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
-
   let warpProgram: WebGLProgram | null = null;
   let compProgram: WebGLProgram | null = null;
   let blurProgram: WebGLProgram | null = null;
