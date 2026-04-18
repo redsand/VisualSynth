@@ -6571,7 +6571,7 @@ uniform float uConicGradientSharpness;`,
   float seg = fract(segAngle + t * uConicGradientSpeed * 0.1);
   float edge = abs(seg - 0.5) * 2.0;
   float gradVal = mix(seg, edge, sharpness);
-  gradVal += sin(radius * 20.0 - t * uOrbitalSpeed * 2.0) * 0.15 * (1.0 - sharpness);
+  gradVal += sin(radius * 20.0 - t * uConicGradientSpeed * 2.0) * 0.15 * (1.0 - sharpness);
   gradVal = clamp(gradVal, 0.0, 1.0);
   float radialFade = smoothstep(0.55, 0.15, radius);
   float segIndex = floor(segAngle);

@@ -6,13 +6,26 @@
     "createdAt": "2026-04-16T00:00:00.000Z",
     "updatedAt": "2026-04-16T00:00:00.000Z",
     "category": "Noir Cuts",
-    "compatibility": { "minVersion": "0.9.0" },
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
     "presetType": "scene",
     "intendedMusicStyle": "Jazz",
-    "visualIntentTags": ["noir", "ink", "dark", "engraving"],
-    "defaultTransition": { "durationMs": 200, "curve": "easeInOut" },
+    "visualIntentTags": [
+      "noir",
+      "ink",
+      "dark",
+      "engraving"
+    ],
+    "defaultTransition": {
+      "durationMs": 200,
+      "curve": "easeInOut"
+    },
     "activeModeId": "mode-cosmic",
-    "colorChemistry": ["monochromatic", "noir"],
+    "colorChemistry": [
+      "monochromatic",
+      "noir"
+    ],
     "activeEngineId": "engine-none",
     "tag": "live",
     "isCoreClubPack": false,
@@ -20,7 +33,16 @@
     "playlistDuration": 8,
     "playlistTransition": 200,
     "midiPadIndex": 1,
-    "scores": { "opener": 5, "build": 6, "drop": 5, "breakdown": 9, "transition": 5, "utility": 4, "crowdReadability": 7, "perceivedDepth3D": 5 },
+    "scores": {
+      "opener": 5,
+      "build": 6,
+      "drop": 5,
+      "breakdown": 9,
+      "transition": 5,
+      "utility": 4,
+      "crowdReadability": 7,
+      "perceivedDepth3D": 5
+    },
     "cpuCost": "low",
     "depthScore": 0.5,
     "complexity": "low",
@@ -29,33 +51,67 @@
     "motionType": "flow",
     "repetitionRisk": "medium"
   },
-  "scenes": [{
-    "id": "scene-1",
-    "scene_id": "scene-1",
-    "name": "Noir Cuts",
-    "intent": "breakdown",
-    "duration": 0,
-    "transition_in": { "durationMs": 200, "curve": "easeInOut" },
-    "transition_out": { "durationMs": 200, "curve": "easeInOut" },
-    "trigger": { "type": "manual" },
-    "assigned_layers": { "core": ["gen-crosshatch"], "support": [], "atmosphere": [] },
-    "layers": [
-      {
-        "id": "gen-crosshatch",
-        "name": "Noir Cuts",
-        "role": "core",
-        "enabled": true,
-        "opacity": 1,
-        "blendMode": "screen",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-crosshatch",
-        "params": { "opacity": 1, "speed": 0.6, "density": 0.8, "angle1": 0.25, "angle2": 0.75 }
-      }
-    ]
-  }],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Noir Cuts",
+      "intent": "calm",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 200,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 200,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "gen-crosshatch"
+        ],
+        "support": [],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "gen-crosshatch",
+          "name": "Noir Cuts",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "generatorId": "gen-crosshatch",
+          "params": {
+            "opacity": 1,
+            "speed": 0.6,
+            "density": 0.8,
+            "angle1": 0.25,
+            "angle2": 0.75
+          }
+        }
+      ]
+    }
+  ],
   "activeSceneId": "scene-1",
-  "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 },
-  "tempoSync": { "bpm": 110, "source": "auto" },
+  "roleWeights": {
+    "core": 1,
+    "support": 0,
+    "atmosphere": 0
+  },
+  "tempoSync": {
+    "bpm": 110,
+    "source": "auto"
+  },
   "modulations": [],
   "macros": [],
   "name": "Noir Cuts",
@@ -63,7 +119,15 @@
   "updatedAt": "2026-04-16T00:00:00.000Z",
   "modMatrix": [],
   "midiMappings": [],
-  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
   "assets": [],
   "plugins": [],
   "lfos": [],
@@ -75,70 +139,551 @@
     "category": "Live",
     "createdAt": "2026-04-16T00:00:00.000Z",
     "updatedAt": "2026-04-16T00:00:00.000Z",
-    "output": { "enabled": true, "fullscreen": false, "scale": 1 },
+    "output": {
+      "enabled": true,
+      "fullscreen": false,
+      "scale": 1
+    },
     "stylePresets": [
-      { "id": "style-neutral", "name": "Neutral", "settings": { "contrast": 1, "saturation": 1, "paletteShift": 0 } },
-      { "id": "style-surge", "name": "Surge", "settings": { "contrast": 1.2, "saturation": 1.4, "paletteShift": 0.08 } }
+      {
+        "id": "style-neutral",
+        "name": "Neutral",
+        "settings": {
+          "contrast": 1,
+          "saturation": 1,
+          "paletteShift": 0
+        }
+      },
+      {
+        "id": "style-surge",
+        "name": "Surge",
+        "settings": {
+          "contrast": 1.2,
+          "saturation": 1.4,
+          "paletteShift": 0.08
+        }
+      }
     ],
     "activeStylePresetId": "style-neutral",
     "palettes": [
-      { "id": "heat", "name": "Heat", "colors": ["#000000", "#ff0000", "#ff7f00", "#ffff00", "#ffffff"] },
-      { "id": "ocean", "name": "Ocean", "colors": ["#000000", "#0000ff", "#007fff", "#00ffff", "#ffffff"] },
-      { "id": "synthwave", "name": "Synthwave", "colors": ["#000000", "#ff00ff", "#00ffff", "#ff0080", "#ffffff"] },
-      { "id": "ember", "name": "Ember", "colors": ["#7a0011", "#ff2d00", "#ff6a00", "#ff9f1c", "#ffd000"] },
-      { "id": "prism", "name": "Prism", "colors": ["#ff2a6d", "#ff8c42", "#f6e05e", "#5ef38c", "#3a86ff"] },
-      { "id": "velvet", "name": "Velvet", "colors": ["#3a0ca3", "#7209b7", "#b5179e", "#f72585", "#4cc9f0"] },
-      { "id": "voltage", "name": "Voltage", "colors": ["#fb5607", "#ffbe0b", "#3a86ff", "#8338ec", "#ff006e"] }
+      {
+        "id": "heat",
+        "name": "Heat",
+        "colors": [
+          "#000000",
+          "#ff0000",
+          "#ff7f00",
+          "#ffff00",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "ocean",
+        "name": "Ocean",
+        "colors": [
+          "#000000",
+          "#0000ff",
+          "#007fff",
+          "#00ffff",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "synthwave",
+        "name": "Synthwave",
+        "colors": [
+          "#000000",
+          "#ff00ff",
+          "#00ffff",
+          "#ff0080",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "ember",
+        "name": "Ember",
+        "colors": [
+          "#7a0011",
+          "#ff2d00",
+          "#ff6a00",
+          "#ff9f1c",
+          "#ffd000"
+        ]
+      },
+      {
+        "id": "prism",
+        "name": "Prism",
+        "colors": [
+          "#ff2a6d",
+          "#ff8c42",
+          "#f6e05e",
+          "#5ef38c",
+          "#3a86ff"
+        ]
+      },
+      {
+        "id": "velvet",
+        "name": "Velvet",
+        "colors": [
+          "#3a0ca3",
+          "#7209b7",
+          "#b5179e",
+          "#f72585",
+          "#4cc9f0"
+        ]
+      },
+      {
+        "id": "voltage",
+        "name": "Voltage",
+        "colors": [
+          "#fb5607",
+          "#ffbe0b",
+          "#3a86ff",
+          "#8338ec",
+          "#ff006e"
+        ]
+      }
     ],
     "activePaletteId": "heat",
     "macros": [
-      { "id": "macro-1", "name": "Energy", "value": 0.5, "targets": [{ "target": "effects.bloom", "amount": 0.6 }, { "target": "effects.feedback", "amount": 0.2 }] },
-      { "id": "macro-2", "name": "Motion", "value": 0.5, "targets": [{ "target": "effects.chroma", "amount": 0.3 }] },
-      { "id": "macro-3", "name": "Color", "value": 0.5, "targets": [{ "target": "style.saturation", "amount": 0.35 }] },
-      { "id": "macro-4", "name": "Density", "value": 0.5, "targets": [{ "target": "crosshatch.density", "amount": 0.5 }] },
-      { "id": "macro-5", "name": "Macro 5", "value": 0.5, "targets": [] },
-      { "id": "macro-6", "name": "Macro 6", "value": 0.5, "targets": [] },
-      { "id": "macro-7", "name": "Macro 7", "value": 0.5, "targets": [] },
-      { "id": "macro-8", "name": "Macro 8", "value": 0.5, "targets": [] }
+      {
+        "id": "macro-1",
+        "name": "Energy",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "effects.bloom",
+            "amount": 0.6
+          },
+          {
+            "target": "effects.feedback",
+            "amount": 0.2
+          }
+        ]
+      },
+      {
+        "id": "macro-2",
+        "name": "Motion",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "effects.chroma",
+            "amount": 0.3
+          }
+        ]
+      },
+      {
+        "id": "macro-3",
+        "name": "Color",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "style.saturation",
+            "amount": 0.35
+          }
+        ]
+      },
+      {
+        "id": "macro-4",
+        "name": "Density",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "crosshatch.density",
+            "amount": 0.5
+          }
+        ]
+      },
+      {
+        "id": "macro-5",
+        "name": "Macro 5",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-6",
+        "name": "Macro 6",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-7",
+        "name": "Macro 7",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-8",
+        "name": "Macro 8",
+        "value": 0.5,
+        "targets": []
+      }
     ],
-    "effects": { "enabled": true, "bloom": 0.2, "blur": 0.1, "chroma": 0.05, "posterize": 0.1, "kaleidoscope": 0, "feedback": 0.1, "persistence": 0.1 },
+    "effects": {
+      "enabled": true,
+      "bloom": 0.2,
+      "blur": 0.1,
+      "chroma": 0.05,
+      "posterize": 0.1,
+      "kaleidoscope": 0,
+      "feedback": 0.1,
+      "persistence": 0.1
+    },
     "expressiveFx": {
       "enabled": true,
-      "energyBloom": { "enabled": false, "macro": 0.35, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "threshold": 0.55, "accumulation": 0.65 } },
-      "radialGravity": { "enabled": false, "macro": 0.3, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "strength": 0.6, "radius": 0.65, "focusX": 0.5, "focusY": 0.5 } },
-      "motionEcho": { "enabled": true, "macro": 0.2, "intentBinding": { "enabled": true, "intent": "breakdown", "amount": 0.25 }, "expert": { "decay": 0.7, "warp": 0.2 } },
-      "spectralSmear": { "enabled": false, "macro": 0.3, "intentBinding": { "enabled": false, "intent": "ambient", "amount": 0.35 }, "expert": { "offset": 0.4, "mix": 0.6 } }
+      "energyBloom": {
+        "enabled": false,
+        "macro": 0.35,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "threshold": 0.55,
+          "accumulation": 0.65
+        }
+      },
+      "radialGravity": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "strength": 0.6,
+          "radius": 0.65,
+          "focusX": 0.5,
+          "focusY": 0.5
+        }
+      },
+      "motionEcho": {
+        "enabled": true,
+        "macro": 0.2,
+        "intentBinding": {
+          "enabled": true,
+          "intent": "calm",
+          "amount": 0.25
+        },
+        "expert": {
+          "decay": 0.7,
+          "warp": 0.2
+        }
+      },
+      "spectralSmear": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "offset": 0.4,
+          "mix": 0.6
+        }
+      }
     },
-    "particles": { "enabled": false, "density": 0.5, "speed": 0.5, "size": 0.5, "glow": 0.5 },
-    "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
-    "visualizer": { "enabled": false, "mode": "spectrum", "opacity": 0.8, "macroEnabled": false, "macroId": 0 },
+    "particles": {
+      "enabled": false,
+      "density": 0.5,
+      "speed": 0.5,
+      "size": 0.5,
+      "glow": 0.5
+    },
+    "sdf": {
+      "enabled": false,
+      "shape": "circle",
+      "scale": 0.5,
+      "edge": 0.05,
+      "glow": 0.1,
+      "rotation": 0,
+      "fill": 0
+    },
+    "visualizer": {
+      "enabled": false,
+      "mode": "spectrum",
+      "opacity": 0.8,
+      "macroEnabled": false,
+      "macroId": 0
+    },
     "lfos": [
-      { "id": "lfo-1", "name": "LFO 1", "shape": "sine", "rate": 0.25, "sync": true, "phase": 0 },
-      { "id": "lfo-2", "name": "LFO 2", "shape": "triangle", "rate": 0.5, "sync": true, "phase": 0.25 },
-      { "id": "lfo-3", "name": "LFO 3", "shape": "saw", "rate": 0.3, "sync": true, "phase": 0.5 },
-      { "id": "lfo-4", "name": "LFO 4", "shape": "square", "rate": 0.2, "sync": false, "phase": 0.1 }
+      {
+        "id": "lfo-1",
+        "name": "LFO 1",
+        "shape": "sine",
+        "rate": 0.25,
+        "sync": true,
+        "phase": 0
+      },
+      {
+        "id": "lfo-2",
+        "name": "LFO 2",
+        "shape": "triangle",
+        "rate": 0.5,
+        "sync": true,
+        "phase": 0.25
+      },
+      {
+        "id": "lfo-3",
+        "name": "LFO 3",
+        "shape": "saw",
+        "rate": 0.3,
+        "sync": true,
+        "phase": 0.5
+      },
+      {
+        "id": "lfo-4",
+        "name": "LFO 4",
+        "shape": "square",
+        "rate": 0.2,
+        "sync": false,
+        "phase": 0.1
+      }
     ],
     "envelopes": [
-      { "id": "env-1", "name": "Env 1", "trigger": "engine.low", "threshold": 0.65, "attack": 0.05, "decay": 0.2, "sustain": 0.4, "hold": 0.1, "release": 0.8 },
-      { "id": "env-2", "name": "Env 2", "attack": 0.1, "decay": 0.3, "sustain": 0.5, "release": 0.4, "hold": 0.5, "trigger": "strobe", "threshold": 0.4 }
+      {
+        "id": "env-1",
+        "name": "Env 1",
+        "trigger": "engine.low",
+        "threshold": 0.65,
+        "attack": 0.05,
+        "decay": 0.2,
+        "sustain": 0.4,
+        "hold": 0.1,
+        "release": 0.8
+      },
+      {
+        "id": "env-2",
+        "name": "Env 2",
+        "attack": 0.1,
+        "decay": 0.3,
+        "sustain": 0.5,
+        "release": 0.4,
+        "hold": 0.5,
+        "trigger": "strobe",
+        "threshold": 0.4
+      }
     ],
     "sampleHold": [
-      { "id": "sh-1", "name": "S&H 1", "rate": 0.5, "sync": true, "smooth": 0.2 },
-      { "id": "sh-2", "name": "S&H 2", "rate": 2, "sync": false, "smooth": 0.1 }
+      {
+        "id": "sh-1",
+        "name": "S&H 1",
+        "rate": 0.5,
+        "sync": true,
+        "smooth": 0.2
+      },
+      {
+        "id": "sh-2",
+        "name": "S&H 2",
+        "rate": 2,
+        "sync": false,
+        "smooth": 0.1
+      }
     ],
-    "padMappings": ["none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none","none"],
+    "padMappings": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+    ],
     "timelineMarkers": [],
     "assets": [],
     "plugins": [],
-    "scenes": [{ "id": "scene-1", "scene_id": "scene-1", "name": "Noir Cuts", "intent": "breakdown", "duration": 0, "transition_in": { "durationMs": 200, "curve": "easeInOut" }, "transition_out": { "durationMs": 200, "curve": "easeInOut" }, "trigger": { "type": "manual" }, "assigned_layers": { "core": ["gen-crosshatch"], "support": [], "atmosphere": [] }, "layers": [{ "id": "gen-crosshatch", "name": "Noir Cuts", "role": "core", "enabled": true, "opacity": 1, "blendMode": "screen", "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }, "generatorId": "gen-crosshatch", "params": { "opacity": 1, "speed": 0.6, "density": 0.8, "angle1": 0.25, "angle2": 0.75 } }] }],
+    "scenes": [
+      {
+        "id": "scene-1",
+        "scene_id": "scene-1",
+        "name": "Noir Cuts",
+        "intent": "calm",
+        "duration": 0,
+        "transition_in": {
+          "durationMs": 200,
+          "curve": "easeInOut"
+        },
+        "transition_out": {
+          "durationMs": 200,
+          "curve": "easeInOut"
+        },
+        "trigger": {
+          "type": "manual"
+        },
+        "assigned_layers": {
+          "core": [
+            "gen-crosshatch"
+          ],
+          "support": [],
+          "atmosphere": []
+        },
+        "layers": [
+          {
+            "id": "gen-crosshatch",
+            "name": "Noir Cuts",
+            "role": "core",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "generatorId": "gen-crosshatch",
+            "params": {
+              "opacity": 1,
+              "speed": 0.6,
+              "density": 0.8,
+              "angle1": 0.25,
+              "angle2": 0.75
+            }
+          }
+        ]
+      }
+    ],
     "modMatrix": [],
     "midiMappings": [],
     "activeSceneId": "scene-1",
     "activeModeId": "mode-cosmic",
     "activeEngineId": "engine-none",
-    "colorChemistry": ["monochromatic", "noir"],
-    "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 },
-    "tempoSync": { "bpm": 110, "source": "auto" },
+    "colorChemistry": [
+      "monochromatic",
+      "noir"
+    ],
+    "roleWeights": {
+      "core": 1,
+      "support": 0,
+      "atmosphere": 0
+    },
+    "tempoSync": {
+      "bpm": 110,
+      "source": "auto"
+    },
     "customShaderBlocks": [],
     "overlays": []
   }

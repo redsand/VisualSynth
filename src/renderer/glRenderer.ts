@@ -97,6 +97,13 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
       untrackProgram(p.program);
     });
     pendingPrecompiles.length = 0;
+    // Untrack internal textures — they're invalid after context loss
+    untrackTexture(waveformTexture);
+    untrackTexture(spectrumTexture);
+    untrackTexture(modulatorTexture);
+    untrackTexture(midiTexture);
+    untrackTexture(previousFrameTexture);
+    untrackBuffer(positionBuffer);
     canvas.dispatchEvent(new CustomEvent('visualsynth-contextlost'));
   });
   canvas.addEventListener('webglcontextrestored', () => {
@@ -124,8 +131,16 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     pendingPrecompiles.length = 0;
 
     try {
-      // Re-init internal textures
+      // Recreate internal textures with fresh GL handles
+      createInternalTextures();
       initInternalTextures();
+
+      // Recreate position buffer (quad geometry)
+      positionBuffer = trackBuffer(gl.createBuffer());
+      if (positionBuffer) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+      }
 
       // Clear asset cache - all textures are invalid after context loss
       assetCache.forEach(entry => {
@@ -210,13 +225,23 @@ void main() {
   let milkDropEnabled = false;
   let milkDropTexture: WebGLTexture | null = null;
   
-  const waveformTexture = trackTexture(gl.createTexture());
-  const spectrumTexture = trackTexture(gl.createTexture());
-  const modulatorTexture = trackTexture(gl.createTexture());
-  const midiTexture = trackTexture(gl.createTexture());
-  const previousFrameTexture = trackTexture(gl.createTexture());
+  let waveformTexture = trackTexture(gl.createTexture());
+  let spectrumTexture = trackTexture(gl.createTexture());
+  let modulatorTexture = trackTexture(gl.createTexture());
+  let midiTexture = trackTexture(gl.createTexture());
+  let previousFrameTexture = trackTexture(gl.createTexture());
   let previousFrameWidth = 0;
   let previousFrameHeight = 0;
+
+  const createInternalTextures = () => {
+    waveformTexture = trackTexture(gl.createTexture());
+    spectrumTexture = trackTexture(gl.createTexture());
+    modulatorTexture = trackTexture(gl.createTexture());
+    midiTexture = trackTexture(gl.createTexture());
+    previousFrameTexture = trackTexture(gl.createTexture());
+    previousFrameWidth = 0;
+    previousFrameHeight = 0;
+  };
 
   const initInternalTextures = () => {
     // R32F textures (waveform, spectrum, modulators, midi) are not linearly filterable in WebGL2
@@ -528,7 +553,7 @@ void main() {
     }
   };
 
-  const positionBuffer = trackBuffer(gl.createBuffer());
+  let positionBuffer = trackBuffer(gl.createBuffer());
   if (!positionBuffer) throw new Error('Buffer creation failed');
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);

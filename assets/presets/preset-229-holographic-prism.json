@@ -6,17 +6,39 @@
     "createdAt": "2026-04-16T00:00:00.000Z",
     "updatedAt": "2026-04-16T00:00:00.000Z",
     "category": "Data Viz Generators",
-    "compatibility": { "minVersion": "0.9.0" },
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
     "presetType": "scene",
     "intendedMusicStyle": "Trance",
-    "visualIntentTags": ["rainbow", "prism", "refraction", "holographic"],
-    "defaultTransition": { "durationMs": 400, "curve": "easeIn" },
+    "visualIntentTags": [
+      "rainbow",
+      "prism",
+      "refraction",
+      "holographic"
+    ],
+    "defaultTransition": {
+      "durationMs": 400,
+      "curve": "easeIn"
+    },
     "activeModeId": "mode-ignite",
-    "colorChemistry": ["rainbow", "vivid"],
+    "colorChemistry": [
+      "rainbow",
+      "vivid"
+    ],
     "activeEngineId": "engine-kaleido-pulse",
     "tag": "hero",
     "isCoreClubPack": false,
-    "scores": { "opener": 9, "build": 8, "drop": 9, "breakdown": 6, "transition": 7, "utility": 5, "crowdReadability": 9, "perceivedDepth3D": 5 },
+    "scores": {
+      "opener": 9,
+      "build": 8,
+      "drop": 9,
+      "breakdown": 6,
+      "transition": 7,
+      "utility": 5,
+      "crowdReadability": 9,
+      "perceivedDepth3D": 5
+    },
     "cpuCost": "medium",
     "depthScore": 0.5,
     "complexity": "medium",
@@ -32,10 +54,26 @@
       "name": "Holographic Prism Scene",
       "intent": "chaos",
       "duration": 0,
-      "transition_in": { "durationMs": 400, "curve": "easeIn" },
-      "transition_out": { "durationMs": 400, "curve": "easeOut" },
-      "trigger": { "type": "manual" },
-      "assigned_layers": { "core": ["gen-holographic-prism"], "support": ["gen-lightning"], "atmosphere": [] },
+      "transition_in": {
+        "durationMs": 400,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 400,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "gen-holographic-prism"
+        ],
+        "support": [
+          "gen-lightning"
+        ],
+        "atmosphere": []
+      },
       "layers": [
         {
           "id": "gen-holographic-prism",
@@ -44,9 +82,20 @@
           "enabled": true,
           "opacity": 1,
           "blendMode": "screen",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
           "generatorId": "gen-holographic-prism",
-          "params": { "opacity": 1, "speed": 1.2, "dispersion": 1, "angle": 0, "facets": 6 }
+          "params": {
+            "opacity": 1,
+            "speed": 1.2,
+            "dispersion": 1,
+            "angle": 0,
+            "facets": 6
+          }
         },
         {
           "id": "gen-lightning",
@@ -55,31 +104,109 @@
           "enabled": true,
           "opacity": 0.3,
           "blendMode": "additive",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
           "generatorId": "gen-lightning",
-          "params": { "opacity": 0.3, "speed": 2, "branches": 2, "thickness": 0.03, "color": 2 }
+          "params": {
+            "opacity": 0.3,
+            "speed": 2,
+            "branches": 2,
+            "thickness": 0.03,
+            "color": 2
+          }
         }
       ]
     }
   ],
   "activeSceneId": "scene-1",
-  "roleWeights": { "core": 1, "support": 0.6, "atmosphere": 1 },
-  "tempoSync": { "bpm": 140, "source": "auto" },
+  "roleWeights": {
+    "core": 1,
+    "support": 0.6,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 140,
+    "source": "auto"
+  },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "holographic-prism", "param": "dispersion" }, "amount": 0.4 },
-    { "source": "audio.high", "target": { "type": "holographic-prism", "param": "angle" }, "amount": 0.3 }
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "holographic-prism",
+        "param": "dispersion"
+      },
+      "amount": 0.4
+    },
+    {
+      "source": "audio.high",
+      "target": {
+        "type": "holographic-prism",
+        "param": "angle"
+      },
+      "amount": 0.3
+    }
   ],
   "macros": [
-    { "id": "macro-1", "name": "Spectrum", "value": 0.5, "targets": [{ "target": "holographic-prism.dispersion", "amount": 0.6 }, { "target": "holographic-prism.facets", "amount": 0.3 }] },
-    { "id": "macro-2", "name": "Prism Turn", "value": 0.5, "targets": [{ "target": "holographic-prism.angle", "amount": 0.5 }] },
-    { "id": "macro-3", "name": "Intensity", "value": 0.5, "targets": [{ "target": "holographic-prism.speed", "amount": 0.5 }, { "target": "lightning.opacity", "amount": 0.4 }] }
+    {
+      "id": "macro-1",
+      "name": "Spectrum",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "holographic-prism.dispersion",
+          "amount": 0.6
+        },
+        {
+          "target": "holographic-prism.facets",
+          "amount": 0.3
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Prism Turn",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "holographic-prism.angle",
+          "amount": 0.5
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Intensity",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "holographic-prism.speed",
+          "amount": 0.5
+        },
+        {
+          "target": "lightning.opacity",
+          "amount": 0.4
+        }
+      ]
+    }
   ],
   "name": "Holographic Prism",
   "createdAt": "2026-04-16T00:00:00.000Z",
   "updatedAt": "2026-04-16T00:00:00.000Z",
   "modMatrix": [],
   "midiMappings": [],
-  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
   "assets": [],
   "plugins": [],
   "lfos": [],

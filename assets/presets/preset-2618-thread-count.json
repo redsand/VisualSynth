@@ -1,54 +1,479 @@
 {
   "version": 6,
   "metadata": {
-    "version": 6, "name": "Thread Count", "createdAt": "2026-04-16T00:00:00.000Z", "updatedAt": "2026-04-16T00:00:00.000Z",
-    "category": "Textile", "compatibility": { "minVersion": "0.9.0" }, "presetType": "scene",
-    "intendedMusicStyle": "Downtempo", "visualIntentTags": ["woven","textile","fabric","threads"],
-    "defaultTransition": { "durationMs": 200, "curve": "easeInOut" },
-    "activeModeId": "mode-cosmic", "colorChemistry": ["analog", "balanced"], "activeEngineId": "engine-none",
-    "tag": "live", "isCoreClubPack": false, "presetMode": "live",
-    "playlistDuration": 16, "playlistTransition": 200, "midiPadIndex": 8,
-    "scores": { "opener": 7, "build": 4, "drop": 2, "breakdown": 9, "transition": 5, "utility": 4, "crowdReadability": 6, "perceivedDepth3D": 6 },
-    "cpuCost": "low", "depthScore": 0.55, "complexity": "low", "role": "breakdown", "visualFamily": "textile", "motionType": "slow", "repetitionRisk": "medium"
+    "version": 6,
+    "name": "Thread Count",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "category": "Textile",
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Downtempo",
+    "visualIntentTags": [
+      "woven",
+      "textile",
+      "fabric",
+      "threads"
+    ],
+    "defaultTransition": {
+      "durationMs": 200,
+      "curve": "easeInOut"
+    },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "activeEngineId": "engine-none",
+    "tag": "live",
+    "isCoreClubPack": false,
+    "presetMode": "live",
+    "playlistDuration": 16,
+    "playlistTransition": 200,
+    "midiPadIndex": 8,
+    "scores": {
+      "opener": 7,
+      "build": 4,
+      "drop": 2,
+      "breakdown": 9,
+      "transition": 5,
+      "utility": 4,
+      "crowdReadability": 6,
+      "perceivedDepth3D": 6
+    },
+    "cpuCost": "low",
+    "depthScore": 0.55,
+    "complexity": "low",
+    "role": "breakdown",
+    "visualFamily": "textile",
+    "motionType": "slow",
+    "repetitionRisk": "medium"
   },
-  "scenes": [{ "id": "scene-1", "scene_id": "scene-1", "name": "Thread Count", "intent": "ambient", "duration": 0,
-    "transition_in": { "durationMs": 200, "curve": "easeInOut" }, "transition_out": { "durationMs": 200, "curve": "easeInOut" },
-    "trigger": { "type": "manual" }, "assigned_layers": { "core": ["gen-woven"], "support": [], "atmosphere": [] },
-    "layers": [{ "id": "gen-woven", "name": "Thread Count", "role": "core", "enabled": true, "opacity": 1, "blendMode": "screen",
-      "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }, "generatorId": "gen-woven",
-      "params": [
-        { "key": "opacity", "value": 1 },
-        { "key": "speed", "value": 0.3 },
-        { "key": "scale", "value": 18 },
-        { "key": "threadWidth", "value": 0.7 },
-        { "key": "pattern", "value": 0.5 }
-      ] }]
-  }],
-  "activeSceneId": "scene-1", "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 }, "tempoSync": { "bpm": 95, "source": "auto" },
-  "modulations": [], "macros": [],
-  "project": { "version": 6, "name": "Thread Count", "createdAt": "2026-04-16T00:00:00.000Z", "updatedAt": "2026-04-16T00:00:00.000Z",
-    "output": { "enabled": true, "fullscreen": false, "scale": 1 },
-    "stylePresets": [{ "id": "style-neutral", "name": "Neutral", "settings": { "contrast": 1, "saturation": 1, "paletteShift": 0 } }],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Thread Count",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 200,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 200,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "gen-woven"
+        ],
+        "support": [],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "gen-woven",
+          "name": "Thread Count",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "generatorId": "gen-woven",
+          "params": {
+            "opacity": 1,
+            "speed": 0.3,
+            "scale": 18,
+            "threadWidth": 0.7,
+            "pattern": 0.5
+          }
+        }
+      ]
+    }
+  ],
+  "activeSceneId": "scene-1",
+  "roleWeights": {
+    "core": 1,
+    "support": 0,
+    "atmosphere": 0
+  },
+  "tempoSync": {
+    "bpm": 95,
+    "source": "auto"
+  },
+  "modulations": [],
+  "macros": [],
+  "project": {
+    "version": 6,
+    "name": "Thread Count",
+    "createdAt": "2026-04-16T00:00:00.000Z",
+    "updatedAt": "2026-04-16T00:00:00.000Z",
+    "output": {
+      "enabled": true,
+      "fullscreen": false,
+      "scale": 1
+    },
+    "stylePresets": [
+      {
+        "id": "style-neutral",
+        "name": "Neutral",
+        "settings": {
+          "contrast": 1,
+          "saturation": 1,
+          "paletteShift": 0
+        }
+      }
+    ],
     "activeStylePresetId": "style-neutral",
-    "palettes": [{ "id": "heat", "name": "Heat", "colors": ["#000000","#ff0000","#ff7f00","#ffff00","#ffffff"] }, { "id": "ocean", "name": "Ocean", "colors": ["#000000","#0000ff","#007fff","#00ffff","#ffffff"] }, { "id": "synthwave", "name": "Synthwave", "colors": ["#000000","#ff00ff","#00ffff","#ff0080","#ffffff"] }, { "id": "prism", "name": "Prism", "colors": ["#ff2a6d","#ff8c42","#f6e05e","#5ef38c","#3a86ff"] }, { "id": "voltage", "name": "Voltage", "colors": ["#fb5607","#ffbe0b","#3a86ff","#8338ec","#ff006e"] }],
+    "palettes": [
+      {
+        "id": "heat",
+        "name": "Heat",
+        "colors": [
+          "#000000",
+          "#ff0000",
+          "#ff7f00",
+          "#ffff00",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "ocean",
+        "name": "Ocean",
+        "colors": [
+          "#000000",
+          "#0000ff",
+          "#007fff",
+          "#00ffff",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "synthwave",
+        "name": "Synthwave",
+        "colors": [
+          "#000000",
+          "#ff00ff",
+          "#00ffff",
+          "#ff0080",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "prism",
+        "name": "Prism",
+        "colors": [
+          "#ff2a6d",
+          "#ff8c42",
+          "#f6e05e",
+          "#5ef38c",
+          "#3a86ff"
+        ]
+      },
+      {
+        "id": "voltage",
+        "name": "Voltage",
+        "colors": [
+          "#fb5607",
+          "#ffbe0b",
+          "#3a86ff",
+          "#8338ec",
+          "#ff006e"
+        ]
+      }
+    ],
     "activePaletteId": "prism",
-    "macros": [{ "id": "macro-1", "name": "Energy", "value": 0.3, "targets": [{ "target": "effects.bloom", "amount": 0.6 }] }, { "id": "macro-2", "name": "Motion", "value": 0.3, "targets": [{ "target": "woven.speed", "amount": 0.5 }] }, { "id": "macro-3", "name": "Color", "value": 0.5, "targets": [] }, { "id": "macro-4", "name": "Density", "value": 0.5, "targets": [{ "target": "woven.threadWidth", "amount": 0.5 }] }, { "id": "macro-5", "name": "Macro 5", "value": 0.5, "targets": [] }, { "id": "macro-6", "name": "Macro 6", "value": 0.5, "targets": [] }, { "id": "macro-7", "name": "Macro 7", "value": 0.5, "targets": [] }, { "id": "macro-8", "name": "Macro 8", "value": 0.5, "targets": [] }],
-    "effects": { "enabled": true, "bloom": 0.4, "blur": 0.1, "chroma": 0.15, "posterize": 0.05, "kaleidoscope": 0, "feedback": 0.1, "persistence": 0.2 },
-    "expressiveFx": { "enabled": true, "energyBloom": { "enabled": true, "macro": 0.25, "intentBinding": { "enabled": true, "intent": "build", "amount": 0.2 }, "expert": { "threshold": 0.6, "accumulation": 0.5 } }, "radialGravity": { "enabled": true, "macro": 0.2, "intentBinding": { "enabled": true, "intent": "ambient", "amount": 0.2 }, "expert": { "strength": 0.3, "radius": 0.8, "focusX": 0.5, "focusY": 0.5 } }, "motionEcho": { "enabled": true, "macro": 0.25, "intentBinding": { "enabled": true, "intent": "build", "amount": 0.2 }, "expert": { "decay": 0.75, "warp": 0.15 } }, "spectralSmear": { "enabled": true, "macro": 0.2, "intentBinding": { "enabled": true, "intent": "ambient", "amount": 0.25 }, "expert": { "offset": 0.25, "mix": 0.35 } } },
-    "particles": { "enabled": false, "density": 0.5, "speed": 0.5, "size": 0.5, "glow": 0.5 },
-    "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
-    "visualizer": { "enabled": false, "mode": "spectrum", "opacity": 0.8, "macroEnabled": false, "macroId": 0 },
-    "lfos": [{ "id": "lfo-1", "name": "LFO 1", "shape": "sine", "rate": 0.5, "sync": true, "phase": 0 }, { "id": "lfo-2", "name": "LFO 2", "shape": "triangle", "rate": 1, "sync": true, "phase": 0.25 }],
-    "envelopes": [{ "id": "env-1", "name": "Env 1", "trigger": "audio.peak", "threshold": 0.65, "attack": 0.05, "decay": 0.2, "sustain": 0.4, "hold": 0.1, "release": 0.8 }, { "id": "env-2", "name": "Env 2", "attack": 0.1, "decay": 0.3, "sustain": 0.5, "release": 0.4, "hold": 0.5, "trigger": "strobe", "threshold": 0.4 }],
-    "sampleHold": [{ "id": "sh-1", "name": "S&H 1", "rate": 0.5, "sync": true, "smooth": 0.2 }],
-    "padMappings": [], "timelineMarkers": [], "assets": [], "plugins": [],
-    "scenes": [{ "id": "scene-1", "scene_id": "scene-1", "name": "Thread Count", "intent": "ambient", "duration": 0, "transition_in": { "durationMs": 200, "curve": "easeInOut" }, "transition_out": { "durationMs": 200, "curve": "easeInOut" }, "trigger": { "type": "manual" }, "assigned_layers": { "core": ["gen-woven"], "support": [], "atmosphere": [] }, "layers": [{ "id": "gen-woven", "name": "Thread Count", "role": "core", "enabled": true, "opacity": 1, "blendMode": "screen", "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }, "generatorId": "gen-woven", "params": [
-      { "key": "opacity", "value": 1 },
-      { "key": "speed", "value": 0.3 },
-      { "key": "scale", "value": 18 },
-      { "key": "threadWidth", "value": 0.7 },
-      { "key": "pattern", "value": 0.5 }
-    ] }] }],
-    "modMatrix": [], "midiMappings": [], "activeSceneId": "scene-1", "activeModeId": "mode-cosmic", "activeEngineId": "engine-none", "colorChemistry": ["analog", "balanced"], "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 }, "tempoSync": { "bpm": 95, "source": "auto" }, "customShaderBlocks": [], "overlays": []
+    "macros": [
+      {
+        "id": "macro-1",
+        "name": "Energy",
+        "value": 0.3,
+        "targets": [
+          {
+            "target": "effects.bloom",
+            "amount": 0.6
+          }
+        ]
+      },
+      {
+        "id": "macro-2",
+        "name": "Motion",
+        "value": 0.3,
+        "targets": [
+          {
+            "target": "woven.speed",
+            "amount": 0.5
+          }
+        ]
+      },
+      {
+        "id": "macro-3",
+        "name": "Color",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-4",
+        "name": "Density",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "woven.threadWidth",
+            "amount": 0.5
+          }
+        ]
+      },
+      {
+        "id": "macro-5",
+        "name": "Macro 5",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-6",
+        "name": "Macro 6",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-7",
+        "name": "Macro 7",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-8",
+        "name": "Macro 8",
+        "value": 0.5,
+        "targets": []
+      }
+    ],
+    "effects": {
+      "enabled": true,
+      "bloom": 0.4,
+      "blur": 0.1,
+      "chroma": 0.15,
+      "posterize": 0.05,
+      "kaleidoscope": 0,
+      "feedback": 0.1,
+      "persistence": 0.2
+    },
+    "expressiveFx": {
+      "enabled": true,
+      "energyBloom": {
+        "enabled": true,
+        "macro": 0.25,
+        "intentBinding": {
+          "enabled": true,
+          "intent": "build",
+          "amount": 0.2
+        },
+        "expert": {
+          "threshold": 0.6,
+          "accumulation": 0.5
+        }
+      },
+      "radialGravity": {
+        "enabled": true,
+        "macro": 0.2,
+        "intentBinding": {
+          "enabled": true,
+          "intent": "ambient",
+          "amount": 0.2
+        },
+        "expert": {
+          "strength": 0.3,
+          "radius": 0.8,
+          "focusX": 0.5,
+          "focusY": 0.5
+        }
+      },
+      "motionEcho": {
+        "enabled": true,
+        "macro": 0.25,
+        "intentBinding": {
+          "enabled": true,
+          "intent": "build",
+          "amount": 0.2
+        },
+        "expert": {
+          "decay": 0.75,
+          "warp": 0.15
+        }
+      },
+      "spectralSmear": {
+        "enabled": true,
+        "macro": 0.2,
+        "intentBinding": {
+          "enabled": true,
+          "intent": "ambient",
+          "amount": 0.25
+        },
+        "expert": {
+          "offset": 0.25,
+          "mix": 0.35
+        }
+      }
+    },
+    "particles": {
+      "enabled": false,
+      "density": 0.5,
+      "speed": 0.5,
+      "size": 0.5,
+      "glow": 0.5
+    },
+    "sdf": {
+      "enabled": false,
+      "shape": "circle",
+      "scale": 0.5,
+      "edge": 0.05,
+      "glow": 0.1,
+      "rotation": 0,
+      "fill": 0
+    },
+    "visualizer": {
+      "enabled": false,
+      "mode": "spectrum",
+      "opacity": 0.8,
+      "macroEnabled": false,
+      "macroId": 0
+    },
+    "lfos": [
+      {
+        "id": "lfo-1",
+        "name": "LFO 1",
+        "shape": "sine",
+        "rate": 0.5,
+        "sync": true,
+        "phase": 0
+      },
+      {
+        "id": "lfo-2",
+        "name": "LFO 2",
+        "shape": "triangle",
+        "rate": 1,
+        "sync": true,
+        "phase": 0.25
+      }
+    ],
+    "envelopes": [
+      {
+        "id": "env-1",
+        "name": "Env 1",
+        "trigger": "audio.peak",
+        "threshold": 0.65,
+        "attack": 0.05,
+        "decay": 0.2,
+        "sustain": 0.4,
+        "hold": 0.1,
+        "release": 0.8
+      },
+      {
+        "id": "env-2",
+        "name": "Env 2",
+        "attack": 0.1,
+        "decay": 0.3,
+        "sustain": 0.5,
+        "release": 0.4,
+        "hold": 0.5,
+        "trigger": "strobe",
+        "threshold": 0.4
+      }
+    ],
+    "sampleHold": [
+      {
+        "id": "sh-1",
+        "name": "S&H 1",
+        "rate": 0.5,
+        "sync": true,
+        "smooth": 0.2
+      }
+    ],
+    "padMappings": [],
+    "timelineMarkers": [],
+    "assets": [],
+    "plugins": [],
+    "scenes": [
+      {
+        "id": "scene-1",
+        "scene_id": "scene-1",
+        "name": "Thread Count",
+        "intent": "ambient",
+        "duration": 0,
+        "transition_in": {
+          "durationMs": 200,
+          "curve": "easeInOut"
+        },
+        "transition_out": {
+          "durationMs": 200,
+          "curve": "easeInOut"
+        },
+        "trigger": {
+          "type": "manual"
+        },
+        "assigned_layers": {
+          "core": [
+            "gen-woven"
+          ],
+          "support": [],
+          "atmosphere": []
+        },
+        "layers": [
+          {
+            "id": "gen-woven",
+            "name": "Thread Count",
+            "role": "core",
+            "enabled": true,
+            "opacity": 1,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "generatorId": "gen-woven",
+            "params": {
+              "opacity": 1,
+              "speed": 0.3,
+              "scale": 18,
+              "threadWidth": 0.7,
+              "pattern": 0.5
+            }
+          }
+        ]
+      }
+    ],
+    "modMatrix": [],
+    "midiMappings": [],
+    "activeSceneId": "scene-1",
+    "activeModeId": "mode-cosmic",
+    "activeEngineId": "engine-none",
+    "colorChemistry": [
+      "analog",
+      "balanced"
+    ],
+    "roleWeights": {
+      "core": 1,
+      "support": 0,
+      "atmosphere": 0
+    },
+    "tempoSync": {
+      "bpm": 95,
+      "source": "auto"
+    },
+    "customShaderBlocks": [],
+    "overlays": []
   }
 }

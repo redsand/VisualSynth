@@ -6,18 +6,39 @@
     "createdAt": "2026-04-16T00:00:00.000Z",
     "updatedAt": "2026-04-16T00:00:00.000Z",
     "category": "Dubstep",
-    "compatibility": { "minVersion": "0.9.0" },
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
     "presetType": "scene",
     "intendedMusicStyle": "Dubstep",
-    "visualIntentTags": ["glass", "fracture", "shards"],
-    "defaultTransition": { "durationMs": 400, "curve": "easeInOut" },
+    "visualIntentTags": [
+      "glass",
+      "fracture",
+      "shards"
+    ],
+    "defaultTransition": {
+      "durationMs": 400,
+      "curve": "easeInOut"
+    },
     "activeModeId": "mode-cosmic",
-    "colorChemistry": ["complementary", "sharp"],
+    "colorChemistry": [
+      "complementary",
+      "sharp"
+    ],
     "activeEngineId": "engine-radial-core",
     "tag": "hero",
     "isCoreClubPack": false,
     "presetMode": "performance",
-    "scores": { "opener": 6, "build": 7, "drop": 9, "breakdown": 4, "transition": 8, "utility": 4, "crowdReadability": 8, "perceivedDepth3D": 6 },
+    "scores": {
+      "opener": 6,
+      "build": 7,
+      "drop": 9,
+      "breakdown": 4,
+      "transition": 8,
+      "utility": 4,
+      "crowdReadability": 8,
+      "perceivedDepth3D": 6
+    },
     "cpuCost": "medium",
     "depthScore": 0.6,
     "complexity": "medium",
@@ -26,59 +47,158 @@
     "motionType": "explosive",
     "repetitionRisk": "low"
   },
-  "scenes": [{
-    "id": "scene-1",
-    "scene_id": "scene-1",
-    "name": "Glass Break",
-    "intent": "drop",
-    "duration": 0,
-    "transition_in": { "durationMs": 300, "curve": "easeOut" },
-    "transition_out": { "durationMs": 600, "curve": "easeInOut" },
-    "trigger": { "type": "manual" },
-    "assigned_layers": { "core": ["gen-shatter"], "support": ["gen-plasma"], "atmosphere": [] },
-    "layers": [
-      {
-        "id": "gen-shatter",
-        "name": "Shatter",
-        "role": "core",
-        "enabled": true,
-        "opacity": 1,
-        "blendMode": "screen",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-shatter",
-        "params": { "opacity": 1, "speed": 1.2, "spread": 0.7, "shardCount": 60, "rotation": 0.5 }
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Glass Break",
+      "intent": "pulse",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 300,
+        "curve": "easeInOut"
       },
-      {
-        "id": "gen-plasma",
-        "name": "Plasma Background",
-        "role": "support",
-        "enabled": true,
-        "opacity": 0.35,
-        "blendMode": "add",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-plasma",
-        "params": { "opacity": 0.35, "speed": 0.8, "scale": 1.0, "complexity": 0.8, "colorShift": 0.1 }
-      }
-    ]
-  }],
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "gen-shatter"
+        ],
+        "support": [
+          "gen-plasma"
+        ],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "gen-shatter",
+          "name": "Shatter",
+          "role": "core",
+          "enabled": true,
+          "opacity": 1,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "generatorId": "gen-shatter",
+          "params": {
+            "opacity": 1,
+            "speed": 1.2,
+            "spread": 0.7,
+            "shardCount": 60,
+            "rotation": 0.5
+          }
+        },
+        {
+          "id": "gen-plasma",
+          "name": "Plasma Background",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.35,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "generatorId": "gen-plasma",
+          "params": {
+            "opacity": 0.35,
+            "speed": 0.8,
+            "scale": 1,
+            "complexity": 0.8,
+            "colorShift": 0.1
+          }
+        }
+      ]
+    }
+  ],
   "activeSceneId": "scene-1",
-  "roleWeights": { "core": 1, "support": 0.6, "atmosphere": 1 },
-  "tempoSync": { "bpm": 140, "source": "manual" },
+  "roleWeights": {
+    "core": 1,
+    "support": 0.6,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 140,
+    "source": "manual"
+  },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "shatter.spread", "param": "spread" }, "amount": 0.4 },
-    { "source": "audio.rms", "target": { "type": "shatter.shardCount", "param": "shardCount" }, "amount": 0.25 }
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "shatter.spread",
+        "param": "spread"
+      },
+      "amount": 0.4
+    },
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "shatter.shardCount",
+        "param": "shardCount"
+      },
+      "amount": 0.25
+    }
   ],
   "macros": [
-    { "id": "macro-1", "name": "Explosion Force", "value": 0.5, "targets": [{ "target": "shatter.spread", "amount": 0.7 }] },
-    { "id": "macro-2", "name": "Shard Count", "value": 0.5, "targets": [{ "target": "shatter.shardCount", "amount": 0.5 }] },
-    { "id": "macro-3", "name": "Plasma Rage", "value": 0.35, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.5 }] }
+    {
+      "id": "macro-1",
+      "name": "Explosion Force",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "shatter.spread",
+          "amount": 0.7
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Shard Count",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "shatter.shardCount",
+          "amount": 0.5
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Plasma Rage",
+      "value": 0.35,
+      "targets": [
+        {
+          "target": "gen-plasma.opacity",
+          "amount": 0.5
+        }
+      ]
+    }
   ],
   "name": "Shatter",
   "createdAt": "2026-04-16T00:00:00.000Z",
   "updatedAt": "2026-04-16T00:00:00.000Z",
   "modMatrix": [],
   "midiMappings": [],
-  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
   "assets": [],
   "plugins": [],
   "lfos": [],

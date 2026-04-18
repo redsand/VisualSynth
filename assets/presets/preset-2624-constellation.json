@@ -6,61 +6,122 @@
     "createdAt": "2026-04-18T00:00:00.000Z",
     "updatedAt": "2026-04-18T00:00:00.000Z",
     "category": "Cosmic",
-    "compatibility": { "minVersion": "0.9.0" },
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
     "presetType": "scene",
     "intendedMusicStyle": "Ambient",
-    "visualIntentTags": ["constellation", "stars", "connect", "twinkle"],
-    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "visualIntentTags": [
+      "constellation",
+      "stars",
+      "connect",
+      "twinkle"
+    ],
+    "defaultTransition": {
+      "durationMs": 500,
+      "curve": "easeInOut"
+    },
     "activeModeId": "mode-cosmic",
-    "colorChemistry": ["analog", "cool"],
+    "colorChemistry": [
+      "analog",
+      "cool"
+    ],
     "activeEngineId": "engine-particle-flow",
     "presetMode": "performance"
   },
-  "scenes": [{
-    "id": "scene-1",
-    "scene_id": "scene-1",
-    "name": "Constellation",
-    "intent": "flow",
-    "duration": 0,
-    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
-    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
-    "trigger": { "type": "manual" },
-    "assigned_layers": { "core": ["gen-constellation"], "support": ["layer-portal"], "atmosphere": ["layer-plasma"] },
-    "layers": [
-      {
-        "id": "gen-constellation",
-        "name": "Constellation",
-        "role": "core",
-        "enabled": true,
-        "opacity": 0.95,
-        "blendMode": "screen",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-constellation",
-        "params": { "opacity": 1, "speed": 0.4, "starCount": 20, "connectDist": 0.2, "twinkle": 1 }
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "Constellation",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 500,
+        "curve": "easeInOut"
       },
-      {
-        "id": "layer-portal",
-        "name": "Wormhole Portal",
-        "role": "support",
-        "enabled": true,
-        "opacity": 0.3,
-        "blendMode": "add",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      "transition_out": {
+        "durationMs": 500,
+        "curve": "easeInOut"
       },
-      {
-        "id": "layer-plasma",
-        "name": "Shader Plasma",
-        "role": "atmosphere",
-        "enabled": true,
-        "opacity": 0.2,
-        "blendMode": "screen",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
-      }
-    ]
-  }],
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "gen-constellation"
+        ],
+        "support": [
+          "layer-portal"
+        ],
+        "atmosphere": [
+          "layer-plasma"
+        ]
+      },
+      "layers": [
+        {
+          "id": "gen-constellation",
+          "name": "Constellation",
+          "role": "core",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "generatorId": "gen-constellation",
+          "params": {
+            "opacity": 1,
+            "speed": 0.4,
+            "starCount": 20,
+            "connectDist": 0.2,
+            "twinkle": 1
+          }
+        },
+        {
+          "id": "layer-portal",
+          "name": "Wormhole Portal",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-plasma",
+          "name": "Shader Plasma",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.2,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
   "activeSceneId": "scene-1",
-  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
-  "tempoSync": { "bpm": 100, "source": "auto" },
+  "roleWeights": {
+    "core": 1,
+    "support": 0.4,
+    "atmosphere": 0.2
+  },
+  "tempoSync": {
+    "bpm": 100,
+    "source": "auto"
+  },
   "modulations": [],
   "macros": []
 }

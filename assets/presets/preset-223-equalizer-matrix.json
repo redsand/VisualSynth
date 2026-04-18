@@ -6,17 +6,39 @@
     "createdAt": "2026-04-16T00:00:00.000Z",
     "updatedAt": "2026-04-16T00:00:00.000Z",
     "category": "Data Viz Generators",
-    "compatibility": { "minVersion": "0.9.0" },
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
     "presetType": "scene",
     "intendedMusicStyle": "EDM",
-    "visualIntentTags": ["bars", "spectrum", "depth", "matrix"],
-    "defaultTransition": { "durationMs": 400, "curve": "easeIn" },
+    "visualIntentTags": [
+      "bars",
+      "spectrum",
+      "depth",
+      "matrix"
+    ],
+    "defaultTransition": {
+      "durationMs": 400,
+      "curve": "easeIn"
+    },
     "activeModeId": "mode-ignite",
-    "colorChemistry": ["warm", "punchy"],
+    "colorChemistry": [
+      "warm",
+      "punchy"
+    ],
     "activeEngineId": "engine-radial-core",
     "tag": "hero",
     "isCoreClubPack": false,
-    "scores": { "opener": 9, "build": 8, "drop": 8, "breakdown": 5, "transition": 7, "utility": 8, "crowdReadability": 10, "perceivedDepth3D": 4 },
+    "scores": {
+      "opener": 9,
+      "build": 8,
+      "drop": 8,
+      "breakdown": 5,
+      "transition": 7,
+      "utility": 8,
+      "crowdReadability": 10,
+      "perceivedDepth3D": 4
+    },
     "cpuCost": "medium",
     "depthScore": 0.4,
     "complexity": "medium",
@@ -32,10 +54,26 @@
       "name": "Equalizer Matrix Scene",
       "intent": "pulse",
       "duration": 0,
-      "transition_in": { "durationMs": 400, "curve": "easeIn" },
-      "transition_out": { "durationMs": 400, "curve": "easeOut" },
-      "trigger": { "type": "manual" },
-      "assigned_layers": { "core": ["gen-equalizer-matrix"], "support": ["layer-spectrum"], "atmosphere": [] },
+      "transition_in": {
+        "durationMs": 400,
+        "curve": "easeInOut"
+      },
+      "transition_out": {
+        "durationMs": 400,
+        "curve": "easeInOut"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "gen-equalizer-matrix"
+        ],
+        "support": [
+          "layer-spectrum"
+        ],
+        "atmosphere": []
+      },
       "layers": [
         {
           "id": "gen-equalizer-matrix",
@@ -44,9 +82,20 @@
           "enabled": true,
           "opacity": 1,
           "blendMode": "screen",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
           "generatorId": "gen-equalizer-matrix",
-          "params": { "opacity": 1, "speed": 1, "rows": 8, "gap": 0.1, "depth": 0.5 }
+          "params": {
+            "opacity": 1,
+            "speed": 1,
+            "rows": 8,
+            "gap": 0.1,
+            "depth": 0.5
+          }
         },
         {
           "id": "layer-spectrum",
@@ -55,29 +104,92 @@
           "enabled": true,
           "opacity": 0.3,
           "blendMode": "additive",
-          "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-          "params": { "opacity": 0.3 }
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "params": {
+            "opacity": 0.3
+          }
         }
       ]
     }
   ],
   "activeSceneId": "scene-1",
-  "roleWeights": { "core": 1, "support": 0.8, "atmosphere": 1 },
-  "tempoSync": { "bpm": 128, "source": "auto" },
+  "roleWeights": {
+    "core": 1,
+    "support": 0.8,
+    "atmosphere": 1
+  },
+  "tempoSync": {
+    "bpm": 128,
+    "source": "auto"
+  },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "equalizer-matrix", "param": "depth" }, "amount": 0.3 }
+    {
+      "source": "audio.rms",
+      "target": {
+        "type": "equalizer-matrix",
+        "param": "depth"
+      },
+      "amount": 0.3
+    }
   ],
   "macros": [
-    { "id": "macro-1", "name": "Density", "value": 0.5, "targets": [{ "target": "equalizer-matrix.rows", "amount": 0.6 }, { "target": "equalizer-matrix.gap", "amount": -0.3 }] },
-    { "id": "macro-2", "name": "Perspective", "value": 0.5, "targets": [{ "target": "equalizer-matrix.depth", "amount": 0.7 }] },
-    { "id": "macro-3", "name": "Pulse", "value": 0.5, "targets": [{ "target": "equalizer-matrix.speed", "amount": 0.5 }] }
+    {
+      "id": "macro-1",
+      "name": "Density",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "equalizer-matrix.rows",
+          "amount": 0.6
+        },
+        {
+          "target": "equalizer-matrix.gap",
+          "amount": -0.3
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Perspective",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "equalizer-matrix.depth",
+          "amount": 0.7
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Pulse",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "equalizer-matrix.speed",
+          "amount": 0.5
+        }
+      ]
+    }
   ],
   "name": "Equalizer Matrix",
   "createdAt": "2026-04-16T00:00:00.000Z",
   "updatedAt": "2026-04-16T00:00:00.000Z",
   "modMatrix": [],
   "midiMappings": [],
-  "sdf": { "enabled": false, "shape": "circle", "scale": 0.5, "edge": 0.05, "glow": 0.1, "rotation": 0, "fill": 0 },
+  "sdf": {
+    "enabled": false,
+    "shape": "circle",
+    "scale": 0.5,
+    "edge": 0.05,
+    "glow": 0.1,
+    "rotation": 0,
+    "fill": 0
+  },
   "assets": [],
   "plugins": [],
   "lfos": [],

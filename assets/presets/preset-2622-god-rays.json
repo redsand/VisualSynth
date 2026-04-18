@@ -6,61 +6,122 @@
     "createdAt": "2026-04-18T00:00:00.000Z",
     "updatedAt": "2026-04-18T00:00:00.000Z",
     "category": "Atmospheric",
-    "compatibility": { "minVersion": "0.9.0" },
+    "compatibility": {
+      "minVersion": "0.9.0"
+    },
     "presetType": "scene",
     "intendedMusicStyle": "Ambient",
-    "visualIntentTags": ["god-rays", "volumetric", "light", "ethereal"],
-    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "visualIntentTags": [
+      "god-rays",
+      "volumetric",
+      "light",
+      "ethereal"
+    ],
+    "defaultTransition": {
+      "durationMs": 500,
+      "curve": "easeInOut"
+    },
     "activeModeId": "mode-cosmic",
-    "colorChemistry": ["analog", "warm"],
+    "colorChemistry": [
+      "analog",
+      "warm"
+    ],
     "activeEngineId": "engine-particle-flow",
     "presetMode": "performance"
   },
-  "scenes": [{
-    "id": "scene-1",
-    "scene_id": "scene-1",
-    "name": "God Rays",
-    "intent": "flow",
-    "duration": 0,
-    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
-    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
-    "trigger": { "type": "manual" },
-    "assigned_layers": { "core": ["gen-god-rays"], "support": ["layer-inkflow"], "atmosphere": ["layer-topo"] },
-    "layers": [
-      {
-        "id": "gen-god-rays",
-        "name": "God Rays",
-        "role": "core",
-        "enabled": true,
-        "opacity": 0.95,
-        "blendMode": "screen",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-god-rays",
-        "params": { "opacity": 1, "speed": 0.5, "count": 8, "density": 1, "spread": 1.2 }
+  "scenes": [
+    {
+      "id": "scene-1",
+      "scene_id": "scene-1",
+      "name": "God Rays",
+      "intent": "ambient",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 500,
+        "curve": "easeInOut"
       },
-      {
-        "id": "layer-inkflow",
-        "name": "Ink Flow",
-        "role": "support",
-        "enabled": true,
-        "opacity": 0.3,
-        "blendMode": "add",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      "transition_out": {
+        "durationMs": 500,
+        "curve": "easeInOut"
       },
-      {
-        "id": "layer-topo",
-        "name": "Topo Contour",
-        "role": "atmosphere",
-        "enabled": true,
-        "opacity": 0.2,
-        "blendMode": "screen",
-        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
-      }
-    ]
-  }],
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "gen-god-rays"
+        ],
+        "support": [
+          "layer-inkflow"
+        ],
+        "atmosphere": [
+          "layer-topo"
+        ]
+      },
+      "layers": [
+        {
+          "id": "gen-god-rays",
+          "name": "God Rays",
+          "role": "core",
+          "enabled": true,
+          "opacity": 0.95,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "generatorId": "gen-god-rays",
+          "params": {
+            "opacity": 1,
+            "speed": 0.5,
+            "count": 8,
+            "density": 1,
+            "spread": 1.2
+          }
+        },
+        {
+          "id": "layer-inkflow",
+          "name": "Ink Flow",
+          "role": "support",
+          "enabled": true,
+          "opacity": 0.3,
+          "blendMode": "add",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        },
+        {
+          "id": "layer-topo",
+          "name": "Topo Contour",
+          "role": "atmosphere",
+          "enabled": true,
+          "opacity": 0.2,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          }
+        }
+      ]
+    }
+  ],
   "activeSceneId": "scene-1",
-  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
-  "tempoSync": { "bpm": 110, "source": "auto" },
+  "roleWeights": {
+    "core": 1,
+    "support": 0.4,
+    "atmosphere": 0.2
+  },
+  "tempoSync": {
+    "bpm": 110,
+    "source": "auto"
+  },
   "modulations": [],
   "macros": []
 }
