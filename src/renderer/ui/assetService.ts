@@ -1,9 +1,17 @@
 import type { AssetItem } from '../../shared/project';
 import type { AssetRef } from '../../shared/assets';
+import { normalizeAssetPath } from '../../shared/assets';
 
 const livePreviewElements = new Map<string, HTMLVideoElement>();
 const liveStreams = new Map<string, MediaStream>();
 const textCanvasCache = new Map<string, HTMLCanvasElement>();
+
+const resolveProjectRelativeAssetPath = (assetPath: string, projectPath: string | null) => {
+  if (!projectPath) return null;
+  if (/^(?:[a-zA-Z]:[\\/]|\/)/.test(assetPath)) return null;
+  const projectDir = projectPath.substring(0, Math.max(projectPath.lastIndexOf('/'), projectPath.lastIndexOf('\\')));
+  return normalizeAssetPath(`${projectDir}/${assetPath}`.replace(/\\/g, '/'));
+};
 
 export const assetService = {
   livePreviewElements,
@@ -94,6 +102,17 @@ export const assetService = {
       };
     }
 
+    if (asset.kind === 'texture' && asset.embeddedData) {
+      return {
+        id: asset.id,
+        kind: asset.kind,
+        resolvedPath: asset.embeddedData,
+        originalPath: asset.path,
+        missing: false,
+        status: 'resolved'
+      };
+    }
+
     if (!asset.path) {
       return {
         id: asset.id,
@@ -117,6 +136,21 @@ export const assetService = {
 
     // Attempt path remapping if projectPath is available
     if (projectPath && asset.path) {
+      const relativePath = resolveProjectRelativeAssetPath(asset.path, projectPath);
+      if (relativePath && relativePath !== asset.path) {
+        const relativeCheck = await window.visualSynth.checkAssetPaths([relativePath]);
+        if (relativeCheck[relativePath]) {
+          console.info(`[AssetService] Asset resolved relative to project: ${asset.name} -> ${relativePath}`);
+          return {
+            id: asset.id,
+            kind: asset.kind,
+            resolvedPath: relativePath,
+            originalPath: asset.path,
+            missing: false,
+            status: 'remapped'
+          };
+        }
+      }
       const projectDir = projectPath.substring(0, Math.max(projectPath.lastIndexOf('/'), projectPath.lastIndexOf('\\')));
       const fileName = asset.path.substring(Math.max(asset.path.lastIndexOf('/'), asset.path.lastIndexOf('\\')) + 1);
       const remappedPath = `${projectDir}/${fileName}`.replace(/\\/g, '/');
@@ -174,6 +208,18 @@ export const assetService = {
         continue;
       }
 
+      if (asset.kind === 'texture' && asset.embeddedData) {
+        results[asset.id] = {
+          id: asset.id,
+          kind: asset.kind,
+          resolvedPath: asset.embeddedData,
+          originalPath: asset.path,
+          missing: false,
+          status: 'resolved'
+        };
+        continue;
+      }
+
       if (!asset.path) {
         results[asset.id] = {
           id: asset.id,
@@ -194,6 +240,11 @@ export const assetService = {
           status: 'resolved'
         };
       } else if (projectDir) {
+        const relativePath = resolveProjectRelativeAssetPath(asset.path, projectPath);
+        if (relativePath && relativePath !== asset.path) {
+          remappingQueue.push({ asset, remappedPath: relativePath });
+          continue;
+        }
         const fileName = asset.path.substring(Math.max(asset.path.lastIndexOf('/'), asset.path.lastIndexOf('\\')) + 1);
         const remappedPath = `${projectDir}/${fileName}`.replace(/\\/g, '/');
         if (remappedPath !== asset.path) {

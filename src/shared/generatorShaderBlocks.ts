@@ -396,7 +396,7 @@ uniform float uAssetVortexSpeed;
     vec2 warpedUv = vortexWarp(effectUv, uTime * uAssetVortexSpeed, uAssetVortexStrength + uPeak * 2.0);
     warpedUv = clamp(warpedUv, 0.0, 1.0);
     vec4 tex = texture(uAssetVortexAsset, warpedUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetVortexOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetVortexOpacity);
   }
 `,
   },
@@ -418,7 +418,7 @@ uniform float uAssetSlicesShift;
     float shift = amp * uAssetSlicesShift;
     vec2 slicedUv = vec2(fract(effectUv.x + shift), effectUv.y);
     vec4 tex = texture(uAssetSlicesAsset, slicedUv);
-    color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetSlicesOpacity);
+    color = applyBlendMode(color, tex.rgb, 1.0, tex.a * uAssetSlicesOpacity);
   }
 `,
   },
@@ -440,7 +440,7 @@ uniform float uAssetPolarTwist;
     mainCall: `  if (uAssetPolarEnabled > 0.5) {
     vec2 polarUv = polarCoords(effectUv, uAssetPolarRadius + uRms * 0.2, uAssetPolarTwist + uTime * 0.1);
     vec4 tex = texture(uAssetPolarAsset, clamp(polarUv, 0.0, 1.0));
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetPolarOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetPolarOpacity);
   }
 `,
   },
@@ -462,7 +462,7 @@ uniform float uAssetMosaicFlip;
     float flip = step(0.5 + uPeak * uAssetMosaicFlip, hash);
     tileUv = mix(tileUv, 1.0 - tileUv, flip);
     vec4 tex = texture(uAssetMosaicAsset, tileUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetMosaicOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetMosaicOpacity);
   }
 `,
   },
@@ -486,7 +486,7 @@ uniform float uAssetRippleFrequency;
     vec2 rippledUv = rippleWarp(effectUv, uTime, amp, uAssetRippleFrequency);
     rippledUv = clamp(rippledUv, 0.0, 1.0);
     vec4 tex = texture(uAssetRippleAsset, rippledUv);
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetRippleOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetRippleOpacity);
   }
 `,
   },
@@ -508,7 +508,7 @@ uniform float uAssetScatterSeed;
     float scatter = uAssetScatterAmount * (1.0 + uPeak * 5.0);
     vec2 scatteredUv = scatterWarp(effectUv, scatter, uAssetScatterSeed + uTime * 0.1);
     vec4 tex = texture(uAssetScatterAsset, clamp(scatteredUv, 0.0, 1.0));
-    color = applyBlendMode(color, tex.rgb, 3, tex.a * uAssetScatterOpacity);
+    color = applyBlendMode(color, tex.rgb, 3.0, tex.a * uAssetScatterOpacity);
   }
 `,
   },
@@ -532,7 +532,7 @@ uniform float uAssetEchoFade;
       echoUv = clamp(echoUv, 0.0, 1.0);
       vec4 tex = texture(uAssetEchoAsset, echoUv);
       float fade = pow(uAssetEchoFade, i);
-      color = applyBlendMode(color, tex.rgb, 1, tex.a * uAssetEchoOpacity * fade);
+      color = applyBlendMode(color, tex.rgb, 1.0, tex.a * uAssetEchoOpacity * fade);
     }
   }
 `,
@@ -7001,6 +7001,539 @@ uniform float uChromaticAberrIntensity;`,
   return col * uChromaticAberrOpacity;
 }`,
     mainCall: `  if (uChromaticAberrEnabled > 0.5) color += chromaticAberr(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-solar-flare',
+    uniforms: `uniform float uSolarFlareEnabled;
+uniform float uSolarFlareOpacity;
+uniform float uSolarFlareSpeed;
+uniform float uSolarFlareIntensity;
+uniform float uSolarFlareProminences;
+uniform float uSolarFlareCoronaSize;`,
+    functions: `vec3 solarFlare(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float dist = length(centered);
+  float angle = atan(centered.y, centered.x);
+  float corona = uSolarFlareCoronaSize;
+  float prominences = uSolarFlareProminences;
+  vec3 col = vec3(0.0);
+  float coreRadius = 0.08 + audio * 0.02;
+  float core = smoothstep(coreRadius + 0.01, coreRadius - 0.01, dist);
+  vec3 coreColor = vec3(1.0, 0.95, 0.8) * core * 2.0;
+  col += coreColor;
+  float coronaFalloff = exp(-dist * (3.0 / corona));
+  float coronaNoise = fbm(vec2(angle * 3.0 + t * uSolarFlareSpeed * 0.2, dist * 5.0));
+  vec3 coronaColor = mix(vec3(1.0, 0.4, 0.1), vec3(1.0, 0.8, 0.2), coronaNoise);
+  col += coronaColor * coronaFalloff * uSolarFlareIntensity * 0.8;
+  for (int i = 0; i < 6; i++) {
+    if (i >= int(prominences)) break;
+    float fi = float(i);
+    float promAngle = fi * 1.047 + t * uSolarFlareSpeed * 0.15 + sin(fi * 2.3) * 0.5;
+    float promLen = 0.15 + 0.1 * sin(t * uSolarFlareSpeed * 0.5 + fi * 1.7) + audio * 0.08;
+    vec2 promDir = vec2(cos(promAngle), sin(promAngle));
+    float along = dot(centered, promDir);
+    float perp = length(centered - promDir * along);
+    float promShape = smoothstep(0.0, promLen, along) * smoothstep(promLen + 0.02, promLen, along);
+    promShape *= smoothstep(0.02 + audio * 0.01, 0.0, perp);
+    float loopBack = sin(along * 8.0 + t * uSolarFlareSpeed) * 0.01;
+    promShape *= smoothstep(0.02, 0.0, abs(perp - loopBack));
+    col += vec3(1.0, 0.3, 0.05) * promShape * uSolarFlareIntensity;
+  }
+  float rays = 0.0;
+  for (int i = 0; i < 12; i++) {
+    float rayAngle = float(i) * 0.5236 + t * uSolarFlareSpeed * 0.05;
+    float alignment = pow(max(cos(angle - rayAngle), 0.0), 16.0);
+    rays += alignment * exp(-dist * 4.0);
+  }
+  col += vec3(1.0, 0.6, 0.2) * rays * 0.15 * uSolarFlareIntensity;
+  col *= 0.7 + audio * 0.3;
+  return col * uSolarFlareOpacity;
+}`,
+    mainCall: `  if (uSolarFlareEnabled > 0.5) color += solarFlare(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-clockwork',
+    uniforms: `uniform float uClockworkEnabled;
+uniform float uClockworkOpacity;
+uniform float uClockworkSpeed;
+uniform float uClockworkGearCount;
+uniform float uClockworkDetail;
+uniform float uClockworkRust;`,
+    functions: `vec3 clockwork(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float aspect = uResolution.x / uResolution.y;
+  centered.x *= aspect;
+  int gearCount = int(uClockworkGearCount + 1.0);
+  float detail = uClockworkDetail;
+  float rustLevel = uClockworkRust;
+  vec3 col = vec3(0.02, 0.015, 0.01);
+  for (int i = 0; i < 6; i++) {
+    if (i >= gearCount) break;
+    float fi = float(i);
+    vec2 gearPos = vec2(
+      sin(fi * 2.3 + 0.5) * 0.25,
+      cos(fi * 1.7 + 0.3) * 0.25
+    );
+    float gearRadius = 0.08 + fi * 0.015;
+    int teeth = int(8.0 + fi * 4.0);
+    float speed = uClockworkSpeed * (mod(fi, 2.0) < 1.0 ? 1.0 : -1.0) * (0.5 + fi * 0.2);
+    float rotation = t * speed + fi * 0.5;
+    vec2 rel = centered - gearPos;
+    float dist = length(rel);
+    float angle = atan(rel.y, rel.x) - rotation;
+    float toothAngle = 6.2832 / float(teeth);
+    float toothPhase = mod(angle, toothAngle) / toothAngle;
+    float toothProfile = step(0.35, toothPhase) * (1.0 - step(0.65, toothPhase));
+    float gearMask = smoothstep(gearRadius + 0.008, gearRadius - 0.003, dist);
+    float innerHole = smoothstep(gearRadius * 0.15, gearRadius * 0.2, dist);
+    float spokeMask = 0.0;
+    for (int s = 0; s < 4; s++) {
+      float spokeAngle = float(s) * 1.5708 + rotation;
+      float spokeDist = abs(sin(angle + rotation - spokeAngle)) * dist;
+      spokeMask = max(spokeMask, smoothstep(0.004, 0.0, spokeDist - 0.001) * step(gearRadius * 0.2, dist));
+    }
+    float audioPulse = 1.0 + audio * 0.05 * sin(fi * 2.0);
+    vec3 brassColor = mix(vec3(0.72, 0.55, 0.15), vec3(0.45, 0.35, 0.12), rustLevel * hash21(vec2(fi, fi * 3.0)));
+    vec3 gearColor = brassColor * (0.8 + toothProfile * 0.2) * audioPulse;
+    col = mix(col, gearColor, gearMask * innerHole);
+    col += brassColor * spokeMask * 0.5;
+    float hubMask = smoothstep(gearRadius * 0.2, gearRadius * 0.15, dist) * gearMask;
+    col = mix(col, vec3(0.3, 0.2, 0.1), hubMask);
+  }
+  col *= 0.7 + audio * 0.3;
+  return col * uClockworkOpacity;
+}`,
+    mainCall: `  if (uClockworkEnabled > 0.5) color += clockwork(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-god-rays',
+    uniforms: `uniform float uGodRaysEnabled;
+uniform float uGodRaysOpacity;
+uniform float uGodRaysSpeed;
+uniform float uGodRaysCount;
+uniform float uGodRaysDensity;
+uniform float uGodRaysSpread;`,
+    functions: `vec3 godRays(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float count = uGodRaysCount;
+  float density = uGodRaysDensity;
+  float spread = uGodRaysSpread;
+  vec3 col = vec3(0.0);
+  vec2 lightSource = vec2(sin(t * uGodRaysSpeed * 0.1) * 0.2, 0.45);
+  vec2 lightDir = lightSource - centered;
+  float lightDist = length(lightDir);
+  float lightAngle = atan(lightDir.y, lightDir.x);
+  for (int i = 0; i < 16; i++) {
+    if (i >= int(count)) break;
+    float fi = float(i);
+    float rayAngle = lightAngle + (hash21(vec2(fi, t * uGodRaysSpeed * 0.05)) - 0.5) * spread;
+    float alignment = pow(max(dot(normalize(lightDir), vec2(cos(rayAngle), sin(rayAngle))), 0.0), 4.0 + density * 8.0);
+    float rayLength = 0.3 + hash21(vec2(fi * 3.0, fi * 7.0)) * 0.5;
+    float rayFade = smoothstep(rayLength, 0.0, lightDist);
+    float shimmer = 0.7 + 0.3 * sin(lightDist * 15.0 - t * uGodRaysSpeed * 2.0 + fi);
+    float audioRay = uSpectrum[int(mod(fi * 4.0, 64.0))] * 0.3;
+    float rayIntensity = alignment * rayFade * shimmer * (0.15 + audioRay);
+    vec3 rayColor = getPaletteColor(fi / count * 0.3 + 0.1);
+    col += rayColor * rayIntensity;
+  }
+  float sourceGlow = 0.01 / (dot(centered - lightSource, centered - lightSource) + 0.001);
+  col += vec3(1.0, 0.95, 0.8) * sourceGlow * 0.2;
+  float fogNoise = fbm(centered * 3.0 + t * uGodRaysSpeed * 0.05);
+  col *= 0.8 + fogNoise * 0.2;
+  col *= 0.6 + audio * 0.4;
+  return col * uGodRaysOpacity;
+}`,
+    mainCall: `  if (uGodRaysEnabled > 0.5) color += godRays(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-dust-storm',
+    uniforms: `uniform float uDustStormEnabled;
+uniform float uDustStormOpacity;
+uniform float uDustStormSpeed;
+uniform float uDustStormDensity;
+uniform float uDustStormWindAngle;
+uniform float uDustStormVisibility;`,
+    functions: `vec3 dustStorm(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float density = uDustStormDensity;
+  float windAngle = uDustStormWindAngle;
+  float visibility = uDustStormVisibility;
+  vec2 windDir = vec2(cos(windAngle), sin(windAngle));
+  vec3 col = vec3(0.0);
+  for (int layer = 0; layer < 4; layer++) {
+    float fl = float(layer);
+    float layerSpeed = uDustStormSpeed * (0.5 + fl * 0.3);
+    vec2 layerUv = centered + windDir * t * layerSpeed;
+    layerUv *= 3.0 + fl * 2.0;
+    float noise1 = fbm(layerUv + vec2(t * uDustStormSpeed * 0.1, 0.0));
+    float noise2 = fbm(layerUv * 1.5 + vec2(0.0, t * uDustStormSpeed * 0.08));
+    float dust = noise1 * noise2;
+    dust = smoothstep(1.0 - density, 1.0, dust + 0.3);
+    float audioDust = uSpectrum[int(mod(fl * 16.0, 64.0))] * 0.2;
+    dust += audioDust;
+    vec3 dustColor1 = vec3(0.76, 0.6, 0.35);
+    vec3 dustColor2 = vec3(0.55, 0.4, 0.2);
+    vec3 layerColor = mix(dustColor2, dustColor1, noise1);
+    float depth = 1.0 - fl * 0.2;
+    col += layerColor * dust * depth * 0.5;
+  }
+  float fogDistance = length(centered);
+  float fogDensity = smoothstep(visibility, 0.0, fogDistance);
+  col *= fogDensity;
+  vec3 skyColor = vec3(0.3, 0.25, 0.2);
+  col = mix(skyColor, col, fogDensity);
+  float grain = hash21(centered * 100.0 + t) * 0.03;
+  col += grain;
+  col *= 0.7 + audio * 0.3;
+  return col * uDustStormOpacity;
+}`,
+    mainCall: `  if (uDustStormEnabled > 0.5) color += dustStorm(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-constellation',
+    uniforms: `uniform float uConstellationEnabled;
+uniform float uConstellationOpacity;
+uniform float uConstellationSpeed;
+uniform float uConstellationStarCount;
+uniform float uConstellationConnectDist;
+uniform float uConstellationTwinkle;`,
+    functions: `vec3 constellation(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  int starCount = int(uConstellationStarCount + 4.0);
+  float connectDist = uConstellationConnectDist;
+  float twinkle = uConstellationTwinkle;
+  vec3 col = vec3(0.0);
+  vec2 starPositions[32];
+  float starBright[32];
+  for (int i = 0; i < 32; i++) {
+    if (i < starCount) {
+      vec2 basePos = vec2(hash21(vec2(float(i), 1.0)) - 0.5, hash21(vec2(1.0, float(i))) - 0.5);
+      starPositions[i] = basePos + vec2(sin(t * uConstellationSpeed * 0.1 + float(i) * 0.7), cos(t * uConstellationSpeed * 0.13 + float(i) * 1.1)) * 0.01;
+      starBright[i] = 0.5 + 0.5 * sin(t * uConstellationSpeed * twinkle + float(i) * 2.3);
+      starBright[i] += uSpectrum[int(mod(float(i) * 4.0, 64.0))] * 0.3;
+    } else {
+      starPositions[i] = vec2(99.0);
+      starBright[i] = 0.0;
+    }
+  }
+  for (int i = 0; i < 32; i++) {
+    if (i >= starCount) break;
+    float d = length(centered - starPositions[i]);
+    float glow = 0.0003 / (d * d + 0.00001);
+    float hue = hash21(vec2(float(i), float(i) * 2.0)) * 0.3 + 0.5;
+    vec3 starColor = getPaletteColor(hue) * starBright[i];
+    col += starColor * glow * 0.3;
+  }
+  for (int i = 0; i < 32; i++) {
+    if (i >= starCount) break;
+    for (int j = i + 1; j < 32; j++) {
+      if (j >= starCount) break;
+      float starDist = length(starPositions[i] - starPositions[j]);
+      if (starDist < connectDist) {
+        float lineAlpha = 1.0 - starDist / connectDist;
+        vec2 toPixel = centered - starPositions[i];
+        vec2 lineDir = starPositions[j] - starPositions[i];
+        float lineLen = length(lineDir);
+        vec2 lineNorm = lineDir / max(lineLen, 0.001);
+        float proj = clamp(dot(toPixel, lineNorm), 0.0, lineLen);
+        float perpDist = length(toPixel - lineNorm * proj);
+        float line = smoothstep(0.002, 0.0, perpDist);
+        float audioLine = uSpectrum[int(mod(float(i + j) * 2.0, 64.0))] * 0.5;
+        col += getPaletteColor(0.6) * line * lineAlpha * (0.15 + audioLine) * min(starBright[i], starBright[j]);
+      }
+    }
+  }
+  float nebula = fbm(centered * 2.0 + t * uConstellationSpeed * 0.02) * 0.1;
+  col += getPaletteColor(0.3) * nebula;
+  col *= 0.7 + audio * 0.3;
+  return col * uConstellationOpacity;
+}`,
+    mainCall: `  if (uConstellationEnabled > 0.5) color += constellation(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-mandelbrot',
+    uniforms: `uniform float uMandelbrotEnabled;
+uniform float uMandelbrotOpacity;
+uniform float uMandelbrotSpeed;
+uniform float uMandelbrotZoom;
+uniform float uMandelbrotMaxIter;
+uniform float uMandelbrotColorCycle;`,
+    functions: `vec3 mandelbrot(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float zoom = uMandelbrotZoom;
+  float maxIter = uMandelbrotMaxIter;
+  float colorCycle = uMandelbrotColorCycle;
+  float aspect = uResolution.x / uResolution.y;
+  vec2 c = centered * vec2(aspect, 1.0) / zoom;
+  c += vec2(-0.745, 0.186) + vec2(sin(t * uMandelbrotSpeed * 0.05) * 0.01, cos(t * uMandelbrotSpeed * 0.03) * 0.01);
+  vec2 z = vec2(0.0);
+  float iter = 0.0;
+  for (int i = 0; i < 256; i++) {
+    if (i >= int(maxIter)) break;
+    if (dot(z, z) > 4.0) break;
+    z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+    iter += 1.0;
+  }
+  vec3 col = vec3(0.0);
+  if (dot(z, z) > 4.0) {
+    float smoothIter = iter - log2(log2(dot(z, z)));
+    float hue = smoothIter * colorCycle / maxIter + t * uMandelbrotSpeed * 0.02;
+    col = getPaletteColor(hue);
+    float banding = sin(smoothIter * 0.5) * 0.5 + 0.5;
+    col *= 0.7 + banding * 0.3;
+    col *= 0.6 + audio * 0.4;
+  }
+  return col * uMandelbrotOpacity;
+}`,
+    mainCall: `  if (uMandelbrotEnabled > 0.5) color += mandelbrot(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-whirlpool',
+    uniforms: `uniform float uWhirlpoolEnabled;
+uniform float uWhirlpoolOpacity;
+uniform float uWhirlpoolSpeed;
+uniform float uWhirlpoolArms;
+uniform float uWhirlpoolPull;
+uniform float uWhirlpoolFoam;`,
+    functions: `vec3 whirlpool(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float arms = uWhirlpoolArms;
+  float pull = uWhirlpoolPull;
+  float foam = uWhirlpoolFoam;
+  float dist = length(centered);
+  float angle = atan(centered.y, centered.x);
+  float spiralAngle = angle + dist * pull * 10.0 - t * uWhirlpoolSpeed;
+  float spiralNoise = fbm(vec2(spiralAngle * arms / 6.2832, dist * 5.0));
+  float armPattern = sin(spiralAngle * arms) * 0.5 + 0.5;
+  armPattern = pow(armPattern, 1.5);
+  float audioSpiral = uSpectrum[int(mod(abs(angle) * 10.0, 64.0))] * 0.3;
+  armPattern += audioSpiral;
+  vec3 deepColor = vec3(0.0, 0.05, 0.15);
+  vec3 waterColor = vec3(0.0, 0.2, 0.4);
+  vec3 foamColor = vec3(0.7, 0.85, 0.95);
+  vec3 col = mix(deepColor, waterColor, armPattern);
+  float foamLine = smoothstep(0.6, 0.7, armPattern + spiralNoise * foam);
+  col = mix(col, foamColor, foamLine * 0.5);
+  float centerPull = smoothstep(0.15, 0.0, dist);
+  col = mix(col, vec3(0.0), centerPull * 0.8);
+  float ringHighlight = sin(dist * 40.0 - t * uWhirlpoolSpeed * 3.0) * 0.5 + 0.5;
+  col += vec3(0.3, 0.5, 0.7) * ringHighlight * 0.1 * armPattern;
+  float edgeWaves = sin(angle * 8.0 + dist * 20.0 - t * uWhirlpoolSpeed * 2.0) * 0.02;
+  col += vec3(1.0) * smoothstep(0.01, 0.0, abs(dist - 0.35 + edgeWaves) - 0.005) * 0.3;
+  col *= 0.7 + audio * 0.3;
+  return col * uWhirlpoolOpacity;
+}`,
+    mainCall: `  if (uWhirlpoolEnabled > 0.5) color += whirlpool(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-firework',
+    uniforms: `uniform float uFireworkEnabled;
+uniform float uFireworkOpacity;
+uniform float uFireworkSpeed;
+uniform float uFireworkBurstCount;
+uniform float uFireworkTrailLen;
+uniform float uFireworkParticleSize;`,
+    functions: `vec3 firework(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uPeak;
+  int burstCount = int(uFireworkBurstCount + 1.0);
+  float trailLen = uFireworkTrailLen;
+  float particleSize = uFireworkParticleSize;
+  vec3 col = vec3(0.0);
+  for (int b = 0; b < 8; b++) {
+    if (b >= burstCount) break;
+    float fb = float(b);
+    float burstTime = mod(t * uFireworkSpeed + fb * 2.5, 8.0);
+    vec2 burstOrigin = vec2(
+      hash21(vec2(fb, 1.0)) * 0.6 - 0.3,
+      hash21(vec2(1.0, fb)) * 0.3 - 0.1
+    );
+    float launchPhase = smoothstep(0.0, 0.3, burstTime);
+    vec2 launchPos = burstOrigin + vec2(0.0, launchPhase * 0.35);
+    float launchGlow = smoothstep(0.3, 0.0, burstTime) * 0.005 / (length(centered - launchPos) * length(centered - launchPos) + 0.0001);
+    col += vec3(1.0, 0.8, 0.4) * launchGlow * 0.3;
+    if (burstTime > 0.3) {
+      float explodeAge = burstTime - 0.3;
+      float fade = exp(-explodeAge * 1.5);
+      int particles = 20 + int(fb * 3.0);
+      for (int p = 0; p < 30; p++) {
+        if (p >= particles) break;
+        float fp = float(p);
+        float pAngle = fp * 2.399 + fb * 0.7;
+        float pSpeed = (0.15 + hash21(vec2(fb, fp)) * 0.15) * fade;
+        vec2 pVel = vec2(cos(pAngle), sin(pAngle)) * pSpeed;
+        pVel.y -= explodeAge * 0.08;
+        vec2 pPos = launchPos + pVel * explodeAge;
+        float pDist = length(centered - pPos);
+        float pGlow = particleSize * 0.0003 / (pDist * pDist + 0.00001);
+        pGlow *= fade;
+        float audioBurst = uSpectrum[int(mod(fp * 2.0, 64.0))] * 0.3;
+        pGlow *= 0.7 + audioBurst;
+        float hue = fb * 0.12 + fp * 0.01;
+        vec3 pColor = getPaletteColor(hue);
+        col += pColor * pGlow;
+        if (trailLen > 0.1) {
+          vec2 trailPos = pPos - pVel * 0.03 * trailLen;
+          float trailDist = length(centered - trailPos);
+          float trailGlow = particleSize * 0.0001 / (trailDist * trailDist + 0.00005) * fade * trailLen;
+          col += pColor * trailGlow * 0.5;
+        }
+      }
+    }
+  }
+  col *= 0.8 + audio * 0.2;
+  return col * uFireworkOpacity;
+}`,
+    mainCall: `  if (uFireworkEnabled > 0.5) color += firework(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-crystal-cave',
+    uniforms: `uniform float uCrystalCaveEnabled;
+uniform float uCrystalCaveOpacity;
+uniform float uCrystalCaveSpeed;
+uniform float uCrystalCaveDensity;
+uniform float uCrystalCaveGlow;
+uniform float uCrystalCaveRefract;`,
+    functions: `vec3 crystalCave(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float density = uCrystalCaveDensity;
+  float glow = uCrystalCaveGlow;
+  float refract = uCrystalCaveRefract;
+  float aspect = uResolution.x / uResolution.y;
+  centered.x *= aspect;
+  vec3 col = vec3(0.01, 0.005, 0.02);
+  float caveNoise = fbm(centered * 1.5);
+  float caveMask = smoothstep(0.6, 0.2, length(centered) + caveNoise * 0.1);
+  vec3 caveColor = vec3(0.05, 0.03, 0.06) * caveMask;
+  col += caveColor;
+  for (int i = 0; i < 12; i++) {
+    if (i >= int(density * 12.0)) break;
+    float fi = float(i);
+    vec2 crystalPos = vec2(
+      hash21(vec2(fi, fi * 3.0)) * aspect - aspect * 0.5,
+      hash21(vec2(fi * 2.0, fi)) - 0.5
+    );
+    float crystalAngle = hash21(vec2(fi * 5.0, fi * 7.0)) * 1.5 - 0.75;
+    float crystalLen = 0.03 + hash21(vec2(fi * 4.0, fi * 2.0)) * 0.06;
+    float crystalWidth = crystalLen * 0.15;
+    vec2 toPixel = centered - crystalPos;
+    float ca = cos(crystalAngle);
+    float sa = sin(crystalAngle);
+    vec2 local = vec2(toPixel.x * ca + toPixel.y * sa, -toPixel.x * sa + toPixel.y * ca);
+    float crystalShape = smoothstep(crystalWidth, 0.0, abs(local.y)) * smoothstep(0.0, crystalLen, local.x) * smoothstep(crystalLen + 0.005, crystalLen * 0.8, local.x);
+    float crystalTip = smoothstep(crystalLen * 0.8, crystalLen, local.x) * crystalShape;
+    vec3 crystalColor = getPaletteColor(fi * 0.08 + 0.2 + sin(t * uCrystalCaveSpeed * 0.3) * 0.05);
+    float audioGlow = uSpectrum[int(mod(fi * 5.0, 64.0))] * glow;
+    float internalGlow = sin(local.x / crystalLen * 6.2832 + t * uCrystalCaveSpeed) * 0.5 + 0.5;
+    col += crystalColor * crystalShape * (0.5 + internalGlow * 0.5 + audioGlow);
+    float tipGlow = 0.002 / (length(centered - (crystalPos + vec2(cos(crystalAngle), sin(crystalAngle)) * crystalLen)) + 0.001);
+    col += crystalColor * tipGlow * glow * 0.3;
+  }
+  float ambientGlow = fbm(centered * 2.0 + t * uCrystalCaveSpeed * 0.05) * glow * 0.1;
+  col += vec3(0.2, 0.1, 0.3) * ambientGlow;
+  col *= 0.7 + audio * 0.3;
+  col *= caveMask;
+  return col * uCrystalCaveOpacity;
+}`,
+    mainCall: `  if (uCrystalCaveEnabled > 0.5) color += crystalCave(effectUv, uTime);
+`
+  },
+
+  {
+    id: 'gen-volcano',
+    uniforms: `uniform float uVolcanoEnabled;
+uniform float uVolcanoOpacity;
+uniform float uVolcanoSpeed;
+uniform float uVolcanoEruption;
+uniform float uVolcanoSmoke;
+uniform float uVolcanoLavaFlow;`,
+    functions: `vec3 volcano(vec2 uv, float t) {
+  vec2 centered = uv - 0.5;
+  float audio = uRms;
+  float peak = uPeak;
+  float eruption = uVolcanoEruption;
+  float smoke = uVolcanoSmoke;
+  float lavaFlow = uVolcanoLavaFlow;
+  vec3 col = vec3(0.0);
+  float mountainWidth = 0.5;
+  float mountainHeight = 0.3;
+  float craterWidth = 0.06;
+  float mountainSlope = mountainHeight / (mountainWidth * 0.5);
+  float distFromCenter = abs(centered.x);
+  float surfaceY = -0.3;
+  if (distFromCenter < mountainWidth * 0.5) {
+    float craterDist = abs(distFromCenter);
+    if (craterDist > craterWidth) {
+      surfaceY = -0.3 + (mountainWidth * 0.5 - craterDist) * mountainSlope;
+    } else {
+      surfaceY = -0.3 + (mountainWidth * 0.5 - craterWidth) * mountainSlope - (craterWidth - craterDist) * 0.5;
+    }
+  }
+  float isMountain = step(centered.y, surfaceY);
+  vec3 rockColor = vec3(0.15, 0.1, 0.08);
+  col = rockColor * isMountain;
+  if (lavaFlow > 0.1) {
+    for (int l = 0; l < 6; l++) {
+      float fl = float(l);
+      float lavaAngle = fl * 1.047 + sin(fl * 3.0) * 0.3;
+      vec2 lavaDir = vec2(cos(lavaAngle), -abs(sin(lavaAngle)));
+      float lavaProgress = fract(t * uVolcanoSpeed * 0.1 + fl * 0.17) * lavaFlow;
+      vec2 lavaPos = vec2(sin(fl * 2.3) * craterWidth * 0.5, -0.3 + (mountainWidth * 0.5 - craterWidth) * mountainSlope) + lavaDir * lavaProgress * 0.3;
+      float lavaDist = length(centered - lavaPos);
+      float lavaGlow = 0.003 / (lavaDist * lavaDist + 0.0001);
+      float audioLava = uSpectrum[int(mod(fl * 10.0, 64.0))];
+      col += vec3(1.0, 0.3, 0.0) * lavaGlow * (0.3 + audioLava * 0.3) * isMountain;
+    }
+  }
+  float eruptionHeight = eruption * (0.3 + peak * 0.2);
+  for (int p = 0; p < 20; p++) {
+    float fp = float(p);
+    float pAngle = (hash21(vec2(fp, floor(t * uVolcanoSpeed * 2.0))) - 0.5) * 1.0;
+    float pSpeed = hash21(vec2(floor(t * uVolcanoSpeed * 2.0), fp)) * eruptionHeight;
+    float pAge = fract(t * uVolcanoSpeed * 2.0 + fp * 0.05);
+    vec2 pPos = vec2(pAngle * pAge, -0.3 + (mountainWidth * 0.5 - craterWidth) * mountainSlope + pSpeed * pAge - pAge * pAge * 0.3);
+    float pDist = length(centered - pPos);
+    float pGlow = 0.0005 / (pDist * pDist + 0.00001) * (1.0 - pAge);
+    col += vec3(1.0, 0.5 + pAge * 0.3, 0.1) * pGlow * eruption;
+  }
+  if (smoke > 0.1) {
+    vec2 smokeUv = vec2(centered.x, centered.y + 0.1) * vec2(1.0, 2.0);
+    float smokeNoise = fbm(smokeUv * 2.0 + vec2(0.0, t * uVolcanoSpeed * 0.3));
+    float smokeMask = smoothstep(-0.1, 0.15, centered.y + 0.1) * smoke * smokeNoise;
+    col = mix(col, vec3(0.15, 0.12, 0.1), smokeMask * 0.6);
+  }
+  vec3 skyColor = vec3(0.02, 0.01, 0.03);
+  col = mix(skyColor, col, step(0.01, isMountain + eruption * 0.5 + smoke * 0.3));
+  col *= 0.7 + audio * 0.3;
+  return col * uVolcanoOpacity;
+}`,
+    mainCall: `  if (uVolcanoEnabled > 0.5) color += volcano(effectUv, uTime);
 `
   },
 

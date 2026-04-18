@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Fireworks Show",
+    "createdAt": "2026-04-18T00:00:00.000Z",
+    "updatedAt": "2026-04-18T00:00:00.000Z",
+    "category": "Explosive",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Big Room",
+    "visualIntentTags": ["firework", "burst", "explosive", "celebration"],
+    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["complementary", "high-contrast"],
+    "activeEngineId": "engine-vapor-grid",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Fireworks Show",
+    "intent": "pulse",
+    "duration": 0,
+    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-firework"], "support": ["layer-plasma"], "atmosphere": ["layer-crystal"] },
+    "layers": [
+      {
+        "id": "gen-firework",
+        "name": "Fireworks Show",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-firework",
+        "params": { "opacity": 1, "speed": 1, "burstCount": 4, "trailLen": 0.6, "particleSize": 1 }
+      },
+      {
+        "id": "layer-plasma",
+        "name": "Shader Plasma",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.3,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      },
+      {
+        "id": "layer-crystal",
+        "name": "Crystal Harmonics",
+        "role": "atmosphere",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
+  "tempoSync": { "bpm": 128, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

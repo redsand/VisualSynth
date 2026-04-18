@@ -69,17 +69,41 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
   let lastShaderError: string | null = null;
   let customPlasmaSource: string | null = null;
   let contextLost = false;
+  let contextRestoring = false;
 
   // Handle WebGL context loss / restore
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
     contextLost = true;
-    console.warn('[GLRenderer] WebGL context lost');
+    contextRestoring = false;
+    console.warn('[GLRenderer] WebGL context lost — marking all resources invalid');
+    // Clear all caches immediately to prevent use of invalid resources
+    programCache.clear();
+    activeUniformLookupCache.clear();
+    uniformLocationCache.clear();
+    missingUniforms.clear();
+    uniformWarningsLogged = false;
+    // Mark programs as null since they're now invalid
+    standardProgram = null;
+    advancedSdfProgram = null;
+    currentProgram = null;
+    currentShaderVariantKey = null;
+    // Clear pending compiles - they're now invalid
+    if (pendingProgram) {
+      untrackProgram(pendingProgram.program);
+      pendingProgram = null;
+    }
+    pendingPrecompiles.forEach(p => {
+      untrackProgram(p.program);
+    });
+    pendingPrecompiles.length = 0;
     canvas.dispatchEvent(new CustomEvent('visualsynth-contextlost'));
   });
   canvas.addEventListener('webglcontextrestored', () => {
-    console.log('[GLRenderer] WebGL context restored — rebuilding');
-    contextLost = false;// All GL resources are invalid after context loss — clear every cache
+    console.log('[GLRenderer] WebGL context restored — beginning rebuild');
+    contextLost = false;
+    contextRestoring = true;
+    // All GL resources are invalid after context loss — clear every cache
     programCache.clear();
     activeUniformLookupCache.clear();
     uniformLocationCache.clear();
@@ -87,6 +111,7 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     missingUniforms.clear();
     uniformWarningsLogged = false;
     advancedSdfProgram = null;
+    advancedSdfUniforms = [];
     advancedSdfUniformLocations.clear();
     milkDropCompositeProgram = null;
     milkDropEnabled = false;
@@ -95,21 +120,48 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     lastMilkDropComp = '';
     previousFrameWidth = 0;
     previousFrameHeight = 0;
-    // Re-init textures and recompile the active shader
-    initInternalTextures();
-    standardProgram = getOrCompileProgram(
-      currentActiveIds,
-      currentSdfUniforms,
-      currentSdfFunctions,
-      currentSdfMapBody,
-      currentPlasmaSource,
-      currentCustomBlocks
-    );
-    currentProgram = standardProgram;
-    currentShaderVariantKey = standardProgram
-      ? shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomBlocksHash + currentFxUniforms)
-      : null;
-    canvas.dispatchEvent(new CustomEvent('visualsynth-contextrestored'));
+    // Clear any pending precompiles
+    pendingPrecompiles.length = 0;
+
+    try {
+      // Re-init internal textures
+      initInternalTextures();
+
+      // Clear asset cache - all textures are invalid after context loss
+      assetCache.forEach(entry => {
+        if (entry.texture) {
+          untrackTexture(entry.texture);
+          // Don't call gl.deleteTexture here - context was lost, resources are already gone
+        }
+      });
+      assetCache.clear();
+      pendingAssetLoads.clear();
+      Object.keys(layerBindings).forEach(key => {
+        delete layerBindings[key as AssetLayerId];
+      });
+
+      // Recompile the active shader with current state
+      standardProgram = getOrCompileProgram(
+        currentActiveIds,
+        currentSdfUniforms,
+        currentSdfFunctions,
+        currentSdfMapBody,
+        currentPlasmaSource,
+        currentCustomBlocks,
+        false,
+        currentFxUniforms
+      );
+      currentProgram = standardProgram;
+      currentShaderVariantKey = standardProgram
+        ? shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomBlocksHash + currentFxUniforms)
+        : null;
+      contextRestoring = false;
+      console.log('[GLRenderer] WebGL context restore complete');
+      canvas.dispatchEvent(new CustomEvent('visualsynth-contextrestored'));
+    } catch (err) {
+      console.error('[GLRenderer] Failed to restore WebGL context:', err);
+      contextRestoring = false;
+    }
   });
 
   // --- Generator Diagnostics ---
@@ -745,9 +797,9 @@ void main() {
     }
   };
 
-  type AssetLayerId = 
-    | 'layer-plasma' 
-    | 'layer-spectrum' 
+  type AssetLayerId =
+    | 'layer-plasma'
+    | 'layer-spectrum'
     | 'layer-media'
     | 'gen-asset-vortex'
     | 'gen-asset-slices'
@@ -755,8 +807,9 @@ void main() {
     | 'gen-asset-mosaic'
     | 'gen-asset-ripple'
     | 'gen-asset-scatter'
-    | 'gen-asset-echo';
-  
+    | 'gen-asset-echo'
+    | 'gen-signal-noise';
+
   const ASSET_LAYER_UNITS: Record<AssetLayerId, number> = {
     'layer-plasma': 1,
     'layer-spectrum': 2,
@@ -767,7 +820,8 @@ void main() {
     'gen-asset-mosaic': 7,
     'gen-asset-ripple': 8,
     'gen-asset-scatter': 9,
-    'gen-asset-echo': 10
+    'gen-asset-echo': 10,
+    'gen-signal-noise': 14
   };
 
   interface AssetCacheEntry {
@@ -992,11 +1046,11 @@ void main() {
     if (enabledLoc) gl.uniform1f(enabledLoc, entry ? 1 : 0);
     
     if (entry?.internalSourceId) {
-        let internalUnit = 10;
-        if (entry.internalSourceId === 'audio-spectrum') internalUnit = 11;
-        if (entry.internalSourceId === 'modulators') internalUnit = 12;
-        if (entry.internalSourceId === 'midi-history') internalUnit = 13;
-        
+        let internalUnit = 15;
+        if (entry.internalSourceId === 'audio-spectrum') internalUnit = 16;
+        if (entry.internalSourceId === 'modulators') internalUnit = 17;
+        if (entry.internalSourceId === 'midi-history') internalUnit = 18;
+
         if (samplerLoc) gl.uniform1i(samplerLoc, internalUnit);
     } else {
         if (samplerLoc) gl.uniform1i(samplerLoc, unitIndex);
@@ -1021,10 +1075,11 @@ void main() {
     clearHistory();
   };
 
-  const setPlasmaShaderSource = (source: string | null) => {
+  const setPlasmaShaderSource = (source: string | null, fxUniformsOverride?: string) => {
     const trimmed = source?.trim();
     const nextSource = trimmed ? trimmed : null;
     const activeIds = currentActiveIds;
+    const effectiveFxUniforms = fxUniformsOverride ?? currentFxUniforms;
     const nextProgram = getOrCompileProgram(
       activeIds,
       currentSdfUniforms,
@@ -1033,7 +1088,7 @@ void main() {
       nextSource,
       currentCustomBlocks,
       false,
-      currentFxUniforms
+      effectiveFxUniforms
     );
     if (!nextProgram) {
       return { ok: false };
@@ -1041,12 +1096,17 @@ void main() {
     standardProgram = nextProgram;
     customPlasmaSource = nextSource;
     currentPlasmaSource = nextSource;
+    currentFxUniforms = effectiveFxUniforms;
     uniformLocationCache.clear();
     return { ok: true };
   };
 
   const render = (state: RenderState) => {
-    if (contextLost) return;
+    // Block rendering when context is lost or during restore
+    if (contextLost || contextRestoring) {
+      return;
+    }
+
     lastRenderSnapshot = {
       timestampMs: performance.now(),
       drawCallCount: 0,
@@ -1331,7 +1391,7 @@ void main() {
   };
 
   const precompileVariant = (ids: Set<string>, fxUniforms = ''): void => {
-    if (contextLost) return;
+    if (contextLost || contextRestoring) return;
     const t0 = performance.now();
     const customHash = [...currentCustomBlocks]
       .sort((a, b) => a.id.localeCompare(b.id))
@@ -1434,7 +1494,7 @@ void main() {
 
 
   const captureFrameBrightness = (): { avgBrightness: number; nonBlackRatio: number } => {
-    if (contextLost) return { avgBrightness: 0, nonBlackRatio: 0 };
+    if (contextLost || contextRestoring) return { avgBrightness: 0, nonBlackRatio: 0 };
     const sampleSize = 64;
     const pixels = new Uint8Array(sampleSize * sampleSize * 4);
     const x = Math.floor((canvas.width - sampleSize) / 2);
@@ -1552,7 +1612,7 @@ void main() {
     captureFrameBrightness,
     pruneUnusedAssets,
     dispose,
-    isContextLost: () => contextLost,
+    isContextLost: () => contextLost || contextRestoring,
     hasPendingProgram: () => pendingProgram !== null,
     asyncCompilationAvailable: () => !!extParallel,
     getCurrentProgramGenerators: () => [...currentActiveIds],

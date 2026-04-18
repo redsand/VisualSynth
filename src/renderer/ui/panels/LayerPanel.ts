@@ -446,8 +446,20 @@ export const createLayerPanel = ({
       if (!entry) return;
       const chip = document.createElement('div');
       chip.className = 'generator-chip';
+      if (entry.supportsAsset) {
+        chip.classList.add('supports-asset');
+        chip.title = 'Supports image/video assets';
+      }
       const label = document.createElement('span');
       label.textContent = entry.name;
+      if (entry.supportsAsset) {
+        const assetIcon = document.createElement('span');
+        assetIcon.className = 'asset-support-icon';
+        assetIcon.textContent = '🖼️';
+        assetIcon.style.marginLeft = '4px';
+        assetIcon.style.fontSize = '10px';
+        label.appendChild(assetIcon);
+      }
       const addButton = document.createElement('button');
       addButton.textContent = '+';
       addButton.title = 'Add generator';
@@ -472,7 +484,7 @@ export const createLayerPanel = ({
     visibleGenerators.forEach((gen) => {
       const option = document.createElement('option');
       option.value = gen.id;
-      option.textContent = gen.name;
+      option.textContent = gen.supportsAsset ? `${gen.name} 🖼️` : gen.name;
       generatorSelect.appendChild(option);
     });
     renderGeneratorList(generatorFavorites, generatorFavoritesState);
@@ -583,6 +595,49 @@ export const createLayerPanel = ({
       });
       onSetVisualizerMode('oscilloscope');
       setStatus('Visualizer: Oscilloscope.');
+    }
+    // Asset-based generators
+    if (id === 'gen-asset-vortex') {
+      actions.ensureLayer(store, 'gen-asset-vortex');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Vortex enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-slices') {
+      actions.ensureLayer(store, 'gen-asset-slices');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Slices enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-polar') {
+      actions.ensureLayer(store, 'gen-asset-polar');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Polar Warp enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-mosaic') {
+      actions.ensureLayer(store, 'gen-asset-mosaic');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Mosaic enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-ripple') {
+      actions.ensureLayer(store, 'gen-asset-ripple');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Ripples enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-scatter') {
+      actions.ensureLayer(store, 'gen-asset-scatter');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Scatter enabled. Add an asset in Layers panel.');
+    }
+    if (id === 'gen-asset-echo') {
+      actions.ensureLayer(store, 'gen-asset-echo');
+      onLayerListChanged();
+      onPerformanceToggleSync();
+      setStatus('Asset Echo Ghosts enabled. Add an asset in Layers panel.');
     }
     if (id === 'gen-particles') {
       onEnableParticles();

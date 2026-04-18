@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Crystal Cave",
+    "createdAt": "2026-04-18T00:00:00.000Z",
+    "updatedAt": "2026-04-18T00:00:00.000Z",
+    "category": "Underground",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Downtempo",
+    "visualIntentTags": ["crystal", "cave", "glow", "refraction"],
+    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "cool"],
+    "activeEngineId": "engine-particle-flow",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Crystal Cave",
+    "intent": "flow",
+    "duration": 0,
+    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-crystal-cave"], "support": ["layer-inkflow"], "atmosphere": ["layer-topo"] },
+    "layers": [
+      {
+        "id": "gen-crystal-cave",
+        "name": "Crystal Cave",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-crystal-cave",
+        "params": { "opacity": 1, "speed": 0.5, "density": 0.6, "glow": 1.2, "refract": 1 }
+      },
+      {
+        "id": "layer-inkflow",
+        "name": "Ink Flow",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.3,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      },
+      {
+        "id": "layer-topo",
+        "name": "Topo Contour",
+        "role": "atmosphere",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
+  "tempoSync": { "bpm": 100, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

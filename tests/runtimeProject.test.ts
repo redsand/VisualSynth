@@ -46,4 +46,58 @@ describe('prepareProjectForRuntime', () => {
     expect(prepared.scenes[0].layers.filter((layer: any) => layer.role === 'core')).toHaveLength(1);
     expect(prepared.scenes[0].layers[0].params!.opacity).toBe(1);
   });
+
+  it('backfills overlay image paths into the asset list without duplicating existing assets', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.assets = [
+      ...project.assets,
+      {
+        id: 'asset-existing-overlay',
+        name: 'existing.png',
+        kind: 'texture',
+        path: '/show/existing.png',
+        tags: [],
+        addedAt: new Date().toISOString()
+      }
+    ];
+    project.overlays = [
+      {
+        id: 'overlay-existing',
+        name: 'Existing Overlay',
+        type: 'image',
+        enabled: true,
+        x: 0,
+        y: 0,
+        width: 0.2,
+        height: 0.2,
+        opacity: 1,
+        rotation: 0,
+        includeInFx: false,
+        assetPath: '/show/existing.png'
+      },
+      {
+        id: 'overlay-new',
+        name: 'Flyer Overlay',
+        type: 'image',
+        enabled: true,
+        x: 0.2,
+        y: 0.2,
+        width: 0.2,
+        height: 0.2,
+        opacity: 1,
+        rotation: 0,
+        includeInFx: false,
+        assetPath: '/show/flyer.png'
+      }
+    ];
+
+    const prepared = prepareProjectForRuntime(project);
+    const overlayAssets = prepared.assets.filter((asset: any) => asset.path === '/show/flyer.png');
+    const existingAssets = prepared.assets.filter((asset: any) => asset.path === '/show/existing.png');
+
+    expect(overlayAssets).toHaveLength(1);
+    expect(overlayAssets[0].kind).toBe('texture');
+    expect(overlayAssets[0].tags).toContain('overlay');
+    expect(existingAssets).toHaveLength(1);
+  });
 });

@@ -11,9 +11,12 @@ import {
   OUTPUT_BASE_HEIGHT,
   OUTPUT_BASE_WIDTH,
   OutputConfig,
-  AssetColorSpace
+  AssetColorSpace,
+  type OverlayConfig,
+  type VisualSynthProject
 } from '../shared/project';
-import { deserializeProject } from '../shared/serialization';
+import { deserializeProject, serializeProject } from '../shared/serialization';
+import { normalizeAssetPath } from '../shared/assets';
 import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
 import { buildPresetIndexEntry } from '../shared/presetIndex';
 import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
@@ -264,6 +267,95 @@ app.on('before-quit', async () => {
   await cleanupOutputIntegrations();
 });
 
+const clearRecoverySession = () => {
+  try {
+    const recoveryPath = path.join(app.getPath('userData'), 'sessions', 'recovery.json');
+    if (fs.existsSync(recoveryPath)) {
+      fs.unlinkSync(recoveryPath);
+    }
+  } catch (error) {
+    console.warn('[Recovery] Failed to clear recovery session:', error);
+  }
+};
+
+const copyProjectAssetToPortableLocation = (
+  sourcePath: string,
+  projectAssetsDir: string
+) => {
+  if (!fs.existsSync(sourcePath)) {
+    return normalizeAssetPath(sourcePath);
+  }
+  fs.mkdirSync(projectAssetsDir, { recursive: true });
+  const ext = path.extname(sourcePath);
+  const hash = hashFile(sourcePath);
+  const fileName = `${hash}${ext}`;
+  const destPath = path.join(projectAssetsDir, fileName);
+  if (!fs.existsSync(destPath)) {
+    fs.copyFileSync(sourcePath, destPath);
+  }
+  return normalizeAssetPath(path.join('assets', fileName));
+};
+
+const readEmbeddedImageData = (sourcePath: string) => {
+  if (!fs.existsSync(sourcePath)) return undefined;
+  const ext = path.extname(sourcePath).toLowerCase();
+  if (!IMAGE_EXTENSIONS.has(ext)) return undefined;
+  const mime =
+    ext === '.png' ? 'image/png'
+    : ext === '.webp' ? 'image/webp'
+    : 'image/jpeg';
+  const data = fs.readFileSync(sourcePath).toString('base64');
+  return `data:${mime};base64,${data}`;
+};
+
+const rewritePortableProjectAssets = (project: VisualSynthProject, targetPath: string) => {
+  const projectDir = path.dirname(targetPath);
+  const projectAssetsDir = path.join(projectDir, 'assets');
+  const portablePathByAssetId = new Map<string, string>();
+
+  project.assets = project.assets.map((asset) => {
+    if (asset.kind === 'internal' || !asset.path) {
+      return asset;
+    }
+    if (asset.kind === 'texture') {
+      const embeddedData = readEmbeddedImageData(asset.path);
+      if (embeddedData) {
+        return {
+          ...asset,
+          embeddedData,
+          path: undefined
+        };
+      }
+    }
+    const portablePath = copyProjectAssetToPortableLocation(asset.path, projectAssetsDir);
+    portablePathByAssetId.set(asset.id, portablePath ?? asset.path);
+    return {
+      ...asset,
+      path: portablePath
+    };
+  });
+
+  project.overlays = (project.overlays ?? []).map((overlay: OverlayConfig) => {
+    if (overlay.type !== 'image') {
+      return overlay;
+    }
+    const portableFromAssetId = overlay.assetId ? portablePathByAssetId.get(overlay.assetId) : undefined;
+    const portablePath = portableFromAssetId
+      ?? (overlay.assetPath ? copyProjectAssetToPortableLocation(overlay.assetPath, projectAssetsDir) : undefined);
+    return {
+      ...overlay,
+      assetPath: portablePath
+    };
+  });
+
+  return project;
+};
+
+const buildPortableProjectPayload = (payload: string, targetPath: string) => {
+  const project = rewritePortableProjectAssets(deserializeProject(payload), targetPath);
+  return serializeProject(project);
+};
+
 ipcMain.handle('project:save', async (_event, payload: string, filePath?: string) => {
   if (!mainWindow) return { canceled: true };
 
@@ -282,7 +374,9 @@ ipcMain.handle('project:save', async (_event, payload: string, filePath?: string
   }
 
   try {
-    fs.writeFileSync(targetPath, payload, 'utf-8');
+    const portablePayload = buildPortableProjectPayload(payload, targetPath);
+    fs.writeFileSync(targetPath, portablePayload, 'utf-8');
+    clearRecoverySession();
     return { canceled: false, filePath: targetPath };
   } catch (error) {
     return { canceled: true, error: error instanceof Error ? error.message : String(error) };
@@ -314,7 +408,9 @@ ipcMain.handle('preset:save', async (_event, payload: string, defaultName: strin
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, payload, 'utf-8');
+  const portablePayload = buildPortableProjectPayload(payload, result.filePath);
+  fs.writeFileSync(result.filePath, portablePayload, 'utf-8');
+  clearRecoverySession();
   return { canceled: false, filePath: result.filePath };
 });
 
@@ -386,15 +482,28 @@ ipcMain.handle('project:open', async () => {
     properties: ['openFile']
   });
   if (result.canceled || result.filePaths.length === 0) {
+    console.log('[Main] Project open canceled or no file selected.');
     return { canceled: true };
   }
   const filePath = result.filePaths[0];
-  const data = fs.readFileSync(filePath, 'utf-8');
-  const parsed = projectSchema.safeParse(JSON.parse(data));
-  if (!parsed.success) {
-    return { canceled: true, error: 'Invalid project file.' };
+  console.log(`[Main] Opening project file: ${filePath}`);
+  try {
+    const data = fs.readFileSync(filePath, 'utf-8');
+    const parsed = projectSchema.safeParse(JSON.parse(data));
+    if (!parsed.success) {
+      console.error('[Main] Project parse failed:', parsed.error.flatten());
+      return { canceled: true, error: 'Invalid project file.', filePath };
+    }
+    console.log(`[Main] Project file parsed successfully: ${filePath}`);
+    return { canceled: false, filePath, project: parsed.data };
+  } catch (error) {
+    console.error('[Main] Project open failed:', error);
+    return {
+      canceled: true,
+      filePath,
+      error: error instanceof Error ? error.message : 'Project open failed.'
+    };
   }
-  return { canceled: false, filePath, project: parsed.data };
 });
 
 ipcMain.handle('scene:open', async () => {
@@ -654,7 +763,7 @@ ipcMain.handle(
         const fileBuffer = fs.readFileSync(filePath);
         const fileBase64 = fileBuffer.toString('base64');
         const mimeType = mimeMap[ext] ?? 'application/octet-stream';
-        
+
         // Default seek position (25% into song, aiming for first drop/chorus)
         const seekSeconds = 20;
         const durationSeconds = 5; // Shazam needs ~3.1 sec, we give 5 sec
@@ -723,6 +832,92 @@ ipcMain.handle(
       }
     }
 
+    // For AudD, extract a 10-12 second clip from the middle of the file for optimal recognition
+    // AudD accepts various formats but works best with 6-12 second clips
+    if (request.provider === 'audd') {
+      try {
+        const fileStats = fs.statSync(filePath);
+        const fileSizeMB = fileStats.size / (1024 * 1024);
+
+        // For files > 5MB, extract a clip to reduce upload size and improve recognition
+        if (fileSizeMB > 5) {
+          console.log(`[AudD] Large file detected (${fileSizeMB.toFixed(1)}MB), extracting clip...`);
+
+          const fileBuffer = fs.readFileSync(filePath);
+          const fileBase64 = fileBuffer.toString('base64');
+          const mimeType = mimeMap[ext] ?? 'application/octet-stream';
+
+          // Extract 12 second clip starting at 25% into the file
+          const seekSeconds = 15;
+          const durationSeconds = 12;
+
+          // Send to renderer for decoding (reuses Shazam decode infrastructure)
+          const rendererClip = await new Promise<{ base64: string | null; mimeType: string; durationMs: number } | null>((resolve) => {
+            const requestId = `audd-decode-${Date.now()}`;
+            const timeout = setTimeout(() => resolve(null), 30000);
+            ipcMain.once(requestId, (_ev, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
+              clearTimeout(timeout);
+              resolve(result);
+            });
+            if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+              mainWindow.webContents.send('audd:decode-file', {
+                requestId,
+                fileBase64,
+                mimeType,
+                seekSeconds,
+                durationSeconds
+              });
+            } else {
+              resolve(null);
+            }
+          });
+
+          if (rendererClip && rendererClip.base64) {
+            console.log(`[AudD] Using extracted clip: ${(rendererClip.base64.length / 1024).toFixed(1)}KB, ${rendererClip.durationMs}ms`);
+            const lookup = await identifyNowPlaying({
+              ...request,
+              audioBase64: rendererClip.base64,
+              mimeType: rendererClip.mimeType,
+              durationMs: rendererClip.durationMs,
+              detectedAt: Date.now()
+            });
+
+            return {
+              ...lookup,
+              selectedFilePath: filePath,
+              canceled: false
+            };
+          }
+
+          console.log('[AudD] Clip extraction failed, falling back to full file');
+        }
+
+        // For smaller files, send the full file
+        const buffer = fs.readFileSync(filePath);
+        const lookup = await identifyNowPlaying({
+          ...request,
+          audioBase64: buffer.toString('base64'),
+          mimeType: mimeMap[ext] ?? 'application/octet-stream',
+          durationMs: 0,
+          detectedAt: Date.now()
+        });
+
+        return {
+          ...lookup,
+          selectedFilePath: filePath,
+          canceled: false
+        };
+      } catch (error) {
+        return {
+          matched: false,
+          canceled: false,
+          selectedFilePath: filePath,
+          error: `AudD file processing failed: ${(error as Error).message}`
+        };
+      }
+    }
+
+    // Generic provider: send full file as-is
     const buffer = fs.readFileSync(filePath);
     const lookup = await identifyNowPlaying({
       ...request,

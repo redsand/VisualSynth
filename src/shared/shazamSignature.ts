@@ -187,7 +187,8 @@ export class ShazamSignatureGenerator {
   feed(samples: Int16Array): void {
     let offset = 0;
     while (offset < samples.length && !this.isFull) {
-      const batch = Math.min(HOP_SIZE, samples.length - offset, Math.ceil((3.1 * 16000) - this.numSamplesIngested));
+      const remaining = Math.ceil((3.1 * 16000) - this.numSamplesIngested);
+      const batch = Math.min(HOP_SIZE, samples.length - offset, remaining);
       for (let i = 0; i < batch; i++) {
         this.sampleRing[this.ringWritePos] = samples[offset + i] * INV_32768;
         this.ringWritePos = (this.ringWritePos + 1) & (FFT_SIZE - 1);

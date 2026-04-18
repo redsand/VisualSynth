@@ -276,6 +276,7 @@ export interface OverlayConfig {
   opacity: number;
   rotation: number;
   includeInFx: boolean;
+  assetId?: string;
   assetPath?: string;
   text?: string;
   fontFamily?: string;
@@ -443,6 +444,7 @@ export interface AssetItem {
   name: string;
   kind: 'texture' | 'video' | 'shader' | 'live' | 'text' | 'internal';
   path?: string;
+  embeddedData?: string;
   tags: string[];
   addedAt: string;
   missing?: boolean;
@@ -1026,4 +1028,15 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   tempoSync: { bpm: 120, source: 'auto' },
   customShaderBlocks: [],
   performanceMode: { ...DEFAULT_PERFORMANCE_MODE_CONFIG }
+};
+
+export const reorderScenes = (project: VisualSynthProject, fromIndex: number, toIndex: number): VisualSynthProject => {
+  const { scenes } = project;
+  if (fromIndex < 0 || fromIndex >= scenes.length || toIndex < 0 || toIndex >= scenes.length) {
+    return project;
+  }
+  const next = [...scenes];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return { ...project, scenes: next };
 };

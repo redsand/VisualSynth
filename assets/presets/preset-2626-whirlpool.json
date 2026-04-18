@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Whirlpool",
+    "createdAt": "2026-04-18T00:00:00.000Z",
+    "updatedAt": "2026-04-18T00:00:00.000Z",
+    "category": "Liquid",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Techno",
+    "visualIntentTags": ["whirlpool", "vortex", "spiral", "liquid"],
+    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "cool"],
+    "activeEngineId": "engine-radial-core",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Whirlpool",
+    "intent": "pulse",
+    "duration": 0,
+    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-whirlpool"], "support": ["layer-spectrum"], "atmosphere": ["layer-inkflow"] },
+    "layers": [
+      {
+        "id": "gen-whirlpool",
+        "name": "Whirlpool",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-whirlpool",
+        "params": { "opacity": 1, "speed": 1, "arms": 4, "pull": 1.2, "foam": 0.5 }
+      },
+      {
+        "id": "layer-spectrum",
+        "name": "Spectrum Bars",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.3,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      },
+      {
+        "id": "layer-inkflow",
+        "name": "Ink Flow",
+        "role": "atmosphere",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
+  "tempoSync": { "bpm": 130, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

@@ -2577,6 +2577,136 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
       { id: 'rings', name: 'Rings', type: 'number', min: 1, max: 10, default: 3, modulatable: false, midiMappable: true },
       { id: 'intensity', name: 'Intensity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
     ]
+  },
+  {
+    id: 'solar-flare',
+    name: 'Solar Flare',
+    description: 'Solar corona with prominences and light rays',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'intensity', name: 'Intensity', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'prominences', name: 'Prominences', type: 'number', min: 2, max: 6, default: 4, modulatable: false, midiMappable: true },
+      { id: 'coronaSize', name: 'Corona Size', type: 'number', min: 0.1, max: 2, default: 0.8, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'clockwork',
+    name: 'Clockwork',
+    description: 'Steampunk interlocking gears and cogs',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'gearCount', name: 'Gear Count', type: 'number', min: 1, max: 6, default: 4, modulatable: false, midiMappable: true },
+      { id: 'detail', name: 'Detail', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'rust', name: 'Rust Level', type: 'number', min: 0, max: 1, default: 0.3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'god-rays',
+    name: 'God Rays',
+    description: 'Volumetric light shafts through atmosphere',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'count', name: 'Ray Count', type: 'number', min: 2, max: 16, default: 8, modulatable: false, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'spread', name: 'Spread', type: 'number', min: 0.1, max: 3, default: 1.2, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'dust-storm',
+    name: 'Dust Storm',
+    description: 'Particle-based sand and dust storm',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0.1, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'windAngle', name: 'Wind Angle', type: 'number', min: 0, max: 6.28, default: 0, modulatable: true, midiMappable: true },
+      { id: 'visibility', name: 'Visibility', type: 'number', min: 0.1, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'constellation',
+    name: 'Constellation',
+    description: 'Star map with connected constellation lines',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'starCount', name: 'Star Count', type: 'number', min: 4, max: 32, default: 20, modulatable: false, midiMappable: true },
+      { id: 'connectDist', name: 'Connect Dist', type: 'number', min: 0.05, max: 0.5, default: 0.2, modulatable: true, midiMappable: true },
+      { id: 'twinkle', name: 'Twinkle', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'mandelbrot',
+    name: 'Mandelbrot',
+    description: 'Classic Mandelbrot set deep zoom',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'zoom', name: 'Zoom', type: 'number', min: 0.5, max: 100, default: 2, modulatable: true, midiMappable: true },
+      { id: 'maxIter', name: 'Max Iterations', type: 'number', min: 32, max: 256, default: 128, modulatable: false, midiMappable: true },
+      { id: 'colorCycle', name: 'Color Cycle', type: 'number', min: 0.5, max: 10, default: 3, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'whirlpool',
+    name: 'Whirlpool',
+    description: 'Spiral vortex draining water',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'arms', name: 'Spiral Arms', type: 'number', min: 2, max: 8, default: 4, modulatable: false, midiMappable: true },
+      { id: 'pull', name: 'Pull Strength', type: 'number', min: 0, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'foam', name: 'Foam', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'firework',
+    name: 'Firework',
+    description: 'Burst and peony firework explosions',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'burstCount', name: 'Burst Count', type: 'number', min: 1, max: 8, default: 4, modulatable: false, midiMappable: true },
+      { id: 'trailLen', name: 'Trail Length', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'particleSize', name: 'Particle Size', type: 'number', min: 0.1, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'crystal-cave',
+    name: 'Crystal Cave',
+    description: 'Crystalline cave interior with refraction',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'density', name: 'Density', type: 'number', min: 0.1, max: 1, default: 0.6, modulatable: true, midiMappable: true },
+      { id: 'glow', name: 'Glow', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'refract', name: 'Refraction', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true }
+    ]
+  },
+  {
+    id: 'volcano',
+    name: 'Volcano',
+    description: 'Erupting volcano with lava flows and ash',
+    sinceVersion: '2.0.0',
+    params: [
+      { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },
+      { id: 'speed', name: 'Speed', type: 'number', min: 0.1, max: 3, default: 1, modulatable: true, midiMappable: true },
+      { id: 'eruption', name: 'Eruption', type: 'number', min: 0, max: 2, default: 1, modulatable: true, midiMappable: true },
+      { id: 'smoke', name: 'Smoke', type: 'number', min: 0, max: 1, default: 0.5, modulatable: true, midiMappable: true },
+      { id: 'lavaFlow', name: 'Lava Flow', type: 'number', min: 0, max: 1, default: 0.6, modulatable: true, midiMappable: true }
+    ]
   }
 ];
 
@@ -2746,6 +2876,16 @@ export const getLayerType = (layerId: string): LayerTypeDef | undefined => {
     'gen-hex-grid': 'hex-grid',
     'gen-woven': 'woven',
     'gen-chromatic-aberr': 'chromatic-aberr',
+    'gen-solar-flare': 'solar-flare',
+    'gen-clockwork': 'clockwork',
+    'gen-god-rays': 'god-rays',
+    'gen-dust-storm': 'dust-storm',
+    'gen-constellation': 'constellation',
+    'gen-mandelbrot': 'mandelbrot',
+    'gen-whirlpool': 'whirlpool',
+    'gen-firework': 'firework',
+    'gen-crystal-cave': 'crystal-cave',
+    'gen-volcano': 'volcano',
   };
 
   const type = idMapping[layerId] || layerId;
@@ -2967,7 +3107,17 @@ export const buildLegacyTarget = (layerType: string, param: string): string => {
     'ripple-pond': 'gen-ripple-pond',
     'hex-grid': 'gen-hex-grid',
     'woven': 'gen-woven',
-    'chromatic-aberr': 'gen-chromatic-aberr'
+    'chromatic-aberr': 'gen-chromatic-aberr',
+    'solar-flare': 'gen-solar-flare',
+    'clockwork': 'gen-clockwork',
+    'god-rays': 'gen-god-rays',
+    'dust-storm': 'gen-dust-storm',
+    'constellation': 'gen-constellation',
+    'mandelbrot': 'gen-mandelbrot',
+    'whirlpool': 'gen-whirlpool',
+    'firework': 'gen-firework',
+    'crystal-cave': 'gen-crystal-cave',
+    'volcano': 'gen-volcano'
   };
 
   const layerId = reverseMapping[layerType] || `layer-${layerType}`;

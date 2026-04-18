@@ -2,13 +2,13 @@
  * Runtime GLSL patcher for MilkDrop preset shaders.
  *
  * Architecture:
- *   Phase 1 — String preprocessing: structural fixes that must happen before
- *             the source is valid GLSL (shader_body removal, uniform/helper
- *             injection, undeclared variable auto-declaration, etc.)
- *   Phase 2 — AST transforms: type-level fixes using @shaderfrog/glsl-parser
- *             (int→float literals, texture() swizzle, pow/min/max promotion,
- *             return type fixes). These are structurally correct by
- *             construction — no regex edge cases.
+ *   Phase 1 — Minimal string cleanup: only fixes that prevent the GLSL parser
+ *             from succeeding (HLSL remnants, shader_body keyword stripping,
+ *             orphan brace block removal).
+ *   Phase 2 — AST transforms: ALL structural fixes using @shaderfrog/glsl-parser.
+ *             Type promotion, dimension rebalancing, undeclared variable injection,
+ *             sampler aliasing, constant injection, helper function injection.
+ *             These are structurally correct by construction — no regex edge cases.
  *
  * This module is pure string transformation — no WebGL, no browser APIs.
  * It lives in src/shared/ so it can be imported and tested in Node environments.
@@ -35,8 +35,6 @@ import type {
   ReturnStatementNode,
   TypeSpecifierNode,
   KeywordNode,
-  FullySpecifiedTypeNode,
-  GroupNode,
   LiteralNode,
 } from '@shaderfrog/glsl-parser/ast';
 import type { Path } from '@shaderfrog/glsl-parser/ast';
@@ -67,6 +65,7 @@ const getTypeKeyword = (node: DeclaratorListNode): string => {
   const spec = node.specified_type.specifier.specifier;
   if (spec.type === 'keyword') return spec.token;
   if (spec.type === 'identifier') return spec.identifier;
+  if (spec.type === 'type_name') return spec.identifier;
   return '';
 };
 
@@ -87,36 +86,40 @@ const isInIntContext = (p: Path<any>): boolean => {
 /** Known vec3 variable names in MilkDrop shaders. */
 const VEC3_VARS = new Set(['ret', 'col', 'color', 'orig', 'warped']);
 
-type DimLookup = ReadonlyMap<string, number>;
+/** Known vec3-returning function names. */
+const VEC3_FNS = new Set(['GetPixel', 'GetBlur1', 'GetBlur2', 'GetBlur3', 'GetMain']);
+
+/** Known vec4-returning function names. */
+const VEC4_FNS = new Set(['texture', 'textureLod', 'textureBias', 'noise3', 'textureGrad', 'textureProj']);
 
 /** Known scalar-returning function names. */
 const SCALAR_FNS = new Set([
   'lum', 'dot', 'length', 'distance', 'float',
-  'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
-  'degrees', 'radians', 'round', 'trunc',
+  'step', 'smoothstep',
 ]);
 
-/** Functions whose output dimension follows their first argument. */
-const PRESERVE_FIRST_ARG_DIM_FNS = new Set([
-  'abs', 'sign', 'floor', 'ceil', 'fract',
-  'sqrt', 'inversesqrt', 'log', 'exp',
+/** Functions that preserve the dimension of their first argument. */
+const PRESERVE_DIM_FNS = new Set([
+  'min', 'max', 'clamp', 'mix', 'clamp01', 'sat',
+  // Standard GLSL math functions that operate component-wise
+  'floor', 'ceil', 'fract', 'round', 'trunc', 'abs', 'sign',
   'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
-  'sat', 'clamp01', 'pow',
+  'exp', 'exp2', 'log', 'log2', 'log10', 'sqrt', 'inversesqrt',
+  'degrees', 'radians',
+  // mod and pow are component-wise in GLSL
+  'mod', 'pow',
 ]);
 
-/** Functions whose output dimension follows the largest vector argument. */
-const PRESERVE_MAX_ARG_DIM_FNS = new Set([
-  'mod', 'min', 'max', 'clamp', 'step', 'smoothstep',
-]);
+/** Known sampler2D-returning function names (for declaration inference). */
+const SAMPLER_FNS = new Set(['texture', 'textureLod', 'textureBias']);
 
 /** Infer the vec dimensionality of an expression. Returns 1/2/3/4 or 0 if unknown. */
-const inferDim = (node: AstNode, declaredDims?: DimLookup): number => {
+const inferDim = (node: AstNode, typeMap?: Map<string, number>): number => {
   if (node.type === 'float_constant' || node.type === 'int_constant' || node.type === 'double_constant') return 1;
 
   if (node.type === 'identifier') {
     const name = (node as IdentifierNode).identifier;
-    const declared = declaredDims?.get(name);
-    if (declared) return declared;
+    if (typeMap?.has(name)) return typeMap.get(name)!;
     if (VEC3_VARS.has(name)) return 3;
     if (name === 'uv' || name === 'vUv') return 2;
     if (name === 'fragColor') return 4;
@@ -125,25 +128,17 @@ const inferDim = (node: AstNode, declaredDims?: DimLookup): number => {
 
   if (node.type === 'function_call') {
     const fn = getFnName(node as FunctionCallNode);
-    const args = getArgs(node as FunctionCallNode);
-    if (fn === 'texture' || fn === 'textureLod' || fn === 'textureBias') return 4;
+    if (VEC3_FNS.has(fn)) return 3;
+    if (VEC4_FNS.has(fn)) return 4;
     if (fn === 'vec2') return 2;
     if (fn === 'vec3') return 3;
     if (fn === 'vec4') return 4;
-    if (fn === 'GetPixel' || fn === 'GetBlur1' || fn === 'GetBlur2' || fn === 'GetBlur3' || fn === 'GetMain') return 3;
-    if (fn === 'GetBlurX') return 3;
-    if (fn === 'noise3') return 4;
-    if (PRESERVE_FIRST_ARG_DIM_FNS.has(fn)) {
-      return args.length > 0 ? inferDim(args[0], declaredDims) : 0;
-    }
-    if (PRESERVE_MAX_ARG_DIM_FNS.has(fn)) {
-      return args.reduce((maxDim, arg) => Math.max(maxDim, inferDim(arg, declaredDims)), 0);
-    }
-    if (fn === 'mix') {
-      // mix preserves the dimensionality of its first arg
-      return args.length > 0 ? inferDim(args[0], declaredDims) : 0;
-    }
     if (SCALAR_FNS.has(fn)) return 1;
+    // Component-wise functions preserve the dimensionality of their first arg
+    if (PRESERVE_DIM_FNS.has(fn)) {
+      const args = getArgs(node as FunctionCallNode);
+      return args.length > 0 ? inferDim(args[0], typeMap) : 0;
+    }
     return 0;
   }
 
@@ -151,32 +146,33 @@ const inferDim = (node: AstNode, declaredDims?: DimLookup): number => {
     const pf = (node as PostfixNode).postfix;
     if (pf.type === 'field_selection') {
       const sel = (pf as FieldSelectionNode).selection;
-      const swizzle = sel.type === 'literal' ? (sel as LiteralNode).literal : '';
+      const swizzle = sel.type === 'literal' ? (sel as LiteralNode).literal :
+                      sel.type === 'identifier' ? (sel as unknown as IdentifierNode).identifier : '';
       if (swizzle.length >= 1 && swizzle.length <= 4 && /^[xyzwrgba]+$/.test(swizzle)) {
         return swizzle.length;
       }
     }
     // array access → scalar
     if (pf.type === 'quantifier' || pf.type === 'array_specifier') return 1;
-    return inferDim((node as PostfixNode).expression, declaredDims);
+    return inferDim((node as PostfixNode).expression, typeMap);
   }
 
   if (node.type === 'binary') {
-    const left = inferDim((node as BinaryNode).left, declaredDims);
-    const right = inferDim((node as BinaryNode).right, declaredDims);
+    const left = inferDim((node as BinaryNode).left, typeMap);
+    const right = inferDim((node as BinaryNode).right, typeMap);
     return Math.max(left, right);
   }
 
   if (node.type === 'unary') {
-    return inferDim((node as UnaryNode).expression, declaredDims);
+    return inferDim((node as UnaryNode).expression, typeMap);
   }
 
   if (node.type === 'group') {
-    return inferDim((node as GroupNode).expression, declaredDims);
+    return inferDim((node as any).expression, typeMap);
   }
 
   if (node.type === 'assignment') {
-    return inferDim((node as AssignmentNode).left, declaredDims);
+    return inferDim((node as AssignmentNode).left, typeMap);
   }
 
   return 0;
@@ -186,12 +182,12 @@ const inferDim = (node: AstNode, declaredDims?: DimLookup): number => {
  * Find the enclosing statement's LHS to determine vec context.
  * Returns the inferred dimension of the assignment target, or 0 if unknown.
  */
-const findEnclosingAssignmentDim = (p: Path<any>, declaredDims?: DimLookup): number => {
+const findEnclosingAssignmentDim = (p: Path<any>, typeMap?: Map<string, number>): number => {
   let ctx: Path<any> | undefined = p;
   while (ctx) {
     const n = ctx.node;
     if (n.type === 'assignment') {
-      return inferDim((n as AssignmentNode).left, declaredDims);
+      return inferDim((n as AssignmentNode).left, typeMap);
     }
     if (n.type === 'declarator_list') {
       const kw = getTypeKeyword(n as DeclaratorListNode);
@@ -206,131 +202,6 @@ const findEnclosingAssignmentDim = (p: Path<any>, declaredDims?: DimLookup): num
   }
   return 0;
 };
-
-const getVecDimFromKeyword = (kw: string): number => {
-  if (kw === 'float') return 1;
-  if (kw === 'vec2') return 2;
-  if (kw === 'vec3') return 3;
-  if (kw === 'vec4') return 4;
-  return 0;
-};
-
-const wrapScalarForDim = (node: AstNode, dim: number): AstNode => {
-  if (dim <= 1) return node;
-  return mkFnCall(`vec${dim}`, [node]) as unknown as AstNode;
-};
-
-const collectDeclaredDims = (ast: Program): Map<string, number> => {
-  const declaredDims = new Map<string, number>();
-  visit(ast, {
-    declarator_list: {
-      enter: (p) => {
-        const dim = getVecDimFromKeyword(getTypeKeyword(p.node));
-        if (dim === 0) return;
-        for (const decl of p.node.declarations) {
-          declaredDims.set(decl.identifier.identifier, dim);
-        }
-      },
-    },
-  });
-  return declaredDims;
-};
-
-const sanitizeAstArrays = (node: unknown): void => {
-  if (!node || typeof node !== 'object') return;
-  if (Array.isArray(node)) {
-    for (let i = node.length - 1; i >= 0; i--) {
-      if (node[i] == null) node.splice(i, 1);
-      else sanitizeAstArrays(node[i]);
-    }
-    return;
-  }
-  for (const value of Object.values(node as Record<string, unknown>)) {
-    sanitizeAstArrays(value);
-  }
-};
-
-const getConstructorDimForSwizzle = (swizzle: string): number => {
-  const componentDim = [...swizzle].reduce((maxDim, component) => {
-    if (component === 'x' || component === 'r') return Math.max(maxDim, 1);
-    if (component === 'y' || component === 'g') return Math.max(maxDim, 2);
-    if (component === 'z' || component === 'b') return Math.max(maxDim, 3);
-    if (component === 'w' || component === 'a') return Math.max(maxDim, 4);
-    return maxDim;
-  }, 0);
-  return Math.max(componentDim, swizzle.length);
-};
-
-const normalizeDanglingStatementCommas = (source: string): string => {
-  const lines = source.split('\n');
-  let parenDepth = 0;
-
-  return lines.map((line) => {
-    const code = line.replace(/\/\/.*$/, '');
-    let lineEndParenDepth = parenDepth;
-    for (const ch of code) {
-      if (ch === '(') lineEndParenDepth++;
-      else if (ch === ')') lineEndParenDepth = Math.max(0, lineEndParenDepth - 1);
-    }
-
-    const trimmed = code.trim();
-    const shouldConvertTrailingComma =
-      parenDepth === 0 &&
-      lineEndParenDepth === 0 &&
-      /,\s*$/.test(trimmed) &&
-      /(=|[+\-*/]=|\breturn\b)/.test(trimmed) &&
-      !/^\s*(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|uvec[234]|bvec[234])\b/.test(trimmed);
-
-    parenDepth = lineEndParenDepth;
-
-    if (!shouldConvertTrailingComma) return line;
-    return line.replace(/,\s*$/, ';');
-  }).join('\n');
-};
-
-const closeUnbalancedMainBlocks = (source: string): string => {
-  const mainIdx = source.indexOf('void main()');
-  if (mainIdx === -1) return source;
-  const mainBraceIdx = source.indexOf('{', mainIdx);
-  if (mainBraceIdx === -1) return source;
-  const fragColorIdx = source.lastIndexOf('fragColor');
-  if (fragColorIdx === -1 || fragColorIdx <= mainBraceIdx) return source;
-
-  const segment = source.slice(mainBraceIdx + 1, fragColorIdx);
-  let braceDepth = 1;
-  for (const ch of segment) {
-    if (ch === '{') braceDepth++;
-    else if (ch === '}') braceDepth = Math.max(0, braceDepth - 1);
-  }
-
-  if (braceDepth <= 1) return source;
-  const missingClosers = '}\n'.repeat(braceDepth - 1);
-  return source.slice(0, fragColorIdx) + missingClosers + source.slice(fragColorIdx);
-};
-
-const stripRawTextLines = (source: string): string =>
-  source
-    .split('\n')
-    .filter((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return true;
-      if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) return true;
-      if (trimmed.startsWith('#')) return true;
-      const isRawText =
-        !/[;{}()=+\-*/<>!&|,#]/.test(trimmed) &&
-        !/^\s*(float|vec|mat|int|uint|bool|void|uniform|in|out|const|precision|layout)\b/.test(trimmed);
-      return !isRawText;
-    })
-    .join('\n');
-
-const repairTruncatedMixCalls = (source: string): string =>
-  source.replace(/\bmix\s*\(([\s\S]*?),\s*([\s\S]*?),\s*\)/g, (_match, a: string, b: string) => {
-    const first = a.trim();
-    const second = b.trim();
-    if (!first || !second) return _match;
-    if (/[;{}]$/.test(first) || /[;{}]$/.test(second)) return _match;
-    return `mix(${a},${b}, 0.5)`;
-  });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AST node factories
@@ -374,178 +245,227 @@ const mkFnCall = (name: string, args: AstNode[], ws: string | string[] = ''): Fu
   rp: mkLiteral(')'),
 });
 
-const mkPostfixSwizzle = (expr: AstNode, swizzle: string): PostfixNode => ({
-  type: 'postfix',
-  expression: expr as any,
-  postfix: {
-    type: 'field_selection',
-    dot: mkLiteral('.'),
-    selection: mkLiteral(swizzle),
-  } as FieldSelectionNode as unknown as AstNode,
-});
+const mkPostfixSwizzle = (expr: AstNode, swizzle: string): PostfixNode => {
+  // Binary expressions need to be wrapped in parentheses to ensure correct output
+  // Otherwise `a + b.xyz` would be generated instead of `(a + b).xyz`
+  let exprNode: AstNode = expr;
+  if (expr.type === 'binary' || expr.type === 'assignment') {
+    exprNode = {
+      type: 'group',
+      lp: mkLiteral('('),
+      expression: expr,
+      rp: mkLiteral(')'),
+    } as unknown as AstNode;
+  }
+  return {
+    type: 'postfix',
+    expression: exprNode as any,
+    postfix: {
+      type: 'field_selection',
+      dot: mkLiteral('.'),
+      selection: mkLiteral(swizzle),
+    } as FieldSelectionNode as unknown as AstNode,
+  };
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 1: String preprocessing
+// Phase 1: Minimal string preprocessing (only what prevents parsing)
 // ═══════════════════════════════════════════════════════════════════════════
-
-const ROT_NAMES = [
-  'rot_s1', 'rot_s2', 'rot_s3', 'rot_s4',
-  'rot_d1', 'rot_d2', 'rot_d3', 'rot_d4',
-  'rot_f1', 'rot_f2', 'rot_f3', 'rot_f4',
-  'rot_vf1', 'rot_vf2', 'rot_vf3', 'rot_vf4',
-  'rot_uf1', 'rot_uf2', 'rot_uf3', 'rot_uf4',
-  'rot_rand1', 'rot_rand2', 'rot_rand3', 'rot_rand4',
-];
 
 /**
- * Phase 1: Structural string preprocessing.
- * Handles constructs that would prevent the GLSL parser from succeeding:
- * shader_body removal, missing declarations, undeclared variables, etc.
+ * Strip orphan `{ ... }` blocks that wrap the entire content of main body.
+ * These come from offline translator emitting `shader_body { ... }` inside main.
+ * After `shader_body` keyword is stripped, the braces remain as an orphan block.
+ */
+const stripOrphanBraceBlocks = (body: string): string => {
+  const lines = body.split('\n');
+  const result: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    // Detect a bare `{` on its own line
+    if (trimmed === '{') {
+      // Find the matching closing `}` at the same depth
+      let depth = 1;
+      const innerLines: string[] = [];
+      i++;
+      while (i < lines.length && depth > 0) {
+        const innerTrimmed = lines[i].trim();
+        for (const ch of innerTrimmed) {
+          if (ch === '{') depth++;
+          else if (ch === '}') depth--;
+        }
+        if (depth > 0) {
+          innerLines.push(lines[i]);
+        }
+        i++;
+      }
+      // Unwrap: dedent inner lines by 2 spaces and add to result
+      for (const innerLine of innerLines) {
+        result.push(innerLine.replace(/^  /, ''));
+      }
+    } else {
+      result.push(lines[i]);
+      i++;
+    }
+  }
+  return result.join('\n');
+};
+
+/**
+ * Phase 1: Minimal string preprocessing.
+ * Only handles constructs that would prevent the GLSL parser from succeeding.
+ * ALL structural fixes happen in Phase 2 (AST transforms).
  */
 const preprocess = (source: string): string => {
   // ── 0a. Strip HLSL remnants ──
-  // `static` keyword (HLSL only, not valid GLSL)
-  source = source.replace(/\bstatic\s+/g, '');
-  // `float2x3` etc. → `mat2x3`
-  source = source.replace(/\bfloat(\d)x(\d)\b/g, 'mat$1x$2');
-  // HLSL `sampler` declarations (e.g., `sampler sampler_rand00 = ;` or `sampler sampler_rand00;`)
-  source = source.replace(/\bsampler\s+[^;]+;/g, '');
-  // Local GLSL sampler declarations from imported presets are not valid inside shader bodies.
-  source = source.replace(/^\s*sampler(?:2D|3D|Cube)?\s+\w+\s*;.*$/gm, '');
-  source = source.replace(/^\s*vec4\s+texsize_[a-zA-Z0-9_]+\s*;.*$/gm, '');
-  // HLSL semantics (`: COLOR0`, `: SV_TARGET`, etc.)
-  source = source.replace(/\)\s*:\s*[A-Z_][A-Z0-9_]*/g, ')');
-  // HLSL `tex3D()` → `texture()`
-  source = source.replace(/\btex3D\b/g, 'texture');
-  // HLSL `tex2D()` / `tex2d()` → `texture()`
-  source = source.replace(/\btex2[Dd]\b/g, 'texture');
-  // HLSL `tex2Dbias()` → `textureBias()`
-  source = source.replace(/\btex2[Dd]bias\b/g, 'textureBias');
-  // Line continuations: `\` at end of line followed by newline → join lines
-  source = source.replace(/\\\s*\n/g, ' ');
-  // Imported shaders sometimes preserve unary `+` after a multiplication token.
-  source = source.replace(/\*\s*\+/g, '* ');
-  // `smooth` is a GLSL reserved keyword — rename if used as variable
-  source = source.replace(/\bfloat\s+smooth\b/g, 'float smooth_');
+  source = source.replace(/\bstatic\s+/g, '');                              // `static` keyword
+  source = source.replace(/\bfloat(\d)x(\d)\b/g, 'mat$1x$2');               // `float2x3` → `mat2x3`
+  source = source.replace(/\bfloat(\d)\b/g, 'vec$1');                       // `float2/3/4` → `vec2/3/4`
+  source = source.replace(/\bhalf\b/g, 'float');                            // `half` → `float`
+  source = source.replace(/\bhalf(\d)\b/g, 'vec$1');                        // `half2/3/4` → `vec2/3/4`
+  source = source.replace(/\bfixed\b/g, 'float');                           // `fixed` → `float`
+  source = source.replace(/\bfixed(\d)\b/g, 'vec$1');                       // `fixed2/3/4` → `vec2/3/4`
+  source = source.replace(/\)\s*:\s*[A-Z_][A-Z0-9_]*/g, ')');               // HLSL semantics (`: COLOR0`)
+  source = source.replace(/\btex3D\b/g, 'texture');                         // HLSL `tex3D()` → `texture()`
+  source = source.replace(/\btex2[Dd]\b/g, 'texture');                      // HLSL `tex2D()` → `texture()`
+  source = source.replace(/\btex2[Dd]bias\b/g, 'textureBias');              // HLSL `tex2Dbias()` → `textureBias()`
+  source = source.replace(/\btex2[Dd]lod\b/g, 'textureLod');                // HLSL `tex2Dlod()` → `textureLod()`
+  source = source.replace(/\\\s*\n/g, ' ');                                 // Line continuations
+  source = source.replace(/\bfloat\s+smooth\b/g, 'float smooth_');          // `smooth` is GLSL reserved
   source = source.replace(/\bsmooth\s*(?=[+\-*/=;,)])/g, 'smooth_');
+  // HLSL bool-to-float in arithmetic context: (a<=b)*c → ((a<=b)?1.0:0.0)*c
+  // HLSL allows bool*float, GLSL does not.
+  // Only handle <= and >= when followed by arithmetic operators (not in while/if conditions)
+  source = source.replace(/\(([^()]+?)\s*<=\s*([^()]+?)\)(?=\s*[\*\/+\-])/g, '($1 <= $2 ? 1.0 : 0.0)');
+  source = source.replace(/\(([^()]+?)\s*>=\s*([^()]+?)\)(?=\s*[\*\/+\-])/g, '($1 >= $2 ? 1.0 : 0.0)');
+
+  // ── 0a.1. Pre-alias unknown sampler_XXX names used in texture() calls ──
+  // Use direct text replacement instead of #define to avoid shader_body block issues
+  const knownSamplers = new Set([
+    'sampler_main', 'sampler_blur1', 'sampler_blur2', 'sampler_blur3',
+    'sampler_noise_lq', 'sampler_noise_mq', 'sampler_noise_hq',
+    'sampler_fc_main', 'sampler_pc_main', 'sampler_fw_main', 'sampler_pw_main',
+    'sampler_FC_main', 'sampler_PC_main', 'sampler_FW_main', 'sampler_PW_main',
+    'sampler_noise_lq_lite', 'sampler_noisevol_lq', 'sampler_noisevol_hq',
+    'sampler_fw_noise_lq', 'sampler_fw_noise_mq', 'sampler_fw_noise_hq',
+    'sampler_pw_noise_lq', 'sampler_pw_noise_mq', 'sampler_pw_noise_hq',
+    'sampler_rand00', 'sampler_rand01', 'sampler_rand02', 'sampler_rand03',
+    'sampler_rand04', 'sampler_rand05', 'sampler_rand06', 'sampler_rand07',
+    'sampler_rand08', 'sampler_rand09',
+  ]);
+  // Find all sampler_XXX used in texture() calls
+  const textureSamplerRe = /\btexture\s*\(\s*(sampler_\w+)\s*,/g;
+  const samplersToAlias = new Set<string>();
+  let tm: RegExpExecArray | null;
+  while ((tm = textureSamplerRe.exec(source)) !== null) {
+    const name = tm[1];
+    if (!knownSamplers.has(name)) {
+      samplersToAlias.add(name);
+    }
+  }
+  if (samplersToAlias.size > 0) {
+    console.log(`[GLSL Patcher] Pre-aliasing unknown samplers: ${Array.from(samplersToAlias).join(', ')}`);
+    // Direct text replacement - replace each unknown sampler with sampler_noise_lq
+    for (const name of samplersToAlias) {
+      const re = new RegExp(`\\b${name}\\b`, 'g');
+      source = source.replace(re, 'sampler_noise_lq');
+    }
+  }
+
+  // ── 0a. Strip invalid swizzles from scalar function results ──
+  // The offline translator sometimes adds .xyz/.xy etc. to scalar function results.
+  // Handle both simple and nested parentheses cases.
+  // First pass: simple cases like fn(arg).xyz
+  const scalarFns = 'lum|length|dot|abs|floor|ceil|fract|sin|cos|tan|pow|sqrt|log|log2|log10|exp|sign|step|smoothstep|min|max|clamp|fwidth|dFdx|dFdy|inversesqrt|round|trunc|degrees|radians|asin|acos|atan';
+  source = source.replace(new RegExp(`\\b(${scalarFns})\\s*\\(([^()]*)\\)\\s*\\.([xyzwrgba]{2,})`, 'g'), '$1($2)');
+  // Handle mod with parentheses: mod(a, b).xyz → mod(a, b)
+  source = source.replace(/\bmod\s*\(([^()]*)\)\s*\.([xyzwrgba]{2,})/g, 'mod($1)');
+
+  source = source.replace(/\bint\s*\(/g, 'float(');                         // `int(expr)` casts → `float(expr)` (HLSL int*float invalid in GLSL)
+  // Modulo on floats: `a % b` → `mod(a, b)` (GLSL % only works on integers)
+  // Handle simple cases first: identifier/literal % identifier/literal
+  source = source.replace(/(\b[a-zA-Z_]\w*(?:\.[xyzwrgba]+)?)\s*%\s*(\b[a-zA-Z_]\w*(?:\.[xyzwrgba]+)?|\d+\.?\d*)/g, 'mod($1, $2)');
+  source = source.replace(/(\d+\.?\d*)\s*%\s*(\b[a-zA-Z_]\w*(?:\.[xyzwrgba]+)?|\d+\.?\d*)/g, 'mod($1, $2)');
+  // Handle parenthesized expressions: (expr) % N
+  source = source.replace(/\(([^()]+)\)\s*%\s*(\d+\.?\d*)/g, 'mod($1, $2)');
+  // HLSL overloaded multiply() functions → direct matrix multiplication
+  // GLSL ES doesn't support function overloading, so replace multiply(v, m) with (m * v)
+  // Skip function definitions by requiring the first arg to NOT start with 'vec' or 'mat'
+  source = source.replace(/\bmultiply\s*\(\s*(?!vec[234]|mat[234x])([^,]+)\s*,\s*([^)]+)\s*\)/g, '($2 * $1)');
+  // Strip the now-unused multiply function definitions (single-line form)
+  source = source.replace(/^vec[234]\s+multiply\s*\([^{}]+\)\s*\{[^}]*\}\s*$/gm, '');
   // Mixed-type comma declarations: `float x, y,\nvec2 a, b;` → split with `;`
   source = source.replace(/,\s*\n\s*(vec[234]|mat[234x]*|float|int|uint|bool|ivec[234]|bvec[234]|uvec[234])\s/g, ';\n$1 ');
-  source = normalizeDanglingStatementCommas(source);
 
-  // ── 0b. Strip shader_body keyword everywhere ──
+  // ── 0b. Strip HLSL sampler declarations ──
+  source = source.replace(/\bsampler\s+[^;]+;/g, '');
+
+  // ── 0b.5. Move #define statements from inside shader_body to before void main() ──
+  // Some presets have #define aliases inside shader_body that need to be moved.
+  const mainIdxForMove = source.indexOf('void main()');
+  if (mainIdxForMove !== -1) {
+    const beforeMain = source.substring(0, mainIdxForMove);
+    const afterMain = source.substring(mainIdxForMove);
+    // Find #define lines inside main body (after void main() {)
+    const mainBrace2 = afterMain.indexOf('{');
+    if (mainBrace2 !== -1) {
+      const mainBody = afterMain.substring(mainBrace2);
+      const definesInside: string[] = [];
+      const mainBodyWithoutDefines = mainBody.replace(/^(\s*#define\s+\w+\s+\w+\s*)$/gm, (match) => {
+        definesInside.push(match.trim());
+        return '';
+      });
+      if (definesInside.length > 0) {
+        // Move defines to before main
+        source = beforeMain + definesInside.join('\n') + '\n\n' + afterMain.substring(0, mainBrace2) + mainBodyWithoutDefines;
+      }
+    }
+  }
+
+  // ── 0c. Strip shader_body keyword everywhere ──
   source = source.replace(/\bshader_body\b/g, '');
-  // Legacy offline-generated aliases mapped volume samplers to 2D noise samplers.
-  // The runtime now binds real 3D textures, so these defines must be removed.
-  source = source.replace(/^\s*#define\s+sampler_noisevol_lq\s+sampler_noise_lq\s*$/gm, '');
-  source = source.replace(/^\s*#define\s+sampler_noisevol_hq\s+sampler_noise_hq\s*$/gm, '');
 
-  // ── 0c. Strip double semicolons (empty statements not valid at file scope) ──
+  // ── 0d. Strip double semicolons ──
   source = source.replace(/;;/g, ';');
 
-  // Helper colors are vec3 in the runtime. Legacy generated shaders sometimes swizzle only one
-  // side of color arithmetic down to .xy, which creates vec3/vec2 mismatches in WebGL2.
-  source = source.replace(
-    /(\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\)\s*[-+]\s*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
-    '$1'
-  );
-  source = source.replace(
-    /(\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\)\s*\+\s*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
-    '$1'
-  );
-  source = source.replace(
-    /(\bclamp01\s*\([^()\n]*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
-    '$1'
-  );
-  source = source.replace(
-    /(\bdot\s*\([^,\n]+,\s*[^()\n]*\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy/g,
-    '$1'
-  );
-  source = source.replace(
-    /(\b(?:texture(?:Lod)?\s*\((?:[^()]|\([^()]*\))*\)|GetPixel\((?:[^()]|\([^()]*\))*\)|GetMain\((?:[^()]|\([^()]*\))*\)|GetBlur[123]\((?:[^()]|\([^()]*\))*\))\s*[-+]\s*GetPixel\((?:[^()]|\([^()]*\))*\))\.xy/g,
-    '$1'
-  );
-  source = source.replace(
-    /([*+\-/]\s*)(\b(?:GetPixel|GetMain|GetBlur[123])\((?:[^()]|\([^()]*\))*\))\.xy\b/g,
-    '$1$2'
-  );
-  source = source.replace(/\bpow\s*\(\s*ret\s*,\s*([^)]+)\)/g, 'pow(ret, vec3($1))');
-  source = source.replace(/\bpow\s*\(\s*abs\(([^()]*\b(?:GetPixel|GetMain|GetBlur[123])\([^)]*\)[^()]*)\)\s*,\s*([^)]+)\)/g, 'pow(abs($1), vec3($2))');
-  source = source.replace(/\bvec3\s*\(\s*pow\(\s*([^\n]*)\s*,\s*([0-9.]+)\s*\)\s*\)/g, 'pow($1, vec3($2))');
-  source = source.replace(
-    /ret\s*=\s*vec3\s*\(\s*pow\s*\(\s*abs\(([^;\n]+)\)\s*\*\s*1\.0\s*,\s*1\.0\s*\)\s*\)\s*;/g,
-    'ret = pow(abs($1) * 1.0, vec3(1.0));'
-  );
-  source = repairTruncatedMixCalls(source);
-  source = source.replace(/\bsand\s*\*=\s*([a-zA-Z_]\w*)\s*;/g, 'sand *= lum($1);');
-  source = source.replace(/\bsand\s*\+=\s*(Get(?:Pixel|Main|Blur[123])\((?:[^()]|\([^()]*\))*\))\s*;/g, 'sand += lum($1);');
-  source = source.replace(
-    /(?<![\w.)])(-?(?:\d+\.\d+|\d+\.\d*|\d+|\.\d+))\s*\.(xyzw|rgba|xyz|rgb|xy|rg|x|y|z|w|r|g|b|a)\b/g,
-    (_match, literal, swizzle: string) => {
-      const dim = getConstructorDimForSwizzle(swizzle);
-      return dim === 1 ? literal : `vec${dim}(${literal}).${swizzle}`;
-    }
-  );
-  source = source.replace(
-    /(?<![\w])\(\s*(-?(?:\d+\.\d+|\d+\.\d*|\d+|\.\d+))\s*\)\s*\.(xyzw|rgba|xyz|rgb|xy|rg|x|y|z|w|r|g|b|a)\b/g,
-    (_match, literal, swizzle: string) => {
-      const dim = getConstructorDimForSwizzle(swizzle);
-      return dim === 1 ? literal : `vec${dim}(${literal}).${swizzle}`;
-    }
-  );
-  source = source.replace(/\b(vec[234])\s*\(\s*\1\s*\(([^()]*)\)\s*\)/g, '$1($2)');
+  // ── 0e. Handle file-scope content before void main() ──
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx !== -1) {
+    const beforeMain = source.substring(0, mainIdx);
+    const afterMain = source.substring(mainIdx);
 
-  const mainIdxPre = source.indexOf('void main()');
-  if (mainIdxPre !== -1) {
-    // ── 0d. Before void main(): handle orphan shader_body content ──
-    // The transpiler emits shader_body content at file scope. We need to:
-    //  1. Keep declarations and function definitions at file scope
-    //  2. Move everything else (exec stmts, control flow, orphan braces) into main()
-    //  3. Remove nested function definitions inside main() (GLSL forbids them)
-    //
-    // The moved content goes BEFORE the fragColor line in main(), because the
-    // orphan `}` often closes an unclosed for/while loop inside main().
-
-    const beforeMain = source.substring(0, mainIdxPre);
+    // Classify lines before main: keep declarations, discard executable statements
     const bmLines = beforeMain.split('\n');
-
-    // Phase A: Classify each line before main()
-    // Track brace depth; at depth 0 we can distinguish declarations vs exec stmts
-    let depth = 0;
     const keepLines: string[] = [];
+    let depth = 0;
+    let inFuncDef = false;
+    let inArrayInit = false;
+    let inBareBlock = false;
+    let prevEndsWithSemi = true;
     const moveLines: string[] = [];
-    let inFuncDef = false;   // inside a function definition body
-    let inBareBlock = false; // inside a bare { } block (orphan shader_body)
-    let inArrayInit = false; // inside a `const type name[] = { ... }` initializer
-    let prevKeptLineEndsWithSemicolon = true; // tracks multi-line continuations
 
     for (let i = 0; i < bmLines.length; i++) {
       const line = bmLines[i];
       const trimmed = line.trim();
-
-      // Calculate brace delta for this line
       let delta = 0;
       for (const ch of trimmed) {
         if (ch === '{') delta++;
         else if (ch === '}') delta--;
       }
 
-      // Handle being inside a function definition body
       if (inFuncDef) {
         keepLines.push(line);
         depth += delta;
         if (depth <= 0) { inFuncDef = false; depth = 0; }
         continue;
       }
-
-      // Handle being inside an array initializer `const type name[] = { ... }`
       if (inArrayInit) {
         keepLines.push(line);
         depth += delta;
         if (depth <= 0) { inArrayInit = false; depth = 0; }
         continue;
       }
-
-      // Handle being inside a bare { ... } block (orphan shader_body)
       if (inBareBlock) {
         moveLines.push(line);
         depth += delta;
@@ -553,142 +473,138 @@ const preprocess = (source: string): string => {
         continue;
       }
 
-      // At depth 0: classify the line
       if (depth === 0) {
-        // Detect orphan `}` — brace underflow
-        if (depth + delta < 0) {
-          moveLines.push(line);
-          depth = 0;
-          continue;
-        }
+        if (depth + delta < 0) { depth = 0; continue; } // orphan `}`
 
-        // Multi-line continuation: if previous kept line didn't end with `;`, `{`, `}`,
-        // `)`, or a comment/preprocessor, this line continues it → keep
-        if (!prevKeptLineEndsWithSemicolon && trimmed) {
+        // Multi-line continuation
+        if (!prevEndsWithSemi && trimmed) {
           keepLines.push(line);
           depth += delta;
-          if (trimmed.endsWith(';') || trimmed.endsWith('}') || trimmed.endsWith('{')) {
-            prevKeptLineEndsWithSemicolon = true;
-          }
+          prevEndsWithSemi = trimmed.endsWith(';') || trimmed.endsWith('}') || trimmed.endsWith('{');
           continue;
         }
 
-        // Detect bare `{` — could be shader_body block or array initializer
         if (trimmed === '{') {
-          // Check if previous kept line is a declaration with `= {` (array init)
-          const prevKept = keepLines.length > 0 ? keepLines[keepLines.length - 1].trim() : '';
-          if (/=\s*$/.test(prevKept) || /\[\d*\]\s*=\s*$/.test(prevKept)) {
-            // Array initializer — keep
+          const prev = keepLines.length > 0 ? keepLines[keepLines.length - 1].trim() : '';
+          if (/=\s*$/.test(prev) || /\[\d*\]\s*=\s*$/.test(prev)) {
             keepLines.push(line);
             depth += delta;
             inArrayInit = true;
-            continue;
+          } else {
+            // orphan bare block → collect for potential move into main
+            moveLines.push(line);
+            depth += delta;
+            inBareBlock = true;
           }
-          // Otherwise it's a shader_body block (or control flow) — move
-          moveLines.push(line);
-          depth += delta;
-          inBareBlock = true;
           continue;
         }
 
-        // Check if this is a valid file-scope construct
         const isTypeDecl = /^\s*(?:(?:const\s+)?(?:flat\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|sampler\w*)\s)/.test(line);
-        const isFuncDef = isTypeDecl && /\)\s*\{/.test(trimmed);
+        const isFuncDefLine = isTypeDecl && /\)\s*\{/.test(trimmed);
         const isVoidFuncDef = /^\s*void\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*\{/.test(trimmed);
         const isPreprocessor = trimmed.startsWith('#');
         const isUniform = /^\s*(?:uniform|in|out|precision|layout)\s/.test(line);
         const isEmpty = !trimmed;
         const isComment = trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
-        // Raw text (not code): no semicolons, no operators, no parens — strip
         const isRawText = trimmed.length > 0 && !isEmpty && !isComment && !isPreprocessor &&
           !/[;{}()=+\-*/<>!&|,#]/.test(trimmed) && !/^\s*(float|vec|mat|int|uint|bool|void|uniform|in|out|const|precision|layout)\b/.test(trimmed);
 
-        if (isRawText) {
-          // Plain text like "written by martin", "END" — discard
-          continue;
-        }
+        if (isRawText) continue; // discard plain text like "written by martin"
 
-        if (isFuncDef || isVoidFuncDef) {
+        if (isFuncDefLine || isVoidFuncDef) {
           keepLines.push(line);
           depth += delta;
           if (depth > 0) inFuncDef = true;
-          prevKeptLineEndsWithSemicolon = true;
+          prevEndsWithSemi = true;
           continue;
         }
 
-        // Function declaration on this line, `{` on next line
-        const isFuncProto = /^\s*(?:(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*$)/.test(trimmed);
+        // Function declaration, `{` on next line
+        const isFuncProto = /^\s*(?:(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*$)/.test(trimmed);
         if (isFuncProto && (bmLines[i + 1] || '').trim().startsWith('{')) {
           keepLines.push(line);
           depth += delta;
           inFuncDef = true;
-          prevKeptLineEndsWithSemicolon = true;
+          prevEndsWithSemi = true;
           continue;
         }
 
-        // Type declaration with `= {` (array initializer start)
         if (isTypeDecl && /=\s*\{/.test(trimmed)) {
           keepLines.push(line);
           depth += delta;
           if (depth > 0) inArrayInit = true;
-          prevKeptLineEndsWithSemicolon = trimmed.endsWith(';') || trimmed.endsWith('}');
+          prevEndsWithSemi = trimmed.endsWith(';') || trimmed.endsWith('}');
           continue;
+        }
+
+        // File-scope declarations with non-constant initializers are invalid GLSL
+        // e.g. `vec2 hor = vec2((1.0/uTexSize.x), 0.0)` → move to main
+        // Only allow declarations without initializers, or with PURE literal initializers
+        // (numbers, no variable references)
+        if (isTypeDecl && /=/.test(trimmed)) {
+          const hasVarRef = /[a-zA-Z_]\w*/.test(trimmed.split('=').slice(1).join('='));
+          if (hasVarRef) {
+            moveLines.push(line);
+            continue;
+          }
         }
 
         if (isTypeDecl || isPreprocessor || isUniform || isEmpty || isComment) {
           keepLines.push(line);
           depth += delta;
-          if (trimmed.endsWith(';') || trimmed.endsWith('}') || isEmpty || isComment || isPreprocessor) {
-            prevKeptLineEndsWithSemicolon = true;
-          } else {
-            prevKeptLineEndsWithSemicolon = false;
-          }
+          prevEndsWithSemi = trimmed.endsWith(';') || trimmed.endsWith('}') || isEmpty || isComment || isPreprocessor;
         } else {
-          // Executable statement or control flow at file scope — move to main()
+          // Executable statement at file scope → collect for potential move into main
           moveLines.push(line);
           depth += delta;
           if (delta > 0) inBareBlock = true;
         }
       } else {
-        // depth > 0 but not in funcDef, arrayInit, or bareBlock — should not happen
-        moveLines.push(line);
         depth += delta;
         if (depth <= 0) depth = 0;
       }
     }
 
-    // Phase B: Reconstruct source
-    let afterMain = source.substring(mainIdxPre);
-
+    // ── Phase B: Handle shader_body content ──
+    let finalAfterMain = afterMain;
     if (moveLines.length > 0) {
-      // Insert moved content into main() before the fragColor line
-      const fragColorIdx = afterMain.lastIndexOf('fragColor');
-      if (fragColorIdx !== -1) {
-        const insertContent = '\n  // --- moved from shader_body ---\n' +
-          moveLines.map(l => '  ' + l).join('\n') + '\n';
-        afterMain = afterMain.substring(0, fragColorIdx) +
-          insertContent +
-          afterMain.substring(fragColorIdx);
+      // Check if main body already has shader_body content
+      const mainBodyStart = afterMain.indexOf('{', afterMain.indexOf('void main()'));
+      if (mainBodyStart !== -1) {
+        const mainBodyEnd = afterMain.lastIndexOf('}');
+        const mainBody = afterMain.substring(mainBodyStart + 1, mainBodyEnd);
+        const hasShaderBodyInMain = /\bshader_body\b/.test(mainBody);
+
+        if (hasShaderBodyInMain) {
+          // Main already has shader_body content → strip the wrapper braces and keyword
+          // but keep the actual shader code
+          finalAfterMain = afterMain.replace(/\bshader_body\s*\{/g, '').replace(/\}\s*fragColor/, 'fragColor');
+        } else {
+          // Main is boilerplate-only → move pre-main shader_body content into it
+          const bodyLines = mainBody.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
+          if (bodyLines.length <= 8) {
+            const fragColorIdx = finalAfterMain.lastIndexOf('fragColor');
+            if (fragColorIdx !== -1) {
+              const insertContent = '\n  // --- moved from shader_body ---\n' +
+                moveLines.map(l => '  ' + l).join('\n') + '\n';
+              finalAfterMain = finalAfterMain.substring(0, fragColorIdx) +
+                insertContent +
+                finalAfterMain.substring(fragColorIdx);
+            }
+          }
+        }
       }
     }
 
-    source = normalizeDanglingStatementCommas(keepLines.join('\n') + '\n' + afterMain);
-    source = source.replace(/(\n\s*\/\/ --- moved from shader_body ---\n)\s*\{\s*\n/g, '$1');
-    source = source.replace(
-      /(\n\s*\/\/ --- moved from shader_body ---[\s\S]*?)\s*}\s*(?:\/\/[^\n]*)?\n(\s*fragColor\s*=)/g,
-      '$1\n$2'
-    );
+    source = keepLines.join('\n') + '\n' + finalAfterMain;
 
-    // ── 0e. Inside void main(): remove nested function definitions ──
-    // GLSL doesn't allow function definitions inside other functions.
-    // The transpiler duplicates file-scope functions inside main().
+    // ── 0f. Remove nested function definitions inside main() ──
     const mainPos = source.indexOf('void main()');
     const mainBrace = source.indexOf('{', mainPos);
     if (mainBrace !== -1) {
       const beforeMainBody = source.substring(0, mainBrace + 1);
       let body = source.substring(mainBrace + 1);
 
-      // Find and remove function definitions inside main
       const bodyLines = body.split('\n');
       const cleanBodyLines: string[] = [];
       let bodyDepth = 0;
@@ -703,15 +619,12 @@ const preprocess = (source: string): string => {
             if (ch === '{') bodyDepth++;
             else if (ch === '}') bodyDepth--;
           }
-          if (bodyDepth <= nestedFuncDepth) {
-            inNestedFunc = false;
-          }
+          if (bodyDepth <= nestedFuncDepth) { inNestedFunc = false; }
           continue;
         }
 
-        // Detect function definition: type name(params) {
-        const funcDefRe = /^\s*(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*\{/;
-        const funcDeclRe = /^\s*(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234]|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*$/;
+        const funcDefRe = /^\s*(?:float|vec[234]|mat[234x]*|int|uint|bool|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*\{/;
+        const funcDeclRe = /^\s*(?:float|vec[234]|mat[234x]*|int|uint|bool|void)\s+[a-zA-Z_]\w*\s*\([^)]*\)\s*$/;
 
         if (funcDefRe.test(trimmed)) {
           inNestedFunc = true;
@@ -724,304 +637,313 @@ const preprocess = (source: string): string => {
           continue;
         }
 
-        if (funcDeclRe.test(trimmed)) {
-          const nextTrimmed = (bodyLines[i + 1] || '').trim();
-          if (nextTrimmed.startsWith('{')) {
-            inNestedFunc = true;
-            nestedFuncDepth = bodyDepth;
-            i++;
-            for (const ch of (bodyLines[i] || '')) {
-              if (ch === '{') bodyDepth++;
-              else if (ch === '}') bodyDepth--;
-            }
-            if (bodyDepth <= nestedFuncDepth) inNestedFunc = false;
-            continue;
+        if (funcDeclRe.test(trimmed) && (bodyLines[i + 1] || '').trim().startsWith('{')) {
+          inNestedFunc = true;
+          nestedFuncDepth = bodyDepth;
+          i++;
+          for (const ch of (bodyLines[i] || '')) {
+            if (ch === '{') bodyDepth++;
+            else if (ch === '}') bodyDepth--;
           }
+          if (bodyDepth <= nestedFuncDepth) inNestedFunc = false;
+          continue;
         }
 
         for (const ch of trimmed) {
           if (ch === '{') bodyDepth++;
           else if (ch === '}') bodyDepth--;
         }
-
         cleanBodyLines.push(bodyLines[i]);
       }
 
       source = beforeMainBody + cleanBodyLines.join('\n');
     }
-  }
 
-  // ── 1. Collect additions to inject before void main() ──
-  const mainIdx = source.indexOf('void main()');
-  if (mainIdx === -1) return source;
-
-  const beforeMain = source.substring(0, mainIdx);
-  const afterMainStart = source.substring(mainIdx);
-  const additions: string[] = [];
-
-  // Sampler aliases
-  const samplerAliases: [string, string][] = [
-    ['sampler_fc_main', 'sampler_main'], ['sampler_pc_main', 'sampler_main'],
-    ['sampler_fw_main', 'sampler_main'], ['sampler_pw_main', 'sampler_main'],
-    ['sampler_noise_lq_lite', 'sampler_noise_lq'],
-    ['sampler_FC_main', 'sampler_main'], ['sampler_PC_main', 'sampler_main'],
-    ['sampler_FW_main', 'sampler_main'], ['sampler_PW_main', 'sampler_main'],
-    ['sampler_rand01', 'sampler_noise_lq'], ['sampler_rand02', 'sampler_noise_mq'],
-    ['sampler_rand03', 'sampler_noise_hq'], ['sampler_rand04', 'sampler_noise_lq'],
-  ];
-  for (const [alias, target] of samplerAliases) {
-    if (source.includes(alias) && !beforeMain.includes(`uniform sampler2D ${alias}`) && !beforeMain.includes(`#define ${alias}`)) {
-      additions.push(`#define ${alias} ${target}`);
-    }
-  }
-
-  // MilkDrop built-in constants
-  const builtinConstants: [string, string][] = [
-    ['M_PI', '3.14159265359'],
-    ['M_PI_2', '1.57079632679'],
-    ['M_INV_PI_2', '0.63661977236'],
-    ['PI', '3.14159265359'],
-    ['PI_2', '1.57079632679'],
-  ];
-  for (const [name, val] of builtinConstants) {
-    if (new RegExp(`\\b${name}\\b`).test(source) && !beforeMain.includes(`#define ${name}`)) {
-      additions.push(`#define ${name} ${val}`);
-    }
-  }
-
-  // q-variable uniforms (q1–q32)
-  for (let i = 1; i <= 32; i++) {
-    if (new RegExp(`\\bq${i}\\b`).test(source) && !beforeMain.includes(`uniform float q${i};`)) {
-      additions.push(`uniform float q${i};`);
-    }
-  }
-
-  // MilkDrop built-in uniforms
-  const builtinUniforms: [string, string][] = [
-    ['_c0', 'vec4'], ['_c1', 'vec4'], ['_c2', 'vec4'], ['_c3', 'vec4'],
-    ['_c4', 'vec4'], ['_c5', 'vec4'], ['_c6', 'vec4'], ['_c7', 'vec4'],
-    ['_c8', 'vec4'], ['_c9', 'vec4'], ['_c10', 'vec4'], ['_c11', 'vec4'],
-    ['_c12', 'vec4'], ['_c13', 'vec4'], ['_c14', 'vec4'],
-    ['_c15', 'vec4'], ['_c16', 'vec4'], ['_c17', 'vec4'],
-    ['_qa', 'vec4'], ['_qb', 'vec4'], ['_qc', 'vec4'], ['_qd', 'vec4'],
-    ['_qe', 'vec4'], ['_qf', 'vec4'], ['_qg', 'vec4'], ['_qh', 'vec4'],
-    ['rand_frame', 'vec4'], ['rand_preset', 'vec4'],
-    ['texsize_noise_lq', 'vec4'], ['texsize_noise_mq', 'vec4'], ['texsize_noise_hq', 'vec4'],
-    ['sampler_noisevol_lq', 'highp sampler3D'], ['sampler_noisevol_hq', 'highp sampler3D'],
-  ];
-  for (const [name, type] of builtinUniforms) {
-    if (new RegExp(`\\b${name}\\b`).test(source) && !beforeMain.includes(`uniform ${type} ${name}`)) {
-      additions.push(`uniform ${type} ${name};`);
-    }
-  }
-
-  // Rotation matrices
-  for (const name of ROT_NAMES) {
-    if (new RegExp(`\\b${name}\\b`).test(source) && !beforeMain.includes(`uniform mat4 ${name}`)) {
-      additions.push(`uniform mat4 ${name};`);
-    }
-  }
-
-  // Helper functions
-  if (/\blum\s*\(/.test(source) && !beforeMain.includes('float lum(')) {
-    additions.push(`float lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }`);
-    additions.push(`float lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }`);
-  }
-  if (/\bhue_shader\b/.test(source) && !beforeMain.includes('uniform vec3 hue_shader') && !beforeMain.includes('vec3 hue_shader')) {
-    additions.push(`vec3 hue_shader = vec3(1.0);`);
-  }
-  if (/\bsat\s*\(/.test(source) && !beforeMain.includes('float sat(')) {
-    additions.push(`float sat(float x) { return clamp(x, 0.0, 1.0); }`);
-    additions.push(`vec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }`);
-    additions.push(`vec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }`);
-    additions.push(`vec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }`);
-  }
-  if (/\bnoise3\s*\(/.test(source) && !beforeMain.includes('vec4 noise3(')) {
-    additions.push(`vec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }`);
-  }
-  if (/\bGetMain\s*\(/.test(source) && !beforeMain.includes('vec3 GetMain(')) {
-    additions.push(`vec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }`);
-  }
-  if (/\bGetPixel\s*\(/.test(source) && !beforeMain.includes('vec3 GetPixel(')) {
-    additions.push(`vec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }`);
-  }
-  if (/\bGetBlur1\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur1(')) {
-    additions.push(`vec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }`);
-  }
-  if (/\bGetBlur2\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur2(')) {
-    additions.push(`vec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }`);
-  }
-  if (/\bGetBlur3\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur3(')) {
-    additions.push(`vec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }`);
-  }
-  if (/\bmultiply\s*\(/.test(source) && !beforeMain.includes('vec2 multiply(')) {
-    additions.push(`vec2 multiply(vec2 v, mat2 m) { return m * v; }`);
-    additions.push(`vec3 multiply(vec3 v, mat3 m) { return m * v; }`);
-    additions.push(`vec4 multiply(vec4 v, mat4 m) { return m * v; }`);
-  }
-  if (/\btextureBias\s*\(/.test(source) && !beforeMain.includes('vec4 textureBias(')) {
-    additions.push(`vec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }`);
-  }
-  if (/\btexsize\b/.test(afterMainStart) && !beforeMain.includes('#define texsize') && !beforeMain.includes('uniform vec4 texsize')) {
-    additions.push(`#define texsize vec4(uTexSize, 1.0/uTexSize)`);
-  }
-  if (/\bvUvOriginal\b/.test(source) && !beforeMain.includes('in vec2 vUvOriginal')) {
-    additions.push(`in vec2 vUvOriginal;`);
-  }
-
-  // ── 2. Auto-declare undeclared local variables ──
-  let patched = source;
-  const mainBodyStart = patched.indexOf('{', patched.indexOf('void main()'));
-  if (mainBodyStart !== -1) {
-    const beforeBody = patched.substring(0, mainBodyStart + 1);
-    let body = patched.substring(mainBodyStart + 1);
-
-    body = body.replace(/#define\s+sat\s+saturate\b/g, '#define sat clamp01');
-    body = body.replace(/\bvUv\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'uv');
-    body = body.replace(/\bvUvOriginal\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'vUvOriginalLocal');
-    body = body.replace(/\bvRadius\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'rad');
-    body = body.replace(/\bvAngle\b(?=\s*(?:[+\-*/]?=|\+\+|--))/g, 'ang');
-
-    // Collect declared names
-    const declared = new Set<string>();
-    const declLineRe = /\b(float|vec[234]|mat[234]|int|bool|ivec[234]|bvec[234])\s+([^;]+);/g;
-    let m: RegExpExecArray | null;
-    while ((m = declLineRe.exec(patched)) !== null) {
-      const type = m[1];
-      const declarators = m[2];
-      if (declarators.includes('(') && declarators.includes('{')) continue;
-      for (const rawDecl of declarators.split(',')) {
-        const cleaned = rawDecl.replace(/=.*$/g, '').replace(/\[.*$/g, '').trim().split(/\s+/).pop();
-        if (cleaned && cleaned !== type) declared.add(cleaned);
+    // ── 0g. Strip orphan brace blocks inside main body ──
+    const bodyStart = source.indexOf('{', source.indexOf('void main()'));
+    if (bodyStart !== -1) {
+      const beforeBody = source.substring(0, bodyStart + 1);
+      let body = source.substring(bodyStart + 1);
+      // Find the closing `}` of main
+      const closingBraceIdx = body.lastIndexOf('}');
+      if (closingBraceIdx !== -1) {
+        const mainBody = body.substring(0, closingBraceIdx);
+        const afterBody = body.substring(closingBraceIdx);
+        body = stripOrphanBraceBlocks(mainBody) + afterBody;
       }
+      source = beforeBody + body;
     }
-
-    const builtins = new Set([
-      'gl_FragCoord', 'gl_FrontFacing', 'gl_PointCoord',
-      'fragColor', 'vUv', 'vUvOriginal', 'vUvOriginalLocal', 'vRadius', 'vAngle', 'uv', 'ret', 'rad', 'ang',
-      'uTime', 'uFrame', 'uFps', 'uRms', 'uAspectX', 'uAspectY', 'uAspect', 'uTexSize',
-      'uRandomPreset', 'uRandomFrame',
-      'audioLow', 'audioLowSmooth', 'audioMid', 'audioMidSmooth', 'audioHigh', 'audioHighSmooth',
-      'sampler_main', 'sampler_noise_lq', 'sampler_noise_mq', 'sampler_noise_hq',
-      'sampler_blur1', 'sampler_blur2', 'sampler_blur3',
-      'GetPixel', 'GetBlur1', 'GetBlur2', 'GetBlur3', 'GetMain',
-      'clamp01', 'lum', 'sat', 'noise3', 'multiply',
-      'texture', 'clamp', 'mix', 'fract', 'abs', 'sin', 'cos', 'tan', 'atan',
-      'pow', 'sqrt', 'log', 'exp', 'floor', 'ceil', 'sign', 'step',
-      'smoothstep', 'min', 'max', 'mod', 'dot', 'cross', 'length', 'normalize',
-      'distance', 'reflect', 'refract', 'fwidth', 'dFdx', 'dFdy',
-      'inversesqrt', 'round', 'trunc', 'degrees', 'radians', 'asin', 'acos',
-      'true', 'false', 'if', 'else', 'for', 'while', 'do', 'break', 'continue', 'return', 'discard',
-      'void', 'const', 'in', 'out', 'inout', 'uniform', 'precision', 'highp', 'mediump', 'lowp',
-      'i', 'j', 'k', 'n', 'x', 'y', 'z', 'w', 'r', 'g', 'b', 'a', 's', 't', 'p',
-    ]);
-    for (let qi = 1; qi <= 32; qi++) builtins.add(`q${qi}`);
-    for (let ci = 0; ci <= 17; ci++) builtins.add(`_c${ci}`);
-    ['_qa', '_qb', '_qc', '_qd', '_qe', '_qf', '_qg', '_qh'].forEach(v => builtins.add(v));
-    ROT_NAMES.forEach(v => builtins.add(v));
-    ['rand_frame', 'rand_preset', 'texsize_noise_lq', 'texsize_noise_mq', 'texsize_noise_hq', 'texsize'].forEach(v => builtins.add(v));
-
-    const assignRe = /^[ \t]*([a-zA-Z_]\w*)\s*=[^=]/gm;
-    const undeclared = new Set<string>();
-    let am: RegExpExecArray | null;
-    while ((am = assignRe.exec(body)) !== null) {
-      const vname = am[1];
-      if (!declared.has(vname) && !builtins.has(vname) && !undeclared.has(vname)) {
-        const lineStart = body.lastIndexOf('\n', am.index);
-        const lineBefore = body.substring(lineStart + 1, am.index).trim();
-        if (!lineBefore.includes('.')) undeclared.add(vname);
-      }
-    }
-
-    if (undeclared.size > 0) {
-      const decls: string[] = ['  // Auto-declared MilkDrop variables'];
-      for (const vname of undeclared) {
-        const usageRe = new RegExp(`\\b${vname}\\b\\s*=[^=]*`, 'g');
-        const candidates: string[] = [];
-        let um: RegExpExecArray | null;
-        while ((um = usageRe.exec(body)) !== null) {
-          const rhs = um[0];
-          if (/=\s*vec2\s*\(/.test(rhs)) candidates.push('vec2');
-          else if (/=\s*vec3\s*\(/.test(rhs) || /=\s*GetPixel|=\s*GetBlur|=\s*GetMain/.test(rhs)) candidates.push('vec3');
-          else if (/=\s*vec4\s*\(/.test(rhs) || /=\s*texture\s*\(/.test(rhs)) candidates.push('vec4');
-          else if (/=\s*mat[23]\s*\(/.test(rhs)) candidates.push(rhs.match(/mat[23]/)?.[0] ?? 'float');
-          else candidates.push('float');
-        }
-        // Check swizzle LHS: var.xyz = ... → vec3
-        const lhsRe = new RegExp(`\\b${vname}\\.(xy|xyz|xyzw|rg|rgb|rgba)\\s*=`, 'g');
-        let lhsMatch: RegExpExecArray | null;
-        let needsVec = 0;
-        while ((lhsMatch = lhsRe.exec(body)) !== null) {
-          needsVec = Math.max(needsVec, lhsMatch[1].length);
-        }
-        let type = 'float';
-        const vecCandidates = candidates.filter(c => c.startsWith('vec') || c.startsWith('mat'));
-        if (vecCandidates.length > 0) type = vecCandidates[0];
-        if (needsVec >= 4) type = 'vec4';
-        else if (needsVec >= 3 && type === 'float') type = 'vec3';
-        else if (needsVec >= 2 && type === 'float') type = 'vec2';
-        // Check swizzle RHS: ... = var.xyz → vec3
-        if (type === 'float') {
-          const rhsRe = new RegExp(`\\b${vname}\\.(xy|xyz|xyzw|rg|rgb|rgba)\\b`);
-          const rhsMatch = rhsRe.exec(body);
-          if (rhsMatch && candidates.every(c => c !== 'float')) {
-            const n = rhsMatch[1].length;
-            if (n >= 4) type = 'vec4';
-            else if (n >= 3) type = 'vec3';
-            else if (n >= 2) type = 'vec2';
-          }
-        }
-        decls.push(`  ${type} ${vname} = ${type === 'float' ? '0.0' : type + '(0.0)'};`);
-      }
-      body = '\n' + decls.join('\n') + '\n' + body;
-    }
-
-    // ── 3. Boolean NOT on floats: !varname → (varname == 0.0 ? 1.0 : 0.0) ──
-    body = body.replace(/(?<![!=<>])!([a-zA-Z_]\w*)(?!\s*=)/g, '($1 == 0.0 ? 1.0 : 0.0)');
-
-    patched = beforeBody + body;
   }
 
-  // ── 4. Insert additions before void main() ──
-  if (additions.length > 0) {
-    const insertPoint = patched.indexOf('void main()');
-    patched = patched.substring(0, insertPoint) +
-      '// --- MilkDrop runtime patches ---\n' +
-      additions.join('\n') + '\n\n' +
-      patched.substring(insertPoint);
-  }
-
-  // ── 5. Fix uTexSize swizzle (uTexSize is vec2; MilkDrop expects vec4) ──
-  patched = patched.replace(/\buTexSize\.zw\b/g, '(vec2(1.0)/uTexSize)');
-  patched = patched.replace(/\buTexSize\.z\b/g, '(1.0/uTexSize.x)');
-  patched = patched.replace(/\buTexSize\.w\b/g, '(1.0/uTexSize.y)');
-  patched = patched.replace(/\buTexSize\.xyzw\b/g, 'vec4(uTexSize, 1.0/uTexSize)');
-  patched = patched.replace(/\buAspect\.zw\b/g, '(vec2(1.0)/uAspect)');
-  patched = patched.replace(/\buAspect\.z\b/g, '(1.0/uAspect.x)');
-  patched = patched.replace(/\buAspect\.w\b/g, '(1.0/uAspect.y)');
-  patched = patched.replace(/\buAspect\.xyzw\b/g, 'vec4(uAspect, vec2(1.0)/uAspect)');
-  patched = normalizeDanglingStatementCommas(patched);
-  patched = closeUnbalancedMainBlocks(patched);
-  patched = stripRawTextLines(patched);
-  patched = repairTruncatedMixCalls(patched);
-
-  return patched;
+  return source;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Phase 2: AST transforms
+// Phase 2: AST transforms (all structural fixes)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Phase 2: AST-based type fixes.
- * Parses preprocessed GLSL, applies structural transforms, regenerates source.
+ * Collect all declared variable names from the AST.
+ */
+const collectDeclaredNames = (ast: Program): Set<string> => {
+  const names = new Set<string>();
+  visit(ast, {
+    declarator_list: {
+      enter: (p) => {
+        const decls = (p.node as DeclaratorListNode).declarations;
+        for (const d of decls) {
+          if (d.identifier) names.add((d as DeclarationNode).identifier.identifier);
+        }
+      },
+    },
+    function: {
+      enter: (p) => {
+        const fn = p.node as FunctionNode;
+        const name = fn.prototype.header.name;
+        if (name && name.type === 'identifier') names.add(name.identifier);
+      },
+    },
+  });
+  return names;
+};
+
+/**
+ * Collect all identifier usages relevant for undeclared variable detection.
+ * Captures LHS of assignments, including swizzle targets like `cnt.xyz = ...`.
+ */
+const collectIdentifier = (ast: Program): { assignments: Set<string>; assignmentNodes: Map<string, AssignmentNode> } => {
+  const assignments = new Set<string>();
+  const assignmentNodes = new Map<string, AssignmentNode>();
+
+  visit(ast, {
+    assignment: {
+      enter: (p) => {
+        const node = p.node as AssignmentNode;
+        if (node.left.type === 'identifier') {
+          const name = (node.left as IdentifierNode).identifier;
+          assignments.add(name);
+          assignmentNodes.set(name, node);
+        } else if (node.left.type === 'postfix') {
+          // Handle swizzle assignments like cnt.xyz = ...
+          const postfix = node.left as PostfixNode;
+          if (postfix.expression && postfix.expression.type === 'identifier') {
+            const name = (postfix.expression as IdentifierNode).identifier;
+            assignments.add(name);
+            if (!assignmentNodes.has(name)) {
+              assignmentNodes.set(name, node);
+            }
+          }
+        }
+      },
+    },
+  });
+
+  return { assignments, assignmentNodes };
+};
+
+/**
+ * Phase 2: Apply all AST-based transformations.
  */
 const astTransform = (source: string): string => {
-  const ast = parse(source, { stage: 'fragment', quiet: true });
-  sanitizeAstArrays(ast);
+  let ast: Program;
+  try {
+    ast = parse(source, { stage: 'fragment', quiet: true });
+  } catch (err) {
+    // If parsing fails, return the source as-is (caller will handle fallback)
+    console.warn('[MilkwaveGlslPatcher] AST parse failed, returning source as-is:', err);
+    return source;
+  }
+
+  const declaredNames = collectDeclaredNames(ast);
+  const { assignments, assignmentNodes } = collectIdentifier(ast);
+
+  // ── Build a type map from all declarator lists ──
+  // This lets inferDim know the types of declared variables.
+  const typeMap = new Map<string, number>();
+  visit(ast, {
+    declarator_list: {
+      enter: (p) => {
+        const kw = getTypeKeyword(p.node);
+        const dim = kw === 'float' ? 1 : kw === 'vec2' ? 2 : kw === 'vec3' ? 3 : kw === 'vec4' ? 4 :
+                    kw === 'mat2' ? 4 : kw === 'mat3' ? 9 : kw === 'mat4' ? 16 : 0;
+        for (const d of (p.node as DeclaratorListNode).declarations) {
+          const decl = d as DeclarationNode;
+          if (decl.identifier) {
+            typeMap.set(decl.identifier.identifier, dim);
+          }
+        }
+      },
+    },
+  });
+
+  // Also track function return types
+  visit(ast, {
+    function: {
+      enter: (p) => {
+        const fn = p.node as FunctionNode;
+        const name = fn.prototype.header.name.identifier;
+        const retSpec = fn.prototype.header.returnType.specifier.specifier;
+        const retKw = retSpec.type === 'keyword' ? retSpec.token : retSpec.type === 'type_name' ? retSpec.identifier : '';
+        const dim = retKw === 'float' ? 1 : retKw === 'vec2' ? 2 : retKw === 'vec3' ? 3 : retKw === 'vec4' ? 4 : 0;
+        if (name && dim > 0) typeMap.set(name, dim);
+      },
+    },
+  });
+
+  // ── Built-in name sets ──
+  const builtins = new Set([
+    'gl_FragCoord', 'gl_FrontFacing', 'gl_PointCoord',
+    'fragColor', 'vUv', 'vUvOriginal', 'vRadius', 'vAngle', 'uv', 'ret', 'rad', 'ang',
+    'uTime', 'uFrame', 'uFps', 'uRms', 'uAspectX', 'uAspectY', 'uAspect', 'uTexSize',
+    'uRandomPreset', 'uRandomFrame',
+    'audioLow', 'audioLowSmooth', 'audioMid', 'audioMidSmooth', 'audioHigh', 'audioHighSmooth',
+    'sampler_main', 'sampler_noise_lq', 'sampler_noise_mq', 'sampler_noise_hq',
+    'sampler_blur1', 'sampler_blur2', 'sampler_blur3',
+    'GetPixel', 'GetBlur1', 'GetBlur2', 'GetBlur3', 'GetMain',
+    'clamp01', 'lum', 'sat', 'noise3', 'multiply',
+    'texture', 'textureLod', 'textureBias', 'textureGrad', 'textureProj',
+    'clamp', 'mix', 'fract', 'abs', 'sin', 'cos', 'tan', 'atan',
+    'pow', 'sqrt', 'log', 'log2', 'log10', 'exp', 'exp2', 'floor', 'ceil', 'sign', 'step',
+    'smoothstep', 'min', 'max', 'mod', 'dot', 'cross', 'length', 'normalize',
+    'distance', 'reflect', 'refract', 'fwidth', 'dFdx', 'dFdy',
+    'inversesqrt', 'round', 'trunc', 'degrees', 'radians', 'asin', 'acos',
+    'true', 'false', 'if', 'else', 'for', 'while', 'do', 'break', 'continue', 'return', 'discard',
+    'void', 'const', 'in', 'out', 'inout', 'uniform', 'precision', 'highp', 'mediump', 'lowp',
+    'i', 'j', 'k', 'n', 'x', 'y', 'z', 'w', 'r', 'g', 'b', 'a', 's', 't', 'p',
+    // Math constants
+    'M_PI', 'M_PI_2', 'M_INV_PI_2', 'PI', 'PI_2',
+  ]);
+  for (let qi = 1; qi <= 32; qi++) builtins.add(`q${qi}`);
+  for (let ci = 0; ci <= 17; ci++) builtins.add(`_c${ci}`);
+  ['_qa', '_qb', '_qc', '_qd', '_qe', '_qf', '_qg', '_qh'].forEach(v => builtins.add(v));
+  ['rot_s1', 'rot_s2', 'rot_s3', 'rot_s4', 'rot_d1', 'rot_d2', 'rot_d3', 'rot_d4',
+   'rot_f1', 'rot_f2', 'rot_f3', 'rot_f4', 'rot_vf1', 'rot_vf2', 'rot_vf3', 'rot_vf4',
+   'rot_uf1', 'rot_uf2', 'rot_uf3', 'rot_uf4', 'rot_rand1', 'rot_rand2', 'rot_rand3', 'rot_rand4'
+  ].forEach(v => builtins.add(v));
+  ['rand_frame', 'rand_preset',
+   'texsize_noise_lq', 'texsize_noise_mq', 'texsize_noise_hq',
+   'texsize_noisevol_lq', 'texsize_noisevol_hq', 'texsize_noisevol_mq', 'texsize_noise_lq_lite',
+   'texsize',
+  ].forEach(v => builtins.add(v));
+  // Sampler aliases
+  ['sampler_fc_main', 'sampler_pc_main', 'sampler_fw_main', 'sampler_pw_main',
+   'sampler_FC_main', 'sampler_PC_main', 'sampler_FW_main', 'sampler_PW_main',
+   'sampler_noise_lq_lite', 'sampler_noisevol_lq', 'sampler_noisevol_hq',
+   'sampler_rand00', 'sampler_rand01', 'sampler_rand02', 'sampler_rand03',
+   'sampler_rand04', 'sampler_rand05', 'sampler_rand06', 'sampler_rand07',
+   'sampler_rand08', 'sampler_rand09',
+   'sampler_fw_rand00', 'sampler_fw_rand01', 'sampler_fw_rand02', 'sampler_fw_rand03',
+   'sampler_fw_rand04', 'sampler_fw_rand05', 'sampler_fw_rand06', 'sampler_fw_rand07',
+   'sampler_fw_rand08', 'sampler_fw_rand09',
+   'sampler_pw_rand00', 'sampler_pw_rand01', 'sampler_pw_rand02', 'sampler_pw_rand03',
+   'sampler_pw_rand04', 'sampler_pw_rand05', 'sampler_pw_rand06', 'sampler_pw_rand07',
+   'sampler_pw_rand08', 'sampler_pw_rand09',
+   // Short forms (used in texture() calls without sampler_ prefix)
+   'rand00', 'rand01', 'rand02', 'rand03', 'rand04', 'rand05',
+   'rand06', 'rand07', 'rand08', 'rand09', 'rand10', 'rand11',
+   'rand12', 'rand13', 'rand14', 'rand15',
+  ].forEach(v => builtins.add(v));
+
+  // ── Find all identifiers used in expressions ──
+  const allUsedIdentifiers = new Set<string>();
+  const functionNames = new Set<string>();
+  const declaredInFunctions = new Set<string>();
+  visit(ast, {
+    identifier: {
+      enter: (p) => {
+        const name = (p.node as IdentifierNode).identifier;
+        if (name) allUsedIdentifiers.add(name);
+      },
+    },
+    function: {
+      enter: (p) => {
+        const fn = p.node as FunctionNode;
+        const fname = fn.prototype.header.name;
+        if (fname && fname.type === 'identifier') functionNames.add(fname.identifier);
+        // Collect parameter names
+        for (const param of fn.prototype.parameters || []) {
+          if (param.identifier) declaredInFunctions.add(param.identifier.identifier);
+        }
+      },
+    },
+    declarator_list: {
+      enter: (p) => {
+        for (const d of (p.node as DeclaratorListNode).declarations) {
+          if ((d as DeclarationNode).identifier) declaredInFunctions.add((d as DeclarationNode).identifier.identifier);
+        }
+      },
+    },
+  });
+  // Remove function names, parameter names, and already-declared names
+  for (const name of allUsedIdentifiers) {
+    if (functionNames.has(name) || declaredInFunctions.has(name)) allUsedIdentifiers.delete(name);
+  }
+
+  // ── Find undeclared identifiers (assigned or used but not declared, not builtin) ──
+  const undeclared = new Set<string>();
+  for (const name of assignments) {
+    if (!declaredNames.has(name) && !builtins.has(name)) {
+      undeclared.add(name);
+    }
+  }
+  // Also add used-but-not-declared identifiers
+  for (const name of allUsedIdentifiers) {
+    if (!declaredNames.has(name) && !builtins.has(name)) {
+      undeclared.add(name);
+    }
+  }
+
+  // ── Infer types for undeclared variables ──
+  const inferredTypes = new Map<string, string>();
+  for (const name of undeclared) {
+    const assignNode = assignmentNodes.get(name);
+    if (assignNode) {
+      // Infer from RHS dimension
+      let dim = inferDim(assignNode.right, typeMap);
+
+      // Also check LHS swizzle dimension (for assignments like cnt.xyz = ...)
+      if (assignNode.left.type === 'postfix') {
+        const postfix = assignNode.left as PostfixNode;
+        if (postfix.postfix && postfix.postfix.type === 'field_selection') {
+          const fs = postfix.postfix as FieldSelectionNode;
+          const swizzle = fs.selection.type === 'literal'
+            ? (fs.selection as LiteralNode).literal
+            : '';
+          if (/^[xyzwrgba]+$/.test(swizzle) && swizzle.length >= 2) {
+            dim = Math.max(dim, swizzle.length);
+          }
+        }
+      }
+
+      if (dim === 2) inferredTypes.set(name, 'vec2');
+      else if (dim === 3) inferredTypes.set(name, 'vec3');
+      else if (dim === 4) inferredTypes.set(name, 'vec4');
+      else if (dim === 0) {
+        // Check if it's a sampler (used in texture() calls)
+        // Look for usage in function_call as first arg
+        let isSampler = false;
+        visit(ast, {
+          function_call: {
+            enter: (p) => {
+              const fnName = getFnName(p.node);
+              if (fnName === 'texture' || fnName === 'textureLod' || fnName === 'textureBias') {
+                const args = getArgs(p.node);
+                if (args.length > 0 && args[0].type === 'identifier' && (args[0] as IdentifierNode).identifier === name) {
+                  isSampler = true;
+                }
+              }
+            },
+          },
+        });
+        inferredTypes.set(name, isSampler ? 'sampler2D' : 'float');
+      }
+      else inferredTypes.set(name, 'float');
+    } else {
+      inferredTypes.set(name, 'float');
+    }
+  }
 
   // ── Pass 1: int_constant → float_constant ──
-  // GLSL ES 3.00 has no implicit int→float promotion.
   visit(ast, {
     int_constant: {
       enter: (p) => {
@@ -1044,13 +966,11 @@ const astTransform = (source: string): string => {
         const name = fn.prototype.header.name.identifier;
         if (!/^(GetPixel|GetBlur[123])$/.test(name)) return;
 
-        // Change return type: vec4 → vec3
         const retSpec = fn.prototype.header.returnType.specifier.specifier;
         if (retSpec.type === 'keyword' && retSpec.token === 'vec4') {
           (retSpec as any).token = 'vec3';
         }
 
-        // Add .xyz to any texture() call in the return statement
         visit(fn, {
           return_statement: {
             enter: (rp) => {
@@ -1068,26 +988,20 @@ const astTransform = (source: string): string => {
     },
   });
 
-  let declaredDims = collectDeclaredDims(ast as Program);
-
   // ── Pass 3: texture() → texture().xyz in vec3 contexts ──
   visit(ast, {
     function_call: {
       enter: (p) => {
         const name = getFnName(p.node);
         if (name !== 'texture' && name !== 'textureLod' && name !== 'textureBias') return;
-
-        // Skip if already has a postfix (.xyz, .rgb, etc.)
         if (p.parent?.type === 'postfix') return;
 
-        // Check enclosing assignment dimension
-        const dim = findEnclosingAssignmentDim(p, declaredDims);
+        const dim = findEnclosingAssignmentDim(p, typeMap);
         if (dim === 3) {
           p.replaceWith(mkPostfixSwizzle(p.node as unknown as AstNode, 'xyz') as unknown as AstNode);
         } else if (dim === 2) {
           p.replaceWith(mkPostfixSwizzle(p.node as unknown as AstNode, 'xy') as unknown as AstNode);
         }
-        // dim===4 or unknown: leave as-is
       },
     },
   });
@@ -1102,7 +1016,6 @@ const astTransform = (source: string): string => {
         if (decls.length === 1 && decls[0].identifier.identifier === 'ret') {
           const spec = p.node.specified_type.specifier.specifier;
           if (spec.type === 'keyword') (spec as any).token = 'vec3';
-          // Fix initializer: vec4(0.0) → vec3(0.0)
           const init = decls[0].initializer;
           if (init?.type === 'function_call') {
             const initName = getFnName(init as FunctionCallNode);
@@ -1119,8 +1032,6 @@ const astTransform = (source: string): string => {
     },
   });
 
-  declaredDims = collectDeclaredDims(ast as Program);
-
   // ── Pass 5: fragColor = ret → fragColor = vec4(ret, 1.0) ──
   visit(ast, {
     assignment: {
@@ -1130,7 +1041,6 @@ const astTransform = (source: string): string => {
         const right = p.node.right;
         if (right.type !== 'identifier' || (right as IdentifierNode).identifier !== 'ret') return;
 
-        // Replace right side: ret → vec4(ret, 1.0)
         (p.node as any).right = mkFnCall('vec4', [
           mkIdentifier('ret', ' '),
           mkLiteral(','),
@@ -1140,7 +1050,7 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 6: pow(vec_expr, scalar_literal) → pow(vec_expr, vec3(scalar_literal)) ──
+  // ── Pass 6: pow(vec_expr, scalar) → pow(vec_expr, vecN(scalar)) ──
   visit(ast, {
     function_call: {
       enter: (p) => {
@@ -1149,12 +1059,10 @@ const astTransform = (source: string): string => {
         const args = getArgs(p.node);
         if (args.length !== 2) return;
         const [first, second] = args;
-        const firstDim = inferDim(first, declaredDims);
-        const secondDim = inferDim(second, declaredDims);
+        const firstDim = inferDim(first, typeMap);
+        const secondDim = inferDim(second, typeMap);
         if (firstDim >= 2 && secondDim === 1) {
-          // Wrap second arg in vec constructor matching first's dimension
           const vecType = `vec${firstDim}`;
-          // Find the second arg in p.node.args and replace it
           const allArgs = p.node.args;
           for (let i = 0; i < allArgs.length; i++) {
             if (allArgs[i] === second) {
@@ -1167,36 +1075,7 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 7: mix(vec, scalar, t) / mix(scalar, vec, t) → mix(vec, vec, t) ──
-  visit(ast, {
-    function_call: {
-      enter: (p) => {
-        const name = getFnName(p.node);
-        if (name !== 'mix') return;
-        const args = getArgs(p.node);
-        if (args.length !== 3) return;
-        const [first, second] = args;
-        const firstDim = inferDim(first, declaredDims);
-        const secondDim = inferDim(second, declaredDims);
-        const allArgs = p.node.args;
-
-        if (firstDim >= 2 && secondDim === 1) {
-          const secondIdx = allArgs.indexOf(second);
-          if (secondIdx !== -1) {
-            allArgs[secondIdx] = wrapScalarForDim(second, firstDim);
-          }
-        } else if (firstDim === 1 && secondDim >= 2) {
-          const firstIdx = allArgs.indexOf(first);
-          if (firstIdx !== -1) {
-            allArgs[firstIdx] = wrapScalarForDim(first, secondDim);
-          }
-        }
-      },
-    },
-  });
-
-  // ── Pass 8: min/max(scalar, vec) → min/max(vec, scalar) ──
-  // GLSL ES has min/max(genType, float) but NOT min/max(float, genType).
+  // ── Pass 7: min/max(scalar, vec) → min/max(vec, scalar) ──
   visit(ast, {
     function_call: {
       enter: (p) => {
@@ -1205,10 +1084,9 @@ const astTransform = (source: string): string => {
         const args = getArgs(p.node);
         if (args.length !== 2) return;
         const [first, second] = args;
-        const firstDim = inferDim(first, declaredDims);
-        const secondDim = inferDim(second, declaredDims);
+        const firstDim = inferDim(first, typeMap);
+        const secondDim = inferDim(second, typeMap);
         if (firstDim === 1 && secondDim >= 2) {
-          // Swap args in the raw args array (preserving comma literals)
           const allArgs = p.node.args;
           const firstIdx = allArgs.indexOf(first);
           const secondIdx = allArgs.indexOf(second);
@@ -1221,78 +1099,787 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 9: vec declaration initializer promotion ──
-  // e.g. vec3 color = lum(ret); → vec3 color = vec3(lum(ret));
-  visit(ast, {
-    declarator_list: {
-      enter: (p) => {
-        const targetDim = (() => {
-          const kw = getTypeKeyword(p.node);
-          if (kw === 'vec2') return 2;
-          if (kw === 'vec3') return 3;
-          if (kw === 'vec4') return 4;
-          return 0;
-        })();
-        if (targetDim < 2) return;
-
-        for (const decl of p.node.declarations) {
-          if (!decl.initializer) continue;
-          if (inferDim(decl.initializer, declaredDims) !== 1) continue;
-          decl.initializer = wrapScalarForDim(decl.initializer, targetDim) as any;
-        }
-      },
-    },
-  });
-
-  declaredDims = collectDeclaredDims(ast as Program);
-
-  // ── Pass 10: vec assignment promotion ──
-  // e.g. ret = lum(ret); → ret = vec3(lum(ret));
+  // ── Pass 8: ret = scalar_fn(...) → ret = vec3(scalar_fn(...)) ──
   visit(ast, {
     assignment: {
       enter: (p) => {
         const left = p.node.left;
-        const targetDim = inferDim(left, declaredDims);
-        if (targetDim < 2) return;
+        if (left.type !== 'identifier') return;
+        const varName = (left as IdentifierNode).identifier;
+        if (!VEC3_VARS.has(varName)) return;
+
         const right = p.node.right;
-        if (inferDim(right, declaredDims) === 1) {
-          (p.node as any).right = wrapScalarForDim(right, targetDim);
+        const rightDim = inferDim(right, typeMap);
+        if (rightDim === 1) {
+          (p.node as any).right = mkFnCall('vec3', [right], ' ') as unknown as AstNode;
         }
       },
     },
   });
 
-  // ── Pass 11: Binary Dimension Rebalancing (vec3 - vec2 → vec3.xy - vec2) ──
+  // ── Pass 9: Binary Dimension Rebalancing ──
+  // When vecA op vecB where dims don't match, wrap the smaller side in a vec constructor
+  // to match the larger side. e.g. vec3 + vec2 → vec3 + vec3(vec2, 0.0)
+  // Note: This can cause issues with texture() coordinates. Pass 9.1 fixes that.
   visit(ast, {
     binary: {
       enter: (p: Path<BinaryNode>) => {
         const left = p.node.left;
         const right = p.node.right;
         const op = p.node.operator.literal;
-        
         if (!['+', '-', '*', '/'].includes(op)) return;
 
-        const leftDim = inferDim(left, declaredDims);
-        const rightDim = inferDim(right, declaredDims);
-
+        const leftDim = inferDim(left, typeMap);
+        const rightDim = inferDim(right, typeMap);
         if (leftDim === 0 || rightDim === 0) return;
+        // Skip matrix types (dim >= 4) - mat*vec is valid GLSL
+        if (leftDim >= 4 || rightDim >= 4) return;
         if (leftDim === rightDim) return;
-        if (leftDim === 1 || rightDim === 1) return; // scalar handled by GLSL
+        if (leftDim === 1 || rightDim === 1) return; // GLSL allows vec * scalar
 
-        // Mismatch found! e.g. vec3 - vec2.
-        // Usually in coordinate math, we want to down-swizzle the larger vec.
-        if (leftDim > rightDim) {
-          const swizzle = rightDim === 2 ? 'xy' : 'xyz';
-          p.node.left = mkPostfixSwizzle(left, swizzle) as unknown as AstNode;
+        // For vec2 + vec4 or vec3 + vec4, truncate the wider operand instead of padding
+        // This preserves semantics better than padding with zeros
+        const maxDim = Math.max(leftDim, rightDim);
+        const minDim = Math.min(leftDim, rightDim);
+
+        if (maxDim === 4 && minDim >= 2) {
+          // Truncate vec4 to vec2/vec3 using swizzle
+          const swizzle = minDim === 2 ? 'xy' : 'xyz';
+          if (leftDim === 4) {
+            p.node.left = mkPostfixSwizzle(left, swizzle) as unknown as AstNode;
+          } else {
+            p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
+          }
+          return;
+        }
+
+        // Otherwise wrap the smaller side in a vec constructor with padding
+        const vecType = `vec${maxDim}`;
+
+        if (leftDim < maxDim) {
+          // vec3(vec2_expr, 0.0) - pad with zeros
+          const paddingArgs: AstNode[] = [left];
+          for (let i = leftDim; i < maxDim; i++) {
+            paddingArgs.push(mkLiteral(',') as unknown as AstNode);
+            paddingArgs.push(mkFloat('0.0') as unknown as AstNode);
+          }
+          p.node.left = mkFnCall(vecType, paddingArgs, ' ') as unknown as AstNode;
         } else {
-          const swizzle = leftDim === 2 ? 'xy' : 'xyz';
-          p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
+          const paddingArgs: AstNode[] = [right];
+          for (let i = rightDim; i < maxDim; i++) {
+            paddingArgs.push(mkLiteral(',') as unknown as AstNode);
+            paddingArgs.push(mkFloat('0.0') as unknown as AstNode);
+          }
+          p.node.right = mkFnCall(vecType, paddingArgs, ' ') as unknown as AstNode;
         }
       }
     }
   });
 
-  return generate(ast);
+  // ── Pass 10: Dimension mismatch in declarator lists ──
+  // `float x = vec_expr` → change type to match initializer
+  // `vecX x = scalar_expr` → change type to float
+  visit(ast, {
+    declarator_list: {
+      enter: (p) => {
+        const node = p.node as DeclaratorListNode;
+        const kw = getTypeKeyword(node);
+        const declaredDim = kw === 'float' ? 1 : kw === 'vec2' ? 2 : kw === 'vec3' ? 3 : kw === 'vec4' ? 4 : 0;
+        if (declaredDim === 0) return;
+
+        const decls = node.declarations;
+        if (decls.length !== 1) return;
+        const decl = decls[0] as DeclarationNode;
+        if (!decl.initializer) return;
+
+        const initDim = inferDim(decl.initializer, typeMap);
+        if (declaredDim === 1 && initDim >= 2) {
+          // float x = vec_expr → vecX x = vec_expr
+          const newType = initDim === 2 ? 'vec2' : initDim === 3 ? 'vec3' : 'vec4';
+          const spec = node.specified_type.specifier.specifier;
+          if (spec.type === 'keyword') (spec as any).token = newType;
+          typeMap.set(decl.identifier.identifier, initDim);
+        } else if (declaredDim >= 2 && initDim === 1) {
+          // vecX x = scalar_expr → float x = scalar_expr
+          const spec = node.specified_type.specifier.specifier;
+          if (spec.type === 'keyword') (spec as any).token = 'float';
+          typeMap.set(decl.identifier.identifier, 1);
+        }
+      },
+    },
+  });
+
+  // ── Pass 10.5: Assignment dimension mismatch ──
+  // Handles both simple (=) and compound (+= -= *= /=) assignments.
+  // `vec3_var += vec4_expr` → `vec3_var += vec4_expr.xyz`
+  // `vec2_var = vec3_expr` → `vec2_var = vec3_expr.xy`
+  // `float_var = vec3_expr` → `float_var = vec3_expr.x`
+  visit(ast, {
+    assignment: {
+      enter: (p) => {
+        const op = (p.node as AssignmentNode).operator;
+        const isCompound = op.literal.endsWith('=');
+
+        const left = p.node.left;
+        if (left.type !== 'identifier') return;
+        const varName = (left as IdentifierNode).identifier;
+        let varDim = typeMap.get(varName) || 0;
+
+        const right = p.node.right;
+        const rightDim = inferDim(right, typeMap);
+        if (rightDim === 0 || rightDim === varDim) return;
+
+        if (rightDim > varDim) {
+          // Swizzle down: vecX → smaller
+          const swizzle = varDim === 0 ? 'x' : varDim === 1 ? 'x' : varDim === 2 ? 'xy' : 'xyz';
+          p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
+          // If varDim was 0 (unknown), assume it's float after swizzling
+          if (varDim === 0) typeMap.set(varName, 1);
+        } else if (isCompound) {
+          // Only pad for compound assignments (+= -= *= /=)
+          const targetDim = varDim || rightDim;
+          if (targetDim <= 1) return;
+          const vecType = `vec${targetDim}`;
+          const paddingArgs: AstNode[] = [right];
+          for (let i = rightDim; i < targetDim; i++) {
+            paddingArgs.push(mkLiteral(',') as unknown as AstNode);
+            paddingArgs.push(mkFloat('0.0') as unknown as AstNode);
+          }
+          p.node.right = mkFnCall(vecType, paddingArgs, ' ') as unknown as AstNode;
+        }
+      },
+    },
+  });
+
+  // ── Pass 10.6: Convert int declarations to float ──
+  // GLSL ES doesn't allow int in most shader contexts. Convert `int x = N` → `float x = N.0`.
+  visit(ast, {
+    declarator_list: {
+      enter: (p) => {
+        const node = p.node as DeclaratorListNode;
+        const kw = getTypeKeyword(node);
+        if (kw !== 'int' && kw !== 'ivec2' && kw !== 'ivec3' && kw !== 'ivec4') return;
+
+        const spec = node.specified_type.specifier.specifier;
+        if (kw === 'int') {
+          if (spec.type === 'keyword') (spec as any).token = 'float';
+        } else if (kw === 'ivec2') {
+          if (spec.type === 'keyword') (spec as any).token = 'vec2';
+        } else if (kw === 'ivec3') {
+          if (spec.type === 'keyword') (spec as any).token = 'vec3';
+        } else if (kw === 'ivec4') {
+          if (spec.type === 'keyword') (spec as any).token = 'vec4';
+        }
+
+        // Convert integer literal initializers to float
+        for (const decl of node.declarations) {
+          const d = decl as DeclarationNode;
+          if (d.initializer && d.initializer.type === 'int_constant') {
+            (d.initializer as any).type = 'float_constant';
+            (d.initializer as any).token = ((d.initializer as any).token || '0') + '.0';
+          }
+          // Update typeMap
+          if (d.identifier) {
+            const newDim = kw === 'int' ? 1 : kw === 'ivec2' ? 2 : kw === 'ivec3' ? 3 : 4;
+            typeMap.set(d.identifier.identifier, newDim);
+          }
+        }
+      },
+    },
+  });
+
+  // ── Swizzle normalization (pre-generation) ──
+  // Fix invalid swizzles like .zww, .wzy, .zxy on non-vectors.
+  // These come from offline translation errors where vec3 was used as vec4.
+  // Replace multi-char swizzles with the first character (treat as scalar access).
+  source = source.replace(/\.([xyzwrgba])([xyzwrgba]{2,})\b/g, '.$1');
+  // Fix duplicate swizzle chars like .xxx → .x
+  source = source.replace(/\.([xyzwrgba])\1+\b/g, '.$1');
+
+  // ── Pass 11: vec constructor args too wide → swizzle down ──
+  // Runs AFTER Pass 10 so typeMap has updated declaration types.
+  // Only applies when total components EXCEED the target (e.g. vec2(vec3, vec3) = 6 > 2).
+  // Valid GLSL like vec4(vec3, float) = 4 is left alone.
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        const targetDim = name === 'vec2' ? 2 : name === 'vec3' ? 3 : name === 'vec4' ? 4 : 0;
+        if (targetDim === 0) return;
+
+        const args = getArgs(p.node);
+        if (args.length === 0) return;
+
+        // Calculate total components
+        let totalComponents = 0;
+        for (const arg of args) {
+          totalComponents += Math.max(1, inferDim(arg, typeMap));
+        }
+
+        // Only swizzle if total exceeds target
+        if (totalComponents <= targetDim) return;
+
+        // Distribute: each arg gets floor(targetDim / numArgs) components,
+        // with remainder args getting 1 extra
+        const numArgs = args.length;
+        const basePerArg = Math.floor(targetDim / numArgs);
+        const remainder = targetDim % numArgs;
+
+        const allArgs = p.node.args;
+        for (let i = 0; i < allArgs.length; i++) {
+          const arg = allArgs[i];
+          const argDim = inferDim(arg, typeMap);
+          if (argDim <= 1) continue;
+          if (arg.type === 'postfix') continue;
+
+          // This arg's allowance
+          const allowance = basePerArg + (i < remainder ? 1 : 0);
+          if (argDim <= allowance) continue;
+
+          // Swizzle down to allowance
+          const swizzle = allowance === 1 ? 'x' : allowance === 2 ? 'xy' : 'xyz';
+          allArgs[i] = mkPostfixSwizzle(arg, swizzle) as unknown as AstNode;
+        }
+      },
+    },
+  });
+
+  // ── Pass 12: mix(a, b, t) dimension fix ──
+  // GLSL requires t to be float or same dim as a/b.
+  // e.g. mix(vec2, vec2, vec3) → mix(vec2, vec2, vec3.xy)
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (name !== 'mix') return;
+        const args = getArgs(p.node);
+        if (args.length < 3) return;
+
+        const firstDim = inferDim(args[0], typeMap);
+        const secondDim = inferDim(args[1], typeMap);
+        const thirdDim = inferDim(args[2], typeMap);
+        if (firstDim <= 0 || thirdDim <= 0) return;
+
+        // Helper to fix dimension mismatch - swizzle or wrap in vec constructor
+        const fixDim = (arg: AstNode, targetDim: number): AstNode => {
+          const currentDim = inferDim(arg, typeMap);
+          if (currentDim === targetDim || currentDim <= 0) return arg;
+
+          // If it's a literal or scalar, wrap in vec constructor
+          if (currentDim === 1) {
+            return mkFnCall(`vec${targetDim}`, [arg], ' ') as unknown as AstNode;
+          }
+
+          // Otherwise swizzle down
+          const swizzle = targetDim === 1 ? 'x' : targetDim === 2 ? 'xy' : 'xyz';
+          return mkPostfixSwizzle(arg, swizzle) as unknown as AstNode;
+        };
+
+        // Handle case where arg0 and arg1 have mismatching dimensions
+        if (firstDim !== secondDim && firstDim > 0 && secondDim > 0) {
+          const maxDim = Math.max(firstDim, secondDim);
+          const allArgs = p.node.args;
+          for (let i = 0; i < allArgs.length; i++) {
+            if (allArgs[i] === args[0] && firstDim < maxDim) {
+              allArgs[i] = fixDim(args[0], maxDim);
+              break;
+            }
+            if (allArgs[i] === args[1] && secondDim < maxDim) {
+              allArgs[i] = fixDim(args[1], maxDim);
+              break;
+            }
+          }
+        }
+
+        if (firstDim >= thirdDim) return; // OK: third is scalar or same dim
+
+        // Third arg is wider than first two — swizzle/wrap it down
+        const allArgs = p.node.args;
+        for (let i = 0; i < allArgs.length; i++) {
+          if (allArgs[i] === args[2]) {
+            allArgs[i] = fixDim(args[2], firstDim);
+            break;
+          }
+        }
+      },
+    },
+  });
+
+  // ── Generate patched source ──
+  let patched = generate(ast);
+
+  // ── Post-generation fix: strip swizzles from scalar function results ──
+  // The offline translator sometimes adds .xyz/.xy etc. to scalar function results.
+  // Collect all function calls with their positions, then strip swizzles.
+  const scalarFns = 'lum|length|dot|abs|floor|ceil|fract|sin|cos|tan|pow|sqrt|log|log2|log10|exp|sign|step|smoothstep|min|max|clamp|mix|fwidth|dFdx|dFdy|inversesqrt|round|trunc|degrees|radians|asin|acos|atan';
+  for (let pass = 0; pass < 3; pass++) {
+    const fnRegex = new RegExp(`\\b(${scalarFns})\\s*\\(`, 'g');
+    let result = '';
+    let searchPos = 0;
+    let m: RegExpExecArray | null;
+    let found = false;
+    while ((m = fnRegex.exec(patched)) !== null) {
+      // Find matching closing paren
+      let depth = 1;
+      let i = m.index + m[0].length;
+      while (i < patched.length && depth > 0) {
+        if (patched[i] === '(') depth++;
+        else if (patched[i] === ')') depth--;
+        i++;
+      }
+      // i is after closing paren, check for swizzle
+      const swizzleMatch = patched.substring(i).match(/^\.([xyzwrgba]{2,})/);
+      if (swizzleMatch) {
+        // Found a swizzle to strip
+        found = true;
+        // Append text before this function call
+        result += patched.substring(searchPos, m.index);
+        // Append function call without swizzle
+        result += patched.substring(m.index, i);
+        // Move search position past the swizzle
+        searchPos = i + swizzleMatch[0].length;
+        // Reset regex position
+        fnRegex.lastIndex = searchPos;
+      }
+    }
+    if (found) {
+      // Append remaining text
+      result += patched.substring(searchPos);
+      patched = result;
+    } else {
+      break;
+    }
+  }
+
+  // ── Post-generation fix: texture() with vec3 coordinates ──
+  // The binary rebalancing can cause texture(sampler, vec3(...)+...) which is invalid.
+  // Fix by wrapping the coord in parentheses and adding .xy.
+  patched = patched.replace(
+    /\b(texture|textureLod|textureBias)\s*\(\s*([^,]+)\s*,\s*(vec3\s*\([^)]+\)\s*[\+\-\*\/][^)]*)\s*\)/g,
+    (_match, fn, sampler, coord) => {
+      return `${fn}(${sampler}, (${coord}).xy)`;
+    }
+  );
+
+  // ── Post-generation fix: float/var = vecN_expr dimension mismatch ──
+  // When a float variable is initialized with a vec3 expression (e.g., from mix/texture),
+  // change the declared type to match. e.g. float x = texture(...).xyz → vec3 x = texture(...).xyz
+  // This catches cases the AST Pass 10 misses.
+  patched = patched.replace(
+    /(\bfloat\b\s+)(\w+\s*=\s*(?:mix|texture|textureLod|textureBias|GetPixel|GetBlur\d|GetMain|clamp01|sat)\b[^;])/g,
+    (_match, floatKw, rest) => {
+      // Count the vector dimension from common patterns in the RHS
+      if (/vec3\s*\(|\.xyz/.test(rest)) return `vec3 ${rest}`;
+      if (/vec2\s*\(|\.xy[^z]/.test(rest)) return `vec2 ${rest}`;
+      if (/vec4\s*\(|\.xyzw/.test(rest)) return `vec4 ${rest}`;
+      return _match; // Not a vector expr, leave as-is
+    }
+  );
+
+  // Also fix compound assignments: float_var += vec3_expr → float_var += vec3_expr.xyz
+  patched = patched.replace(
+    /\b(\w+)\s*(\+=|-=|\*=|\/=)\s*((?:mix|texture|textureLod|textureBias|GetPixel|GetBlur\d|GetMain|vec[234])\s*\([^)]+\)[\.\w]*)/g,
+    (_match, varName, op, rhsExpr) => {
+      // If RHS has .xyz and we're assigning to what might be a scalar, add .xyz truncation
+      if (rhsExpr.includes('.xyz') && !rhsExpr.includes('.xyzw')) {
+        return _match; // Already has swizzle
+      }
+      if (/vec3|GetPixel|GetBlur|GetMain/.test(rhsExpr) && !/\.xyzw?/.test(rhsExpr)) {
+        return `${varName} ${op} ${rhsExpr}.xyz`;
+      }
+      return _match;
+    }
+  );
+
+  // ── Post-generation: inject declarations, constants, samplers, helpers ──
+  // These must happen after generation because we need to know what's used.
+  // Order matters: uniforms first, then declarations (to avoid shadowing).
+  patched = injectMissingUniforms(patched);
+  patched = injectMissingDeclarations(patched, undeclared, inferredTypes);
+  patched = injectMissingConstants(patched);
+  patched = injectMissingSamplers(patched);
+  patched = injectMissingHelpers(patched);
+
+  return patched;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Post-generation injection helpers
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Inject auto-declared local variables into main body. */
+const injectMissingDeclarations = (source: string, undeclared: Set<string>, inferredTypes: Map<string, string>): string => {
+  if (undeclared.size === 0) return source;
+
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx === -1) return source;
+
+  const mainBrace = source.indexOf('{', mainIdx);
+  if (mainBrace === -1) return source;
+
+  const beforeMain = source.substring(0, mainIdx);
+  const beforeBody = source.substring(0, mainBrace + 1);
+  let body = source.substring(mainBrace + 1);
+
+  // Collect names already declared before main (uniforms, globals, etc.)
+  const alreadyDeclared = new Set<string>();
+  const declRegex = /\b(?:uniform\s+)?(?:float|vec[234]|mat[234x]*|int|sampler2D)\s+(\w+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = declRegex.exec(beforeMain)) !== null) {
+    alreadyDeclared.add(m[1]);
+  }
+
+  const decls: string[] = ['  // Auto-declared MilkDrop variables'];
+  for (const name of undeclared) {
+    // Skip if already declared in the source (e.g., as a uniform)
+    if (alreadyDeclared.has(name)) continue;
+
+    const type = inferredTypes.get(name) || 'float';
+    if (type === 'sampler2D') continue; // samplers can't be local
+    const init = type === 'float' ? '0.0' : `${type}(0.0)`;
+    decls.push(`  ${type} ${name} = ${init};`);
+  }
+
+  if (decls.length > 1) {
+    body = '\n' + decls.join('\n') + '\n' + body;
+  }
+
+  return beforeBody + body;
+};
+
+/** Inject missing math constants (#define) before void main(). */
+const injectMissingConstants = (source: string): string => {
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx === -1) return source;
+  const beforeMain = source.substring(0, mainIdx);
+
+  const constants: [string, string][] = [
+    ['M_PI', '3.14159265359'],
+    ['M_PI_2', '1.57079632679'],
+    ['M_INV_PI_2', '0.63661977236'],
+    ['PI', '3.14159265359'],
+    ['PI_2', '1.57079632679'],
+  ];
+
+  // Extract any existing #define lines from the entire source
+  const defineRegex = /^#define\s+(\w+)\s+(.+)$/gm;
+  const existingDefines = new Map<string, { line: string; pos: number }>();
+  let match: RegExpExecArray | null;
+  while ((match = defineRegex.exec(source)) !== null) {
+    existingDefines.set(match[1], { line: match[0], pos: match.index });
+  }
+
+  const additions: string[] = [];
+  const definesToRemove = new Set<string>();
+
+  for (const [name, val] of constants) {
+    // Check if the constant is used anywhere in the source
+    const usageRegex = new RegExp(`\\b${name}\\b`);
+    if (!usageRegex.test(source)) continue;
+
+    // Find the FIRST usage position
+    const firstUsageMatch = source.match(usageRegex);
+    const firstUsagePos = firstUsageMatch && firstUsageMatch.index !== undefined ? firstUsageMatch.index : -1;
+
+    if (existingDefines.has(name)) {
+      const existing = existingDefines.get(name)!;
+      // If the #define comes AFTER its first usage, relocate it
+      if (existing.pos > firstUsagePos) {
+        definesToRemove.add(name);
+        additions.push(existing.line);
+      }
+      // Otherwise it's already in the right place
+    } else {
+      // Not defined at all - inject
+      additions.push(`#define ${name} ${val}`);
+    }
+  }
+
+  if (additions.length === 0) return source;
+
+  // Remove relocated defines from their original positions
+  let patchedSource = source;
+  for (const name of definesToRemove) {
+    const existing = existingDefines.get(name);
+    if (existing) {
+      patchedSource = patchedSource.substring(0, existing.pos) + patchedSource.substring(existing.pos + existing.line.length);
+    }
+  }
+
+  // Find the earliest position where any of these constants are used
+  let earliestUsagePos = patchedSource.length;
+  for (const [name] of constants) {
+    const regex = new RegExp(`\\b${name}\\b`);
+    const m = patchedSource.match(regex);
+    if (m && m.index !== undefined && m.index < earliestUsagePos) {
+      earliestUsagePos = m.index;
+    }
+  }
+
+  // Find the start of the line containing the earliest usage
+  const lineStart = patchedSource.lastIndexOf('\n', earliestUsagePos - 1) + 1;
+
+  // Insert constants before that line
+  return patchedSource.substring(0, lineStart) +
+    '// --- MilkDrop constants ---\n' + additions.join('\n') + '\n\n' +
+    patchedSource.substring(lineStart);
+};
+
+/** Inject missing sampler #define aliases before void main(). */
+const injectMissingSamplers = (source: string): string => {
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx === -1) return source;
+  const beforeMain = source.substring(0, mainIdx);
+
+  const aliases: [string, string][] = [
+    ['sampler_fc_main', 'sampler_main'], ['sampler_pc_main', 'sampler_main'],
+    ['sampler_fw_main', 'sampler_main'], ['sampler_pw_main', 'sampler_main'],
+    ['sampler_FC_main', 'sampler_main'], ['sampler_PC_main', 'sampler_main'],
+    ['sampler_FW_main', 'sampler_main'], ['sampler_PW_main', 'sampler_main'],
+    ['sampler_noise_lq_lite', 'sampler_noise_lq'],
+    ['sampler_noisevol_lq', 'sampler_noise_lq'], ['sampler_noisevol_hq', 'sampler_noise_hq'],
+    // Custom fw/pw noise samplers used by some presets
+    ['sampler_fw_noise_lq', 'sampler_noise_lq'], ['sampler_fw_noise_mq', 'sampler_noise_mq'],
+    ['sampler_fw_noise_hq', 'sampler_noise_hq'],
+    ['sampler_pw_noise_lq', 'sampler_noise_lq'], ['sampler_pw_noise_mq', 'sampler_noise_mq'],
+    ['sampler_pw_noise_hq', 'sampler_noise_hq'],
+    ['sampler_rand00', 'sampler_noise_lq'], ['sampler_rand01', 'sampler_noise_lq'],
+    ['sampler_rand02', 'sampler_noise_mq'], ['sampler_rand03', 'sampler_noise_hq'],
+    ['sampler_rand04', 'sampler_noise_lq'], ['sampler_rand05', 'sampler_noise_mq'],
+    ['sampler_rand06', 'sampler_noise_hq'], ['sampler_rand07', 'sampler_noise_lq'],
+    ['sampler_rand08', 'sampler_noise_mq'], ['sampler_rand09', 'sampler_noise_hq'],
+    // Per-frame / per-wave random samplers (fw_randNN, pw_randNN)
+    ['sampler_fw_rand00', 'sampler_noise_lq'], ['sampler_fw_rand01', 'sampler_noise_lq'],
+    ['sampler_fw_rand02', 'sampler_noise_mq'], ['sampler_fw_rand03', 'sampler_noise_hq'],
+    ['sampler_fw_rand04', 'sampler_noise_lq'], ['sampler_fw_rand05', 'sampler_noise_mq'],
+    ['sampler_fw_rand06', 'sampler_noise_hq'], ['sampler_fw_rand07', 'sampler_noise_lq'],
+    ['sampler_fw_rand08', 'sampler_noise_mq'], ['sampler_fw_rand09', 'sampler_noise_hq'],
+    ['sampler_pw_rand00', 'sampler_noise_lq'], ['sampler_pw_rand01', 'sampler_noise_lq'],
+    ['sampler_pw_rand02', 'sampler_noise_mq'], ['sampler_pw_rand03', 'sampler_noise_hq'],
+    ['sampler_pw_rand04', 'sampler_noise_lq'], ['sampler_pw_rand05', 'sampler_noise_mq'],
+    ['sampler_pw_rand06', 'sampler_noise_hq'], ['sampler_pw_rand07', 'sampler_noise_lq'],
+    ['sampler_pw_rand08', 'sampler_noise_mq'], ['sampler_pw_rand09', 'sampler_noise_hq'],
+    // Short forms (no sampler_ prefix) — used directly in texture() calls
+    ['rand00', 'sampler_noise_lq'], ['rand01', 'sampler_noise_lq'],
+    ['rand02', 'sampler_noise_mq'], ['rand03', 'sampler_noise_hq'],
+    ['rand04', 'sampler_noise_lq'], ['rand05', 'sampler_noise_mq'],
+    ['rand06', 'sampler_noise_hq'], ['rand07', 'sampler_noise_lq'],
+    ['rand08', 'sampler_noise_mq'], ['rand09', 'sampler_noise_hq'],
+    ['rand10', 'sampler_noise_lq'], ['rand11', 'sampler_noise_mq'],
+    ['rand12', 'sampler_noise_hq'], ['rand13', 'sampler_noise_lq'],
+    ['rand14', 'sampler_noise_mq'], ['rand15', 'sampler_noise_hq'],
+    // Common custom sampler names from community presets
+    ['sampler_fw_clouds', 'sampler_noise_lq'], ['sampler_pw_clouds', 'sampler_noise_lq'],
+    ['sampler_fw_warp', 'sampler_main'], ['sampler_pw_warp', 'sampler_main'],
+  ];
+
+  // Also detect and alias any sampler_fw_* or sampler_pw_* patterns not explicitly listed
+  const samplerPattern = /\b(sampler_[fp][w]_\w+)\b/g;
+  let m: RegExpExecArray | null;
+  const foundSamplers = new Set<string>();
+  while ((m = samplerPattern.exec(source)) !== null) {
+    foundSamplers.add(m[1]);
+  }
+  for (const samplerName of foundSamplers) {
+    if (!aliases.some(([a]) => a === samplerName)) {
+      // Default unknown fw/pw samplers to noise_lq
+      aliases.push([samplerName, 'sampler_noise_lq']);
+    }
+  }
+
+  // Detect ANY sampler_XXX pattern used in texture() calls that isn't already defined
+  // This catches custom preset-specific samplers like sampler_SOCS_20
+  const textureSamplerPattern = /\btexture\s*\(\s*(sampler_\w+)\s*,/g;
+  while ((m = textureSamplerPattern.exec(source)) !== null) {
+    const samplerName = m[1];
+    if (!aliases.some(([a]) => a === samplerName) &&
+        !beforeMain.includes(`uniform sampler2D ${samplerName}`) &&
+        !beforeMain.includes(`#define ${samplerName}`)) {
+      // Default unknown samplers to noise_lq (safe fallback)
+      aliases.push([samplerName, 'sampler_noise_lq']);
+    }
+  }
+
+  const additions: string[] = [];
+  for (const [alias, target] of aliases) {
+    if (source.includes(alias) && !beforeMain.includes(`#define ${alias}`) && !beforeMain.includes(`uniform sampler2D ${alias}`)) {
+      additions.push(`#define ${alias} ${target}`);
+    }
+  }
+
+  if (additions.length === 0) return source;
+  return source.substring(0, mainIdx) +
+    '// --- MilkDrop sampler aliases ---\n' + additions.join('\n') + '\n\n' +
+    source.substring(mainIdx);
+};
+
+/** Inject missing uniform declarations before void main(). */
+const injectMissingUniforms = (source: string): string => {
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx === -1) return source;
+  const beforeMain = source.substring(0, mainIdx);
+
+  const uniforms: [string, string][] = [
+    ['q1', 'float'], ['q2', 'float'], ['q3', 'float'], ['q4', 'float'],
+    ['q5', 'float'], ['q6', 'float'], ['q7', 'float'], ['q8', 'float'],
+    ['q9', 'float'], ['q10', 'float'], ['q11', 'float'], ['q12', 'float'],
+    ['q13', 'float'], ['q14', 'float'], ['q15', 'float'], ['q16', 'float'],
+    ['q17', 'float'], ['q18', 'float'], ['q19', 'float'], ['q20', 'float'],
+    ['q21', 'float'], ['q22', 'float'], ['q23', 'float'], ['q24', 'float'],
+    ['q25', 'float'], ['q26', 'float'], ['q27', 'float'], ['q28', 'float'],
+    ['q29', 'float'], ['q30', 'float'], ['q31', 'float'], ['q32', 'float'],
+    ['_c0', 'vec4'], ['_c1', 'vec4'], ['_c2', 'vec4'], ['_c3', 'vec4'],
+    ['_c4', 'vec4'], ['_c5', 'vec4'], ['_c6', 'vec4'], ['_c7', 'vec4'],
+    ['_c8', 'vec4'], ['_c9', 'vec4'], ['_c10', 'vec4'], ['_c11', 'vec4'],
+    ['_c12', 'vec4'], ['_c13', 'vec4'], ['_c14', 'vec4'],
+    ['_c15', 'vec4'], ['_c16', 'vec4'], ['_c17', 'vec4'],
+    ['_qa', 'vec4'], ['_qb', 'vec4'], ['_qc', 'vec4'], ['_qd', 'vec4'],
+    ['_qe', 'vec4'], ['_qf', 'vec4'], ['_qg', 'vec4'], ['_qh', 'vec4'],
+    ['rand_frame', 'vec4'], ['rand_preset', 'vec4'],
+    ['texsize_noise_lq', 'vec4'], ['texsize_noise_mq', 'vec4'], ['texsize_noise_hq', 'vec4'],
+    ['texsize_noisevol_lq', 'vec4'], ['texsize_noisevol_hq', 'vec4'],
+    ['texsize_noisevol_mq', 'vec4'], ['texsize_noise_lq_lite', 'vec4'],
+  ];
+
+  const rotNames = [
+    'rot_s1', 'rot_s2', 'rot_s3', 'rot_s4',
+    'rot_d1', 'rot_d2', 'rot_d3', 'rot_d4',
+    'rot_f1', 'rot_f2', 'rot_f3', 'rot_f4',
+    'rot_vf1', 'rot_vf2', 'rot_vf3', 'rot_vf4',
+    'rot_uf1', 'rot_uf2', 'rot_uf3', 'rot_uf4',
+    'rot_rand1', 'rot_rand2', 'rot_rand3', 'rot_rand4',
+  ];
+  for (const name of rotNames) {
+    uniforms.push([name, 'mat4']);
+  }
+
+  const additions: string[] = [];
+  for (const [name, type] of uniforms) {
+    const re = new RegExp(`\\b${name}\\b`);
+    if (re.test(source) && !beforeMain.includes(`uniform ${type} ${name};`)) {
+      additions.push(`uniform ${type} ${name};`);
+    }
+  }
+
+  // texsize macro
+  if (/\btexsize\b/.test(source) && !beforeMain.includes('#define texsize') && !beforeMain.includes('uniform vec4 texsize')) {
+    additions.push('#define texsize vec4(uTexSize, 1.0/uTexSize)');
+  }
+
+  // vUvOriginal varying
+  if (/\bvUvOriginal\b/.test(source) && !beforeMain.includes('in vec2 vUvOriginal')) {
+    additions.push('in vec2 vUvOriginal;');
+  }
+
+  if (additions.length === 0) return source;
+  return source.substring(0, mainIdx) +
+    '// --- MilkDrop uniforms ---\n' + additions.join('\n') + '\n\n' +
+    source.substring(mainIdx);
+};
+
+/** Inject missing helper functions before void main(). */
+const injectMissingHelpers = (source: string): string => {
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx === -1) return source;
+  const beforeMain = source.substring(0, mainIdx);
+
+  const additions: string[] = [];
+
+  if (/\blum\s*\(/.test(source) && !beforeMain.includes('float lum(')) {
+    additions.push('float lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }');
+    additions.push('float lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }');
+  }
+  if (/\bsat\s*\(/.test(source) && !beforeMain.includes('float sat(')) {
+    additions.push('float sat(float x) { return clamp(x, 0.0, 1.0); }');
+    additions.push('vec2 sat(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }');
+    additions.push('vec3 sat(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }');
+    additions.push('vec4 sat(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }');
+  }
+  if (/\bnoise3\s*\(/.test(source) && !beforeMain.includes('vec4 noise3(')) {
+    additions.push('vec4 noise3(vec2 uv) { return texture(sampler_noise_lq, uv); }');
+  }
+  if (/\bGetMain\s*\(/.test(source) && !beforeMain.includes('vec3 GetMain(')) {
+    additions.push('vec3 GetMain(vec2 uv) { return texture(sampler_main, uv).xyz; }');
+  }
+  if (/\bGetPixel\s*\(/.test(source) && !beforeMain.includes('vec3 GetPixel(')) {
+    additions.push('vec3 GetPixel(vec2 uv) { return texture(sampler_main, uv).xyz; }');
+  }
+  if (/\bGetBlur1\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur1(')) {
+    additions.push('vec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }');
+  }
+  if (/\bGetBlur2\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur2(')) {
+    additions.push('vec3 GetBlur2(vec2 uv) { return texture(sampler_blur2, uv).xyz; }');
+  }
+  if (/\bGetBlur3\s*\(/.test(source) && !beforeMain.includes('vec3 GetBlur3(')) {
+    additions.push('vec3 GetBlur3(vec2 uv) { return texture(sampler_blur3, uv).xyz; }');
+  }
+  if (/\bmultiply\s*\(/.test(source) && !beforeMain.includes('vec2 multiply(')) {
+    additions.push('vec2 multiply(vec2 v, mat2 m) { return m * v; }');
+    additions.push('vec3 multiply(vec3 v, mat3 m) { return m * v; }');
+    additions.push('vec4 multiply(vec4 v, mat4 m) { return m * v; }');
+  }
+  if (/\btextureBias\s*\(/.test(source) && !beforeMain.includes('vec4 textureBias(')) {
+    additions.push('vec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }');
+  }
+  if (/\bclamp01\s*\(/.test(source) && !beforeMain.includes('float clamp01(')) {
+    additions.push('float clamp01(float x) { return clamp(x, 0.0, 1.0); }');
+    additions.push('vec2 clamp01(vec2 x) { return clamp(x, vec2(0.0), vec2(1.0)); }');
+    additions.push('vec3 clamp01(vec3 x) { return clamp(x, vec3(0.0), vec3(1.0)); }');
+    additions.push('vec4 clamp01(vec4 x) { return clamp(x, vec4(0.0), vec4(1.0)); }');
+  }
+
+  // UV transformation helpers (common in community MilkDrop presets)
+  if (/\buv_rotate\s*\(/.test(source) && !beforeMain.includes('vec2 uv_rotate(')) {
+    additions.push(
+      'vec2 uv_rotate(vec2 domain, vec2 center, float sinw, float cosw, float scale) {',
+      '  vec2 uv_r = (domain - center);',
+      '  return center + vec2(cosw * uv_r.x - sinw * uv_r.y, sinw * uv_r.x + cosw * uv_r.y) * scale;',
+      '}'
+    );
+  }
+  if (/\buv_polar\s*\(/.test(source) && !beforeMain.includes('vec2 uv_polar(')) {
+    additions.push(
+      'vec2 uv_polar(vec2 domain, vec2 center) {',
+      '  vec2 c = domain - center;',
+      '  float rad_hq = length(c);',
+      '  float ang_hq = atan(c.x, c.y);',
+      '  return vec2(ang_hq * M_INV_PI_2, rad_hq);',
+      '}'
+    );
+  }
+  if (/\buv_polar_logarithmic\s*\(/.test(source) && !beforeMain.includes('vec2 uv_polar_logarithmic(')) {
+    additions.push(
+      'vec2 uv_polar_logarithmic(vec2 domain, vec2 center, int fins, float log_factor, vec2 coord) {',
+      '  vec2 polar = uv_polar(domain, center);',
+      '  return vec2(polar.x * float(fins) + coord.x, log_factor * log(polar.y) + coord.y);',
+      '}'
+    );
+  }
+  if (/\buv_moebius_transformation\s*\(/.test(source) && !beforeMain.includes('vec2 uv_moebius_transformation(')) {
+    additions.push(
+      'vec2 complex_div(vec2 a, vec2 b) {',
+      '  float denom = b.x * b.x + b.y * b.y;',
+      '  if (denom == 0.0) return vec2(0.0);',
+      '  return vec2((a.x * b.x + a.y * b.y) / denom, (a.y * b.x - a.x * b.y) / denom);',
+      '}',
+      'vec2 uv_moebius_transformation(vec2 domain, vec2 zeroPoint, vec2 infinityPoint, float zoom) {',
+      '  return complex_div((domain - zeroPoint) * zoom, domain - infinityPoint) + 0.5;',
+      '}'
+    );
+  }
+  if (/\buv_bipolar\s*\(/.test(source) && !beforeMain.includes('vec2 uv_bipolar(')) {
+    additions.push(
+      'vec2 uv_bipolar(vec2 domain, vec2 northPole, vec2 southPole, int fins, float log_factor, vec2 coord) {',
+      '  vec2 help_uv = uv_moebius_transformation(domain, northPole, southPole, 1.0);',
+      '  return uv_polar_logarithmic(help_uv, vec2(0.5), fins, log_factor, coord);',
+      '}'
+    );
+  }
+
+  if (additions.length === 0) return source;
+  return source.substring(0, mainIdx) +
+    '// --- MilkDrop helper functions ---\n' + additions.join('\n') + '\n\n' +
+    source.substring(mainIdx);
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1305,9 +1892,9 @@ export const _preprocess = preprocess;
 export const patchMilkDropGlsl = (source: string): string => {
   if (!source || !source.includes('#version 300 es')) return source;
 
-  // Phase 1: String preprocessing
+  // Phase 1: Minimal string preprocessing (only what prevents parsing)
   const preprocessed = preprocess(source);
 
-  // Phase 2: AST transforms
+  // Phase 2: AST transforms (all structural fixes)
   return astTransform(preprocessed);
 };

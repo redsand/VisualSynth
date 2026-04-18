@@ -196,7 +196,7 @@ const stylePresetDefaults = [
   }
 ];
 
-const effectsSchema = z.object({
+const effectsObjectSchema = z.object({
   enabled: z.boolean(),
   bloom: z.number(),
   blur: z.number(),
@@ -206,6 +206,11 @@ const effectsSchema = z.object({
   feedback: z.number(),
   persistence: z.number()
 });
+
+const effectsSchema = z.union([
+  effectsObjectSchema,
+  z.array(effectsObjectSchema).length(1).transform(([effects]) => effects)
+]);
 
 
 const particlesSchema = z.object({
@@ -467,7 +472,7 @@ const sceneSchema = z.object({
     support: [],
     atmosphere: []
   }),
-  layers: z.array(layerSchema).min(1),
+  layers: z.array(layerSchema).default([]),
   look: sceneLookSchema.optional(),
   _shaderData: milkDropShaderDataSchema.optional(),
   depthScore: z.number().default(0),
@@ -588,6 +593,7 @@ const assetItemSchema = z.object({
   name: z.string(),
   kind: z.enum(['texture', 'shader', 'video', 'live', 'text', 'internal']),
   path: z.string().optional(),
+  embeddedData: z.string().optional(),
   tags: z.array(z.string()),
   addedAt: z.string(),
   hash: z.string().optional(),
@@ -877,13 +883,15 @@ export const projectSchema = z.object({
     opacity: z.number().default(1),
     rotation: z.number().default(0),
     includeInFx: z.boolean().default(false),
+    assetId: z.string().optional(),
     assetPath: z.string().optional(),
     text: z.string().optional(),
     fontFamily: z.string().optional(),
     fontSize: z.number().optional(),
     fontColor: z.string().optional(),
     fontWeight: z.enum(['normal', 'bold']).optional(),
-    textShadow: z.boolean().optional()
+    textShadow: z.boolean().optional(),
+    targetSceneId: z.string().optional()
   })).default([]),
   _shaderData: milkDropShaderDataSchema.optional()
 });

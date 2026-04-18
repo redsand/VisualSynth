@@ -15,7 +15,7 @@ const outputOverlayCanvas = document.getElementById('output-overlay-canvas') as 
 const debugOverlay = document.getElementById('output-debug') as HTMLDivElement | null;
 let debugVisible = false;
 let renderer: ReturnType<typeof createGLRenderer>;
-type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
+type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media' | 'gen-asset-vortex' | 'gen-asset-slices' | 'gen-asset-polar' | 'gen-asset-mosaic' | 'gen-asset-ripple' | 'gen-asset-scatter' | 'gen-asset-echo';
 const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
 const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};

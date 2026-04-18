@@ -1,0 +1,48 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Mandelbrot Deep",
+    "createdAt": "2026-04-18T00:00:00.000Z",
+    "updatedAt": "2026-04-18T00:00:00.000Z",
+    "category": "Fractal",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "IDM",
+    "visualIntentTags": ["mandelbrot", "fractal", "deep-zoom", "infinite"],
+    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["complementary", "balanced"],
+    "activeEngineId": "engine-none",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Mandelbrot Deep",
+    "intent": "build",
+    "duration": 0,
+    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-mandelbrot"] },
+    "layers": [
+      {
+        "id": "gen-mandelbrot",
+        "name": "Mandelbrot",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-mandelbrot",
+        "params": { "opacity": 1, "speed": 0.3, "zoom": 2, "maxIter": 128, "colorCycle": 3 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0, "atmosphere": 0 },
+  "tempoSync": { "bpm": 128, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

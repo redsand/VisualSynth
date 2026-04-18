@@ -1,0 +1,66 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Clockwork",
+    "createdAt": "2026-04-18T00:00:00.000Z",
+    "updatedAt": "2026-04-18T00:00:00.000Z",
+    "category": "Mechanical",
+    "compatibility": { "minVersion": "0.9.0" },
+    "presetType": "scene",
+    "intendedMusicStyle": "Industrial",
+    "visualIntentTags": ["clockwork", "gears", "mechanical", "precision"],
+    "defaultTransition": { "durationMs": 500, "curve": "easeInOut" },
+    "activeModeId": "mode-cosmic",
+    "colorChemistry": ["analog", "balanced"],
+    "activeEngineId": "engine-radial-core",
+    "presetMode": "performance"
+  },
+  "scenes": [{
+    "id": "scene-1",
+    "scene_id": "scene-1",
+    "name": "Clockwork",
+    "intent": "pulse",
+    "duration": 0,
+    "transition_in": { "durationMs": 500, "curve": "easeInOut" },
+    "transition_out": { "durationMs": 500, "curve": "easeInOut" },
+    "trigger": { "type": "manual" },
+    "assigned_layers": { "core": ["gen-clockwork"], "support": ["layer-spectrum"], "atmosphere": ["layer-inkflow"] },
+    "layers": [
+      {
+        "id": "gen-clockwork",
+        "name": "Clockwork",
+        "role": "core",
+        "enabled": true,
+        "opacity": 0.95,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
+        "generatorId": "gen-clockwork",
+        "params": { "opacity": 1, "speed": 0.7, "gearCount": 4, "detail": 0.5, "rust": 0.3 }
+      },
+      {
+        "id": "layer-spectrum",
+        "name": "Spectrum Bars",
+        "role": "support",
+        "enabled": true,
+        "opacity": 0.3,
+        "blendMode": "add",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      },
+      {
+        "id": "layer-inkflow",
+        "name": "Ink Flow",
+        "role": "atmosphere",
+        "enabled": true,
+        "opacity": 0.2,
+        "blendMode": "screen",
+        "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 }
+      }
+    ]
+  }],
+  "activeSceneId": "scene-1",
+  "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 0.2 },
+  "tempoSync": { "bpm": 125, "source": "auto" },
+  "modulations": [],
+  "macros": []
+}

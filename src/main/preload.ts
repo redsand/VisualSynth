@@ -141,5 +141,12 @@ contextBridge.exposeInMainWorld('visualSynth', {
   },
   sendShazamDecodeResult: (requestId: string, result: { pcmBase64: string | null; error?: string }) => {
     ipcRenderer.send(requestId, result);
+  },
+  // AudD file decode IPC channels
+  onAuddDecodeFile: (callback: (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => void) => {
+    ipcRenderer.on('audd:decode-file', (_event, data) => callback(data));
+  },
+  sendAuddDecodeResult: (requestId: string, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
+    ipcRenderer.send(requestId, result);
   }
 });

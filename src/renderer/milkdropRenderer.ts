@@ -767,6 +767,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     Number(gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) ?? 1)
   );
 
+  // Query GPU texture unit limit once at init
+  const maxTextureUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
+
   let warpProgram: WebGLProgram | null = null;
   let compProgram: WebGLProgram | null = null;
   let blurProgram: WebGLProgram | null = null;
@@ -1008,6 +1011,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (compProgram) { untrackProgram(compProgram); gl.deleteProgram(compProgram); }
     warpProgram = null;
     compProgram = null;
+    perFrameInitRun = false; // Reset so new preset's per-frame init code runs
+    variables.frame = 0;
     const warpRawDiagnostics = analyzeMilkwaveShaderSource({
       source: shaderData.warp ?? '',
       pass: 'warp',

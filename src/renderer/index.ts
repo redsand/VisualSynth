@@ -23,6 +23,7 @@ import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
 import { compileSceneShaders, primeProjectShaders } from './shaderLifecycle';
+import { getFxUniformsDeclarations } from '../shared/shaderUtils';
 import { createDebugOverlay } from './render/debugOverlay';
 import { createLayerPanel } from './ui/panels/LayerPanel';
 import { createMixerPanel } from './ui/panels/MixerPanel';
@@ -32,7 +33,7 @@ import { registerSdfNodes } from './sdf/nodes';
 import { createModulationPanel } from './ui/panels/ModulationPanel';
 import { getBeatMs, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
-import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset } from '../shared/generatorLibrary';
+import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset, needsInput } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
 import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
@@ -48,6 +49,7 @@ import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
 import { createScenePreset } from '../shared/scenePreset';
 import type { PresetIndexEntry } from '../shared/presetIndex';
 import { getCertificationColor } from '../shared/certification';
+import { syncActiveSceneLookSection } from '../shared/sceneLookSync';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
 import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
@@ -74,6 +76,7 @@ import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
+import { reorderScenes } from '../shared/project';
 import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
 import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult } from './audio/rollingAudioCapture';
 import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
@@ -855,6 +858,7 @@ let fluxPrev = 0;
 let fluxPrevPrev = 0;
 let projectDirty = false;
 let isRecoveryProject = false;
+let suppressStartupRecovery = false;
 
 const markProjectDirty = () => {
   projectDirty = true;
@@ -1304,6 +1308,140 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
   }
   return mono;
 };
+
+// AudD file decode handler - extracts a clip from longer files
+(window as any).visualSynth?.onAuddDecodeFile?.(async (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => {
+  try {
+    const { requestId, fileBase64, seekSeconds, durationSeconds } = data;
+
+    // Decode base64 to ArrayBuffer
+    const binaryString = atob(fileBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Create blob and decode
+    const blob = new Blob([bytes.buffer], { type: data.mimeType });
+    const arrayBuffer = await blob.arrayBuffer();
+
+    // Decode audio data
+    const audioCtx = new AudioContext();
+    let decoded: AudioBuffer;
+    try {
+      decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    } catch {
+      (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, { base64: null, mimeType: '', durationMs: 0, error: 'Failed to decode audio file' });
+      await audioCtx.close();
+      return;
+    }
+
+    // Calculate seek position
+    const originalSampleRate = decoded.sampleRate;
+    const seekSamples = Math.floor(seekSeconds * originalSampleRate);
+    const captureSamples = Math.floor(durationSeconds * originalSampleRate);
+
+    // Get channel data (mix to mono if multi-channel)
+    const channelData = decoded.numberOfChannels > 1
+      ? mixToMonoBuffer(decoded)
+      : decoded.getChannelData(0);
+
+    // Extract section
+    const startIdx = Math.min(seekSamples, channelData.length - captureSamples);
+    const endIdx = Math.min(startIdx + captureSamples, channelData.length);
+    const actualDurationMs = Math.round(((endIdx - startIdx) / originalSampleRate) * 1000);
+
+    // Create a new blob with just the clip
+    // Re-encode to original format by creating a new AudioBuffer and exporting
+    const clipBuffer = audioCtx.createBuffer(1, endIdx - startIdx, originalSampleRate);
+    clipBuffer.copyToChannel(channelData.slice(startIdx, endIdx), 0);
+
+    // Convert to WAV for reliable re-encoding
+    const wavBlob = audioBufferToWavBlob(clipBuffer);
+
+    // Convert blob to base64
+    const wavArrayBuffer = await wavBlob.arrayBuffer();
+    const wavBytes = new Uint8Array(wavArrayBuffer);
+    let binary = '';
+    for (let i = 0; i < wavBytes.length; i++) {
+      binary += String.fromCharCode(wavBytes[i]);
+    }
+    const base64 = btoa(binary);
+
+    (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, {
+      base64,
+      mimeType: 'audio/wav',
+      durationMs: actualDurationMs
+    });
+
+    await audioCtx.close();
+  } catch (error) {
+    const requestId = (data as any).requestId;
+    (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, {
+      base64: null,
+      mimeType: '',
+      durationMs: 0,
+      error: (error as Error).message
+    });
+  }
+});
+
+/**
+ * Converts an AudioBuffer to a WAV blob for reliable re-encoding.
+ */
+function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const dataLength = buffer.length * blockAlign;
+  const headerLength = 44;
+  const totalLength = headerLength + dataLength;
+
+  const arrayBuffer = new ArrayBuffer(totalLength);
+  const view = new DataView(arrayBuffer);
+
+  // WAV header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, totalLength - 8, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // Subchunk1Size
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  // Write interleaved audio data
+  const channels: Float32Array[] = [];
+  for (let c = 0; c < numChannels; c++) {
+    channels.push(buffer.getChannelData(c));
+  }
+
+  let offset = headerLength;
+  for (let i = 0; i < buffer.length; i++) {
+    for (let c = 0; c < numChannels; c++) {
+      const sample = Math.max(-1, Math.min(1, channels[c][i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += bytesPerSample;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view: DataView, offset: number, str: string) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
 
 const gravityWells = Array.from({ length: 8 }, () => ({
   x: 0,
@@ -2759,6 +2897,7 @@ const setVisualizerMode = (mode: typeof visualizerMode) => {
   visualizerMode = mode;
   visualizerModeSelect.value = mode;
   currentProject.visualizer.mode = mode;
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
   visualizerEnabledToggle.checked = currentProject.visualizer.enabled;
   visualizerOpacityInput.value = String(currentProject.visualizer.opacity);
   visualizerMacroToggle.checked = currentProject.visualizer.macroEnabled;
@@ -2823,14 +2962,15 @@ const loadShaderSourceForAsset = async (asset: AssetItem) => {
   }
 };
 
-const applyPlasmaShaderSource = (source: string | null, label: string) => {
-  if (typeof (renderer as { setPlasmaShaderSource?: (s: string | null) => { ok: boolean } })
+const applyPlasmaShaderSource = (source: string | null, label: string, scene: SceneConfig | null = null) => {
+  if (typeof (renderer as { setPlasmaShaderSource?: (s: string | null, fxUniformsOverride?: string) => { ok: boolean } })
     .setPlasmaShaderSource !== 'function') {
     setStatus(`Shader system unavailable (${label}).`);
     shaderStatus.textContent = 'Shader system unavailable in this build.';
     return false;
   }
-  const result = renderer.setPlasmaShaderSource(source);
+  const fxUniforms = getFxUniformsDeclarations(currentProject, scene);
+  const result = renderer.setPlasmaShaderSource(source, fxUniforms);
   if (!result.ok) {
     setStatus(`Shader compile failed (${label}).`);
     shaderStatus.textContent = `Shader compile failed for ${label}.`;
@@ -4056,7 +4196,8 @@ const renderSceneTimeline = () => {
           scene,
           currentProject,
           currentProject.customShaderBlocks ?? [],
-          currentProject.sdf?.enabled ?? false
+          currentProject.sdf?.enabled ?? false,
+          true // forceSync for immediate preview feedback
         );
       }
       renderSceneStrip();
@@ -4070,11 +4211,62 @@ const renderSceneTimeline = () => {
       removeScene(sceneId);
       closeSceneTimelineMenu();
     },
+    onRename: (sceneId, newName) => {
+      const scene = currentProject.scenes.find((s) => s.id === sceneId);
+      if (scene) {
+        scene.name = newName;
+        renderSceneTimeline();
+        renderSceneStrip();
+        refreshSceneSelect();
+        setStatus(`Renamed scene to: ${newName}`);
+      }
+    },
+    onIntentChange: (sceneId, newIntent) => {
+      const scene = currentProject.scenes.find((s) => s.id === sceneId);
+      if (scene) {
+        scene.intent = newIntent as any;
+        renderSceneTimeline();
+        setStatus(`Scene "${scene.name}" intent: ${newIntent}`);
+      }
+    },
     onContextMenu: (sceneId, sceneName, event) => {
       showSceneTimelineMenu(event.clientX, event.clientY, sceneId, sceneName);
     },
     onImport: () => {
       void importSceneFromDisk();
+    },
+    onNewScene: () => {
+      const id = getNextSceneId();
+      const newScene: SceneConfig = {
+        id,
+        scene_id: id,
+        name: getUniqueSceneName('Empty Scene'),
+        intent: 'ambient',
+        duration: 0,
+        transition_in: { ...DEFAULT_SCENE_TRANSITION },
+        transition_out: { ...DEFAULT_SCENE_TRANSITION },
+        trigger: { ...DEFAULT_SCENE_TRIGGER },
+        assigned_layers: { core: [], support: [], atmosphere: [] },
+        layers: [],
+        look: {
+          effects: { enabled: true, bloom: 0, blur: 0, chroma: 0, posterize: 0, kaleidoscope: 0, feedback: 0, persistence: 0 },
+          particles: { enabled: false, density: 0, speed: 0, size: 0, glow: 0 },
+          sdf: { enabled: false, shape: 'circle', scale: 0, edge: 0, glow: 0, rotation: 0, fill: 0 },
+          visualizer: { enabled: false, mode: 'off', opacity: 0, macroEnabled: false, macroId: 0 }
+        }
+      };
+      currentProject.scenes = [...currentProject.scenes, newScene];
+      refreshSceneSelect();
+      renderSceneTimeline();
+      renderSceneStrip();
+      setStatus(`Created empty scene: ${newScene.name}`);
+    },
+    onReorder: (fromIndex, toIndex) => {
+      currentProject = reorderScenes(currentProject, fromIndex, toIndex);
+      renderSceneTimeline();
+      renderSceneStrip();
+      const movedScene = currentProject.scenes[toIndex];
+      setStatus(`Moved "${movedScene.name}" to position ${toIndex + 1}`);
     }
   });
 };
@@ -4187,7 +4379,9 @@ const populateSceneSelectors = () => {
     currentProject.scenes.forEach((scene, index) => {
       const option = document.createElement('option');
       option.value = scene.id;
-      option.textContent = `Scene ${index + 1}${scene.intent ? ` (${scene.intent})` : ''}`;
+      option.textContent = scene.name?.trim()
+        ? `${scene.name}${scene.intent ? ` (${scene.intent})` : ''}`
+        : `Scene ${index + 1}${scene.intent ? ` (${scene.intent})` : ''}`;
       select.appendChild(option);
     });
     select.value = sceneId;
@@ -4211,6 +4405,18 @@ const renderLayerList = () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
 
+  // Reset all layer toggle references (they may point to elements from the previous scene)
+  plasmaToggle = undefined;
+  spectrumToggle = undefined;
+  origamiToggle = undefined;
+  glyphToggle = undefined;
+  crystalToggle = undefined;
+  inkToggle = undefined;
+  topoToggle = undefined;
+  weatherToggle = undefined;
+  portalToggle = undefined;
+  oscilloToggle = undefined;
+
   // Count modulation connections for each layer
   const getModCountForLayer = (layerId: string): number => {
     const prefix = `${layerId}.`;
@@ -4221,6 +4427,17 @@ const renderLayerList = () => {
   const getMidiCountForLayer = (layerId: string): number => {
     return currentProject.midiMappings.filter(map => map.target.startsWith(layerId)).length;
   };
+
+  if (scene.layers.length === 0) {
+    // Empty scene: show placeholder message
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'layer-list-empty';
+    emptyMsg.textContent = 'No layers in this scene';
+    layerList.appendChild(emptyMsg);
+    layerListScene.appendChild(emptyMsg.cloneNode(true));
+    if (layerListDesign) layerListDesign.appendChild(emptyMsg.cloneNode(true));
+    return;
+  }
 
   scene.layers.forEach((layer, index) => {
     const createLayerRow = (targetList: HTMLDivElement) => {
@@ -5001,9 +5218,12 @@ const configurePreviewVideo = (video: HTMLVideoElement, asset: AssetItem, isLive
 
 const createAssetPreviewElement = (asset: AssetItem) => {
   const preview = document.createElement('div');
-  preview.className = asset.missing ? 'asset-preview asset-preview-missing' : 'asset-preview';
 
-  if (asset.missing) {
+  // Check if asset is truly missing (embedded assets are never missing)
+  const isTrulyMissing = asset.missing && !asset.embeddedData;
+  preview.className = isTrulyMissing ? 'asset-preview asset-preview-missing' : 'asset-preview';
+
+  if (isTrulyMissing) {
     const missingIcon = document.createElement('span');
     missingIcon.className = 'asset-preview-missing-icon';
     missingIcon.textContent = '⚠';
@@ -5012,7 +5232,8 @@ const createAssetPreviewElement = (asset: AssetItem) => {
   }
 
   if (asset.kind === 'texture') {
-    const previewUrl = asset.thumbnail ?? (asset.path ? toFileUrl(asset.path) : undefined);
+    // Use embeddedData if available, otherwise use thumbnail or path
+    const previewUrl = asset.embeddedData ?? asset.thumbnail ?? (asset.path ? toFileUrl(asset.path) : undefined);
     if (previewUrl) {
       preview.style.backgroundImage = `url(${previewUrl})`;
       return preview;
@@ -5173,13 +5394,19 @@ const createMetadataPanel = (asset: AssetItem) => {
 
 const checkMissingAssets = async () => {
   const paths = currentProject.assets
-    .filter((asset) => asset.path && !asset.options?.liveSource)
+    .filter((asset) => asset.path && !asset.options?.liveSource && !asset.embeddedData)
     .map((asset) => asset.path!);
   if (paths.length === 0) return;
   const results = await window.visualSynth.checkAssetPaths(paths);
   let changed = false;
   currentProject.assets.forEach((asset) => {
-    if (asset.path && !asset.options?.liveSource) {
+    if (asset.embeddedData) {
+      // Embedded assets are always resolved
+      if (asset.missing) {
+        asset.missing = false;
+        changed = true;
+      }
+    } else if (asset.path && !asset.options?.liveSource) {
       const exists = results[asset.path] ?? false;
       if (asset.missing !== !exists) {
         asset.missing = !exists;
@@ -5230,17 +5457,26 @@ const renderAssets = () => {
     const wrapper = document.createElement('div');
     wrapper.className = 'asset-row-wrapper';
 
+    // Embedded assets are never truly missing
+    const isTrulyMissing = asset.missing && !asset.embeddedData;
+
     const row = document.createElement('div');
-    row.className = asset.missing ? 'asset-row asset-missing' : 'asset-row';
+    row.className = isTrulyMissing ? 'asset-row asset-missing' : 'asset-row';
     const preview = createAssetPreviewElement(asset);
     const kind = document.createElement('div');
     kind.className = 'asset-kind';
     kind.textContent = asset.kind;
-    if (asset.missing) {
+    if (isTrulyMissing) {
       const missingBadge = document.createElement('span');
       missingBadge.className = 'asset-missing-badge';
       missingBadge.textContent = 'MISSING';
       kind.appendChild(missingBadge);
+    }
+    if (asset.embeddedData) {
+      const embeddedBadge = document.createElement('span');
+      embeddedBadge.className = 'asset-embedded-badge';
+      embeddedBadge.textContent = '📦 Embedded';
+      kind.appendChild(embeddedBadge);
     }
     const info = document.createElement('div');
     info.className = 'asset-info';
@@ -5299,18 +5535,34 @@ const renderAssets = () => {
   refreshShaderTargetOptions();
 };
 
-const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum', 'layer-media'] as const;
+const ASSET_LAYER_IDS = ['layer-plasma', 'layer-spectrum', 'layer-media', 'gen-asset-vortex', 'gen-asset-slices', 'gen-asset-polar', 'gen-asset-mosaic', 'gen-asset-ripple', 'gen-asset-scatter', 'gen-asset-echo'] as const;
 type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
+const isAssetLayerId = (layerId: string): layerId is AssetLayerId =>
+  (ASSET_LAYER_IDS as readonly string[]).includes(layerId);
 
 const assetLayerBlendModes: Record<AssetLayerId, number> = {
   'layer-plasma': 3,
   'layer-spectrum': 1,
-  'layer-media': 3
+  'layer-media': 3,
+  'gen-asset-vortex': 3,
+  'gen-asset-slices': 1,
+  'gen-asset-polar': 3,
+  'gen-asset-mosaic': 3,
+  'gen-asset-ripple': 3,
+  'gen-asset-scatter': 3,
+  'gen-asset-echo': 1
 };
 const assetLayerAudioReact: Record<AssetLayerId, number> = {
   'layer-plasma': 0.6,
   'layer-spectrum': 0.8,
-  'layer-media': 0.5
+  'layer-media': 0.5,
+  'gen-asset-vortex': 0.5,
+  'gen-asset-slices': 0.5,
+  'gen-asset-polar': 0.5,
+  'gen-asset-mosaic': 0.5,
+  'gen-asset-ripple': 0.5,
+  'gen-asset-scatter': 0.5,
+  'gen-asset-echo': 0.5
 };
 const getAssetBlendModeValue = (layerId: string): number =>
   (assetLayerBlendModes as Record<string, number>)[layerId] ?? 0;
@@ -5320,6 +5572,28 @@ const getAssetAudioReactValue = (layerId: string): number =>
 const formatAssetLabel = (asset: AssetItem) => {
   const status = asset.missing ? ' [MISSING]' : '';
   return `${asset.name} (${asset.kind})${status}`;
+};
+
+const rendererLayerAssetBindings: Partial<Record<AssetLayerId, string | null>> = {};
+
+const bindRendererLayerAsset = async (layerId: AssetLayerId, assetId: string | null) => {
+  if (rendererLayerAssetBindings[layerId] === assetId) return;
+  rendererLayerAssetBindings[layerId] = assetId;
+  const target = assetId ? currentProject.assets.find((item) => item.id === assetId) ?? null : null;
+  const previewVideo = target ? livePreviewElements.get(target.id) : undefined;
+  const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
+  try {
+    await renderer.setLayerAsset(layerId, target, previewVideo, textCanvas);
+  } catch {
+    rendererLayerAssetBindings[layerId] = null;
+  }
+};
+
+const syncRendererAssetBindingsForScene = (scene: SceneConfig | undefined) => {
+  (ASSET_LAYER_IDS as readonly AssetLayerId[]).forEach((layerId) => {
+    const assetId = scene?.layers.find((layer) => layer.id === layerId)?.assetId ?? null;
+    void bindRendererLayerAsset(layerId, assetId);
+  });
 };
 
 const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
@@ -5334,6 +5608,9 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, fo
     const previewVideo = target ? livePreviewElements.get(target.id) : undefined;
     const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
     await renderer.setLayerAsset(layer.id, target, previewVideo, textCanvas);
+    if (isAssetLayerId(layer.id)) {
+      rendererLayerAssetBindings[layer.id] = assetId;
+    }
     if (target) {
       recordAssetLayerAssignment(target.kind, layer.id);
       setStatus(`${layer.name} now using ${target.name}`);
@@ -5416,6 +5693,9 @@ const unassignAssetFromLayers = (assetId: string) => {
       if (layer.assetId === assetId) {
         layer.assetId = undefined;
         void renderer.setLayerAsset(layer.id as AssetLayerId, null);
+        if (isAssetLayerId(layer.id)) {
+          rendererLayerAssetBindings[layer.id] = null;
+        }
         removed = true;
       }
     });
@@ -6644,17 +6924,17 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
   const shaderId = plasmaLayer?.params?.shaderId as string | undefined;
   const asset = getShaderAssetById(shaderId ?? null);
   if (!asset) {
-    applyPlasmaShaderSource(null, 'Default');
+    applyPlasmaShaderSource(null, 'Default', scene);
     shaderTargetSelect.value = shaderTargetDraftValue;
     return;
   }
   const source = await loadShaderSourceForAsset(asset);
   if (!source) {
-    applyPlasmaShaderSource(null, 'Default');
+    applyPlasmaShaderSource(null, 'Default', scene);
     shaderTargetSelect.value = shaderTargetDraftValue;
     return;
   }
-  applyPlasmaShaderSource(source, asset.name);
+  applyPlasmaShaderSource(source, asset.name, scene);
   shaderTargetSelect.value = `${shaderTargetAssetPrefix}${asset.id}`;
 };
 
@@ -7247,8 +7527,20 @@ const renderGeneratorList = (container: HTMLElement, items: GeneratorId[]) => {
     if (!entry) return;
     const chip = document.createElement('div');
     chip.className = 'generator-chip';
+    if (entry.supportsAsset) {
+      chip.classList.add('supports-asset');
+      chip.title = 'Supports image/video assets';
+    }
     const label = document.createElement('span');
     label.textContent = entry.name;
+    if (entry.supportsAsset) {
+      const assetIcon = document.createElement('span');
+      assetIcon.className = 'asset-support-icon';
+      assetIcon.textContent = '🖼️';
+      assetIcon.style.marginLeft = '4px';
+      assetIcon.style.fontSize = '10px';
+      label.appendChild(assetIcon);
+    }
     const addButton = document.createElement('button');
     addButton.textContent = '+';
     addButton.title = 'Add generator';
@@ -7276,7 +7568,7 @@ const refreshGeneratorUI = () => {
   sorted.forEach((gen) => {
     const option = document.createElement('option');
     option.value = gen.id;
-    option.textContent = gen.name;
+    option.textContent = gen.supportsAsset ? `${gen.name} 🖼️` : gen.name;
     generatorSelect.appendChild(option);
   });
   renderGeneratorList(generatorFavorites, generatorFavoritesState);
@@ -7524,6 +7816,63 @@ const addGenerator = (id: GeneratorId) => {
     }
     if (oscilloToggle) oscilloToggle.checked = true;
     setStatus('Sacred oscilloscope layer enabled.');
+  }
+  // Asset-based generators
+  if (id === 'gen-asset-vortex') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-vortex', 'Asset Vortex');
+      renderLayerList();
+    }
+    setStatus('Asset Vortex enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-slices') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-slices', 'Asset Slices');
+      renderLayerList();
+    }
+    setStatus('Asset Slices enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-polar') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-polar', 'Asset Polar Warp');
+      renderLayerList();
+    }
+    setStatus('Asset Polar Warp enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-mosaic') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-mosaic', 'Asset Mosaic');
+      renderLayerList();
+    }
+    setStatus('Asset Mosaic enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-ripple') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-ripple', 'Asset Ripples');
+      renderLayerList();
+    }
+    setStatus('Asset Ripples enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-scatter') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-scatter', 'Asset Scatter');
+      renderLayerList();
+    }
+    setStatus('Asset Scatter enabled. Add an asset in Layers panel.');
+  }
+  if (id === 'gen-asset-echo') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      ensureLayerWithDefaults(scene, 'gen-asset-echo', 'Asset Echo Ghosts');
+      renderLayerList();
+    }
+    setStatus('Asset Echo Ghosts enabled. Add an asset in Layers panel.');
   }
   if (id === 'variant-plasma-vortex') {
     applyGeneratorVariant('layer-plasma', {
@@ -9167,6 +9516,8 @@ const applyStyleControls = () => {
   preset.settings.contrast = Number(styleContrast.value);
   preset.settings.saturation = Number(styleSaturation.value);
   preset.settings.paletteShift = Number(styleShift.value);
+  syncActiveSceneLookSection(currentProject, 'stylePresets', currentProject.stylePresets);
+  syncActiveSceneLookSection(currentProject, 'activeStylePresetId', currentProject.activeStylePresetId);
 };
 
 const initMacros = () => {
@@ -9367,10 +9718,7 @@ const macroHeroInputs = [macroEnergy, macroMotion, macroColor, macroDensity];
 const macroHeroValues = [macroEnergyValue, macroMotionValue, macroColorValue, macroDensityValue];
 
 const syncMacrosToActiveScene = () => {
-  const scene = getActiveScene();
-  if (!scene) return;
-  if (!scene.look) scene.look = {};
-  scene.look.macros = cloneValue(currentProject.macros);
+  syncActiveSceneLookSection(currentProject, 'macros', currentProject.macros);
 };
 
 const syncMacroHeroFromProject = () => {
@@ -9500,6 +9848,7 @@ const applyEffectControls = () => {
     feedback: Number(effectFeedback.value),
     persistence: Number(effectPersistence.value)
   };
+  syncActiveSceneLookSection(currentProject, 'effects', currentProject.effects as any);
 };
 
 const applyExpressiveFxControls = () => {
@@ -9570,6 +9919,7 @@ const applyParticleControls = () => {
     size: Number(particlesSize.value),
     glow: Number(particlesGlow.value)
   };
+  syncActiveSceneLookSection(currentProject, 'particles', currentProject.particles);
 };
 
 const applySdfControls = () => {
@@ -9587,6 +9937,7 @@ const applySdfControls = () => {
         parseInt(sdfColor.value.slice(5, 7), 16) / 255
     ]
   };
+  syncActiveSceneLookSection(currentProject, 'sdf', currentProject.sdf);
   if (sdfAdvancedToggle.checked) {
     sdfPanel?.render();
   }
@@ -10316,6 +10667,8 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
   let overlay = currentProject.overlays.find((item) => item.id === overlayId);
   if (overlay) return overlay;
 
+  const targetSceneId = previewSceneId ?? currentProject.activeSceneId;
+
   overlay =
     type === 'text'
       ? {
@@ -10334,7 +10687,8 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
           fontSize: 30,
           fontColor: '#ffffff',
           fontWeight: 'bold',
-          textShadow: true
+          textShadow: true,
+          targetSceneId
         }
       : {
           id: overlayId,
@@ -10347,7 +10701,8 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
           height: 0.18,
           opacity: 0.95,
           rotation: 0,
-          includeInFx: false
+          includeInFx: false,
+          targetSceneId
         };
 
   currentProject.overlays.push(overlay);
@@ -10429,6 +10784,34 @@ const buildRecognitionRequest = async (
   };
 
   if (settings.provider === 'shazam') {
+    // Try raw PCM export first (bypasses WebM/Opus decode issues)
+    const pcmClip = rollingAudioCapture.exportRecentPcm?.(settings.clipDurationMs);
+    if (pcmClip && pcmClip.pcmS16le.length >= 48000) {
+      const rawCopy = new Uint8Array(pcmClip.pcmS16le.byteLength);
+      rawCopy.set(new Uint8Array(
+        pcmClip.pcmS16le.buffer,
+        pcmClip.pcmS16le.byteOffset,
+        pcmClip.pcmS16le.byteLength
+      ));
+      const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
+      diagnostics.pcmSamples = pcmClip.numSamples;
+      diagnostics.pcmDurationMs = pcmClip.durationMs;
+      console.log(`[Now Playing] Shazam using raw PCM: ${pcmClip.numSamples} samples, ${pcmClip.durationMs}ms`);
+      return {
+        request: {
+          provider: 'shazam',
+          audioBase64,
+          mimeType: 'audio/pcm-s16le',
+          numSamples: pcmClip.numSamples,
+          durationMs: pcmClip.durationMs,
+          market: settings.market || undefined,
+          detectedAt
+        },
+        diagnostics
+      };
+    }
+    console.warn('[Now Playing] PCM capture unavailable for Shazam, falling back to blob decode...');
+
     const decodeResult = await decodeClipToPcmWithDiagnostics(clip);
     if (!decodeResult.success || !decodeResult.pcm) {
       return {
@@ -10479,6 +10862,12 @@ const buildRecognitionRequest = async (
 };
 
 const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
+  const logMessages: string[] = [];
+  const log = (msg: string) => {
+    logMessages.push(msg);
+    console.log(msg);
+  };
+  log('[Now Playing Test] testNowPlayingLiveInput called, provider: ' + settings.provider + ', enabled: ' + settings.enabled);
   if (!isNowPlayingLookupConfigured(settings)) {
     nowPlayingTestStatus.textContent = 'Provider settings are incomplete.';
     return;
@@ -10487,10 +10876,12 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
   const rollingAudioCapture = getAudioEngineSafe()?.getRollingAudioCapture();
   if (!rollingAudioCapture || !rollingAudioCapture.isActive()) {
     nowPlayingTestStatus.textContent = 'Audio capture not active. Start audio input first.';
+    log('[Now Playing Test] Audio capture not active');
     return;
   }
 
   const stats = rollingAudioCapture.getStats();
+  log('[Now Playing Test] Capture stats: ' + JSON.stringify(stats));
   const minWaitMs = 10000;
   if (stats.captureDurationMs < minWaitMs && stats.totalChunks < 8) {
     const waitSeconds = Math.ceil((minWaitMs - stats.captureDurationMs) / 1000);
@@ -10499,22 +10890,63 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
   }
 
   nowPlayingTestStatus.textContent = `Exporting ${Math.round(settings.clipDurationMs / 1000)}s clip from ${stats.totalChunks} chunks...`;
+  log('[Now Playing Test] Exporting clip...');
 
   const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(settings.clipDurationMs);
   if (!exportResult.success || !exportResult.clip) {
     const detail = exportResult.errorDetail;
     if (detail) {
       nowPlayingTestStatus.textContent = `${exportResult.error} (${detail.selectedChunks}/${detail.totalChunks} chunks, ${(detail.totalBytes / 1024).toFixed(1)}KB)`;
+      log('[Now Playing Test] Export failed: ' + JSON.stringify(detail));
     } else {
       nowPlayingTestStatus.textContent = exportResult.error || 'Failed to export audio clip.';
+      log('[Now Playing Test] Export failed: ' + exportResult.error);
     }
+    alert('SHAZAM TEST FAILED:\n\n' + logMessages.join('\n') + '\n\nStatus: ' + nowPlayingTestStatus.textContent);
     return;
   }
 
   const clip = exportResult.clip;
+  log('[Now Playing Test] Clip exported: ' + clip.blob.size + ' bytes, mimeType: ' + clip.mimeType);
   nowPlayingTestStatus.textContent = `Validating ${(clip.blob.size / 1024).toFixed(1)}KB audio...`;
 
+  log('[Now Playing Test] Calling decodeClipToPcmWithDiagnostics...');
+
+  // For Shazam, try raw PCM export first (bypasses WebM/Opus decode issues)
+  if (settings.provider === 'shazam') {
+    log('[Now Playing Test] Using raw PCM export for Shazam...');
+    const pcmData = rollingAudioCapture.exportRecentPcm(settings.clipDurationMs);
+    if (pcmData && pcmData.pcmS16le.length >= 48000) {
+      log(`[Now Playing Test] PCM export success: ${pcmData.numSamples} samples, ${pcmData.durationMs}ms`);
+      const rawCopy = new Uint8Array(pcmData.pcmS16le.byteLength);
+      rawCopy.set(new Uint8Array(pcmData.pcmS16le.buffer, pcmData.pcmS16le.byteOffset, pcmData.pcmS16le.byteLength));
+      const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
+
+      const buildResult = await buildRecognitionRequest(
+        { blob: new Blob([rawCopy.buffer as ArrayBuffer]), mimeType: 'audio/pcm-s16le', startedAt: pcmData.startedAt, endedAt: pcmData.endedAt },
+        settings,
+        Date.now()
+      );
+      if (buildResult.request) {
+        buildResult.request.audioBase64 = audioBase64;
+        buildResult.request.mimeType = 'audio/pcm-s16le';
+        buildResult.request.numSamples = pcmData.numSamples;
+        buildResult.request.durationMs = pcmData.durationMs;
+        log(`[Now Playing Test] Built Shazam request: ${buildResult.request.numSamples} samples, ${buildResult.request.durationMs}ms`);
+        const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
+        log(`[Now Playing Test] Shazam result: matched=${result.matched}, title=${result.title}, artist=${result.artist}`);
+        await consumeNowPlayingResult(result, 'Shazam live test');
+        return;
+      }
+    }
+    log('[Now Playing Test] PCM export failed or too short, falling back to blob decode...');
+  }
+
   const diagnosticDecode = await decodeClipToPcmWithDiagnostics(clip);
+  log('[Now Playing Test] Decode result: ' + diagnosticDecode.success + ' ' + (diagnosticDecode.error || ''));
+  if (diagnosticDecode.errorDetail) {
+    log('[Now Playing Test] Error detail: ' + JSON.stringify(diagnosticDecode.errorDetail));
+  }
   let actualDurationSec: string;
   let energy = 0;
   
@@ -10884,9 +11316,9 @@ const serializePerformance = () => {
   return JSON.stringify(performance, null, 2);
 };
 
-const serializeProject = () => {
+const buildProjectSnapshotForSave = (): VisualSynthProject => {
   const now = new Date().toISOString();
-  currentProject = {
+  return {
     ...currentProject,
     updatedAt: now,
     output: outputConfig,
@@ -10897,17 +11329,23 @@ const serializeProject = () => {
     scenes: currentProject.scenes.map((scene) => ({
       ...scene,
       layers: scene.layers.map((layer) => {
+        if (scene.id !== currentProject.activeSceneId) {
+          return { ...layer };
+        }
         if (layer.id === 'layer-plasma') {
           return { ...layer, enabled: plasmaToggle?.checked ?? layer.enabled };
         }
         if (layer.id === 'layer-spectrum') {
           return { ...layer, enabled: spectrumToggle?.checked ?? layer.enabled };
         }
-        return layer;
+        return { ...layer };
       })
     }))
   };
-  return JSON.stringify(currentProject, null, 2);
+};
+
+const serializeProject = () => {
+  return JSON.stringify(buildProjectSnapshotForSave(), null, 2);
 };
 
 const applyProject = async (project: VisualSynthProject) => {
@@ -10924,10 +11362,14 @@ const applyProject = async (project: VisualSynthProject) => {
       currentProject = normalized;
       initEngineSelect();
       refreshSceneSelect();
-      applyScene(currentProject.activeSceneId, { skipShaderWarmup: true });
-
       const activeGeneratorCount = primeProjectShaders(renderer, currentProject, 200);
+      applyScene(currentProject.activeSceneId, { skipShaderWarmup: true });
       console.log(`[Project] Applied project "${currentProject.name}", active scene shader primed for ${activeGeneratorCount} generators and scene variants queued for precompile`);
+      console.log(
+        `[Project] Loaded scenes (${currentProject.scenes.length}): ${currentProject.scenes
+          .map((scene) => `${scene.id}:${scene.name || 'Unnamed Scene'}`)
+          .join(', ')}`
+      );
     },
     syncOutputConfig,
     setOutputEnabled
@@ -10991,18 +11433,48 @@ const applyProject = async (project: VisualSynthProject) => {
 
 const saveProjectToDisk = async () => {
   const payload = serializeProject();
-  await window.visualSynth.saveProject(payload);
+  const saveResult = isRecoveryProject
+    ? await window.visualSynth.saveProjectAs(payload)
+    : await window.visualSynth.saveProject(payload);
+  if (!saveResult.canceled) {
+    projectDirty = false;
+    isRecoveryProject = false;
+    setStatus(`Saved project: ${currentProject.name}`);
+  }
 };
 
 const savePerformanceToDisk = async () => {
   const payload = serializePerformance();
-  await window.visualSynth.saveProject(payload);
+  const saveResult = await window.visualSynth.saveProject(payload);
+  if (!saveResult.canceled) {
+    projectDirty = false;
+    setStatus(`Saved project: ${currentProject.name}`);
+  }
 };
 
 const loadProjectFromDisk = async () => {
-  const result = await window.visualSynth.openProject();
-  if (!result.canceled && result.project) {
-    await applyProject(result.project);
+  suppressStartupRecovery = true;
+  console.log('[Project] Manual open requested; suppressing startup recovery.');
+  try {
+    const result = await window.visualSynth.openProject();
+    console.log('[Project] Open dialog result:', {
+      canceled: result?.canceled,
+      filePath: result?.filePath,
+      hasProject: Boolean(result?.project),
+      error: result?.error
+    });
+    if (!result.canceled && result.project) {
+      console.log(`[Project] Opening file: ${result.filePath ?? 'unknown path'}`);
+      await applyProject(result.project);
+      return;
+    }
+    if (result?.error) {
+      console.error(`[Project] Open failed: ${result.error}`);
+      setStatus(`Open project failed: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('[Project] Open request threw:', error);
+    setStatus('Open project failed.');
   }
 };
 
@@ -11374,6 +11846,7 @@ visualizerModeSelect.addEventListener('change', () => {
 
 visualizerEnabledToggle.addEventListener('change', () => {
   currentProject.visualizer.enabled = visualizerEnabledToggle.checked;
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
   visualizerCanvas.classList.toggle(
     'hidden',
     visualizerMode === 'off' || !currentProject.visualizer.enabled
@@ -11383,13 +11856,16 @@ visualizerEnabledToggle.addEventListener('change', () => {
 
 visualizerOpacityInput.addEventListener('input', () => {
   currentProject.visualizer.opacity = Number(visualizerOpacityInput.value);
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
 });
 visualizerMacroToggle.addEventListener('change', () => {
   currentProject.visualizer.macroEnabled = visualizerMacroToggle.checked;
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
   visualizerMacroSelect.disabled = !visualizerMacroToggle.checked;
 });
 visualizerMacroSelect.addEventListener('change', () => {
   currentProject.visualizer.macroId = Number(visualizerMacroSelect.value);
+  syncActiveSceneLookSection(currentProject, 'visualizer', currentProject.visualizer);
 });
 
 generatorAddButton.addEventListener('click', () => {
@@ -11592,7 +12068,7 @@ sceneViewSelect.addEventListener('change', () => {
     previewSceneId = sceneId;
     const scene = currentProject.scenes.find(s => s.id === sceneId);
     if (scene) {
-      compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+      compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
       updateSceneContextUI(scene);
       renderLayerList();
       setStatus(`Viewing scene: ${scene.name}`);
@@ -11608,7 +12084,7 @@ if (sceneEditSelect) {
       previewSceneId = sceneId;
       const scene = currentProject.scenes.find(s => s.id === sceneId);
       if (scene) {
-        compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false);
+        compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
         updateSceneContextUI(scene);
         renderLayerList();
         setStatus(`Editing scene: ${scene.name}`);
@@ -12723,6 +13199,22 @@ overlayAddImageBtn.addEventListener('click', async () => {
   const result = await window.visualSynth.importAsset('texture');
   if (result.canceled || !result.filePath) return;
   const name = result.filePath.split(/[\\/]/).pop() ?? 'Image';
+  currentProject.assets = [
+    ...currentProject.assets,
+    createAssetItem({
+      name,
+      kind: 'texture',
+      path: result.filePath,
+      tags: ['overlay'],
+      metadata: {
+        hash: result.hash,
+        mime: result.mime,
+        width: result.width,
+        height: result.height,
+        colorSpace: result.colorSpace
+      }
+    })
+  ];
   const overlay: OverlayConfig = {
     id: generateOverlayId(),
     name,
@@ -12733,16 +13225,18 @@ overlayAddImageBtn.addEventListener('click', async () => {
     opacity: 1,
     rotation: 0,
     includeInFx: false,
-    assetPath: result.filePath
+    assetPath: result.filePath,
+    targetSceneId: previewSceneId ?? currentProject.activeSceneId  // Scope to current scene
   };
   if (!currentProject.overlays) currentProject.overlays = [];
   currentProject.overlays.push(overlay);
   selectedOverlayId = overlay.id;
   overlayRenderer.setSelected(overlay.id);
+  renderAssets();
   renderOverlayList();
   syncOverlayProps(overlay);
   overlayPropsEl.classList.remove('hidden');
-  setStatus(`Overlay added: ${name}`);
+  setStatus(`Overlay added: ${name} (scene: ${currentProject.scenes.find(s => s.id === (previewSceneId ?? currentProject.activeSceneId))?.name ?? 'current'})`);
 });
 
 overlayAddTextBtn.addEventListener('click', () => {
@@ -12761,7 +13255,8 @@ overlayAddTextBtn.addEventListener('click', () => {
     fontSize: 24,
     fontColor: '#ffffff',
     fontWeight: 'normal',
-    textShadow: true
+    textShadow: true,
+    targetSceneId: previewSceneId ?? currentProject.activeSceneId  // Scope to current scene
   };
   if (!currentProject.overlays) currentProject.overlays = [];
   currentProject.overlays.push(overlay);
@@ -13150,6 +13645,7 @@ const render = (time: number) => {
     ? currentProject.scenes.find((scene) => scene.id === previewSceneId) ?? activeScene
     : blendSnapshot?.scene ?? activeScene;
   const outputScene = blendSnapshot?.scene ?? activeScene;
+  syncRendererAssetBindingsForScene(outputScene);
   const legacyNeutral = isLegacyNeutralProject(currentProject);
   const hasActiveEngine = Boolean(currentProject.activeEngineId && currentProject.activeEngineId !== 'engine-none');
 
@@ -13742,7 +14238,6 @@ const render = (time: number) => {
     gravityPolarities,
     gravityActives,
     gravityCollapse,
-    genUniforms,
     sessionHealth: sessionHealthService.getHealth(),
     performanceMode: currentProject.performanceMode?.enabled,
   };
@@ -14167,6 +14662,9 @@ const init = async () => {
   if (window.visualSynth) {
     console.log('[Init] Starting recovery check...');
     try {
+      if (suppressStartupRecovery) {
+        console.log('[Init] Recovery check skipped because a manual project open was requested.');
+      } else {
       const startupSelection = await selectStartupProject(window.visualSynth, localStorage);
       await applyStartupSelection(startupSelection, {
         applyProject,
@@ -14179,6 +14677,7 @@ const init = async () => {
           projectDirty = true;
         }
       });
+      }
     } catch {
       setStatus('Recovery session found but failed to load.');
     }
@@ -14223,33 +14722,39 @@ const init = async () => {
     hideLoadingSplash();
   }, 300);
 
-  // Handle close request from main process
-  window.visualSynth?.onCloseRequested(async () => {
-    if (!projectDirty) {
-      await window.visualSynth.confirmClose();
-      return;
-    }
+  // Handle close request from main process (Electron only)
+  try {
+    if (typeof window.visualSynth?.onCloseRequested === 'function') {
+      window.visualSynth.onCloseRequested(async () => {
+        if (!projectDirty) {
+          await window.visualSynth.confirmClose();
+          return;
+        }
 
-    const { result } = await window.visualSynth.showSaveDialog(isRecoveryProject);
-    
-    if (result === 'cancel') {
-      return;
+        const { result } = await window.visualSynth.showSaveDialog(isRecoveryProject);
+
+        if (result === 'cancel') {
+          return;
+        }
+
+        if (result === 'save') {
+          const payload = serializeProject();
+          const saveResult = isRecoveryProject
+            ? await window.visualSynth.saveProjectAs(payload)
+            : await window.visualSynth.saveProject(payload);
+
+          if (saveResult.canceled) {
+            return;
+          }
+          projectDirty = false;
+        }
+
+        await window.visualSynth.confirmClose();
+      });
     }
-    
-    if (result === 'save') {
-      const payload = serializeProject();
-      const saveResult = isRecoveryProject
-        ? await window.visualSynth.saveProjectAs(payload)
-        : await window.visualSynth.saveProject(payload);
-      
-      if (saveResult.canceled) {
-        return;
-      }
-      projectDirty = false;
-    }
-    
-    await window.visualSynth.confirmClose();
-  });
+  } catch {
+    // Running outside Electron (browser testing) — no close handler needed
+  }
 
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {

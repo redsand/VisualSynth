@@ -73,6 +73,7 @@ export const createMilkwaveShapePlan = ({
     b: clamp01(shape.b2),
     a: clamp01(shape.a2)
   },
+
   hasInitCode: hasCodeLines(shape.initCode),
   hasFrameCode: hasCodeLines(shape.perFrameCode),
   hasPointCode: hasCodeLines(shape.perPointCode)
