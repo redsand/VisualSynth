@@ -2685,7 +2685,7 @@ export const PARAMETER_REGISTRY: LayerTypeDef[] = [
   {
     id: 'crystal-cave',
     name: 'Crystal Cave',
-    description: 'Crystalline cave interior with refraction',
+    description: 'Geode cross-section with agate banding and crystalline cavity',
     sinceVersion: '2.0.0',
     params: [
       { id: 'opacity', name: 'Opacity', type: 'number', min: 0, max: 1, default: 1, modulatable: true, midiMappable: true },

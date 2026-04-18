@@ -418,7 +418,7 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-mandelbrot', name: 'Generator: Mandelbrot' },
   { id: 'gen-whirlpool', name: 'Generator: Whirlpool' },
   { id: 'gen-firework', name: 'Generator: Firework' },
-  { id: 'gen-crystal-cave', name: 'Generator: Crystal Cave' },
+  { id: 'gen-crystal-cave', name: 'Generator: Geode' },
   { id: 'gen-volcano', name: 'Generator: Volcano' }
 ];
 

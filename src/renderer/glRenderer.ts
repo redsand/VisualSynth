@@ -155,24 +155,32 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
         delete layerBindings[key as AssetLayerId];
       });
 
-      // Recompile the active shader with current state
-      standardProgram = getOrCompileProgram(
-        currentActiveIds,
-        currentSdfUniforms,
-        currentSdfFunctions,
-        currentSdfMapBody,
-        currentPlasmaSource,
-        currentCustomBlocks,
-        false,
-        currentFxUniforms
-      );
-      currentProgram = standardProgram;
-      currentShaderVariantKey = standardProgram
-        ? shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomBlocksHash + currentFxUniforms)
-        : null;
-      contextRestoring = false;
-      console.log('[GLRenderer] WebGL context restore complete');
-      canvas.dispatchEvent(new CustomEvent('visualsynth-contextrestored'));
+      console.log('[GLRenderer] WebGL context restore complete — deferring shader recompile');
+      // Defer shader compilation: yield to let the GPU driver fully stabilize before
+      // issuing new compile work, which could otherwise trigger an immediate second context loss.
+      setTimeout(() => {
+        if (contextLost) return; // lost again before we could recompile
+        try {
+          standardProgram = getOrCompileProgram(
+            currentActiveIds,
+            currentSdfUniforms,
+            currentSdfFunctions,
+            currentSdfMapBody,
+            currentPlasmaSource,
+            currentCustomBlocks,
+            false,
+            currentFxUniforms
+          );
+          currentProgram = standardProgram;
+          currentShaderVariantKey = standardProgram
+            ? shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomBlocksHash + currentFxUniforms)
+            : null;
+        } catch (compileErr) {
+          console.error('[GLRenderer] Deferred shader recompile failed:', compileErr);
+        }
+        contextRestoring = false;
+        canvas.dispatchEvent(new CustomEvent('visualsynth-contextrestored'));
+      }, 0);
     } catch (err) {
       console.error('[GLRenderer] Failed to restore WebGL context:', err);
       contextRestoring = false;

@@ -6758,7 +6758,8 @@ uniform float uPixelSortGlitch;`,
   float sortDir = direction < 0.5 ? uv.x : uv.y;
   float sortPerp = direction < 0.5 ? uv.y : uv.x;
   float sortLen = 0.02 + glitch * 0.15 + audio * 0.08;
-  int triggerBand = int(sortPerp * 8.0 + t * uPixelSortSpeed * 2.0) % 8;
+  int triggerBandInt = int(sortPerp * 8.0 + t * uPixelSortSpeed * 2.0) % 8;
+  float triggerBand = float(triggerBandInt);
   float trigger = step(threshold, sin(triggerBand * 3.14159 + t * uPixelSortSpeed));
   float sortOffset = trigger * sortLen * sin(sortPerp * 50.0 + t * 5.0);
   float glitchBand = step(0.95, fract(sin(floor(sortPerp * 20.0 + t * uPixelSortSpeed) * 43.7) * 17.3));
@@ -7072,7 +7073,7 @@ uniform float uClockworkRust;`,
   int gearCount = int(uClockworkGearCount + 1.0);
   float detail = uClockworkDetail;
   float rustLevel = uClockworkRust;
-  vec3 col = vec3(0.02, 0.015, 0.01);
+  vec3 col = getPaletteColor(0.0) * 0.08;
   for (int i = 0; i < 6; i++) {
     if (i >= gearCount) break;
     float fi = float(i);
@@ -7099,12 +7100,13 @@ uniform float uClockworkRust;`,
       spokeMask = max(spokeMask, smoothstep(0.004, 0.0, spokeDist - 0.001) * step(gearRadius * 0.2, dist));
     }
     float audioPulse = 1.0 + audio * 0.05 * sin(fi * 2.0);
-    vec3 brassColor = mix(vec3(0.72, 0.55, 0.15), vec3(0.45, 0.35, 0.12), rustLevel * hash21(vec2(fi, fi * 3.0)));
+    vec3 gearBase = getPaletteColor(fi / float(gearCount) + audio * 0.1);
+    vec3 brassColor = mix(gearBase, gearBase * 0.6, rustLevel * hash21(vec2(fi, fi * 3.0)));
     vec3 gearColor = brassColor * (0.8 + toothProfile * 0.2) * audioPulse;
     col = mix(col, gearColor, gearMask * innerHole);
     col += brassColor * spokeMask * 0.5;
     float hubMask = smoothstep(gearRadius * 0.2, gearRadius * 0.15, dist) * gearMask;
-    col = mix(col, vec3(0.3, 0.2, 0.1), hubMask);
+    col = mix(col, getPaletteColor(fi / float(gearCount) + 0.5) * 0.4, hubMask);
   }
   col *= 0.7 + audio * 0.3;
   return col * uClockworkOpacity;
@@ -7427,38 +7429,51 @@ uniform float uCrystalCaveRefract;`,
   float refract = uCrystalCaveRefract;
   float aspect = uResolution.x / uResolution.y;
   centered.x *= aspect;
-  vec3 col = vec3(0.01, 0.005, 0.02);
-  float caveNoise = fbm(centered * 1.5);
-  float caveMask = smoothstep(0.6, 0.2, length(centered) + caveNoise * 0.1);
-  vec3 caveColor = vec3(0.05, 0.03, 0.06) * caveMask;
-  col += caveColor;
-  for (int i = 0; i < 12; i++) {
-    if (i >= int(density * 12.0)) break;
-    float fi = float(i);
-    vec2 crystalPos = vec2(
-      hash21(vec2(fi, fi * 3.0)) * aspect - aspect * 0.5,
-      hash21(vec2(fi * 2.0, fi)) - 0.5
-    );
-    float crystalAngle = hash21(vec2(fi * 5.0, fi * 7.0)) * 1.5 - 0.75;
-    float crystalLen = 0.03 + hash21(vec2(fi * 4.0, fi * 2.0)) * 0.06;
-    float crystalWidth = crystalLen * 0.15;
-    vec2 toPixel = centered - crystalPos;
-    float ca = cos(crystalAngle);
-    float sa = sin(crystalAngle);
-    vec2 local = vec2(toPixel.x * ca + toPixel.y * sa, -toPixel.x * sa + toPixel.y * ca);
-    float crystalShape = smoothstep(crystalWidth, 0.0, abs(local.y)) * smoothstep(0.0, crystalLen, local.x) * smoothstep(crystalLen + 0.005, crystalLen * 0.8, local.x);
-    float crystalTip = smoothstep(crystalLen * 0.8, crystalLen, local.x) * crystalShape;
-    vec3 crystalColor = getPaletteColor(fi * 0.08 + 0.2 + sin(t * uCrystalCaveSpeed * 0.3) * 0.05);
-    float audioGlow = uSpectrum[int(mod(fi * 5.0, 64.0))] * glow;
-    float internalGlow = sin(local.x / crystalLen * 6.2832 + t * uCrystalCaveSpeed) * 0.5 + 0.5;
-    col += crystalColor * crystalShape * (0.5 + internalGlow * 0.5 + audioGlow);
-    float tipGlow = 0.002 / (length(centered - (crystalPos + vec2(cos(crystalAngle), sin(crystalAngle)) * crystalLen)) + 0.001);
-    col += crystalColor * tipGlow * glow * 0.3;
+  float dist = length(centered);
+  float angle = atan(centered.y, centered.x);
+
+  float outerRadius = 0.42;
+  float innerRadius = 0.12 + density * 0.08;
+  float shellMask = smoothstep(outerRadius + 0.01, outerRadius - 0.02, dist);
+  float cavityMask = smoothstep(innerRadius - 0.01, innerRadius + 0.02, dist);
+
+  vec3 col = vec3(0.0);
+
+  float agateLayers = 0.0;
+  for (float i = 0.0; i < 16.0; i++) {
+    if (i >= density * 16.0) break;
+    float r = mix(outerRadius, innerRadius, i / (density * 16.0));
+    float wobble = fbm(vec2(angle * 2.0 + i * 0.4, i * 1.7)) * 0.04;
+    float band = smoothstep(0.012, 0.0, abs(dist - r - wobble));
+    vec3 bandColor = getPaletteColor(i / 16.0 + fbm(vec2(i * 0.3, angle)) * 0.2);
+    float bandBright = 0.4 + 0.3 * sin(i * 1.2 + angle * 3.0);
+    col += bandColor * band * bandBright * cavityMask * shellMask;
   }
-  float ambientGlow = fbm(centered * 2.0 + t * uCrystalCaveSpeed * 0.05) * glow * 0.1;
-  col += vec3(0.2, 0.1, 0.3) * ambientGlow;
+
+  float shellColor = fbm(centered * 3.0 + vec2(t * uCrystalCaveSpeed * 0.02, 0.0)) * 0.5 + 0.5;
+  vec3 rockColor = getPaletteColor(0.1) * 0.15 * shellColor;
+  col = mix(rockColor, col, cavityMask);
+
+  float facetCount = 6.0 + floor(density * 6.0);
+  float facetAngle = mod(angle + t * uCrystalCaveSpeed * 0.05, 6.2832 / facetCount);
+  float facet = 6.2832 / facetCount;
+  float facetLine = smoothstep(0.02, 0.005, abs(facetAngle - facet * 0.5));
+  float cavityBright = exp(-dist * 3.0 / innerRadius) * (1.0 - cavityMask);
+  vec3 facetColor = getPaletteColor(0.4 + sin(angle * facetCount * 0.5 + t * uCrystalCaveSpeed * 0.2) * 0.15);
+  float shimmer = sin(dist * 40.0 - t * uCrystalCaveSpeed * 2.0 + angle * facetCount) * 0.5 + 0.5;
+  float refractShift = sin(angle * facetCount + dist * 20.0 + t * uCrystalCaveSpeed) * refract * 0.02;
+  vec3 crystalInner = facetColor * (0.3 + shimmer * 0.7 + cavityBright * glow * 2.0);
+  crystalInner += getPaletteColor(angle / 6.28318) * facetLine * 0.5 * glow;
+  crystalInner *= (0.6 + audio * 0.4);
+  float specBand = abs(angle + refractShift) / 6.28318 * 63.0;
+  float audioCrystal = uSpectrum[int(clamp(specBand, 0.0, 63.0))];
+  crystalInner += getPaletteColor(dist * 2.0 + angle / 6.28318) * audioCrystal * glow * 0.3;
+  col = mix(col, crystalInner, 1.0 - cavityMask);
+
+  col *= shellMask;
+  float rimGlow = smoothstep(outerRadius - 0.03, outerRadius - 0.08, dist) * (1.0 - smoothstep(outerRadius - 0.08, outerRadius, dist));
+  col += getPaletteColor(0.8) * rimGlow * glow * 0.3 * (0.8 + audio * 0.2);
   col *= 0.7 + audio * 0.3;
-  col *= caveMask;
   return col * uCrystalCaveOpacity;
 }`,
     mainCall: `  if (uCrystalCaveEnabled > 0.5) color += crystalCave(effectUv, uTime);
