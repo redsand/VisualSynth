@@ -1363,6 +1363,13 @@ void main() {
   };
 
   const recompileForGenerators = (activeIds: Set<string>, customBlocks: CustomShaderBlock[] = [], forceSync = false, fxUniforms = ''): boolean => {
+    if (contextLost || contextRestoring) {
+      // Context is gone — store the desired state so the restore handler can recompile when ready
+      currentActiveIds = new Set(activeIds);
+      currentCustomBlocks = customBlocks;
+      currentFxUniforms = fxUniforms || initialFx;
+      return false;
+    }
     // Store the active IDs, custom blocks, and FX uniforms for future recompilations (e.g., when SDF changes)
     currentActiveIds = new Set(activeIds);
     currentCustomBlocks = customBlocks;
