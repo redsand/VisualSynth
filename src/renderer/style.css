@@ -3452,3 +3452,129 @@ body[data-mode='matrix'] .safe-mode {
 .palette-reset-btn:active {
   transform: scale(0.95);
 }
+
+.mode-button-live {
+  color: #ff6b9d;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.mode-button-live.active {
+  background: linear-gradient(135deg, #ff6b9d, #c44dff);
+  color: #0b111b;
+  border-color: #ff6b9d;
+  box-shadow: 0 0 12px rgba(255, 107, 157, 0.4);
+}
+
+.live-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.live-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 107, 157, 0.2);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--pad-hue, 280), 50%, 18%),
+    hsl(calc(var(--pad-hue, 280) + 30), 50%, 12%)
+  );
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
+  min-height: 72px;
+}
+
+.live-pad:hover {
+  transform: scale(1.04);
+  border-color: rgba(255, 107, 157, 0.5);
+  box-shadow: 0 0 16px rgba(255, 107, 157, 0.2);
+}
+
+.live-pad:active {
+  transform: scale(0.96);
+}
+
+.live-pad-active {
+  border-color: #ff6b9d;
+  box-shadow: 0 0 20px rgba(255, 107, 157, 0.4), inset 0 0 12px rgba(255, 107, 157, 0.1);
+}
+
+.live-pad-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e6ed;
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.live-pad-meta {
+  font-size: 10px;
+  color: #7a8ea3;
+  text-align: center;
+}
+
+.live-pad-active .live-pad-name {
+  color: #ff6b9d;
+}
+
+body[data-mode="live"] .engine-select-group,
+body[data-mode="live"] .visual-mode-group {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.playlist-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 12px;
+}
+
+.playlist-entry:hover {
+  background: rgba(255, 107, 157, 0.1);
+}
+
+.playlist-entry-active {
+  background: rgba(255, 107, 157, 0.15);
+  border-left: 2px solid #ff6b9d;
+}
+
+.playlist-index {
+  color: #5a6f82;
+  font-size: 10px;
+  min-width: 20px;
+  text-align: right;
+}
+
+.playlist-name {
+  flex: 1;
+  color: #c9d5e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-energy {
+  font-size: 10px;
+  color: #5a6f82;
+  text-transform: uppercase;
+}
+
+.playlist-entry-active .playlist-name {
+  color: #ff6b9d;
+}

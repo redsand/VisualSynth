@@ -288,6 +288,22 @@ const mixerRight = document.getElementById('mode-mixer-right') as HTMLDivElement
 const mappingRight = document.getElementById('mode-mapping-right') as HTMLDivElement;
 const systemLeft = document.getElementById('mode-system-left') as HTMLDivElement;
 const systemRight = document.getElementById('mode-system-right') as HTMLDivElement;
+const liveLeft = document.getElementById('mode-live-left') as HTMLDivElement;
+const liveRight = document.getElementById('mode-live-right') as HTMLDivElement;
+const livePadGrid = document.getElementById('live-pad-grid') as HTMLDivElement;
+const liveSortSelect = document.getElementById('live-sort') as HTMLSelectElement;
+const livePlaylistDuration = document.getElementById('live-playlist-duration') as HTMLInputElement;
+const livePlaylistTransition = document.getElementById('live-playlist-transition') as HTMLInputElement;
+const livePlaylistPlay = document.getElementById('live-playlist-play') as HTMLButtonElement;
+const livePlaylistStop = document.getElementById('live-playlist-stop') as HTMLButtonElement;
+const livePlaylistList = document.getElementById('live-playlist-list') as HTMLDivElement;
+const liveActiveInfo = document.getElementById('live-active-info') as HTMLDivElement;
+const liveMacroEnergy = document.getElementById('live-macro-energy') as HTMLInputElement;
+const liveMacroSpeed = document.getElementById('live-macro-speed') as HTMLInputElement;
+const liveMacroColor = document.getElementById('live-macro-color') as HTMLInputElement;
+const liveMacroDepth = document.getElementById('live-macro-depth') as HTMLInputElement;
+const livePaletteGrid = document.getElementById('live-palette-grid') as HTMLDivElement;
+const liveFxList = document.getElementById('live-fx-list') as HTMLDivElement;
 const sceneStrip = document.getElementById('scene-strip') as HTMLDivElement | null;
 const sceneStripAnchor = document.getElementById('scene-strip-anchor') as HTMLDivElement;
 const sceneStripCards = document.getElementById('scene-strip-cards') as HTMLDivElement | null;
@@ -1791,8 +1807,10 @@ const setMode = (mode: UiMode) => {
   designRight.classList.toggle('hidden', !visibility.design);
   systemLeft.classList.toggle('hidden', !visibility.system);
   systemRight.classList.toggle('hidden', !visibility.system);
+  liveLeft.classList.toggle('hidden', !visibility.live);
+  liveRight.classList.toggle('hidden', !visibility.live);
   presetExplorer?.classList.toggle('hidden', mode !== 'performance');
-  macroHero?.classList.toggle('hidden', mode === 'design' || mode === 'mapping' || mode === 'system');
+  macroHero?.classList.toggle('hidden', mode === 'design' || mode === 'mapping' || mode === 'system' || mode === 'live');
   matrixControls?.classList.toggle('hidden', mode !== 'mapping');
   if (visualPreview && mappingPreviewHost && centerPanel && visualPreviewParent) {
     if (mode === 'mapping') {
@@ -1812,6 +1830,13 @@ const setMode = (mode: UiMode) => {
   }
   if (mode === 'mapping') {
     renderMappingSources();
+  }
+  if (mode === 'live') {
+    renderLivePadGrid();
+    renderLivePaletteGrid();
+    renderLiveFxToggles();
+    renderLivePlaylistList();
+    syncLiveMacrosFromProject();
   }
 };
 
@@ -2169,6 +2194,195 @@ const renderPresetPreview = () => {
   presetFavoriteButton.innerHTML = presetFavorites.includes(preset.path)
     ? '<span class="preset-action-icon">♥</span><span>Unfavorite</span>'
     : '<span class="preset-action-icon">♥</span><span>Favorite</span>';
+};
+
+const getLivePresets = () => presetLibrary.filter(p => p.presetMode === 'live');
+
+let livePlaylistActive = false;
+let livePlaylistIndex = 0;
+let livePlaylistTimer: ReturnType<typeof setTimeout> | null = null;
+let activeLivePresetPath = '';
+
+const renderLivePadGrid = () => {
+  const presets = getLivePresets();
+  const sortKey = liveSortSelect?.value ?? 'name';
+  const sorted = [...presets].sort((a, b) => {
+    if (sortKey === 'bpm') {
+      const bpmA = parseInt(a.searchText.match(/(\d{2,3})\s*bpm/i)?.[1] ?? '120');
+      const bpmB = parseInt(b.searchText.match(/(\d{2,3})\s*bpm/i)?.[1] ?? '120');
+      return bpmA - bpmB;
+    }
+    if (sortKey === 'energy') {
+      const energyOrder = { low: 0, medium: 1, high: 2, peak: 3 };
+      return (energyOrder[a.energy] ?? 0) - (energyOrder[b.energy] ?? 0);
+    }
+    if (sortKey === 'pad') {
+      return (a.midiPadIndex ?? 99) - (b.midiPadIndex ?? 99);
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  livePadGrid.innerHTML = '';
+  if (sorted.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No live presets found. Add presets with presetMode: "live".';
+    livePadGrid.appendChild(empty);
+    return;
+  }
+
+  sorted.forEach((preset) => {
+    const pad = document.createElement('button');
+    pad.type = 'button';
+    pad.className = 'live-pad' + (preset.path === activeLivePresetPath ? ' live-pad-active' : '');
+    const hue = hashPreset(preset.name) % 360;
+    pad.style.setProperty('--pad-hue', String(hue));
+    pad.innerHTML = `
+      <span class="live-pad-name">${preset.name}</span>
+      <span class="live-pad-meta">${preset.energy ?? ''}${preset.midiPadIndex !== undefined ? ' · Pad ' + preset.midiPadIndex : ''}</span>
+    `;
+    pad.addEventListener('click', () => triggerLivePreset(preset));
+    livePadGrid.appendChild(pad);
+  });
+};
+
+const triggerLivePreset = async (preset: PresetIndexEntry) => {
+  activeLivePresetPath = preset.path;
+  renderLivePadGrid();
+
+  if (liveActiveInfo) {
+    liveActiveInfo.innerHTML = `<strong>${preset.name}</strong> · ${preset.category ?? ''}`;
+  }
+
+  await applyPresetPath(preset.path, 'Live Trigger');
+
+  renderLivePlaylistList();
+  renderLiveFxToggles();
+  syncLiveMacrosFromProject();
+
+  if (livePlaylistActive) {
+    scheduleNextLivePlaylistEntry();
+  }
+};
+
+const scheduleNextLivePlaylistEntry = () => {
+  if (livePlaylistTimer) clearTimeout(livePlaylistTimer);
+  const presets = getLivePresets();
+  if (presets.length === 0) return;
+  const bars = parseInt(livePlaylistDuration?.value ?? '8') || 8;
+  const bpm = currentProject.tempoSync?.bpm ?? 120;
+  const barMs = (60000 / bpm) * 4;
+  const durationMs = bars * barMs;
+
+  livePlaylistTimer = setTimeout(() => {
+    livePlaylistIndex = (livePlaylistIndex + 1) % presets.length;
+    triggerLivePreset(presets[livePlaylistIndex]);
+  }, durationMs);
+};
+
+const startLivePlaylist = () => {
+  livePlaylistActive = true;
+  const presets = getLivePresets();
+  if (presets.length === 0) {
+    setStatus('No live presets to play.');
+    livePlaylistActive = false;
+    return;
+  }
+  livePlaylistIndex = 0;
+  triggerLivePreset(presets[0]);
+  setStatus('Live playlist started.');
+};
+
+const stopLivePlaylist = () => {
+  livePlaylistActive = false;
+  if (livePlaylistTimer) {
+    clearTimeout(livePlaylistTimer);
+    livePlaylistTimer = null;
+  }
+  setStatus('Live playlist stopped.');
+};
+
+const renderLivePaletteGrid = () => {
+  if (!livePaletteGrid) return;
+  livePaletteGrid.innerHTML = '';
+  const palettes = currentProject.palettes ?? [];
+  palettes.forEach((palette) => {
+    const swatch = document.createElement('button');
+    swatch.type = 'button';
+    swatch.className = 'palette-swatch' + (palette.id === currentProject.activePaletteId ? ' active' : '');
+    swatch.title = palette.name;
+    const gradient = (palette.colors ?? []).map((c: string, i: number, arr: string[]) =>
+      `${c} ${(i / Math.max(arr.length - 1, 1)) * 100}%`
+    ).join(', ');
+    swatch.style.background = `linear-gradient(90deg, ${gradient})`;
+    swatch.addEventListener('click', async () => {
+      currentProject.activePaletteId = palette.id;
+      renderLivePaletteGrid();
+      await applyProject(currentProject);
+    });
+    livePaletteGrid.appendChild(swatch);
+  });
+};
+
+const renderLiveFxToggles = () => {
+  if (!liveFxList) return;
+  liveFxList.innerHTML = '';
+  const fxKeys = ['bloom', 'blur', 'chroma', 'posterize', 'kaleidoscope', 'feedback', 'persistence'] as const;
+  fxKeys.forEach((key) => {
+    const val = (currentProject.effects as any)?.[key] ?? 0;
+    const toggle = document.createElement('label');
+    toggle.className = 'scene-inline';
+    toggle.style.minWidth = '80px';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = val > 0;
+    cb.addEventListener('change', () => {
+      const newVal = cb.checked ? 0.3 : 0;
+      (currentProject.effects as any)[key] = newVal;
+      applyProject(currentProject);
+    });
+    const span = document.createElement('span');
+    span.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+    toggle.appendChild(cb);
+    toggle.appendChild(span);
+    liveFxList.appendChild(toggle);
+  });
+};
+
+const renderLivePlaylistList = () => {
+  if (!livePlaylistList) return;
+  livePlaylistList.innerHTML = '';
+  const presets = getLivePresets();
+  if (presets.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'matrix-empty';
+    empty.textContent = 'No live presets available.';
+    livePlaylistList.appendChild(empty);
+    return;
+  }
+  presets.forEach((preset, index) => {
+    const row = document.createElement('div');
+    row.className = 'playlist-entry' + (preset.path === activeLivePresetPath ? ' playlist-entry-active' : '');
+    row.innerHTML = `<span class="playlist-index">${index + 1}</span><span class="playlist-name">${preset.name}</span><span class="playlist-energy">${preset.energy}</span>`;
+    row.addEventListener('click', () => {
+      livePlaylistIndex = index;
+      triggerLivePreset(preset);
+    });
+    livePlaylistList.appendChild(row);
+  });
+};
+
+const syncLiveMacrosFromProject = () => {
+  const macros = currentProject.macros ?? [];
+  const inputs = [liveMacroEnergy, liveMacroSpeed, liveMacroColor, liveMacroDepth];
+  const valueIds = ['live-macro-energy-value', 'live-macro-speed-value', 'live-macro-color-value', 'live-macro-depth-value'];
+  inputs.forEach((input, i) => {
+    if (!input) return;
+    const v = macros[i]?.value ?? 0.5;
+    input.value = String(v);
+    const label = document.getElementById(valueIds[i]);
+    if (label) label.textContent = v.toFixed(2);
+  });
 };
 
 const captureCanvasSnapshot = () => {
@@ -10999,6 +11213,40 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+document.addEventListener('keydown', (event) => {
+  if (activeMode !== 'live') return;
+  const target = event.target as HTMLElement | null;
+  const isTypingTarget = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable;
+  if (isTypingTarget) return;
+
+  const presets = getLivePresets();
+  if (presets.length === 0) return;
+
+  const numMap: Record<string, number> = {
+    '1': 0, '2': 1, '3': 2, '4': 3, '5': 4,
+    '6': 5, '7': 6, '8': 7, '9': 8, '0': 9,
+    'q': 10, 'w': 11, 'e': 12, 'r': 13, 't': 14,
+    'y': 15, 'u': 16, 'i': 17, 'o': 18, 'p': 19
+  };
+  const key = event.key.toLowerCase();
+  if (key in numMap) {
+    const idx = numMap[key];
+    if (idx < presets.length) {
+      event.preventDefault();
+      livePlaylistIndex = idx;
+      triggerLivePreset(presets[idx]);
+    }
+  }
+  if (key === ' ') {
+    event.preventDefault();
+    if (livePlaylistActive) {
+      stopLivePlaylist();
+    } else {
+      startLivePlaylist();
+    }
+  }
+});
+
 if (applyTemplateButton) {
   applyTemplateButton.addEventListener('click', async () => {
     const templatePath = templateSelect.value;
@@ -11824,7 +12072,7 @@ toggleMidiButton.addEventListener('click', async () => {
 
 modeButtons.forEach((button) => {
   button.addEventListener('click', () => {
-    const mode = button.dataset.mode as 'performance' | 'scene' | 'design' | 'system';
+    const mode = button.dataset.mode as UiMode;
     setMode(mode);
   });
 });
@@ -13796,6 +14044,20 @@ const init = async () => {
   loadShaderDraft();
   syncVisualizerFromProject();
   setCaptureStatus('Idle');
+
+  liveSortSelect?.addEventListener('change', () => renderLivePadGrid());
+  livePlaylistPlay?.addEventListener('click', () => startLivePlaylist());
+  livePlaylistStop?.addEventListener('click', () => stopLivePlaylist());
+  [liveMacroEnergy, liveMacroSpeed, liveMacroColor, liveMacroDepth].forEach((control, index) => {
+    control?.addEventListener('input', () => {
+      const v = Number(control.value);
+      const label = document.getElementById(['live-macro-energy-value', 'live-macro-speed-value', 'live-macro-color-value', 'live-macro-depth-value'][index]);
+      if (label) label.textContent = v.toFixed(2);
+      if (index < (currentProject.macros?.length ?? 0)) {
+        updateMacroFromHero(index, v);
+      }
+    });
+  });
 
   updateLoadingProgress(10, 'Loading presets...');
   console.log('[Init] Starting initPresets...');

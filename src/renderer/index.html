@@ -28,6 +28,7 @@
         <div class="top-controls">
           <div id="mode-switcher" class="mode-switcher">
             <button type="button" class="mode-button active" data-mode="performance">Performance</button>
+            <button type="button" class="mode-button mode-button-live" data-mode="live">Live</button>
             <button type="button" class="mode-button" data-mode="mixer">Mixer</button>
             <button type="button" class="mode-button" data-mode="mapping">Mapping</button>
             <div class="mode-separator"></div>
@@ -177,6 +178,46 @@
               </div>
               <div id="pad-grid" class="pad-grid"></div>
               <div class="pad-hint">Pads 32-63 trigger strobe.</div>
+            </div>
+          </div>
+
+          <div id="mode-live-left" class="mode-pane hidden">
+            <h2>Live Mode</h2>
+            <div class="panel-block">
+              <div class="output-hint">Trigger single-shader presets instantly. Each pad loads one hero visual with full modulation.</div>
+            </div>
+            <div class="panel-block">
+              <h3>Preset Pads</h3>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Sort
+                  <select id="live-sort">
+                    <option value="name">Name</option>
+                    <option value="bpm">BPM</option>
+                    <option value="energy">Energy</option>
+                    <option value="pad">MIDI Pad</option>
+                  </select>
+                </label>
+              </div>
+              <div id="live-pad-grid" class="live-pad-grid"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Playlist</h3>
+              <div class="scene-row">
+                <label class="scene-inline">
+                  Duration (bars)
+                  <input id="live-playlist-duration" type="number" min="1" max="64" step="1" value="8" />
+                </label>
+                <label class="scene-inline">
+                  Transition (ms)
+                  <input id="live-playlist-transition" type="number" min="0" max="5000" step="50" value="200" />
+                </label>
+              </div>
+              <div class="scene-row">
+                <button id="live-playlist-play" type="button">Play</button>
+                <button id="live-playlist-stop" type="button">Stop</button>
+              </div>
+              <div id="live-playlist-list" class="marker-list"></div>
             </div>
           </div>
 
@@ -941,6 +982,47 @@
                 <button id="playlist-stop" type="button">Stop</button>
               </div>
               <div id="playlist-list" class="marker-list"></div>
+            </div>
+          </div>
+
+          <div id="mode-live-right" class="mode-pane hidden">
+            <h2>Live Macros</h2>
+            <div class="panel-block">
+              <h3>Quick Controls</h3>
+              <div class="macro-hero-grid">
+                <label class="macro-hero-item">
+                  <span>Energy</span>
+                  <input id="live-macro-energy" type="range" min="0" max="1" step="0.01" value="0.5" />
+                  <strong id="live-macro-energy-value">0.50</strong>
+                </label>
+                <label class="macro-hero-item">
+                  <span>Speed</span>
+                  <input id="live-macro-speed" type="range" min="0" max="1" step="0.01" value="0.5" />
+                  <strong id="live-macro-speed-value">0.50</strong>
+                </label>
+                <label class="macro-hero-item">
+                  <span>Color</span>
+                  <input id="live-macro-color" type="range" min="0" max="1" step="0.01" value="0.5" />
+                  <strong id="live-macro-color-value">0.50</strong>
+                </label>
+                <label class="macro-hero-item">
+                  <span>Depth</span>
+                  <input id="live-macro-depth" type="range" min="0" max="1" step="0.01" value="0.5" />
+                  <strong id="live-macro-depth-value">0.50</strong>
+                </label>
+              </div>
+            </div>
+            <div class="panel-block">
+              <h3>Effects</h3>
+              <div id="live-fx-list" class="scene-row" style="flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Color Palette</h3>
+              <div id="live-palette-grid" class="perf-palette-grid"></div>
+            </div>
+            <div class="panel-block">
+              <h3>Active Preset</h3>
+              <div id="live-active-info" class="output-hint">No preset loaded</div>
             </div>
           </div>
 

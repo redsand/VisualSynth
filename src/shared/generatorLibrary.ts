@@ -203,7 +203,17 @@ export type GeneratorId =
   | 'gen-ripple-pond'
   | 'gen-hex-grid'
   | 'gen-woven'
-  | 'gen-chromatic-aberr';
+  | 'gen-chromatic-aberr'
+  | 'gen-solar-flare'
+  | 'gen-clockwork'
+  | 'gen-god-rays'
+  | 'gen-dust-storm'
+  | 'gen-constellation'
+  | 'gen-mandelbrot'
+  | 'gen-whirlpool'
+  | 'gen-firework'
+  | 'gen-crystal-cave'
+  | 'gen-volcano';
 
 export interface GeneratorEntry {
   id: GeneratorId;
@@ -399,7 +409,17 @@ export const GENERATORS: GeneratorEntry[] = [
   { id: 'gen-ripple-pond', name: 'Generator: Ripple Pond' },
   { id: 'gen-hex-grid', name: 'Generator: Hex Grid' },
   { id: 'gen-woven', name: 'Generator: Woven' },
-  { id: 'gen-chromatic-aberr', name: 'Generator: Chromatic Aberr' }
+  { id: 'gen-chromatic-aberr', name: 'Generator: Chromatic Aberr' },
+  { id: 'gen-solar-flare', name: 'Generator: Solar Flare' },
+  { id: 'gen-clockwork', name: 'Generator: Clockwork' },
+  { id: 'gen-god-rays', name: 'Generator: God Rays' },
+  { id: 'gen-dust-storm', name: 'Generator: Dust Storm' },
+  { id: 'gen-constellation', name: 'Generator: Constellation' },
+  { id: 'gen-mandelbrot', name: 'Generator: Mandelbrot' },
+  { id: 'gen-whirlpool', name: 'Generator: Whirlpool' },
+  { id: 'gen-firework', name: 'Generator: Firework' },
+  { id: 'gen-crystal-cave', name: 'Generator: Crystal Cave' },
+  { id: 'gen-volcano', name: 'Generator: Volcano' }
 ];
 
 export const isVisibleGeneratorEntry = (entry: GeneratorEntry) => entry.visible !== false;
