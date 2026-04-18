@@ -107,10 +107,14 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     canvas.dispatchEvent(new CustomEvent('visualsynth-contextlost'));
   });
   canvas.addEventListener('webglcontextrestored', () => {
-    console.log('[GLRenderer] WebGL context restored — beginning rebuild');
+    console.log('[GLRenderer] WebGL context restored — deferring all GL rebuild');
     contextLost = false;
     contextRestoring = true;
-    // All GL resources are invalid after context loss — clear every cache
+
+    // --- Zero GL calls here — the D3D11 device may still be unstable immediately
+    // after the restored event fires (DXGI TDR recovery). Any GL call in this
+    // handler can trigger a second CONTEXT_LOST before the driver finishes reset.
+    // Only clear CPU-side caches; push every GL operation into the setTimeout. ---
     programCache.clear();
     activeUniformLookupCache.clear();
     uniformLocationCache.clear();
@@ -127,64 +131,71 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
     lastMilkDropComp = '';
     previousFrameWidth = 0;
     previousFrameHeight = 0;
-    // Clear any pending precompiles
     pendingPrecompiles.length = 0;
 
-    try {
-      // Recreate internal textures with fresh GL handles
-      createInternalTextures();
-      initInternalTextures();
+    // Clear CPU-side asset references (no gl.deleteTexture — context is gone)
+    assetCache.forEach(entry => { if (entry.texture) untrackTexture(entry.texture); });
+    assetCache.clear();
+    pendingAssetLoads.clear();
+    Object.keys(layerBindings).forEach(key => { delete layerBindings[key as AssetLayerId]; });
 
-      // Recreate position buffer (quad geometry)
-      positionBuffer = trackBuffer(gl.createBuffer());
-      if (positionBuffer) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+    // Give the GPU driver 500 ms to fully stabilize before issuing any GL work.
+    // A second context loss arriving within this window is handled by the contextlost
+    // listener resetting contextLost = true, which the guard below will catch.
+    let attempt = 0;
+    const tryRebuild = () => {
+      attempt++;
+      if (contextLost) {
+        console.warn(`[GLRenderer] Context re-lost before rebuild attempt ${attempt}; aborting`);
+        return;
       }
+      console.log(`[GLRenderer] WebGL rebuild attempt ${attempt}`);
+      try {
+        createInternalTextures();
+        initInternalTextures();
 
-      // Clear asset cache - all textures are invalid after context loss
-      assetCache.forEach(entry => {
-        if (entry.texture) {
-          untrackTexture(entry.texture);
-          // Don't call gl.deleteTexture here - context was lost, resources are already gone
+        positionBuffer = trackBuffer(gl.createBuffer());
+        if (positionBuffer) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
         }
-      });
-      assetCache.clear();
-      pendingAssetLoads.clear();
-      Object.keys(layerBindings).forEach(key => {
-        delete layerBindings[key as AssetLayerId];
-      });
 
-      console.log('[GLRenderer] WebGL context restore complete — deferring shader recompile');
-      // Defer shader compilation: yield to let the GPU driver fully stabilize before
-      // issuing new compile work, which could otherwise trigger an immediate second context loss.
-      setTimeout(() => {
-        if (contextLost) return; // lost again before we could recompile
-        try {
-          standardProgram = getOrCompileProgram(
-            currentActiveIds,
-            currentSdfUniforms,
-            currentSdfFunctions,
-            currentSdfMapBody,
-            currentPlasmaSource,
-            currentCustomBlocks,
-            false,
-            currentFxUniforms
-          );
-          currentProgram = standardProgram;
-          currentShaderVariantKey = standardProgram
-            ? shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomBlocksHash + currentFxUniforms)
-            : null;
-        } catch (compileErr) {
-          console.error('[GLRenderer] Deferred shader recompile failed:', compileErr);
+        standardProgram = getOrCompileProgram(
+          currentActiveIds,
+          currentSdfUniforms,
+          currentSdfFunctions,
+          currentSdfMapBody,
+          currentPlasmaSource,
+          currentCustomBlocks,
+          false,
+          currentFxUniforms
+        );
+        currentProgram = standardProgram;
+        currentShaderVariantKey = standardProgram
+          ? shaderCacheKey(currentActiveIds, currentSdfMapBody, currentPlasmaSource ?? '', currentCustomBlocksHash + currentFxUniforms)
+          : null;
+
+        if (gl.getError() !== gl.NO_ERROR && attempt < 3) {
+          // GL error during rebuild — driver still unstable, retry with backoff
+          console.warn(`[GLRenderer] GL error after rebuild attempt ${attempt}; retrying in ${attempt * 500}ms`);
+          setTimeout(tryRebuild, attempt * 500);
+          return;
         }
+
         contextRestoring = false;
+        console.log('[GLRenderer] WebGL context restore complete');
         canvas.dispatchEvent(new CustomEvent('visualsynth-contextrestored'));
-      }, 0);
-    } catch (err) {
-      console.error('[GLRenderer] Failed to restore WebGL context:', err);
-      contextRestoring = false;
-    }
+      } catch (err) {
+        if (attempt < 3) {
+          console.warn(`[GLRenderer] Rebuild attempt ${attempt} threw; retrying in ${attempt * 500}ms`, err);
+          setTimeout(tryRebuild, attempt * 500);
+        } else {
+          console.error('[GLRenderer] WebGL context restore failed after 3 attempts:', err);
+          contextRestoring = false;
+        }
+      }
+    };
+    setTimeout(tryRebuild, 500);
   });
 
   // --- Generator Diagnostics ---

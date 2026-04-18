@@ -51,6 +51,28 @@ export interface ExportResult {
   };
 }
 
+// AudioWorklet processor — loaded once as a blob URL to avoid file-system / CSP issues.
+const PCM_WORKLET_CODE = `
+class PcmCaptureProcessor extends AudioWorkletProcessor {
+  process(inputs) {
+    const channel = inputs[0]?.[0];
+    if (channel && channel.length > 0) {
+      this.port.postMessage(channel.slice());
+    }
+    return true; // stay alive until explicitly disconnected
+  }
+}
+registerProcessor('pcm-capture-processor', PcmCaptureProcessor);
+`;
+
+let _workletBlobUrl: string | null = null;
+const getWorkletUrl = (): string => {
+  if (!_workletBlobUrl) {
+    _workletBlobUrl = URL.createObjectURL(new Blob([PCM_WORKLET_CODE], { type: 'application/javascript' }));
+  }
+  return _workletBlobUrl;
+};
+
 const MIN_SAMPLES_FOR_SHAZAM = 48000; // 3 seconds at 16kHz
 const MIN_BYTES_PER_SECOND = 6000;
 const MIN_CHUNKS_FOR_6_SECONDS = 5;
@@ -295,25 +317,25 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
       await audioCtx.resume();
     }
 
+    await audioCtx.audioWorklet.addModule(getWorkletUrl());
+
     const source = audioCtx.createMediaElementSource(audio);
 
     const numSamples = Math.ceil(duration * targetSampleRate);
-    const buffer = audioCtx.createBuffer(1, numSamples, targetSampleRate);
-    const channelData = buffer.getChannelData(0);
+    const channelData = new Float32Array(numSamples);
 
     let writeIndex = 0;
-
-    const scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+    const workletNode = new AudioWorkletNode(audioCtx, 'pcm-capture-processor');
 
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        console.log(`[Now Playing] ScriptProcessor timeout: wrote ${writeIndex}/${numSamples} samples`);
+        console.log(`[Now Playing] AudioWorklet timeout: wrote ${writeIndex}/${numSamples} samples`);
         URL.revokeObjectURL(blobUrl);
         resolve();
       }, (duration + 2) * 1000);
 
-      scriptProcessor.onaudioprocess = (event) => {
-        const inputData = event.inputBuffer.getChannelData(0);
+      workletNode.port.onmessage = (e: MessageEvent<Float32Array>) => {
+        const inputData: Float32Array = e.data;
         const samplesToWrite = Math.min(inputData.length, numSamples - writeIndex);
         if (samplesToWrite > 0) {
           channelData.set(inputData.subarray(0, samplesToWrite), writeIndex);
@@ -339,8 +361,7 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
         reject(new Error('Audio playback error'));
       };
 
-      source.connect(scriptProcessor);
-      scriptProcessor.connect(audioCtx!.destination);
+      source.connect(workletNode);
 
       audio.play().catch((e) => {
         URL.revokeObjectURL(blobUrl);
@@ -349,11 +370,12 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
     });
 
     source.disconnect();
-    scriptProcessor.disconnect();
+    workletNode.disconnect();
+    workletNode.port.onmessage = null;
     audio.pause();
 
     const actualBuffer = audioCtx.createBuffer(1, writeIndex, targetSampleRate);
-    actualBuffer.copyToChannel(channelData.subarray(0, writeIndex), 0);
+    actualBuffer.getChannelData(0).set(channelData.subarray(0, writeIndex));
 
     await audioCtx.close();
 
@@ -536,7 +558,7 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
   // ── Parallel raw PCM capture for Shazam (bypasses WebM/Opus encoding) ──
   let pcmAudioCtx: AudioContext | null = null;
   let pcmSource: MediaStreamAudioSourceNode | null = null;
-  let pcmProcessor: ScriptProcessorNode | null = null;
+  let pcmProcessor: AudioWorkletNode | null = null;
   let pcmRing: Float32Array = new Float32Array(16000 * 30); // 30 seconds at 16kHz
   let pcmWritePos = 0;
   let pcmStartedAt = 0;
@@ -547,7 +569,11 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
   };
 
   const stopPcmCapture = () => {
-    if (pcmProcessor) { pcmProcessor.disconnect(); pcmProcessor = null; }
+    if (pcmProcessor) {
+      pcmProcessor.port.onmessage = null;
+      pcmProcessor.disconnect();
+      pcmProcessor = null;
+    }
     if (pcmSource) { pcmSource.disconnect(); pcmSource = null; }
     if (pcmAudioCtx && pcmAudioCtx.state !== 'closed') { pcmAudioCtx.close(); }
     pcmAudioCtx = null;
@@ -555,30 +581,29 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
 
   const startPcmCapture = (stream: MediaStream) => {
     stopPcmCapture();
-    try {
-      pcmAudioCtx = new AudioContext({ sampleRate: PCM_SAMPLE_RATE });
-      if (pcmAudioCtx.state === 'suspended') {
-        pcmAudioCtx.resume();
-      }
-      pcmSource = pcmAudioCtx.createMediaStreamSource(stream);
-      // 4096 buffer size = ~256ms at 16kHz
-      pcmProcessor = pcmAudioCtx.createScriptProcessor(4096, 1, 1);
-      pcmProcessor.onaudioprocess = (event) => {
-        const inputData = event.inputBuffer.getChannelData(0);
-        const now = Date.now();
-        if (pcmStartedAt === 0) pcmStartedAt = now;
+    const ctx = new AudioContext({ sampleRate: PCM_SAMPLE_RATE });
+    pcmAudioCtx = ctx;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    ctx.audioWorklet.addModule(getWorkletUrl()).then(() => {
+      if (pcmAudioCtx !== ctx) return; // stopped before module loaded
+      pcmSource = ctx.createMediaStreamSource(stream);
+      pcmProcessor = new AudioWorkletNode(ctx, 'pcm-capture-processor');
+      pcmProcessor.port.onmessage = (e: MessageEvent<Float32Array>) => {
+        const inputData: Float32Array = e.data;
+        if (pcmStartedAt === 0) pcmStartedAt = Date.now();
         for (let i = 0; i < inputData.length; i++) {
           pcmRing[pcmWritePos] = inputData[i];
           pcmWritePos = (pcmWritePos + 1) % pcmRing.length;
         }
       };
       pcmSource.connect(pcmProcessor);
-      pcmProcessor.connect(pcmAudioCtx.destination); // Required for ScriptProcessor to fire
-      console.log('[Now Playing] Raw PCM capture started at 16kHz');
-    } catch (e) {
+      // No destination connection needed — AudioWorkletNode processes without it
+      console.log('[Now Playing] Raw PCM capture started at 16kHz (AudioWorklet)');
+    }).catch((e) => {
       console.warn('[Now Playing] Failed to start PCM capture:', e);
       stopPcmCapture();
-    }
+    });
   };
 
   /**
