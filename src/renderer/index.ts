@@ -9373,27 +9373,32 @@ syncRendererPalette = () => {
 };
 
 const broadcastCurrentOutputState = () => {
-  if (!outputOpen || !lastOutputRenderState) return;
-  const broadcastScene =
-    currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
-    currentProject.scenes[0];
-  const generatorIds = broadcastScene ? collectSceneGeneratorIds(broadcastScene) : new Set<string>();
-  if (currentProject.sdf?.enabled) {
-    generatorIds.add('gen-sdf');
-  }
-  outputChannel.postMessage(
-    buildRendererOutputBroadcastPayload({
-      renderState: lastOutputRenderState,
-      project: currentProject,
-      scene: broadcastScene,
-      activePaletteId:
-        broadcastScene?.look?.activePaletteId ??
-        currentProject.activePaletteId,
-      activeGeneratorIds: [...generatorIds],
-      shaderVariantKey: getRendererShaderVariantKey(),
-      transition: getLatestTransitionPayload()
-    })
-  );
+  if (!outputOpen) return;
+  // Defer by one animation frame so lastOutputRenderState reflects the newly
+  // activated scene's uniforms rather than the previous scene's stale state.
+  requestAnimationFrame(() => {
+    if (!outputOpen || !lastOutputRenderState) return;
+    const broadcastScene =
+      currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId) ??
+      currentProject.scenes[0];
+    const generatorIds = broadcastScene ? collectSceneGeneratorIds(broadcastScene) : new Set<string>();
+    if (currentProject.sdf?.enabled) {
+      generatorIds.add('gen-sdf');
+    }
+    outputChannel.postMessage(
+      buildRendererOutputBroadcastPayload({
+        renderState: lastOutputRenderState,
+        project: currentProject,
+        scene: broadcastScene,
+        activePaletteId:
+          broadcastScene?.look?.activePaletteId ??
+          currentProject.activePaletteId,
+        activeGeneratorIds: [...generatorIds],
+        shaderVariantKey: getRendererShaderVariantKey(),
+        transition: getLatestTransitionPayload()
+      })
+    );
+  });
 };
 
 const applyPaletteSelection = (paletteId: string) => {
@@ -10190,12 +10195,18 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
     padStates[logicalIndex] = !padStates[logicalIndex];
     updatePadUI(localIndex, padStates[logicalIndex]);
     if (plasmaToggle) plasmaToggle.checked = padStates[logicalIndex];
+    const plasmaScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+    const plasmaLayer = plasmaScene?.layers.find((l) => l.id === 'layer-plasma');
+    if (plasmaLayer) plasmaLayer.enabled = padStates[logicalIndex];
     return;
   }
   if (action === 'toggle-spectrum') {
     padStates[logicalIndex] = !padStates[logicalIndex];
     updatePadUI(localIndex, padStates[logicalIndex]);
     if (spectrumToggle) spectrumToggle.checked = padStates[logicalIndex];
+    const spectrumScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+    const spectrumLayer = spectrumScene?.layers.find((l) => l.id === 'layer-spectrum');
+    if (spectrumLayer) spectrumLayer.enabled = padStates[logicalIndex];
     return;
   }
   if (action.startsWith('origami-')) {
@@ -11327,24 +11338,10 @@ const buildProjectSnapshotForSave = (): VisualSynthProject => {
     ...currentProject,
     updatedAt: now,
     output: outputConfig,
-    macros: currentProject.macros.map((macro, index) => ({
-      ...macro,
-      value: Number(macroInputs[index]?.value ?? macro.value)
-    })),
+    macros: currentProject.macros.map((macro) => ({ ...macro })),
     scenes: currentProject.scenes.map((scene) => ({
       ...scene,
-      layers: scene.layers.map((layer) => {
-        if (scene.id !== currentProject.activeSceneId) {
-          return { ...layer };
-        }
-        if (layer.id === 'layer-plasma') {
-          return { ...layer, enabled: plasmaToggle?.checked ?? layer.enabled };
-        }
-        if (layer.id === 'layer-spectrum') {
-          return { ...layer, enabled: spectrumToggle?.checked ?? layer.enabled };
-        }
-        return { ...layer };
-      })
+      layers: scene.layers.map((layer) => ({ ...layer }))
     }))
   };
 };
