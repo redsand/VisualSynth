@@ -82,7 +82,7 @@
           "name": "Sandstorm",
           "role": "core",
           "enabled": true,
-          "opacity": 1,
+          "opacity": 0.55,
           "blendMode": "screen",
           "transform": {
             "x": 0,
@@ -92,11 +92,11 @@
           },
           "generatorId": "gen-dust-storm",
           "params": {
-            "opacity": 1,
+            "opacity": 0.55,
             "speed": 2,
-            "density": 0.7,
+            "density": 0.35,
             "windAngle": 0.3,
-            "visibility": 0.4
+            "visibility": 0.15
           }
         }
       ]
@@ -193,7 +193,7 @@
         ]
       }
     ],
-    "activePaletteId": "heat",
+    "activePaletteId": "synthwave",
     "macros": [
       {
         "id": "macro-1",
@@ -266,8 +266,8 @@
       "chroma": 0.15,
       "posterize": 0.05,
       "kaleidoscope": 0,
-      "feedback": 0.1,
-      "persistence": 0.2
+      "feedback": 0,
+      "persistence": 0.1
     },
     "expressiveFx": {
       "enabled": true,
@@ -435,7 +435,7 @@
             "name": "Sandstorm",
             "role": "core",
             "enabled": true,
-            "opacity": 1,
+            "opacity": 0.55,
             "blendMode": "screen",
             "transform": {
               "x": 0,
@@ -445,11 +445,11 @@
             },
             "generatorId": "gen-dust-storm",
             "params": {
-              "opacity": 1,
+              "opacity": 0.55,
               "speed": 2,
-              "density": 0.7,
+              "density": 0.35,
               "windAngle": 0.3,
-              "visibility": 0.4
+              "visibility": 0.15
             }
           }
         ]
