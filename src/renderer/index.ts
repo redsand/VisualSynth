@@ -83,6 +83,7 @@ import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
 import type { Store } from './state/store';
 import { sessionHealthService } from './sessionHealthService';
 import { createTransitionTracer, type TransitionSource } from './render/transitionTracer';
+import { sessionLog, initSessionLog } from './sessionLog';
 
 declare global {
   interface Window {
@@ -1980,10 +1981,12 @@ const setMode = (mode: UiMode) => {
 
 const syncTempoInputs = (value: number) => {
   const normalized = Number.isFinite(value) ? value : 120;
+  const prevBpm = Number(tempoInput.value) || 120;
   tempoInput.value = String(normalized);
   if (bpmSource === 'manual') {
     transportBpmInput.value = String(normalized);
   }
+  sessionLog.log('info', 'audio.bpm_changed', { bpm: normalized, source: bpmSource, prevBpm });
 };
 
 const updateBpmSourceUI = () => {
@@ -2385,6 +2388,12 @@ const renderLivePadGrid = () => {
 };
 
 const triggerLivePreset = async (preset: PresetIndexEntry) => {
+  sessionLog.log('info', 'live.preset_triggered', {
+    presetPath: preset.path,
+    presetName: preset.name,
+    category: preset.category ?? '',
+    traceId: '',
+  });
   activeLivePresetPath = preset.path;
   renderLivePadGrid();
 
@@ -2427,6 +2436,9 @@ const startLivePlaylist = () => {
     return;
   }
   livePlaylistIndex = 0;
+  const bars = parseInt(livePlaylistDuration?.value ?? '8') || 8;
+  const transitionMs = parseInt(livePlaylistTransition?.value ?? '200') || 200;
+  sessionLog.log('info', 'live.playlist_started', { duration: bars, transition: transitionMs });
   triggerLivePreset(presets[0]);
   setStatus('Live playlist started.');
 };
@@ -2437,6 +2449,7 @@ const stopLivePlaylist = () => {
     clearTimeout(livePlaylistTimer);
     livePlaylistTimer = null;
   }
+  sessionLog.log('info', 'live.playlist_stopped', {});
   setStatus('Live playlist stopped.');
 };
 
@@ -2642,9 +2655,11 @@ const stopPlaylist = () => {
 const applyPresetPath = async (path: string, reason?: string) => {
   const traceId = createPresetTraceId();
   logPresetDebug(traceId, 'Loading preset', { path, reason });
+  sessionLog.log('info', 'preset.trigger', { path, traceId, reason: reason ?? '' });
   const result = await window.visualSynth.loadPreset(path);
   if (result.error) {
     logPresetError(traceId, 'Preset load failed', { path, error: result.error });
+    sessionLog.log('error', 'preset.load_failure', { path, traceId, error: result.error });
     setStatus(`Preset load failed: ${result.error}`);
     await ensureSafeVisuals(traceId, result.error);
     return;
@@ -2661,6 +2676,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
         errors: migrationResult.errors,
         warnings: migrationResult.warnings
       });
+      sessionLog.log('error', 'preset.migration_failed', { path, traceId, errors: migrationResult.errors });
       setStatus(`Preset migration failed: ${reasonText}`);
       await ensureSafeVisuals(traceId, reasonText);
       return;
@@ -2681,6 +2697,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
         errors: validationResult.errors,
         warnings: validationResult.warnings
       });
+      sessionLog.log('error', 'preset.validation_failed', { path, traceId, errors: validationResult.errors });
       await ensureSafeVisuals(traceId, reasonText);
       return;
     }
@@ -3583,7 +3600,10 @@ const logPresetError = (traceId: string, message: string, payload?: unknown) => 
 
 const ensureSafeVisuals = async (traceId: string, reason: string) => {
   logPresetError(traceId, 'Fallback to safe visuals', { reason });
-  if (projectSchema.safeParse(currentProject).success) {
+  const hadValidProject = projectSchema.safeParse(currentProject).success;
+  sessionLog.log('error', 'preset.safe_visuals_fallback', { traceId, reason, hadValidProject });
+  sessionLog.captureFailureSnapshot({ reason, traceId, hadValidProject });
+  if (hadValidProject) {
     setStatus(`Preset failed: ${reason}. Kept current visuals.`);
     return;
   }
@@ -6954,6 +6974,13 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean; tran
   const { scene } = activation;
 
   const prevScene = currentProject.scenes.find(s => s.id === currentProject.activeSceneId) ?? null;
+  sessionLog.log('info', 'scene.switch', {
+    fromSceneId: prevScene?.id ?? '',
+    fromSceneName: prevScene?.name ?? '',
+    toSceneId: sceneId,
+    toSceneName: scene.name,
+    source: options.transitionSource ?? 'manual',
+  });
   const prevGenIds = prevScene ? [...collectSceneGeneratorIds(prevScene)] : [];
   if (currentProject.sdf?.enabled) {
     prevGenIds.push('gen-sdf');
@@ -11104,6 +11131,7 @@ const setupAudio = async (deviceId?: string) => {
   const engine = getAudioEngineSafe();
   if (engine) {
     await engine.setup(deviceId);
+    sessionLog.log('info', 'audio.engine_init', { deviceId: deviceId ?? 'default', deviceLabel: '' });
     engine.updateNowPlayingSettings(nowPlayingSettings);
     engine.onSongChange(({ detectedAt }) => {
       if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
@@ -13472,6 +13500,7 @@ const render = (time: number) => {
   if (cadence.shouldUpdateWatchdog) {
     lastWatchdogUpdate = time;
     if (frameDropScore > 0.3) {
+      sessionLog.log('warn', 'perf.watchdog_alert', { frameDropScore, fps: currentFps });
       watchdogLabel.textContent = 'Watchdog: Frame drops detected — try lowering output scale.';
       watchdogLabel.classList.add('watchdog-warning');
       healthWatchdog.textContent = 'Watchdog: Warning';
@@ -14511,6 +14540,13 @@ const init = async () => {
   ensureVisualSynthBridge(window);
 
   try {
+    const sessionId = await window.visualSynth.getSessionId();
+    initSessionLog(sessionId);
+  } catch {
+    initSessionLog('unknown');
+  }
+
+  try {
     const savedNowPlayingSettings = await window.visualSynth.getNowPlayingSettings();
     applyNowPlayingSettings(savedNowPlayingSettings);
   } catch {
@@ -14657,6 +14693,7 @@ const init = async () => {
   } catch (e) {
     console.error('[Init] Audio setup error:', e);
     audioEngineFailed = true;
+    sessionLog.log('error', 'audio.engine_failure', { error: e instanceof Error ? e.message : String(e) });
     updateLoadingProgress(90, 'Audio setup failed (check permissions), continuing...');
   }
 

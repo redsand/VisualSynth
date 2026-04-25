@@ -29,6 +29,7 @@ import {
 import type { NowPlayingRecognitionRequest, NowPlayingSettings } from '../shared/nowPlaying';
 import { loadNowPlayingSettings, saveNowPlayingSettings } from './nowPlayingSettingsStore';
 import { installAndLaunchWhatsNowPlaying, openWhatsNowPlayingFolder } from './companionTools';
+import { initSessionLogger, sessionLogger } from './sessionLogger';
 
 const isDev = !app.isPackaged;
 
@@ -47,6 +48,7 @@ let prolinkModule: any | null = null;
 let lastMasterBpmAt = 0;
 const ASSET_STORAGE = path.join(app.getPath('userData'), 'assets');
 fs.mkdirSync(ASSET_STORAGE, { recursive: true });
+initSessionLogger(app.getPath('userData'));
 
 const clampScale = (value: number) => Math.min(1, Math.max(0.25, value));
 const captureFilters: Record<string, { name: string; extensions: string[] }> = {
@@ -222,6 +224,17 @@ const createOutputWindow = () => {
 };
 
 app.whenReady().then(() => {
+  const recoveryPath = path.join(app.getPath('userData'), 'sessions', 'recovery.json');
+  sessionLogger.writeEntry({
+    level: 'info',
+    event: 'session.start',
+    data: {
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      recoveryFound: fs.existsSync(recoveryPath),
+    },
+  });
+
   // Set up permission handler for media devices (microphone/camera)
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     // Always allow microphone and camera access
@@ -265,6 +278,8 @@ let closeConfirmed = false;
 
 app.on('before-quit', async () => {
   await cleanupOutputIntegrations();
+  sessionLogger.writeEntry({ level: 'info', event: 'session.end', data: { reason: 'normal' } });
+  await sessionLogger.flushAndClose();
 });
 
 const clearRecoverySession = () => {
@@ -1276,4 +1291,17 @@ ipcMain.handle('screenshot:capture-automated', async (_event, data: Uint8Array, 
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
+});
+
+// ---------------------------------------------------------------------------
+// Session logging IPC handlers
+// ---------------------------------------------------------------------------
+ipcMain.on('session-log:write', (_event, entry: object) => {
+  setImmediate(() => sessionLogger.writeEntry(entry as any));
+});
+
+ipcMain.handle('session:get-id', () => sessionLogger.getSessionId());
+
+ipcMain.on('session-log:write-snapshot', (_event, snapshot: object) => {
+  setImmediate(() => sessionLogger.writeFailureSnapshot(snapshot as Record<string, unknown>));
 });

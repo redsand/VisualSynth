@@ -9,6 +9,7 @@ import type {
   SerializedOutputAsset
 } from './render/outputPayload';
 import { OutputDiagnostics } from './outputDiagnostics';
+import { sessionLog, initSessionLog } from './sessionLog';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
 const outputOverlayCanvas = document.getElementById('output-overlay-canvas') as HTMLCanvasElement;
@@ -25,6 +26,16 @@ const recentTransitions: OutputTransitionPayload[] = [];
 const MAX_RECENT_TRANSITIONS = 20;
 let lastTransition: OutputTransitionPayload | null = null;
 let lastShaderVariant: OutputShaderVariantPayload | null = null;
+
+// Initialize session log for the output window
+void (async () => {
+  try {
+    const sessionId = await (window as any).visualSynth?.getSessionId?.() ?? 'output-unknown';
+    initSessionLog(sessionId);
+  } catch {
+    initSessionLog('output-unknown');
+  }
+})();
 
 // Expose diagnostics globally for DevTools inspection
 (window as any).__outputDiagnostics = diag;
@@ -241,6 +252,7 @@ const applyGeneratorIds = (ids: string[], shaderVariant?: OutputShaderVariantPay
 // ----- Canvas resize heartbeat
 canvas.addEventListener('visualsynth-contextlost', () => {
   diag.logEvent('context-lost');
+  sessionLog.log('error', 'output.context_lost', { frameCount });
 });
 canvas.addEventListener('visualsynth-contextrestored', () => {
   diag.logEvent('context-restored');
@@ -255,6 +267,7 @@ try {
     onError: (msg, type) => {
       diag.logEvent('shader-compile-failed', `${type}: ${msg.slice(0, 120)}`);
       console.error(`[Output] Shader ${type} error:`, msg);
+      sessionLog.log('error', 'output.shader_compile_failed', { detail: msg.slice(0, 256) });
     }
   });
 } catch (error) {
@@ -553,6 +566,7 @@ const checkMessageStaleness = (now: number) => {
     if (now - lastStaleWarningAt > MESSAGE_STALE_THRESHOLD_MS) {
       lastStaleWarningAt = now;
       diag.logEvent('message-stale', `${Math.round(now - lastMessageAt)}ms since last message`);
+      sessionLog.log('warn', 'output.message_stale', { ageMs: Math.round(now - lastMessageAt) });
     }
   }
 };
@@ -575,6 +589,15 @@ const updateFallbackState = (now: number) => {
     if (isDegraded && !fallbackActive) {
       diag.logEvent('fallback-triggered', `blank for ${Math.round(blankDuration)}ms`);
       console.warn(`[Output] DEGRADED — blank output for ${Math.round(blankDuration / 1000)}s`);
+      sessionLog.log('error', 'output.fallback_triggered', {
+        blankDurationMs: Math.round(blankDuration),
+        activeGenerators: lastActiveGeneratorIds,
+      });
+      sessionLog.captureFailureSnapshot({
+        reason: 'output.fallback_triggered',
+        blankDurationMs: Math.round(blankDuration),
+        activeGenerators: lastActiveGeneratorIds,
+      });
     }
 
     fallbackActive = isDegraded;
@@ -635,6 +658,12 @@ const render = (time: number) => {
 
     // On blank detection, emit a forensic snapshot (throttled)
     if (diag.isCurrentlyBlank) {
+      sessionLog.log('warn', 'output.blank_detected', {
+        classification: metrics.classification,
+        avgBrightness: metrics.avgBrightness,
+        nonBlackPercent: metrics.nonBlackPercent,
+        blankDurationMs: diag.lastGoodFrameMs > 0 ? Math.round(now - diag.lastGoodFrameMs) : 0,
+      });
       const snap = diag.captureForensicSnapshot({
         activeGenerators: lastActiveGeneratorIds,
         canvasWidth: canvas.width,

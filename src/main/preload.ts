@@ -148,5 +148,9 @@ contextBridge.exposeInMainWorld('visualSynth', {
   },
   sendAuddDecodeResult: (requestId: string, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
     ipcRenderer.send(requestId, result);
-  }
+  },
+  // Session logging — fire-and-forget (ipcRenderer.send, never blocks renderer)
+  writeSessionLog: (entry: object) => ipcRenderer.send('session-log:write', entry),
+  getSessionId: () => ipcRenderer.invoke('session:get-id') as Promise<string>,
+  writeFailureSnapshot: (snapshot: object) => ipcRenderer.send('session-log:write-snapshot', snapshot),
 });
