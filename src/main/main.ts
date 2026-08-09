@@ -75,6 +75,14 @@ const getProlinkModule = async () => {
 
 const runFfmpeg = (inputPath: string, outputPath: string) =>
   new Promise<void>((resolve, reject) => {
+    // Drain stderr (ffmpeg writes progress at the default log level) and ignore
+    // stdout/stdin. With default piped stdio that is never read, a long recording's
+    // stderr volume exceeds the OS pipe buffer (~64 KB on Windows); ffmpeg then
+    // blocks on the stderr write and never exits — hanging the transcode, leaving
+    // the renderer stuck on "Recording...", and leaking the temp dir because the
+    // surrounding finally never runs. Drain stderr into a buffer so non-zero exits
+    // also surface a useful message.
+    let stderrText = '';
     const ffmpeg = spawn('ffmpeg', [
       '-y',
       '-i',
@@ -84,11 +92,16 @@ const runFfmpeg = (inputPath: string, outputPath: string) =>
       '-pix_fmt',
       'yuv420p',
       outputPath
-    ]);
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    ffmpeg.stderr.on('data', (chunk: Buffer) => {
+      stderrText += chunk.toString();
+      // Cap accumulation so a pathological run can't grow memory unbounded.
+      if (stderrText.length > 8192) stderrText = stderrText.slice(-8192);
+    });
     ffmpeg.on('error', (error) => reject(error));
     ffmpeg.on('close', (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with code ${code ?? 'unknown'}`));
+      else reject(new Error(`ffmpeg exited with code ${code ?? 'unknown'}${stderrText ? `: ${stderrText.trim().slice(-500)}` : ''}`));
     });
   });
 
@@ -567,7 +580,13 @@ ipcMain.handle('project:save-as', async (_event, payload: string) => {
     return { canceled: true };
   }
   try {
-    writeFileAtomic(result.filePath, payload);
+    // Run the payload through buildPortableProjectPayload so the saved-as file
+    // rewrites asset/overlay paths to be relative to the new location, matching
+    // project:save and preset:save. Without this, Save As kept the old (often
+    // absolute / original-project-relative) asset paths and bundled no assets/,
+    // so moving or sharing the saved-as file lost every texture/video/overlay.
+    const portablePayload = buildPortableProjectPayload(payload, result.filePath);
+    writeFileAtomic(result.filePath, portablePayload);
     return { canceled: false, filePath: result.filePath };
   } catch (error) {
     return { canceled: true, error: error instanceof Error ? error.message : String(error) };
@@ -709,8 +728,16 @@ ipcMain.handle('capture:save', async (_event, data: Uint8Array, defaultName: str
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, Buffer.from(data));
-  return { canceled: false, filePath: result.filePath };
+  try {
+    fs.writeFileSync(result.filePath, Buffer.from(data));
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    // Disk full / permission denied / target folder removed between dialog
+    // selection and write. Previously this threw an unhandled rejection and left
+    // the renderer stuck on "Capturing screenshot..."/"Recording...". Return a
+    // structured error so callers can surface it (matching capture:transcode).
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('capture:transcode', async (_event, data: Uint8Array, defaultName: string) => {

@@ -1342,6 +1342,11 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
 
 // AudD file decode handler - extracts a clip from longer files
 (window as any).visualSynth?.onAuddDecodeFile?.(async (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => {
+  // Declare audioCtx outside the try so any later step throwing (after a
+  // successful decodeAudioData) still gets cleaned up. Previously audioCtx was
+  // block-scoped inside the try and the outer catch couldn't close it, leaking
+  // an AudioContext (and its audio-hardware handle) on every post-decode failure.
+  let audioCtx: AudioContext | null = null;
   try {
     const { requestId, fileBase64, seekSeconds, durationSeconds } = data;
 
@@ -1357,13 +1362,12 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
     const arrayBuffer = await blob.arrayBuffer();
 
     // Decode audio data
-    const audioCtx = new AudioContext();
+    audioCtx = new AudioContext();
     let decoded: AudioBuffer;
     try {
       decoded = await audioCtx.decodeAudioData(arrayBuffer);
     } catch {
       (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, { base64: null, mimeType: '', durationMs: 0, error: 'Failed to decode audio file' });
-      await audioCtx.close();
       return;
     }
 
@@ -1404,8 +1408,6 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
       mimeType: 'audio/wav',
       durationMs: actualDurationMs
     });
-
-    await audioCtx.close();
   } catch (error) {
     const requestId = (data as any).requestId;
     (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, {
@@ -1414,6 +1416,10 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
       durationMs: 0,
       error: (error as Error).message
     });
+  } finally {
+    if (audioCtx) {
+      try { await audioCtx.close(); } catch { /* already closing/failed */ }
+    }
   }
 });
 
@@ -3767,6 +3773,16 @@ const addSceneFromSourceProject = (
       support: sourceScene.assigned_layers?.support ?? [],
       atmosphere: sourceScene.assigned_layers?.atmosphere ?? []
     },
+    // Carry over scene-scoring / classification metadata so imported scenes keep
+    // their depth/complexity scores and tags. Without these, SceneManager
+    // .getNextBestScene scores imported scenes as zero and calculateSimilarity
+    // never matches their (undefined) tags, so auto-switch systematically
+    // deprioritizes every imported scene — and the schema's .default(0)/([])
+    // would bake those zeros in on the next save.
+    certification: sourceScene.certification ? cloneValue(sourceScene.certification) : undefined,
+    depthScore: sourceScene.depthScore,
+    complexity: sourceScene.complexity,
+    tags: sourceScene.tags ? [...sourceScene.tags] : undefined,
     layers: sourceScene.layers.map((layer) => {
       const cloned = cloneLayerConfig(layer);
       if (cloned.assetId && assetIdMap.has(cloned.assetId)) {
@@ -6448,7 +6464,13 @@ const startRecording = () => {
     if (event.data.size > 0) recordingChunks.push(event.data);
   };
   mediaRecorder.onstop = async () => {
-    const blob = new Blob(recordingChunks, { type: 'video/webm' });
+    // Snapshot the chunks and release the module-level array immediately. A
+    // rapid stop->start calls startRecording (which does `recordingChunks = []`)
+    // before this onstop fires; without the snapshot the Blob read the now-empty
+    // array and saved a 0-byte file, silently discarding the previous recording.
+    const chunks = recordingChunks;
+    recordingChunks = [];
+    const blob = new Blob(chunks, { type: 'video/webm' });
     const buffer = new Uint8Array(await blob.arrayBuffer());
     const format = captureFormatSelect.value as 'webm' | 'mp4';
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -6462,7 +6484,7 @@ const startRecording = () => {
           `visualsynth-recording-${timestamp}.webm`,
           'webm'
         );
-        if (fallback.canceled) setCaptureStatus('Recording canceled.');
+        if (fallback.canceled) setCaptureStatus(fallback.error ? `Recording failed: ${fallback.error}` : 'Recording canceled.');
       } else if (result.canceled) {
         // Save dialog dismissed — recording was not written. Without this the
         // status stayed stuck on "Recording..." after the onstop fired.
@@ -6472,10 +6494,12 @@ const startRecording = () => {
       }
     } else {
       const result = await window.visualSynth.saveCapture(buffer, defaultName, 'webm');
-      if (result.canceled) setCaptureStatus('Recording canceled.');
+      if (result.canceled) setCaptureStatus(result.error ? `Recording failed: ${result.error}` : 'Recording canceled.');
       else setCaptureStatus('Recording saved.');
     }
-    recordingChunks = [];
+    // NOTE: do NOT reset recordingChunks here — we already released it at the
+    // top of onstop. A reset here would wipe a NEW recording's chunks if the user
+    // started recording again during the async transcode/save above.
   };
   mediaRecorder.start();
   recordingStartedAt = performance.now();
@@ -6511,7 +6535,9 @@ const takeScreenshot = async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const defaultName = `visualsynth-screenshot-${timestamp}.png`;
     const result = await window.visualSynth.saveCapture(buffer, defaultName, 'png');
-    if (!result.canceled) {
+    if (result.canceled) {
+      setCaptureStatus(result.error ? `Screenshot failed: ${result.error}` : 'Screenshot canceled.');
+    } else {
       setCaptureStatus('Screenshot saved.');
     }
   }, 'image/png');
