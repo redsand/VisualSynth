@@ -1027,6 +1027,12 @@ const astTransform = (source: string): string => {
               }
             }
           }
+          // The declaration is now `vec3 ret`; reflect that in the type map so
+          // later passes (e.g. Pass 11 vec-constructor arg sizing) infer `ret`
+          // as 3 components. Without this, `vec4(ret, 1.0)` (built by Pass 5)
+          // reads as 4+1=5 components and Pass 11 swizzles `ret` down to `.xy`,
+          // producing the invalid `vec4(ret.xy, 1.0)` (only 3 components).
+          typeMap.set(decls[0].identifier.identifier, 3);
         }
       },
     },
@@ -1099,6 +1105,38 @@ const astTransform = (source: string): string => {
     },
   });
 
+  // ── Pass 7.5: matching-dim fn scalar arg widening ──
+  // dot/cross/distance/reflect require both args to share a dimension, so
+  // `dot(vec3, float)` is invalid GLSL. When exactly one arg is scalar (dim 1)
+  // and the other is a vector (dim 2-4), widen the scalar to vecN(scalar) so
+  // the dimensions match. (refract/faceforward are excluded: their last arg
+  // is an intentionally-scalar eta/Nref-like operand, not a matching-dim pair.)
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (name !== 'dot' && name !== 'cross' && name !== 'distance' && name !== 'reflect') return;
+        const args = getArgs(p.node);
+        if (args.length !== 2) return;
+        const aDim = inferDim(args[0], typeMap);
+        const bDim = inferDim(args[1], typeMap);
+        // One side scalar (1), the other a true vector (2-4). Matrices are
+        // dim >= 4 in typeMap and are left untouched (a mat operand makes the
+        // call a matrix builtin, not something to coerce here).
+        const vecDim = Math.max(aDim, bDim);
+        if (vecDim < 2 || vecDim > 3) return;
+        const allArgs = p.node.args;
+        if (aDim === 1 && bDim >= 2 && bDim <= 3) {
+          const idx = allArgs.indexOf(args[0]);
+          if (idx !== -1) allArgs[idx] = mkFnCall(`vec${bDim}`, [args[0]], ' ') as unknown as AstNode;
+        } else if (bDim === 1 && aDim >= 2 && aDim <= 3) {
+          const idx = allArgs.indexOf(args[1]);
+          if (idx !== -1) allArgs[idx] = mkFnCall(`vec${aDim}`, [args[1]], ' ') as unknown as AstNode;
+        }
+      },
+    },
+  });
+
   // ── Pass 8: ret = scalar_fn(...) → ret = vec3(scalar_fn(...)) ──
   visit(ast, {
     assignment: {
@@ -1112,6 +1150,102 @@ const astTransform = (source: string): string => {
         const rightDim = inferDim(right, typeMap);
         if (rightDim === 1) {
           (p.node as any).right = mkFnCall('vec3', [right], ' ') as unknown as AstNode;
+        }
+      },
+    },
+  });
+
+  // ── Pass 8.5: vec2-context binary lowering ──
+  // A vec2 assignment/declaration whose RHS is built from vec3-returning calls
+  // (GetPixel/GetBlurN/GetMain) and scalars otherwise comes out as vec3 and is
+  // assigned to a vec2 target — invalid GLSL. Lower the whole RHS to vec2 in
+  // place: swizzle each vec3-returning call to .xy, and widen a bare scalar
+  // +/- operand to vec2(scalar). `*`/`/` scalar multipliers stay scalar
+  // (component-wise), and existing swizzles are left alone. Runs before Pass 9
+  // so the rebalancer sees matching vec2 dims and does not pad to vec3.
+  const lowerToVec2 = (node: AstNode): AstNode => {
+    if (!node) return node;
+    switch (node.type) {
+      case 'postfix':
+        // Already swizzled/indexed — never add a second swizzle.
+        return node;
+      case 'function_call': {
+        const fn = getFnName(node as FunctionCallNode);
+        if (VEC3_FNS.has(fn)) {
+          return mkPostfixSwizzle(node, 'xy') as unknown as AstNode;
+        }
+        return node;
+      }
+      case 'group': {
+        (node as any).expression = lowerToVec2((node as any).expression);
+        // A widened `vecN(scalar)` at the very start of the group has no
+        // leading whitespace of its own (function_call emits none), so the
+        // space before it must live on the group's `(`. If the group's
+        // expression now begins with such a widened scalar call, add it.
+        let leaf: AstNode | undefined = (node as any).expression;
+        while (leaf && (leaf.type === 'binary' || leaf.type === 'group' || leaf.type === 'unary')) {
+          leaf = (leaf as any).type === 'group' || (leaf as any).type === 'unary'
+            ? (leaf as any).expression
+            : (leaf as any).left;
+        }
+        if (leaf && leaf.type === 'function_call') {
+          const fn = getFnName(leaf as FunctionCallNode);
+          const la = getArgs(leaf as FunctionCallNode);
+          if ((fn === 'vec2' || fn === 'vec3') && la.length === 1 && inferDim(la[0], typeMap) === 1) {
+            ((node as any).lp as any).whitespace = ' ';
+          }
+        }
+        return node;
+      }
+      case 'unary': {
+        (node as any).expression = lowerToVec2((node as any).expression);
+        return node;
+      }
+      case 'binary': {
+        const bn = node as BinaryNode;
+        const bop = bn.operator.literal;
+        if (['+', '-', '*', '/'].includes(bop)) {
+          bn.left = lowerToVec2(bn.left);
+          bn.right = lowerToVec2(bn.right);
+          if (bop === '+' || bop === '-') {
+            const lDim = inferDim(bn.left, typeMap);
+            const rDim = inferDim(bn.right, typeMap);
+            // Only widen a bare scalar +/- operand; `scalar * vec2` stays scalar.
+            if (lDim === 1 && rDim >= 2 && rDim <= 3) {
+              const widened = mkFnCall('vec2', [bn.left], ' ') as unknown as FunctionCallNode;
+              (widened.rp as any).whitespace = ' ';
+              bn.left = widened as unknown as AstNode;
+              (bn.operator as any).whitespace = ' ';
+            } else if (rDim === 1 && lDim >= 2 && lDim <= 3) {
+              bn.right = mkFnCall('vec2', [bn.right], ' ') as unknown as AstNode;
+              (bn.operator as any).whitespace = ' ';
+            }
+          }
+        }
+        return bn;
+      }
+      default:
+        return node;
+    }
+  };
+
+  visit(ast, {
+    assignment: {
+      enter: (p) => {
+        const a = p.node as AssignmentNode;
+        if (a.left.type !== 'identifier') return;
+        if (inferDim(a.left, typeMap) !== 2) return;
+        a.right = lowerToVec2(a.right);
+      },
+    },
+    declarator_list: {
+      enter: (p) => {
+        if (getTypeKeyword(p.node) !== 'vec2') return;
+        for (const d of (p.node as DeclaratorListNode).declarations) {
+          const decl = d as DeclarationNode;
+          if (decl.initializer) {
+            decl.initializer = lowerToVec2(decl.initializer as unknown as AstNode) as any;
+          }
         }
       },
     },
@@ -1135,7 +1269,29 @@ const astTransform = (source: string): string => {
         // Skip matrix types (dim >= 4) - mat*vec is valid GLSL
         if (leftDim >= 4 || rightDim >= 4) return;
         if (leftDim === rightDim) return;
-        if (leftDim === 1 || rightDim === 1) return; // GLSL allows vec * scalar
+        if (leftDim === 1 || rightDim === 1) {
+          // `vec * scalar` / `vec / scalar` (and the reverse) are valid GLSL
+          // applied component-wise — leave them alone. But `scalar +/- vec` is
+          // not portable across GLSL ES drivers, so widen the scalar operand to
+          // vecN(scalar). Matrices are dim >= 4 and already excluded above, so
+          // the non-scalar side here is a true vector (dim 2 or 3).
+          if (op === '*' || op === '/') return;
+          const vecDim = Math.max(leftDim, rightDim);
+          const vecType = `vec${vecDim}`;
+          if (leftDim === 1) {
+            const widened = mkFnCall(vecType, [left], ' ') as unknown as FunctionCallNode;
+            // glsl-parser stores whitespace as TRAILING; a function_call emits
+            // its closing `)` (rp) last, so the space before the operator lives
+            // on rp.whitespace. operator.whitespace is the space after it.
+            (widened.rp as any).whitespace = ' ';
+            p.node.left = widened as unknown as AstNode;
+            (p.node.operator as any).whitespace = ' ';
+          } else {
+            p.node.right = mkFnCall(vecType, [right], ' ') as unknown as AstNode;
+            (p.node.operator as any).whitespace = ' ';
+          }
+          return;
+        }
 
         // For vec2 + vec4 or vec3 + vec4, truncate the wider operand instead of padding
         // This preserves semantics better than padding with zeros

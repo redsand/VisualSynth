@@ -56,7 +56,7 @@ void main() {
     expect(patched).toContain('mix(vec3(dot(ret, vec3(0.3333))), ret, 3.0');
     expect(patched).toContain('mix(ret, vec3(lum(ret)), 0.2)');
     expect(patched).toContain('ret = vec3(1.0) - clamp01(ret);');
-    expect(patched).toContain('vec2 uv2 = uv*( vec2(1) - .2*GetBlur3(clamp01(ret.xy)).xy-.05*GetBlur1(clamp01(ret.xy)).xy);');
+    expect(patched).toContain('vec2 uv2 = uv*( vec2(1.0) - .2*GetBlur3(clamp01(ret.xy)).xy-.05*GetBlur1(clamp01(ret.xy)).xy);');
     expect(patched).toContain('uv2 += .1*GetBlur3(clamp01(ret.xy)).xy+.025*GetBlur1(clamp01(ret.xy)).xy;');
   });
 });
