@@ -968,6 +968,15 @@ const triggerPlaylistSlot = async (index: number) => {
 
   // applyScene handles transitions via sceneRuntime
   applyScene(scene.id);
+  // Carry live layer tweaks (recorded via recordPlaylistOverride while the
+  // playlist is running) into the newly-activated scene. The preset-based
+  // PlaylistManager path applies these in applyPresetPath; the legacy
+  // timer/manual path only swaps activeSceneId, so without this every live
+  // tweak was silently dropped on each slot change. No-op when the playlist
+  // isn't active (applyPlaylistOverrides early-returns).
+  applyPlaylistOverrides(currentProject);
+  renderLayerList();
+  syncPerformanceToggles();
   setStatus(`Playlist: ${scene.name}`);
   renderPlaylist();
 };
@@ -2653,8 +2662,12 @@ const renderPlaylist = () => {
     trigger.textContent = '▶';
     trigger.title = 'Activate scene';
     trigger.addEventListener('click', () => {
-      applyScene(scene.id);
-      setStatus(`Scene: ${scene.name}`);
+      // Route through triggerPlaylistSlot so playlistIndex and the active-slot
+      // highlight stay in sync with the manually-activated scene. Calling
+      // applyScene directly left playlistIndex pointing at the previous slot, so
+      // the ▶ highlight and any later ◀▶ / auto-advance worked off the wrong
+      // index.
+      void triggerPlaylistSlot(index);
     });
 
     row.appendChild(indexLabel);
@@ -3809,6 +3822,16 @@ const removeScene = (sceneId: string) => {
   } else {
     refreshSceneSelect();
   }
+  // The scene-strip ✕, the scene-list ✕, and the timeline onRemove all call
+  // removeScene directly. Previously only handleDeleteScene repaired the
+  // selection afterwards, so the strip/list delete paths left selectedSceneId
+  // pointing at the removed scene and never refreshed the dropdown / context
+  // panel (populateSceneSelectors highlighted a missing row). Re-target the
+  // selection at the new active scene and refresh selectors for every caller.
+  if (!selectedSceneId || !currentProject.scenes.some((s) => s.id === selectedSceneId)) {
+    selectedSceneId = currentProject.activeSceneId;
+  }
+  populateSceneSelectors();
   renderSceneStrip();
   renderPlaylist();
   setStatus('Scene removed.');
