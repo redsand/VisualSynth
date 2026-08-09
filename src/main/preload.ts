@@ -13,8 +13,11 @@ contextBridge.exposeInMainWorld('visualSynth', {
   autosaveProject: (payload: string) => ipcRenderer.invoke('project:autosave', payload),
   showSaveDialog: (isRecovery: boolean) => ipcRenderer.invoke('app:show-save-dialog', isRecovery) as Promise<{ result: 'save' | 'discard' | 'cancel' }>,
   confirmClose: () => ipcRenderer.invoke('app:confirm-close'),
-  onCloseRequested: (handler: () => void) =>
-    ipcRenderer.on('app:close-requested', () => handler()),
+  onCloseRequested: (handler: () => void) => {
+    // Dedup: re-registration (e.g. re-init) must replace, not stack, the listener.
+    ipcRenderer.removeAllListeners('app:close-requested');
+    ipcRenderer.on('app:close-requested', () => handler());
+  },
   savePreset: (payload: string, defaultName: string) =>
     ipcRenderer.invoke('preset:save', payload, defaultName),
   saveExchange: (payload: string, defaultName: string) =>
@@ -31,15 +34,21 @@ contextBridge.exposeInMainWorld('visualSynth', {
   listNodeMidi: () => ipcRenderer.invoke('midi:list-node'),
   openNodeMidi: (portIndex: number) => ipcRenderer.invoke('midi:open-node', portIndex),
   closeNodeMidi: () => ipcRenderer.invoke('midi:close-node'),
-  onNodeMidiMessage: (handler: (message: number[]) => void) =>
-    ipcRenderer.on('midi:node-message', (_event, message: number[]) => handler(message)),
+  onNodeMidiMessage: (handler: (message: number[]) => void) => {
+    // Dedup: reconnecting MIDI re-runs startMidiInput; without this, each
+    // reconnect stacks another listener and every MIDI message fires N times.
+    ipcRenderer.removeAllListeners('midi:node-message');
+    ipcRenderer.on('midi:node-message', (_event, message: number[]) => handler(message));
+  },
   getOutputConfig: () => ipcRenderer.invoke('output:get-config') as Promise<OutputConfig>,
   isOutputOpen: () => ipcRenderer.invoke('output:is-open') as Promise<boolean>,
   openOutput: (config: OutputConfig) => ipcRenderer.invoke('output:open', config),
   closeOutput: () => ipcRenderer.invoke('output:close'),
   setOutputConfig: (config: OutputConfig) => ipcRenderer.invoke('output:set-config', config),
-  onOutputClosed: (handler: () => void) =>
-    ipcRenderer.on('output:closed', () => handler()),
+  onOutputClosed: (handler: () => void) => {
+    ipcRenderer.removeAllListeners('output:closed');
+    ipcRenderer.on('output:closed', () => handler());
+  },
   listNetworkInterfaces: () => ipcRenderer.invoke('network:list-interfaces') as Promise<
     { name: string; address: string }[]
   >,
@@ -49,7 +58,10 @@ contextBridge.exposeInMainWorld('visualSynth', {
   stopNetworkBpm: () => ipcRenderer.invoke('bpm:network-stop'),
   onNetworkBpm: (
     handler: (payload: { bpm: number; deviceId: number; isMaster: boolean; isOnAir: boolean }) => void
-  ) => ipcRenderer.on('bpm:network', (_event, payload) => handler(payload)),
+  ) => {
+    ipcRenderer.removeAllListeners('bpm:network');
+    ipcRenderer.on('bpm:network', (_event, payload) => handler(payload));
+  },
   saveCapture: (data: Uint8Array, defaultName: string, format: 'png' | 'webm' | 'mp4') =>
     ipcRenderer.invoke('capture:save', data, defaultName, format),
   transcodeCapture: (
@@ -138,6 +150,7 @@ contextBridge.exposeInMainWorld('visualSynth', {
   }>,
   ndiSetSenderName: (name: string) => ipcRenderer.invoke('ndi:set-sender-name', name) as Promise<void>,
   onShazamDecodeFile: (callback: (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => void) => {
+    ipcRenderer.removeAllListeners('shazam:decode-file');
     ipcRenderer.on('shazam:decode-file', (_event, data) => callback(data));
   },
   sendShazamDecodeResult: (requestId: string, result: { pcmBase64: string | null; error?: string }) => {
@@ -145,6 +158,7 @@ contextBridge.exposeInMainWorld('visualSynth', {
   },
   // AudD file decode IPC channels
   onAuddDecodeFile: (callback: (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => void) => {
+    ipcRenderer.removeAllListeners('audd:decode-file');
     ipcRenderer.on('audd:decode-file', (_event, data) => callback(data));
   },
   sendAuddDecodeResult: (requestId: string, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
