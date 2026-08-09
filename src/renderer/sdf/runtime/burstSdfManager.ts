@@ -12,6 +12,7 @@ import {
   BurstEnvelopeParams,
   BurstEnvelopeState,
   BurstTrigger,
+  createBurstInstance,
   createDefaultBurstState,
   updateBurstEnvelope,
   getBurstTriggerValue,
@@ -227,6 +228,16 @@ export class BurstSdfManager {
    */
   setEnabled(enabled: boolean): void {
     this.state.enabled = enabled;
+    if (!enabled) {
+      // Clear any in-flight bursts so they stop rendering immediately. Without
+      // this, update()'s enabled early-return skips the deactivation loop, so
+      // activeNodes would stay populated and getActiveNodes() (which has no
+      // enabled guard) would keep returning the frozen shapes forever.
+      for (const burst of this.state.bursts) {
+        burst.activeNodes = new Array(burst.envelopeState.instances.length).fill(null);
+        burst.envelopeState.instances = burst.envelopeState.instances.map(() => createBurstInstance());
+      }
+    }
   }
 
   /**

@@ -425,13 +425,16 @@ export class RenderGraph {
       return false;
     }
 
-    const state = this.store.getState();
-    const runtime = state.runtime;
-
+    // Capture the absolute beat at trigger time using the real project BPM so
+    // updateMacro's elapsedBeats is relative to the trigger moment. Previously
+    // startBeat came from runtime.beatCount (never written anywhere -> always 0)
+    // while currentBeat was the absolute wall-clock beat count, so any timed
+    // macro (durationBeats > 0) jumped to progress=1 on the first frame.
+    const triggerTime = performance.now();
     this.macroState = {
       activeMacro: macro,
-      startTime: runtime.time ?? 0,
-      startBeat: runtime.beatCount ?? 0,
+      startTime: triggerTime,
+      startBeat: this.currentBeat(triggerTime),
       progress: 0,
       isRunning: macro.durationBeats > 0
     };
@@ -1397,7 +1400,7 @@ export class RenderGraph {
     this.updateBurstSdf(time, deltaSeconds);
 
     // Update running scene macros
-    const currentBeat = runtime.beatCount ?? Math.floor(time / 1000 * (runtime.bpm ?? 120) / 60);
+    const currentBeat = this.currentBeat(time);
     this.updateMacro(time, currentBeat);
 
     if (runtime.glyphBeatPulse > 0) {
@@ -2343,6 +2346,16 @@ export class RenderGraph {
     if (state.bpm.source === 'network' && state.bpm.networkBpm) return state.bpm.networkBpm;
     if (state.bpm.source === 'auto' && state.bpm.autoBpm) return state.bpm.autoBpm;
     return state.bpm.manualBpm || 120;
+  }
+
+  /**
+   * Absolute whole-beat count at a given wall-clock time (ms), using the active
+   * project BPM. Used by triggerMacro (to capture startBeat) and buildRenderState
+   * (to compute currentBeat) so timed-macro progress is relative to the trigger
+   * moment and tracks the real BPM, not the never-populated runtime.beatCount/bpm.
+   */
+  private currentBeat(time: number): number {
+    return Math.floor((time / 1000) * this.getActiveBpm() / 60);
   }
 }
 
