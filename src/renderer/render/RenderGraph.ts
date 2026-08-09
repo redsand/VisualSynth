@@ -1248,20 +1248,28 @@ export class RenderGraph {
 
     // Scene FX
     const scene = getActiveScene(project);
-    if (scene?.look?.effects) {
-      scene.look.effects.forEach((fx, i) => {
-        this.createFxNode('scene', `scene-${i}`, fx);
-      });
-    }
+    // `look.effects` is schema'd as EffectConfig[], but some migrated/legacy
+    // presets store a bare EffectConfig object. Coerce either shape to an
+    // array so a malformed preset doesn't crash the FX graph build with
+    // "effects.forEach is not a function".
+    const sceneEffects = scene?.look?.effects;
+    const sceneFxList = Array.isArray(sceneEffects)
+      ? sceneEffects
+      : (sceneEffects ? [sceneEffects] : []);
+    sceneFxList.forEach((fx: EffectConfig, i: number) => {
+      this.createFxNode('scene', `scene-${i}`, fx);
+    });
 
     // Layer FX
     if (scene?.layers) {
       scene.layers.forEach((layer) => {
-        if (layer.effects) {
-          layer.effects.forEach((fx, i) => {
-            this.createFxNode('layer', `${layer.id}-${i}`, fx);
-          });
-        }
+        const layerEffects = layer.effects;
+        const layerFxList = Array.isArray(layerEffects)
+          ? layerEffects
+          : (layerEffects ? [layerEffects] : []);
+        layerFxList.forEach((fx: EffectConfig, i: number) => {
+          this.createFxNode('layer', `${layer.id}-${i}`, fx);
+        });
       });
     }
     console.log(`[RenderGraph] Recreated ${this.activeFxNodes.size} FX nodes for scene: ${scene?.name}`);
@@ -1977,6 +1985,12 @@ export class RenderGraph {
       timeMs: state.transport.timeMs,
       rms: state.audio.rms,
       peak: state.audio.peak,
+      bass: state.audio.bass,
+      mid: state.audio.mid,
+      treb: state.audio.treb,
+      bassAtt: state.audio.bassAtt,
+      midAtt: state.audio.midAtt,
+      trebAtt: state.audio.trebAtt,
       strobe: runtime.strobeIntensity,
       plasmaEnabled,
       spectrumEnabled,

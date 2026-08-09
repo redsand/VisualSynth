@@ -12,12 +12,13 @@ import {
   OUTPUT_BASE_WIDTH,
   OutputConfig,
   AssetColorSpace,
+  DEFAULT_PROJECT,
   type OverlayConfig,
   type VisualSynthProject
 } from '../shared/project';
 import { deserializeProject, serializeProject } from '../shared/serialization';
 import { normalizeAssetPath } from '../shared/assets';
-import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
+import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema, migratePreset, applyPresetV6 } from '../shared/presetMigration';
 import { buildPresetIndexEntry } from '../shared/presetIndex';
 import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
 import {
@@ -166,7 +167,17 @@ const createWindow = () => {
   void mainWindow.loadFile(indexPath);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    // Only forward http/https URLs to the OS browser. Without this scheme
+    // validation, a page could open arbitrary-scheme URLs (file:, javascript:,
+    // custom handlers) via shell.openExternal.
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+        void shell.openExternal(url);
+      }
+    } catch {
+      /* malformed URL: ignore rather than forward */
+    }
     return { action: 'deny' };
   });
 
@@ -174,6 +185,19 @@ const createWindow = () => {
     if (!closeConfirmed) {
       event.preventDefault();
       mainWindow?.webContents.send('app:close-requested');
+      // Fallback: if the renderer never confirms within 5s (it may be hung,
+      // still saving, or the IPC listener is gone), force the close so the
+      // window does not hang open indefinitely.
+      if (!closeTimeout) {
+        closeTimeout = setTimeout(() => {
+          closeConfirmed = true;
+          closeTimeout = null;
+          try { mainWindow?.close(); } catch { /* window already gone */ }
+        }, 5000);
+      }
+    } else if (closeTimeout) {
+      clearTimeout(closeTimeout);
+      closeTimeout = null;
     }
   });
 
@@ -234,11 +258,25 @@ app.whenReady().then(() => {
       recoveryFound: fs.existsSync(recoveryPath),
     },
   });
+  // Gate media (microphone/camera) permission to the app's own local origin.
+  // The window loads from file://; any remote/unknown origin that ever ends up
+  // in a webContents must not be granted device access unconditionally.
+  const isLocalOrigin = (wc: Electron.WebContents | null): boolean => {
+    try {
+      const url = wc?.getURL?.() ?? '';
+      return (
+        url.startsWith('file://') ||
+        url.startsWith('http://localhost') ||
+        url.startsWith('http://127.0.0.1')
+      );
+    } catch {
+      return false;
+    }
+  };
 
   // Set up permission handler for media devices (microphone/camera)
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    // Always allow microphone and camera access
-    if (permission === 'media') {
+    if (permission === 'media' && isLocalOrigin(webContents)) {
       callback(true);
     } else {
       callback(false);
@@ -247,8 +285,7 @@ app.whenReady().then(() => {
 
   // Handle permission check requests
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    // Always allow microphone and camera access
-    if (permission === 'media') {
+    if (permission === 'media' && isLocalOrigin(webContents)) {
       return true;
     }
     return false;
@@ -275,11 +312,18 @@ app.on('window-all-closed', () => {
 });
 
 let closeConfirmed = false;
+// Timer for the close-button fallback (see mainWindow 'close' handler).
+let closeTimeout: ReturnType<typeof setTimeout> | null = null;
 
 app.on('before-quit', async () => {
   await cleanupOutputIntegrations();
   sessionLogger.writeEntry({ level: 'info', event: 'session.end', data: { reason: 'normal' } });
   await sessionLogger.flushAndClose();
+  closeOpenMidiInput();
+  if (closeTimeout) {
+    clearTimeout(closeTimeout);
+    closeTimeout = null;
+  }
 });
 
 const clearRecoverySession = () => {
@@ -371,6 +415,21 @@ const buildPortableProjectPayload = (payload: string, targetPath: string) => {
   return serializeProject(project);
 };
 
+// Atomically write a text file by writing to a temp sibling then renaming.
+// Prevents a crash/power loss mid-write from leaving a truncated project or
+// recovery file that would fail to parse on the next launch.
+const writeFileAtomic = (filePath: string, payload: string) => {
+  const dir = path.dirname(filePath);
+  const tmp = path.join(dir, `.${path.basename(filePath)}.${process.pid}.tmp`);
+  fs.writeFileSync(tmp, payload, 'utf-8');
+  try {
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* temp already gone */ }
+    throw err;
+  }
+};
+
 ipcMain.handle('project:save', async (_event, payload: string, filePath?: string) => {
   if (!mainWindow) return { canceled: true };
 
@@ -390,7 +449,7 @@ ipcMain.handle('project:save', async (_event, payload: string, filePath?: string
 
   try {
     const portablePayload = buildPortableProjectPayload(payload, targetPath);
-    fs.writeFileSync(targetPath, portablePayload, 'utf-8');
+    writeFileAtomic(targetPath, portablePayload);
     clearRecoverySession();
     return { canceled: false, filePath: targetPath };
   } catch (error) {
@@ -406,7 +465,16 @@ ipcMain.handle('project:autosave', async (_event, payload: string) => {
     const sessionDir = path.join(baseDir, 'sessions');
     fs.mkdirSync(sessionDir, { recursive: true });
     const filePath = path.join(sessionDir, 'recovery.json');
-    fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8');
+    // Validate the project shape before persisting so a structurally corrupt
+    // in-memory state is surfaced (logged) rather than silently resurrected.
+    // Recovery is a safety net, so we still save the original object on
+    // validation failure rather than dropping the user's work — safeParse is
+    // run for diagnostics, not as a gate.
+    const validation = projectSchema.safeParse(project);
+    if (!validation.success) {
+      console.error('[Main] Autosave validation warning:', validation.error.flatten());
+    }
+    writeFileAtomic(filePath, JSON.stringify(project, null, 2));
     return { saved: true, filePath };
   } catch (error) {
     return { saved: false };
@@ -504,7 +572,20 @@ ipcMain.handle('project:open', async () => {
   console.log(`[Main] Opening project file: ${filePath}`);
   try {
     const data = fs.readFileSync(filePath, 'utf-8');
-    const parsed = projectSchema.safeParse(JSON.parse(data));
+    const raw = JSON.parse(data);
+    // Legacy project/preset files (version 1-5) must be migrated to v6 before
+    // the v6 project schema can validate them. Without this, opening an old
+    // file silently failed with "Invalid project file".
+    let projectData: unknown = raw;
+    if (typeof raw?.version === 'number' && raw.version >= 1 && raw.version < 6) {
+      const migrated = migratePreset(raw);
+      if (!migrated.success) {
+        console.error('[Main] Legacy project migration failed:', migrated.errors);
+        return { canceled: true, error: 'Could not migrate legacy project file.', filePath };
+      }
+      projectData = applyPresetV6(migrated.preset, DEFAULT_PROJECT).project;
+    }
+    const parsed = projectSchema.safeParse(projectData);
     if (!parsed.success) {
       console.error('[Main] Project parse failed:', parsed.error.flatten());
       return { canceled: true, error: 'Invalid project file.', filePath };
@@ -1265,20 +1346,49 @@ ipcMain.handle('midi:list-node', async () => {
   }
 });
 
+// Track the currently open node-midi input so re-opening a port closes the
+// previous one instead of leaking an open port + 'message' listener per call.
+let openMidiInput: any = null;
+let openMidiPortIndex: number | null = null;
+
+const closeOpenMidiInput = () => {
+  if (openMidiInput) {
+    try { openMidiInput.closePort(); } catch { /* already closed */ }
+    try { openMidiInput.removeAllListeners('message'); } catch { /* ignore */ }
+    openMidiInput = null;
+    openMidiPortIndex = null;
+  }
+};
+
 ipcMain.handle('midi:open-node', async (event, portIndex: number) => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const midi = require('midi');
+    // Close any previously opened input first to avoid leaking ports and
+    // 'message' listeners (every prior call left an open port + listener
+    // behind, eventually exhausting MIDI ports and memory).
+    closeOpenMidiInput();
     const input = new midi.Input();
     input.ignoreTypes(false, false, false);
     input.on('message', (_delta: number, message: number[]) => {
-      event.sender.send('midi:node-message', message);
+      // The renderer that requested this input may have been destroyed; guard
+      // the send so we don't throw into a dead webContents.
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('midi:node-message', message);
+      }
     });
     input.openPort(portIndex);
+    openMidiInput = input;
+    openMidiPortIndex = portIndex;
     return { opened: true };
   } catch (error) {
     return { opened: false, error: 'Unable to open node-midi input.' };
   }
+});
+
+ipcMain.handle('midi:close-node', async () => {
+  closeOpenMidiInput();
+  return { closed: true };
 });
 
 // Automated screenshot capture for documentation

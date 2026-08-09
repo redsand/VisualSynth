@@ -243,12 +243,15 @@ void main() {
   let currentMilkDropShaderData: MilkDropShaderData | null = null;
   let milkDropEnabled = false;
   let milkDropTexture: WebGLTexture | null = null;
-  
-  let waveformTexture = trackTexture(gl.createTexture());
-  let spectrumTexture = trackTexture(gl.createTexture());
-  let modulatorTexture = trackTexture(gl.createTexture());
-  let midiTexture = trackTexture(gl.createTexture());
-  let previousFrameTexture = trackTexture(gl.createTexture());
+
+  // Mutable so they can be recreated after a WebGL context loss+restore:
+  // the old WebGLTexture handles are invalidated by the restore and must be
+  // replaced with fresh createTexture() objects, not just re-parameterised.
+  let waveformTexture: WebGLTexture | null = null;
+  let spectrumTexture: WebGLTexture | null = null;
+  let modulatorTexture: WebGLTexture | null = null;
+  let midiTexture: WebGLTexture | null = null;
+  let previousFrameTexture: WebGLTexture | null = null;
   let previousFrameWidth = 0;
   let previousFrameHeight = 0;
 
@@ -263,9 +266,28 @@ void main() {
   };
 
   const initInternalTextures = () => {
+    // Drop any previous handles (no-op on first init; after a context restore
+    // the old names are already dead so we only need to untrack our counter,
+    // not call deleteTexture which would touch the lost context).
+    if (waveformTexture) untrackTexture(waveformTexture);
+    if (spectrumTexture) untrackTexture(spectrumTexture);
+    if (modulatorTexture) untrackTexture(modulatorTexture);
+    if (midiTexture) untrackTexture(midiTexture);
+    if (previousFrameTexture) untrackTexture(previousFrameTexture);
+    waveformTexture = trackTexture(gl.createTexture());
+    spectrumTexture = trackTexture(gl.createTexture());
+    modulatorTexture = trackTexture(gl.createTexture());
+    midiTexture = trackTexture(gl.createTexture());
+    previousFrameTexture = trackTexture(gl.createTexture());
+    // Force the previous-frame backing store to reallocate against the new
+    // texture on the next render (size check uses these cached dims).
+    previousFrameWidth = 0;
+    previousFrameHeight = 0;
+
     // R32F textures (waveform, spectrum, modulators, midi) are not linearly filterable in WebGL2
     // without OES_texture_float_linear — use NEAREST to avoid silent zeros.
     [waveformTexture, spectrumTexture, modulatorTexture, midiTexture].forEach(tex => {
+        if (!tex) return;
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -273,11 +295,13 @@ void main() {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     });
     // previousFrame is RGBA UNSIGNED_BYTE — linear filtering is fine
-    gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (previousFrameTexture) {
+      gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
   };
   initInternalTextures();
 
@@ -864,8 +888,14 @@ void main() {
     'gen-asset-mosaic': 7,
     'gen-asset-ripple': 8,
     'gen-asset-scatter': 9,
-    'gen-asset-echo': 10,
-    'gen-signal-noise': 14
+    // Units 10-18 are reserved for internal textures (waveform/spectrum/
+    // modulators/midi/previousFrame at 10-14) and internal-source bindings
+    // (15-18). echo previously used 10 (colliding with the waveform texture)
+    // and signal-noise used 14 (colliding with previousFrame), so activating
+    // those layers silently overwrote the internal textures they shared a
+    // unit with. Move them above the internal range.
+    'gen-asset-echo': 19,
+    'gen-signal-noise': 20
   };
 
   interface AssetCacheEntry {
@@ -1013,11 +1043,13 @@ void main() {
   const updateVideoTextures = () => {
     (Object.keys(ASSET_LAYER_UNITS) as AssetLayerId[]).forEach((layerId) => {
       const entry = layerBindings[layerId];
-      if (entry?.video && entry.texture && entry.video.readyState >= entry.video.HAVE_CURRENT_DATA) {
-        gl.activeTexture(gl.TEXTURE0 + ASSET_LAYER_UNITS[layerId]);
-        gl.bindTexture(gl.TEXTURE_2D, entry.texture);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.video);
+      if (entry?.video && entry.texture) {
+        if (entry.video.readyState >= entry.video.HAVE_CURRENT_DATA) {
+          gl.activeTexture(gl.TEXTURE0 + ASSET_LAYER_UNITS[layerId]);
+          gl.bindTexture(gl.TEXTURE_2D, entry.texture);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.video);
+        }
       }
     });
   };
@@ -1090,12 +1122,26 @@ void main() {
     if (enabledLoc) gl.uniform1f(enabledLoc, entry ? 1 : 0);
     
     if (entry?.internalSourceId) {
-        let internalUnit = 15;
-        if (entry.internalSourceId === 'audio-spectrum') internalUnit = 16;
-        if (entry.internalSourceId === 'modulators') internalUnit = 17;
-        if (entry.internalSourceId === 'midi-history') internalUnit = 18;
+        // Internal-source asset layers sample the engine's own data textures.
+        // Reuse the units already bound by applyInternalTextures (10-14)
+        // rather than separate 15-18 units that were never bound — the
+        // previous code pointed samplers at unbound units, so these layers
+        // sampled garbage instead of the waveform/spectrum/etc. Also add the
+        // missing 'audio-waveform' source.
+        let internalUnit: number | null = null;
+        if (entry.internalSourceId === 'audio-waveform') internalUnit = 10;
+        else if (entry.internalSourceId === 'audio-spectrum') internalUnit = 11;
+        else if (entry.internalSourceId === 'modulators') internalUnit = 12;
+        else if (entry.internalSourceId === 'midi-history') internalUnit = 13;
 
-        if (samplerLoc) gl.uniform1i(samplerLoc, internalUnit);
+        if (internalUnit !== null) {
+            if (samplerLoc) gl.uniform1i(samplerLoc, internalUnit);
+        } else if (samplerLoc) {
+            // Unknown internal source: fall through to the normal binding path
+            gl.uniform1i(samplerLoc, unitIndex);
+            gl.activeTexture(gl.TEXTURE0 + unitIndex);
+            gl.bindTexture(gl.TEXTURE_2D, entry?.texture ?? null);
+        }
     } else {
         if (samplerLoc) gl.uniform1i(samplerLoc, unitIndex);
         gl.activeTexture(gl.TEXTURE0 + unitIndex);

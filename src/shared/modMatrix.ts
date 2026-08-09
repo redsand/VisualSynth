@@ -30,7 +30,10 @@ export const applyModMatrix = (
     }
     
     const smoothing = Math.min(Math.max(mod.smoothing, 0), 1);
-    const modAmount = (mod.bipolar ? (mod.amount * 2 - mod.amount) : mod.amount) * (1 - smoothing);
+    // Bipolar remaps amount from [0,1] to [-1,1] so the modulation can deflect
+    // in either direction. The previous expression `(amount*2 - amount)`
+    // simplifies to `amount`, so bipolar mode was a no-op identical to unipolar.
+    const modAmount = (mod.bipolar ? (mod.amount * 2 - 1) : mod.amount) * (1 - smoothing);
     value += shaped * modAmount;
   }
   const minValue = minClamp ?? 0;

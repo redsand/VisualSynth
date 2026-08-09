@@ -24,7 +24,17 @@ const applyPresetToProject = (fileName: string) => {
 
 describe('RenderGraph entry parity', () => {
   it('matches shipped index spectrum enablement fallback for all presets', () => {
-    const presetFiles = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json')).sort();
+    // Only real presets are objects with a numeric `version`; the presets
+    // directory also contains non-preset JSON (archive_list.json index, audit
+    // and certification reports) which must be skipped, not migrated.
+    const presetFiles = fs.readdirSync(presetsDir)
+      .filter((file) => file.endsWith('.json'))
+      .filter((file) => {
+        const parsed = JSON.parse(fs.readFileSync(path.join(presetsDir, file), 'utf-8'));
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+          typeof parsed.version === 'number' && Number.isFinite(parsed.version);
+      })
+      .sort();
     const mismatches: string[] = [];
 
     for (const fileName of presetFiles) {

@@ -347,8 +347,9 @@ export const processMidiNote = (
   velocity: number,
   bank: number = 0
 ): MidiTriggerResult => {
-  // Adjust note for bank if needed
-  const bankOffset = bank * 16; // Assuming 16 notes per bank
+  // Adjust note for bank. The Launchpad layout divides its 64 grid notes
+  // (36..99) into 4 banks of 16, so each bank offsets by 16 notes.
+  const bankOffset = bank * 16;
   const adjustedNote = note - bankOffset;
 
   for (const trigger of config.triggers) {
@@ -360,7 +361,22 @@ export const processMidiNote = (
     // Note off (velocity 0) handling
     if (velocity === 0) {
       if (trigger.mode === 'hold') {
-        // Could emit a "release" action here
+        // Emit a release signal for action-type hold triggers so downstream
+        // consumers can distinguish press from release. For other trigger
+        // types (macro/preset/scene/...) we deliberately do NOT re-fire on
+        // release — re-triggering a preset load or scene switch on key-up
+        // would be destructive. The release is still marked handled so the
+        // caller knows the note was consumed by this trigger.
+        if (trigger.triggerType === 'action') {
+          return {
+            handled: true,
+            action: {
+              type: 'action',
+              value: `release:${trigger.value}`,
+              velocity: 0
+            }
+          };
+        }
         return { handled: true };
       }
       return { handled: false };

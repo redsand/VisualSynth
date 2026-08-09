@@ -28,6 +28,49 @@ export const createMidiEngine = (store: Store, callbacks: MidiEngineCallbacks): 
   let midiAccess: MIDIAccess | null = null;
   let learnTarget: { target: string; label: string } | null = null;
 
+  // --- MIDI clock transport state -------------------------------------------
+  // MIDI clock is 24 pulses per quarter note (PPQ). We derive the network BPM
+  // from the interval between clocks and drive transport from start/stop/
+  // continue. The previous handler ignored system-realtime bytes entirely
+  // (0xF8 clock, 0xFA start, 0xFB continue, 0xFC stop) so an external sequencer
+  // had no effect on tempo or transport.
+  let lastClockTime = 0;
+  let clockIntervalSamples: number[] = [];
+  let networkBpmPrimed = false;
+  const CLOCK_PULSES_PER_QUARTER = 24;
+  const STABLE_SAMPLES = 8;
+
+  const handleClock = (eventTime: number) => {
+    if (lastClockTime > 0) {
+      const intervalMs = eventTime - lastClockTime;
+      // Reject absurd intervals (jitter/gaps) so a paused clock doesn't
+      // contaminate the tempo estimate.
+      if (intervalMs > 1 && intervalMs < 250) {
+        clockIntervalSamples.push(intervalMs);
+        if (clockIntervalSamples.length > STABLE_SAMPLES) {
+          clockIntervalSamples.shift();
+        }
+        if (clockIntervalSamples.length >= STABLE_SAMPLES) {
+          const avgMs =
+            clockIntervalSamples.reduce((sum, v) => sum + v, 0) / clockIntervalSamples.length;
+          const bpm = (CLOCK_PULSES_PER_QUARTER * 60000) / avgMs;
+          if (Number.isFinite(bpm) && bpm >= 40 && bpm <= 300) {
+            actions.setNetworkBpm(store, Math.round(bpm));
+            actions.setNetworkActive(store, true);
+            networkBpmPrimed = true;
+          }
+        }
+      }
+    }
+    lastClockTime = eventTime;
+  };
+
+  const resetClockTracking = () => {
+    lastClockTime = 0;
+    clockIntervalSamples = [];
+    networkBpmPrimed = false;
+  };
+
   const initDevices = async (select: HTMLSelectElement) => {
     try {
       midiAccess = await navigator.requestMIDIAccess();
@@ -47,6 +90,47 @@ export const createMidiEngine = (store: Store, callbacks: MidiEngineCallbacks): 
   const handleMessage = (message: number[], eventTime: number) => {
     const [status, data1, data2 = 0] = message;
     actions.setMidiLatency(store, Math.max(0, performance.now() - eventTime));
+
+    // System-realtime / system-common messages are status-only (or have a
+    // fixed data length) and must be handled before the channel-voice switch
+    // below, which masks the status with 0xf0.
+    if (status === 0xf8) {
+      // Timing clock — 24 PPQ
+      handleClock(eventTime);
+      return;
+    }
+    if (status === 0xfa) {
+      // Start: reset clock baseline and roll transport
+      resetClockTracking();
+      actions.setTransportPlaying(store, true);
+      if (networkBpmPrimed) actions.setBpmSource(store, 'network');
+      return;
+    }
+    if (status === 0xfb) {
+      // Continue
+      actions.setTransportPlaying(store, true);
+      return;
+    }
+    if (status === 0xfc) {
+      // Stop
+      actions.setTransportPlaying(store, false);
+      return;
+    }
+    if (status === 0xfe || status === 0xff) {
+      // Active sensing / reset — no transport action needed
+      return;
+    }
+    if (status === 0xf2) {
+      // Song Position Pointer — 14-bit position in "MIDI beats" (6 clocks each)
+      const spp = (((data2 ?? 0) << 7) | (data1 ?? 0)) * 6;
+      const bpm = store.getState().bpm.networkBpm ?? store.getState().bpm.manualBpm;
+      if (Number.isFinite(bpm) && bpm > 0) {
+        const beatMs = 60000 / bpm;
+        actions.setTransportTime(store, (spp / CLOCK_PULSES_PER_QUARTER) * beatMs);
+      }
+      return;
+    }
+
     const messageType = status & 0xf0;
     const channel = getMidiChannel(status);
 
@@ -81,8 +165,13 @@ export const createMidiEngine = (store: Store, callbacks: MidiEngineCallbacks): 
           callbacks.onMidiTarget(mapping.target, data1 / 127, false);
         }
         if (mapping.message === 'pitchbend' && messageType === 0xe0) {
+          // Pitch bend is a 14-bit value centered at 8192. Map it bipolarly to
+          // [-1, 1] so center (no bend) yields 0 — the previous /16383 mapping
+          // yielded 0.5 at center, so a target bound to pitch bend idled at
+          // half-deflection instead of neutral.
           const combined = ((data2 ?? 0) << 7) | (data1 ?? 0);
-          callbacks.onMidiTarget(mapping.target, combined / 16383, false);
+          const bipolar = (combined - 8192) / 8192;
+          callbacks.onMidiTarget(mapping.target, bipolar, false);
         }
       });
     };

@@ -10,7 +10,10 @@ export const parseMidiMessage = (bytes: number[]): MidiMessage => {
 };
 
 export const mapNoteToPad = (note: number) => {
-  const normalized = note % 64;
+  // Wrap the note into the 0..63 pad grid using modulo-64. The wrap is made
+  // negative-tolerant (`((n % 64) + 64) % 64`) so a malformed negative note
+  // maps into range instead of clamping to 0 and colliding with pad 0.
+  const normalized = ((note % 64) + 64) % 64;
   return Math.max(0, Math.min(63, normalized));
 };
 

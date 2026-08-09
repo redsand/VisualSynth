@@ -242,6 +242,18 @@ const visualizerSchema = z.object({
   macroId: z.number()
 });
 
+// Mirrors PerformanceModeConfig from performanceGuardrails.ts. Kept inline (not
+// imported) to avoid a schema module dependency on the guardrails module; the
+// default below must stay in sync with DEFAULT_PERFORMANCE_MODE_CONFIG.
+const performanceModeSchema = z.object({
+  enabled: z.boolean(),
+  restrictToSafePresets: z.boolean(),
+  forceMinimalQualityOnStruggle: z.boolean(),
+  disableExperimentalEngines: z.boolean(),
+  autoRecoveryEnabled: z.boolean(),
+  maxMemoryMB: z.number()
+});
+
 const sceneLookSchema = z
   .object({
     effects: effectsSchema,
@@ -675,7 +687,15 @@ export const projectSchema = z.object({
   visualIntentTags: z.array(z.string()).optional(),
   createdAt: z.string(),
   updatedAt: z.string().optional(),
-  output: outputConfigSchema.optional(),
+  output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
+  performanceMode: performanceModeSchema.default({
+    enabled: false,
+    restrictToSafePresets: true,
+    forceMinimalQualityOnStruggle: true,
+    disableExperimentalEngines: true,
+    autoRecoveryEnabled: true,
+    maxMemoryMB: 2048
+  }),
   stylePresets: z.array(stylePresetSchema).default([]),
   activeStylePresetId: z.string().default('style-neutral'),
   palettes: z.array(colorPaletteSchema).default([]),
@@ -774,12 +794,16 @@ export const projectSchema = z.object({
   }),
   sdf: sdfSchema.default({
     enabled: false,
+    // Schema fallback used when a project arrives with no sdf block at all.
+    // DEFAULT_PROJECT.sdf deliberately ships shape 'triangle'; the parse
+    // fallback stays 'circle' (neutral) — see tests/effects.test.ts.
     shape: 'circle',
-    scale: 0,
-    edge: 0,
-    glow: 0,
-    rotation: 0,
-    fill: 0
+    scale: 0.55,
+    edge: 0.06,
+    glow: 0.65,
+    rotation: 0.2,
+    fill: 0.4,
+    color: [1.0, 0.6, 0.25]
   }),
   visualizer: visualizerSchema.default({
     enabled: false,
@@ -804,11 +828,11 @@ export const projectSchema = z.object({
         name: 'Env 1',
         attack: 0.05,
         decay: 0.2,
-        sustain: 0.6,
-        release: 0.3,
-        hold: 0.4,
-        trigger: 'audio.peak',
-        threshold: 0.6
+        sustain: 0.4,
+        release: 0.8,
+        hold: 0.1,
+        trigger: 'engine.low',
+        threshold: 0.65
       },
       {
         id: 'env-2',

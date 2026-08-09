@@ -324,46 +324,58 @@ export class SceneManager {
     };
   }
 
-  getBlendSnapshot(timeMs: number): SceneBlendSnapshot | null {
-    if (!this.transition) return null;
-    const elapsed = timeMs - this.transition.startTimeMs;
-    if (elapsed >= this.transition.durationMs) {
-      this.transition = null;
-      return null;
-    }
-    const raw = Math.min(Math.max(elapsed / this.transition.durationMs, 0), 1);
-    const mix = this.transition.curve === 'easeInOut' ? easeInOut(raw) : raw;
+  // Value-driven crossfade between two scenes, driven by the scene.mix
+  // modulation target. Null when no scene.mix connection is active, so the
+  // default render path (no transition, no mix) is unchanged.
+  private continuousMix: { from: SceneSnapshot; to: SceneSnapshot; mix: number } | null = null;
+
+  setContinuousMix(from: SceneSnapshot, to: SceneSnapshot, mix: number) {
+    this.continuousMix = { from, to, mix: Math.min(Math.max(mix, 0), 1) };
+  }
+
+  clearContinuousMix() {
+    this.continuousMix = null;
+  }
+
+  private buildBlend(from: SceneSnapshot, to: SceneSnapshot, mix: number, inTransition: boolean): SceneBlendSnapshot {
     const blendedScene: SceneConfig = {
-      ...this.transition.to.scene,
-      layers: blendLayers(this.transition.from.scene, this.transition.to.scene, mix)
+      ...to.scene,
+      layers: blendLayers(from.scene, to.scene, mix)
     };
     return {
       scene: blendedScene,
-      effects: blendEffects(this.transition.from.effects, this.transition.to.effects, mix),
-      particles: blendParticles(this.transition.from.particles, this.transition.to.particles, mix),
-      sdf: blendSdf(this.transition.from.sdf, this.transition.to.sdf, mix),
-      visualizer: blendVisualizer(this.transition.from.visualizer, this.transition.to.visualizer, mix),
+      effects: blendEffects(from.effects, to.effects, mix),
+      particles: blendParticles(from.particles, to.particles, mix),
+      sdf: blendSdf(from.sdf, to.sdf, mix),
+      visualizer: blendVisualizer(from.visualizer, to.visualizer, mix),
       styleSettings: {
-        contrast: blendNumber(
-          this.transition.from.styleSettings.contrast,
-          this.transition.to.styleSettings.contrast,
-          mix
-        ),
-        saturation: blendNumber(
-          this.transition.from.styleSettings.saturation,
-          this.transition.to.styleSettings.saturation,
-          mix
-        ),
-        paletteShift: blendNumber(
-          this.transition.from.styleSettings.paletteShift,
-          this.transition.to.styleSettings.paletteShift,
-          mix
-        )
+        contrast: blendNumber(from.styleSettings.contrast, to.styleSettings.contrast, mix),
+        saturation: blendNumber(from.styleSettings.saturation, to.styleSettings.saturation, mix),
+        paletteShift: blendNumber(from.styleSettings.paletteShift, to.styleSettings.paletteShift, mix)
       },
-      macros: blendMacros(this.transition.from.macros, this.transition.to.macros, mix),
+      macros: blendMacros(from.macros, to.macros, mix),
       mix,
-      inTransition: true
+      inTransition
     };
+  }
+
+  getBlendSnapshot(timeMs: number): SceneBlendSnapshot | null {
+    if (this.transition) {
+      const elapsed = timeMs - this.transition.startTimeMs;
+      if (elapsed >= this.transition.durationMs) {
+        this.transition = null;
+      } else {
+        const raw = Math.min(Math.max(elapsed / this.transition.durationMs, 0), 1);
+        const mix = this.transition.curve === 'easeInOut' ? easeInOut(raw) : raw;
+        return this.buildBlend(this.transition.from, this.transition.to, mix, true);
+      }
+    }
+    // A continuous (value-driven) mix from the scene.mix modulation target
+    // takes effect only when no one-shot transition is running.
+    if (this.continuousMix) {
+      return this.buildBlend(this.continuousMix.from, this.continuousMix.to, this.continuousMix.mix, false);
+    }
+    return null;
   }
 
   getActiveSceneProgress(transportMs: number) {

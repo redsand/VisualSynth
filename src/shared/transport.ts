@@ -216,27 +216,31 @@ export const getQuantizeBeatOffset = (
 ): number => {
   const beatsPerBar = timeSignature.numerator;
 
+  // Offset to the next boundary of `period` beats. Snaps to 0 (trigger
+  // immediately) when the playhead is within an epsilon of a boundary, so
+  // floating-point jitter like 3.9999999 doesn't push a clip a whole beat/bar
+  // late. The previous Math.ceil formulation returned a tiny positive offset
+  // in those cases (and could round the wrong way just above a boundary).
+  const offsetToNext = (period: number): number => {
+    const next = Math.ceil(currentBeat / period) * period;
+    const offset = next - currentBeat;
+    if (offset < 1e-6) return 0; // on (or essentially on) a boundary
+    return offset;
+  };
+
   switch (quantize) {
     case 'immediate':
       return 0;
     case 'beat':
-      return Math.ceil(currentBeat) - currentBeat;
-    case 'bar': {
-      const nextBar = Math.ceil(currentBeat / beatsPerBar) * beatsPerBar;
-      return nextBar - currentBeat;
-    }
-    case '2bar': {
-      const next2Bar = Math.ceil(currentBeat / (beatsPerBar * 2)) * (beatsPerBar * 2);
-      return next2Bar - currentBeat;
-    }
-    case '4bar': {
-      const next4Bar = Math.ceil(currentBeat / (beatsPerBar * 4)) * (beatsPerBar * 4);
-      return next4Bar - currentBeat;
-    }
-    case '8bar': {
-      const next8Bar = Math.ceil(currentBeat / (beatsPerBar * 8)) * (beatsPerBar * 8);
-      return next8Bar - currentBeat;
-    }
+      return offsetToNext(1);
+    case 'bar':
+      return offsetToNext(beatsPerBar);
+    case '2bar':
+      return offsetToNext(beatsPerBar * 2);
+    case '4bar':
+      return offsetToNext(beatsPerBar * 4);
+    case '8bar':
+      return offsetToNext(beatsPerBar * 8);
     default:
       return 0;
   }

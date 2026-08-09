@@ -3,20 +3,20 @@
 exports[`preset regression coverage > produces a stable resolved layer snapshot for Cosmic Plasma 1`] = `
 [
   {
-    "blendMode": "screen",
+    "blendMode": "normal",
     "enabled": true,
     "id": "layer-plasma",
-    "opacity": 0.95,
+    "opacity": 1,
     "params": {
-      "blendMode": "screen",
-      "complexity": 0.5,
+      "blendMode": "normal",
+      "complexity": 0.7,
       "enabled": true,
-      "opacity": 0.95,
-      "scale": 1,
-      "speed": 1,
+      "opacity": 1,
+      "scale": 1.2,
+      "speed": 0.8,
       "transform": {
         "rotation": 0,
-        "scale": 1,
+        "scale": 1.1,
         "x": 0,
         "y": 0,
       },
@@ -26,11 +26,11 @@ exports[`preset regression coverage > produces a stable resolved layer snapshot 
     "blendMode": "add",
     "enabled": true,
     "id": "layer-spectrum",
-    "opacity": 0.9,
+    "opacity": 0.85,
     "params": {
       "blendMode": "add",
       "enabled": true,
-      "opacity": 0.9,
+      "opacity": 0.85,
       "transform": {
         "rotation": 0,
         "scale": 1,

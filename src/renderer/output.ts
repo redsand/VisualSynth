@@ -536,6 +536,12 @@ channel.onmessage = (event) => {
           void videoElement.play().catch(() => undefined);
           renderer.setLayerAsset(layerId, asset as any, videoElement, textCanvas);
           diag.logEvent('asset-bound', `${layerId} live`);
+          console.log(`[Output] Live video bound to ${layerId}, video element:`, {
+            readyState: videoElement.readyState,
+            duration: videoElement.duration,
+            paused: videoElement.paused,
+            currentTime: videoElement.currentTime
+          });
         });
       } else if (asset?.kind === 'video') {
         const videoElement = createVideoElement(asset);
@@ -543,6 +549,13 @@ channel.onmessage = (event) => {
         void videoElement.play().catch(() => undefined);
         renderer.setLayerAsset(layerId, asset as any, videoElement, textCanvas);
         diag.logEvent('asset-bound', `${layerId} video`);
+        console.log(`[Output] Video bound to ${layerId}, video element:`, {
+          readyState: videoElement.readyState,
+          duration: videoElement.duration,
+          paused: videoElement.paused,
+          currentTime: videoElement.currentTime,
+          src: videoElement.src ? videoElement.src.substring(0, 100) : 'none'
+        });
       } else {
         renderer.setLayerAsset(layerId, asset as any, undefined, textCanvas);
         if (asset) diag.logEvent('asset-bound', `${layerId} ${asset.kind}`);

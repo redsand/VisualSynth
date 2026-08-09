@@ -1270,10 +1270,20 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   };
 
   const executePerFrameCode = (code: string[], state: RenderState) => {
-    const bass = state.spectrum?.[0] ?? state.rms ?? 0;
-    const mid = state.spectrum?.[Math.floor((state.spectrum?.length ?? 0) / 2)] ?? state.rms ?? 0;
-    const treb = state.spectrum?.[(state.spectrum?.length ?? 1) - 1] ?? state.rms ?? 0;
-    
+    // Prefer the AudioEngine's authoritative log-spaced band aggregates and
+    // slow-attacking followers. The previous code derived bass/mid/treb by
+    // indexing spectrum[] — but spectrum[] used to be raw FFT bins, so
+    // spectrum[0] was DC and the last bin was Nyquist (neither is musical).
+    // Fall back to a log-spaced slice of spectrum[] only when the engine
+    // values are absent (e.g. the standalone projector page).
+    const specLen = state.spectrum?.length ?? 0;
+    const bass = state.bass ??
+      (specLen > 0 ? state.spectrum![Math.floor(specLen * 0.08)] : state.rms) ?? 0;
+    const mid = state.mid ??
+      (specLen > 0 ? state.spectrum![Math.floor(specLen * 0.5)] : state.rms) ?? 0;
+    const treb = state.treb ??
+      (specLen > 0 ? state.spectrum![Math.floor(specLen * 0.92)] : state.rms) ?? 0;
+
     // Standard MilkDrop variable names — these get fresh values each frame
     // and must NOT be overwritten by stale customVars from the previous frame.
     const standardVarNames = new Set([
@@ -1293,9 +1303,12 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       bass,
       mid,
       treb,
-      bass_att: bass * 0.9 + variables.bass * 0.1,
-      mid_att: mid * 0.9 + variables.mid * 0.1,
-      treb_att: treb * 0.9 + variables.treb * 0.1,
+      // Slow-attacking followers. Prefer the engine's persistent _att state;
+      // otherwise fall back to a one-frame blend of the previous value so the
+      // variable still exists for presets that read it.
+      bass_att: state.bassAtt ?? (bass * 0.9 + (variables.bass ?? 0) * 0.1),
+      mid_att: state.midAtt ?? (mid * 0.9 + (variables.mid ?? 0) * 0.1),
+      treb_att: state.trebAtt ?? (treb * 0.9 + (variables.treb ?? 0) * 0.1),
       rms: state.rms,
       ...qVars.reduce((acc, v, i) => { acc[`q${i + 1}`] = v; return acc; }, {} as Record<string, number>),
       above: (a: number, b: number) => a > b ? 1 : 0,
@@ -1450,6 +1463,11 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
+    // Warp pass is a fullscreen feedback copy — it must run with BLEND off so
+    // shapes/waves rendered afterwards start from a known state. Disable
+    // defensively in case a prior frame left it enabled.
+    gl.disable(gl.BLEND);
+
     if (warpProgram) {
       const activeWarpProgram = warpProgram;
       gl.useProgram(activeWarpProgram);
@@ -1476,6 +1494,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.disableVertexAttribArray(posLoc);
     }
 
     if (shaderData.shapes?.length) {
@@ -1560,8 +1579,11 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     }
 
     // Always render comp to mainFbo (for feedback loop), then blit to screen if needed.
+    // Comp is another fullscreen pass; the shape/wave renderers above may have
+    // left BLEND enabled, so disable defensively before drawing the composite.
     gl.bindFramebuffer(gl.FRAMEBUFFER, mainFbo?.fbo ?? null);
     gl.viewport(0, 0, width, height);
+    gl.disable(gl.BLEND);
 
     if (compProgram) {
       const activeCompProgram = compProgram;
@@ -1589,6 +1611,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.disableVertexAttribArray(posLoc);
     } else if (warpFbo && mainFbo) {
       // No comp shader — copy warp output directly to mainFbo for feedback
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, warpFbo.fbo);

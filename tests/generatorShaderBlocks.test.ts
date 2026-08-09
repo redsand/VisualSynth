@@ -22,15 +22,19 @@ describe('GeneratorShaderBlocks registry', () => {
       expect(block.mainCall, `Block ${block.id} has mainCall`).toBeTruthy();
 
       // Functions are optional (some generators like spectrum don't need them)
-      // If functions exist, they should contain a function definition
+      // If functions exist, they should contain a function definition. vec2 is
+      // included because some blocks ship UV-warp helpers (e.g. vortexWarp)
+      // alongside their color-generating mainCall.
       if (block.functions) {
-        expect(block.functions).toMatch(/(vec3|float|void)\s+\w+\(/);
+        expect(block.functions).toMatch(/(vec3|vec2|float|void)\s+\w+\(/);
       }
 
-      // Main call should contain the if statement and color addition
+      // Main call should gate on the enabled uniform and modify color — either
+      // additively (color +=) or via a blend-mode assignment
+      // (color = applyBlendMode(color, ...)), as asset-backed blocks do.
       expect(block.mainCall).toContain('if (u');
       expect(block.mainCall).toContain('Enabled > 0.5');
-      expect(block.mainCall).toContain('color +=');
+      expect(block.mainCall).toMatch(/color\s*(\+?=)/);
     }
   });
 

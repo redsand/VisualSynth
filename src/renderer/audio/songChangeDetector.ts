@@ -62,12 +62,14 @@ const downsampleSpectrum = (spectrum: ArrayLike<number>, buckets = 12): number[]
 };
 
 export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}) => {
-  const windowMs = options.windowMs ?? 2500;
-  const minTrackMs = options.minTrackMs ?? 45000;
-  const silenceThreshold = options.silenceThreshold ?? 0.025;
-  const changeThreshold = options.changeThreshold ?? 0.42;
-  const confirmWindows = Math.max(1, options.confirmWindows ?? 3);
-  const cooldownMs = options.cooldownMs ?? 15000;
+  // Mutable thresholds so live settings edits take effect without rebuilding
+  // the detector (which would discard the learned baseline).
+  let windowMs = options.windowMs ?? 2500;
+  let minTrackMs = options.minTrackMs ?? 45000;
+  let silenceThreshold = options.silenceThreshold ?? 0.025;
+  let changeThreshold = options.changeThreshold ?? 0.42;
+  let confirmWindows = Math.max(1, options.confirmWindows ?? 3);
+  let cooldownMs = options.cooldownMs ?? 15000;
 
   let activeWindow: AggregatedWindow | null = null;
   let baselineSignature: number[] | null = null;
@@ -115,9 +117,17 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
     } else {
       consecutiveChanges = 0;
       pendingSignature = null;
-      baselineSignature = normalizeVector(
-        baselineSignature.map((value, index) => value * 0.8 + signature[index] * 0.2)
-      );
+      // Hysteresis: do NOT track the baseline toward a diverging signature.
+      // The previous code blended 80/20 every non-detection window, so a slow
+      // crossfade (which moves <20% per window) was tracked and never reached
+      // changeThreshold. Only nudge the baseline for genuine near-identical
+      // drift (distance well below threshold), so gradual spectral shifts
+      // accumulate distance and eventually fire.
+      if (distance < changeThreshold * 0.25) {
+        baselineSignature = normalizeVector(
+          baselineSignature.map((value, index) => value * 0.95 + signature[index] * 0.05)
+        );
+      }
     }
 
     activeWindow = null;
@@ -125,7 +135,14 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
 
   return {
     update(frame: SongChangeAudioFrame) {
+      // Silent frames are not aggregated, but their wall-clock time still
+      // counts toward the window deadline — otherwise a loud-quiet-loud
+      // pattern produces a window that spans a long silent gap and is
+      // compared as if it were a contiguous snapshot.
       if (frame.rms < silenceThreshold) {
+        if (activeWindow && frame.nowMs - activeWindow.startedAt >= windowMs) {
+          flushWindow(frame.nowMs);
+        }
         return;
       }
 
@@ -149,6 +166,14 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
       if (frame.nowMs - activeWindow.startedAt >= windowMs) {
         flushWindow(frame.nowMs);
       }
+    },
+    setOptions(options: SongChangeDetectorOptions) {
+      if (options.windowMs !== undefined) windowMs = options.windowMs;
+      if (options.minTrackMs !== undefined) minTrackMs = options.minTrackMs;
+      if (options.silenceThreshold !== undefined) silenceThreshold = options.silenceThreshold;
+      if (options.changeThreshold !== undefined) changeThreshold = options.changeThreshold;
+      if (options.confirmWindows !== undefined) confirmWindows = Math.max(1, options.confirmWindows);
+      if (options.cooldownMs !== undefined) cooldownMs = options.cooldownMs;
     },
     reset() {
       activeWindow = null;

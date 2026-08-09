@@ -62,6 +62,9 @@ describe('identifyNowPlaying', () => {
   it('builds an AudD multipart request', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
+      // postAudDLookup reads rate-limit headers before parsing the body; the
+      // real Response always exposes a Headers object, so the mock must too.
+      headers: { get: () => null },
       json: async () => ({
         status: 'success',
         result: {
@@ -97,6 +100,7 @@ describe('identifyNowPlaying', () => {
   it('shortens verbose AudD fingerprint errors', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
+      headers: { get: () => null },
       json: async () => ({
         status: 'error',
         error: {

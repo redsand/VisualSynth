@@ -46,6 +46,8 @@ export interface LfoParams {
  * @returns LFO value (0-1)
  */
 export const calculateLfoValue = (params: LfoParams, timeSeconds: number, bpm: number = 120): number => {
+  // When synced, `rate` is the period in beats (e.g. rate=4 → one cycle per
+  // 4 beats / one bar at 4/4). Frequency in Hz is therefore (bpm/60)/rate.
   const rate = params.sync ? Math.max(bpm / 60 / Math.max(params.rate, 0.05), 0.1) : Math.max(params.rate, 0.05);
   const phase = ((params.phase + timeSeconds * rate) % 1 + 1) % 1;
   return lfoValueForShape(phase, params.shape);

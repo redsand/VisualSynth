@@ -15,6 +15,16 @@ export interface RenderTelemetryState {
   peak: number;
   strobe: number;
   spectrum: Float32Array;
+  // Authoritative musical band aggregates (log-spaced, 0..1) from AudioEngine.
+  // Optional so standalone projector pages without an engine can omit them;
+  // consumers fall back to deriving from `spectrum`.
+  bass?: number;
+  mid?: number;
+  treb?: number;
+  // Slow-attacking followers (MilkDrop "_att" idiom), 0..1.
+  bassAtt?: number;
+  midAtt?: number;
+  trebAtt?: number;
 }
 
 export interface RenderLayerEnabledState {

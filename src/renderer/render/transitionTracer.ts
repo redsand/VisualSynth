@@ -44,6 +44,10 @@ export interface TransitionRecord {
   steps: TransitionStepFlags;
   frameSamples: TransitionFrameSample[];
   flaggedBlack: boolean;
+  /** Running count of samples with avgBrightness < 0.01, maintained as
+   *  samples are pushed so black-frame detection stays O(1) per frame
+   *  instead of re-filtering the whole frameSamples array each call. */
+  blackFrameCount: number;
   fromGenerators: string[];
   toGenerators: string[];
   compilePendingGenerators: string[] | null;
@@ -193,6 +197,7 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
         steps: makeDefaultSteps(),
         frameSamples: [],
         flaggedBlack: false,
+        blackFrameCount: 0,
         fromGenerators,
         toGenerators,
         compilePendingGenerators,
@@ -288,6 +293,7 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
       }
 
       if (sample.avgBrightness < 0.01) {
+        record.blackFrameCount++;
         if (firstBlackPass === null) firstBlackPass = seq;
       } else {
         lastNonBlackPass = seq;
@@ -299,8 +305,7 @@ export const createTransitionTracer = (maxHistory = 20): TransitionTracer => {
         sample.drawCallCount > 0 &&
         sample.avgBrightness < 0.01
       ) {
-        const blackFrames = record.frameSamples.filter(s => s.avgBrightness < 0.01).length;
-        if (blackFrames >= 3) {
+        if (record.blackFrameCount >= 3) {
           if (
             record.expectedShaderVariantKey &&
             sample.currentShaderVariantKey &&

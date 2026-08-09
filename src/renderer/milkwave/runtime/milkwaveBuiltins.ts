@@ -211,19 +211,34 @@ export const createMilkwaveBuiltinState = ({
   height: number;
   qVars: number[];
   randomPreset: [number, number];
-}): MilkwaveBuiltinState => ({
+}): MilkwaveBuiltinState => {
+  const specLen = renderState.spectrum?.length ?? 0;
+  // Prefer the AudioEngine's authoritative log-spaced band aggregates and
+  // slow-attacking followers. The previous code indexed spectrum[] directly
+  // (bin 0 = DC, last bin = Nyquist — neither is musical) and set all three
+  // _att followers to rms, which made milkwave presets that gate on
+  // bass_att/treb_att behave identically. Fall back to a log-spaced spectrum
+  // slice only when the engine values are absent (standalone projector page).
+  const bass = renderState.bass ??
+    (specLen > 0 ? renderState.spectrum![Math.floor(specLen * 0.08)] : renderState.rms) ?? 0;
+  const mid = renderState.mid ??
+    (specLen > 0 ? renderState.spectrum![Math.floor(specLen * 0.5)] : renderState.rms) ?? 0;
+  const treb = renderState.treb ??
+    (specLen > 0 ? renderState.spectrum![Math.floor(specLen * 0.92)] : renderState.rms) ?? 0;
+  return {
   timeSeconds,
   frame,
   width,
   height,
   rms: renderState.rms,
-  bass: renderState.spectrum?.[0] ?? renderState.rms ?? 0,
-  mid: renderState.spectrum?.[Math.floor((renderState.spectrum?.length ?? 0) / 2)] ?? renderState.rms ?? 0,
-  treb: renderState.spectrum?.[(renderState.spectrum?.length ?? 1) - 1] ?? renderState.rms ?? 0,
-  bassAtt: renderState.rms,
-  midAtt: renderState.rms,
-  trebAtt: renderState.rms,
+  bass,
+  mid,
+  treb,
+  bassAtt: renderState.bassAtt ?? bass,
+  midAtt: renderState.midAtt ?? mid,
+  trebAtt: renderState.trebAtt ?? treb,
   qVars,
   randomPreset,
   randomFrame: [Math.random(), Math.random(), Math.random(), Math.random()]
-});
+};
+};

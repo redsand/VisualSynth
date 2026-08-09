@@ -490,6 +490,21 @@ export const migratePreset = (preset: any): MigrationResult => {
   const errors: string[] = [];
 
   try {
+    // Reject input that isn't a preset object. A preset must be a plain
+    // object (not an array) carrying a numeric `version` in the supported
+    // range (1-6). Without this guard, feeding an index/report file (e.g.
+    // archive_list.json) or any non-preset JSON silently "succeeds" with an
+    // undefined version, which later surfaces as a confusing "unsupported
+    // migrated version" error downstream instead of a clear migration failure.
+    if (
+      !preset || typeof preset !== 'object' || Array.isArray(preset) ||
+      typeof preset.version !== 'number' || !Number.isFinite(preset.version) ||
+      preset.version < 1 || preset.version > 6
+    ) {
+      errors.push('Input is not a valid preset (expected an object with a numeric version 1-6).');
+      return { success: false, preset, warnings, errors };
+    }
+
     // Check compatibility first
     const compatibility = checkCompatibility(preset);
     if (!compatibility.compatible) {

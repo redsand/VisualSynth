@@ -18,7 +18,8 @@ import {
   AssetItem,
   AssetColorSpace
 } from '../shared/project';
-import { SceneManager } from './scene/SceneManager';
+import type { ModConnection } from '../shared/project';
+import { SceneManager, captureSceneSnapshot } from './scene/SceneManager';
 import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
@@ -68,10 +69,8 @@ import {
   resolveSceneSwitch,
   tickFpsTracker
 } from './render/renderLoopHelpers';
-import {
-  buildRendererOutputBroadcastPayload,
-  type OutputTransitionPayload
-} from './render/outputPayload';
+import { buildRendererOutputBroadcastPayload } from './render/outputPayload';
+import type { OutputTransitionPayload } from './render/outputPayload';
 import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
@@ -843,6 +842,10 @@ const getLastAssignedLayerForKind = (assetKind: string): string | null => {
 };
 let lastMidiLatencyMs: number | null = null;
 let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number; transitionOverride?: SceneTransition | null } | null = null;
+// Cooldown for scene.next / scene.prev modulation triggers so a source that
+// stays above threshold doesn't fire a scene advance every frame.
+let lastSceneModTriggerMs = -Infinity;
+const SCENE_MOD_COOLDOWN_MS = 1500;
 let sdfPanel: { render: () => void } | null = null;
 let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, bands: number[]) => void } | null = null;
 let autoBpm: number | null = null;
@@ -1097,6 +1100,12 @@ const audioState = {
   bands: new Float32Array(8),
   spectrum: new Float32Array(64),
   waveform: new Float32Array(256),
+  bass: 0,
+  mid: 0,
+  treb: 0,
+  bassAtt: 0,
+  midAtt: 0,
+  trebAtt: 0,
   energyLow: 0,
   energyMid: 0,
   energyHigh: 0
@@ -1108,17 +1117,23 @@ const audioStoreBridge: Store = {
   getState: () => ({
     audio: audioState,
     project: currentProject,
-    bpm: { 
+    bpm: {
       source: bpmSource,
-      range: bpmRange, 
+      range: bpmRange,
       autoBpm,
       networkBpm,
       networkActive: bpmNetworkActive,
-      manualBpm: Number(tempoInput?.value ?? 120)
+      manualBpm: Number(tempoInput?.value ?? 120),
+      // Live beat-detection config sourced from the UI-controlled module
+      // variables. Without these the AudioEngine always fell back to defaults
+      // and the beat-sensitivity / filter / hold-off sliders had no effect.
+      sensitivity: beatSensitivity,
+      filterRange: beatFilterRange,
+      holdOffMs: beatHoldOffMs
     },
-    runtime: { 
-      strobeIntensity, 
-      strobeDecay, 
+    runtime: {
+      strobeIntensity,
+      strobeDecay,
       glyphBeatPulse,
       glyphMode,
       glyphSeed,
@@ -1137,7 +1152,11 @@ const audioStoreBridge: Store = {
       portalSeed,
       oscilloMode,
       oscilloFreeze,
-      oscilloRotate
+      oscilloRotate,
+      // Persisted across analysis frames so the engine's beat hold-off works;
+      // previously this was absent so lastBeatTime read as 0 every frame and
+      // every onset was accepted.
+      lastBeatTime
     },
     modulators: { 
       lfoPhases: [], 
@@ -1738,7 +1757,7 @@ const applyVisualEngine = (engineId: EngineId) => {
 
   if (engineId === 'engine-none') {
     currentProject.engineGrammar = {};
-    currentProject.engineFinish = { grain: 0, vignette: 0, ca: 0 };
+    (currentProject as any).engineFinish = { grain: 0, vignette: 0, ca: 0 };
     
     // Reset core FX systems to defaults
     currentProject.effects = JSON.parse(JSON.stringify(DEFAULT_PROJECT.effects));
@@ -1847,20 +1866,29 @@ const applyVisualMode = (
   // We'll append these or replace them? User said "grouped into high-level expressions"
   // Let's replace the mod matrix for a clean "expression"
   if (!options?.preserveModMatrix) {
-    currentProject.modMatrix = mode.audioMappings.map((mapping, index) => {
-      const defaults = getTargetDefaults(mapping.target);
-      return {
-        id: `mod-mode-${index}`,
-        source: mapping.source,
-        target: mapping.target,
-        amount: mapping.amount,
-        curve: 'linear',
-        smoothing: 0.1,
-        bipolar: false,
-        min: defaults.min,
-        max: defaults.max
-      };
-    });
+    // Replace only the connections previously injected by a Visual Mode
+    // (id prefix 'mod-mode-'), preserving user-created mod connections. The
+    // old behavior replaced the entire mod matrix on every mode switch,
+    // silently wiping any connections the user had hand-configured. Built as a
+    // single assignment so the object literals stay contextually typed as
+    // ModConnection (curve: 'linear' must not widen to string).
+    currentProject.modMatrix = [
+      ...currentProject.modMatrix.filter((c) => c.id?.startsWith('mod-mode-') !== true),
+      ...mode.audioMappings.map((mapping, index): ModConnection => {
+        const defaults = getTargetDefaults(mapping.target);
+        return {
+          id: `mod-mode-${index}`,
+          source: mapping.source,
+          target: mapping.target,
+          amount: mapping.amount,
+          curve: 'linear',
+          smoothing: 0.1,
+          bipolar: false,
+          min: defaults.min,
+          max: defaults.max
+        };
+      })
+    ];
     renderModMatrix();
   }
 
@@ -4879,7 +4907,10 @@ const renderModMatrix = () => {
     midiLearnBtn.textContent = 'M';
     midiLearnBtn.title = 'MIDI learn toggle for this mod connection';
     midiLearnBtn.addEventListener('click', () => {
-      armMidiLearn(`modMatrix.${index}.enabled`, `Mod ${index + 1} Enable`);
+      // Learn against the connection's stable id, not its positional index.
+      // Reordering or deleting other mod rows would otherwise retarget the
+      // learned mapping onto whatever row now occupies that slot.
+      armMidiLearn(`modMatrix.${connection.id}.enabled`, `Mod ${connection.id} Enable`);
     });
 
     row.appendChild(enableButton);
@@ -6703,6 +6734,19 @@ const renderLfoList = () => {
 
 const renderEnvelopeList = () => {
   envList.innerHTML = '';
+  // The mixer panel mirrors envelopes[0]'s attack/release with its own dials.
+  // Coalesce a mixer rebuild so editing those values here doesn't leave the
+  // mixer showing stale numbers. One rAF token is shared across this render's
+  // dials; a subsequent render replaces the node set and orphans this closure.
+  let mixerEnvRaf = 0;
+  const syncMixerEnvelopes = () => {
+    if (!mixerPanel) return;
+    if (mixerEnvRaf) return;
+    mixerEnvRaf = requestAnimationFrame(() => {
+      mixerEnvRaf = 0;
+      mixerPanel?.render();
+    });
+  };
   currentProject.envelopes.forEach((env, index) => {
     const row = document.createElement('div');
     row.className = 'mod-row';
@@ -6716,6 +6760,7 @@ const renderEnvelopeList = () => {
       step: 0.01,
       onChange: (value) => {
         env.attack = value;
+        if (index === 0) syncMixerEnvelopes();
       },
       title: 'Attack',
       format: (value) => value.toFixed(2),
@@ -6755,6 +6800,7 @@ const renderEnvelopeList = () => {
       step: 0.01,
       onChange: (value) => {
         env.release = value;
+        if (index === 0) syncMixerEnvelopes();
       },
       title: 'Release',
       format: (value) => value.toFixed(2),
@@ -9258,6 +9304,19 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     }
     return;
   }
+  if (target.startsWith('modMatrix.') && target.endsWith('.enabled')) {
+    // MIDI-learn target for a modulation-matrix connection's enable toggle.
+    // Format: modMatrix.<connectionId>.enabled — the id (not positional index)
+    // is used so reordering/deleting other rows never retargets the mapping.
+    const connId = target.slice('modMatrix.'.length, -'.enabled'.length);
+    const conn = currentProject.modMatrix.find((c) => c.id === connId);
+    if (conn) {
+      conn.enabled = isToggle ? conn.enabled === false : value > 0.5;
+      renderModMatrix();
+      renderLayerList();
+    }
+    return;
+  }
 };
 
 const armMidiLearn = (target: string, label: string) => {
@@ -9496,10 +9555,18 @@ const initPalettes = () => {
 
   paletteSelect.onchange = () => {
     applyPaletteSelection(paletteSelect.value);
+    // Keep the mixer's mirrored palette select in sync (the mixer panel owns a
+    // duplicate of this control; without this, changing it here leaves the
+    // mixer showing the previous palette until it is next rebuilt).
+    const mixerPalette = document.getElementById('mixer-palette-select') as HTMLSelectElement | null;
+    if (mixerPalette) mixerPalette.value = paletteSelect.value;
   };
   chemistrySelect.onchange = () => {
     currentProject.colorChemistry = [chemistrySelect.value];
     setStatus(`Color Chemistry set to: ${chemistrySelect.value}`);
+    // Mirror to the mixer's duplicate chemistry select.
+    const mixerChem = document.getElementById('mixer-chemistry-select') as HTMLSelectElement | null;
+    if (mixerChem) mixerChem.value = chemistrySelect.value;
   };
   paletteApplyToggle.onchange = () => {
     const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
@@ -9959,6 +10026,7 @@ const applyParticleControls = () => {
   syncActiveSceneLookSection(currentProject, 'particles', currentProject.particles);
 };
 
+let sdfPanelRenderRaf = 0;
 const applySdfControls = () => {
   currentProject.sdf = {
     enabled: sdfEnabled.checked,
@@ -9976,7 +10044,17 @@ const applySdfControls = () => {
   };
   syncActiveSceneLookSection(currentProject, 'sdf', currentProject.sdf);
   if (sdfAdvancedToggle.checked) {
-    sdfPanel?.render();
+    // The project state update above is synchronous (the renderer reads it
+    // directly), but rebuilding the advanced SDF editor is deferred and
+    // coalesced to one per animation frame. Without this, a stream of `input`
+    // events (e.g. a macro/modulation driving a simple control while the
+    // advanced editor is open) rebuilt the whole advanced panel on every tick,
+    // interrupting in-progress dial drags inside it.
+    if (sdfPanelRenderRaf) return;
+    sdfPanelRenderRaf = requestAnimationFrame(() => {
+      sdfPanelRenderRaf = 0;
+      sdfPanel?.render();
+    });
   }
 };
 
@@ -13505,11 +13583,23 @@ const render = (time: number) => {
       watchdogLabel.classList.add('watchdog-warning');
       healthWatchdog.textContent = 'Watchdog: Warning';
       guardrailStatus.textContent = 'Guardrails: Active';
+      // Persistent frame drops are a safe-mode condition: surface it through
+      // the safe-mode banner (not just a debug label) so the user is told to
+      // lower output scale/quality. Removed again when cadence recovers.
+      if (!safeModeReasons.includes('Poor frame cadence')) {
+        safeModeReasons.push('Poor frame cadence');
+        updateSafeModeBanner();
+      }
     } else {
       watchdogLabel.textContent = 'Watchdog: OK';
       watchdogLabel.classList.remove('watchdog-warning');
       healthWatchdog.textContent = 'Watchdog: OK';
       guardrailStatus.textContent = 'Guardrails: OK';
+      const cadenceIdx = safeModeReasons.indexOf('Poor frame cadence');
+      if (cadenceIdx >= 0) {
+        safeModeReasons.splice(cadenceIdx, 1);
+        updateSafeModeBanner();
+      }
     }
   }
 
@@ -13712,6 +13802,49 @@ const render = (time: number) => {
     const modSources = buildModSources(activeBpm, effectiveMacros);
     const modValue = (target: string, base: number) =>
       applyModMatrix(base, target, modSources, modMatrix);
+
+    // Resolve scene.next / scene.prev / scene.mix modulation targets — these are
+    // trigger/blend targets the numeric applyModMatrix path can't represent, so
+    // without this block a learned "scene.next" connection never advanced the
+    // scene. scene.next/prev fire a debounced scene advance via the quantized
+    // pendingSceneSwitch path; scene.mix drives a value-driven crossfade
+    // between the active scene and the next scene.
+    const sceneModConns = currentProject.modMatrix.filter(
+      (c) => (c.target === 'scene.next' || c.target === 'scene.prev' || c.target === 'scene.mix') && c.enabled !== false
+    );
+    const scenes = currentProject.scenes;
+    const activeSceneIdx = scenes.findIndex((s) => s.id === currentProject.activeSceneId);
+    if (scenes.length >= 2 && activeSceneIdx !== -1) {
+      // Trigger targets (next/prev): fire once per cooldown.
+      const triggerConn = sceneModConns.find((c) => c.target === 'scene.next' || c.target === 'scene.prev');
+      if (triggerConn && !pendingSceneSwitch && time - lastSceneModTriggerMs > SCENE_MOD_COOLDOWN_MS) {
+        const sv = (modSources as Record<string, number>)[triggerConn.source] ?? 0;
+        const threshold = triggerConn.amount > 0 ? triggerConn.amount : 0.7;
+        if (sv >= threshold) {
+          const dir = triggerConn.target === 'scene.next' ? 1 : -1;
+          const nextIdx = (activeSceneIdx + dir + scenes.length) % scenes.length;
+          pendingSceneSwitch = { targetSceneId: scenes[nextIdx].id, scheduledTimeMs: time, transitionOverride: undefined };
+          lastSceneModTriggerMs = time;
+        }
+      }
+      // Blend target (scene.mix): continuous crossfade toward the next scene.
+      const mixConn = sceneModConns.find((c) => c.target === 'scene.mix');
+      if (mixConn) {
+        const fromSnap = captureSceneSnapshot(currentProject, scenes[activeSceneIdx].id);
+        const toSnap = captureSceneSnapshot(currentProject, scenes[(activeSceneIdx + 1) % scenes.length].id);
+        if (fromSnap && toSnap) {
+          const mv = (modSources as Record<string, number>)[mixConn.source] ?? 0;
+          // Bipolar remaps a [-1,1] deflection to a [0,1] mix; unipolar uses
+          // the source value directly as the blend amount.
+          const mixVal = mixConn.bipolar ? mv * 0.5 + 0.5 : mv;
+          sceneManager.setContinuousMix(fromSnap, toSnap, mixVal);
+        }
+      } else {
+        sceneManager.clearContinuousMix();
+      }
+    } else {
+      sceneManager.clearContinuousMix();
+    }
 
     const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
     const macroSum = effectiveMacros.reduce((acc, macro) => {
@@ -14119,6 +14252,12 @@ const render = (time: number) => {
     timeMs: transportTimeMs,
     rms: audioState.rms,
     peak: audioState.peak,
+    bass: audioState.bass,
+    mid: audioState.mid,
+    treb: audioState.treb,
+    bassAtt: audioState.bassAtt,
+    midAtt: audioState.midAtt,
+    trebAtt: audioState.trebAtt,
     strobe: strobeIntensity,
     plasmaEnabled,
     spectrumEnabled,
@@ -14663,6 +14802,13 @@ const init = async () => {
       currentProject.colorChemistry = [chemistry];
       chemistrySelect.value = chemistry;
       setStatus(`Color Chemistry set to: ${chemistry}`);
+    },
+    onEnvelopeChange: () => {
+      // The mixer's intensity-envelope dials are a duplicate of the modulation
+      // panel's envelope dials (same underlying project envelopes). Rebuild
+      // the modulation list so it reflects attack/release edits made from the
+      // mixer instead of showing stale values.
+      renderEnvelopeList();
     },
     getProjectData: () => currentProject as any,
   });

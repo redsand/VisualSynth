@@ -561,6 +561,7 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
   let pcmProcessor: AudioWorkletNode | null = null;
   let pcmRing: Float32Array = new Float32Array(16000 * 30); // 30 seconds at 16kHz
   let pcmWritePos = 0;
+  let pcmSamplesWritten = 0; // total samples written (caps reads before the ring is full)
   let pcmStartedAt = 0;
   const PCM_SAMPLE_RATE = 16000;
 
@@ -596,9 +597,18 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
           pcmRing[pcmWritePos] = inputData[i];
           pcmWritePos = (pcmWritePos + 1) % pcmRing.length;
         }
+        pcmSamplesWritten += inputData.length;
       };
       pcmSource.connect(pcmProcessor);
-      // No destination connection needed — AudioWorkletNode processes without it
+      // AudioWorklet process() is only pulled when the node reaches the
+      // destination, but wiring the mic straight to destination plays it out
+      // of the speakers — a guaranteed feedback howl on a laptop with built-in
+      // mic+speakers. Connect through a zero-gain GainNode so the pull happens
+      // with no audible monitoring.
+      const silentGain = pcmAudioCtx.createGain();
+      silentGain.gain.value = 0;
+      pcmProcessor.connect(silentGain);
+      silentGain.connect(pcmAudioCtx.destination);
       console.log('[Now Playing] Raw PCM capture started at 16kHz (AudioWorklet)');
     }).catch((e) => {
       console.warn('[Now Playing] Failed to start PCM capture:', e);
@@ -617,7 +627,15 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     }
 
     const numSamples = Math.floor(durationMs / 1000 * PCM_SAMPLE_RATE);
-    const availableSamples = Math.min(numSamples, pcmRing.length);
+    // Cap by samples actually written, not just ring capacity. Previously this
+    // was capped only by the 30 s ring, so a request made 0.5 s after capture
+    // start read ~184000 zeros followed by 8000 real samples and reported
+    // "near-silence" instead of "not enough audio yet".
+    const availableSamples = Math.min(numSamples, pcmSamplesWritten);
+    if (availableSamples < Math.floor(durationMs / 1000 * PCM_SAMPLE_RATE)) {
+      console.warn(`[Now Playing] Insufficient PCM captured: ${availableSamples} of ${numSamples} samples requested`);
+      return null;
+    }
 
     // Read backwards from current write position
     const pcmS16le = new Int16Array(availableSamples);
@@ -628,13 +646,14 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
       readPos = (readPos + 1) % pcmRing.length;
     }
 
-    // Calculate energy
+    // Calculate energy across the entire returned region (not just the first
+    // second, which could be silence at the start of the clip).
     let energy = 0;
-    for (let i = 0; i < Math.min(availableSamples, PCM_SAMPLE_RATE); i++) {
+    for (let i = 0; i < availableSamples; i++) {
       const val = pcmS16le[i] / 32768;
       energy += val * val;
     }
-    energy = Math.sqrt(energy / Math.min(availableSamples, PCM_SAMPLE_RATE));
+    energy = Math.sqrt(energy / availableSamples);
 
     const endedAt = Date.now();
     const startedAt = endedAt - Math.round(availableSamples / PCM_SAMPLE_RATE * 1000);
@@ -666,6 +685,8 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     firstChunkAt = null;
     stopPcmCapture();
     pcmStartedAt = 0;
+    pcmSamplesWritten = 0;
+    pcmWritePos = 0;
   };
 
   return {

@@ -8,6 +8,18 @@ export interface AudioState {
   bands: number[];
   spectrum: Float32Array;
   waveform: Float32Array;
+  // Musical band aggregates (log-spaced, 0..1) derived from bands[].
+  bass: number;
+  mid: number;
+  treb: number;
+  // Slow-attacking followers (~the MilkDrop "_att" idiom) — persistent across frames.
+  bassAtt: number;
+  midAtt: number;
+  trebAtt: number;
+  // Inertial energy accumulators used by the engine grammar.
+  energyLow: number;
+  energyMid: number;
+  energyHigh: number;
 }
 
 export interface RuntimeState {
@@ -41,6 +53,10 @@ export interface RuntimeState {
   oscilloMode: number;
   oscilloFreeze: number;
   oscilloRotate: number;
+  // Timestamp (performance.now()) of the last accepted onset/beat. Used by the
+  // AudioEngine for beat hold-off; persisted on runtime so it survives across
+  // analysis frames without a separate engine-side mirror.
+  lastBeatTime: number;
 }
 
 export interface BpmState {
@@ -50,6 +66,12 @@ export interface BpmState {
   networkBpm: number | null;
   networkActive: boolean;
   manualBpm: number;
+  // Live beat-detection config. The AudioEngine reads these each frame so the
+  // UI sliders (sensitivity, filter range, hold-off) take effect in real time
+  // without rebuilding the engine. All optional with sensible defaults.
+  sensitivity?: number;          // multiplier ~0.5..3, default 1.5
+  filterRange?: 'full' | 'bass' | 'mids'; // which Hz range drives onset detection
+  holdOffMs?: number;            // min ms between accepted beats, default 200
 }
 
 export interface TransportState {
@@ -146,7 +168,16 @@ export const createInitialState = (): AppState => ({
     peak: 0,
     bands: new Array(8).fill(0),
     spectrum: new Float32Array(64),
-    waveform: new Float32Array(256)
+    waveform: new Float32Array(256),
+    bass: 0,
+    mid: 0,
+    treb: 0,
+    bassAtt: 0,
+    midAtt: 0,
+    trebAtt: 0,
+    energyLow: 0,
+    energyMid: 0,
+    energyHigh: 0
   },
   midi: { lastLatencyMs: null },
   pad: {
@@ -186,7 +217,8 @@ export const createInitialState = (): AppState => ({
     portalSeed: Math.random() * 1000,
     oscilloMode: 0,
     oscilloFreeze: 0,
-    oscilloRotate: 0
+    oscilloRotate: 0,
+    lastBeatTime: 0
   },
   diagnostics: {
     fps: 0,
