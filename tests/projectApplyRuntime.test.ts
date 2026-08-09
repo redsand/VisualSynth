@@ -60,4 +60,52 @@ describe('applyLoadableProjectRuntime', () => {
     expect(syncOutputConfig).not.toHaveBeenCalled();
     expect(setOutputEnabled).not.toHaveBeenCalled();
   });
+
+  it('resolves a relative overlay assetPath to absolute and links assetId on load', async () => {
+    // resolveAllAssets calls into the main process via window.visualSynth
+    // .checkAssetPaths, which does not exist in the node test env. Stub it:
+    // absolute paths "exist", relative paths do not, which forces the
+    // projectDir-relative remap that turns 'flyer.png' into 'C:/shows/flyer.png'.
+    const checkAssetPaths = vi.fn(async (paths: string[]) => {
+      const out: Record<string, boolean> = {};
+      for (const p of paths) out[p] = /^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('/');
+      return out;
+    });
+    const previousWindow = (globalThis as any).window;
+    (globalThis as any).window = { visualSynth: { checkAssetPaths } };
+
+    try {
+      const project = {
+        ...DEFAULT_PROJECT,
+        assets: [],
+        overlays: [
+          { id: 'o1', name: 'Flyer', type: 'image' as const, assetPath: 'flyer.png' }
+        ]
+      };
+      const onResolvedProject = vi.fn().mockResolvedValue(undefined);
+      const syncOutputConfig = vi.fn().mockResolvedValue(undefined);
+      const setOutputEnabled = vi.fn().mockResolvedValue(undefined);
+
+      const result = await applyLoadableProjectRuntime(
+        project,
+        { currentOutputConfig: DEFAULT_PROJECT.output, onResolvedProject, syncOutputConfig, setOutputEnabled },
+        'C:/shows/myshow.json'
+      );
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        const overlay = result.project.overlays[0];
+        // The overlay's relative assetPath must be rewritten to the resolved
+        // absolute path, and the overlay must be linked to the asset by id.
+        expect(overlay.assetPath).toBe('C:/shows/flyer.png');
+        expect(overlay.assetId).toBeTruthy();
+        const linked = result.project.assets.find((a: any) => a.id === overlay.assetId);
+        expect(linked).toBeTruthy();
+        expect(linked?.path).toBe('C:/shows/flyer.png');
+      }
+    } finally {
+      if (previousWindow === undefined) delete (globalThis as any).window;
+      else (globalThis as any).window = previousWindow;
+    }
+  });
 });

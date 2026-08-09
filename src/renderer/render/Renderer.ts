@@ -201,11 +201,17 @@ export const createRenderer = ({
           if (layer.assetId) activeAssetIds.add(layer.assetId);
         });
         project.overlays?.forEach(overlay => {
+          // Prefer the overlay's linked asset id (set at load time when the
+          // overlay assetPath is resolved to absolute); fall back to a path
+          // lookup, then to the raw path as the cached id. Keep both the id
+          // and any path-matched asset so a needed overlay texture is never
+          // pruned mid-show — over-keeping a texture is cheap, dropping one
+          // makes the overlay flicker off.
+          if (overlay.assetId) activeAssetIds.add(overlay.assetId);
           if (overlay.assetPath) {
-            // Find asset by path to get ID, or use path as ID if that's how it's cached
             const asset = project.assets.find(a => a.path === overlay.assetPath);
             if (asset) activeAssetIds.add(asset.id);
-            else activeAssetIds.add(overlay.assetPath);
+            else if (!overlay.assetId) activeAssetIds.add(overlay.assetPath);
           }
         });
         renderer.pruneUnusedAssets(activeAssetIds);
