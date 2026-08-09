@@ -66,10 +66,18 @@ export const DEFAULT_NOW_PLAYING_SETTINGS: NowPlayingSettings = {
   host: '',
   clipDurationMs: 12000,
   cooldownMs: 15000,
-  minTrackMs: 45000,
+  // Auto-detection defaults. These are not currently exposed in the settings UI,
+  // so the defaults ARE the user's only out-of-box experience. The previous
+  // values (45s baseline, 0.42 threshold, 3 confirm windows = 7.5s of sustained
+  // change) were conservative enough that the detector essentially never fired
+  // for typical live/DJ listening — a song change rarely produces 3 consecutive
+  // 2.5s windows all above 0.42, and waiting 45s before the first detection is
+  // excessive. Loosened modestly; cooldownMs still rate-limits any false
+  // positives to one lookup per 15s.
+  minTrackMs: 30000,
   silenceThreshold: 0.025,
-  changeThreshold: 0.42,
-  confirmWindows: 3,
+  changeThreshold: 0.35,
+  confirmWindows: 2,
   market: 'us',
   artworkPreference: 'album',
   autoCreateOverlays: true,

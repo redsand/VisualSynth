@@ -11040,7 +11040,12 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
 
   log('[Now Playing Test] Calling decodeClipToPcmWithDiagnostics...');
 
-  // For Shazam, try raw PCM export first (bypasses WebM/Opus decode issues)
+  // For Shazam, try raw PCM export first (bypasses WebM/Opus decode issues).
+  // Build the request inline from the exported PCM rather than calling
+  // buildRecognitionRequest, which would call exportRecentPcm a SECOND time
+  // and, if that second export returned null (a ring-buffer timing edge),
+  // discard the already-exported clean PCM and fall through to a lossy
+  // WebM/Opus decode. We already have the bytes — use them directly.
   if (settings.provider === 'shazam') {
     log('[Now Playing Test] Using raw PCM export for Shazam...');
     const pcmData = rollingAudioCapture.exportRecentPcm(settings.clipDurationMs);
@@ -11049,24 +11054,19 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
       const rawCopy = new Uint8Array(pcmData.pcmS16le.byteLength);
       rawCopy.set(new Uint8Array(pcmData.pcmS16le.buffer, pcmData.pcmS16le.byteOffset, pcmData.pcmS16le.byteLength));
       const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
-
-      const buildResult = await buildRecognitionRequest(
-        rollingAudioCapture,
-        { blob: new Blob([rawCopy.buffer as ArrayBuffer]), mimeType: 'audio/pcm-s16le', startedAt: pcmData.startedAt, endedAt: pcmData.endedAt },
-        settings,
-        Date.now()
-      );
-      if (buildResult.request) {
-        buildResult.request.audioBase64 = audioBase64;
-        buildResult.request.mimeType = 'audio/pcm-s16le';
-        buildResult.request.numSamples = pcmData.numSamples;
-        buildResult.request.durationMs = pcmData.durationMs;
-        log(`[Now Playing Test] Built Shazam request: ${buildResult.request.numSamples} samples, ${buildResult.request.durationMs}ms`);
-        const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
-        log(`[Now Playing Test] Shazam result: matched=${result.matched}, title=${result.title}, artist=${result.artist}`);
-        await consumeNowPlayingResult(result, 'Shazam live test');
-        return;
-      }
+      log(`[Now Playing Test] Built Shazam request from raw PCM: ${pcmData.numSamples} samples, ${pcmData.durationMs}ms`);
+      const result = await window.visualSynth.identifyNowPlaying({
+        provider: 'shazam',
+        audioBase64,
+        mimeType: 'audio/pcm-s16le',
+        numSamples: pcmData.numSamples,
+        durationMs: pcmData.durationMs,
+        market: settings.market || undefined,
+        detectedAt: Date.now()
+      });
+      log(`[Now Playing Test] Shazam result: matched=${result.matched}, title=${result.title}, artist=${result.artist}`);
+      await consumeNowPlayingResult(result, 'Shazam live test');
+      return;
     }
     log('[Now Playing Test] PCM export failed or too short, falling back to blob decode...');
   }

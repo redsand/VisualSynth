@@ -81,10 +81,16 @@ const MIN_CHUNKS_FOR_12_SECONDS = 10;
 async function decodeAudioDataUniversal(blob: Blob): Promise<AudioBuffer | null> {
   const arrayBuffer = await blob.arrayBuffer();
 
+  // Use an OfflineAudioContext at the Shazam target rate, not a real-time
+  // AudioContext. A real-time AudioContext starts suspended and can leave
+  // decodeAudioData hanging or failing (the live path's unreliability); an
+  // OfflineAudioContext is the reliable offline-decode path the disk test
+  // already uses (decodeClipToPcmWithDiagnostics non-webm branch). It holds no
+  // hardware so there is nothing to close, and decoding straight to 16kHz
+  // makes the caller's resample step a no-op.
   try {
-    const audioCtx = new AudioContext();
+    const audioCtx = new OfflineAudioContext(1, 1, 16000);
     const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-    await audioCtx.close();
     return decoded;
   } catch (e) {
     console.warn('[Now Playing] decodeAudioData failed, blob may be in unsupported format:', (e as Error).message);
@@ -580,11 +586,26 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     pcmAudioCtx = null;
   };
 
-  const startPcmCapture = (stream: MediaStream) => {
+  const startPcmCapture = async (stream: MediaStream) => {
     stopPcmCapture();
     const ctx = new AudioContext({ sampleRate: PCM_SAMPLE_RATE });
     pcmAudioCtx = ctx;
-    if (ctx.state === 'suspended') ctx.resume();
+    // A 16kHz AudioContext created without a fresh user gesture in the same
+    // call stack can start suspended. If resume() is fire-and-forget and the
+    // context stays suspended, the AudioWorklet's process() never pulls, so
+    // pcmSamplesWritten stays 0 and the raw-PCM Shazam path is permanently
+    // dead. Await resume (mirroring AudioEngine's main-context handling) so
+    // the worklet actually receives samples.
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.warn('[Now Playing] PCM AudioContext resume failed:', e);
+      }
+    }
+    if (ctx.state !== 'running') {
+      console.warn('[Now Playing] PCM AudioContext not running after resume; state=' + ctx.state + '. Raw-PCM capture may be unavailable.');
+    }
 
     ctx.audioWorklet.addModule(getWorkletUrl()).then(() => {
       if (pcmAudioCtx !== ctx) return; // stopped before module loaded
@@ -627,15 +648,18 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     }
 
     const numSamples = Math.floor(durationMs / 1000 * PCM_SAMPLE_RATE);
-    // Cap by samples actually written, not just ring capacity. Previously this
-    // was capped only by the 30 s ring, so a request made 0.5 s after capture
-    // start read ~184000 zeros followed by 8000 real samples and reported
-    // "near-silence" instead of "not enough audio yet".
-    const availableSamples = Math.min(numSamples, pcmSamplesWritten);
-    if (availableSamples < Math.floor(durationMs / 1000 * PCM_SAMPLE_RATE)) {
-      console.warn(`[Now Playing] Insufficient PCM captured: ${availableSamples} of ${numSamples} samples requested`);
+    // The ScriptProcessor fires in 4096-sample quanta, so after exactly 12s of
+    // capture (a 192000-sample request) pcmSamplesWritten is only ~188416 —
+    // short of the 192000 the previous strict gate demanded, so the raw-PCM
+    // Shazam path returned null until the 47th quantum (12.256s) and often
+    // never. Shazam's signature generator only needs ~3s, so gate on that real
+    // minimum and export however many real samples we have (capped by the
+    // request), never zeros.
+    if (pcmSamplesWritten < MIN_SAMPLES_FOR_SHAZAM) {
+      console.warn(`[Now Playing] Insufficient PCM captured: ${pcmSamplesWritten} of ${numSamples} samples requested (need ${MIN_SAMPLES_FOR_SHAZAM})`);
       return null;
     }
+    const availableSamples = Math.min(numSamples, pcmSamplesWritten);
 
     // Read backwards from current write position
     const pcmS16le = new Int16Array(availableSamples);
@@ -707,9 +731,14 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
 
       mimeType = pickMimeType();
       try {
+        // 128 kbps gives the Opus/webm fallback enough spectral fidelity for
+        // Shazam's landmark matcher; the browser default (~32-64 kbps, speech-
+        // tuned) smears the peaks Shazam relies on. The raw-PCM path bypasses
+        // Opus entirely, so this only matters when that path is unavailable.
+        const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 128000 };
         recorder = mimeType
-          ? new MediaRecorder(stream, { mimeType })
-          : new MediaRecorder(stream);
+          ? new MediaRecorder(stream, { mimeType, ...recorderOptions })
+          : new MediaRecorder(stream, recorderOptions);
       } catch {
         recorder = null;
         mimeType = '';
@@ -727,8 +756,10 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
       });
       recorder.start(1000);
 
-      // Start parallel PCM capture for Shazam
-      startPcmCapture(stream);
+      // Start parallel PCM capture for Shazam. Fire-and-forget: attach must stay
+      // synchronous (it returns a boolean), and capture isn't needed for ~10s
+      // anyway. startPcmCapture has its own try/catch and never rejects.
+      void startPcmCapture(stream);
 
       return true;
     },
