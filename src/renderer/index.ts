@@ -37,6 +37,7 @@ import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset, needsInput } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
 import { applyModMatrix } from '../shared/modMatrix';
+import { GLOBAL_MOD_TARGETS, resolveModTargetRange } from '../shared/modTargets';
 import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
 import { resolveGenUniforms } from '../shared/genUniformResolver';
 import { lfoValueForShape } from '../shared/lfoUtils';
@@ -3223,27 +3224,7 @@ const modSourceOptions = [
   { id: 'macro-8', label: 'Macro 8' }
 ];
 
-const globalModTargets = [
-  { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
-  { id: 'style.saturation', label: 'Style Saturation', min: 0.6, max: 1.8 },
-  { id: 'style.paletteShift', label: 'Palette Shift', min: -0.5, max: 0.5 },
-  { id: 'effects.bloom', label: 'Bloom', min: 0, max: 1 },
-  { id: 'effects.blur', label: 'Blur', min: 0, max: 1 },
-  { id: 'effects.chroma', label: 'Chromatic', min: 0, max: 0.5 },
-  { id: 'effects.posterize', label: 'Posterize', min: 0, max: 1 },
-  { id: 'effects.kaleidoscope', label: 'Kaleidoscope', min: 0, max: 1 },
-  { id: 'effects.feedback', label: 'Feedback', min: 0, max: 1 },
-  { id: 'effects.persistence', label: 'Persistence', min: 0, max: 1 },
-  { id: 'particles.density', label: 'Particle Density', min: 0, max: 1 },
-  { id: 'particles.speed', label: 'Particle Speed', min: 0, max: 1 },
-  { id: 'particles.size', label: 'Particle Size', min: 0, max: 1 },
-  { id: 'particles.glow', label: 'Particle Glow', min: 0, max: 1 },
-  { id: 'sdf.scale', label: 'SDF Scale', min: 0, max: 1 },
-  { id: 'sdf.edge', label: 'SDF Edge', min: 0, max: 0.5 },
-  { id: 'sdf.glow', label: 'SDF Glow', min: 0, max: 1 },
-  { id: 'sdf.rotation', label: 'SDF Rotation', min: -3.14, max: 3.14 },
-  { id: 'sdf.fill', label: 'SDF Fill', min: 0, max: 1 }
-];
+const globalModTargets = GLOBAL_MOD_TARGETS;
 
 function buildModTargetOptions() {
   const activeScene =
@@ -13814,7 +13795,7 @@ const render = (time: number) => {
 
     const modSources = buildModSources(activeBpm, effectiveMacros);
     const modValue = (target: string, base: number) =>
-      applyModMatrix(base, target, modSources, modMatrix);
+      applyModMatrix(base, target, modSources, modMatrix, resolveModTargetRange(target));
 
     // Resolve scene.next / scene.prev / scene.mix modulation targets — these are
     // trigger/blend targets the numeric applyModMatrix path can't represent, so

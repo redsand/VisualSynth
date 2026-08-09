@@ -1,5 +1,6 @@
 import { getActiveScene } from '../shaderLifecycle';
 import { applyModMatrix } from '../../shared/modMatrix';
+import { resolveModTargetRange } from '../../shared/modTargets';
 import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
 import {
@@ -1208,19 +1209,31 @@ export class RenderGraph {
       cloned.nodes.forEach((node: any) => {
         if (!node.params) return;
 
+        // Resolve this node's parameter ranges from the SDF registry so that
+        // connections still carrying the schema-default [0,1] clamp (hand-edited
+        // or round-tripped files) substitute the parameter's true range instead
+        // of capping the modulation to [0,1]. No-op for genuine [0,1] params.
+        const nodeDef = sdfRegistry.get(node.nodeId);
+        const paramRange = (pid: string): { min: number; max: number } | undefined => {
+          const p = nodeDef?.parameters.find((sp) => sp.id === pid);
+          if (!p || p.min == null || p.max == null) return undefined;
+          return { min: p.min, max: p.max };
+        };
+
         Object.keys(node.params).forEach(paramId => {
           const targetId = `${node.instanceId}.${paramId}`;
           const baseValue = node.params[paramId];
+          const fallback = paramRange(paramId);
 
           if (typeof baseValue === 'number') {
-            node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix);
+            node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix, fallback);
           } else if (Array.isArray(baseValue)) {
             // Support modulating vector components like 'nodeId.paramId.x'
             const components = ['x', 'y', 'z', 'w'];
             const modded = [...baseValue];
             for (let i = 0; i < Math.min(baseValue.length, 4); i++) {
                 const subTargetId = `${targetId}.${components[i]}`;
-                modded[i] = applyModMatrix(baseValue[i], subTargetId, modSources, modMatrix);
+                modded[i] = applyModMatrix(baseValue[i], subTargetId, modSources, modMatrix, fallback);
             }
             node.params[paramId] = modded;
           }
@@ -1503,7 +1516,7 @@ export class RenderGraph {
     const bpm = this.getActiveBpm();
     const modSources = this.buildModSources(bpm);
     const modValue = (target: string, base: number) =>
-      applyModMatrix(base, target, modSources, state.project.modMatrix);
+      applyModMatrix(base, target, modSources, state.project.modMatrix, resolveModTargetRange(target));
     const lowFreq = ((state.audio.bands[0] ?? 0) + (state.audio.bands[1] ?? 0)) * 0.5;
 
     const moddedStyle = {

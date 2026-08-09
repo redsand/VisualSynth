@@ -8,7 +8,8 @@ export const applyModMatrix = (
   baseValue: number,
   targetId: string,
   sources: ModSourceValues,
-  connections: ModConnection[]
+  connections: ModConnection[],
+  fallbackRange?: { min: number; max: number }
 ) => {
   const mods = connections.filter((conn) => conn.target === targetId && conn.enabled !== false);
   if (mods.length === 0) {
@@ -18,8 +19,25 @@ export const applyModMatrix = (
   let minClamp: number | null = null;
   let maxClamp: number | null = null;
   for (const mod of mods) {
-    minClamp = minClamp === null ? mod.min : Math.min(minClamp, mod.min);
-    maxClamp = maxClamp === null ? mod.max : Math.max(maxClamp, mod.max);
+    // A connection whose min/max are still the schema default [0,1] is almost
+    // always a hand-edited or round-tripped file where the true parameter range
+    // was never filled in. Clamping to [0,1] is wrong for any parameter whose
+    // natural range differs (contrast [0.6,1.6], rotation [-3.14,3.14], etc.),
+    // so when the caller supplies the parameter's true range, substitute it.
+    // The substitution is a no-op for genuine [0,1] parameters (opacity, etc.)
+    // because the fallback equals the default there — so a deliberate [0,1]
+    // clamp on a [0,1] parameter is preserved. A hand-edited deliberate
+    // narrowing of a non-[0,1] parameter to exactly [0,1] would be widened back
+    // to its true range; narrow to any other bound (e.g. [0, 0.99]) to keep it.
+    const useFallback =
+      !!fallbackRange &&
+      mod.min === 0 &&
+      mod.max === 1 &&
+      (fallbackRange.min !== 0 || fallbackRange.max !== 1);
+    const effMin = useFallback ? fallbackRange.min : mod.min;
+    const effMax = useFallback ? fallbackRange.max : mod.max;
+    minClamp = minClamp === null ? effMin : Math.min(minClamp, effMin);
+    maxClamp = maxClamp === null ? effMax : Math.max(maxClamp, effMax);
     const sourceValue = sources[mod.source] ?? 0;
     let shaped = sourceValue;
     if (mod.curve === 'exp') {
