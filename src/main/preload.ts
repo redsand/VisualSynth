@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('visualSynth', {
   loadTemplate: (templatePath: string) => ipcRenderer.invoke('templates:load', templatePath),
   listNodeMidi: () => ipcRenderer.invoke('midi:list-node'),
   openNodeMidi: (portIndex: number) => ipcRenderer.invoke('midi:open-node', portIndex),
+  closeNodeMidi: () => ipcRenderer.invoke('midi:close-node'),
   onNodeMidiMessage: (handler: (message: number[]) => void) =>
     ipcRenderer.on('midi:node-message', (_event, message: number[]) => handler(message)),
   getOutputConfig: () => ipcRenderer.invoke('output:get-config') as Promise<OutputConfig>,

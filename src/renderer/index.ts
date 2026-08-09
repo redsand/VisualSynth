@@ -112,6 +112,7 @@ declare global {
       loadTemplate: (templatePath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
       listNodeMidi: () => Promise<{ index: number; name: string }[]>;
       openNodeMidi: (portIndex: number) => Promise<{ opened: boolean; error?: string }>;
+      closeNodeMidi: () => Promise<{ closed: boolean }>;
       onNodeMidiMessage: (handler: (message: number[]) => void) => void;
       getOutputConfig: () => Promise<OutputConfig>;
       isOutputOpen: () => Promise<boolean>;
@@ -11311,6 +11312,10 @@ const setupMIDI = async () => {
 
 const startMidiInput = async () => {
   if (midiAccess) {
+    // If a node-midi input was previously opened (Web MIDI was unavailable at
+    // the time), close it now so its 'message' listener stops firing alongside
+    // Web MIDI and doesn't leak the port. No-op if none was open.
+    await window.visualSynth.closeNodeMidi();
     const inputId = midiSelect.value;
     const input = Array.from((midiAccess.inputs as unknown as Map<string, MIDIInput>).values()).find((item) => item.id === inputId);
     if (!input) return;
