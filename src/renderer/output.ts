@@ -20,6 +20,11 @@ type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media' | 'gen-ass
 const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
 const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};
+// Monotonic per-layer binding generation. Incremented on every binding change
+// so an in-flight async live-video bind (awaiting getUserMedia/getDisplayMedia
+// permission) can detect that it has been superseded — including the A→B→A
+// case, where id+key match again but a newer request owns the layer.
+const layerAssetGen: Partial<Record<AssetLayerId, number>> = {};
 
 const diag = new OutputDiagnostics();
 const recentTransitions: OutputTransitionPayload[] = [];
@@ -506,11 +511,35 @@ channel.onmessage = (event) => {
       cleanupLayerVideo(layerId);
       layerAssetIds[layerId] = nextId;
       layerAssetKeys[layerId] = assetKey;
+      const gen = (layerAssetGen[layerId] ?? 0) + 1;
+      layerAssetGen[layerId] = gen;
 
       const textCanvas = asset?.kind === 'text' ? getTextCanvas(asset) ?? undefined : undefined;
 
       if (asset?.kind === 'live') {
         createLiveVideoElement(asset).then((videoElement) => {
+          // The binding may have changed while we awaited getUserMedia /
+          // getDisplayMedia permission (which can take seconds for the
+          // camera/screen-share prompt). If superseded — including the
+          // A→B→A case where id+key match again but a newer request owns the
+          // layer — tear down this now-stale video element, stopping its
+          // MediaStream tracks so the camera/screen capture actually
+          // releases instead of leaking, and do NOT clobber the current
+          // binding. Previously the .then() ran unconditionally, overwriting
+          // layerVideoElements and re-issuing setLayerAsset with the stale
+          // asset, so a quick rebind left the old live stream running and
+          // stomped the new layer asset.
+          if (layerAssetGen[layerId] !== gen) {
+            videoElement.pause();
+            const staleStream = videoElement.srcObject as MediaStream | null;
+            if (staleStream) {
+              staleStream.getTracks().forEach((t) => t.stop());
+              videoElement.srcObject = null;
+            }
+            videoElement.remove();
+            diag.logEvent('asset-unbound', `${layerId} live (superseded)`);
+            return;
+          }
           layerVideoElements[layerId] = videoElement;
           void videoElement.play().catch(() => undefined);
           renderer.setLayerAsset(layerId, asset as any, videoElement, textCanvas);
