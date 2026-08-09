@@ -3745,17 +3745,33 @@ const addSceneFromSourceProject = (
     renderAssets();
   }
 
+  // Prefer the source scene's own per-scene look over the source project's
+  // project-level fields. The project-level fields hold the source project's
+  // ACTIVE scene's look at save time — which is a *different* scene than
+  // sourceScene whenever a non-active scene is imported, so building the look
+  // from sourceProject.* silently replaces the imported scene's effects /
+  // palette / macros with another scene's. applySceneLookToProject
+  // (sceneRuntime) treats scene.look as authoritative on activation, so the
+  // imported scene must carry its own look. Fall back to the project-level
+  // field only when the scene has no look (e.g. presets saved before per-scene
+  // looks existed). activePaletteId keeps the caller's explicit override first
+  // (callers resolve it from the source project/scene), then the scene look,
+  // then the project field — never undefined, which would orphan the palette.
+  const sceneLook = sourceScene.look;
   const look: SceneLook = {
-    effects: cloneValue(sourceProject.effects || {}),
-    particles: cloneValue(sourceProject.particles || {}),
-    sdf: cloneValue(sourceProject.sdf || {}),
-    visualizer: cloneValue(sourceProject.visualizer || {}),
-    stylePresets: cloneValue(sourceProject.stylePresets || []),
-    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
-    palettes: cloneValue(sourceProject.palettes || []),
-    activePaletteId: options.explicitPaletteId,
-    macros: cloneValue(sourceProject.macros || []),
-    modMatrix: cloneValue(sourceProject.modMatrix || [])
+    effects: cloneValue(sceneLook?.effects ?? sourceProject.effects ?? {}),
+    particles: cloneValue(sceneLook?.particles ?? sourceProject.particles ?? {}),
+    sdf: cloneValue(sceneLook?.sdf ?? sourceProject.sdf ?? {}),
+    visualizer: cloneValue(sceneLook?.visualizer ?? sourceProject.visualizer ?? {}),
+    stylePresets: cloneValue(sceneLook?.stylePresets ?? sourceProject.stylePresets ?? []),
+    activeStylePresetId: cloneValue(
+      sceneLook?.activeStylePresetId ?? sourceProject.activeStylePresetId ?? ''
+    ),
+    palettes: cloneValue(sceneLook?.palettes ?? sourceProject.palettes ?? []),
+    activePaletteId:
+      options.explicitPaletteId ?? sceneLook?.activePaletteId ?? sourceProject.activePaletteId,
+    macros: cloneValue(sceneLook?.macros ?? sourceProject.macros ?? []),
+    modMatrix: cloneValue(sceneLook?.modMatrix ?? sourceProject.modMatrix ?? [])
   };
 
   const newSceneId = getNextSceneId();
@@ -7402,17 +7418,28 @@ const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
     renderAssets();
   }
 
+  // Prefer the preset's per-scene look over its project-level fields (see
+  // addSceneFromSourceProject for why). Keep the existing scene's active
+  // palette first — a refresh re-applies the preset but should not clobber a
+  // palette the user changed after import — falling back to the source scene's
+  // look, then the project field, so the palette is never orphaned.
+  const sourceSceneLook = sourceScene.look;
   const updatedLook: SceneLook = {
-    effects: cloneValue(sourceProject.effects || {}),
-    particles: cloneValue(sourceProject.particles || {}),
-    sdf: cloneValue(sourceProject.sdf || {}),
-    visualizer: cloneValue(sourceProject.visualizer || {}),
-    stylePresets: cloneValue(sourceProject.stylePresets || []),
-    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
-    palettes: cloneValue(sourceProject.palettes || []),
-    activePaletteId: scene.look?.activePaletteId,
-    macros: cloneValue(sourceProject.macros || []),
-    modMatrix: cloneValue(sourceProject.modMatrix || [])
+    effects: cloneValue(sourceSceneLook?.effects ?? sourceProject.effects ?? {}),
+    particles: cloneValue(sourceSceneLook?.particles ?? sourceProject.particles ?? {}),
+    sdf: cloneValue(sourceSceneLook?.sdf ?? sourceProject.sdf ?? {}),
+    visualizer: cloneValue(sourceSceneLook?.visualizer ?? sourceProject.visualizer ?? {}),
+    stylePresets: cloneValue(sourceSceneLook?.stylePresets ?? sourceProject.stylePresets ?? []),
+    activeStylePresetId: cloneValue(
+      sourceSceneLook?.activeStylePresetId ?? sourceProject.activeStylePresetId ?? ''
+    ),
+    palettes: cloneValue(sourceSceneLook?.palettes ?? sourceProject.palettes ?? []),
+    activePaletteId:
+      scene.look?.activePaletteId ??
+      sourceSceneLook?.activePaletteId ??
+      sourceProject.activePaletteId,
+    macros: cloneValue(sourceSceneLook?.macros ?? sourceProject.macros ?? []),
+    modMatrix: cloneValue(sourceSceneLook?.modMatrix ?? sourceProject.modMatrix ?? [])
   };
 
   const sceneIndex = currentProject.scenes.findIndex((s) => s.id === sceneId);
