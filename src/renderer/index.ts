@@ -97,7 +97,7 @@ declare global {
       savePreset: (
         payload: string,
         defaultName: string
-      ) => Promise<{ canceled: boolean; filePath?: string }>;
+      ) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
       saveExchange: (
         payload: string,
         defaultName: string
@@ -3985,6 +3985,8 @@ const saveSceneAsPreset = async (sceneId: string) => {
     );
     if (!result.canceled) {
       setStatus(`Scene preset saved: ${scene.name}`);
+    } else if (result.error) {
+      setStatus(`Scene preset save failed: ${result.error}`);
     }
   } catch (error) {
     setStatus('Scene preset save failed.');

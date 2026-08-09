@@ -1102,8 +1102,12 @@ void main() {
     gl.bindTexture(gl.TEXTURE_2D, midiTexture);
     gl.uniform1i(gl.getUniformLocation(prog, 'uMidiTex'), units.midi);
 
-    ensurePreviousFrameTextureSize();
+    // Set the previousFrame unit active BEFORE ensurePreviousFrameTextureSize,
+    // which binds previousFrameTexture on resize — otherwise it binds to the
+    // still-active midi unit (13), corrupting uMidiTex. (Dormant today: no
+    // shader samples uMidiTex, but would break midi-driven rendering once one does.)
     gl.activeTexture(gl.TEXTURE0 + units.previousFrame);
+    ensurePreviousFrameTextureSize();
     gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
     gl.uniform1i(gl.getUniformLocation(prog, 'uPreviousFrame'), units.previousFrame);
   };
@@ -1241,6 +1245,7 @@ void main() {
             console.log(`[Shader] Async precompile finished successfully`);
           } else {
             console.error('Async precompile failed:', gl.getProgramInfoLog(pending.program));
+            untrackProgram(pending.program);
             gl.deleteProgram(pending.program);
           }
         } else {
@@ -1397,6 +1402,7 @@ void main() {
       if (options.onError) {
         options.onError(log, 'link');
       }
+      untrackProgram(pending.program);
       gl.deleteProgram(pending.program);
       return;
     }
@@ -1551,9 +1557,17 @@ void main() {
     uniformLocationCache.clear();
     // Discard any in-flight async compile — its cache key is now stale.
     if (pendingProgram) {
+      untrackProgram(pendingProgram.program);
       gl.deleteProgram(pendingProgram.program);
       pendingProgram = null;
     }
+    // Discard queued precompiles too — they were compiled with the old blocks and
+    // would re-populate the (now-cleared) cache with stale, never-freed programs.
+    pendingPrecompiles.forEach(p => {
+      untrackProgram(p.program);
+      gl.deleteProgram(p.program);
+    });
+    pendingPrecompiles.length = 0;
     // Null out program references so the render loop skips frames gracefully
     // until recompileForGenerators provides a fresh program.
     standardProgram = null;

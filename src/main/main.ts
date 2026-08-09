@@ -451,6 +451,22 @@ const buildPortableProjectPayload = (payload: string, targetPath: string) => {
   return serializeProject(project);
 };
 
+// Presets are a different shape from projects: name/createdAt live in
+// `metadata`, not at the top level, so they must NOT go through
+// deserializeProject/projectSchema (which requires top-level name/createdAt) —
+// that route throws "Invalid project data" and every preset save silently
+// fails. Instead parse the preset JSON, rewrite the embedded project's
+// assets/overlays for portability, keep the top-level `assets` mirror in sync,
+// and re-serialize.
+const buildPortablePresetPayload = (payload: string, targetPath: string) => {
+  const preset = JSON.parse(payload);
+  if (preset && typeof preset === 'object' && preset.project) {
+    preset.project = rewritePortableProjectAssets(preset.project as VisualSynthProject, targetPath);
+    preset.assets = preset.project.assets;
+  }
+  return JSON.stringify(preset, null, 2);
+};
+
 // Atomically write a text file by writing to a temp sibling then renaming.
 // Prevents a crash/power loss mid-write from leaving a truncated project or
 // recovery file that would fail to parse on the next launch.
@@ -528,7 +544,7 @@ ipcMain.handle('preset:save', async (_event, payload: string, defaultName: strin
     return { canceled: true };
   }
   try {
-    const portablePayload = buildPortableProjectPayload(payload, result.filePath);
+    const portablePayload = buildPortablePresetPayload(payload, result.filePath);
     writeFileAtomic(result.filePath, portablePayload);
     clearRecoverySession();
     return { canceled: false, filePath: result.filePath };

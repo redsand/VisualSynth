@@ -211,16 +211,19 @@ void main() {
       strobeWindow *= audioGate;
     }
     float strobeBrightness = 1.0 - (strobeWindow * uStrobeOpacity * uStrobeFadeOut);
+    // Apply the scanline pattern BEFORE strobeBrightness is consumed to modify
+    // color — previously this block ran after color was already updated, so the
+    // pattern wrote to strobeBrightness but it was never read again (dead code).
+    if (uStrobePattern > 0.5) {
+      float pattern = step(0.5, sin(uv.x * 20.0 + uTime));
+      strobeBrightness = mix(strobeBrightness, 1.0, pattern);
+    }
     if (uStrobeMode > 0.5 && uStrobeMode < 1.5) {
       color *= strobeBrightness;
     } else if (uStrobeMode > 1.5 && uStrobeMode < 2.5) {
       color = mix(color, vec3(1.0), 1.0 - strobeBrightness);
     } else {
       color += (1.0 - strobeBrightness) * 0.5;
-    }
-    if (uStrobePattern > 0.5) {
-      float pattern = step(0.5, sin(uv.x * 20.0 + uTime));
-      strobeBrightness = mix(strobeBrightness, 1.0, pattern);
     }
   }
 
