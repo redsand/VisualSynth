@@ -97,9 +97,14 @@ export const serializeProject = (project: VisualSynthProject) => {
   }
   
   const canonical = { ...parsed.data };
-  // Strictly remove non-canonical fields
+  // Strictly remove non-canonical fields. `output` is intentionally KEPT: it is
+  // part of the project (resolveProjectOutputConfig lets project.output win
+  // over the current runtime window config on load). Stripping it here meant
+  // the file never carried output, so on reload zod re-filled a full
+  // DEFAULT_OUTPUT_CONFIG and the project-wins resolver applied that default —
+  // silently resetting the user's output window (scale/fullscreen/device) on
+  // every save/reload. Only updatedAt is transient.
   delete (canonical as any).updatedAt;
-  delete (canonical as any).output;
 
   return JSON.stringify(sortObjectKeys(canonical), null, 2);
 };

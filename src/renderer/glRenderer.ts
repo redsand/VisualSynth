@@ -656,9 +656,20 @@ void main() {
     gl.uniform1f(getLocation('uPlasmaScale'), state.plasmaScale || 1.0);
     gl.uniform1f(getLocation('uPlasmaComplexity'), state.plasmaComplexity || 3.0);
     gl.uniform1f(getLocation('uPlasmaAudioReact'), state.plasmaAudioReact || 0.5);
+    // Plasma asset blend/audio-react were declared & sampled by the layer-plasma
+    // shader block (generatorShaderBlocks.ts) but never uploaded here, so they
+    // stayed at the GL default 0.0 — the user's blend-mode and audio-react slider
+    // choices for the plasma layer's bound image had no effect. Mirror the media
+    // path (uMediaAssetBlend/uMediaAssetAudioReact at the uploads below).
+    gl.uniform1f(getLocation('uPlasmaAssetBlend'), state.plasmaAssetBlendMode);
+    gl.uniform1f(getLocation('uPlasmaAssetAudioReact'), state.plasmaAssetAudioReact);
     gl.uniform1f(getLocation('uSpectrumEnabled'), getSafeEnabled(state.spectrumEnabled, 'low'));
     gl.uniform1f(getLocation('uSpectrumOpacity'), state.spectrumOpacity);
     gl.uniform1fv(getLocation('uSpectrum[0]'), state.spectrum);
+    // Same gap as plasma above: the layer-spectrum block samples
+    // uSpectrumAssetBlend/uSpectrumAssetAudioReact but they were never uploaded.
+    gl.uniform1f(getLocation('uSpectrumAssetBlend'), state.spectrumAssetBlendMode);
+    gl.uniform1f(getLocation('uSpectrumAssetAudioReact'), state.spectrumAssetAudioReact);
     gl.uniform1f(getLocation('uOrigamiEnabled'), getSafeEnabled(state.origamiEnabled, 'medium'));
     gl.uniform1f(getLocation('uOrigamiOpacity'), state.origamiOpacity);
     gl.uniform1f(getLocation('uOrigamiFoldState'), state.origamiFoldState);

@@ -117,6 +117,9 @@ const layerSchema = z.object({
   transform: transformSchema.default({ x: 0, y: 0, scale: 1, rotation: 0 }),
   assetId: z.string().optional(),
   generatorId: z.string().optional(),
+  // Declared on LayerConfig; without it in the schema, zod strips the flag on
+  // every save and layers that require a user-supplied input silently revert.
+  inputRequired: z.boolean().optional(),
   params: z.record(z.any()).default({}),
   effects: z.array(z.any()).default([]),
   sdfScene: sdfSceneConfigSchema.optional()
@@ -209,7 +212,12 @@ const effectsObjectSchema = z.object({
 
 const effectsSchema = z.union([
   effectsObjectSchema,
-  z.array(effectsObjectSchema).length(1).transform(([effects]) => effects)
+  // Some presets serialize effects as a single-element array and a few hand-edited
+  // project files carry more than one entry. `.length(1)` rejected anything but a
+  // one-element array, so the project failed to load entirely. Accept any
+  // non-empty array and normalize to its first entry (the schema is a single
+  // EffectConfig, not a list).
+  z.array(effectsObjectSchema).min(1).transform((effects) => effects[0])
 ]);
 
 
@@ -431,7 +439,7 @@ const milkDropShaderDataSchema = z.object({
           sourceLength: z.number(),
           issueCount: z.number(),
           issues: z.array(z.object({
-            severity: z.enum(['warning', 'error']),
+            severity: z.enum(['info', 'warning', 'error']),
             code: z.string(),
             message: z.string()
           }))
@@ -458,7 +466,7 @@ const milkDropShaderDataSchema = z.object({
           sourceLength: z.number(),
           issueCount: z.number(),
           issues: z.array(z.object({
-            severity: z.enum(['warning', 'error']),
+            severity: z.enum(['info', 'warning', 'error']),
             code: z.string(),
             message: z.string()
           }))
@@ -487,6 +495,13 @@ const sceneSchema = z.object({
   layers: z.array(layerSchema).default([]),
   look: sceneLookSchema.optional(),
   _shaderData: milkDropShaderDataSchema.optional(),
+  // presetPath is set when a scene is created from a preset file and read by the
+  // "refresh preset" feature. It was previously absent from the schema, so zod
+  // stripped it on parse and every save/reload lost it — breaking preset refresh
+  // for all saved scenes. certification is declared on SceneConfig for preset
+  // provenance; keep it round-tripping too.
+  presetPath: z.string().optional(),
+  certification: z.enum(['safe', 'degraded', 'unstable', 'archived']).optional(),
   depthScore: z.number().default(0),
   complexity: z.number().default(0),
   tags: z.array(z.string()).default([])
@@ -881,7 +896,7 @@ export const projectSchema = z.object({
   scenes: z.array(sceneSchema).min(1),
   modMatrix: z.array(modConnectionSchema).default([]),
   midiMappings: z.array(midiMappingSchema).default([]),
-  activeSceneId: z.string(),
+  activeSceneId: z.string().default(''),
   activeModeId: z.string().default('mode-cosmic'),
   activeEngineId: z.string().default('engine-radial-core'),
   colorChemistry: z.array(z.string()).default(['analog', 'balanced']),
