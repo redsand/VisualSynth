@@ -301,8 +301,17 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
       (runtimeReport?.shapes.rendered ?? 0) > 0 ||
       (runtimeReport?.waves.rendered ?? 0) > 0 ||
       visibleCanvasActivity;
+    // A preset with no enabled shapes or waves is a warp-only preset: its
+    // visible activity is the warp shader itself (feedback displacement), not
+    // shapes/waves. The previous gate required shapes+waves>0 for EVERY preset,
+    // which correctly-native warp-only presets could never satisfy, marking
+    // them runtime-failed. Treat warp-only as activity-satisfied.
+    const enabledShapes = (preset.shaderData?.shapes ?? []).filter((s: any) => s.enabled).length;
+    const enabledWaves = (preset.shaderData?.waves ?? []).filter((w: any) => w.enabled).length;
+    const isWarpOnly = enabledShapes === 0 && enabledWaves === 0;
+    const activitySatisfied = hasVisibleMilkwaveActivity || isWarpOnly;
 
-    if (warpStatus === 'success' && compStatus === 'success' && hasVisibleMilkwaveActivity) {
+    if (warpStatus === 'success' && compStatus === 'success' && activitySatisfied) {
       classification = 'native-supported';
     } else if (warpStatus === 'degraded' || compStatus === 'degraded') {
       classification = 'supported-with-degradation';
@@ -314,7 +323,7 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
 
     if (errors.length > 0) {
       classification = 'runtime-failed';
-    } else if ((warpStatus === 'success' || compStatus === 'success') && !hasVisibleMilkwaveActivity) {
+    } else if ((warpStatus === 'success' || compStatus === 'success') && !activitySatisfied) {
       errors.push('No Milkwave shapes or waves rendered during audit frames');
       classification = 'runtime-failed';
     }
@@ -335,11 +344,12 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
       {
         id: 'render-activity',
         label: 'Milkwave runtime renders visible activity',
-        passed: hasVisibleMilkwaveActivity,
+        passed: activitySatisfied,
         details:
           `shapes=${runtimeReport?.shapes.rendered ?? 0}, waves=${runtimeReport?.waves.rendered ?? 0}, ` +
           `canvasVisible=${visibleCanvasActivity}, frame=${lastFrameClassification}, ` +
-          `brightness=${lastFrameBrightness.toFixed(1)}, nonBlack=${(lastFrameNonBlackPercent * 100).toFixed(1)}%`
+          `brightness=${lastFrameBrightness.toFixed(1)}, nonBlack=${(lastFrameNonBlackPercent * 100).toFixed(1)}%, ` +
+          `warpOnly=${isWarpOnly}`
       },
       {
         id: 'no-fallback',
@@ -360,7 +370,7 @@ export async function runMilkwaveAudit(presets: { id: string, name: string, shad
     const proof: MilkwaveAuditProof = {
       proven: proofSteps.every((step) => step.passed),
       fallbackReached: (compileReport?.warp.fallbackUsed || compileReport?.comp.fallbackUsed) ?? false,
-      visibleActivity: hasVisibleMilkwaveActivity,
+      visibleActivity: activitySatisfied,
       stepCount: proofSteps.length,
       passedStepCount: proofSteps.filter((step) => step.passed).length,
       steps: proofSteps

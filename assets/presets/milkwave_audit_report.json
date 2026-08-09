@@ -1,120 +1,63 @@
 {
-  "timestamp": "2026-04-01T02:09:22.569Z",
-  "totalPresets": 100,
-  "selection": {
-    "mode": "pack",
-    "presetId": null,
-    "presetIds": null,
-    "limit": null,
-    "pack": 2,
-    "packSize": 100,
-    "ids": [
-      "preset-400-milkwave-white-scream-firefly",
-      "preset-401-milkwave-witchcraft",
-      "preset-402-milkwave-starburst-totem-pole",
-      "preset-403-milkwave-stitchcraft",
-      "preset-404-milkwave-witchcraft-[graffitti-attack]",
-      "preset-405-milkwave-witchcraft-2.0",
-      "preset-406-milkwave-witchcraft-unleashed",
-      "preset-407-milkwave-witchcraft-(stahl's-mirror-crossfire-mix)",
-      "preset-408-milkwave-witchcraft-(grow-mix)-(moebius-remix)",
-      "preset-409-milkwave-100%-shader-fractal-[origami-edit]",
-      "preset-410-milkwave-age-of-shading-chaos",
-      "preset-411-milkwave-bouncing-icecubes-[good-morning-edit]",
-      "preset-412-milkwave-braggadocio",
-      "preset-413-milkwave-cell-tissue",
-      "preset-414-milkwave-color-strike",
-      "preset-415-milkwave-dawn-has-broken",
-      "preset-416-milkwave-fractal-descent",
-      "preset-417-milkwave-fractal-jellyfish-[moebius-mix]",
-      "preset-418-milkwave-fractal-remix-weed",
-      "preset-419-milkwave-fractal-seafood",
-      "preset-420-milkwave-fractals-with-a-twist",
-      "preset-421-milkwave-gold-plated-maelstrom-of-chaos-[mirrorized]",
-      "preset-422-milkwave-gold-plated-maelstrom-of-chaos",
-      "preset-423-milkwave-hue-burst",
-      "preset-424-milkwave-infused-with-the-spiral",
-      "preset-425-milkwave-intensive-shader-fractal-[suksma-comp-shader-mix]",
-      "preset-426-milkwave-intensive-shader-fractal",
-      "preset-427-milkwave-intention-focus",
-      "preset-428-milkwave-jellyfish-jam",
-      "preset-429-milkwave-julia-fractal",
-      "preset-430-milkwave-julian-affairs-[remix]",
-      "preset-431-milkwave-kaleidoscope-template-[commented-composite-shader]",
-      "preset-432-milkwave-lorenz-attractor",
-      "preset-433-milkwave-meta4free",
-      "preset-434-milkwave-milkcore-[martin's-ripple-on-water-insertion]",
-      "preset-435-milkwave-milkcore",
-      "preset-436-milkwave-mindblob-[shiny-mix]",
-      "preset-437-milkwave-mindblob-2.0-[stahlregens-glass-texture-garden-mix",
-      "preset-438-milkwave-mindblob-2.0",
-      "preset-439-milkwave-moebius-transformation-[random-texture-mix]",
-      "preset-440-milkwave-molten-neon-fire-spirit",
-      "preset-441-milkwave-oldschool-tree",
-      "preset-442-milkwave-predator-prey-spirals-[geiss'-laplacian-finish]",
-      "preset-443-milkwave-predator-prey-spirals-[stahlregens-gelatine-finish",
-      "preset-444-milkwave-predator-prey-spirals",
-      "preset-445-milkwave-psychenapping",
-      "preset-446-milkwave-reality-tunnel",
-      "preset-447-milkwave-science-fraction",
-      "preset-448-milkwave-smashing-fractals-[acid-etching-mix]",
-      "preset-449-milkwave-smashing-fractals-[geiss'-bas-relief-finish]",
-      "preset-450-milkwave-smouldering",
-      "preset-451-milkwave-strangely-dynamic-world",
-      "preset-452-milkwave-supersonic",
-      "preset-453-milkwave-the-distant-point-between",
-      "preset-454-milkwave-the-early-bird",
-      "preset-455-milkwave-when-monopolies-were-the-future-[simple-warp-+-non",
-      "preset-456-milkwave-working-with-infinity",
-      "preset-457-milkwave-va-ultramix-#148-[fucking-infinity-mix]",
-      "preset-458-milkwave-va-ultramix-#148-[infinity-mix]",
-      "preset-459-milkwave-what-to-do-[phat-edit]",
-      "preset-460-milkwave-operation-fatcap-i",
-      "preset-461-milkwave-operation-fatcap-ii",
-      "preset-462-milkwave-witchcraft-[complex-terraforming---fiddling-twists",
-      "preset-463-milkwave-witchcraft-[complex-terraforming]",
-      "preset-464-milkwave-antagonizing-beat-detection-codes",
-      "preset-465-milkwave-bipolar-vs.-reaction-diffusion-mix",
-      "preset-466-milkwave-pogo-cubes-on-tokamak-matter-[mind-over-matter-rem",
-      "preset-467-milkwave-pogo-cubes-on-tokamak-matter",
-      "preset-468-milkwave-astral-projection",
-      "preset-469-milkwave-dive",
-      "preset-470-milkwave-landing-on-fractopia",
-      "preset-471-milkwave-postcard-from-fractopia",
-      "preset-472-milkwave-sublimal-spaceship",
-      "preset-473-milkwave-witchery",
-      "preset-474-milkwave-tokamak-witchery",
-      "preset-475-milkwave-dedicated-to-the-sherwin-maxawow",
-      "preset-476-milkwave-work-with-lines-of-code",
-      "preset-477-milkwave-fractopia-vs-bas-relief",
-      "preset-478-milkwave-shader-authoring-motivation-set",
-      "preset-479-milkwave-second-try-#4-[goody(2),-stahlregen-(2)]",
-      "preset-480-milkwave-second-try-#6-[goody(2),-stahlregen-(3),-fed-(1)]",
-      "preset-481-milkwave-second-try-#6c1.5-[goody(2),-stahlregen-(3.5),-fed",
-      "preset-482-milkwave-rebirth-(progression-rot-mix)",
-      "preset-483-milkwave-rebirth",
-      "preset-484-milkwave-snowflake-like-2",
-      "preset-485-milkwave-the-tunnel-(final-stage-mix)",
-      "preset-486-milkwave-zoom-effects-(remix-3)",
-      "preset-487-milkwave-blur-mix-3",
-      "preset-488-milkwave-cauldron---painterly-5",
-      "preset-489-milkwave-confetti-(kaleidoscope-mix)",
-      "preset-490-milkwave-cosmic-dust-2---tiny-reaction-diffusion-mix",
-      "preset-491-milkwave-cosmic-dust-2---trails-5b",
-      "preset-492-milkwave-cosmic-dust-2",
-      "preset-493-milkwave-drop-shadow-1",
-      "preset-494-milkwave-explosion-2",
-      "preset-495-milkwave-explosion-3",
-      "preset-496-milkwave-fog-tunnel",
-      "preset-497-milkwave-inkblot",
-      "preset-498-milkwave-liquid-beats-(janky-ripple-warp-reflecto)",
-      "preset-499-milkwave-motion-blur-2-(stahl's-neon-jelly-2-rmx)"
-    ]
-  },
+  "timestamp": "2026-08-09T18:09:20.217Z",
+  "totalPresets": 20,
   "results": [
     {
-      "id": "preset-400-milkwave-white-scream-firefly",
-      "name": "white scream firefly",
+      "id": "preset-305-milkwave-airhandler-(principle-of-sharing)",
+      "name": "Airhandler (Principle of Sharing)",
+      "classification": "native-supported",
+      "warpCompiled": true,
+      "compCompiled": true,
+      "fallbackUsed": false,
+      "shapesRendered": 0,
+      "wavesRendered": 0,
+      "errors": [],
+      "warnings": [],
+      "auditAt": "2026-08-09T18:09:11.334Z",
+      "proof": {
+        "proven": true,
+        "fallbackReached": false,
+        "visibleActivity": true,
+        "stepCount": 5,
+        "passedStepCount": 5,
+        "steps": [
+          {
+            "id": "compile-warp",
+            "label": "Warp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "compile-comp",
+            "label": "Comp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "render-activity",
+            "label": "Milkwave runtime renders visible activity",
+            "passed": true,
+            "details": "shapes=0, waves=0, warpOnly=true"
+          },
+          {
+            "id": "no-fallback",
+            "label": "Runtime never reaches fallback or degraded path",
+            "passed": true,
+            "details": "fallback=false, warp=success, comp=success"
+          },
+          {
+            "id": "no-errors",
+            "label": "Audit completes without runtime or shader errors",
+            "passed": true,
+            "details": "no errors recorded"
+          }
+        ]
+      },
+      "expectedSupport": "native-supported"
+    },
+    {
+      "id": "preset-314-milkwave-hard-drink-(half-infinitea)",
+      "name": "Hard Drink (Half-Infinitea)",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
@@ -123,7 +66,7 @@
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:07:19.012Z",
+      "auditAt": "2026-08-09T18:09:11.697Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -147,7 +90,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=4, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=4, waves=0, warpOnly=false"
           },
           {
             "id": "no-fallback",
@@ -166,17 +109,17 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-401-milkwave-witchcraft",
-      "name": "witchcraft",
+      "id": "preset-317-milkwave-potion-of-spirits",
+      "name": "Potion of Spirits",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
       "fallbackUsed": false,
       "shapesRendered": 0,
-      "wavesRendered": 4,
+      "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:07:25.849Z",
+      "auditAt": "2026-08-09T18:09:12.005Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -200,7 +143,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=low-content, brightness=0.8, nonBlack=1.2%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
@@ -219,17 +162,70 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-402-milkwave-starburst-totem-pole",
-      "name": "starburst totem pole",
+      "id": "preset-319-milkwave-songflower-(hybrid-plant)",
+      "name": "Songflower (Hybrid Plant)",
+      "classification": "native-supported",
+      "warpCompiled": true,
+      "compCompiled": true,
+      "fallbackUsed": false,
+      "shapesRendered": 4,
+      "wavesRendered": 0,
+      "errors": [],
+      "warnings": [],
+      "auditAt": "2026-08-09T18:09:12.424Z",
+      "proof": {
+        "proven": true,
+        "fallbackReached": false,
+        "visibleActivity": true,
+        "stepCount": 5,
+        "passedStepCount": 5,
+        "steps": [
+          {
+            "id": "compile-warp",
+            "label": "Warp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "compile-comp",
+            "label": "Comp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "render-activity",
+            "label": "Milkwave runtime renders visible activity",
+            "passed": true,
+            "details": "shapes=4, waves=0, warpOnly=false"
+          },
+          {
+            "id": "no-fallback",
+            "label": "Runtime never reaches fallback or degraded path",
+            "passed": true,
+            "details": "fallback=false, warp=success, comp=success"
+          },
+          {
+            "id": "no-errors",
+            "label": "Audit completes without runtime or shader errors",
+            "passed": true,
+            "details": "no errors recorded"
+          }
+        ]
+      },
+      "expectedSupport": "native-supported"
+    },
+    {
+      "id": "preset-320-milkwave-songflower-(moss-posy)",
+      "name": "Songflower (Moss Posy)",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
       "fallbackUsed": false,
       "shapesRendered": 0,
-      "wavesRendered": 2,
+      "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:07:32.098Z",
+      "auditAt": "2026-08-09T18:09:12.798Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -253,7 +249,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=2, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
@@ -272,388 +268,17 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-403-milkwave-stitchcraft",
-      "name": "stitchcraft",
-      "classification": "fallback-only",
+      "id": "preset-329-milkwave-river-of-illusion-(infected-acid-mix)",
+      "name": "River of Illusion (InfecteD acid mix)",
+      "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 459,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:07:34.291Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=459, waves=0, canvasVisible=true, frame=healthy, brightness=102.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-404-milkwave-witchcraft-[graffitti-attack]",
-      "name": "witchcraft [graffitti attack]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 302,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:07:35.940Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=302, waves=0, canvasVisible=true, frame=healthy, brightness=74.1, nonBlack=80.1%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-405-milkwave-witchcraft-2.0",
-      "name": "witchcraft 2.0",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:07:42.111Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-406-milkwave-witchcraft-unleashed",
-      "name": "witchcraft unleashed",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 2048,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:07:49.043Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=2048, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-407-milkwave-witchcraft-(stahl's-mirror-crossfire-mix)",
-      "name": "witchcraft (Stahl's Mirror Crossfire Mix)",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:07:54.296Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-408-milkwave-witchcraft-(grow-mix)-(moebius-remix)",
-      "name": "witchcraft (Grow Mix) (moebius remix)",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:07:59.853Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=healthy, brightness=11.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-409-milkwave-100%-shader-fractal-[origami-edit]",
-      "name": "100% shader fractal [origami edit]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
+      "fallbackUsed": false,
       "shapesRendered": 1,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:01.707Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=1, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-410-milkwave-age-of-shading-chaos",
-      "name": "age of shading chaos",
-      "classification": "native-supported",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": false,
-      "shapesRendered": 0,
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:08:02.216Z",
+      "auditAt": "2026-08-09T18:09:13.170Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -677,7 +302,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=152.5, nonBlack=100.0%"
+            "details": "shapes=1, waves=0, warpOnly=false"
           },
           {
             "id": "no-fallback",
@@ -696,70 +321,17 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-411-milkwave-bouncing-icecubes-[good-morning-edit]",
-      "name": "bouncing icecubes [good morning edit]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:03.147Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=1, canvasVisible=true, frame=healthy, brightness=207.7, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-412-milkwave-braggadocio",
-      "name": "braggadocio",
+      "id": "preset-336-milkwave-re-entry",
+      "name": "re entry",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
       "fallbackUsed": false,
-      "shapesRendered": 4,
-      "wavesRendered": 1,
+      "shapesRendered": 1,
+      "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:08:04.476Z",
+      "auditAt": "2026-08-09T18:09:13.220Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -783,7 +355,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=4, waves=1, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=1, waves=0, warpOnly=false"
           },
           {
             "id": "no-fallback",
@@ -802,29 +374,82 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-413-milkwave-cell-tissue",
-      "name": "cell tissue",
-      "classification": "fallback-only",
+      "id": "preset-1030-milkwave-tumbling-cubes-gedit",
+      "name": "tumbling cubes gedit",
+      "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
-      "fallbackUsed": true,
+      "fallbackUsed": false,
+      "shapesRendered": 0,
+      "wavesRendered": 1,
+      "errors": [],
+      "warnings": [],
+      "auditAt": "2026-08-09T18:09:14.107Z",
+      "proof": {
+        "proven": true,
+        "fallbackReached": false,
+        "visibleActivity": true,
+        "stepCount": 5,
+        "passedStepCount": 5,
+        "steps": [
+          {
+            "id": "compile-warp",
+            "label": "Warp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "compile-comp",
+            "label": "Comp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "render-activity",
+            "label": "Milkwave runtime renders visible activity",
+            "passed": true,
+            "details": "shapes=0, waves=1, warpOnly=false"
+          },
+          {
+            "id": "no-fallback",
+            "label": "Runtime never reaches fallback or degraded path",
+            "passed": true,
+            "details": "fallback=false, warp=success, comp=success"
+          },
+          {
+            "id": "no-errors",
+            "label": "Audit completes without runtime or shader errors",
+            "passed": true,
+            "details": "no errors recorded"
+          }
+        ]
+      },
+      "expectedSupport": "native-supported"
+    },
+    {
+      "id": "preset-1041-milkwave-shards-(fast)",
+      "name": "Shards (Fast)",
+      "classification": "native-supported",
+      "warpCompiled": true,
+      "compCompiled": true,
+      "fallbackUsed": false,
       "shapesRendered": 0,
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:08:04.676Z",
+      "auditAt": "2026-08-09T18:09:14.301Z",
       "proof": {
-        "proven": false,
-        "fallbackReached": true,
+        "proven": true,
+        "fallbackReached": false,
         "visibleActivity": true,
         "stepCount": 5,
-        "passedStepCount": 3,
+        "passedStepCount": 5,
         "steps": [
           {
             "id": "compile-warp",
             "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
+            "passed": true,
+            "details": "status=success, compiled=true"
           },
           {
             "id": "compile-comp",
@@ -836,13 +461,13 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
             "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
+            "passed": true,
+            "details": "fallback=false, warp=success, comp=success"
           },
           {
             "id": "no-errors",
@@ -855,23 +480,23 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-414-milkwave-color-strike",
-      "name": "color strike",
-      "classification": "fallback-only",
+      "id": "preset-1042-milkwave-shards-(in-the-dark)",
+      "name": "Shards (In the Dark)",
+      "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
+      "fallbackUsed": false,
+      "shapesRendered": 1,
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:08:05.009Z",
+      "auditAt": "2026-08-09T18:09:14.476Z",
       "proof": {
-        "proven": false,
-        "fallbackReached": true,
+        "proven": true,
+        "fallbackReached": false,
         "visibleActivity": true,
         "stepCount": 5,
-        "passedStepCount": 3,
+        "passedStepCount": 5,
         "steps": [
           {
             "id": "compile-warp",
@@ -882,20 +507,20 @@
           {
             "id": "compile-comp",
             "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
+            "passed": true,
+            "details": "status=success, compiled=true"
           },
           {
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=1, waves=0, warpOnly=false"
           },
           {
             "id": "no-fallback",
             "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
+            "passed": true,
+            "details": "fallback=false, warp=success, comp=success"
           },
           {
             "id": "no-errors",
@@ -908,129 +533,76 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-415-milkwave-dawn-has-broken",
-      "name": "dawn has broken",
-      "classification": "fallback-only",
+      "id": "preset-1043-milkwave-shards",
+      "name": "Shards",
+      "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
-      "fallbackUsed": true,
+      "fallbackUsed": false,
+      "shapesRendered": 0,
+      "wavesRendered": 0,
+      "errors": [],
+      "warnings": [],
+      "auditAt": "2026-08-09T18:09:14.671Z",
+      "proof": {
+        "proven": true,
+        "fallbackReached": false,
+        "visibleActivity": true,
+        "stepCount": 5,
+        "passedStepCount": 5,
+        "steps": [
+          {
+            "id": "compile-warp",
+            "label": "Warp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "compile-comp",
+            "label": "Comp path compiles successfully",
+            "passed": true,
+            "details": "status=success, compiled=true"
+          },
+          {
+            "id": "render-activity",
+            "label": "Milkwave runtime renders visible activity",
+            "passed": true,
+            "details": "shapes=0, waves=0, warpOnly=true"
+          },
+          {
+            "id": "no-fallback",
+            "label": "Runtime never reaches fallback or degraded path",
+            "passed": true,
+            "details": "fallback=false, warp=success, comp=success"
+          },
+          {
+            "id": "no-errors",
+            "label": "Audit completes without runtime or shader errors",
+            "passed": true,
+            "details": "no errors recorded"
+          }
+        ]
+      },
+      "expectedSupport": "native-supported"
+    },
+    {
+      "id": "preset-1044-milkwave-bass-detector---arms-3",
+      "name": "bass detector - arms 3",
+      "classification": "native-supported",
+      "warpCompiled": true,
+      "compCompiled": true,
+      "fallbackUsed": false,
       "shapesRendered": 2,
-      "wavesRendered": 0,
+      "wavesRendered": 1,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:08:05.341Z",
+      "auditAt": "2026-08-09T18:09:15.379Z",
       "proof": {
-        "proven": false,
-        "fallbackReached": true,
+        "proven": true,
+        "fallbackReached": false,
         "visibleActivity": true,
         "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=2, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-416-milkwave-fractal-descent",
-      "name": "fractal descent",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:05.679Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-417-milkwave-fractal-jellyfish-[moebius-mix]",
-      "name": "fractal jellyfish [moebius mix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:06.070Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
+        "passedStepCount": 5,
         "steps": [
           {
             "id": "compile-warp",
@@ -1041,73 +613,20 @@
           {
             "id": "compile-comp",
             "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-418-milkwave-fractal-remix-weed",
-      "name": "fractal remix weed",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 4,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:06.333Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
             "passed": true,
             "details": "status=success, compiled=true"
           },
           {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=4, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=2, waves=1, warpOnly=false"
           },
           {
             "id": "no-fallback",
             "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
+            "passed": true,
+            "details": "fallback=false, warp=success, comp=success"
           },
           {
             "id": "no-errors",
@@ -1120,1766 +639,17 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-419-milkwave-fractal-seafood",
-      "name": "fractal seafood",
-      "classification": "fallback-only",
+      "id": "preset-1045-milkwave-bass-detector---arms-4",
+      "name": "bass detector - arms 4",
+      "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
-      "fallbackUsed": true,
+      "fallbackUsed": false,
       "shapesRendered": 2,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:06.640Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=2, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-420-milkwave-fractals-with-a-twist",
-      "name": "fractals with a twist",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:06.941Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-421-milkwave-gold-plated-maelstrom-of-chaos-[mirrorized]",
-      "name": "gold plated maelstrom of chaos [mirrorized]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:07.244Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-422-milkwave-gold-plated-maelstrom-of-chaos",
-      "name": "gold plated maelstrom of chaos",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:07.526Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-423-milkwave-hue-burst",
-      "name": "hue burst",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:07.810Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-424-milkwave-infused-with-the-spiral",
-      "name": "infused with the spiral",
-      "classification": "native-supported",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": false,
-      "shapesRendered": 1,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:08.907Z",
-      "proof": {
-        "proven": true,
-        "fallbackReached": false,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 5,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=1, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": true,
-            "details": "fallback=false, warp=success, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-425-milkwave-intensive-shader-fractal-[suksma-comp-shader-mix]",
-      "name": "intensive shader fractal [suksma comp shader mix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:09.246Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-426-milkwave-intensive-shader-fractal",
-      "name": "intensive shader fractal",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:09.565Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-427-milkwave-intention-focus",
-      "name": "intention focus",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:10.672Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=1, canvasVisible=true, frame=healthy, brightness=103.1, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-428-milkwave-jellyfish-jam",
-      "name": "jellyfish jam",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:11.001Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-429-milkwave-julia-fractal",
-      "name": "Julia fractal",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:11.293Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-430-milkwave-julian-affairs-[remix]",
-      "name": "julian affairs [remix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:12.163Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=1, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-431-milkwave-kaleidoscope-template-[commented-composite-shader]",
-      "name": "kaleidoscope template [commented composite shader]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:12.389Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-432-milkwave-lorenz-attractor",
-      "name": "lorenz attractor",
-      "classification": "native-supported",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": false,
-      "shapesRendered": 179,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:17.642Z",
-      "proof": {
-        "proven": true,
-        "fallbackReached": false,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 5,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=179, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": true,
-            "details": "fallback=false, warp=success, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-433-milkwave-meta4free",
-      "name": "meta4free",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:18.583Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=1, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-434-milkwave-milkcore-[martin's-ripple-on-water-insertion]",
-      "name": "Milkcore [Martin's ripple on water insertion]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 6,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:19.710Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=6, waves=1, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-435-milkwave-milkcore",
-      "name": "Milkcore",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 6,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:20.678Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=6, waves=1, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-436-milkwave-mindblob-[shiny-mix]",
-      "name": "mindblob [shiny mix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:20.980Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=134.2, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-437-milkwave-mindblob-2.0-[stahlregens-glass-texture-garden-mix",
-      "name": "mindblob 2.0 [stahlregens glass texture garden mix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:21.370Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=low-content, brightness=2.0, nonBlack=17.2%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-438-milkwave-mindblob-2.0",
-      "name": "mindblob 2.0",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:21.714Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=62.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-439-milkwave-moebius-transformation-[random-texture-mix]",
-      "name": "moebius transformation [random texture mix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:22.103Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-440-milkwave-molten-neon-fire-spirit",
-      "name": "molten neon fire spirit",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 4,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:22.698Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=4, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-441-milkwave-oldschool-tree",
-      "name": "oldschool tree",
-      "classification": "native-supported",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": false,
-      "shapesRendered": 3,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:23.610Z",
-      "proof": {
-        "proven": true,
-        "fallbackReached": false,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 5,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=1, canvasVisible=true, frame=healthy, brightness=100.4, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": true,
-            "details": "fallback=false, warp=success, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-442-milkwave-predator-prey-spirals-[geiss'-laplacian-finish]",
-      "name": "predator-prey-spirals [geiss' laplacian finish]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:25.310Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=120.1, nonBlack=57.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-443-milkwave-predator-prey-spirals-[stahlregens-gelatine-finish",
-      "name": "predator-prey-spirals [stahlregens gelatine finish]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:27.303Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-444-milkwave-predator-prey-spirals",
-      "name": "predator-prey-spirals",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:29.099Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-445-milkwave-psychenapping",
-      "name": "psychenapping",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:29.366Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-446-milkwave-reality-tunnel",
-      "name": "reality tunnel",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:29.729Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-447-milkwave-science-fraction",
-      "name": "science-fraction",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 4,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:30.010Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=4, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-448-milkwave-smashing-fractals-[acid-etching-mix]",
-      "name": "smashing fractals [acid etching mix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:30.369Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-449-milkwave-smashing-fractals-[geiss'-bas-relief-finish]",
-      "name": "smashing fractals [Geiss' bas relief finish]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:30.644Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-450-milkwave-smouldering",
-      "name": "smouldering",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:31.588Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=1, canvasVisible=true, frame=healthy, brightness=207.7, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-451-milkwave-strangely-dynamic-world",
-      "name": "strangely dynamic world",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 4,
       "wavesRendered": 2,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:08:33.333Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=4, waves=2, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-452-milkwave-supersonic",
-      "name": "supersonic",
-      "classification": "native-supported",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": false,
-      "shapesRendered": 0,
-      "wavesRendered": 2,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:35.146Z",
+      "auditAt": "2026-08-09T18:09:16.453Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -2903,7 +673,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=2, canvasVisible=true, frame=healthy, brightness=38.0, nonBlack=100.0%"
+            "details": "shapes=2, waves=2, warpOnly=false"
           },
           {
             "id": "no-fallback",
@@ -2922,1713 +692,17 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-453-milkwave-the-distant-point-between",
-      "name": "the distant point between",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:35.586Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=low-content, brightness=3.6, nonBlack=29.3%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-454-milkwave-the-early-bird",
-      "name": "the early bird",
+      "id": "preset-1046-milkwave-bass-detector---arms-5",
+      "name": "bass detector - arms 5",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
       "fallbackUsed": false,
-      "shapesRendered": 4,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:35.678Z",
-      "proof": {
-        "proven": true,
-        "fallbackReached": false,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 5,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=4, waves=0, canvasVisible=true, frame=healthy, brightness=101.4, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": true,
-            "details": "fallback=false, warp=success, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-455-milkwave-when-monopolies-were-the-future-[simple-warp-+-non",
-      "name": "when monopolies were the future [simple warp + non-reactive moebius]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:35.949Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=healthy, brightness=29.4, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-456-milkwave-working-with-infinity",
-      "name": "working with infinity",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 11,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:36.296Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=11, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-457-milkwave-va-ultramix-#148-[fucking-infinity-mix]",
-      "name": "va ultramix #148 [fucking infinity mix]",
-      "classification": "supported-with-degradation",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:36.723Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=degraded, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=degraded, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-458-milkwave-va-ultramix-#148-[infinity-mix]",
-      "name": "va ultramix #148 [infinity mix]",
-      "classification": "supported-with-degradation",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:37.108Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=degraded, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=degraded, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-459-milkwave-what-to-do-[phat-edit]",
-      "name": "what to do [Phat edit]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:37.416Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=94.5, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-460-milkwave-operation-fatcap-i",
-      "name": "operation fatcap I",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 920,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:40.699Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=920, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-461-milkwave-operation-fatcap-ii",
-      "name": "operation fatcap II",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 830,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:43.820Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=830, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-462-milkwave-witchcraft-[complex-terraforming---fiddling-twists",
-      "name": "witchcraft [complex terraforming - fiddling twists in the fabric of space]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:49.568Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=healthy, brightness=5.4, nonBlack=9.8%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-463-milkwave-witchcraft-[complex-terraforming]",
-      "name": "witchcraft [complex terraforming]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:55.065Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=healthy, brightness=5.5, nonBlack=9.8%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-464-milkwave-antagonizing-beat-detection-codes",
-      "name": "antagonizing beat detection codes",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:55.357Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-465-milkwave-bipolar-vs.-reaction-diffusion-mix",
-      "name": "Bipolar vs. Reaction Diffusion mix",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:55.637Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=low-content, brightness=1.7, nonBlack=12.1%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-466-milkwave-pogo-cubes-on-tokamak-matter-[mind-over-matter-rem",
-      "name": "pogo-cubes on tokamak matter [mind over matter remix]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:56.657Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=1, canvasVisible=true, frame=healthy, brightness=207.7, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-467-milkwave-pogo-cubes-on-tokamak-matter",
-      "name": "pogo-cubes on tokamak matter",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 3,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:08:57.589Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=3, waves=1, canvasVisible=true, frame=healthy, brightness=207.7, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-468-milkwave-astral-projection",
-      "name": "astral projection",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 4,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:01.034Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=4, waves=4, canvasVisible=true, frame=healthy, brightness=13.8, nonBlack=33.2%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-469-milkwave-dive",
-      "name": "dive",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:01.388Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-470-milkwave-landing-on-fractopia",
-      "name": "landing on Fractopia",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:01.779Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-471-milkwave-postcard-from-fractopia",
-      "name": "postcard from Fractopia",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:02.111Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-472-milkwave-sublimal-spaceship",
-      "name": "sublimal spaceship",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 1,
-      "wavesRendered": 1,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:04.868Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=1, waves=1, canvasVisible=true, frame=healthy, brightness=182.4, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-473-milkwave-witchery",
-      "name": "witchery",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:08.941Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=blank, brightness=0.5, nonBlack=0.8%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-474-milkwave-tokamak-witchery",
-      "name": "tokamak witchery",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 4,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:13.085Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=4, canvasVisible=true, frame=blank, brightness=0.5, nonBlack=0.8%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-475-milkwave-dedicated-to-the-sherwin-maxawow",
-      "name": "dedicated to the sherwin maxawow",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:13.443Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=blank, brightness=0.0, nonBlack=0.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-476-milkwave-work-with-lines-of-code",
-      "name": "work with lines of code",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
       "shapesRendered": 2,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:13.806Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=2, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-477-milkwave-fractopia-vs-bas-relief",
-      "name": "Fractopia vs bas relief",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:14.189Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=82.9, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-478-milkwave-shader-authoring-motivation-set",
-      "name": "shader authoring motivation set",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 4,
       "wavesRendered": 2,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:09:17.244Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=4, waves=2, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-479-milkwave-second-try-#4-[goody(2),-stahlregen-(2)]",
-      "name": "second try #4 [Goody(2), Stahlregen (2)]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:17.538Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-480-milkwave-second-try-#6-[goody(2),-stahlregen-(3),-fed-(1)]",
-      "name": "second try #6 [Goody(2), Stahlregen (3), fed (1)]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:17.915Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-481-milkwave-second-try-#6c1.5-[goody(2),-stahlregen-(3.5),-fed",
-      "name": "second try #6c1.5 [Goody(2), Stahlregen (3.5), fed (1)]",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:18.247Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-482-milkwave-rebirth-(progression-rot-mix)",
-      "name": "Rebirth (Progression Rot Mix)",
-      "classification": "supported-with-degradation",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:18.379Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=degraded, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=degraded, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-483-milkwave-rebirth",
-      "name": "Rebirth",
-      "classification": "supported-with-degradation",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:18.525Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=degraded, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=degraded, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-484-milkwave-snowflake-like-2",
-      "name": "Snowflake Like 2",
-      "classification": "supported-with-degradation",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:18.649Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=degraded, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=degraded, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-485-milkwave-the-tunnel-(final-stage-mix)",
-      "name": "The Tunnel (Final Stage Mix)",
-      "classification": "native-supported",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": false,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:18.826Z",
+      "auditAt": "2026-08-09T18:09:17.467Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -4652,7 +726,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=2, waves=2, warpOnly=false"
           },
           {
             "id": "no-fallback",
@@ -4671,70 +745,17 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-486-milkwave-zoom-effects-(remix-3)",
-      "name": "Zoom Effects (Remix 3)",
-      "classification": "supported-with-degradation",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:19.069Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=degraded, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=degraded, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-487-milkwave-blur-mix-3",
-      "name": "Blur Mix 3",
+      "id": "preset-1047-milkwave-bass-detector---arms-6",
+      "name": "bass detector - arms 6",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
       "fallbackUsed": false,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
+      "shapesRendered": 2,
+      "wavesRendered": 1,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:09:19.303Z",
+      "auditAt": "2026-08-09T18:09:18.046Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -4758,7 +779,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=2, waves=1, warpOnly=false"
           },
           {
             "id": "no-fallback",
@@ -4777,8 +798,8 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-488-milkwave-cauldron---painterly-5",
-      "name": "Cauldron - painterly 5",
+      "id": "preset-1078-milkwave-anuera",
+      "name": "Anuera",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
@@ -4787,7 +808,7 @@
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:09:19.599Z",
+      "auditAt": "2026-08-09T18:09:18.207Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -4811,7 +832,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
@@ -4830,8 +851,8 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-489-milkwave-confetti-(kaleidoscope-mix)",
-      "name": "Confetti (Kaleidoscope Mix)",
+      "id": "preset-1080-milkwave-drug-addict",
+      "name": "Drug Addict",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
@@ -4840,7 +861,7 @@
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:09:19.917Z",
+      "auditAt": "2026-08-09T18:09:18.371Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -4864,7 +885,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=195.0, nonBlack=100.0%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
@@ -4883,114 +904,8 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-490-milkwave-cosmic-dust-2---tiny-reaction-diffusion-mix",
-      "name": "Cosmic Dust 2 - Tiny Reaction Diffusion Mix",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:20.197Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-491-milkwave-cosmic-dust-2---trails-5b",
-      "name": "Cosmic Dust 2 - Trails 5b",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:20.495Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 2,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-492-milkwave-cosmic-dust-2",
-      "name": "Cosmic Dust 2",
+      "id": "preset-1081-milkwave-soul-amplifier",
+      "name": "Soul Amplifier",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
@@ -4999,7 +914,7 @@
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:09:20.567Z",
+      "auditAt": "2026-08-09T18:09:18.583Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -5023,7 +938,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
@@ -5042,167 +957,8 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-493-milkwave-drop-shadow-1",
-      "name": "Drop Shadow 1",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:20.932Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-494-milkwave-explosion-2",
-      "name": "Explosion 2",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:21.210Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=196.7, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-495-milkwave-explosion-3",
-      "name": "Explosion 3",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:21.481Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=197.4, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-496-milkwave-fog-tunnel",
-      "name": "Fog Tunnel",
+      "id": "preset-1082-milkwave-soul-amplifier(unreal-remix)",
+      "name": "Soul Amplifier(Unreal remix)",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
@@ -5211,7 +967,7 @@
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:09:21.556Z",
+      "auditAt": "2026-08-09T18:09:18.799Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -5235,7 +991,7 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
@@ -5254,8 +1010,8 @@
       "expectedSupport": "native-supported"
     },
     {
-      "id": "preset-497-milkwave-inkblot",
-      "name": "Inkblot",
+      "id": "preset-1083-milkwave-[mashup-by-tony]-a-thousand-time-to-play-this-game",
+      "name": "[MASHUP by Tony] A Thousand Time To Play This Game, Escape The Worm, Julian Sploosh, Bitterfeld, Artificial Poles Of The Continuum",
       "classification": "native-supported",
       "warpCompiled": true,
       "compCompiled": true,
@@ -5264,7 +1020,7 @@
       "wavesRendered": 0,
       "errors": [],
       "warnings": [],
-      "auditAt": "2026-04-01T02:09:21.680Z",
+      "auditAt": "2026-08-09T18:09:19.044Z",
       "proof": {
         "proven": true,
         "fallbackReached": false,
@@ -5288,119 +1044,13 @@
             "id": "render-activity",
             "label": "Milkwave runtime renders visible activity",
             "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
+            "details": "shapes=0, waves=0, warpOnly=true"
           },
           {
             "id": "no-fallback",
             "label": "Runtime never reaches fallback or degraded path",
             "passed": true,
             "details": "fallback=false, warp=success, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-498-milkwave-liquid-beats-(janky-ripple-warp-reflecto)",
-      "name": "Liquid Beats (janky ripple warp reflecto)",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:22.069Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=fallback, comp=success"
-          },
-          {
-            "id": "no-errors",
-            "label": "Audit completes without runtime or shader errors",
-            "passed": true,
-            "details": "no errors recorded"
-          }
-        ]
-      },
-      "expectedSupport": "native-supported"
-    },
-    {
-      "id": "preset-499-milkwave-motion-blur-2-(stahl's-neon-jelly-2-rmx)",
-      "name": "Motion Blur 2 (Stahl's Neon Jelly 2 RMX)",
-      "classification": "fallback-only",
-      "warpCompiled": true,
-      "compCompiled": true,
-      "fallbackUsed": true,
-      "shapesRendered": 0,
-      "wavesRendered": 0,
-      "errors": [],
-      "warnings": [],
-      "auditAt": "2026-04-01T02:09:22.358Z",
-      "proof": {
-        "proven": false,
-        "fallbackReached": true,
-        "visibleActivity": true,
-        "stepCount": 5,
-        "passedStepCount": 3,
-        "steps": [
-          {
-            "id": "compile-warp",
-            "label": "Warp path compiles successfully",
-            "passed": true,
-            "details": "status=success, compiled=true"
-          },
-          {
-            "id": "compile-comp",
-            "label": "Comp path compiles successfully",
-            "passed": false,
-            "details": "status=fallback, compiled=true"
-          },
-          {
-            "id": "render-activity",
-            "label": "Milkwave runtime renders visible activity",
-            "passed": true,
-            "details": "shapes=0, waves=0, canvasVisible=true, frame=healthy, brightness=255.0, nonBlack=100.0%"
-          },
-          {
-            "id": "no-fallback",
-            "label": "Runtime never reaches fallback or degraded path",
-            "passed": false,
-            "details": "fallback=true, warp=success, comp=fallback"
           },
           {
             "id": "no-errors",

@@ -140,7 +140,12 @@ const transpileEelExpr = (s: string): string => {
     const args = eelSplitArgs(s.slice(openIdx + 1, closeIdx)).map(a => transpileEelExpr(a));
 
     if (fnName === 'if' && args.length >= 3) {
-      out += `(((${args[0]}) != 0.0) ? (${args[1]}) : (${args[2]}))`;
+      // EEL conditions are float-valued (above/below/equal return `? 1 : 0`,
+      // and raw comparisons are bool). GLSL ternaries require a bool condition,
+      // so coerce with bool() — which accepts both a float (0/1) and a bool.
+      // Without this, `if(below(zoom,1), a, b)` expands to
+      // `((zoom < 1 ? 1 : 0) ? a : b)` and fails "boolean expression expected".
+      out += `((bool(${args[0]})) ? (${args[1]}) : (${args[2]}))`;
     } else if (fnName === 'above' && args.length >= 2) {
       out += `((${args[0]}) > (${args[1]}) ? 1.0 : 0.0)`;
     } else if (fnName === 'below' && args.length >= 2) {
@@ -634,15 +639,18 @@ uniform float uBaseSx;
 uniform float uBaseSy;
 uniform float uBaseWarp;
 
-// Q variables
-uniform float q1; uniform float q2; uniform float q3; uniform float q4;
-uniform float q5; uniform float q6; uniform float q7; uniform float q8;
-uniform float q9; uniform float q10; uniform float q11; uniform float q12;
-uniform float q13; uniform float q14; uniform float q15; uniform float q16;
-uniform float q17; uniform float q18; uniform float q19; uniform float q20;
-uniform float q21; uniform float q22; uniform float q23; uniform float q24;
-uniform float q25; uniform float q26; uniform float q27; uniform float q28;
-uniform float q29; uniform float q30; uniform float q31; uniform float q32;
+// Q variables - per-frame computed values, passed in as read-only uniforms.
+// They are copied into local writable q1..q32 in main() so per-pixel EEL code
+// can assign to them (e.g. q2 = q4 * (bass+0.25)), matching MilkDrop, where
+// q vars are local shader vars initialised from the per-frame constants.
+uniform float uQ1; uniform float uQ2; uniform float uQ3; uniform float uQ4;
+uniform float uQ5; uniform float uQ6; uniform float uQ7; uniform float uQ8;
+uniform float uQ9; uniform float uQ10; uniform float uQ11; uniform float uQ12;
+uniform float uQ13; uniform float uQ14; uniform float uQ15; uniform float uQ16;
+uniform float uQ17; uniform float uQ18; uniform float uQ19; uniform float uQ20;
+uniform float uQ21; uniform float uQ22; uniform float uQ23; uniform float uQ24;
+uniform float uQ25; uniform float uQ26; uniform float uQ27; uniform float uQ28;
+uniform float uQ29; uniform float uQ30; uniform float uQ31; uniform float uQ32;
 
 void main() {
   float x = vUvOriginal.x;
@@ -670,8 +678,20 @@ void main() {
   float bass_att = audioLowSmooth;
   float mid_att = audioMidSmooth;
   float treb_att = audioHighSmooth;
+
+  // Local writable copies of the q variables. Per-pixel EEL code may assign
+  // to q1..q32; they start at the per-frame computed values (from uQ1..uQ32).
+  // These locals also back the qN_local shadows emitted by nativePrelude
+  // (qShadowLines declares `float qN_local = qN;`), so declare qN first.
+  float q1 = uQ1; float q2 = uQ2; float q3 = uQ3; float q4 = uQ4;
+  float q5 = uQ5; float q6 = uQ6; float q7 = uQ7; float q8 = uQ8;
+  float q9 = uQ9; float q10 = uQ10; float q11 = uQ11; float q12 = uQ12;
+  float q13 = uQ13; float q14 = uQ14; float q15 = uQ15; float q16 = uQ16;
+  float q17 = uQ17; float q18 = uQ18; float q19 = uQ19; float q20 = uQ20;
+  float q21 = uQ21; float q22 = uQ22; float q23 = uQ23; float q24 = uQ24;
+  float q25 = uQ25; float q26 = uQ26; float q27 = uQ27; float q28 = uQ28;
+  float q29 = uQ29; float q30 = uQ30; float q31 = uQ31; float q32 = uQ32;
 ${nativePrelude ? `\n${nativePrelude}\n` : ''}
-  
   // --- EEL Per-Pixel Code ---
   ${glslBody}
   // --------------------------

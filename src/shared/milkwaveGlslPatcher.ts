@@ -844,6 +844,16 @@ const astTransform = (source: string): string => {
    'rand12', 'rand13', 'rand14', 'rand15',
   ].forEach(v => builtins.add(v));
 
+  // Single-letter names that live in `builtins` ONLY to suppress stray swizzle
+  // *usages* (e.g. `x`, `y`, `a` read as bare identifiers). When such a name is
+  // the target of an assignment (`a = q1; b = q2;`), it is a real variable and
+  // must be declared — see the assignments loop below. Field selections like
+  // `color.a` parse the component as a literal, not an identifier, so they are
+  // not affected by declaring these.
+  const swizzleLetters = new Set([
+    'i', 'j', 'k', 'n', 'x', 'y', 'z', 'w', 'r', 'g', 'b', 'a', 's', 't', 'p'
+  ]);
+
   // ── Find all identifiers used in expressions ──
   const allUsedIdentifiers = new Set<string>();
   const functionNames = new Set<string>();
@@ -882,11 +892,18 @@ const astTransform = (source: string): string => {
   // ── Find undeclared identifiers (assigned or used but not declared, not builtin) ──
   const undeclared = new Set<string>();
   for (const name of assignments) {
-    if (!declaredNames.has(name) && !builtins.has(name)) {
+    if (declaredNames.has(name)) continue;
+    // A name assigned as an identifier LHS is a real variable. Only true
+    // builtins (gl_FragCoord, sin, uniforms, q1..q32, etc.) are skipped; a name
+    // that is "builtin" solely because it is a swizzle letter (a, b, x, ...)
+    // is still declared — EEL per-pixel code uses `a = q1; b = q2;` as genuine
+    // float variables, and leaving them undeclared is a compile error.
+    if (!builtins.has(name) || swizzleLetters.has(name)) {
       undeclared.add(name);
     }
   }
-  // Also add used-but-not-declared identifiers
+  // Also add used-but-not-declared identifiers (here swizzle letters stay
+  // suppressed — a bare `x` read without an assignment is ambiguous).
   for (const name of allUsedIdentifiers) {
     if (!declaredNames.has(name) && !builtins.has(name)) {
       undeclared.add(name);
@@ -1386,11 +1403,17 @@ const astTransform = (source: string): string => {
         if (rightDim === 0 || rightDim === varDim) return;
 
         if (rightDim > varDim) {
-          // Swizzle down: vecX → smaller
-          const swizzle = varDim === 0 ? 'x' : varDim === 1 ? 'x' : varDim === 2 ? 'xy' : 'xyz';
+          // Swizzle down: vecX → smaller. Only do this when the LHS dimension is
+          // KNOWN (>=1). When varDim is 0 the variable is undeclared (e.g. EEL
+          // per-pixel vars like `ag = ang + 3.1415;` or `zm = -.45;`) and we
+          // cannot know its target type. The previous code swizzled a scalar
+          // RHS down to `.x` whenever the LHS was unknown, producing invalid
+          // GLSL like `ag = (ang + 3.1415).x;` and `zm = -.45.x;` — a scalar
+          // swizzled to `.x` is a compile error. An unknown LHS assigned a
+          // scalar is left alone (the auto-declare pass declares it float).
+          if (varDim === 0) return;
+          const swizzle = varDim === 1 ? 'x' : varDim === 2 ? 'xy' : 'xyz';
           p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
-          // If varDim was 0 (unknown), assume it's float after swizzling
-          if (varDim === 0) typeMap.set(varName, 1);
         } else if (isCompound) {
           // Only pad for compound assignments (+= -= *= /=)
           const targetDim = varDim || rightDim;

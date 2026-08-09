@@ -38,10 +38,16 @@ export const bindMilkwaveBuiltins = ({
 }) => {
   const aspect = state.width / state.height;
 
+  // q1..q32 are declared as uniforms on the comp pass (read-only) and as
+  // uQ1..uQ32 uniforms + local q1..q32 copies on the warp pass (writable, so
+  // per-pixel EEL can reassign them). Set whichever the program exposes.
   const qLoc = (index: number) => loc(`q${index + 1}`);
+  const uQLoc = (index: number) => loc(`uQ${index + 1}`);
   for (let i = 0; i < 32; i++) {
-    const target = qLoc(i);
-    if (target) gl.uniform1f(target, state.qVars[i] ?? 0);
+    const qTarget = qLoc(i);
+    if (qTarget) gl.uniform1f(qTarget, state.qVars[i] ?? 0);
+    const uQTarget = uQLoc(i);
+    if (uQTarget) gl.uniform1f(uQTarget, state.qVars[i] ?? 0);
   }
 
   const c0 = loc('_c0');
