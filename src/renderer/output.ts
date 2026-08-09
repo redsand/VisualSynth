@@ -494,10 +494,13 @@ channel.onmessage = (event) => {
     (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
       const asset = data.layerAssets?.[layerId] ?? null;
       const nextId = asset?.id ?? null;
-      const assetKey =
-        asset?.kind === 'text'
-          ? `${asset.id}-${asset.options?.text ?? ''}-${asset.options?.font ?? ''}-${asset.options?.fontColor ?? ''}`
-          : asset?.id ?? null;
+      // assetKey captures the asset id PLUS the render-affecting options so that
+      // editing a bound asset's options (loop, playbackRate, textureSampling,
+      // text content, ...) rebinds the layer. Previously only the text kind
+      // hashed a few options; every other kind keyed on id alone, so option
+      // edits on an already-bound image/video/live/shader asset were silently
+      // ignored.
+      const assetKey = asset ? `${asset.id}|${JSON.stringify(asset.options ?? {})}` : null;
       if (layerAssetIds[layerId] === nextId && layerAssetKeys[layerId] === assetKey) return;
 
       cleanupLayerVideo(layerId);

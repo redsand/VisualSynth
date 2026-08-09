@@ -6457,17 +6457,23 @@ const startRecording = () => {
       const result = await window.visualSynth.transcodeCapture(buffer, defaultName, 'mp4');
       if (result.error) {
         setCaptureStatus(`FFmpeg failed: ${result.error}. Saved WebM instead.`);
-        await window.visualSynth.saveCapture(
+        const fallback = await window.visualSynth.saveCapture(
           buffer,
           `visualsynth-recording-${timestamp}.webm`,
           'webm'
         );
-      } else if (!result.canceled) {
+        if (fallback.canceled) setCaptureStatus('Recording canceled.');
+      } else if (result.canceled) {
+        // Save dialog dismissed — recording was not written. Without this the
+        // status stayed stuck on "Recording..." after the onstop fired.
+        setCaptureStatus('Recording canceled.');
+      } else {
         setCaptureStatus('Recording saved.');
       }
     } else {
       const result = await window.visualSynth.saveCapture(buffer, defaultName, 'webm');
-      if (!result.canceled) setCaptureStatus('Recording saved.');
+      if (result.canceled) setCaptureStatus('Recording canceled.');
+      else setCaptureStatus('Recording saved.');
     }
     recordingChunks = [];
   };
