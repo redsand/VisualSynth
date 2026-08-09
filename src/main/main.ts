@@ -93,8 +93,26 @@ const runFfmpeg = (inputPath: string, outputPath: string) =>
   });
 
 const hashFile = (filePath: string) => {
-  const data = fs.readFileSync(filePath);
-  return crypto.createHash('sha256').update(data).digest('hex');
+  // Hash the file in 1 MB chunks instead of readFileSync-ing the whole file.
+  // Asset import / Save Project call this for every referenced asset, and
+  // video assets can be hundreds of MB to GB — readFileSync loaded the entire
+  // file into the main process (blocking the UI, and large enough files OOM-
+  // crashed the app). Chunked reads keep main-process memory flat regardless
+  // of asset size; the hash is identical (SHA-256 over the same bytes).
+  const hash = crypto.createHash('sha256');
+  const fd = fs.openSync(filePath, 'r');
+  const chunkSize = 1024 * 1024;
+  const buffer = Buffer.alloc(chunkSize);
+  try {
+    let bytesRead: number;
+    do {
+      bytesRead = fs.readSync(fd, buffer, 0, chunkSize, null);
+      if (bytesRead > 0) hash.update(buffer.subarray(0, bytesRead));
+    } while (bytesRead > 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return hash.digest('hex');
 };
 
 const mimeFromExt = (ext: string) => {
@@ -320,6 +338,11 @@ app.on('before-quit', async () => {
   sessionLogger.writeEntry({ level: 'info', event: 'session.end', data: { reason: 'normal' } });
   await sessionLogger.flushAndClose();
   closeOpenMidiInput();
+  // Tear down the Pro DJ Link UDP listener so the OS port binding is released
+  // before exit (previously leaked until process death; a quick restart could
+  // find the port still held). before-quit is not awaited by Electron, but
+  // disconnect() is fast and best-effort.
+  await stopProlinkNetwork();
   if (closeTimeout) {
     clearTimeout(closeTimeout);
     closeTimeout = null;
@@ -491,10 +514,14 @@ ipcMain.handle('preset:save', async (_event, payload: string, defaultName: strin
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  const portablePayload = buildPortableProjectPayload(payload, result.filePath);
-  fs.writeFileSync(result.filePath, portablePayload, 'utf-8');
-  clearRecoverySession();
-  return { canceled: false, filePath: result.filePath };
+  try {
+    const portablePayload = buildPortableProjectPayload(payload, result.filePath);
+    writeFileAtomic(result.filePath, portablePayload);
+    clearRecoverySession();
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('project:recovery', async () => {
@@ -539,8 +566,12 @@ ipcMain.handle('project:save-as', async (_event, payload: string) => {
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, payload, 'utf-8');
-  return { canceled: false, filePath: result.filePath };
+  try {
+    writeFileAtomic(result.filePath, payload);
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('exchange:save', async (_event, payload: string, defaultName: string) => {
@@ -553,8 +584,12 @@ ipcMain.handle('exchange:save', async (_event, payload: string, defaultName: str
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, payload, 'utf-8');
-  return { canceled: false, filePath: result.filePath };
+  try {
+    writeFileAtomic(result.filePath, payload);
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('project:open', async () => {
@@ -612,10 +647,18 @@ ipcMain.handle('scene:open', async () => {
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true };
   }
-  const files = result.filePaths.map((filePath) => ({
-    filePath,
-    payload: fs.readFileSync(filePath, 'utf-8'),
-  }));
+  const files: { filePath: string; payload: string }[] = [];
+  for (const filePath of result.filePaths) {
+    try {
+      const payload = fs.readFileSync(filePath, 'utf-8');
+      files.push({ filePath, payload });
+    } catch (error) {
+      // A file can be locked/deleted between dialog selection and read; without
+      // this guard readFileSync throws inside the handler and the renderer's
+      // invoke() rejects with a raw Error instead of the documented {canceled,...} shape.
+      return { canceled: true, filePath, error: error instanceof Error ? error.message : 'Failed to read scene file.' };
+    }
+  }
   return { canceled: false, files };
 });
 
@@ -647,8 +690,12 @@ ipcMain.handle('exchange:open', async () => {
     return { canceled: true };
   }
   const filePath = result.filePaths[0];
-  const payload = fs.readFileSync(filePath, 'utf-8');
-  return { canceled: false, filePath, payload };
+  try {
+    const payload = fs.readFileSync(filePath, 'utf-8');
+    return { canceled: false, filePath, payload };
+  } catch (error) {
+    return { canceled: true, filePath, error: error instanceof Error ? error.message : 'Failed to read exchange file.' };
+  }
 });
 
 ipcMain.handle('capture:save', async (_event, data: Uint8Array, defaultName: string, format: 'png' | 'webm' | 'mp4') => {
@@ -868,16 +915,25 @@ ipcMain.handle(
 
         const rendererPcm = await new Promise<Int16Array | null>((resolve) => {
           const requestId = `shazam-decode-${Date.now()}`;
-          const timeout = setTimeout(() => resolve(null), 30000); // 30 sec timeout
-          ipcMain.once(requestId, (_ev, result: { pcmBase64: string | null; error?: string }) => {
+          // Use a named handler + ipcMain.on (not .once) so we can removeListener
+          // on timeout/no-window. .once leaves the listener registered forever
+          // if the renderer never responds (tab backgrounded, decoder crashed),
+          // orphaning one ipcMain listener per timed-out decode.
+          const handler = (_ev: Electron.IpcMainEvent, result: { pcmBase64: string | null; error?: string }) => {
             clearTimeout(timeout);
+            ipcMain.removeListener(requestId, handler);
             if (result.pcmBase64) {
               const buf = Buffer.from(result.pcmBase64, 'base64');
               resolve(new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2));
             } else {
               resolve(null);
             }
-          });
+          };
+          const timeout = setTimeout(() => {
+            ipcMain.removeListener(requestId, handler);
+            resolve(null);
+          }, 30000); // 30 sec timeout
+          ipcMain.on(requestId, handler);
           if (mainWindow && !mainWindow.webContents.isDestroyed()) {
             mainWindow.webContents.send('shazam:decode-file', {
               requestId,
@@ -887,6 +943,8 @@ ipcMain.handle(
               durationSeconds
             });
           } else {
+            clearTimeout(timeout);
+            ipcMain.removeListener(requestId, handler);
             resolve(null);
           }
         });
@@ -952,11 +1010,17 @@ ipcMain.handle(
           // Send to renderer for decoding (reuses Shazam decode infrastructure)
           const rendererClip = await new Promise<{ base64: string | null; mimeType: string; durationMs: number } | null>((resolve) => {
             const requestId = `audd-decode-${Date.now()}`;
-            const timeout = setTimeout(() => resolve(null), 30000);
-            ipcMain.once(requestId, (_ev, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
+            // Named handler + removeListener on timeout/no-window (see shazam block).
+            const handler = (_ev: Electron.IpcMainEvent, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
               clearTimeout(timeout);
+              ipcMain.removeListener(requestId, handler);
               resolve(result);
-            });
+            };
+            const timeout = setTimeout(() => {
+              ipcMain.removeListener(requestId, handler);
+              resolve(null);
+            }, 30000);
+            ipcMain.on(requestId, handler);
             if (mainWindow && !mainWindow.webContents.isDestroyed()) {
               mainWindow.webContents.send('audd:decode-file', {
                 requestId,
@@ -966,6 +1030,8 @@ ipcMain.handle(
                 durationSeconds
               });
             } else {
+              clearTimeout(timeout);
+              ipcMain.removeListener(requestId, handler);
               resolve(null);
             }
           });
@@ -1196,12 +1262,16 @@ ipcMain.handle('templates:list', async () => {
 });
 
 ipcMain.handle('templates:load', async (_event, templatePath: string) => {
-  const data = fs.readFileSync(templatePath, 'utf-8');
-  const parsed = projectSchema.safeParse(JSON.parse(data));
-  if (!parsed.success) {
-    return { error: 'Invalid template file.' };
+  try {
+    const data = fs.readFileSync(templatePath, 'utf-8');
+    const parsed = projectSchema.safeParse(JSON.parse(data));
+    if (!parsed.success) {
+      return { error: 'Invalid template file.' };
+    }
+    return { project: parsed.data };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to load template.' };
   }
-  return { project: parsed.data };
 });
 
 ipcMain.handle('output:get-config', () => outputConfig);
@@ -1258,6 +1328,21 @@ const findInterface = (iface: { name: string; address: string } | null): Network
   return null;
 };
 
+const stopProlinkNetwork = async () => {
+  if (prolinkNetwork?.statusEmitter && prolinkStatusHandler) {
+    prolinkNetwork.statusEmitter.off('status', prolinkStatusHandler);
+  }
+  prolinkStatusHandler = null;
+  if (prolinkNetwork) {
+    try {
+      await prolinkNetwork.disconnect();
+    } catch (e) {
+      console.warn('Error disconnecting Prolink:', e);
+    }
+    prolinkNetwork = null;
+  }
+};
+
 ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; address: string } | null) => {
   if (prolinkNetwork) {
     return { started: true, message: 'Pro DJ Link already running.' };
@@ -1309,23 +1394,17 @@ ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; addres
     };
   } catch (error) {
     console.error('Failed to start Prolink network:', error);
+    // If bringOnline() succeeded but a later step (autoconfig/connect) threw,
+    // prolinkNetwork is set but not working. Tear it down so a subsequent
+    // bpm:network-start isn't short-circuited by the `if (prolinkNetwork)`
+    // guard above ("already running" while nothing actually runs).
+    await stopProlinkNetwork();
     return { started: false, message: `Prolink start failed: ${(error as Error).message}` };
   }
 });
 
 ipcMain.handle('bpm:network-stop', async () => {
-  if (prolinkNetwork?.statusEmitter && prolinkStatusHandler) {
-    prolinkNetwork.statusEmitter.off('status', prolinkStatusHandler);
-  }
-  prolinkStatusHandler = null;
-  if (prolinkNetwork) {
-    try {
-      await prolinkNetwork.disconnect();
-    } catch (e) {
-      console.warn('Error disconnecting Prolink:', e);
-    }
-    prolinkNetwork = null;
-  }
+  await stopProlinkNetwork();
   return { stopped: true };
 });
 
@@ -1394,6 +1473,15 @@ ipcMain.handle('midi:close-node', async () => {
 // Automated screenshot capture for documentation
 ipcMain.handle('screenshot:capture-automated', async (_event, data: Uint8Array, filePath: string) => {
   try {
+    // Defense-in-depth: this handler takes a raw renderer-supplied path (no save
+    // dialog, unlike capture:save/transcode) for automated screenshot runs.
+    // Restrict the extension to image types so a compromised renderer can't
+    // overwrite arbitrary non-image files (e.g. a .dll) via this path. The
+    // legitimate caller (scripts/capture-screenshots.js) only ever writes .png.
+    const ext = path.extname(filePath).toLowerCase();
+    if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+      return { success: false, error: 'Screenshot path must have an image extension (.png/.jpg/.jpeg/.webp).' };
+    }
     const dir = path.dirname(filePath);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(filePath, Buffer.from(data));

@@ -226,6 +226,59 @@ describe('cacheRemoteArtwork', () => {
     expect(result.cached).toBe(false);
     expect(result.error).toContain('404');
   });
+
+  it('rejects link-local / cloud-metadata artwork URLs via the SSRF guard', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
+
+    const result = await cacheRemoteArtwork(
+      'http://169.254.169.254/latest/meta-data/iam/security-credentials/role',
+      'C:\\art-cache',
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.cached).toBe(false);
+    expect(result.error).toContain('link-local or wildcard');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('accepts loopback artwork URLs (self-hosted LAN cache is supported)', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(0),
+      headers: { get: () => 'image/jpeg' }
+    });
+
+    const result = await cacheRemoteArtwork(
+      'http://127.0.0.1:8899/artwork/cover.jpg',
+      'C:\\art-cache',
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.cached).toBe(true);
+  });
+});
+
+describe('identifyNowPlaying custom-provider SSRF guard', () => {
+  it('rejects a custom provider endpoint pointed at a link-local address', async () => {
+    const fetchImpl = vi.fn();
+
+    const result = await identifyNowPlaying(
+      {
+        provider: 'custom',
+        endpoint: 'http://169.254.169.254/latest/meta-data/',
+        audioBase64: 'abc',
+        mimeType: 'audio/webm',
+        durationMs: 12000,
+        detectedAt: 123
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.matched).toBe(false);
+    expect(result.error).toContain('link-local or wildcard');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
 
 describe('fetchNowPlayingMetadataBridge', () => {

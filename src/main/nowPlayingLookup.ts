@@ -302,7 +302,11 @@ const postCustomLookup = async (
     return { matched: false, error: 'Custom provider requires an endpoint.' };
   }
 
-  const response = await fetchImpl(request.endpoint, {
+  // Validate the endpoint through the SSRF guard (same policy as ACRCloud /
+  // metadata-bridge paths): allow loopback/private so self-hosted LAN
+  // recognition servers work, block link-local/wildcard/cloud-metadata.
+  const endpoint = safeHttpUrl(request.endpoint);
+  const response = await fetchImpl(endpoint.toString(), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -810,7 +814,12 @@ export const cacheRemoteArtwork = async (
   fetchImpl: typeof fetch = fetch
 ): Promise<{ cached: boolean; filePath?: string; error?: string }> => {
   try {
-    const response = await fetchImpl(imageUrl);
+    // Validate the artwork URL through the SSRF guard. The URL may originate
+    // from a recognition response (custom/Shazam/AudD/ACRCloud) and a malicious
+    // upstream could point it at a link-local/cloud-metadata address. Legitimate
+    // CDN artwork (mzstatic, coverartarchive, etc.) passes the guard unchanged.
+    const url = safeHttpUrl(imageUrl);
+    const response = await fetchImpl(url.toString());
     if (!response.ok) {
       return { cached: false, error: `Artwork fetch failed with HTTP ${response.status}` };
     }
@@ -818,7 +827,7 @@ export const cacheRemoteArtwork = async (
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const contentType = response.headers.get('content-type')?.split(';')[0]?.trim() ?? 'image/jpeg';
-    const ext = IMAGE_EXTENSIONS[contentType] || path.extname(new URL(imageUrl).pathname) || '.jpg';
+    const ext = IMAGE_EXTENSIONS[contentType] || path.extname(url.pathname) || '.jpg';
     const hash = crypto.createHash('sha256').update(buffer).digest('hex');
     fs.mkdirSync(assetStorage, { recursive: true });
     const filePath = path.join(assetStorage, `${hash}${ext.startsWith('.') ? ext : `.${ext}`}`);
