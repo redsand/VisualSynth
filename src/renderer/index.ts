@@ -77,7 +77,7 @@ import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
 import { reorderScenes } from '../shared/project';
 import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
-import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult } from './audio/rollingAudioCapture';
+import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult, type RecentAudioClip } from './audio/rollingAudioCapture';
 import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
 import type { Store } from './state/store';
 import { sessionHealthService } from './sessionHealthService';
@@ -87,7 +87,7 @@ import { sessionLog, initSessionLog } from './sessionLog';
 declare global {
   interface Window {
     visualSynth: {
-      saveProject: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
+      saveProject: (payload: string, filePath?: string) => Promise<{ canceled: boolean; filePath?: string }>;
       saveProjectAs: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
       autosaveProject: (payload: string) => Promise<{ saved: boolean; filePath?: string }>;
       showSaveDialog: (isRecovery: boolean) => Promise<{ result: 'save' | 'discard' | 'cancel' }>;
@@ -101,7 +101,7 @@ declare global {
         payload: string,
         defaultName: string
       ) => Promise<{ canceled: boolean; filePath?: string }>;
-      openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; error?: string }>;
+      openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; filePath?: string; error?: string }>;
       openSceneFile: () => Promise<{ canceled: boolean; files?: { filePath: string; payload: string }[] }>;
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
@@ -1756,7 +1756,7 @@ const applyVisualEngine = (engineId: EngineId) => {
   }
 
   if (engineId === 'engine-none') {
-    currentProject.engineGrammar = {};
+    (currentProject as any).engineGrammar = {};
     (currentProject as any).engineFinish = { grain: 0, vignette: 0, ca: 0 };
     
     // Reset core FX systems to defaults
@@ -4458,17 +4458,18 @@ const renderLayerList = () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
 
-  // Reset all layer toggle references (they may point to elements from the previous scene)
-  plasmaToggle = undefined;
-  spectrumToggle = undefined;
-  origamiToggle = undefined;
-  glyphToggle = undefined;
-  crystalToggle = undefined;
-  inkToggle = undefined;
-  topoToggle = undefined;
-  weatherToggle = undefined;
-  portalToggle = undefined;
-  oscilloToggle = undefined;
+  // Reset all layer toggle references (they may point to elements from the previous scene).
+  // These are typed `HTMLInputElement | null`, so reset to `null` (not `undefined`).
+  plasmaToggle = null;
+  spectrumToggle = null;
+  origamiToggle = null;
+  glyphToggle = null;
+  crystalToggle = null;
+  inkToggle = null;
+  topoToggle = null;
+  weatherToggle = null;
+  portalToggle = null;
+  oscilloToggle = null;
 
   // Count modulation connections for each layer
   const getModCountForLayer = (layerId: string): number => {
@@ -7389,6 +7390,7 @@ const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
   compileSceneShaders(
     renderer,
     currentProject.scenes[sceneIndex],
+    currentProject,
     currentProject.customShaderBlocks ?? [],
     currentProject.sdf?.enabled ?? false
   );
@@ -10895,7 +10897,8 @@ interface BuildRecognitionRequestResult {
 }
 
 const buildRecognitionRequest = async (
-  clip: NonNullable<Awaited<ReturnType<typeof rollingAudioCapture.exportRecentClip>>>,
+  capture: ReturnType<typeof createRollingAudioCapture>,
+  clip: RecentAudioClip,
   settings: NowPlayingSettings,
   detectedAt: number
 ): Promise<BuildRecognitionRequestResult> => {
@@ -10905,8 +10908,12 @@ const buildRecognitionRequest = async (
   };
 
   if (settings.provider === 'shazam') {
-    // Try raw PCM export first (bypasses WebM/Opus decode issues)
-    const pcmClip = rollingAudioCapture.exportRecentPcm?.(settings.clipDurationMs);
+    // Try raw PCM export first (bypasses WebM/Opus decode issues). The capture
+    // instance is passed in (rather than referenced as a free variable) so this
+    // helper doesn't depend on the caller's block-scoped `rollingAudioCapture`
+    // -- which was out of scope here and would have thrown ReferenceError on
+    // the Shazam path.
+    const pcmClip = capture.exportRecentPcm?.(settings.clipDurationMs);
     if (pcmClip && pcmClip.pcmS16le.length >= 48000) {
       const rawCopy = new Uint8Array(pcmClip.pcmS16le.byteLength);
       rawCopy.set(new Uint8Array(
@@ -11044,6 +11051,7 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
       const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
 
       const buildResult = await buildRecognitionRequest(
+        rollingAudioCapture,
         { blob: new Blob([rawCopy.buffer as ArrayBuffer]), mimeType: 'audio/pcm-s16le', startedAt: pcmData.startedAt, endedAt: pcmData.endedAt },
         settings,
         Date.now()
@@ -11119,7 +11127,7 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
 
   nowPlayingTestStatus.textContent = `Running ${settings.provider} lookup (${actualDurationSec}s audio, ${(clip.blob.size / 1024).toFixed(1)}KB)...`;
 
-  const buildResult = await buildRecognitionRequest(clip, settings, Date.now());
+  const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, settings, Date.now());
   if (!buildResult.request) {
     const diag = buildResult.diagnostics;
     if (diag) {
@@ -11164,7 +11172,7 @@ const runNowPlayingLookup = async (detectedAt: number) => {
   lastNowPlayingLookupAt = detectedAt;
 
   try {
-    const buildResult = await buildRecognitionRequest(clip, nowPlayingSettings, detectedAt);
+    const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, nowPlayingSettings, detectedAt);
     if (buildResult.request) {
       const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
       await consumeNowPlayingResult(result, 'Now playing');
@@ -13929,13 +13937,6 @@ const render = (time: number) => {
     const portalLayer = findLayerById(renderScene?.layers, 'layer-portal');
     const mediaLayer = findLayerById(renderScene?.layers, 'layer-media');
     const oscilloLayer = findLayerById(renderScene?.layers, 'layer-oscillo');
-    const assetVortexLayer = findLayerById(renderScene?.layers, 'gen-asset-vortex');
-    const assetSlicesLayer = findLayerById(renderScene?.layers, 'gen-asset-slices');
-    const assetPolarLayer = findLayerById(renderScene?.layers, 'gen-asset-polar');
-    const assetMosaicLayer = findLayerById(renderScene?.layers, 'gen-asset-mosaic');
-    const assetRippleLayer = findLayerById(renderScene?.layers, 'gen-asset-ripple');
-    const assetScatterLayer = findLayerById(renderScene?.layers, 'gen-asset-scatter');
-    const assetEchoLayer = findLayerById(renderScene?.layers, 'gen-asset-echo');
 
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);

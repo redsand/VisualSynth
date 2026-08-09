@@ -62,9 +62,14 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   let currentDeviceId: string | null = null;
 
   // Reusable hot-path buffers (avoid per-frame allocation / GC pressure).
-  let freqBuf: Uint8Array | null = null;
-  let timeBuf: Uint8Array | null = null;
-  let onsetBuf: Uint8Array | null = null;
+  // Typed as Uint8Array<ArrayBuffer> (not the looser Uint8Array<ArrayBufferLike>)
+  // so the buffers satisfy the TS 5.7 lib.dom signatures of
+  // analyser.getByteFrequencyData/getByteTimeDomainData, which require a
+  // Uint8Array backed by a real ArrayBuffer. `new Uint8Array(length)` always
+  // allocates an ArrayBuffer, so this annotation matches the runtime.
+  let freqBuf: Uint8Array<ArrayBuffer> | null = null;
+  let timeBuf: Uint8Array<ArrayBuffer> | null = null;
+  let onsetBuf: Uint8Array<ArrayBuffer> | null = null;
 
   // 8 log-spaced musical band edges (Hz). Index 0 = sub-bass, 7 = air.
   // These replace the old linear 8-bin split where "bass" spanned 0–~3 kHz.

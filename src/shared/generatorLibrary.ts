@@ -157,6 +157,23 @@ export type GeneratorId =
   | 'viz-spectrum'
   | 'viz-waveform'
   | 'viz-oscilloscope'
+  // FX effect IDs (src/shared/fxCatalog.ts). These are real selectable IDs:
+  // the quick-add handlers (index.ts / LayerPanel) compare against them to
+  // boost the matching effect, and RenderGraph uses them as effect-layer IDs
+  // (scene.layers.find(layer => layer.id === 'fx-bloom')). The union
+  // previously omitted them, so every `id === 'fx-*'` comparison failed to
+  // type-check (TS2367: no overlap with GeneratorId).
+  | 'fx-bloom'
+  | 'fx-blur'
+  | 'fx-chroma'
+  | 'fx-posterize'
+  | 'fx-kaleidoscope'
+  | 'fx-feedback'
+  | 'fx-trails'
+  | 'fx-color'
+  | 'fx-glitch'
+  | 'fx-vignette'
+  | 'fx-grain'
   | 'gen-asset-vortex'
   | 'gen-asset-slices'
   | 'gen-asset-polar'

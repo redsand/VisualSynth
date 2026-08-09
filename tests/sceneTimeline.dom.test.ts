@@ -40,7 +40,9 @@ describe('Scene timeline DOM', () => {
       status,
       onSelect,
       onActivate,
-      onRemove
+      onRemove,
+      onRename: vi.fn(),
+      onIntentChange: vi.fn()
     });
     const items = track.querySelectorAll('.scene-timeline-item');
     expect(items.length).toBe(2);
@@ -58,7 +60,9 @@ describe('Scene timeline DOM', () => {
       track,
       onSelect,
       onActivate,
-      onRemove
+      onRemove,
+      onRename: vi.fn(),
+      onIntentChange: vi.fn()
     });
     const item = track.querySelector<HTMLElement>('.scene-timeline-item');
     const remove = track.querySelector<HTMLButtonElement>('.scene-timeline-remove');

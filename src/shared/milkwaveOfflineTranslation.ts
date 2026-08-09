@@ -38,8 +38,12 @@ export interface MilkwaveOfflineTranslationPass {
 export interface MilkwaveOfflineTranslationReport {
   pipeline: 'milkwave-offline-v1';
   supportTier: MilkwaveSupportTier; // @deprecated
-  staticSupportTier: MilkwaveSupportTier;
-  runtimeSupportTier: MilkwaveSupportTier;
+  // Optional: the persisted (zod) translation schema stores only the
+  // deprecated `supportTier`, not these split tiers — they are populated when
+  // a report is freshly generated at runtime. Kept optional so zod-loaded
+  // project data (which omits them) satisfies this interface.
+  staticSupportTier?: MilkwaveSupportTier;
+  runtimeSupportTier?: MilkwaveSupportTier;
   featureSummary: string[];
   runtimePatchRecommended: boolean;
   passes: {

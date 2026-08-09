@@ -10,6 +10,7 @@ import {
   type FxScope
 } from '../../shared/project';
 import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
+import type { SessionHealth } from '../../shared/sessionHealth';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';
@@ -110,6 +111,7 @@ export interface RenderDebugState {
     programs: number;
     shaders: number;
   };
+  sessionHealth?: SessionHealth;
 }
 
 type FxId = 'bloom' | 'blur' | 'chroma' | 'posterize' | 'kaleidoscope' | 'feedback' | 'persistence';
@@ -1302,7 +1304,7 @@ export class RenderGraph {
   getFxUniformsDeclarations(): string {
     const state = this.store.getState();
     const scene = getActiveScene(state.project);
-    return getFxUniformsDeclarations(state.project, scene);
+    return getFxUniformsDeclarations(state.project, scene ?? null);
   }
 
   /**
@@ -1392,7 +1394,12 @@ export class RenderGraph {
     runtime.topoQuake = Math.max(0, runtime.topoQuake - deltaMs * 0.002);
     runtime.topoSlide = Math.max(0, runtime.topoSlide - deltaMs * 0.002);
     runtime.topoPlate = Math.max(0, runtime.topoPlate - deltaMs * 0.002);
-    runtime.topoTravel = (runtime.topoTravel ?? 0) + deltaMs * 0.0001 * (state.project.topo?.speed ?? 1.0);
+    // `project.topo` is not part of the VisualSynthProject schema (no `topo`
+    // field is defined or populated anywhere), so this travel-speed factor is
+    // effectively constant at 1.0. Kept as a narrow cast rather than a bare
+    // property access so the typecheck reflects that the field is optional.
+    const topoSpeed = (state.project as { topo?: { speed?: number } }).topo?.speed ?? 1.0;
+    runtime.topoTravel = (runtime.topoTravel ?? 0) + deltaMs * 0.0001 * topoSpeed;
 
     const activeScene = getActiveScene(state.project);
     const activePalette = state.project.palettes?.find(p => p.id === state.project.activePaletteId) ?? state.project.palettes?.[0];
@@ -1730,13 +1737,6 @@ export class RenderGraph {
       findLayerById(activeScene?.layers, 'layer-milkwave') ??
       findLayerById(activeScene?.layers, 'layer-milkwave-effects');
     const bossHealthLayer = findLayerById(activeScene?.layers, 'gen-boss-health');
-    const assetVortexLayer = findLayerById(activeScene?.layers, 'gen-asset-vortex');
-    const assetSlicesLayer = findLayerById(activeScene?.layers, 'gen-asset-slices');
-    const assetPolarLayer = findLayerById(activeScene?.layers, 'gen-asset-polar');
-    const assetMosaicLayer = findLayerById(activeScene?.layers, 'gen-asset-mosaic');
-    const assetRippleLayer = findLayerById(activeScene?.layers, 'gen-asset-ripple');
-    const assetScatterLayer = findLayerById(activeScene?.layers, 'gen-asset-scatter');
-    const assetEchoLayer = findLayerById(activeScene?.layers, 'gen-asset-echo');
 
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
@@ -2072,35 +2072,9 @@ export class RenderGraph {
       mediaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-media'],
       mediaAssetAudioReact:
         state.renderSettings.assetLayerAudioReact['layer-media'] * getRoleAudioScale(mediaRole, lowFreq, legacyNeutral),
-      assetVortexEnabled: assetVortexLayer?.enabled ?? false,
-      assetVortexOpacity: layerOpacity(assetVortexLayer, 'gen-asset-vortex.opacity', 0.8),
-      assetVortexStrength: 2.0,
-      assetVortexSpeed: 1.0,
-      assetSlicesEnabled: assetSlicesLayer?.enabled ?? false,
-      assetSlicesOpacity: layerOpacity(assetSlicesLayer, 'gen-asset-slices.opacity', 0.8),
-      assetSlicesCount: 16.0,
-      assetSlicesShift: 0.3,
-      assetPolarEnabled: assetPolarLayer?.enabled ?? false,
-      assetPolarOpacity: layerOpacity(assetPolarLayer, 'gen-asset-polar.opacity', 0.8),
-      assetPolarRadius: 0.5,
-      assetPolarTwist: 1.0,
-      assetMosaicEnabled: assetMosaicLayer?.enabled ?? false,
-      assetMosaicOpacity: layerOpacity(assetMosaicLayer, 'gen-asset-mosaic.opacity', 0.8),
-      assetMosaicTiles: 8.0,
-      assetMosaicFlip: 0.5,
-      assetRippleEnabled: assetRippleLayer?.enabled ?? false,
-      assetRippleOpacity: layerOpacity(assetRippleLayer, 'gen-asset-ripple.opacity', 0.8),
-      assetRippleAmplitude: 0.03,
-      assetRippleFrequency: 20.0,
-      assetScatterEnabled: assetScatterLayer?.enabled ?? false,
-      assetScatterOpacity: layerOpacity(assetScatterLayer, 'gen-asset-scatter.opacity', 0.8),
-      assetScatterAmount: 0.02,
-      assetScatterSeed: 1.0,
-      assetEchoEnabled: assetEchoLayer?.enabled ?? false,
-      assetEchoOpacity: layerOpacity(assetEchoLayer, 'gen-asset-echo.opacity', 0.8),
-      assetEchoCount: 3.0,
-      assetEchoSpread: 0.15,
-      assetEchoFade: 0.6,
+      // Asset-generator uniforms are populated via genUniforms (resolveGenUniforms)
+      // and their enabled/sampler via applyLayerBinding in glRenderer, so no
+      // per-generator asset fields are written onto RenderState here.
       roleWeights,
       transitionAmount,
       transitionType,
@@ -2283,7 +2257,11 @@ export class RenderGraph {
     };
     this.debugState.masterBusFrameId = frameId;
     this.debugState.uniformsUpdatedFrameId = frameId;
-    this.debugState.glResources = renderState.glResources;
+    // glResources is populated onto debugState directly inside buildRenderState
+    // from its `glResources` parameter; RenderState does not carry it. The
+    // previous `renderState.glResources` read referenced a non-existent field
+    // (always undefined) and would have clobbered the value buildRenderState
+    // set, so it is removed.
   }
 
   private buildModSources(bpm: number) {

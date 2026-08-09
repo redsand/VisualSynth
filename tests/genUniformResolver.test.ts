@@ -32,8 +32,8 @@ function resolve(layers: any[]) {
       if (typeof v === 'boolean') return v ? 1 : 0;
       return fallback;
     },
-    findLayerById: (ls: any[], id: string) =>
-      ls.find(l => l.generatorId === id || l.id === id),
+    findLayerById: (ls: any[] | undefined, id: string) =>
+      ls?.find(l => l.generatorId === id || l.id === id),
     buildLegacyTarget: (layerType: string, param: string) => `layer-${layerType}.${param}`,
     roleWeights: uniformRoles,
   });

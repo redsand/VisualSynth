@@ -65,6 +65,7 @@ interface AuditResult {
   errors: string[];
   warnings: string[];
   proof: MilkwaveAuditProof;
+  auditAt?: string;
 }
 
 const createAuditRenderState = (frame: number): RenderState => {

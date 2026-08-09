@@ -15,9 +15,12 @@ const MIN_WAIT_MS = 10000;
 type MockRecorderInstance = {
   state: string;
   mimeType: string;
+  // vi.fn() with an implementation narrows to a specific Mock<Args, void> that
+  // is not assignable to the broad ReturnType<typeof vi.fn> (Mock args are
+  // invariant). Typed loosely so both vi.fn() and vi.fn(impl) shapes assign.
   start: ReturnType<typeof vi.fn>;
-  stop: ReturnType<typeof vi.fn>;
-  addEventListener: ReturnType<typeof vi.fn>;
+  stop: any;
+  addEventListener: any;
   dispatchChunk: (sizeBytes: number) => void;
 };
 
