@@ -241,15 +241,19 @@ export const createMilkwaveWaveRenderer = (options: MilkwaveWaveRendererOptions 
   // Discriminate by shape rather than `instanceof WebGL2RenderingContext`:
   // the options-object form carries a `gl` field, a bare context (real or a
   // test mock) does not. `instanceof` throws ReferenceError in the Node test
-  // environment where the WebGL2RenderingContext global is undefined.
-  const isBareContext = !('gl' in (options as any));
-  const gl = (isBareContext ? options : options.gl) as WebGL2RenderingContext;
-  const trackProgram = isBareContext ? <T extends WebGLProgram | null>(p: T) => p : options.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
-  const untrackProgram = isBareContext ? <T extends WebGLProgram | null>(p: T) => p : options.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
-  const trackShader = isBareContext ? <T extends WebGLShader | null>(s: T) => s : options.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
-  const untrackShader = isBareContext ? <T extends WebGLShader | null>(s: T) => s : options.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
-  const trackBuffer = isBareContext ? <T extends WebGLBuffer | null>(b: T) => b : options.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
-  const untrackBuffer = isBareContext ? <T extends WebGLBuffer | null>(b: T) => b : options.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  // environment where the WebGL2RenderingContext global is undefined. The
+  // inline `in` check narrows the union directly: the true branch keeps the
+  // options object (which declares `gl`), the false branch wraps the bare
+  // context. Stashing the result in a typed const lets every `track*` accessor
+  // resolve without per-branch casts.
+  const opts: MilkwaveWaveRendererOptions = 'gl' in options ? options : { gl: options };
+  const gl = opts.gl;
+  const trackProgram = opts.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const untrackProgram = opts.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const trackShader = opts.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const untrackShader = opts.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const trackBuffer = opts.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  const untrackBuffer = opts.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
 
   const compileShaderLocal = (
     gl: WebGL2RenderingContext,
