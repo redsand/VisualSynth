@@ -229,7 +229,7 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     }));
   };
 
-  const updateAnalysis = () => {
+  const updateAnalysis = (deltaMs: number) => {
     if (!analyser || !audioContext) return;
     const bufferLength = analyser.frequencyBinCount;
     if (!freqBuf || freqBuf.length !== bufferLength) freqBuf = new Uint8Array(bufferLength);
@@ -279,8 +279,11 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     audioState.treb = treb;
 
     // Slow-attacking followers — the MilkDrop "_att" idiom for slow blooms vs.
-    // fast transients. Time constant ~0.3 s at 60 fps.
-    const attAlpha = 1 - Math.exp(-(1 / 60) / 0.3);
+    // fast transients. Time constant ~0.3 s. The previous `1/60` assumed a
+    // fixed 60 fps; at other frame rates the attack was wrong (too slow when
+    // vsync was off / fast, too fast when the tab was throttled). Use the real
+    // frame delta so the 0.3 s time constant holds regardless of fps.
+    const attAlpha = 1 - Math.exp(-(deltaMs / 1000) / 0.3);
     bassAttState += (bass - bassAttState) * attAlpha;
     midAttState += (midAgg - midAttState) * attAlpha;
     trebAttState += (treb - trebAttState) * attAlpha;
@@ -553,7 +556,7 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     // Clamp the frame delta so a tab background / long stall can't make LFO
     // phases, envelopes, and transport time jump by seconds at once.
     const clampedMs = Math.max(0, Math.min(deltaMs, 100));
-    updateAnalysis();
+    updateAnalysis(clampedMs);
     const bpm = getActiveBpm();
     if (store.getState().transport.isPlaying) {
       const dt = clampedMs * 0.001;

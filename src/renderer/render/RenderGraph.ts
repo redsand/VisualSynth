@@ -1414,7 +1414,11 @@ export class RenderGraph {
     this.debugState.layerCount = activeScene?.layers.length ?? 0;
     this.debugState.glResources = glResources;
     runtime.topoTravel += deltaMs * 0.0002;
-    runtime.strobeIntensity *= runtime.strobeDecay;
+    // strobeDecay (default 0.92) is a per-frame multiplier tuned for ~60 fps, so
+    // decaying by it every frame made the strobe tail frame-rate dependent
+    // (much longer on a 144 Hz display, much shorter when throttled). Correct
+    // it to a per-wall-second decay: 0.92 per 1/60 s regardless of fps.
+    runtime.strobeIntensity *= Math.pow(runtime.strobeDecay, deltaMs / (1000 / 60));
 
     const activeStyle =
       state.project.stylePresets?.find((preset) => preset.id === state.project.activeStylePresetId) ?? null;
@@ -1574,8 +1578,12 @@ export class RenderGraph {
 
     if (moddedEffects.persistence > 0) {
       const decay = 0.85 + moddedEffects.persistence * 0.14;
+      // Like the strobe decay above, `decay` is a per-frame multiplier tuned for
+      // ~60 fps; applying it every frame made the trail length frame-rate
+      // dependent. Convert to a per-wall-second decay.
+      const timeDecay = Math.pow(decay, deltaMs / (1000 / 60));
       for (let i = 0; i < this.trailSpectrum.length; i += 1) {
-        this.trailSpectrum[i] = Math.max(this.trailSpectrum[i] * decay, state.audio.spectrum[i]);
+        this.trailSpectrum[i] = Math.max(this.trailSpectrum[i] * timeDecay, state.audio.spectrum[i]);
       }
     } else {
       this.trailSpectrum = new Float32Array(state.audio.spectrum);
@@ -1807,6 +1815,15 @@ export class RenderGraph {
       const base = layer ? layer.opacity : defaultVal;
       return Math.min(1, Math.max(0, base * (1 + macroVal(macroTarget))));
     };
+
+    // Prune stale MIDI sums. midiSum holds the last CC value per target and is
+    // only written on incoming CC (handleMidiCC), so when a mapping is removed
+    // its last value lingered forever and kept modulating the now-unmapped
+    // param. Drop any target the current mappings no longer reference.
+    const activeMidiTargets = new Set(state.project.midiMappings.map((m) => m.target));
+    for (const key of Object.keys(this.midiSum)) {
+      if (!activeMidiTargets.has(key)) delete this.midiSum[key];
+    }
 
     const genUniforms = resolveGenUniforms({
       layers: activeScene?.layers ?? [],
