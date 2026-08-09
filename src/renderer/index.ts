@@ -18,7 +18,7 @@ import {
   AssetItem,
   AssetColorSpace
 } from '../shared/project';
-import type { ModConnection } from '../shared/project';
+import type { ModConnection, MidiMapping } from '../shared/project';
 import { SceneManager, captureSceneSnapshot } from './scene/SceneManager';
 import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
@@ -4760,6 +4760,13 @@ const renderLayerList = () => {
     if (layer.id === 'layer-portal') portalToggle = layerList.querySelector(`[data-learn-target="layer-portal.enabled"]`) as HTMLInputElement;
     if (layer.id === 'layer-oscillo') oscilloToggle = layerList.querySelector(`[data-learn-target="layer-oscillo.enabled"]`) as HTMLInputElement;
   });
+
+  // The forEach above rebuilt every layer toggle checkbox (new DOM nodes with
+  // data-learn-target). Re-bind the MIDI-learn click handler on the fresh nodes
+  // so layer-toggle MIDI-learn keeps working after scene switches / layer adds.
+  // initLearnables is idempotent (skips data-learn-bound elements), so macro
+  // rows that persist across this rebuild are not double-bound.
+  initLearnables();
 };
 
 const renderModMatrix = () => {
@@ -8923,14 +8930,26 @@ const addGenerator = (id: GeneratorId) => {
 
 const applyMidiTargetValue = (target: string, value: number, isToggle = false) => {
   if (target === 'layer-plasma.enabled') {
-    if (plasmaToggle) {
-      plasmaToggle.checked = isToggle ? !plasmaToggle.checked : value > 0.5;
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-plasma', 'Shader Plasma');
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-plasma', { enabled: next });
+      if (plasmaToggle) plasmaToggle.checked = next;
+      renderLayerList();
     }
     return;
   }
   if (target === 'layer-spectrum.enabled') {
-    if (spectrumToggle) {
-      spectrumToggle.checked = isToggle ? !spectrumToggle.checked : value > 0.5;
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-spectrum', 'Spectrum Bars');
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-spectrum', { enabled: next });
+      if (spectrumToggle) spectrumToggle.checked = next;
+      renderLayerList();
     }
     return;
   }
@@ -9312,8 +9331,15 @@ const armMidiLearn = (target: string, label: string) => {
 };
 
 const initLearnables = () => {
-  const learnables = document.querySelectorAll<HTMLElement>('[data-learn-target]');
+  // Only bind elements that haven't been bound yet. renderLayerList rebuilds the
+  // layer toggle checkboxes (new DOM nodes with data-learn-target) on every
+  // call; without re-binding, MIDI-learn clicks on layer toggles stop working
+  // after any scene switch / layer add. The data-learn-bound guard keeps this
+  // idempotent so persistent elements (macro rows) don't accumulate duplicate
+  // listeners on repeated calls.
+  const learnables = document.querySelectorAll<HTMLElement>('[data-learn-target]:not([data-learn-bound])');
   learnables.forEach((element) => {
+    element.dataset.learnBound = '1';
     element.addEventListener('click', () => {
       if (!midiLearnEnabled) return;
       const target = element.dataset.learnTarget;
@@ -11327,6 +11353,12 @@ const startMidiInput = async () => {
   }
 };
 
+// Per-mapping CC edge state for toggle/trigger modes: stores the last normalized
+// CC value so a rising-edge crossing of 0.5 flips/fires exactly once instead of
+// re-triggering on every knob tick. WeakMap so entries are reclaimed when a
+// mapping object is replaced/removed.
+const ccEdgeState = new WeakMap<MidiMapping, number>();
+
 const handleMidiMessage = (message: number[], eventTime: number) => {
   const [status, data1, data2 = 0] = message;
   lastMidiLatencyMs = Math.max(0, performance.now() - eventTime);
@@ -11357,14 +11389,40 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
   const applyMappings = () => {
     currentProject.midiMappings.forEach((mapping) => {
       if (mapping.channel !== channel) return;
-      if (mapping.message === 'note' && messageType === 0x90) {
+      if (mapping.message === 'note') {
         if (mapping.control !== data1) return;
-        if (data2 === 0) return;
-        applyMidiTargetValue(mapping.target, data2 / 127, mapping.mode === 'toggle');
+        // 0x90 with velocity 0 is an alternative Note Off encoding; treat both.
+        const isNoteOn = messageType === 0x90 && data2 > 0;
+        const isNoteOff = messageType === 0x80 || (messageType === 0x90 && data2 === 0);
+        if (!isNoteOn && !isNoteOff) return;
+        if (mapping.mode === 'toggle') {
+          // Toggle flips only on the Note On edge; Note Off is ignored.
+          if (isNoteOn) applyMidiTargetValue(mapping.target, data2 / 127, true);
+        } else {
+          // momentary / trigger: press sets the value, release resets to 0.
+          // Previously only Note On was handled, so a momentary/trigger pad
+          // pegged the target on press and never released it.
+          applyMidiTargetValue(mapping.target, isNoteOn ? data2 / 127 : 0, false);
+        }
       }
       if (mapping.message === 'cc' && messageType === 0xb0) {
         if (mapping.control !== data1) return;
-        applyMidiTargetValue(mapping.target, data2);
+        const v = data2 / 127;
+        if (mapping.mode === 'toggle') {
+          // Flip on the rising edge (crossing 0.5 upward) so one knob gesture
+          // toggles once, not on every tick.
+          const last = ccEdgeState.get(mapping) ?? 0;
+          if (v > 0.5 && last <= 0.5) applyMidiTargetValue(mapping.target, 1, true);
+          ccEdgeState.set(mapping, v);
+        } else if (mapping.mode === 'trigger') {
+          // One-shot fire on the rising edge.
+          const last = ccEdgeState.get(mapping) ?? 0;
+          if (v > 0.5 && last <= 0.5) applyMidiTargetValue(mapping.target, 1, false);
+          ccEdgeState.set(mapping, v);
+        } else {
+          // momentary: direct continuous value (CC has no release event).
+          applyMidiTargetValue(mapping.target, data2);
+        }
       }
       if (mapping.message === 'aftertouch' && messageType === 0xd0) {
         applyMidiTargetValue(mapping.target, data1 / 127);
