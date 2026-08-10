@@ -4,19 +4,20 @@ import { createSafeModeRenderer } from './safeModeRenderer';
 import { createOverlayRenderer } from './overlayRenderer';
 import { syncRenderState } from './render/autoSync';
 import type {
+  AssetLayerId,
   OutputShaderVariantPayload,
   OutputTransitionPayload,
   SerializedOutputAsset
 } from './render/outputPayload';
 import { OutputDiagnostics } from './outputDiagnostics';
 import { sessionLog, initSessionLog } from './sessionLog';
+import { rebindLayerAssets } from './outputRuntime';
 
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
 const outputOverlayCanvas = document.getElementById('output-overlay-canvas') as HTMLCanvasElement;
 const debugOverlay = document.getElementById('output-debug') as HTMLDivElement | null;
 let debugVisible = false;
 let renderer: ReturnType<typeof createGLRenderer>;
-type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media' | 'gen-asset-vortex' | 'gen-asset-slices' | 'gen-asset-polar' | 'gen-asset-mosaic' | 'gen-asset-ripple' | 'gen-asset-scatter' | 'gen-asset-echo';
 const layerAssetIds: Partial<Record<AssetLayerId, string | null>> = {};
 const layerAssetKeys: Partial<Record<AssetLayerId, string | null>> = {};
 const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};
@@ -25,6 +26,11 @@ const layerVideoElements: Partial<Record<AssetLayerId, HTMLVideoElement>> = {};
 // permission) can detect that it has been superseded — including the A→B→A
 // case, where id+key match again but a newer request owns the layer.
 const layerAssetGen: Partial<Record<AssetLayerId, number>> = {};
+// Last full asset received per layer. Kept so a WebGL context restore — which
+// clears the GL renderer's own assetCache + layerBindings — can re-bind the
+// currently-displayed assets without waiting for (and being skipped by) the
+// next periodic broadcast. See the contextrestored listener below.
+const lastLayerAssets: Partial<Record<AssetLayerId, SerializedOutputAsset | null>> = {};
 
 const diag = new OutputDiagnostics();
 const recentTransitions: OutputTransitionPayload[] = [];
@@ -261,6 +267,28 @@ canvas.addEventListener('visualsynth-contextlost', () => {
 });
 canvas.addEventListener('visualsynth-contextrestored', () => {
   diag.logEvent('context-restored');
+  // The GL renderer registers its own webglcontextrestored listener at
+  // construction (after this listener), and that listener resets
+  // contextLost/contextRestoring and rebuilds GL resources. This listener
+  // fires first, so defer the rebind to the next macrotask — by then the
+  // renderer's restore has completed and setLayerAsset's context-loss guard
+  // won't reject the rebind. On context loss the renderer invalidated its
+  // assetCache + layerBindings; output.ts's layerAssetIds/Keys still match, so
+  // the next periodic broadcast would be skipped and the bound assets would
+  // never come back. Re-bind the last-known assets here, reusing the existing
+  // HTMLVideoElements so a restore doesn't tear down / re-prompt live
+  // camera/screen streams.
+  setTimeout(() => {
+    rebindLayerAssets({
+      layerAssets: lastLayerAssets,
+      videoElements: layerVideoElements,
+      setLayerAsset: (layerId, asset, videoOverride, textCanvas) =>
+        renderer.setLayerAsset(layerId, asset as any, videoOverride, textCanvas),
+      getTextCanvas,
+      onRebind: (layerId, kind) =>
+        diag.logEvent('asset-rebound', `${layerId} ${kind} (context restored)`)
+    });
+  }, 0);
 });
 
 // Track last known canvas dimensions to detect resize events
@@ -499,6 +527,8 @@ channel.onmessage = (event) => {
     (Object.keys(data.layerAssets) as AssetLayerId[]).forEach((layerId) => {
       const asset = data.layerAssets?.[layerId] ?? null;
       const nextId = asset?.id ?? null;
+      // Cache the full asset for the context-restored rebind path.
+      lastLayerAssets[layerId] = asset;
       // assetKey captures the asset id PLUS the render-affecting options so that
       // editing a bound asset's options (loop, playbackRate, textureSampling,
       // text content, ...) rebinds the layer. Previously only the text kind

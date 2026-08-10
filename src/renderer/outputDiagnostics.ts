@@ -71,6 +71,7 @@ export type DiagnosticEventType =
   | 'shader-swapped'
   | 'asset-bound'
   | 'asset-unbound'
+  | 'asset-rebound'
   | 'video-play'
   | 'video-pause'
   | 'video-error'

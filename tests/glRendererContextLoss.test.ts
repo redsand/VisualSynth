@@ -100,7 +100,7 @@ describe('createGLRenderer context-loss asset guard', () => {
     const renderer = createGLRenderer(canvas);
 
     expect(renderer.isContextLost()).toBe(false);
-    canvas.dispatchEvent({ type: 'webglcontextlost', preventDefault: () => {} });
+    canvas.dispatchEvent({ type: 'webglcontextlost', preventDefault: () => {} } as unknown as Event);
     expect(renderer.isContextLost()).toBe(true);
   });
 
@@ -111,7 +111,7 @@ describe('createGLRenderer context-loss asset guard', () => {
     const afterInit = textureCount();
     expect(afterInit).toBeGreaterThan(0); // internal textures allocated at construction
 
-    canvas.dispatchEvent({ type: 'webglcontextlost', preventDefault: () => {} });
+    canvas.dispatchEvent({ type: 'webglcontextlost', preventDefault: () => {} } as unknown as Event);
     expect(renderer.isContextLost()).toBe(true);
 
     // setLayerAsset fires from the output window's BroadcastChannel onmessage,

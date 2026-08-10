@@ -4,7 +4,7 @@ import type { CustomShaderBlock } from '../../shared/customShaderBlock';
 import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
 
 type ExcludedOutputField = 'sdfScene' | 'debugTint';
-type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media' | 'gen-asset-vortex' | 'gen-asset-slices' | 'gen-asset-polar' | 'gen-asset-mosaic' | 'gen-asset-ripple' | 'gen-asset-scatter' | 'gen-asset-echo';
+export type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media' | 'gen-asset-vortex' | 'gen-asset-slices' | 'gen-asset-polar' | 'gen-asset-mosaic' | 'gen-asset-ripple' | 'gen-asset-scatter' | 'gen-asset-echo';
 
 export type RendererOutputPayload = Omit<RenderState, ExcludedOutputField>;
 export interface OutputShaderVariantPayload {
