@@ -682,7 +682,7 @@ void main() {
   // Local writable copies of the q variables. Per-pixel EEL code may assign
   // to q1..q32; they start at the per-frame computed values (from uQ1..uQ32).
   // These locals also back the qN_local shadows emitted by nativePrelude
-  // (qShadowLines declares `float qN_local = qN;`), so declare qN first.
+  // (qShadowLines declares 'float qN_local = qN;'), so declare qN first.
   float q1 = uQ1; float q2 = uQ2; float q3 = uQ3; float q4 = uQ4;
   float q5 = uQ5; float q6 = uQ6; float q7 = uQ7; float q8 = uQ8;
   float q9 = uQ9; float q10 = uQ10; float q11 = uQ11; float q12 = uQ12;
