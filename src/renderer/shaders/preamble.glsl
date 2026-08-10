@@ -323,8 +323,7 @@ float sdfSceneMap(vec3 p) {
 }
 
 vec2 advancedSdfMap(vec3 p) {
-  // Default returns distance and material (0.0 for no material)
-  return vec2(/* @@SDF_MAP_BODY */, 0.0);
+  /* @@SDF_MAP_BODY */
 }
 
 vec3 calcSdfNormal(vec3 p) {
@@ -337,7 +336,7 @@ vec3 calcSdfNormal(vec3 p) {
 }
 
 vec3 getSdfColor(float id) {
-  return vec3(1.0);
+  /* @@SDF_COLOR_BODY */
 }
 
 float calcSdfShadow(vec3 ro, vec3 rd, float k) {

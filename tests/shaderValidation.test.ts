@@ -183,7 +183,7 @@ const builtShader = buildFragmentShader(
   allIds,
   /* sdfUniforms */ '',
   /* sdfFunctions */ '',
-  /* sdfMapBody */ 'fbm(p.xy * 2.0)',
+  /* sdfMapBody */ 'return vec2(fbm(p.xy * 2.0), 0.0);',
   /* plasmaSource */ null,
   fxUniforms
 );
@@ -309,7 +309,7 @@ describe('GLSL shader static validation', () => {
       { preamble: SHADER_PREAMBLE, mainTemplate: SHADER_MAIN_TEMPLATE },
       [], // no blocks
       new Set(), // no active IDs
-      '', '', '10.0', null,
+      '', '', 'return vec2(10.0, 0.0);', null,
       initialFx
     );
 

@@ -1,5 +1,30 @@
 import { SdfNodeInstance, SdfConnection, SdfNodeDefinition, SdfUniformBinding, SdfCompiledShader, SdfParamType } from '../api';
 import { sdfRegistry } from '../registry';
+import {
+  UTIL_FUNCTIONS,
+  GLSL_HASH,
+  GLSL_NOISE,
+  GLSL_MATH,
+  GLSL_ROTATE,
+  GLSL_SDF_UTILS
+} from '../nodes/utils/glslUtils';
+
+// Some utility blocks depend on others: noise calls hash functions, and
+// sdf-utils references PI which is #defined in math. When a node requires a
+// function whose block has dependencies, emit the dependencies too.
+const UTIL_BLOCK_DEPS: Record<string, string[]> = {
+  [GLSL_NOISE]: [GLSL_HASH],
+  [GLSL_SDF_UTILS]: [GLSL_MATH]
+};
+
+// Add a utility block (and its transitive dependencies) to the function set.
+// Deduped by block string identity (each GLSL_* constant is a single string).
+const addUtilBlock = (ctx: BuildContext, block: string): void => {
+  if (ctx.functions.has(block)) return;
+  ctx.functions.add(block);
+  const deps = UTIL_BLOCK_DEPS[block];
+  if (deps) for (const dep of deps) addUtilBlock(ctx, dep);
+};
 
 interface BuildContext {
   instances: Map<string, SdfNodeInstance>;
@@ -41,6 +66,7 @@ export const buildSdfShader = (
       fragmentSource: '',
       functionsCode: '',
       mapBody: 'return vec2(10.0, 0.0);',
+      colorBody: 'return vec3(1.0);',
       uniforms: [],
       totalCost: 0,
       uses3D: false,
@@ -49,6 +75,20 @@ export const buildSdfShader = (
     };
   }
   const root = nodes[nodes.length - 1];
+
+  // Pre-pass: emit required utility blocks (hash/noise/rotate/math) BEFORE any
+  // node function, so node bodies that call e.g. hash21 or gradientNoise see the
+  // definition above them (GLSL ES 3.00 requires declaration before use).
+  // Inter-block deps (noise→hash, sdf-utils→math) are resolved recursively.
+  for (const node of nodes) {
+    const def = sdfRegistry.get(node.nodeId);
+    if (def?.glsl.requires) {
+      for (const req of def.glsl.requires) {
+        const block = (UTIL_FUNCTIONS as Record<string, string>)[req];
+        if (block) addUtilBlock(ctx, block);
+      }
+    }
+  }
 
   let body = '';
   try {
@@ -59,6 +99,7 @@ export const buildSdfShader = (
       fragmentSource: '',
       functionsCode: '',
       mapBody: 'return vec2(10.0, 0.0);',
+      colorBody: 'return vec3(1.0);',
       uniforms: [],
       totalCost: 0,
       uses3D: false,
@@ -69,18 +110,20 @@ export const buildSdfShader = (
 
   const functionsCode = Array.from(ctx.functions).join('\n\n');
 
-  // Inject color lookup helper
+  // getSdfColor is defined ONCE in the shared preamble (its body is the
+  // @@SDF_COLOR_BODY placeholder). Emit only the per-node color branches here —
+  // NOT a second getSdfColor definition, which would redeclare the function and
+  // fail to compile (GLSL forbids redefining a function with the same signature).
   const colorBranches = Array.from(ctx.nodeColors.keys()).map((id, idx) => `    if (id < ${idx}.5) return uColor_${id.replace(/-/g, '_')};`).join('\n');
-  const colorLookup = `
-vec3 getSdfColor(float id) {
-${colorBranches}
-    return vec3(1.0);
-}`;
+  const colorBody = colorBranches
+    ? `${colorBranches}\n    return vec3(1.0);`
+    : 'return vec3(1.0);';
 
   return {
-    fragmentSource: '', 
-    functionsCode: functionsCode + '\n' + colorLookup,
+    fragmentSource: '',
+    functionsCode,
     mapBody: body,
+    colorBody,
     uniforms: [
         ...ctx.uniforms,
         ...Array.from(ctx.nodeColors.keys()).map(id => ({

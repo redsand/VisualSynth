@@ -407,6 +407,10 @@ export interface SdfCompiledShader {
   functionsCode: string;
   /** Extracted body logic for the map() function */
   mapBody: string;
+  /** Body of getSdfColor(float id) — per-node color branches. Injected into the
+   *  preamble's getSdfColor via the @@SDF_COLOR_BODY placeholder so there is a
+   *  single getSdfColor definition (the builder must NOT emit its own). */
+  colorBody: string;
   /** Uniform bindings for parameters */
   uniforms: SdfUniformBinding[];
   /** Total estimated GPU cost */

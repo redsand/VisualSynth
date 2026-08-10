@@ -168,7 +168,8 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
           currentPlasmaSource,
           currentCustomBlocks,
           false,
-          currentFxUniforms
+          currentFxUniforms,
+          currentSdfColorBody
         );
         currentProgram = standardProgram;
         currentShaderVariantKey = standardProgram
@@ -416,7 +417,8 @@ void main() {
   // Cache current SDF parameters for recompilation
   let currentSdfUniforms = '';
   let currentSdfFunctions = '';
-  let currentSdfMapBody = '10.0';
+  let currentSdfMapBody = 'return vec2(10.0, 0.0);';
+  let currentSdfColorBody = 'return vec3(1.0);';
   let currentPlasmaSource: string | null = null;
   let currentFxUniforms = '';
   let currentActiveIds = new Set<string>();
@@ -442,11 +444,12 @@ void main() {
     activeIds: Set<string>,
     sdfUniforms = '',
     sdfFunctions = '',
-    sdfMapBody = '10.0',
+    sdfMapBody = 'return vec2(10.0, 0.0);',
     plasmaSource: string | null = null,
     customBlocks: CustomShaderBlock[] = [],
     deferLinkCheck = false,
-    fxUniforms = ''
+    fxUniforms = '',
+    sdfColorBody = 'return vec3(1.0);'
   ): WebGLProgram | null => {
     const customHash = [...customBlocks]
       .sort((a, b) => a.id.localeCompare(b.id))
@@ -466,7 +469,8 @@ void main() {
       effectiveBlocks,
       activeIds,
       sdfUniforms, sdfFunctions, sdfMapBody, plasmaSource,
-      fxUniforms
+      fxUniforms,
+      sdfColorBody
     );
 
     const prog = createProgram(vertexShaderSrc, fSrc, deferLinkCheck);
@@ -492,12 +496,12 @@ void main() {
   const initialFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\n';
   let standardProgram = getOrCompileProgram(
     EMPTY_GENERATOR_SET,
-    '', '', '10.0', null, [], false, initialFx
+    '', '', 'return vec2(10.0, 0.0);', null, [], false, initialFx
   );
   if (!standardProgram) {
     throw new Error('Failed to compile standard shader program.');
   }
-  currentShaderVariantKey = shaderCacheKey(EMPTY_GENERATOR_SET, '10.0', '', initialFx);
+  currentShaderVariantKey = shaderCacheKey(EMPTY_GENERATOR_SET, 'return vec2(10.0, 0.0);', '', initialFx);
   let currentProgram: WebGLProgram | null = standardProgram;
   let lastSdfSceneJson = '';
 
@@ -516,6 +520,7 @@ void main() {
       currentSdfUniforms = uniformsCode;
       currentSdfFunctions = compiled.functionsCode;
       currentSdfMapBody = compiled.mapBody;
+      currentSdfColorBody = compiled.colorBody;
 
       const newProg = getOrCompileProgram(
         currentActiveIds,
@@ -525,7 +530,8 @@ void main() {
         customPlasmaSource,
         currentCustomBlocks,
         false,
-        currentFxUniforms
+        currentFxUniforms,
+        compiled.colorBody
       );
       if (newProg) {
         advancedSdfProgram = newProg;
@@ -1193,7 +1199,8 @@ void main() {
       nextSource,
       currentCustomBlocks,
       false,
-      effectiveFxUniforms
+      effectiveFxUniforms,
+      currentSdfColorBody
     );
     if (!nextProgram) {
       return { ok: false };
@@ -1473,7 +1480,8 @@ void main() {
       currentPlasmaSource,
       customBlocks,
       useAsync,
-      effectiveFx
+      effectiveFx,
+      currentSdfColorBody
     );
 
     if (!prog) {
@@ -1520,7 +1528,7 @@ void main() {
     currentFxUniforms = effectiveFx;
 
     const useAsync = !!extParallel;
-    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, effectiveFx);
+    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, effectiveFx, currentSdfColorBody);
     
     if (prog) {
       if (useAsync) {

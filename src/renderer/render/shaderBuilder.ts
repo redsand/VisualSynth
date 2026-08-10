@@ -47,9 +47,10 @@ export const buildFragmentShader = (
   activeIds: Set<string>,
   sdfUniforms = '',
   sdfFunctions = '',
-  sdfMapBody = '10.0',
+  sdfMapBody = 'return vec2(10.0, 0.0);',
   plasmaSource: string | null = null,
-  fxUniforms = ''
+  fxUniforms = '',
+  sdfColorBody = 'return vec3(1.0);'
 ): string => {
   const activeBlocks = blocks.filter(b => activeIds.has(b.id));
 
@@ -74,7 +75,8 @@ export const buildFragmentShader = (
   const functionPrefix = hasFunctionsPlaceholder ? '' : allFunctions;
 
   const preamble = preambleWithFunctions
-    .replace('/* @@SDF_MAP_BODY */', sdfMapBody);
+    .replace('/* @@SDF_MAP_BODY */', sdfMapBody)
+    .replace('/* @@SDF_COLOR_BODY */', sdfColorBody);
 
   const main = parts.mainTemplate
     .replace('/* @@PLASMA_DEFINE */', plasmaSource ? '#define HAS_CUSTOM_PLASMA' : '')
