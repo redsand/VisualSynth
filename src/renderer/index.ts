@@ -10032,7 +10032,18 @@ const initSdf = () => {
     sdfPanel = createSdfPanel({
       store: {
         getState: () => ({ project: currentProject }),
-        dispatch: (action: any) => { /* dummy if not needed yet */ }
+        // SdfPanel writes exclusively through actions.mutateProject, which
+        // calls store.update with a mutator that edits state.project in place.
+        // The previous dummy omitted `update`, so every SDF advanced-editor
+        // edit (add/remove node, param, color, connection, render settings)
+        // threw "store.update is not a function" and the change was lost.
+        // currentProject is the live module-level project the render loop
+        // reads each frame, so mutating it here is picked up immediately;
+        // addNode/removeNode then call the panel's own render() to refresh.
+        update: (updater: (state: any) => void) => {
+          updater({ project: currentProject });
+        },
+        dispatch: (action: any) => { /* SdfPanel does not use dispatch */ }
       } as any
     });
   }
