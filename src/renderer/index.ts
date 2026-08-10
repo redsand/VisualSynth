@@ -6789,6 +6789,14 @@ const renderLfoList = () => {
       if (val === 'hz') {
         lfo.sync = false;
         rateDial.wrapper.style.display = '';
+        // Sync the dial to the actual rate. Picking a sync division overwrote
+        // lfo.rate with that division's beats value; switching back to Hz shows
+        // the wrapper but left the dial displaying the pre-sync Hz (or the init
+        // placeholder), so the shown Hz and the running rate disagreed until the
+        // user nudged the dial. Re-running the input handler also refreshes the
+        // knob visual + value label (onChange just reassigns lfo.rate = itself).
+        rateDial.input.value = String(lfo.rate);
+        rateDial.input.dispatchEvent(new Event('input'));
       } else {
         lfo.sync = true;
         const div = LFO_SYNC_DIVISIONS.find((d) => d.label === val);
@@ -9422,6 +9430,13 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
       slider.value = String(scaleMidiValue(value, 0, 1));
       currentProject.macros[index].value = Number(slider.value);
       updateMacroPreviews();
+      // Mirror the per-macro slider input handler: keep the hero slider
+      // (macros 1-4) in sync. A MIDI CC moving a macro otherwise left the hero
+      // slider showing its stale value.
+      if (index < 4) {
+        const heroSlider = [macroEnergy, macroMotion, macroColor, macroDensity][index];
+        if (heroSlider) heroSlider.value = slider.value;
+      }
     }
     return;
   }
@@ -11545,14 +11560,20 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
         const isNoteOn = messageType === 0x90 && data2 > 0;
         const isNoteOff = messageType === 0x80 || (messageType === 0x90 && data2 === 0);
         if (!isNoteOn && !isNoteOff) return;
+        // applyMidiTargetValue expects RAW 0-127 (its handlers either threshold
+        // `value > 0.5` or call scaleMidiValue, which divides by 127). Passing
+        // data2/127 here meant a note mapped to a continuous target (e.g. a
+        // layer opacity) was divided by 127 twice — velocity 64 -> ~0.004, so the
+        // pad appeared to do nothing. Pass raw data2 (0-127), matching the CC
+        // momentary path below.
         if (mapping.mode === 'toggle') {
           // Toggle flips only on the Note On edge; Note Off is ignored.
-          if (isNoteOn) applyMidiTargetValue(mapping.target, data2 / 127, true);
+          if (isNoteOn) applyMidiTargetValue(mapping.target, data2, true);
         } else {
           // momentary / trigger: press sets the value, release resets to 0.
           // Previously only Note On was handled, so a momentary/trigger pad
           // pegged the target on press and never released it.
-          applyMidiTargetValue(mapping.target, isNoteOn ? data2 / 127 : 0, false);
+          applyMidiTargetValue(mapping.target, isNoteOn ? data2 : 0, false);
         }
       }
       if (mapping.message === 'cc' && messageType === 0xb0) {
@@ -11575,11 +11596,15 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
         }
       }
       if (mapping.message === 'aftertouch' && messageType === 0xd0) {
-        applyMidiTargetValue(mapping.target, data1 / 127);
+        // data1 is pressure 0-127; pass raw (same 0-127 convention as above).
+        applyMidiTargetValue(mapping.target, data1);
       }
       if (mapping.message === 'pitchbend' && messageType === 0xe0) {
+        // combined is 14-bit 0-16383; scale to 0-127 so scaleMidiValue maps it
+        // to 0-1 (a centered bend lands at ~0.5). Passing combined/16383 here
+        // was the same double-divide bug as notes/aftertouch.
         const combined = ((data2 ?? 0) << 7) | (data1 ?? 0);
-        applyMidiTargetValue(mapping.target, combined / 16383);
+        applyMidiTargetValue(mapping.target, (combined / 16383) * 127);
       }
     });
   };
