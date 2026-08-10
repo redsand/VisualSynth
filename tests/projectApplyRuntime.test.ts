@@ -79,7 +79,11 @@ describe('applyLoadableProjectRuntime', () => {
         ...DEFAULT_PROJECT,
         assets: [],
         overlays: [
-          { id: 'o1', name: 'Flyer', type: 'image' as const, assetPath: 'flyer.png' }
+          {
+            id: 'o1', name: 'Flyer', type: 'image' as const, assetPath: 'flyer.png',
+            enabled: true, x: 0, y: 0, width: 1, height: 1,
+            opacity: 1, rotation: 0, includeInFx: false
+          }
         ]
       };
       const onResolvedProject = vi.fn().mockResolvedValue(undefined);
@@ -94,7 +98,7 @@ describe('applyLoadableProjectRuntime', () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        const overlay = result.project.overlays[0];
+        const overlay = result.project.overlays![0];
         // The overlay's relative assetPath must be rewritten to the resolved
         // absolute path, and the overlay must be linked to the asset by id.
         expect(overlay.assetPath).toBe('C:/shows/flyer.png');
