@@ -31,6 +31,7 @@ import { createMixerPanel } from './ui/panels/MixerPanel';
 import { createSdfPanel } from './ui/panels/SdfPanel';
 import { createOutputManagerPanel, injectOutputManagerStyles } from './ui/panels/OutputManagerPanel';
 import { registerSdfNodes } from './sdf/nodes';
+import { modulateSdfScene } from './sdf/applySdfModulation';
 import { createModulationPanel } from './ui/panels/ModulationPanel';
 import { getBeatMs, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
@@ -14549,7 +14550,14 @@ const render = (time: number) => {
     sdfRotation: moddedSdf.rotation,
     sdfFill: moddedSdf.fill,
     sdfColor: sdf.color,
-    sdfScene: sdfAdvancedToggle.checked ? renderScene?.layers.find((layer) => layer.id === 'gen-sdf-scene')?.sdfScene : undefined,
+    sdfScene: sdfAdvancedToggle.checked
+      ? modulateSdfScene(
+          renderScene?.layers.find((layer) => layer.id === 'gen-sdf-scene')?.sdfScene,
+          modSources,
+          modMatrix,
+          modCtx
+        )
+      : undefined,
     gravityPositions,
     gravityStrengths,
     gravityPolarities,

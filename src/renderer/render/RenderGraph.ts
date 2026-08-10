@@ -1,5 +1,5 @@
 import { getActiveScene } from '../shaderLifecycle';
-import { applyModMatrix, ModSmoothEntry } from '../../shared/modMatrix';
+import { applyModMatrix, ModSmoothEntry, ModMatrixContext } from '../../shared/modMatrix';
 import { resolveModTargetRange } from '../../shared/modTargets';
 import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
@@ -17,6 +17,7 @@ import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
+import { modulateSdfScene } from '../sdf/applySdfModulation';
 import { NodeInstance } from '../../shared/visualNode';
 import { EDM_DROP_COLLECTION, getEdmPreset } from '../sdf/presets/edmPresets';
 import { registerSdfNodes, sdfRegistry } from '../sdf/nodes';
@@ -1213,51 +1214,16 @@ export class RenderGraph {
   private getModdedSdfScene(scene: any, modSources: any, modMatrix: any[], dt: number, frame: number) {
     if (!scene) return undefined;
 
-    // Deep clone the scene to avoid mutating the original project state
-    const cloned = JSON.parse(JSON.stringify(scene));
+    // Clone + modulate each node's params via the shared helper (also used by
+    // the live index.ts path, so SDF node-param modulation is identical on
+    // both). The temporal low-pass ctx carries this RenderGraph's persistent
+    // state Map + the per-frame token.
+    const modCtx: ModMatrixContext = { dt, frame, state: this.modSmoothingState };
+    const cloned = modulateSdfScene(scene, modSources, modMatrix, modCtx);
+    if (!cloned) return undefined;
 
-    // Apply modulation to each node's parameters
-    if (cloned.nodes) {
-      cloned.nodes.forEach((node: any) => {
-        if (!node.params) return;
-
-        // Resolve this node's parameter ranges from the SDF registry so that
-        // connections still carrying the schema-default [0,1] clamp (hand-edited
-        // or round-tripped files) substitute the parameter's true range instead
-        // of capping the modulation to [0,1]. No-op for genuine [0,1] params.
-        const nodeDef = sdfRegistry.get(node.nodeId);
-        const paramRange = (pid: string): { min: number; max: number } | undefined => {
-          const p = nodeDef?.parameters.find((sp) => sp.id === pid);
-          if (!p || p.min == null || p.max == null) return undefined;
-          return { min: p.min, max: p.max };
-        };
-
-        Object.keys(node.params).forEach(paramId => {
-          const targetId = `${node.instanceId}.${paramId}`;
-          const baseValue = node.params[paramId];
-          const fallback = paramRange(paramId);
-          // Per-frame temporal low-pass context for connection `smoothing`. The
-          // state Map persists on the RenderGraph across frames; dt comes from
-          // the render loop's frame delta.
-          const modCtx = { dt, frame, state: this.modSmoothingState };
-
-          if (typeof baseValue === 'number') {
-            node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix, fallback, modCtx);
-          } else if (Array.isArray(baseValue)) {
-            // Support modulating vector components like 'nodeId.paramId.x'
-            const components = ['x', 'y', 'z', 'w'];
-            const modded = [...baseValue];
-            for (let i = 0; i < Math.min(baseValue.length, 4); i++) {
-                const subTargetId = `${targetId}.${components[i]}`;
-                modded[i] = applyModMatrix(baseValue[i], subTargetId, modSources, modMatrix, fallback, modCtx);
-            }
-            node.params[paramId] = modded;
-          }
-        });
-      });
-    }
-
-    // Inject burst SDF nodes from the beat-triggered system
+    // Inject burst SDF nodes from the beat-triggered system (bootstrap path
+    // only — the live index.ts path does not use burstSdfManager).
     const burstNodes = burstSdfManager.getActiveNodes();
     if (burstNodes.length > 0) {
       if (!cloned.nodes) cloned.nodes = [];
