@@ -9809,6 +9809,11 @@ const initMacros = () => {
           const heroSlider = [macroEnergy, macroMotion, macroColor, macroDensity][index];
           if (heroSlider) heroSlider.value = slider.value;
       }
+      // Mirror the hero-slider path (updateMacroFromHero), which syncs the
+      // edited macro value into the active scene's look so it survives a
+      // save. Without this, per-macro slider drags only mutate the in-memory
+      // currentProject.macros entry and are lost on save/scene switch.
+      syncMacrosToActiveScene();
     });
 
     const learn = document.createElement('button');
