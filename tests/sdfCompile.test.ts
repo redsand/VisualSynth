@@ -192,4 +192,96 @@ describe('SDF Stage 1 compile harness', () => {
     expect(compiled.mapBody).toMatch(/fieldPerlin2D\(/);
     expectParses(full);
   });
+
+  // ─── Stage 3: ops emission (#5) + color uniforms (#6) ────────────────────
+
+  it('applies a single-input op instead of no-op returning the child (blocker #5)', () => {
+    // opOnion over a sphere. The old code early-returned childResults[0] for
+    // single-input ops, so opOnion was never called (a silent no-op). Now the
+    // op must be invoked with the child's distance + its param, and the child's
+    // id (.y) preserved. Uses 3D sphere children so mapBody has no spurious .x.
+    const shape = createNodeInstance('sphere', { radius: 0.4 });
+    const onion = createNodeInstance('op-onion', { thickness: 0.05 });
+    const connections = [{ from: shape.instanceId, to: onion.instanceId, slot: 0 }];
+    const { compiled, full } = assemble([shape, onion], connections, '3d');
+    // The op is actually called (would be absent under the old no-op bug).
+    expect(compiled.mapBody).toContain('opOnion(');
+    // One child distance (.x) fed in, one id (.y) preserved.
+    expect(countOccurrences(compiled.mapBody, '.x')).toBe(1);
+    expect(countOccurrences(compiled.mapBody, '.y')).toBe(1);
+    expectParses(full);
+  });
+
+  it('passes BOTH children + the k param to a 2-input smooth op (blocker #5)', () => {
+    // opSmoothUnion(d1, d2, k). The old fallback passed only child0.x then
+    // misaligned paramArgs: d2 got the k uniform and k was dropped entirely.
+    // Now both children's .x and the k uniform must appear, in order.
+    const s1 = createNodeInstance('sphere', { radius: 0.3 });
+    const s2 = createNodeInstance('sphere', { radius: 0.25 });
+    const op = createNodeInstance('op-smooth-union', { k: 0.1 });
+    const connections = [
+      { from: s1.instanceId, to: op.instanceId, slot: 0 },
+      { from: s2.instanceId, to: op.instanceId, slot: 1 }
+    ];
+    const { compiled, full } = assemble([s1, s2, op], connections, '3d');
+    expect(compiled.mapBody).toContain('opSmoothUnion(');
+    // Both child distances (.x) are fed in; first child's id (.y) preserved.
+    expect(countOccurrences(compiled.mapBody, '.x')).toBe(2);
+    expect(countOccurrences(compiled.mapBody, '.y')).toBe(1);
+    // The k uniform is present in the assembled uniforms and the call.
+    expect(compiled.uniforms.some((u) => u.name.endsWith('_k'))).toBe(true);
+    expectParses(full);
+  });
+
+  it('routes opXor through the vec2 boolean wrapper, not the scalar path (blocker #5)', () => {
+    // opXor was missing from the boolean-op group, so it fell to the scalar
+    // fallback and emitted a 1-arg opXor(child0.x) — "no matching function".
+    // Now it uses the vec2 wrapper and receives two full vec2 children.
+    const s1 = createNodeInstance('sphere', { radius: 0.3 });
+    const s2 = createNodeInstance('sphere', { radius: 0.25 });
+    const op = createNodeInstance('op-xor', {});
+    const connections = [
+      { from: s1.instanceId, to: op.instanceId, slot: 0 },
+      { from: s2.instanceId, to: op.instanceId, slot: 1 }
+    ];
+    const { compiled, full } = assemble([s1, s2, op], connections, '3d');
+    expect(compiled.mapBody).toContain('opXor(');
+    // The vec2 wrapper is emitted exactly once in functionsCode.
+    expect(countOccurrences(compiled.functionsCode, 'vec2 opXor(vec2 d1, vec2 d2)')).toBe(1);
+    // Both children appear inside the opXor call (vec2 args, not .x swizzles).
+    expect(countOccurrences(compiled.mapBody, 'sdSphere')).toBe(2);
+    expectParses(full);
+  });
+
+  it('fills the vec3 p slot of opDisplace with the domain point (blocker #5)', () => {
+    // opDisplace(float d, vec3 p, float amount, float freq) — the `p` slot is
+    // the domain point (not a child). buildArgs must route it via coerceP and
+    // NOT consume it from the explicit child/param args (which would shift
+    // amount→p, freq→amount, and drop freq). Assert the 4-arg structure with
+    // the domain `p` as the 2nd arg and both param uniforms after it.
+    const shape = createNodeInstance('sphere', { radius: 0.4 });
+    const op = createNodeInstance('op-displace', { amount: 0.1, frequency: 5 });
+    const connections = [{ from: shape.instanceId, to: op.instanceId, slot: 0 }];
+    const { compiled, full } = assemble([shape, op], connections, '3d');
+    expect(compiled.mapBody).toContain('opDisplace(');
+    // opDisplace(<child>.x, p, u_..._amount, u_..._frequency) — 4 args, p in
+    // slot 2. (The uniform uses the param id `frequency`, not the sig name `freq`.)
+    expect(compiled.mapBody).toMatch(/opDisplace\([^]*\.x,\s*p,\s*u_[^,]+_amount,\s*u_[^)]+\)/);
+    expectParses(full);
+  });
+
+  it('emits a per-node color uniform per instance and binds it by id (#6)', () => {
+    // The builder must register a uColor_<id> vec3 uniform per node so
+    // getSdfColor(float id) can return it. (The matching glRenderer fix reads
+    // node.color for parameterId === 'color'; this test covers the builder half.)
+    const s = createNodeInstance('sphere', { radius: 0.4 });
+    const { compiled, full } = assemble([s], [], '3d');
+    const colorUni = compiled.uniforms.find((u) => u.parameterId === 'color');
+    expect(colorUni).toBeDefined();
+    expect(colorUni!.type).toBe('vec3');
+    expect(colorUni!.name).toContain(`uColor_${s.instanceId.replace(/-/g, '_')}`);
+    // colorBody branches on id and returns the per-node color uniform.
+    expect(compiled.colorBody).toContain(`uColor_${s.instanceId.replace(/-/g, '_')}`);
+    expectParses(full);
+  });
 });

@@ -166,11 +166,13 @@ ${def.glsl.body}
 }`);
   }
 
-  // Register internal op functions for vec2 if needed
+  // Register internal vec2 boolean-op wrappers if needed. These preserve the
+  // child ID (.y) through the op so getSdfColor can still pick a per-node color.
   if (!ctx.functions.has('vec2 opUnion(vec2 d1, vec2 d2)')) {
       ctx.functions.add(`vec2 opUnion(vec2 d1, vec2 d2) { return (d1.x < d2.x) ? d1 : d2; }`);
       ctx.functions.add(`vec2 opSubtract(vec2 d1, vec2 d2) { return (-d2.x > d1.x) ? vec2(-d2.x, d2.y) : d1; }`);
       ctx.functions.add(`vec2 opIntersect(vec2 d1, vec2 d2) { return (d1.x > d2.x) ? d1 : d2; }`);
+      ctx.functions.add(`vec2 opXor(vec2 d1, vec2 d2) { float d = max(min(d1.x, d2.x), -max(d1.x, d2.x)); return vec2(d, (d1.x < d2.x) ? d1.y : d2.y); }`);
   }
 
   // Collect and register parameters as uniforms. Keep both a positional list
@@ -262,16 +264,25 @@ ${def.glsl.body}
       const childResults = inputs.map(conn => emitNode(ctx, conn.from, currentDomainVar, domainType, codeAccumulator));
 
       if (childResults.length === 0) return `vec2(10.0, ${nodeIndex}.0)`;
-      if (childResults.length === 1) return childResults[0];
 
-      // Handle standard boolean ops using our vec2 wrappers
-      if (funcName === 'opUnion' || funcName === 'opSubtract' || funcName === 'opIntersect') {
+      // Boolean ops with no params use the vec2 wrappers above (preserve ID).
+      // opXor is included here so it does NOT fall through to the scalar path
+      // (the old code dropped d2 and emitted a 1-arg opXor → no matching function).
+      if (funcName === 'opUnion' || funcName === 'opSubtract' || funcName === 'opIntersect' || funcName === 'opXor') {
+          if (childResults.length === 1) return childResults[0];
           return `${funcName}(${childResults[0]}, ${childResults[1]})`;
       }
 
-      // Fallback for complex ops (onion, round, etc) - they only affect distance, preserve ID
-      const allCallArgs = [childResults[0] + '.x', ...paramArgs];
-      const callArgs = buildArgs(allCallArgs);
+      // All other ops are scalar-distance-in / scalar-distance-out. Each child
+      // contributes its `.x` (distance) as a leading float arg; the op's scalar
+      // params follow via paramArgs. buildArgs still handles a `p` slot
+      // (e.g. opDisplace's `vec3 p` = the domain point) via coerceP. The result
+      // is re-wrapped with the first child's `.y` (id) so color is preserved.
+      // Fixes #5: previously single-input ops early-returned the child (no-op),
+      // and 2-input ops passed only child0.x then misaligned paramArgs into the
+      // d2/k slots.
+      const childDistArgs = childResults.map(r => `${r}.x`);
+      const callArgs = buildArgs([...childDistArgs, ...paramArgs]);
       return `vec2(${funcName}(${callArgs}), ${childResults[0]}.y)`;
   }
 

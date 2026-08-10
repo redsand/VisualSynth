@@ -1308,14 +1308,25 @@ void main() {
 
       advancedSdfUniforms.forEach(u => {
         const loc = advancedSdfUniformLocations.get(u.name);
-        if (loc) {
-          const node = state.sdfScene.nodes.find((n: any) => n.instanceId === u.instanceId);
-          const val = node?.params[u.parameterId];
-          if (typeof val === 'number') gl.uniform1f(loc, val);
-          else if (Array.isArray(val)) {
-            if (val.length === 2) gl.uniform2fv(loc, val);
-            else if (val.length === 3) gl.uniform3fv(loc, val);
+        if (!loc) return;
+        const node = state.sdfScene.nodes.find((n: any) => n.instanceId === u.instanceId);
+        if (!node) return;
+        // Per-node color uniforms (parameterId === 'color') are sourced from
+        // node.color, NOT node.params['color'] — color lives on the instance
+        // directly (sdf/api.ts). Without this, scene-graph node colors never
+        // reached the shader and everything rendered the default color.
+        if (u.parameterId === 'color') {
+          const c = node.color;
+          if (Array.isArray(c) && c.length >= 3) {
+            gl.uniform3fv(loc, [c[0], c[1], c[2]]);
           }
+          return;
+        }
+        const val = node?.params[u.parameterId];
+        if (typeof val === 'number') gl.uniform1f(loc, val);
+        else if (Array.isArray(val)) {
+          if (val.length === 2) gl.uniform2fv(loc, val);
+          else if (val.length === 3) gl.uniform3fv(loc, val);
         }
       });
     }
