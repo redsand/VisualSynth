@@ -800,15 +800,11 @@ void main() {
     gl.uniform1f(getLocation('uTransitionType'), state.transitionType);
     gl.uniform1f(getLocation('uChemistryMode'), state.chemistryMode);
     gl.uniform1f(getLocation('uMotionTemplate'), state.motionTemplate);
-    gl.uniform1f(getLocation('uEngineMass'), state.engineMass);
-    gl.uniform1f(getLocation('uEngineFriction'), state.engineFriction);
-    gl.uniform1f(getLocation('uEngineElasticity'), state.engineElasticity);
     gl.uniform1f(getLocation('uMaxBloom'), state.maxBloom);
     gl.uniform1f(getLocation('uForceFeedback'), state.forceFeedback ? 1.0 : 0.0);
     gl.uniform1f(getLocation('uEngineGrain'), state.engineGrain);
     gl.uniform1f(getLocation('uEngineVignette'), state.engineVignette);
     gl.uniform1f(getLocation('uEngineCA'), state.engineCA);
-    gl.uniform1f(getLocation('uEngineSignature'), state.engineSignature);
     // Gen-* uniforms: all handled dynamically via state.genUniforms below.
     // Only special-case array uniforms remain explicit:
     gl.uniform1fv(getLocation('uBurstSpawnTimes[0]'), state.shapeBurstSpawnTimes ?? new Float32Array(8));

@@ -44,15 +44,19 @@ uniform float uTransitionAmount;
 uniform float uTransitionType;
 uniform float uChemistryMode;
 uniform float uMotionTemplate;
-uniform float uEngineMass;
-uniform float uEngineFriction;
-uniform float uEngineElasticity;
+// NOTE: uEngineMass/uEngineFriction/uEngineElasticity were the shader-side
+// "Inertial Energy Accumulation" block. That accumulation now lives on the CPU
+// (audio/energyModel.ts -> engine.low/mid/high modMatrix sources), so these
+// uniforms were declared + uploaded but never read by any shader body. They
+// and their uploads were removed. uEngineGrain/Vignette/CA below ARE used.
 uniform float uMaxBloom;
 uniform float uForceFeedback;
 uniform float uEngineGrain;
 uniform float uEngineVignette;
 uniform float uEngineCA;
-uniform float uEngineSignature;
+// uEngineSignature (engine "watermark" overlay) was deliberately removed from
+// mainTemplate (ac611a820: "caused visible dot grid on black canvas"). The
+// uniform + its per-frame upload were dead, so they were removed.
 uniform float uEffectsEnabled;
 
 // Post-FX & feedback uniforms (always needed by mainTemplate)
