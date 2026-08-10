@@ -5658,7 +5658,11 @@ type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
 const isAssetLayerId = (layerId: string): layerId is AssetLayerId =>
   (ASSET_LAYER_IDS as readonly string[]).includes(layerId);
 
-const assetLayerBlendModes: Record<AssetLayerId, number> = {
+// Built-in per-asset-layer defaults, kept as a separate snapshot so a project
+// load can reset the runtime records back to these before applying persisted
+// overrides. Without the reset, edits made in one project would leak into the
+// next because the runtime records below are module-level (single instance).
+const DEFAULT_ASSET_BLEND_MODES: Record<AssetLayerId, number> = {
   'layer-plasma': 3,
   'layer-spectrum': 1,
   'layer-media': 3,
@@ -5670,7 +5674,7 @@ const assetLayerBlendModes: Record<AssetLayerId, number> = {
   'gen-asset-scatter': 3,
   'gen-asset-echo': 1
 };
-const assetLayerAudioReact: Record<AssetLayerId, number> = {
+const DEFAULT_ASSET_AUDIO_REACT: Record<AssetLayerId, number> = {
   'layer-plasma': 0.6,
   'layer-spectrum': 0.8,
   'layer-media': 0.5,
@@ -5682,10 +5686,47 @@ const assetLayerAudioReact: Record<AssetLayerId, number> = {
   'gen-asset-scatter': 0.5,
   'gen-asset-echo': 0.5
 };
+const assetLayerBlendModes: Record<AssetLayerId, number> = { ...DEFAULT_ASSET_BLEND_MODES };
+const assetLayerAudioReact: Record<AssetLayerId, number> = { ...DEFAULT_ASSET_AUDIO_REACT };
 const getAssetBlendModeValue = (layerId: string): number =>
   (assetLayerBlendModes as Record<string, number>)[layerId] ?? 0;
 const getAssetAudioReactValue = (layerId: string): number =>
   (assetLayerAudioReact as Record<string, number>)[layerId] ?? 0.5;
+
+// Restore the per-asset-layer blend/audio-react runtime records from a loaded
+// project. Resets to the built-in defaults first so overrides carried over
+// from a previously-loaded project can't leak in, then applies only the keys
+// the saved project explicitly persisted (unknown layer ids are ignored).
+const restoreAssetLayerSettings = (project: VisualSynthProject) => {
+  Object.assign(assetLayerBlendModes, DEFAULT_ASSET_BLEND_MODES);
+  Object.assign(assetLayerAudioReact, DEFAULT_ASSET_AUDIO_REACT);
+  const savedBlend = project.assetLayerBlendModes;
+  if (savedBlend) {
+    for (const [key, value] of Object.entries(savedBlend)) {
+      if (isAssetLayerId(key)) assetLayerBlendModes[key] = value;
+    }
+  }
+  const savedReact = project.assetLayerAudioReact;
+  if (savedReact) {
+    for (const [key, value] of Object.entries(savedReact)) {
+      if (isAssetLayerId(key)) assetLayerAudioReact[key] = value;
+    }
+  }
+};
+
+// Snapshot only the asset-layer entries that differ from the built-in
+// defaults, so a project with no edits serializes to {} and only the user's
+// overrides are written to disk.
+const snapshotAssetLayerOverrides = (
+  current: Record<AssetLayerId, number>,
+  defaults: Record<AssetLayerId, number>
+): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const key of Object.keys(current) as AssetLayerId[]) {
+    if (current[key] !== defaults[key]) out[key] = current[key];
+  }
+  return out;
+};
 
 const formatAssetLabel = (asset: AssetItem) => {
   const status = asset.missing ? ' [MISSING]' : '';
@@ -11679,7 +11720,16 @@ const buildProjectSnapshotForSave = (): VisualSynthProject => {
     ...currentProject,
     updatedAt: now,
     output: outputConfig,
-    macros: currentProject.macros.map((macro) => ({ ...macro })),
+    // Persist the live per-asset-layer blend/audio-react overrides (only the
+    // entries that differ from the built-in defaults). Placed after the
+    // ...currentProject spread so a stale copy carried on currentProject is
+    // replaced by the current runtime values.
+    assetLayerBlendModes: snapshotAssetLayerOverrides(assetLayerBlendModes, DEFAULT_ASSET_BLEND_MODES),
+    assetLayerAudioReact: snapshotAssetLayerOverrides(assetLayerAudioReact, DEFAULT_ASSET_AUDIO_REACT),
+    macros: currentProject.macros.map((macro, index) => ({
+      ...macro,
+      value: Number(macroInputs[index]?.value ?? macro.value)
+    })),
     scenes: currentProject.scenes.map((scene) => ({
       ...scene,
       layers: scene.layers.map((layer) => ({ ...layer }))
@@ -11703,6 +11753,10 @@ const applyProject = async (project: VisualSynthProject) => {
     currentOutputConfig: outputConfig,
     onResolvedProject: (normalized) => {
       currentProject = normalized;
+      // Restore the per-asset-layer blend/audio-react runtime records from
+      // the loaded project before applyScene renders, so the first frame
+      // uses the persisted overrides (and prior-project edits don't leak).
+      restoreAssetLayerSettings(currentProject);
       initEngineSelect();
       refreshSceneSelect();
       const activeGeneratorCount = primeProjectShaders(renderer, currentProject, 200);

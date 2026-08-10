@@ -603,6 +603,11 @@ export interface VisualSynthProject {
   overlays?: OverlayConfig[];
   customShaderBlocks?: CustomShaderBlock[];
   performanceMode?: PerformanceModeConfig;
+  // Per-asset-layer blend mode + audio-react overrides persisted on save.
+  // Optional; absent/{} falls back to the renderer's built-in per-layer
+  // defaults. Only entries the user edited are stored.
+  assetLayerBlendModes?: Record<string, number>;
+  assetLayerAudioReact?: Record<string, number>;
   _shaderData?: MilkDropShaderData;
 }
 

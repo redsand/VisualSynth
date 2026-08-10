@@ -932,6 +932,14 @@ export const projectSchema = z.object({
     textShadow: z.boolean().optional(),
     targetSceneId: z.string().optional()
   })).default([]),
+  // Per-asset-layer blend mode + audio-react overrides. Optional: absent
+  // (or {}) means "use the renderer's built-in per-layer defaults". Only
+  // entries the user actually edited are persisted, so a no-edit project
+  // stays clean. Without these in the schema, zod's default strip behavior
+  // would drop the field on load and the live path's save/load round-trip
+  // (buildProjectSnapshotForSave -> applyProject) would silently lose edits.
+  assetLayerBlendModes: z.record(z.string(), z.number()).optional(),
+  assetLayerAudioReact: z.record(z.string(), z.number()).optional(),
   _shaderData: milkDropShaderDataSchema.optional()
 });
 

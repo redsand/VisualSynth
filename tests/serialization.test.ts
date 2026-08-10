@@ -110,3 +110,29 @@ describe('project serialization', () => {
     expect(reloaded.scenes[0].look?.effects?.enabled).toBe(true);
   });
 });
+
+describe('asset-layer blend/audio-react persistence', () => {
+  it('preserves assetLayerBlendModes and assetLayerAudioReact across a save/load round-trip', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.assetLayerBlendModes = { 'layer-plasma': 4, 'layer-media': 2 };
+    project.assetLayerAudioReact = { 'layer-spectrum': 0.25 };
+
+    const reloaded = deserializeProject(serializeProject(project));
+
+    expect(reloaded.assetLayerBlendModes).toEqual({ 'layer-plasma': 4, 'layer-media': 2 });
+    expect(reloaded.assetLayerAudioReact).toEqual({ 'layer-spectrum': 0.25 });
+  });
+
+  it('omits the fields when the source project does not set them (no churn for legacy projects)', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    delete project.assetLayerBlendModes;
+    delete project.assetLayerAudioReact;
+
+    const reloaded = deserializeProject(serializeProject(project));
+
+    // Optional with no default: absent stays absent, so old projects do not
+    // gain a spurious {} key on load.
+    expect(reloaded.assetLayerBlendModes).toBeUndefined();
+    expect(reloaded.assetLayerAudioReact).toBeUndefined();
+  });
+});
