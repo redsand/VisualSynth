@@ -6899,7 +6899,11 @@ const renderEnvelopeList = () => {
     });
 
     const triggerSelect = document.createElement('select');
-    ['audio.peak', 'strobe', 'manual'].forEach((trigger) => {
+    // Must match the triggers updateEnvelopes actually handles (audio.peak,
+    // engine.low, strobe, manual). Omitting engine.low left engine.low-triggered
+    // envelopes with a blank dropdown whose first edit silently rewrote the
+    // trigger.
+    ['audio.peak', 'engine.low', 'strobe', 'manual'].forEach((trigger) => {
       const option = document.createElement('option');
       option.value = trigger;
       option.textContent = trigger;
@@ -9056,6 +9060,24 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     }
     return;
   }
+  if (target === 'layer-plasma.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-plasma', 'Shader Plasma');
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-spectrum.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-spectrum', 'Spectrum Bars');
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
   if (target === 'layer-origami.enabled') {
     const layer = ensureOrigamiLayer(true);
     const next = isToggle ? !layer?.enabled : value > 0.5;
@@ -10421,21 +10443,35 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
   const localIndex = logicalIndex % 64;
   const action = currentProject.padMappings[logicalIndex] ?? 'none';
   if (action === 'toggle-plasma') {
-    padStates[logicalIndex] = !padStates[logicalIndex];
-    updatePadUI(localIndex, padStates[logicalIndex]);
-    if (plasmaToggle) plasmaToggle.checked = padStates[logicalIndex];
-    const plasmaScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
-    const plasmaLayer = plasmaScene?.layers.find((l) => l.id === 'layer-plasma');
-    if (plasmaLayer) plasmaLayer.enabled = padStates[logicalIndex];
+    // Mirror the layer-plasma.enabled MIDI path: actually flip layer.enabled
+    // (the render loop reads layer.enabled, not the checkbox) and sync the pad
+    // + checkbox + layer list. Previously this only toggled the checkbox, so the
+    // pad appeared to do nothing to the visible layer.
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-plasma', 'Shader Plasma');
+      const next = !layer.enabled;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-plasma', { enabled: next });
+      padStates[logicalIndex] = next;
+      updatePadUI(localIndex, next);
+      if (plasmaToggle) plasmaToggle.checked = next;
+      renderLayerList();
+    }
     return;
   }
   if (action === 'toggle-spectrum') {
-    padStates[logicalIndex] = !padStates[logicalIndex];
-    updatePadUI(localIndex, padStates[logicalIndex]);
-    if (spectrumToggle) spectrumToggle.checked = padStates[logicalIndex];
-    const spectrumScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
-    const spectrumLayer = spectrumScene?.layers.find((l) => l.id === 'layer-spectrum');
-    if (spectrumLayer) spectrumLayer.enabled = padStates[logicalIndex];
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-spectrum', 'Spectrum Bars');
+      const next = !layer.enabled;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-spectrum', { enabled: next });
+      padStates[logicalIndex] = next;
+      updatePadUI(localIndex, next);
+      if (spectrumToggle) spectrumToggle.checked = next;
+      renderLayerList();
+    }
     return;
   }
   if (action.startsWith('origami-')) {
@@ -11592,7 +11628,10 @@ const serializePerformance = () => {
         max: mod.max,
         curve: mod.curve,
         smoothing: mod.smoothing,
-        bipolar: mod.bipolar
+        bipolar: mod.bipolar,
+        // Persist enabled so a user-disabled connection survives save/reload
+        // (previously omitted, so every connection came back enabled).
+        enabled: mod.enabled !== false
       };
     }),
     macros: currentProject.macros.map(macro => ({
@@ -13601,6 +13640,8 @@ const buildModSources = (bpm: number, macros: MacroConfig[] = currentProject.mac
     'tempo.bpm': bpmNormalized,
     'lfo-1': lfoValues[0] ?? 0,
     'lfo-2': lfoValues[1] ?? 0,
+    'lfo-3': lfoValues[2] ?? 0,
+    'lfo-4': lfoValues[3] ?? 0,
     'env-1': envValues[0] ?? 0,
     'env-2': envValues[1] ?? 0,
     'sh-1': shValues[0] ?? 0,

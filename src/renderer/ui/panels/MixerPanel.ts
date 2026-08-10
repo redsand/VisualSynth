@@ -29,6 +29,10 @@ export const createMixerPanel = ({
 }: MixerPanelDeps): MixerPanelApi => {
   const container = document.getElementById('mixer-panel-anchor') as HTMLDivElement;
   let soloedLayerId: string | null = null;
+  // Snapshot of each layer's `enabled` state taken at solo-on, so unsoloing
+  // restores the user's prior mute configuration instead of force-enabling every
+  // layer (which erased any mutes the user had set).
+  let soloMuteSnapshot: Map<string, boolean> | null = null;
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -100,9 +104,18 @@ export const createMixerPanel = ({
       soloBtn.title = 'Solo';
       soloBtn.onclick = () => {
         if (soloedLayerId === layer.id) {
-          scene.layers.forEach(l => l.enabled = true);
+          // Un-solo: restore each layer's pre-solo enabled state. Falls back to
+          // enabled=true for any layer not in the snapshot (e.g. added mid-solo).
+          scene.layers.forEach(l => {
+            const restored = soloMuteSnapshot?.get(l.id);
+            l.enabled = restored ?? true;
+          });
+          soloMuteSnapshot = null;
           soloedLayerId = null;
         } else {
+          // Solo-on: remember the current enabled state of every layer before
+          // muting all but the soloed one, so unsolo can restore it.
+          soloMuteSnapshot = new Map(scene.layers.map(l => [l.id, l.enabled]));
           scene.layers.forEach(l => l.enabled = (l.id === layer.id));
           soloedLayerId = layer.id;
         }

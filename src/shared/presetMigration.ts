@@ -1241,7 +1241,10 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
       max: mod.max,
       curve: mod.curve,
       smoothing: mod.smoothing,
-      bipolar: mod.bipolar
+      bipolar: mod.bipolar,
+      // Restore enabled (serialized since the fix). Older presets without the
+      // field default to enabled so existing behavior is unchanged.
+      enabled: mod.enabled !== false
     }));
   }
 
@@ -1249,14 +1252,31 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
     const engineId = project.activeEngineId as EngineId;
     const engine = ENGINE_REGISTRY[engineId];
     if (engine) {
-      // Re-map macros to ensure they adhere to Engine Surface (5-7 macros)
+      // Re-map macros to ensure they adhere to Engine Surface (5-7 macros).
+      // Preserve the preset's own macro routing (targets) when present — the
+      // engine default target is only a fallback. Previously every preset macro
+      // had its user-defined targets discarded and replaced with the single
+      // engine default target whenever an engine was active. Preset targets are
+      // normalized to legacy string form (object-form targets {type,param} are
+      // converted) so the result still validates against MacroConfig.
+      const normalizeTargets = (targets: any) =>
+        (targets ?? []).map((t: any) => ({
+          ...t,
+          target:
+            typeof t.target === 'string'
+              ? t.target
+              : buildLegacyTarget(t.target.type || t.target.layerType, t.target.param)
+        }));
       project.macros = engine.macros.map((m, i) => {
         const incoming = preset.macros.find((pm: any) => pm.name === m.name || pm.id === `macro-${i + 1}`);
+        const incomingTargets = incoming?.targets;
         return {
           id: `macro-${i + 1}`,
           name: m.name,
           value: incoming?.value ?? m.defaultValue,
-          targets: [{ target: m.target, amount: 1.0 }]
+          targets: Array.isArray(incomingTargets) && incomingTargets.length
+            ? normalizeTargets(incomingTargets)
+            : [{ target: m.target, amount: 1.0 }]
         };
       });
       // Fill remaining to 8 with empty to keep UI stable
