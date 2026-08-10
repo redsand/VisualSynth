@@ -7,6 +7,7 @@ import { createSongChangeDetector, SongChangeEvent } from './songChangeDetector'
 import { SongDetectionDiagnostics, SongDetectionStatus } from '../../shared/songDetectionStatus';
 import { NowPlayingSettings, DEFAULT_NOW_PLAYING_SETTINGS } from '../../shared/nowPlaying';
 import { ENGINE_REGISTRY, EngineId } from '../../shared/engines';
+import { stepEnergyModel } from './energyModel';
 
 export interface AudioEngine {
   initDevices: (select: HTMLSelectElement) => Promise<void>;
@@ -330,10 +331,26 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       const targetMid = Math.pow(rawMid, 1.5 / elastic);
       const targetHigh = Math.pow(rawHigh, 1.0 / elastic);
 
-      // Apply smoothing based on Mass (inertia)
-      audioState.energyLow = audioState.energyLow * friction + targetLow * (1.0 - mass);
-      audioState.energyMid = audioState.energyMid * friction + targetMid * (1.0 - mass);
-      audioState.energyHigh = audioState.energyHigh * friction + targetHigh * (1.0 - mass);
+      // One-pole exponential low-pass ("inertia"). mass is the smoothing pole
+      // (the documented Inertia knob — engines differ in mass to give each a
+      // distinct feel), friction scales the input so the steady state is
+      // target*friction (motion decay). Steady-state gain is friction (<= 1),
+      // so energy stays in the [0,1] range of the bass/mid/treb bands — which
+      // the env-1 'engine.low' threshold of 0.65 and the 'engine.low/mid/high'
+      // modMatrix sources all assume. The previous `energy*friction +
+      // target*(1-mass)` was a leaky integrator whose steady-state gain
+      // (1-mass)/(1-friction) was 10x at the default mass=0.5/friction=0.95,
+      // saturating energy and making the 0.65 threshold fire on any
+      // bass >= ~0.065.
+      const energyNext = stepEnergyModel(
+        { low: audioState.energyLow, mid: audioState.energyMid, high: audioState.energyHigh },
+        { low: targetLow, mid: targetMid, high: targetHigh },
+        mass,
+        friction
+      );
+      audioState.energyLow = energyNext.low;
+      audioState.energyMid = energyNext.mid;
+      audioState.energyHigh = energyNext.high;
     } else {
       audioState.energyLow = audioState.rms;
       audioState.energyMid = audioState.rms;
