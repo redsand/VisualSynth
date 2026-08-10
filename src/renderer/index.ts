@@ -4852,6 +4852,7 @@ const renderModMatrix = () => {
     });
 
     const sourceSelect = document.createElement('select');
+    sourceSelect.title = 'Source — the signal driving this connection (macro, audio feature, MIDI CC, etc.).';
     modSourceOptions.forEach((option) => {
       const item = document.createElement('option');
       item.value = option.id;
@@ -4865,6 +4866,7 @@ const renderModMatrix = () => {
     });
 
     const targetSelect = document.createElement('select');
+    targetSelect.title = 'Target — the parameter this connection modifies. SDF node params are addressed as nodeId.paramId (vector comps: .x/.y/.z/.w).';
     modTargetOptions.forEach((option) => {
       const item = document.createElement('option');
       item.value = option.id;
@@ -4879,8 +4881,10 @@ const renderModMatrix = () => {
     amountInput.max = '2';
     amountInput.step = '0.05';
     amountInput.value = String(connection.amount);
+    amountInput.title = 'Amount — modulation depth added to the base value. Bipolar maps the source to ±amount; unipolar adds +amount.';
 
     const curveSelect = document.createElement('select');
+    curveSelect.title = 'Curve — response curve applied to the source before scaling by amount (linear / exp / log).';
     ['linear', 'exp', 'log'].forEach((curve) => {
       const option = document.createElement('option');
       option.value = curve;
@@ -4895,24 +4899,29 @@ const renderModMatrix = () => {
     smoothingInput.max = '1';
     smoothingInput.step = '0.05';
     smoothingInput.value = String(connection.smoothing);
+    smoothingInput.title = 'Smoothing — temporal low-pass lag. 0 = instant (no smoothing), 1 = very slow (~2s settle). Higher = lazier response.';
 
     const bipolarToggle = document.createElement('input');
     bipolarToggle.type = 'checkbox';
     bipolarToggle.checked = connection.bipolar;
+    bipolarToggle.title = 'Bipolar — when on, the source maps to ±amount around the base; when off, only adds +amount.';
 
     const minInput = document.createElement('input');
     minInput.type = 'number';
     minInput.step = '0.05';
     minInput.value = String(connection.min);
+    minInput.title = 'Min — output clamp lower bound. Auto-set from the target range when you pick a target.';
 
     const maxInput = document.createElement('input');
     maxInput.type = 'number';
     maxInput.step = '0.05';
     maxInput.value = String(connection.max);
+    maxInput.title = 'Max — output clamp upper bound. Auto-set from the target range when you pick a target.';
 
     const removeButton = document.createElement('button');
     removeButton.className = 'matrix-remove';
     removeButton.textContent = '✕';
+    removeButton.title = 'Remove this modulation connection.';
     removeButton.addEventListener('click', () => {
       currentProject.modMatrix = currentProject.modMatrix.filter((item) => item.id !== connection.id);
       renderModMatrix();
@@ -4937,8 +4946,13 @@ const renderModMatrix = () => {
     curveSelect.addEventListener('change', () => {
       connection.curve = curveSelect.value as typeof connection.curve;
     });
+    const updateSmoothingTitle = () => {
+      smoothingInput.title = `Smoothing — temporal low-pass lag. 0 = instant (no smoothing), 1 = very slow (~2s settle). Current: ${Number(smoothingInput.value).toFixed(2)}`;
+    };
+    updateSmoothingTitle();
     smoothingInput.addEventListener('input', () => {
       connection.smoothing = Number(smoothingInput.value);
+      updateSmoothingTitle();
     });
     bipolarToggle.addEventListener('change', () => {
       connection.bipolar = bipolarToggle.checked;
