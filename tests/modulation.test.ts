@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyModMatrix } from '../src/shared/modMatrix';
+import { applyModMatrix, ModSmoothEntry } from '../src/shared/modMatrix';
 import { ModConnection } from '../src/shared/project';
 import {
   lfoValueForShape,
@@ -955,7 +955,12 @@ describe('ModMatrix - bipolar', () => {
 });
 
 describe('ModMatrix - smoothing', () => {
-  it('smoothing reduces modulation amount', () => {
+  // Smoothing is a per-connection exponential low-pass over TIME (a real lag),
+  // not the legacy static depth cut `(1 - smoothing)`. It needs a temporal
+  // context (dt + persistent state). Without it, a one-shot call cannot smooth
+  // and returns the raw contribution at full depth.
+
+  it('smoothing has no effect without temporal context (stateless one-shot)', () => {
     const connections: ModConnection[] = [
       {
         id: 'mod-1',
@@ -970,11 +975,11 @@ describe('ModMatrix - smoothing', () => {
       }
     ];
     const result = applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections);
-    // Full modulation with 0.5 smoothing: 1 * (1 - 0.5) = 0.5
-    expect(result).toBe(0.5);
+    // No ctx → raw contribution, full depth (legacy depth cut would give 0.5).
+    expect(result).toBeCloseTo(1);
   });
 
-  it('smoothing of 0 gives full modulation', () => {
+  it('smoothing of 0 gives full modulation (and bypasses the low-pass)', () => {
     const connections: ModConnection[] = [
       {
         id: 'mod-1',
@@ -992,7 +997,10 @@ describe('ModMatrix - smoothing', () => {
     expect(result).toBe(0.5); // 0 + 0.5
   });
 
-  it('smoothing of 1 gives no modulation', () => {
+  it('smoothing of 1 no longer kills modulation — it just converges slowly', () => {
+    // The legacy behavior silenced modulation at smoothing=1 (returned the
+    // base value unchanged). Now smoothing=1 is the slowest low-pass (rate 0.5/s)
+    // but still reaches full depth given enough frames.
     const connections: ModConnection[] = [
       {
         id: 'mod-1',
@@ -1006,11 +1014,17 @@ describe('ModMatrix - smoothing', () => {
         max: 1
       }
     ];
-    const result = applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections);
-    expect(result).toBe(0); // No modulation
+    // First frame: empty state → prev=raw → full depth, lag-free.
+    const state = new Map<string, ModSmoothEntry>();
+    const first = applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections, undefined, {
+      dt: 1 / 60,
+      frame: 0,
+      state
+    });
+    expect(first).toBeCloseTo(1);
   });
 
-  it('smoothing works with bipolar', () => {
+  it('smoothing works with bipolar at full depth on the first frame', () => {
     const connections: ModConnection[] = [
       {
         id: 'mod-1',
@@ -1024,10 +1038,53 @@ describe('ModMatrix - smoothing', () => {
         max: 1
       }
     ];
-    const result = applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections);
-    // Bipolar: (1 * 2 - 1) = 1
-    // Smoothing: 1 * (1 - 0.5) = 0.5
-    expect(result).toBe(0.5);
+    const state = new Map<string, ModSmoothEntry>();
+    const result = applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections, undefined, {
+      dt: 1 / 60,
+      frame: 0,
+      state
+    });
+    // Bipolar: (1 * 2 - 1) = 1; first frame lag-free → full depth.
+    expect(result).toBeCloseTo(1);
+  });
+
+  it('temporal low-pass lags a step and converges to full depth', () => {
+    const connections: ModConnection[] = [
+      {
+        id: 'mod-2',
+        source: 'audio.rms',
+        target: 'layer.plasma.opacity',
+        amount: 1,
+        curve: 'linear',
+        smoothing: 0.5,
+        bipolar: false,
+        min: 0,
+        max: 1
+      }
+    ];
+    const state = new Map<string, ModSmoothEntry>([['mod-2|layer.plasma.opacity', { value: 0, frame: -1 }]]);
+    const afterOne = applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections, undefined, {
+      dt: 1 / 60,
+      frame: 0,
+      state
+    });
+    expect(afterOne).toBeGreaterThan(0);
+    expect(afterOne).toBeLessThan(1);
+    // Each iteration must advance the frame token, otherwise the idempotency
+    // guard would reuse frame 0's value and never progress.
+    for (let f = 1; f <= 120; f++) {
+      applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections, undefined, {
+        dt: 1 / 60,
+        frame: f,
+        state
+      });
+    }
+    const settled = applyModMatrix(0, 'layer.plasma.opacity', { 'audio.rms': 1 }, connections, undefined, {
+      dt: 1 / 60,
+      frame: 121,
+      state
+    });
+    expect(settled).toBeCloseTo(1, 2);
   });
 });
 

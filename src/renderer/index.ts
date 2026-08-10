@@ -36,7 +36,7 @@ import { getBeatMs, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/q
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset, needsInput } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
-import { applyModMatrix } from '../shared/modMatrix';
+import { applyModMatrix, ModSmoothEntry } from '../shared/modMatrix';
 import { GLOBAL_MOD_TARGETS, resolveModTargetRange } from '../shared/modTargets';
 import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
 import { resolveGenUniforms } from '../shared/genUniformResolver';
@@ -7116,6 +7116,10 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean; tran
   postTransitionFramesLeft = 5;
 
   currentProject = activation.project;
+  // Reset the modMatrix temporal low-pass so the new scene's connections start
+  // fresh — a stale `prev` from the prior scene's connections (possibly reused
+  // ids) would otherwise bleed a convergence transient into the first frames.
+  modSmoothingState.clear();
   transitionTracer.recordStep(transitionTracerSeq, 'sceneStateSwapped');
   previewSceneId = sceneId;
   if (scene.look) {
@@ -13546,6 +13550,13 @@ renderOverlayList();
 
 let lastTime = performance.now();
 let currentFps = 0;
+// Per-connection modMatrix temporal low-pass state, keyed by
+// `${mod.id}|${targetId}`. Owned by the render loop so the low-pass persists
+// across frames. This is the live-path counterpart of RenderGraph's
+// modSmoothingState (the bootstrap/test path keeps its own on the instance).
+const modSmoothingState = new Map<string, ModSmoothEntry>();
+// Monotonic frame counter for the modMatrix low-pass idempotency token.
+let modSmoothingFrame = 0;
 
 const buildModSources = (bpm: number, macros: MacroConfig[] = currentProject.macros) => {
   const bpmNormalized = Math.min(Math.max((bpm - 60) / 140, 0), 1);
@@ -13679,6 +13690,10 @@ const getChemistryModeIndex = (tags: string[] = []) => {
 const render = (time: number) => {
   const delta = time - lastTime;
   lastTime = time;
+  // One low-pass frame token for this animation frame, shared by all three
+  // buildRenderStateForScene calls (active/preview/output) so a target
+  // resolved in more than one of them is idempotent within the frame.
+  const modFrame = modSmoothingFrame++;
   const fpsTick = tickFpsTracker(fpsTracker, delta);
   fpsTracker = fpsTick.tracker;
   if (fpsTick.fps !== null) {
@@ -13906,7 +13921,7 @@ const render = (time: number) => {
   const legacyNeutral = isLegacyNeutralProject(currentProject);
   const hasActiveEngine = Boolean(currentProject.activeEngineId && currentProject.activeEngineId !== 'engine-none');
 
-  const buildRenderStateForScene = (renderScene: typeof activeScene | undefined) => {
+  const buildRenderStateForScene = (renderScene: typeof activeScene | undefined, dt: number, frame: number) => {
     const isBlendTarget = renderScene === activeScene || renderScene === outputScene;
 
     const effectiveStyleSettings = (!isBlendTarget && renderScene?.look?.stylePresets?.find((p) => p.id === renderScene.look?.activeStylePresetId)?.settings)
@@ -13936,8 +13951,11 @@ const render = (time: number) => {
       : currentProject.modMatrix;
 
     const modSources = buildModSources(activeBpm, effectiveMacros);
+    // Per-frame temporal low-pass context for connection `smoothing`. The state
+    // Map persists at module scope across frames; dt is the frame delta (ms→s).
+    const modCtx = { dt, frame, state: modSmoothingState };
     const modValue = (target: string, base: number) =>
-      applyModMatrix(base, target, modSources, modMatrix, resolveModTargetRange(target));
+      applyModMatrix(base, target, modSources, modMatrix, resolveModTargetRange(target), modCtx);
 
     // Resolve scene.next / scene.prev / scene.mix modulation targets — these are
     // trigger/blend targets the numeric applyModMatrix path can't represent, so
@@ -14543,11 +14561,11 @@ const render = (time: number) => {
     return { renderState };
   };
 
-  const activeSceneData = buildRenderStateForScene(activeScene);
-  const previewData = buildRenderStateForScene(previewScene);
+  const activeSceneData = buildRenderStateForScene(activeScene, delta / 1000, modFrame);
+  const previewData = buildRenderStateForScene(previewScene, delta / 1000, modFrame);
   const outputData =
     outputOpen && outputScene?.id && outputScene?.id !== previewScene?.id
-      ? buildRenderStateForScene(outputScene)
+      ? buildRenderStateForScene(outputScene, delta / 1000, modFrame)
       : activeSceneData;
   lastOutputRenderState = outputData.renderState;
   const renderState = previewData.renderState;

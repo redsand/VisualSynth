@@ -1,5 +1,5 @@
 import { getActiveScene } from '../shaderLifecycle';
-import { applyModMatrix } from '../../shared/modMatrix';
+import { applyModMatrix, ModSmoothEntry } from '../../shared/modMatrix';
 import { resolveModTargetRange } from '../../shared/modTargets';
 import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
@@ -333,6 +333,13 @@ export class RenderGraph {
   private midiSum: Record<string, number> = {};
   private onLoadPreset: ((path: string, name: string, crossfade: number) => Promise<void>) | null = null;
   private onPlaylistControl: ((control: string) => void) | null = null;
+  // Per-connection modMatrix temporal low-pass state, keyed by
+  // `${mod.id}|${targetId}`. Owned by the render loop so the low-pass
+  // persists across frames; cleared on dispose so a project switch does
+  // not carry a stale convergence transient from a prior scene.
+  private modSmoothingState = new Map<string, ModSmoothEntry>();
+  // Monotonic frame counter for the modMatrix low-pass idempotency token.
+  private modSmoothingFrame = 0;
 
   constructor(private store: Store) {
     // Initialize with Launchpad layout by default
@@ -363,6 +370,8 @@ export class RenderGraph {
     this.gravityWells.forEach(w => w.active = false);
     // Clear shape bursts
     this.shapeBurstSlots.forEach(s => s.active = false);
+    // Clear modMatrix temporal low-pass state so a new scene starts fresh.
+    this.modSmoothingState.clear();
   }
 
   /**
@@ -1201,7 +1210,7 @@ export class RenderGraph {
     });
   }
 
-  private getModdedSdfScene(scene: any, modSources: any, modMatrix: any[]) {
+  private getModdedSdfScene(scene: any, modSources: any, modMatrix: any[], dt: number, frame: number) {
     if (!scene) return undefined;
 
     // Deep clone the scene to avoid mutating the original project state
@@ -1227,16 +1236,20 @@ export class RenderGraph {
           const targetId = `${node.instanceId}.${paramId}`;
           const baseValue = node.params[paramId];
           const fallback = paramRange(paramId);
+          // Per-frame temporal low-pass context for connection `smoothing`. The
+          // state Map persists on the RenderGraph across frames; dt comes from
+          // the render loop's frame delta.
+          const modCtx = { dt, frame, state: this.modSmoothingState };
 
           if (typeof baseValue === 'number') {
-            node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix, fallback);
+            node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix, fallback, modCtx);
           } else if (Array.isArray(baseValue)) {
             // Support modulating vector components like 'nodeId.paramId.x'
             const components = ['x', 'y', 'z', 'w'];
             const modded = [...baseValue];
             for (let i = 0; i < Math.min(baseValue.length, 4); i++) {
                 const subTargetId = `${targetId}.${components[i]}`;
-                modded[i] = applyModMatrix(baseValue[i], subTargetId, modSources, modMatrix, fallback);
+                modded[i] = applyModMatrix(baseValue[i], subTargetId, modSources, modMatrix, fallback, modCtx);
             }
             node.params[paramId] = modded;
           }
@@ -1390,6 +1403,10 @@ export class RenderGraph {
       this.lastSceneId = state.project.activeSceneId;
     }
     const deltaSeconds = deltaMs * 0.001;
+    // One low-pass frame token for the whole render frame, shared by the
+    // style/effects modValue closure and getModdedSdfScene so a target
+    // resolved more than once this frame is idempotent.
+    const modFrame = this.modSmoothingFrame++;
 
     this.updateGravityWells(time, deltaSeconds);
     this.updatePortals(time, deltaSeconds);
@@ -1518,8 +1535,11 @@ export class RenderGraph {
 
     const bpm = this.getActiveBpm();
     const modSources = this.buildModSources(bpm);
+    // Per-frame temporal low-pass context for connection `smoothing`. The
+    // state Map persists on the RenderGraph across frames.
+    const modCtx = { dt: deltaSeconds, frame: modFrame, state: this.modSmoothingState };
     const modValue = (target: string, base: number) =>
-      applyModMatrix(base, target, modSources, state.project.modMatrix, resolveModTargetRange(target));
+      applyModMatrix(base, target, modSources, state.project.modMatrix, resolveModTargetRange(target), modCtx);
     const lowFreq = ((state.audio.bands[0] ?? 0) + (state.audio.bands[1] ?? 0)) * 0.5;
 
     const moddedStyle = {
@@ -2162,7 +2182,7 @@ export class RenderGraph {
       sdfGlow: moddedSdf.glow,
       sdfRotation: moddedSdf.rotation,
       sdfFill: moddedSdf.fill,
-      sdfScene: this.getModdedSdfScene((advancedSdfLayer as any)?.sdfScene, modSources, state.project.modMatrix),
+      sdfScene: this.getModdedSdfScene((advancedSdfLayer as any)?.sdfScene, modSources, state.project.modMatrix, deltaSeconds, modFrame),
       gravityPositions: this.gravityPositions,
       gravityStrengths: this.gravityStrengths,
       gravityPolarities: this.gravityPolarities,
