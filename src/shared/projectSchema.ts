@@ -113,7 +113,16 @@ const layerSchema = z.object({
   role: z.enum(['core', 'support', 'atmosphere']).default('support'),
   enabled: z.boolean().default(true),
   opacity: z.number().default(1),
-  blendMode: z.enum(['normal', 'add', 'multiply', 'screen', 'overlay', 'difference']).default('normal'),
+  // 'additive' is accepted as a synonym for 'add' and normalized on parse:
+  // the newer preset generator emits 'additive' (the common term for additive
+  // blending) for layers, but the canonical layer blend-mode name and the GLSL
+  // applyBlendMode numeric mapping use 'add'. Normalizing here lets those
+  // presets validate and renders them with true additive blending instead of
+  // falling back to 'normal'.
+  blendMode: z.preprocess(
+    (v) => (v === 'additive' ? 'add' : v),
+    z.enum(['normal', 'add', 'multiply', 'screen', 'overlay', 'difference'])
+  ).default('normal'),
   transform: transformSchema.default({ x: 0, y: 0, scale: 1, rotation: 0 }),
   assetId: z.string().optional(),
   generatorId: z.string().optional(),
@@ -337,7 +346,7 @@ const expressiveFxSchema = z.object({
 
 const sceneTransitionSchema = z.object({
   durationMs: z.number(),
-  curve: z.enum(['linear', 'easeInOut']),
+  curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut']),
   type: z.enum(['fade', 'crossfade', 'warp', 'glitch', 'dissolve']).default('fade')
 });
 
@@ -348,9 +357,14 @@ const sceneTriggerSchema = z.object({
 });
 
 const sceneLayerRolesSchema = z.object({
-  core: z.array(z.string()),
-  support: z.array(z.string()),
-  atmosphere: z.array(z.string())
+  // Role buckets default to empty when absent. The runtime already treats a
+  // missing bucket as empty everywhere (serialization/exchange/index/runtimeProject
+  // all do `?.atmosphere ?? [...]`), and generator-emitted presets (preset-2623/2625)
+  // declare only the buckets they use (e.g. {core, support} with no atmosphere).
+  // Requiring all three keys rejected those partial-but-valid scenes on parse.
+  core: z.array(z.string()).default([]),
+  support: z.array(z.string()).default([]),
+  atmosphere: z.array(z.string()).default([])
 });
 
 const milkWaveConfigSchema = z.object({

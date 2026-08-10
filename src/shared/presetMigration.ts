@@ -271,11 +271,21 @@ const presetV3ModulationSchema = z.object({
   source: z.string(),
   target: z.union([presetV3ModulationTargetSchema, z.string()]),
   amount: z.number(),
-  min: z.number(),
-  max: z.number(),
-  curve: z.enum(['linear', 'exp', 'log']),
-  smoothing: z.number(),
-  bipolar: z.boolean()
+  // These fields are optional in the on-disk preset shape: the newer
+  // generator-emitted presets (preset-220..239) use a minimal modulation
+  // form `{source, target:{type,param}, amount}` with no range/curve fields.
+  // Defaults match the canonical values the legacy→V3 migration already
+  // fills in (presetMigration.ts L669-671) and sceneModulation defaults. The
+  // min/max default of [0,1] is intentionally the schema-default sentinel:
+  // modMatrix.applyModMatrix substitutes the parameter's true registered range
+  // when it sees min===0 && max===1 (modMatrix.ts L81-87), so a modulation
+  // with no explicit range modulates across the param's full natural range
+  // rather than being clamped to [0,1].
+  min: z.number().default(0),
+  max: z.number().default(1),
+  curve: z.enum(['linear', 'exp', 'log']).default('linear'),
+  smoothing: z.number().default(0),
+  bipolar: z.boolean().default(false)
 });
 
 export const presetV3Schema = z.object({
@@ -313,7 +323,7 @@ export const presetV4Schema = z.object({
     visualIntentTags: z.array(z.string()),
     defaultTransition: z.object({
       durationMs: z.number(),
-      curve: z.enum(['linear', 'easeInOut'])
+      curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
     })
   }),
   scenes: projectSchema.shape.scenes,
@@ -342,7 +352,7 @@ export const presetV5Schema = z.object({
     colorChemistry: z.array(z.string()),
     defaultTransition: z.object({
       durationMs: z.number(),
-      curve: z.enum(['linear', 'easeInOut'])
+      curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
     })
   }),
   scenes: projectSchema.shape.scenes,
@@ -374,7 +384,7 @@ export const presetV6Schema = z.object({
     colorChemistry: z.array(z.string()),
     defaultTransition: z.object({
       durationMs: z.number(),
-      curve: z.enum(['linear', 'easeInOut'])
+      curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
     }),
     author: z.string().optional(),
     source: z.string().optional(),

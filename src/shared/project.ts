@@ -85,7 +85,7 @@ export type PresetCertification = 'safe' | 'degraded' | 'unstable' | 'archived';
 
 export interface SceneTransition {
   durationMs: number;
-  curve: 'linear' | 'easeInOut';
+  curve: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
   type?: 'fade' | 'crossfade' | 'warp' | 'glitch' | 'dissolve';
 }
 

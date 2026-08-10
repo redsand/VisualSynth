@@ -79,6 +79,12 @@ export const captureSceneSnapshot = (
 const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
 
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
+// easeIn/easeOut match the canonical easings in sceneMacros.ts so that a
+// scene/preset transition curve of 'easeIn' or 'easeOut' (emitted by the
+// newer preset generator) produces the intended acceleration/deceleration
+// instead of silently falling back to linear.
+const easeIn = (t: number) => t * t;
+const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
 const blendNumber = (from: number | undefined, to: number | undefined, t: number) =>
   lerp(from ?? 0, to ?? 0, t);
@@ -366,7 +372,12 @@ export class SceneManager {
         this.transition = null;
       } else {
         const raw = Math.min(Math.max(elapsed / this.transition.durationMs, 0), 1);
-        const mix = this.transition.curve === 'easeInOut' ? easeInOut(raw) : raw;
+        const curve = this.transition.curve;
+        const mix =
+          curve === 'easeInOut' ? easeInOut(raw)
+          : curve === 'easeIn' ? easeIn(raw)
+          : curve === 'easeOut' ? easeOut(raw)
+          : raw;
         return this.buildBlend(this.transition.from, this.transition.to, mix, true);
       }
     }
