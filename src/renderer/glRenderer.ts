@@ -70,12 +70,21 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
   let customPlasmaSource: string | null = null;
   let contextLost = false;
   let contextRestoring = false;
+  // Monotonic generation bumped on every context loss. Asset loads tag
+  // themselves with the generation at start; if the context is lost while a
+  // (necessarily async) load is in flight, the generation differs on
+  // completion and the now-invalid texture is discarded instead of being
+  // cached/bound. Without this, a load started before loss resolves after
+  // the context-restore handler has already cleared assetCache, re-polluting
+  // it with a null/invalid texture that the renderer would try to sample.
+  let contextGeneration = 0;
 
   // Handle WebGL context loss / restore
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
     contextLost = true;
     contextRestoring = false;
+    contextGeneration += 1;
     console.warn('[GLRenderer] WebGL context lost — marking all resources invalid');
     // Clear all caches immediately to prevent use of invalid resources
     programCache.clear();
@@ -1053,7 +1062,14 @@ void main() {
     else if (asset.kind === 'text' && textCanvas) loader = loadTextAsset(asset, textCanvas);
     else loader = loadImageAsset(asset);
     pendingAssetLoads.set(asset.id, loader);
-    loader.then((entry) => { assetCache.set(asset.id, entry); pendingAssetLoads.delete(asset.id); });
+    const startGen = contextGeneration;
+    loader.then((entry) => {
+      // If the GL context was lost while this (async) load was in flight, the
+      // resulting texture is invalid. The context-restore handler clears
+      // assetCache; don't let this stale loader re-pollute it after restore.
+      if (contextGeneration === startGen) assetCache.set(asset.id, entry);
+      pendingAssetLoads.delete(asset.id);
+    });
     return loader;
   };
 
@@ -1172,7 +1188,18 @@ void main() {
 
   const setLayerAsset = async (layerId: string, asset: AssetItem | null, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
     if (!asset) { delete layerBindings[layerId as AssetLayerId]; return; }
+    // setLayerAsset fires from the output window's BroadcastChannel onmessage,
+    // which is independent of the render loop. Guard it the same way render()
+    // does: during context loss/restoration all GL resources are invalid, so
+    // starting an asset load (createTexture/bindTexture/texImage2D) here would
+    // be a stream of no-ops producing a null texture.
+    if (contextLost || contextRestoring) return;
+    const loadGen = contextGeneration;
     const entry = await ensureAssetEntry(asset, videoOverride, textCanvas);
+    // The context may have been lost while awaiting the (async) load — the
+    // loader's own .then already refused to cache an invalid entry, so make
+    // sure we don't bind one either.
+    if (contextLost || contextRestoring || contextGeneration !== loadGen) return;
     layerBindings[layerId as AssetLayerId] = entry;
   };
 
