@@ -478,12 +478,19 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       const envState = state.modulators.envStates[index];
       if (!envState) return;
 
+      // Resolve the trigger source. Mirrors index.ts updateEnvelopes — the
+      // trigger enum is 'audio.peak' | 'engine.low' | 'strobe' | 'manual'
+      // (project.ts). 'engine.low' is the DEFAULT env-1 trigger, so omitting it
+      // here (as this previously did) left env-1 permanently dead in the
+      // bootstrap path, where RenderGraph reads state.modulators.envStates.
       const triggerValue =
         env.trigger === 'audio.peak'
           ? state.audio.peak
-          : env.trigger === 'strobe'
-            ? state.runtime.strobeIntensity
-            : 0;
+          : env.trigger === 'engine.low'
+            ? state.audio.energyLow
+            : env.trigger === 'strobe'
+              ? state.runtime.strobeIntensity
+              : 0;
       if (env.trigger !== 'manual') {
         if (triggerValue >= env.threshold && envState.triggerArmed) {
           envState.stage = 'attack';
