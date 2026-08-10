@@ -1059,13 +1059,24 @@ void main() {
     else loader = loadImageAsset(asset);
     pendingAssetLoads.set(asset.id, loader);
     const startGen = contextGeneration;
-    loader.then((entry) => {
-      // If the GL context was lost while this (async) load was in flight, the
-      // resulting texture is invalid. The context-restore handler clears
-      // assetCache; don't let this stale loader re-pollute it after restore.
-      if (contextGeneration === startGen) assetCache.set(asset.id, entry);
-      pendingAssetLoads.delete(asset.id);
-    });
+    // A rejection handler is required: without one, a failed load (image 404,
+    // video error, internal-asset fetch failure) leaves the rejected promise
+    // pinned in pendingAssetLoads, so every later setLayerAsset for this asset
+    // returns it (the `pendingAssetLoads.has` short-circuit above) and the
+    // asset can never be retried — one failed load permanently blocks it.
+    loader.then(
+      (entry) => {
+        // If the GL context was lost while this (async) load was in flight, the
+        // resulting texture is invalid. The context-restore handler clears
+        // assetCache; don't let this stale loader re-pollute it after restore.
+        if (contextGeneration === startGen) assetCache.set(asset.id, entry);
+        pendingAssetLoads.delete(asset.id);
+      },
+      (err) => {
+        pendingAssetLoads.delete(asset.id);
+        console.error(`[GLRenderer] Asset load failed for ${asset.id}:`, err);
+      }
+    );
     return loader;
   };
 
