@@ -121,4 +121,75 @@ describe('SDF Stage 1 compile harness', () => {
     expect(compiled.colorBody).toBe('return vec3(1.0);');
     expectParses(full);
   });
+
+  // ─── Stage 2: argPack (#3) + vec-ness (#7) ────────────────────────────────
+
+  it('packs multiple scalar params into a vec2 slot (blocker #3)', () => {
+    // sdBox(vec2 p, vec2 b) is backed by scalar `width`+`height`; the call site
+    // must pack them: sdBox(p.xy, vec2(u_width, u_height)).
+    const box = createNodeInstance('box', { width: 0.6, height: 0.4 });
+    const { compiled, full } = assemble([box], [], '2d');
+    expect(compiled.mapBody).toContain('vec2(');
+    expect(compiled.mapBody).toContain('sdBox');
+    // The pack must appear; a bare scalar in the vec2 slot would be a type error.
+    expect(compiled.mapBody).toMatch(/sdBox\([^,]+,\s*vec2\(/);
+    expectParses(full);
+  });
+
+  it('packs multiple scalar params into a vec3 slot (3D box)', () => {
+    const box = createNodeInstance('box-3d', { width: 0.5, height: 0.5, depth: 0.5 });
+    const { compiled, full } = assemble([box], [], '3d');
+    expect(compiled.mapBody).toMatch(/sdBox3D\([^,]+,\s*vec3\(/);
+    expectParses(full);
+  });
+
+  it('casts a single int param to a float slot (blocker #3)', () => {
+    // sdPolygon(vec2 p, float r, float n) — `sides` is int; the call site must
+    // emit float(u_sides), not the bare int uniform (GLSL ES 3.00 forbids the
+    // implicit int→float in a function argument).
+    const poly = createNodeInstance('polygon', { radius: 0.4, sides: 6 });
+    const { compiled, full } = assemble([poly], [], '2d');
+    expect(compiled.mapBody).toContain('sdPolygon');
+    expect(compiled.mapBody).toMatch(/float\(/);
+    expectParses(full);
+  });
+
+  it('resolves argPack by param id, not positional order (sdPlane reorder)', () => {
+    // sdPlane(vec3 p, vec3 n, float h) — params are ordered [height, normalX,
+    // normalY, normalZ], which does NOT match the signature slot order
+    // [n, then h]. argPack must map by id: n=[normalX,normalY,normalZ], h=[height].
+    // A positional auto-pack would bind (height,normalX,normalY) to n — wrong.
+    const plane = createNodeInstance('plane', { height: 0, normalX: 0, normalY: 1, normalZ: 0 });
+    const { compiled, full } = assemble([plane], [], '3d');
+    // n is packed as vec3(u_normalX, u_normalY, u_normalZ) and h is u_height (a
+    // single float, no cast since height is a float param). Order matters.
+    expect(compiled.mapBody).toMatch(/sdPlane\(p,\s*vec3\(u_[^,]+_normalX,\s*u_[^,]+_normalY,\s*u_[^,]+_normalZ\),\s*u_[^)]+_height\)/);
+    expectParses(full);
+  });
+
+  it('swizzles vec3 p to .xy for 2D nodes but not twice across a 2D transform (blocker #7)', () => {
+    // domTranslate2D returns a vec2; a child 2D shape must NOT append another
+    // .xy (the old .endsWith('.xy') heuristic double-swizzled here).
+    const shape = createNodeInstance('circle', { radius: 0.3 });
+    const trans = createNodeInstance('dom-translate-2d', { x: 0.1, y: 0.2 });
+    const connections = [{ from: shape.instanceId, to: trans.instanceId, slot: 0 }];
+    const { compiled, full } = assemble([shape, trans], connections, '2d');
+    // The transform consumes p.xy (vec3→vec2), then the child circle receives the
+    // vec2 transform result with NO second swizzle.
+    expect(compiled.mapBody).toContain('domTranslate2D(p.xy');
+    expect(compiled.mapBody).toContain('sdCircle(domTranslate2D(');
+    // No double swizzle: 'domTranslate2D(...).xy' must not appear.
+    expect(compiled.mapBody).not.toMatch(/domTranslate2D\([^)]*\)\.xy/);
+    expectParses(full);
+  });
+
+  it('assembles a 2D perlin field (int cast + required utils) to valid GLSL', () => {
+    // fieldPerlin2D requires gradientNoise+hash22 (Stage 1 #4) and casts the
+    // int `octaves` param to float (Stage 2 #3). Full assembly must parse.
+    const perlin = createNodeInstance('field-perlin-2d', { scale: 3, octaves: 3 });
+    const { compiled, full } = assemble([perlin], [], '2d');
+    expect(compiled.functionsCode).toContain('gradientNoise');
+    expect(compiled.mapBody).toMatch(/fieldPerlin2D\(/);
+    expectParses(full);
+  });
 });

@@ -189,6 +189,7 @@ export const sdSuperquadric: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdSuperquadric(vec3 p, vec3 s, float e1, float e2)',
+    argPack: { s: ['sizeX', 'sizeY', 'sizeZ'], e1: ['power1'], e2: ['power2'] },
     body: `vec3 ap = abs(p) / s;
 float r1 = pow(pow(ap.x, e1) + pow(ap.z, e1), e2 / e1);
 float r2 = pow(r1 + pow(ap.y, e2), 1.0 / e2);
@@ -298,6 +299,7 @@ export const sdTorusKnot: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdTorusKnot(vec3 p, float R, float r, float pn, float qn)',
+    argPack: { R: ['radius'], r: ['tubeRadius'], pn: ['p'], qn: ['q'] },
     body: `float d = 1e10;
 for (float i = 0.0; i < 64.0; i += 1.0) {
   float t = i / 64.0 * 6.28318530718;
@@ -385,6 +387,7 @@ export const sdStairs: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdStairs(vec3 p, float w, float sh, float sd, float n)',
+    argPack: { w: ['width'], sh: ['stepHeight'], sd: ['stepDepth'], n: ['steps'] },
     body: `float d = 1e10;
 for (float i = 0.0; i < n; i += 1.0) {
   vec3 stepPos = vec3(0.0, i * sh, i * sd);
@@ -430,6 +433,7 @@ export const sdGear3D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdGear3D(vec3 p, float ro, float ri, float th, float teeth, float depth, float hole)',
+    argPack: { ro: ['outerRadius'], ri: ['innerRadius'], th: ['thickness'], teeth: ['teeth'], depth: ['toothDepth'], hole: ['holeRadius'] },
     body: `float a = atan(p.z, p.x);
 float r = length(p.xz);
 float tooth = cos(a * teeth) * 0.5 + 0.5;

@@ -92,7 +92,7 @@ export const buildSdfShader = (
 
   let body = '';
   try {
-    const resultVar = emitNode(ctx, root.instanceId, 'p', body);
+    const resultVar = emitNode(ctx, root.instanceId, 'p', 'vec3', body);
     body += `    return ${resultVar};`;
   } catch (e: any) {
     return {
@@ -143,7 +143,18 @@ export const buildSdfShader = (
 
 // Recursive emitter
 // Returns the expression string for the node result (vec2: dist, id)
-const emitNode = (ctx: BuildContext, instanceId: string, currentDomainVar: string, codeAccumulator: string): string => {
+// `domainType` tracks whether `currentDomainVar` is currently a vec2 or vec3
+// expression. The preamble's advancedSdfMap(vec3 p) always starts at vec3, so
+// the root is 'vec3'; 2D domain transforms narrow it to 'vec2'. This explicit
+// tracking replaces the fragile `.endsWith('.xy')` heuristic (which double-
+// swizzled vec2-returning domain transforms) and fixes blocker #7.
+const emitNode = (
+  ctx: BuildContext,
+  instanceId: string,
+  currentDomainVar: string,
+  domainType: 'vec2' | 'vec3',
+  codeAccumulator: string
+): string => {
   const instance = ctx.instances.get(instanceId)!;
   const def = sdfRegistry.get(instance.nodeId)!;
   const nodeIndex = Array.from(ctx.instances.keys()).indexOf(instanceId);
@@ -162,34 +173,69 @@ ${def.glsl.body}
       ctx.functions.add(`vec2 opIntersect(vec2 d1, vec2 d2) { return (d1.x > d2.x) ? d1 : d2; }`);
   }
 
-  // Collect and register parameters as uniforms
+  // Collect and register parameters as uniforms. Keep both a positional list
+  // (for nodes without argPack) and id→name / id→type maps (for argPack nodes).
   const paramArgs: string[] = [];
+  const paramUniforms = new Map<string, string>();
+  const paramTypes = new Map<string, SdfParamType>();
   for (const param of def.parameters) {
       const uName = `u_${instanceId.replace(/-/g, '_')}_${param.id}`;
       addUniform(ctx, uName, instanceId, param.id, param.type);
       paramArgs.push(uName);
+      paramUniforms.set(param.id, uName);
+      paramTypes.set(param.id, param.type);
   }
 
   const inputs = ctx.inputs.get(instanceId) || [];
   inputs.sort((a, b) => a.slot - b.slot);
   const funcName = getFuncName(def.glsl.signature);
   const sig = def.glsl.signature;
+  const argPack = def.glsl.argPack;
 
-  // Helper to build argument list including implicit ones
+  // Coerce the incoming domain expression into the type the signature's `p`
+  // slot expects (vec2/vec3), based on the tracked domainType. This fixes #7:
+  // a 2D node fed a vec3 domain gets `.xy`; a 3D node fed a vec2 domain (a
+  // 2D→3D scene-graph mix the user can construct) is extended with z=0 rather
+  // than emitting a type-mismatched call.
+  const coerceP = (slotType: string): string => {
+      if (slotType === 'vec2') return domainType === 'vec3' ? `${currentDomainVar}.xy` : currentDomainVar;
+      if (slotType === 'vec3') return domainType === 'vec2' ? `vec3(${currentDomainVar}, 0.0)` : currentDomainVar;
+      return currentDomainVar;
+  };
+
+  // Pack an argPack slot: wrap multiple scalar uniforms in a vecN constructor,
+  // or cast a single int param to float for a float slot (GLSL ES 3.00 forbids
+  // implicit int→float in function call arguments).
+  const packArg = (slotType: string, ids: string[]): string => {
+      const uNames = ids.map(id => paramUniforms.get(id) ?? '0.0');
+      if (uNames.length === 1) {
+          const ptype = paramTypes.get(ids[0]);
+          if (slotType === 'float' && ptype === 'int') return `float(${uNames[0]})`;
+          return uNames[0];
+      }
+      return `${slotType}(${uNames.join(', ')})`;
+  };
+
+  // Helper to build argument list including implicit ones (p/time/audio) and
+  // argPack-packed scalar groups.
   const buildArgs = (explicitArgs: string[]) => {
       const allArgs: string[] = [];
       const sigParams = sig.split('(')[1].split(')')[0].split(',').map(p => p.trim());
-      
+
       let explicitIdx = 0;
       for (const p of sigParams) {
-          const name = p.split(' ')[1];
-          
+          const parts = p.split(' ');
+          const slotType = parts[0];
+          const name = parts[1];
+
           if (name === 'p') {
-              allArgs.push(currentDomainVar);
+              allArgs.push(coerceP(slotType));
           } else if (name === 'time' || name === 'uTime') {
               allArgs.push('uTime');
           } else if (name === 'audio' || name === 'uRms' || name === 'uPeak') {
               allArgs.push('uRms');
+          } else if (argPack && argPack[name]) {
+              allArgs.push(packArg(slotType, argPack[name]));
           } else if (explicitIdx < explicitArgs.length) {
               allArgs.push(explicitArgs[explicitIdx++]);
           }
@@ -201,18 +247,20 @@ ${def.glsl.body}
   if (def.category.startsWith('domain')) {
       const callArgs = buildArgs(paramArgs);
       const newP = `${funcName}(${callArgs})`;
-      
+      // A 2D transform consumes vec2 and returns vec2; a 3D transform returns vec3.
+      const newDomainType: 'vec2' | 'vec3' = def.coordSpace === '2d' ? 'vec2' : 'vec3';
+
       const childConn = inputs[0];
       if (childConn) {
-          return emitNode(ctx, childConn.from, newP, codeAccumulator);
+          return emitNode(ctx, childConn.from, newP, newDomainType, codeAccumulator);
       }
-      return `vec2(10.0, ${nodeIndex}.0)`; 
+      return `vec2(10.0, ${nodeIndex}.0)`;
   }
-  
+
   // 2. Operations
   if (def.category.startsWith('ops')) {
-      const childResults = inputs.map(conn => emitNode(ctx, conn.from, currentDomainVar, codeAccumulator));
-      
+      const childResults = inputs.map(conn => emitNode(ctx, conn.from, currentDomainVar, domainType, codeAccumulator));
+
       if (childResults.length === 0) return `vec2(10.0, ${nodeIndex}.0)`;
       if (childResults.length === 1) return childResults[0];
 
@@ -226,12 +274,11 @@ ${def.glsl.body}
       const callArgs = buildArgs(allCallArgs);
       return `vec2(${funcName}(${callArgs}), ${childResults[0]}.y)`;
   }
-  
-  // 3. Primitives
+
+  // 3. Primitives & Fields
   if (def.category.startsWith('shapes') || def.category === 'fields') {
-      let pArg = currentDomainVar;
-      if (def.coordSpace === '2d' && !currentDomainVar.endsWith('.xy')) pArg = `${currentDomainVar}.xy`;
-      
+      // p-slot coercion is handled inside buildArgs (coerceP) using domainType,
+      // so a 2D shape fed a vec3 domain automatically receives `domain.xy`.
       const callArgs = buildArgs(paramArgs);
       return `vec2(${funcName}(${callArgs}), ${nodeIndex}.0)`;
   }

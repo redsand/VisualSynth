@@ -113,6 +113,17 @@ export interface SdfGlslCode {
   dependencies?: string[];
   /** Required utility functions (hash, rotate2d, etc.) */
   requires?: string[];
+  /** Explicit mapping of a signature parameter name → the ordered list of
+   *  SdfParameter ids that compose it. Used when a single vec2/vec3/vec4
+   *  signature slot is backed by MULTIPLE scalar params (e.g. sdBox's
+   *  `vec2 b` ← `width`+`height`), or when a single `int` param feeds a
+   *  `float` slot (GLSL ES 3.00 forbids implicit int→float in call args).
+   *  When present, buildArgs resolves every non-special slot through this
+   *  map (packing `vecN(u_a, u_b, ...)` at the call site, casting int→float).
+   *  The param schema stays scalar — no saved-scene migration needed.
+   *  Required because param order does not always match signature slot order
+   *  (e.g. sdPlane: params [height,normalX,normalY,normalZ] vs sig `(vec3 p, vec3 n, float h)`). */
+  argPack?: Record<string, string[]>;
 }
 
 // ============================================================================

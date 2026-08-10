@@ -38,6 +38,7 @@ export const domTranslate2D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec2 domTranslate2D(vec2 p, vec2 offset)',
+    argPack: { offset: ['x', 'y'] },
     body: 'return p - offset;'
   },
   defaults: { x: 0.0, y: 0.0 },
@@ -69,6 +70,7 @@ export const domTranslate3D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec3 domTranslate3D(vec3 p, vec3 offset)',
+    argPack: { offset: ['x', 'y', 'z'] },
     body: 'return p - offset;'
   },
   defaults: { x: 0.0, y: 0.0, z: 0.0 },
@@ -129,6 +131,7 @@ export const domRotate3D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec3 domRotate3D(vec3 p, vec3 angles)',
+    argPack: { angles: ['rotX', 'rotY', 'rotZ'] },
     body: `float cx = cos(angles.x), sx = sin(angles.x);
 float cy = cos(angles.y), sy = sin(angles.y);
 float cz = cos(angles.z), sz = sin(angles.z);
@@ -165,6 +168,7 @@ export const domScale2D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec2 domScale2D(vec2 p, vec2 s)',
+    argPack: { s: ['scaleX', 'scaleY'] },
     body: 'return p / s;'
   },
   defaults: { scaleX: 1.0, scaleY: 1.0, uniform: true },
@@ -196,6 +200,7 @@ export const domScale3D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec3 domScale3D(vec3 p, vec3 s)',
+    argPack: { s: ['scaleX', 'scaleY', 'scaleZ'] },
     body: 'return p / s;'
   },
   defaults: { scaleX: 1.0, scaleY: 1.0, scaleZ: 1.0 },
@@ -275,6 +280,7 @@ export const domSymmetry: SdfNodeDefinition = {
   modTargets: [],
   glsl: {
     signature: 'vec2 domSymmetry(vec2 p, float n)',
+    argPack: { n: ['folds'] },
     body: `float angle = 3.14159265 / n;
 float a = atan(p.y, p.x) + angle;
 float r = length(p);
@@ -308,6 +314,7 @@ export const domRepeat2D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec2 domRepeat2D(vec2 p, vec2 c)',
+    argPack: { c: ['spacingX', 'spacingY'] },
     body: 'return mod(p + 0.5 * c, c) - 0.5 * c;'
   },
   defaults: { spacingX: 0.5, spacingY: 0.5 },
@@ -339,6 +346,7 @@ export const domRepeat3D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec3 domRepeat3D(vec3 p, vec3 c)',
+    argPack: { c: ['spacingX', 'spacingY', 'spacingZ'] },
     body: 'return mod(p + 0.5 * c, c) - 0.5 * c;'
   },
   defaults: { spacingX: 1.0, spacingY: 1.0, spacingZ: 1.0 },
@@ -368,6 +376,7 @@ export const domRepeatLimited2D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec2 domRepeatLimited2D(vec2 p, float c, vec2 l)',
+    argPack: { c: ['spacing'], l: ['countX', 'countY'] },
     body: 'return p - c * clamp(floor(p / c + 0.5), -l, l);'
   },
   defaults: { spacing: 0.4, countX: 3, countY: 3 },
@@ -396,6 +405,7 @@ export const domPolarRepeat: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec2 domPolarRepeat(vec2 p, float n, float offset)',
+    argPack: { n: ['count'], offset: ['offset'] },
     body: `float angle = 3.14159265 / n;
 float a = atan(p.y, p.x) + angle;
 float r = length(p);
@@ -573,6 +583,7 @@ export const domShear2D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'vec2 domShear2D(vec2 p, vec2 sh)',
+    argPack: { sh: ['shearX', 'shearY'] },
     body: 'return vec2(p.x + sh.x * p.y, p.y + sh.y * p.x);'
   },
   defaults: { shearX: 0.0, shearY: 0.0 },
