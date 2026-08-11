@@ -52,6 +52,25 @@ fs.mkdirSync(ASSET_STORAGE, { recursive: true });
 initSessionLogger(app.getPath('userData'));
 
 const clampScale = (value: number) => Math.min(1, Math.max(0.25, value));
+
+// Containment check for asset paths that originate from loaded project files
+// (attacker-controlled). At save time rewritePortableProjectAssets reads and
+// copies the file at each asset.path; a path like "../../secret.png" or an
+// absolute path outside the app's data dir would exfiltrate arbitrary files
+// into the saved project. Only allow paths that resolve inside one of the
+// given roots (ASSET_STORAGE and the project directory for portable saves).
+const isPathWithinRoots = (candidate: string, roots: string[]): boolean => {
+  const resolved = path.resolve(candidate);
+  for (const root of roots) {
+    const resolvedRoot = path.resolve(root);
+    const rel = path.relative(resolvedRoot, resolved);
+    if (rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const captureFilters: Record<string, { name: string; extensions: string[] }> = {
   png: { name: 'PNG Image', extensions: ['png'] },
   webm: { name: 'WebM Video', extensions: ['webm'] },
@@ -93,13 +112,37 @@ const runFfmpeg = (inputPath: string, outputPath: string) =>
       'yuv420p',
       outputPath
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    // Guard against a hung transcode. ffmpeg can stall on a corrupt/malformed
+    // input and never exit, which hangs the Promise forever, leaves the
+    // renderer stuck on "Recording...", and leaks the temp dir (the surrounding
+    // finally never runs). Cap the run at 5 minutes; on expiry kill the process
+    // (SIGTERM, then SIGKILL if it won't die) and reject so cleanup runs.
+    const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
+    const timeout = setTimeout(() => {
+      if (!ffmpeg.killed) {
+        ffmpeg.kill('SIGTERM');
+        // Give it a grace period, then force-kill.
+        setTimeout(() => {
+          if (!ffmpeg.killed) {
+            try { ffmpeg.kill('SIGKILL'); } catch { /* already dead */ }
+          }
+        }, 2000);
+      }
+      reject(new Error('ffmpeg transcode timed out'));
+    }, FFMPEG_TIMEOUT_MS);
+    // Don't keep the Node event loop alive solely for this timer.
+    if (typeof timeout.unref === 'function') timeout.unref();
     ffmpeg.stderr.on('data', (chunk: Buffer) => {
       stderrText += chunk.toString();
       // Cap accumulation so a pathological run can't grow memory unbounded.
       if (stderrText.length > 8192) stderrText = stderrText.slice(-8192);
     });
-    ffmpeg.on('error', (error) => reject(error));
+    ffmpeg.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
     ffmpeg.on('close', (code) => {
+      clearTimeout(timeout);
       if (code === 0) resolve();
       else reject(new Error(`ffmpeg exited with code ${code ?? 'unknown'}${stderrText ? `: ${stderrText.trim().slice(-500)}` : ''}`));
     });
@@ -407,10 +450,24 @@ const rewritePortableProjectAssets = (project: VisualSynthProject, targetPath: s
   const projectDir = path.dirname(targetPath);
   const projectAssetsDir = path.join(projectDir, 'assets');
   const portablePathByAssetId = new Map<string, string>();
+  // Allowed roots for asset reads/copies during a portable save: the app's
+  // asset storage (where imports land) and the project directory (for
+  // already-portable relative paths). Paths resolving outside these — e.g. a
+  // malicious project with asset.path = "../../secret.png" — are dropped
+  // rather than read, so a crafted project can't exfiltrate arbitrary files
+  // into the saved bundle.
+  const allowedRoots = [ASSET_STORAGE, projectDir];
+  const resolveAssetPath = (p: string) =>
+    path.isAbsolute(p) ? p : path.resolve(projectDir, p);
 
   project.assets = project.assets.map((asset) => {
     if (asset.kind === 'internal' || !asset.path) {
       return asset;
+    }
+    if (!isPathWithinRoots(resolveAssetPath(asset.path), allowedRoots)) {
+      // Path escapes the allowed roots — drop the reference instead of reading
+      // a file the project shouldn't reach.
+      return { ...asset, path: undefined };
     }
     if (asset.kind === 'texture') {
       const embeddedData = readEmbeddedImageData(asset.path);
@@ -435,6 +492,9 @@ const rewritePortableProjectAssets = (project: VisualSynthProject, targetPath: s
       return overlay;
     }
     const portableFromAssetId = overlay.assetId ? portablePathByAssetId.get(overlay.assetId) : undefined;
+    if (overlay.assetPath && !isPathWithinRoots(resolveAssetPath(overlay.assetPath), allowedRoots)) {
+      return { ...overlay, assetPath: undefined };
+    }
     const portablePath = portableFromAssetId
       ?? (overlay.assetPath ? copyProjectAssetToPortableLocation(overlay.assetPath, projectAssetsDir) : undefined);
     return {
