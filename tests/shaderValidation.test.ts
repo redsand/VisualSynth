@@ -71,7 +71,16 @@ function extractDeclarations(glsl: string): Map<string, number> {
   
   const uniformRegex = /uniform\s+(?:\w+(?:\s+\w+)?)\s+(\w+)(?:\[\d+\])?\s*;/g;
   const funcRegex = /\b(?:void|float|int|bool|vec2|vec3|vec4|mat2|mat3|mat4)\s+(\w+)\s*\(/g;
+  // Single-name local declarations and function parameters (every parameter
+  // carries its own type keyword, so `float a, float b` is caught as two
+  // matches). The `(?!\s*\()` lookahead skips function-definition names.
   const localRegex = /\b(?:float|int|bool|vec2|vec3|vec4|mat2|mat3|mat4)\s+(\w+)\b(?!\s*\()/g;
+  // Trailing declarators in multi-declarator statements: `float xn, yn;` or
+  // `float a2 = -2.24, b2 = 0.43, c2 = -0.65, d2 = -2.43;`. localRegex above
+  // only captures the first name (the one after the type keyword); this
+  // captures the rest. Requires a terminating `;` so function signatures
+  // (which end with `{`) are not matched.
+  const multiDeclRegex = /\b(?:float|int|bool|vec2|vec3|vec4|mat2|mat3|mat4)\s+\w+\b(?!\s*\()[^;]*;/g;
 
   lines.forEach((line, i) => {
     if (line.trim().startsWith('#')) return;
@@ -93,8 +102,25 @@ function extractDeclarations(glsl: string): Map<string, number> {
       if (!map.has(m[1])) map.set(m[1], i);
     }
     localRegex.lastIndex = 0;
+
+    while ((m = multiDeclRegex.exec(line)) !== null) {
+      // Strip the leading `<type> <firstName>` and split the remaining
+      // declarator list by commas; the first segment is firstName's
+      // initializer tail (already captured by localRegex), so drop it.
+      const declList = m[0].replace(/^\s*(?:float|int|bool|vec2|vec3|vec4|mat2|mat3|mat4)\s+\w+/, '');
+      const parts = declList.split(',');
+      parts.shift();
+      for (const p of parts) {
+        const nm = p.trim().match(/^(\w+)/);
+        if (!nm) continue;
+        const name = nm[1];
+        if (GLSL_KEYWORDS.has(name) || GLSL_BUILTINS.has(name)) continue;
+        if (!map.has(name)) map.set(name, i);
+      }
+    }
+    multiDeclRegex.lastIndex = 0;
   });
-  
+
   return map;
 }
 
