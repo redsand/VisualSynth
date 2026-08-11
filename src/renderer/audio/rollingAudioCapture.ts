@@ -278,12 +278,19 @@ async function resampleAudioBuffer(buffer: AudioBuffer, targetSampleRate: number
 
 async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000): Promise<AudioBuffer | null> {
   let audioCtx: AudioContext | null = null;
+  // Declared outside the try (as a `string` initialized to '') so the catch can
+  // revoke it on a mid-setup throw (e.g. createMediaElementSource / addModule
+  // failure) — the explicit reject paths revoke before rejecting, but a throw
+  // between them would leak the URL. Kept as `string` (not `string | null`) so
+  // the closures below keep the narrowed type; '' is the "not yet created"
+  // sentinel and the catch's `if (blobUrl)` guard skips it.
+  let blobUrl = '';
 
   console.log(`[Now Playing] Attempting webm decode via Audio element: ${blob.size} bytes, type=${blob.type}`);
 
   try {
     // Use blob URL instead of data URL for better compatibility with opus
-    const blobUrl = URL.createObjectURL(blob);
+    blobUrl = URL.createObjectURL(blob);
     console.log(`[Now Playing] Created blob URL: ${blobUrl.substring(0, 50)}...`);
 
     const audio = new Audio();
@@ -332,6 +339,20 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
 
     let writeIndex = 0;
     const workletNode = new AudioWorkletNode(audioCtx, 'pcm-capture-processor');
+
+    // An AudioWorkletNode's process() is only pulled when the node is
+    // reachable from the destination in the rendering graph. source ->
+    // workletNode alone is a dead-end: process() never fires, no samples are
+    // captured, and the energy check below always returns null. Route the
+    // worklet through a zero-gain GainNode to destination (mirrors
+    // startPcmCapture) so process() pulls without audible monitoring. Done
+    // before the await below so audioCtx is still narrowed to AudioContext
+    // (inside the Promise closure a captured `let` reverts to its declared
+    // AudioContext | null type).
+    const silentGain = audioCtx.createGain();
+    silentGain.gain.value = 0;
+    workletNode.connect(silentGain);
+    silentGain.connect(audioCtx.destination);
 
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -402,6 +423,7 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
     return actualBuffer;
   } catch (error) {
     console.warn('[Now Playing] PCM capture from audio element failed:', error);
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
     if (audioCtx && audioCtx.state !== 'closed') {
       await audioCtx.close().catch(() => {});
     }
