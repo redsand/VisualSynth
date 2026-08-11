@@ -62,6 +62,9 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   let spectrumPrev: Float32Array | null = null;
   let currentDeviceId: string | null = null;
 
+  // Re-entrancy guard for setup() — see setup().
+  let setupInProgress = false;
+
   // Reusable hot-path buffers (avoid per-frame allocation / GC pressure).
   // Typed as Uint8Array<ArrayBuffer> (not the looser Uint8Array<ArrayBufferLike>)
   // so the buffers satisfy the TS 5.7 lib.dom signatures of
@@ -152,6 +155,17 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   };
 
   const setup = async (deviceId?: string) => {
+    // Serialize against re-entrancy: setup is async and can be invoked again
+    // while a previous call is still awaiting getUserMedia (rapid mic toggle,
+    // device-change firing mid-setup). Without this guard two concurrent
+    // setups race on mediaStream/analyser — the second closes the first's
+    // AudioContext and stops its tracks mid-flight, then the first's
+    // getUserMedia resolves and overwrites the now-correct state with stale
+    // sources. Drop the re-entrant call; the in-flight setup completes and
+    // the caller can retry if they still want a different device.
+    if (setupInProgress) return;
+    setupInProgress = true;
+    try {
     currentDeviceId = deviceId || null;
     if (mediaStream) {
       mediaStream.getTracks().forEach((track) => track.stop());
@@ -218,6 +232,9 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       
       actions.addSafeModeReason(store, 'Audio input unavailable');
       setStatus('Audio input unavailable. Safe mode enabled.');
+    }
+    } finally {
+      setupInProgress = false;
     }
   };
 

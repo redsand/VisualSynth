@@ -15506,5 +15506,15 @@ const init = async () => {
   console.log('[Init] Capture API exposed');
 };
 
-// Initialize the application
-void init();
+// Initialize the application. init() is async; `void` alone would drop the
+// returned Promise, turning any startup rejection into an unhandled promise
+// rejection with no user-visible signal. Catch it so a fatal init failure is
+// logged and surfaced instead of silently swallowed.
+void init().catch((error) => {
+  console.error('[Init] Fatal startup error:', error);
+  try {
+    setStatus(`Startup failed: ${(error as Error)?.message ?? String(error)}`);
+  } catch {
+    // setStatus may itself be unavailable if init failed before it was wired.
+  }
+});
