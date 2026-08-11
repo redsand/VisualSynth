@@ -382,6 +382,37 @@ const preprocess = (source: string): string => {
   // Handle mod with parentheses: mod(a, b).xyz → mod(a, b)
   source = source.replace(/\bmod\s*\(([^()]*)\)\s*\.([xyzwrgba]{2,})/g, 'mod($1)');
 
+  // ── 0a.2. uAspect inverse-aspect swizzles ──
+  // MilkDrop's uAspect (vec2: x=aspect, y=inverse-ish) exposes the inverse
+  // aspect via .z (1/x), .w (1/y), and .zw (vec2(1)/uAspect). These swizzles
+  // are invalid on a vec2 in GLSL, so expand them to the real arithmetic
+  // before parsing. (Longest match .zw first; \b prevents .z from matching
+  // inside .zw.)
+  source = source.replace(/\buAspect\.zw\b/g, '(vec2(1.0)/uAspect)');
+  source = source.replace(/\buAspect\.z\b/g, '(1.0/uAspect.x)');
+  source = source.replace(/\buAspect\.w\b/g, '(1.0/uAspect.y)');
+
+  // ── 0a.3. Numeric literal swizzles ──
+  // `1.0.xy` swizzles a numeric literal, which is invalid GLSL (scalars have
+  // no components). Wrap the literal in a vec constructor of the swizzle's
+  // width so the swizzle applies to a real vector: 1.0.xy → vec2(1.0).xy.
+  source = source.replace(/\b(\d+\.?\d*)\.([xyzwrgba]{2,4})\b/g, (_m, lit, sw) =>
+    `vec${sw.length}(${lit}).${sw}`);
+
+  // ── 0a.4. Float-declaration int-literal promotion ──
+  // GLSL ES 3.00 forbids implicit int→float conversion, so `float x = 0;`
+  // (or `const float x = -1;`) fails to compile. Promote the bare integer
+  // initializer to a float literal by appending `.0`. Mirrors the
+  // `int-literal-float-decl` rule in milkwaveDiagnostics, whose regex is
+  // `\b(?:const\s+)?float\s+\w+\s*=\s*-?\d+\s*;` — we match the same shape and
+  // only touch cases where the int literal is the sole initializer directly
+  // before `;` (already-float `0.0`, expressions, and multi-declarator lists
+  // with a trailing `,` are all left untouched).
+  source = source.replace(
+    /\b((?:const\s+)?float\s+\w+\s*=\s*-?)(\d+)(\s*;)/g,
+    (_m, pre, num, post) => `${pre}${num}.0${post}`
+  );
+
   source = source.replace(/\bint\s*\(/g, 'float(');                         // `int(expr)` casts → `float(expr)` (HLSL int*float invalid in GLSL)
   // Modulo on floats: `a % b` → `mod(a, b)` (GLSL % only works on integers)
   // Handle simple cases first: identifier/literal % identifier/literal
@@ -674,6 +705,69 @@ const preprocess = (source: string): string => {
       source = beforeBody + body;
     }
   }
+
+  // ── 0h. Dangling statement commas → semicolons ──
+  // EEL per-pixel code sometimes ends a statement with `,` instead of `;`
+  // (`ret = vec3(1.0),\n  ret = mix(...)`). A comma at paren depth 0 that
+  // immediately follows a closing `)` and precedes a newline is a statement
+  // separator the GLSL parser rejects; convert it to `;`. Commas inside
+  // argument lists (depth>0) and declaration commas (`float a, b`, where the
+  // comma follows an identifier, not `)`) are left untouched.
+  {
+    let outStr = '';
+    let depth = 0;
+    for (let i = 0; i < source.length; i++) {
+      const ch = source[i];
+      if (ch === '(') depth++;
+      else if (ch === ')') depth = depth > 0 ? depth - 1 : 0;
+      if (ch === ',' && depth === 0) {
+        let p = outStr.length - 1;
+        while (p >= 0 && (outStr[p] === ' ' || outStr[p] === '\t')) p--;
+        let j = i + 1;
+        while (j < source.length && (source[j] === ' ' || source[j] === '\t')) j++;
+        if (p >= 0 && outStr[p] === ')' && source[j] === '\n') {
+          outStr += ';';
+          continue;
+        }
+      }
+      outStr += ch;
+    }
+    source = outStr;
+  }
+
+  // ── 0i. Close unterminated main-body blocks before fragColor ──
+  // `while (...) {\n  ...\n  fragColor = ...` leaves the inner block open past
+  // the fragColor assignment, unbalancing braces so the AST parse fails. Count
+  // brace depth between main's opening `{` and the fragColor assignment; if
+  // positive, insert that many `}` lines before fragColor (dedenting the
+  // fragColor line to column 0) so the block(s) close and the output assignment
+  // sits at main-body scope.
+  {
+    const mainIdx2 = source.indexOf('void main()');
+    if (mainIdx2 !== -1) {
+      const openBrace = source.indexOf('{', mainIdx2);
+      const fragIdx = source.lastIndexOf('fragColor');
+      if (openBrace !== -1 && fragIdx !== -1 && fragIdx > openBrace) {
+        const between = source.substring(openBrace + 1, fragIdx);
+        let d = 0;
+        for (const ch of between) { if (ch === '{') d++; else if (ch === '}') d--; }
+        if (d > 0) {
+          let lineStart = fragIdx;
+          while (lineStart > 0 && source[lineStart - 1] !== '\n') lineStart--;
+          const fragLine = source.substring(lineStart);
+          source = source.substring(0, lineStart) + '}\n'.repeat(d) + fragLine.replace(/^\s+/, '');
+        }
+      }
+    }
+  }
+
+  // ── 0j. Repair truncated function calls with a missing trailing argument ──
+  // `mix(a, b,\n  )` — a trailing comma + close paren with no final argument
+  // is invalid GLSL. The offline translator sometimes truncates a mix() blend
+  // factor. Supply a neutral 0.5 blend factor: `mix(a, b, 0.5)`. Matches a
+  // comma at the end of an argument line directly followed by the call's
+  // closing `)` (with only whitespace between).
+  source = source.replace(/,\s*\)\s*;/g, ', 0.5);');
 
   return source;
 };
@@ -1166,7 +1260,17 @@ const astTransform = (source: string): string => {
         const right = p.node.right;
         const rightDim = inferDim(right, typeMap);
         if (rightDim === 1) {
-          (p.node as any).right = mkFnCall('vec3', [right], ' ') as unknown as AstNode;
+          // Use the variable's declared dimension when available. The
+          // VEC3_VARS heuristic assumes vec3, but a variable can be declared
+          // vec4 (e.g. `vec4 color = vec4(0.0)`); wrapping its scalar RHS as
+          // vec3 and then letting Pass 10.5 pad to vec4 produces
+          // `vec4(vec3(1.0), 0.0)` (alpha 0.0). vecN(scalar) broadcasts the
+          // scalar to all N components, so `color = 1.0` → `vec4(1.0)` (alpha
+          // 1.0). Falls back to 3 for undeclared EEL per-pixel vars.
+          const targetDim = typeMap.get(varName) ?? 3;
+          if (targetDim >= 2) {
+            (p.node as any).right = mkFnCall(`vec${targetDim}`, [right], ' ') as unknown as AstNode;
+          }
         }
       },
     },
@@ -1373,10 +1477,16 @@ const astTransform = (source: string): string => {
           if (spec.type === 'keyword') (spec as any).token = newType;
           typeMap.set(decl.identifier.identifier, initDim);
         } else if (declaredDim >= 2 && initDim === 1) {
-          // vecX x = scalar_expr → float x = scalar_expr
-          const spec = node.specified_type.specifier.specifier;
-          if (spec.type === 'keyword') (spec as any).token = 'float';
-          typeMap.set(decl.identifier.identifier, 1);
+          // vecX x = scalar_expr → vecX x = vecX(scalar_expr)
+          // Promote the scalar initializer to the declared vector dimension
+          // rather than silently downgrading the variable's declared type to
+          // float. Downgrading changes the variable's type and breaks later
+          // vector uses (e.g. `vec3(uv2, 0.0)` reading uv2 as a scalar). vecN
+          // with a single scalar arg broadcasts it to all N components, so
+          // `vec2 uv2 = 0.5` → `vec2 uv2 = vec2(0.5)` and the declared vec2
+          // type is preserved.
+          const vecType = `vec${declaredDim}`;
+          decl.initializer = mkFnCall(vecType, [decl.initializer as unknown as AstNode], ' ') as unknown as AstNode;
         }
       },
     },
@@ -2075,5 +2185,18 @@ export const patchMilkDropGlsl = (source: string): string => {
   const preprocessed = preprocess(source);
 
   // Phase 2: AST transforms (all structural fixes)
-  return astTransform(preprocessed);
+  const out = astTransform(preprocessed);
+
+  // The @shaderfrog/glsl-parser generator renders a group node as
+  // `generate(lp) + generate(expression) + generate(rp)`. When the group's
+  // first token is an identifier (e.g. a `vec2(...)` constructor we injected in
+  // preprocess for the uAspect.zw expansion), the identifier carries a default
+  // leading-whitespace space, so `(vec2(1.0)/uAspect)` is emitted as
+  // `( vec2(1.0)/uAspect)`. A literal-first group like `(1.0/uAspect.x)` gets no
+  // such space. Collapse the spurious space after `(` directly preceding a vec
+  // constructor so both inverse-aspect forms render identically. This only
+  // touches `( vecN(` — never a function-name arg list like `foo(vec3(..))`,
+  // because the `(` there is preceded by `foo`, and removing a single space
+  // before a constructor is semantically inert in GLSL regardless.
+  return out.replace(/\(\s+(vec[234]\()/g, '($1');
 };
