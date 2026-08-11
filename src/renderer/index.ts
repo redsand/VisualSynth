@@ -89,8 +89,8 @@ import { sessionLog, initSessionLog } from './sessionLog';
 declare global {
   interface Window {
     visualSynth: {
-      saveProject: (payload: string, filePath?: string) => Promise<{ canceled: boolean; filePath?: string }>;
-      saveProjectAs: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
+      saveProject: (payload: string, filePath?: string) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
+      saveProjectAs: (payload: string) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
       autosaveProject: (payload: string) => Promise<{ saved: boolean; filePath?: string }>;
       showSaveDialog: (isRecovery: boolean) => Promise<{ result: 'save' | 'discard' | 'cancel' }>;
       confirmClose: () => Promise<void>;
@@ -3040,8 +3040,15 @@ const applyPlasmaShaderSource = (source: string | null, label: string, scene: Sc
   const fxUniforms = getFxUniformsDeclarations(currentProject, scene);
   const result = renderer.setPlasmaShaderSource(source, fxUniforms);
   if (!result.ok) {
-    setStatus(`Shader compile failed (${label}).`);
-    shaderStatus.textContent = `Shader compile failed for ${label}.`;
+    // Surface the actual GLSL info log so the user can see why the shader
+    // failed (the renderer captures it in lastShaderError). Without this the
+    // user only saw "Shader compile failed for {label}." with no detail.
+    const detail = renderer.getLastShaderError?.();
+    const msg = detail
+      ? `Shader compile failed for ${label}: ${detail}`
+      : `Shader compile failed for ${label}.`;
+    setStatus(msg);
+    shaderStatus.textContent = msg;
     return false;
   }
   shaderStatus.textContent = `Shader applied (${label}).`;
@@ -5758,7 +5765,10 @@ const bindRendererLayerAsset = async (layerId: AssetLayerId, assetId: string | n
   const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
   try {
     await renderer.setLayerAsset(layerId, target, previewVideo, textCanvas);
-  } catch {
+  } catch (error) {
+    // Auto-sync path (scene switch): don't spam the status bar for every
+    // layer, but log the failure so a silently unbound asset is diagnosable.
+    console.warn(`[Asset] Failed to bind ${target ? target.name : '(clear)'} to ${layerId}:`, error);
     rendererLayerAssetBindings[layerId] = null;
   }
 };
@@ -5791,8 +5801,9 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, fo
     } else {
       setStatus(`${layer.name} asset cleared`);
     }
-  } catch {
-    setStatus(`Failed to bind asset to ${layer.name}`);
+  } catch (error) {
+    const reason = (error as Error)?.message ?? String(error);
+    setStatus(`Failed to bind asset to ${layer.name}: ${reason}`);
   }
 };
 
@@ -11885,23 +11896,38 @@ const applyProject = async (project: VisualSynthProject) => {
 };
 
 const saveProjectToDisk = async () => {
-  const payload = serializeProject();
-  const saveResult = isRecoveryProject
-    ? await window.visualSynth.saveProjectAs(payload)
-    : await window.visualSynth.saveProject(payload);
-  if (!saveResult.canceled) {
-    projectDirty = false;
-    isRecoveryProject = false;
-    setStatus(`Saved project: ${currentProject.name}`);
+  try {
+    const payload = serializeProject();
+    const saveResult = isRecoveryProject
+      ? await window.visualSynth.saveProjectAs(payload)
+      : await window.visualSynth.saveProject(payload);
+    if (!saveResult.canceled) {
+      projectDirty = false;
+      isRecoveryProject = false;
+      setStatus(`Saved project: ${currentProject.name}`);
+    } else if (saveResult.error) {
+      // The save IPC returns canceled:true WITH an error on a real failure
+      // (disk full, permission denied). Without this, a failed save was
+      // indistinguishable from a user cancel and gave no feedback.
+      setStatus(`Save failed: ${saveResult.error}`);
+    }
+  } catch (error) {
+    setStatus(`Save failed: ${(error as Error).message ?? error}`);
   }
 };
 
 const savePerformanceToDisk = async () => {
-  const payload = serializePerformance();
-  const saveResult = await window.visualSynth.saveProject(payload);
-  if (!saveResult.canceled) {
-    projectDirty = false;
-    setStatus(`Saved project: ${currentProject.name}`);
+  try {
+    const payload = serializePerformance();
+    const saveResult = await window.visualSynth.saveProject(payload);
+    if (!saveResult.canceled) {
+      projectDirty = false;
+      setStatus(`Saved project: ${currentProject.name}`);
+    } else if (saveResult.error) {
+      setStatus(`Save failed: ${saveResult.error}`);
+    }
+  } catch (error) {
+    setStatus(`Save failed: ${(error as Error).message ?? error}`);
   }
 };
 
