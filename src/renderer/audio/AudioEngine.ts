@@ -37,6 +37,10 @@ export interface AudioEngine {
   updateNowPlayingSettings: (settings: Partial<NowPlayingSettings>) => void;
   onSongChange: (handler: (event: SongChangeEvent) => void) => void;
   getRollingAudioCapture: () => ReturnType<typeof createRollingAudioCapture>;
+  // Release the microphone MediaStream + AudioContext. Called on renderer
+  // unload so the OS mic indicator turns off promptly rather than lingering
+  // until the process is killed. Safe to call when never set up.
+  dispose: () => void;
 }
 
 let instance: AudioEngine | null = null;
@@ -705,6 +709,27 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     songChangeHandler = handler;
   };
 
+  const dispose = () => {
+    // Release the microphone MediaStream promptly (so the OS mic indicator
+    // turns off) and close the AudioContext — browsers don't reliably GC an
+    // open AudioContext. Mirrors setup()'s teardown but also clears the
+    // singleton so a later createAudioEngine() can build a fresh engine.
+    // All guards are null-tolerant so this is safe when audio was never set up.
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+    }
+    analyser = null;
+    onsetAnalyser = null;
+    void audioContext?.close?.().catch(() => {});
+    audioContext = null;
+    try { rollingAudioCapture.stop(); } catch { /* ignore */ }
+    try { songChangeDetector.reset(); } catch { /* ignore */ }
+    setupInProgress = false;
+    currentDeviceId = null;
+    instance = null;
+  };
+
   const engine: AudioEngine = {
     initDevices,
     setup,
@@ -716,7 +741,8 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     getSongDetectionDiagnostics,
     updateNowPlayingSettings,
     onSongChange,
-    getRollingAudioCapture: () => rollingAudioCapture
+    getRollingAudioCapture: () => rollingAudioCapture,
+    dispose
   };
   instance = engine;
 

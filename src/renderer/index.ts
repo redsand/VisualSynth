@@ -15466,6 +15466,16 @@ const init = async () => {
     // Running outside Electron (browser testing) — no close handler needed
   }
 
+  // M9 — Release microphone (AudioEngine) and camera/screen capture streams
+  // (live assets) on unload so the OS media indicators turn off promptly
+  // instead of lingering until the renderer process is killed. pagehide fires
+  // for close, reload, and crash-recovery reload. Both calls are synchronous
+  // and null-tolerant; safe when no media was ever acquired.
+  window.addEventListener('pagehide', () => {
+    try { stopAllLiveStreams(); } catch { /* ignore on unload */ }
+    try { getAudioEngineSafe()?.dispose?.(); } catch { /* ignore on unload */ }
+  });
+
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {
     applyProject: async (project: VisualSynthProject, options: { skipRecovery?: boolean } = {}) => {
