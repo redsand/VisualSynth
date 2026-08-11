@@ -588,7 +588,18 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
 
   const startPcmCapture = async (stream: MediaStream) => {
     stopPcmCapture();
-    const ctx = new AudioContext({ sampleRate: PCM_SAMPLE_RATE });
+    // attach() calls this fire-and-forget (`void startPcmCapture(stream)`), so
+    // it must never reject — an unhandled rejection would leak. new
+    // AudioContext() throws synchronously in environments without Web Audio
+    // (e.g. the node test runner, or a browser where construction fails), so
+    // guard it and degrade the raw-PCM path gracefully rather than rejecting.
+    let ctx: AudioContext;
+    try {
+      ctx = new AudioContext({ sampleRate: PCM_SAMPLE_RATE });
+    } catch (e) {
+      console.warn('[Now Playing] PCM AudioContext unavailable, raw-PCM capture disabled:', e);
+      return;
+    }
     pcmAudioCtx = ctx;
     // A 16kHz AudioContext created without a fresh user gesture in the same
     // call stack can start suspended. If resume() is fire-and-forget and the
