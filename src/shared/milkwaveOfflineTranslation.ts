@@ -111,8 +111,8 @@ uniform sampler2D sampler_noise_hq;
 uniform sampler2D sampler_blur1;
 uniform sampler2D sampler_blur2;
 uniform sampler2D sampler_blur3;
-uniform highp sampler3D sampler_noisevol_lq;
-uniform highp sampler3D sampler_noisevol_hq;
+#define sampler_noisevol_lq sampler_noise_lq
+#define sampler_noisevol_hq sampler_noise_hq
 #define sampler_fc_main sampler_main
 #define sampler_pc_main sampler_main
 #define sampler_fw_main sampler_main

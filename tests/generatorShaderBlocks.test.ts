@@ -56,13 +56,19 @@ describe('GeneratorShaderBlocks registry', () => {
 
       // If block has functions, check that mainCall uses them (directly or indirectly)
       if (block.functions) {
-        const funcMatch = block.functions.match(/(vec3|float|void)\s+(\w+)\(/);
-        if (funcMatch) {
-          const funcName = funcMatch[2];
-          // Function might be called directly or through a wrapper like samplePlasma
-          const isCalledDirectly = block.mainCall.includes(`${funcName}(`);
+        const allFuncs = [...block.functions.matchAll(/(?:vec3|float|void)\s+(\w+)\(/g)].map(m => m[1]);
+        if (allFuncs.length > 0) {
+          // The mainCall must invoke the block's entry-point function. A block may
+          // declare helper functions first (e.g. gen-raymarch-terrain defines
+          // `terrainHeight` before `raymarchTerrain`, and gen-hillshade defines
+          // `terrainElev` before `hillshade`); the entry point is the function the
+          // mainCall calls, and the helper is called internally by it. So check
+          // that the mainCall calls ANY of the block's functions, not just the
+          // first one. (The function might also be reached through a wrapper like
+          // samplePlasma/plasmaColor.)
+          const isCalledDirectly = allFuncs.some((fn) => block.mainCall.includes(`${fn}(`));
           const isCalledIndirectly = block.mainCall.includes('samplePlasma(') || block.mainCall.includes('plasmaColor');
-          expect(isCalledDirectly || isCalledIndirectly).toBe(true);
+          expect(isCalledDirectly || isCalledIndirectly, `Block ${block.id} mainCall does not call any of its functions: ${allFuncs.join(', ')}`).toBe(true);
         }
       }
     }
