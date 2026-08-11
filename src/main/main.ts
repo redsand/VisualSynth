@@ -976,7 +976,11 @@ ipcMain.handle('assets:analyze', async (_event, filePath: string) => {
 
 ipcMain.handle('assets:checkPaths', async (_event, paths: string[]) => {
   const results: Record<string, boolean> = {};
-  for (const p of paths) {
+  // Cap the batch so a runaway caller can't pin the main process on sync
+  // existsSync calls. The renderer only ever sends its own asset list, but
+  // bound it defensively.
+  const capped = Array.isArray(paths) ? paths.slice(0, 2000) : [];
+  for (const p of capped) {
     results[p] = fs.existsSync(p);
   }
   return results;
@@ -1025,8 +1029,12 @@ ipcMain.handle('plugins:import', async () => {
     return { canceled: true };
   }
   const filePath = result.filePaths[0];
-  const payload = fs.readFileSync(filePath, 'utf-8');
-  return { canceled: false, filePath, payload };
+  try {
+    const payload = fs.readFileSync(filePath, 'utf-8');
+    return { canceled: false, filePath, payload };
+  } catch (error) {
+    return { canceled: true, error: `Failed to read plugin manifest: ${(error as Error).message}` };
+  }
 });
 
 ipcMain.handle('now-playing:settings:get', () => {

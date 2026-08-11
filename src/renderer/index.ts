@@ -661,7 +661,7 @@ const restoreDynamicAssets = async () => {
         video.srcObject = stream;
         video.muted = true;
         video.playsInline = true;
-        void video.play();
+        void video.play().catch(() => undefined);
 
         livePreviewElements.set(asset.id, video);
         liveStreams.set(asset.id, stream);
@@ -6335,7 +6335,7 @@ const startLiveCapture = async (source: 'webcam' | 'screen') => {
     video.srcObject = stream;
     video.muted = true;
     video.playsInline = true;
-    void video.play();
+    void video.play().catch(() => undefined);
 
     const asset = createAssetItem({
       name,
@@ -6654,18 +6654,23 @@ const toggleRecording = () => {
 const takeScreenshot = async () => {
   setCaptureStatus('Capturing screenshot...');
   canvas.toBlob(async (blob) => {
-    if (!blob) {
+    try {
+      if (!blob) {
+        setCaptureStatus('Screenshot failed.');
+        return;
+      }
+      const buffer = new Uint8Array(await blob.arrayBuffer());
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const defaultName = `visualsynth-screenshot-${timestamp}.png`;
+      const result = await window.visualSynth.saveCapture(buffer, defaultName, 'png');
+      if (result.canceled) {
+        setCaptureStatus(result.error ? `Screenshot failed: ${result.error}` : 'Screenshot canceled.');
+      } else {
+        setCaptureStatus('Screenshot saved.');
+      }
+    } catch (error) {
+      console.error('[Capture] Screenshot failed:', error);
       setCaptureStatus('Screenshot failed.');
-      return;
-    }
-    const buffer = new Uint8Array(await blob.arrayBuffer());
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const defaultName = `visualsynth-screenshot-${timestamp}.png`;
-    const result = await window.visualSynth.saveCapture(buffer, defaultName, 'png');
-    if (result.canceled) {
-      setCaptureStatus(result.error ? `Screenshot failed: ${result.error}` : 'Screenshot canceled.');
-    } else {
-      setCaptureStatus('Screenshot saved.');
     }
   }, 'image/png');
 };
