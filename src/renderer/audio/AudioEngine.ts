@@ -171,7 +171,16 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       mediaStream.getTracks().forEach((track) => track.stop());
     }
     rollingAudioCapture.stop();
-    audioContext?.close();
+    // Null the analysers alongside closing the old context. During the awaits
+    // below (resume/getUserMedia) the render loop's updateAnalysis guard
+    // `if (!analyser || !audioContext) return` would otherwise pass: audioContext
+    // is reassigned to a new context at line 178, but analyser/onsetAnalyser
+    // still point at the old (now-closed) context → getByteFrequencyData on a
+    // dead context + sampleRate read from the new one (cross-context mismatch).
+    analyser = null;
+    onsetAnalyser = null;
+    // close() returns a Promise that can reject unhandled; catch it.
+    void audioContext?.close?.().catch(() => {});
     transitionTo('initializing', `Opening audio device: ${deviceId || 'default'}`);
 
     try {
@@ -216,6 +225,11 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     } catch (error) {
       analyser = null;
       onsetAnalyser = null;
+      // Close the AudioContext created at line 178 before dropping the
+      // reference — browsers don't reliably GC an open AudioContext, so the
+      // native audio thread lingers. Fire-and-forget with a catch so a reject
+      // can't propagate as an unhandled rejection out of the catch path.
+      void audioContext?.close?.().catch(() => {});
       audioContext = null;
       // Stop the media stream tracks so the microphone hardware is released
       // (otherwise the mic indicator stays on after a failed setup). getUserMedia

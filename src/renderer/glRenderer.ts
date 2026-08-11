@@ -929,6 +929,24 @@ void main() {
   const pendingAssetLoads = new Map<string, Promise<AssetCacheEntry>>();
   const layerBindings: Partial<Record<AssetLayerId, AssetCacheEntry>> = {};
 
+  // Release the GL texture + video element owned by a cache entry. Used both
+  // when an asset's options change (the old entry is replaced) and when
+  // pruning unused entries — previously the old texture was orphaned (the map
+  // entry was deleted but gl.deleteTexture was never called and the video kept
+  // playing), leaking GPU textures and decode resources across an edit session.
+  const disposeAssetCacheEntry = (entry: AssetCacheEntry) => {
+    if (entry.texture) {
+      untrackTexture(entry.texture);
+      gl.deleteTexture(entry.texture);
+    }
+    if (entry.video) {
+      entry.video.pause();
+      entry.video.src = '';
+      entry.video.load();
+      entry.video.remove();
+    }
+  };
+
   const isPowerOf2 = (value: number) => (value & (value - 1)) === 0;
   const getSamplingFilter = (sampling: AssetTextureSampling | undefined) =>
     sampling === 'nearest' ? gl.NEAREST : gl.LINEAR;
@@ -1042,6 +1060,11 @@ void main() {
     if (assetCache.has(asset.id)) {
       const cached = assetCache.get(asset.id)!;
       if (JSON.stringify(cached.options ?? {}) === JSON.stringify(asset.options ?? {})) return Promise.resolve(cached);
+      // Options changed (loop, playbackRate, textureSampling, text content) →
+      // the asset must reload. Dispose the old GL texture + video before
+      // dropping the map entry, otherwise each edit leaks one texture (and
+      // orphans the video element) that nothing else references.
+      disposeAssetCacheEntry(cached);
       assetCache.delete(asset.id);
     }
     if (pendingAssetLoads.has(asset.id)) return pendingAssetLoads.get(asset.id)!;
@@ -1187,7 +1210,13 @@ void main() {
   };
 
   const setLayerAsset = async (layerId: string, asset: AssetItem | null, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
-    if (!asset) { delete layerBindings[layerId as AssetLayerId]; return; }
+    if (!asset) {
+      delete layerBindings[layerId as AssetLayerId];
+      // Evict now-unreferenced cache entries so unbinding an asset releases its
+      // GL texture + video instead of pinning them for the whole session.
+      pruneUnusedAssets(new Set(Object.values(layerBindings).map((e) => e.assetId)));
+      return;
+    }
     // setLayerAsset fires from the output window's BroadcastChannel onmessage,
     // which is independent of the render loop. Guard it the same way render()
     // does: during context loss/restoration all GL resources are invalid, so
@@ -1201,6 +1230,10 @@ void main() {
     // sure we don't bind one either.
     if (contextLost || contextRestoring || contextGeneration !== loadGen) return;
     layerBindings[layerId as AssetLayerId] = entry;
+    // Bound the cache to what's actually in use: a long slideshow cycling many
+    // unique asset IDs would otherwise accumulate every asset's texture + video
+    // for the whole session. Prune to the currently-bound set after each rebind.
+    pruneUnusedAssets(new Set(Object.values(layerBindings).map((e) => e.assetId)));
   };
 
   const setPalette = (colors: [string, string, string, string, string]) => {
@@ -1744,16 +1777,7 @@ void main() {
   const pruneUnusedAssets = (activeAssetIds: Set<string>) => {
     assetCache.forEach((entry, id) => {
       if (!activeAssetIds.has(id)) {
-        if (entry.texture) {
-          untrackTexture(entry.texture);
-          gl.deleteTexture(entry.texture);
-        }
-        if (entry.video) {
-          entry.video.pause();
-          entry.video.src = '';
-          entry.video.load();
-          entry.video.remove();
-        }
+        disposeAssetCacheEntry(entry);
         assetCache.delete(id);
       }
     });

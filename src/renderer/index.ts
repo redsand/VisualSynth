@@ -6583,6 +6583,10 @@ const startRecording = () => {
     if (event.data.size > 0) recordingChunks.push(event.data);
   };
   mediaRecorder.onstop = async () => {
+    // MediaRecorder does not await this callback's promise, so any rejection
+    // here would become an unhandled promise rejection (and the status would
+    // stay stuck on "Recording..."). Wrap the whole body so failures surface.
+    try {
     // Snapshot the chunks and release the module-level array immediately. A
     // rapid stop->start calls startRecording (which does `recordingChunks = []`)
     // before this onstop fires; without the snapshot the Blob read the now-empty
@@ -6619,6 +6623,10 @@ const startRecording = () => {
     // NOTE: do NOT reset recordingChunks here — we already released it at the
     // top of onstop. A reset here would wipe a NEW recording's chunks if the user
     // started recording again during the async transcode/save above.
+    } catch (error) {
+      console.error('[Capture] onstop save/transcode failed:', error);
+      setCaptureStatus(`Recording failed: ${(error as Error)?.message ?? String(error)}`);
+    }
   };
   mediaRecorder.start();
   recordingStartedAt = performance.now();
@@ -11623,6 +11631,12 @@ const startMidiInput = async () => {
     const inputId = midiSelect.value;
     const input = Array.from((midiAccess.inputs as unknown as Map<string, MIDIInput>).values()).find((item) => item.id === inputId);
     if (!input) return;
+    // Clear the message handler on every other input. Without this, switching
+    // from controller A to B leaves A's handler active: playing A still triggers
+    // mappings and A's active-sensing/clock messages keep firing alongside B.
+    for (const other of (midiAccess.inputs as unknown as Map<string, MIDIInput>).values()) {
+      if (other.id !== inputId) other.onmidimessage = null;
+    }
     (input as MIDIInput).onmidimessage = (event: MIDIMessageEvent) =>
       handleMidiMessage(Array.from((event as MIDIMessageEvent).data ?? []), event.timeStamp ?? performance.now());
     setStatus(`MIDI connected: ${input.name ?? 'Unknown'}`);
@@ -11827,7 +11841,17 @@ const serializeProject = () => {
   return JSON.stringify(buildProjectSnapshotForSave(), null, 2);
 };
 
+// Load-generation token for applyProject. applyProject is async and is often
+// invoked fire-and-forget (preset load, recovery, rapid manual loads). Two
+// concurrent loads interleave across the awaits inside applyLoadableProjectRuntime
+// (asset resolution), and the one that finishes LAST wins — which can be the
+// earlier (slower) load, clobbering the user's most recent choice. Each call
+// increments this counter; late-finishing loads see a stale generation and
+// become no-ops so the last-initiated load is the one that takes effect.
+let applyProjectGeneration = 0;
+
 const applyProject = async (project: VisualSynthProject) => {
+  const myGen = ++applyProjectGeneration;
   isRecoveryProject = false;
   projectDirty = false;
   if (!preservePresetPreviewState && presetPreviewBaseProject) {
@@ -11838,6 +11862,10 @@ const applyProject = async (project: VisualSynthProject) => {
   const applied = await applyLoadableProjectRuntime(project, {
     currentOutputConfig: outputConfig,
     onResolvedProject: (normalized) => {
+      // A newer load may have started while we awaited asset resolution inside
+      // applyLoadableProjectRuntime. If so, this (stale) load must not clobber
+      // currentProject or apply its scene — the newer load owns the state now.
+      if (myGen !== applyProjectGeneration) return;
       currentProject = normalized;
       // Restore the per-asset-layer blend/audio-react runtime records from
       // the loaded project before applyScene renders, so the first frame
@@ -11854,9 +11882,12 @@ const applyProject = async (project: VisualSynthProject) => {
           .join(', ')}`
       );
     },
-    syncOutputConfig,
-    setOutputEnabled
+    syncOutputConfig: async (cfg) => { if (myGen === applyProjectGeneration) await syncOutputConfig(cfg); },
+    setOutputEnabled: async (enabled) => { if (myGen === applyProjectGeneration) await setOutputEnabled(enabled); }
   });
+  // A newer load superseded this one while we were awaiting — bail before
+  // re-initializing UI state so the stale project doesn't overwrite it.
+  if (myGen !== applyProjectGeneration) return;
   if (!applied.ok) {
     console.error(`[Project] Zod Validation Failed for "${applied.name}":`, applied.errorDetail);
     setStatus(`Invalid project: ${applied.name}`);
