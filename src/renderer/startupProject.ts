@@ -4,7 +4,7 @@ import { resolveLoadableProjectPayload } from './loadableProject';
 const FIRST_LAUNCH_KEY = 'visualsynth.firstLaunchComplete';
 
 export interface StartupProjectApi {
-  getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
+  getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string; error?: string }>;
   loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
 }
 

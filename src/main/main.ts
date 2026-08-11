@@ -688,8 +688,17 @@ ipcMain.handle('project:recovery', async () => {
   const baseDir = app.getPath('userData');
   const filePath = path.join(baseDir, 'sessions', 'recovery.json');
   if (!fs.existsSync(filePath)) return { found: false };
-  const payload = fs.readFileSync(filePath, 'utf-8');
-  return { found: true, payload, filePath };
+  try {
+    const payload = fs.readFileSync(filePath, 'utf-8');
+    return { found: true, payload, filePath };
+  } catch (error) {
+    // A locked/corrupted/zero-byte recovery file would otherwise reject the
+    // IPC and surface as a raw "Error invoking remote method" at startup.
+    // Treat unreadable recovery as no recovery — the renderer will fall back
+    // to a normal startup instead of crashing the recovery check.
+    console.warn('[Main] Failed to read recovery file:', error);
+    return { found: false, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('app:confirm-close', () => {

@@ -106,7 +106,7 @@ declare global {
       openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; filePath?: string; error?: string }>;
       openSceneFile: () => Promise<{ canceled: boolean; files?: { filePath: string; payload: string }[]; filePath?: string; error?: string }>;
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
-      getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
+      getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string; error?: string }>;
       getSessionId: () => Promise<string>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
       listPresets: () => Promise<PresetIndexEntry[]>;
