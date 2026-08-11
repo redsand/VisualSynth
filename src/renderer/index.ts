@@ -12113,25 +12113,34 @@ document.addEventListener('keydown', (event) => {
   if (!filteredPresetLibrary.length) return;
   if (event.key === 'ArrowDown') {
     event.preventDefault();
+    event.stopPropagation();
     presetNextButton.click();
   } else if (event.key === 'ArrowUp') {
     event.preventDefault();
+    event.stopPropagation();
     presetPrevButton.click();
   } else if (event.key === 'Enter' && event.shiftKey) {
     event.preventDefault();
+    event.stopPropagation();
     applyPresetButton.click();
   } else if (event.key === 'Enter' && event.ctrlKey) {
     event.preventDefault();
+    event.stopPropagation();
     presetLoadProjectButton.click();
   } else if (event.key.toLowerCase() === 'f') {
+    // Stop propagation so the global window keydown handler doesn't also fire
+    // fullscreen on 'f' (double-fire: favorite + fullscreen).
     event.preventDefault();
+    event.stopPropagation();
     presetFavoriteButton.click();
   } else if (event.key === 'Escape' && presetSearchInput.value) {
+    event.stopPropagation();
     presetSearchInput.value = '';
     renderPresetBrowser();
     renderPresetPreview();
   } else if (event.key === 'Escape' && presetPreviewBaseProject) {
     event.preventDefault();
+    event.stopPropagation();
     const baseProject = cloneValue(presetPreviewBaseProject);
     clearPresetPreviewState();
     void applyProject(baseProject);
@@ -12161,14 +12170,21 @@ document.addEventListener('keydown', (event) => {
       livePlaylistIndex = idx;
       triggerLivePreset(presets[idx]);
     }
+    // Reserve numMap keys for live-preset triggers in live mode and stop
+    // propagation so they don't fall through to the global window shortcuts
+    // (e.g. 'r' would also toggle recording, 'p' would also screenshot).
+    event.stopPropagation();
+    return;
   }
   if (key === ' ') {
     event.preventDefault();
+    event.stopPropagation();
     if (livePlaylistActive) {
       stopLivePlaylist();
     } else {
       startLivePlaylist();
     }
+    return;
   }
 });
 
@@ -13474,16 +13490,21 @@ const initShortcuts = () => {
       event.preventDefault();
       void loadProjectFromDisk();
     }
-    if (event.key.toLowerCase() === 'f') {
+    // Bare-key shortcuts: guard against ctrl/meta so they don't hijack browser
+    // shortcuts (Ctrl+F find, Ctrl+R reload, Ctrl+P print) or fire on modified
+    // keypresses. The mode-specific document handlers (live/performance) call
+    // stopPropagation for their own keys, so these only fire in modes without a
+    // conflicting handler.
+    if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'f') {
       document.documentElement.requestFullscreen().catch(() => undefined);
     }
-    if (event.key.toLowerCase() === 'r') {
+    if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'r') {
       toggleRecording();
     }
-    if (event.key.toLowerCase() === 'p') {
+    if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'p') {
       void takeScreenshot();
     }
-    if (event.code === 'Space') {
+    if (!event.ctrlKey && !event.metaKey && event.code === 'Space') {
       event.preventDefault();
       if (isPlaying) {
         isPlaying = false;
