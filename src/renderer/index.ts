@@ -2719,6 +2719,11 @@ const applyPresetPath = async (path: string, reason?: string) => {
     // Migrate preset if needed
     const presetMigration = await import('../shared/presetMigration');
     const migrationResult = presetMigration.migratePreset(result.preset);
+    // Aggregate every warning produced across the migrate → validate → apply
+    // pipeline so the final status reflects the true count. Previously only
+    // migration warnings were counted; validation/application warnings were
+    // logged but invisible to the user.
+    const presetWarnings: string[] = [...migrationResult.warnings];
 
     if (!migrationResult.success) {
       const reasonText = migrationResult.errors.join(', ');
@@ -2754,6 +2759,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
     }
     if (validationResult.warnings.length > 0) {
       logPresetDebug(traceId, 'Preset validation warnings', validationResult.warnings);
+      presetWarnings.push(...validationResult.warnings);
     }
 
     // Apply the (possibly migrated) preset
@@ -2764,6 +2770,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV6(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2793,6 +2800,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV5(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2822,6 +2830,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV4(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2851,6 +2860,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV3(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2903,8 +2913,8 @@ const applyPresetPath = async (path: string, reason?: string) => {
 
     const presetName = path.split(/[\\/]/).pop()?.replace(/\.\w+$/, '') ?? path;
     const message = `${reason ? `${reason}: ` : ''}Preset applied: ${presetName}`;
-    if (migrationResult.warnings.length > 0) {
-      setStatus(`${message} (${migrationResult.warnings.length} warnings - see console)`);
+    if (presetWarnings.length > 0) {
+      setStatus(`${message} (${presetWarnings.length} warnings - see console)`);
     } else {
       setStatus(message);
     }
@@ -3849,6 +3859,15 @@ const addSceneFromExchangePayload = (payload: Extract<ExchangePayload, { kind: '
 const removeScene = (sceneId: string) => {
   if (currentProject.scenes.length <= 1) {
     setStatus('At least one scene is required.');
+    return;
+  }
+  // Scene deletion is destructive and infrequent (a scene bundles several
+  // layers + trigger/transition config), so confirm before discarding. Layer
+  // deletion is left unconfirmed: it is a frequent creative action, cheap to
+  // redo, and already guarded against emptying a scene.
+  const scene = currentProject.scenes.find((item) => item.id === sceneId);
+  const sceneName = scene?.name ?? 'this scene';
+  if (!window.confirm(`Delete scene "${sceneName}"? This cannot be undone.`)) {
     return;
   }
   const nextScenes = currentProject.scenes.filter((scene) => scene.id !== sceneId);
@@ -11932,6 +11951,27 @@ const savePerformanceToDisk = async () => {
 };
 
 const loadProjectFromDisk = async () => {
+  // Guard against silently discarding unsaved edits. Opening a project
+  // overwrites currentProject unconditionally; without this check a user
+  // with dirty changes lost them with no prompt (the close handler already
+  // guards exit, but not mid-session loads). Reuses the same save/discard/
+  // cancel dialog the close path uses.
+  if (projectDirty && typeof window.visualSynth?.showSaveDialog === 'function') {
+    const { result } = await window.visualSynth.showSaveDialog(isRecoveryProject);
+    if (result === 'cancel') return;
+    if (result === 'save') {
+      const payload = serializeProject();
+      const saveResult = isRecoveryProject
+        ? await window.visualSynth.saveProjectAs(payload)
+        : await window.visualSynth.saveProject(payload);
+      if (saveResult.canceled) return;
+      if (saveResult.error) {
+        setStatus(`Save failed: ${saveResult.error}`);
+        return;
+      }
+      projectDirty = false;
+    }
+  }
   suppressStartupRecovery = true;
   console.log('[Project] Manual open requested; suppressing startup recovery.');
   try {
