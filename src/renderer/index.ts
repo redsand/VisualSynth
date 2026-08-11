@@ -13680,6 +13680,35 @@ try {
   renderer = createSafeModeRenderer(canvas);
 }
 
+// H4 — Main-canvas WebGL context-loss recovery.
+// The GL renderer rebuilds its own GL resources on context restore (it
+// registers its own webglcontextrestored listener and fires the synthetic
+// `visualsynth-contextrestored` event once the rebuild completes). But on
+// loss it clears its internal assetCache + layerBindings, while index.ts's
+// dedup mirror `rendererLayerAssetBindings` is NOT cleared. So after restore
+// the per-frame syncRendererAssetBindingsForScene sees a matching id and
+// skips re-binding — the (now-destroyed) textures never come back and the
+// main canvas loses its media layers. Clear the mirror on restore so the
+// next frame re-binds, and re-bind immediately, reusing the existing
+// livePreviewElements video elements so a restore doesn't tear down or
+// re-prompt live camera/screen streams. Mirrors the output-window fix in
+// output.ts. The synthetic event fires only after contextRestoring is false,
+// so setLayerAsset's context-loss guard won't reject the rebind.
+canvas.addEventListener('visualsynth-contextlost', () => {
+  sessionLog.log('error', 'main.context_lost', {});
+  setStatus('WebGL context lost — recovering…');
+});
+canvas.addEventListener('visualsynth-contextrestored', () => {
+  for (const id of (ASSET_LAYER_IDS as readonly AssetLayerId[])) {
+    rendererLayerAssetBindings[id] = null;
+  }
+  syncRendererAssetBindingsForScene(
+    currentProject.scenes.find((s) => s.id === currentProject.activeSceneId)
+  );
+  sessionLog.log('info', 'main.context_restored', {});
+  setStatus('WebGL context restored.');
+});
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Debug Overlay - Press 'D' to toggle
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -14953,7 +14982,11 @@ const render = (time: number) => {
     posterize: renderState.posterize,
   };
 
-  if (renderState.milkDropShaderData) {
+  // updateMilkDropShaders compiles GL programs and has no internal context-lost
+  // guard (unlike render(), which no-ops when lost/restoring). Skip it while the
+  // context is lost or mid-restore so we don't issue GL compile/create calls on
+  // a dead device. render() below already no-ops via its own guard.
+  if (renderState.milkDropShaderData && !renderer.isContextLost?.()) {
     renderer.updateMilkDropShaders?.(renderState.milkDropShaderData);
   }
    
