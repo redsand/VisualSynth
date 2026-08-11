@@ -96,6 +96,7 @@ export const pruneOldSessions = (userData: string): void => {
 // ---------------------------------------------------------------------------
 class SessionLogger {
   private sessionId: string;
+  private userData: string;
   private logPath: string;
   private stream: fs.WriteStream | null = null;
   private bytesWritten = 0;
@@ -103,6 +104,7 @@ class SessionLogger {
 
   constructor(userData: string) {
     this.sessionId = createSessionId();
+    this.userData = userData;
     const logsDir = path.join(userData, 'logs');
     fs.mkdirSync(logsDir, { recursive: true });
     pruneOldSessions(userData);
@@ -161,6 +163,16 @@ class SessionLogger {
       encoding: 'utf-8',
     });
     this.bytesWritten = 0;
+    // pruneOldSessions only ran at construction, so rollover-created part
+    // files (_part2, _part3, …) accumulated without bound for the lifetime of
+    // a long session. Re-prune after each rollover so the SESSION_MAX_FILES
+    // cap is enforced continuously, not just at startup. Cheap: rollover
+    // fires only every SESSION_MAX_BYTES (20 MB) of log output.
+    try {
+      pruneOldSessions(this.userData);
+    } catch {
+      // best-effort — never crash the app due to log pruning
+    }
   }
 
   async flushAndClose(): Promise<void> {
