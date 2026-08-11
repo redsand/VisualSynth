@@ -45,6 +45,8 @@ let prolinkStatusHandler: ((status: { trackBPM: number | null; isMaster: boolean
   null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let prolinkModule: any | null = null;
+// Re-entrancy guard for bpm:network-start — see handler.
+let prolinkStartInProgress = false;
 
 let lastMasterBpmAt = 0;
 const ASSET_STORAGE = path.join(app.getPath('userData'), 'assets');
@@ -225,7 +227,44 @@ const applyOutputConfig = (config: OutputConfig) => {
   outputWindow.setFullScreen(outputConfig.fullscreen);
 };
 
+// Wire crash/hang resilience on a window's renderer. Without this, a crashed or
+// hung renderer leaves the main process idling with a dead window — no log, no
+// recovery. On a gone renderer we log the reason and reload; on unresponsive we
+// log a warning (Electron will offer the kill dialog itself).
+const wireRendererCrashHandlers = (win: BrowserWindow, label: string) => {
+  const wc = win.webContents;
+  wc.on('render-process-gone', (_e, details) => {
+    console.error(`[${label}] Renderer process gone:`, details.reason);
+    try {
+      sessionLogger.writeEntry({
+        level: 'error',
+        event: 'renderer.crashed',
+        data: { label, reason: details.reason, exitCode: details.exitCode }
+      });
+    } catch { /* best-effort */ }
+    if (!win.isDestroyed()) {
+      try { wc.reload(); } catch { /* window gone */ }
+    }
+  });
+  wc.on('unresponsive', () => {
+    console.warn(`[${label}] Renderer unresponsive.`);
+    try {
+      sessionLogger.writeEntry({ level: 'warn', event: 'renderer.unresponsive', data: { label } });
+    } catch { /* best-effort */ }
+  });
+};
+
 const createWindow = () => {
+  // Reset the close-confirmation state for the new window. closeConfirmed is
+  // module-level and never reset otherwise; on macOS (where window-all-closed
+  // doesn't quit and activate re-creates the window) the next window's close
+  // handler would see closeConfirmed === true from the prior session and skip
+  // the save prompt, silently losing edits made in the re-opened window.
+  closeConfirmed = false;
+  if (closeTimeout) {
+    clearTimeout(closeTimeout);
+    closeTimeout = null;
+  }
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -282,6 +321,8 @@ const createWindow = () => {
     mainWindow = null;
   });
 
+  wireRendererCrashHandlers(mainWindow, 'main');
+
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
@@ -317,6 +358,8 @@ const createOutputWindow = () => {
       mainWindow.webContents.send('output:closed');
     }
   });
+
+  wireRendererCrashHandlers(outputWindow, 'output');
 
   applyOutputConfig(outputConfig);
 };
@@ -389,20 +432,48 @@ let closeConfirmed = false;
 // Timer for the close-button fallback (see mainWindow 'close' handler).
 let closeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-app.on('before-quit', async () => {
-  await cleanupOutputIntegrations();
-  sessionLogger.writeEntry({ level: 'info', event: 'session.end', data: { reason: 'normal' } });
-  await sessionLogger.flushAndClose();
-  closeOpenMidiInput();
-  // Tear down the Pro DJ Link UDP listener so the OS port binding is released
-  // before exit (previously leaked until process death; a quick restart could
-  // find the port still held). before-quit is not awaited by Electron, but
-  // disconnect() is fast and best-effort.
-  await stopProlinkNetwork();
-  if (closeTimeout) {
-    clearTimeout(closeTimeout);
-    closeTimeout = null;
-  }
+// will-quit fires after all windows are closed and the app is about to exit.
+// Unlike before-quit (which Electron does NOT await), we can preventDefault here
+// and run the async cleanup to completion before calling app.exit() — otherwise
+// flushAndClose's stream.end() never reaches 'finish' before the process exits
+// and the last log entries (including session.end) are lost.
+app.on('will-quit', (event) => {
+  event.preventDefault();
+  // Safety net: if cleanup hangs (e.g. a network disconnect that never
+  // resolves), don't strand the app — force-exit after 3s.
+  let exited = false;
+  const forceExit = setTimeout(() => {
+    if (!exited) {
+      exited = true;
+      try { sessionLogger.flushAndClose(); } catch { /* best-effort */ }
+      app.exit(0);
+    }
+  }, 3000);
+  if (typeof forceExit.unref === 'function') forceExit.unref();
+  void (async () => {
+    try {
+      await cleanupOutputIntegrations();
+      sessionLogger.writeEntry({ level: 'info', event: 'session.end', data: { reason: 'normal' } });
+      await sessionLogger.flushAndClose();
+      closeOpenMidiInput();
+      // Tear down the Pro DJ Link UDP listener so the OS port binding is
+      // released before exit (previously leaked until process death; a quick
+      // restart could find the port still held).
+      await stopProlinkNetwork();
+    } catch (error) {
+      console.error('[Quit] Async cleanup failed:', error);
+    } finally {
+      if (!exited) {
+        exited = true;
+        clearTimeout(forceExit);
+        if (closeTimeout) {
+          clearTimeout(closeTimeout);
+          closeTimeout = null;
+        }
+        app.exit(0);
+      }
+    }
+  })();
 });
 
 const clearRecoverySession = () => {
@@ -877,6 +948,11 @@ ipcMain.handle('assets:import', async (_event, kind: 'texture' | 'shader' | 'vid
 });
 
 ipcMain.handle('assets:copy', async (_event, sourcePath: string) => {
+  // Confine reads to the asset store. These handlers accept a renderer-supplied
+  // path with no dialog; without confinement a compromised/XSS'd renderer could
+  // copy arbitrary files (e.g. ~/.ssh/id_rsa) into the asset store and read them
+  // back through the asset pipeline. Only already-imported assets live here.
+  if (!isPathWithinRoots(sourcePath, [ASSET_STORAGE])) return { success: false };
   if (!fs.existsSync(sourcePath)) return { success: false };
   const hash = hashFile(sourcePath);
   const ext = path.extname(sourcePath);
@@ -888,6 +964,7 @@ ipcMain.handle('assets:copy', async (_event, sourcePath: string) => {
 });
 
 ipcMain.handle('assets:analyze', async (_event, filePath: string) => {
+  if (!isPathWithinRoots(filePath, [ASSET_STORAGE])) return { exists: false };
   if (!fs.existsSync(filePath)) return { exists: false };
   const hash = hashFile(filePath);
   return {
@@ -1447,16 +1524,25 @@ const stopProlinkNetwork = async () => {
 };
 
 ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; address: string } | null) => {
+  // Serialize against re-entrancy. The `if (prolinkNetwork)` guard below is
+  // check-then-act: prolinkNetwork is only assigned after `await
+  // module.bringOnline(config)`. Two rapid invokes both see null, both call
+  // bringOnline, the second overwrites the first, which is never disconnect()ed
+  // → leaked UDP port + status listener. Drop the re-entrant call; the in-flight
+  // start completes and the caller can retry if needed.
+  if (prolinkStartInProgress) {
+    return { started: false, message: 'Pro DJ Link start already in progress.' };
+  }
   if (prolinkNetwork) {
     return { started: true, message: 'Pro DJ Link already running.' };
   }
-
-  const module = await getProlinkModule();
-  if (!module) {
-    return { started: false, message: 'Prolink Connect not available.' };
-  }
-
+  prolinkStartInProgress = true;
   try {
+    const module = await getProlinkModule();
+    if (!module) {
+      return { started: false, message: 'Prolink Connect not available.' };
+    }
+
     const selected = findInterface(iface);
     const config = selected ? { iface: selected, vcdjId: 7 } : undefined;
     prolinkNetwork = await module.bringOnline(config);
@@ -1503,6 +1589,8 @@ ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; addres
     // guard above ("already running" while nothing actually runs).
     await stopProlinkNetwork();
     return { started: false, message: `Prolink start failed: ${(error as Error).message}` };
+  } finally {
+    prolinkStartInProgress = false;
   }
 });
 
@@ -1584,6 +1672,15 @@ ipcMain.handle('screenshot:capture-automated', async (_event, data: Uint8Array, 
     const ext = path.extname(filePath).toLowerCase();
     if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
       return { success: false, error: 'Screenshot path must have an image extension (.png/.jpg/.jpeg/.webp).' };
+    }
+    // Confine writes to the app's userData dir. Without this a compromised/XSS'd
+    // renderer could write a .png-named file anywhere the user has write access
+    // (e.g. the Startup folder) or overwrite an existing image. This handler is
+    // unused by the production renderer (the capture script registers its own),
+    // so confining it can't break a live flow; a future feature wanting writes
+    // elsewhere should use the dialog-based capture:save channel instead.
+    if (!isPathWithinRoots(filePath, [app.getPath('userData')])) {
+      return { success: false, error: 'Screenshot path must be inside the app data directory.' };
     }
     const dir = path.dirname(filePath);
     fs.mkdirSync(dir, { recursive: true });
