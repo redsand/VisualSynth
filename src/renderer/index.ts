@@ -5201,6 +5201,12 @@ const renderMappingTargets = (filterText = '') => {
     item.dataset.learnLabel = target.label;
     mappingTargetList.appendChild(item);
   });
+
+  // Re-bind MIDI-learn click handlers on the fresh chips. renderMappingTargets
+  // rebuilds mappingTargetList.innerHTML (new nodes) on every call — search
+  // filtering, mode/scene switches — so without re-binding, the chips lose
+  // MIDI-learn after the first re-render. initLearnables is idempotent.
+  initLearnables();
 };
 
 const initDragAndDropMapping = () => {
@@ -9473,6 +9479,12 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     applyStyleControls();
     return;
   }
+  const fxTarget = fxMidiTargetMap[target];
+  if (fxTarget) {
+    fxTarget.input.value = String(scaleMidiValue(value, fxTarget.min, fxTarget.max));
+    fxTarget.commit();
+    return;
+  }
   if (target.startsWith('macro-')) {
     const index = Number(target.split('-')[1]) - 1;
     const slider = macroInputs[index];
@@ -10272,6 +10284,32 @@ const applySdfControls = () => {
       sdfPanel?.render();
     });
   }
+};
+
+// MIDI-learn target map for the global effects.*/particles.*/sdf.* targets.
+// These are listed in globalMidiTargets but previously had no handler in
+// applyMidiTargetValue, so mapping a controller to them silently did nothing.
+// Each entry sets the DOM input to the scaled MIDI value (matching the input's
+// min/max) then runs the section's commit function, mirroring the style.*
+// handlers and the slider `input` listeners. Defined after applySdfControls so
+// the commit functions and input consts are initialized; referenced from
+// applyMidiTargetValue via closure (resolved at call time, after module load).
+const fxMidiTargetMap: Record<string, { input: HTMLInputElement; min: number; max: number; commit: () => void }> = {
+  'effects.bloom': { input: effectBloom, min: 0, max: 1, commit: applyEffectControls },
+  'effects.blur': { input: effectBlur, min: 0, max: 1, commit: applyEffectControls },
+  'effects.chroma': { input: effectChroma, min: 0, max: 0.5, commit: applyEffectControls },
+  'effects.posterize': { input: effectPosterize, min: 0, max: 1, commit: applyEffectControls },
+  'effects.kaleidoscope': { input: effectKaleidoscope, min: 0, max: 1, commit: applyEffectControls },
+  'effects.feedback': { input: effectFeedback, min: 0, max: 1, commit: applyEffectControls },
+  'effects.persistence': { input: effectPersistence, min: 0, max: 1, commit: applyEffectControls },
+  'particles.density': { input: particlesDensity, min: 0, max: 1, commit: applyParticleControls },
+  'particles.speed': { input: particlesSpeed, min: 0, max: 1, commit: applyParticleControls },
+  'particles.size': { input: particlesSize, min: 0, max: 1, commit: applyParticleControls },
+  'particles.glow': { input: particlesGlow, min: 0, max: 1, commit: applyParticleControls },
+  'sdf.scale': { input: sdfScale, min: 0, max: 1, commit: applySdfControls },
+  'sdf.rotation': { input: sdfRotation, min: -3.14, max: 3.14, commit: applySdfControls },
+  'sdf.edge': { input: sdfEdge, min: 0, max: 0.5, commit: applySdfControls },
+  'sdf.glow': { input: sdfGlow, min: 0, max: 1, commit: applySdfControls }
 };
 
 const syncOutputConfig = async (next: Partial<OutputConfig>) => {
