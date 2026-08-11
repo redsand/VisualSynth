@@ -5043,7 +5043,11 @@ const renderMidiMappings = () => {
     channelInput.min = '1';
     channelInput.max = '16';
     channelInput.step = '1';
-    channelInput.value = String(mapping.channel + 1);
+    // mapping.channel is stored 1-16 (the MIDI user-facing convention used by
+    // getMidiChannel and the learn path), so display it directly. The previous
+    // `+ 1` assumed a 0-15 store and showed learned mappings one channel high
+    // (a ch-1 learn stored 1 but displayed "2", and even overflowed to "17").
+    channelInput.value = String(mapping.channel);
 
     const controlInput = document.createElement('input');
     controlInput.type = 'number';
@@ -5085,7 +5089,11 @@ const renderMidiMappings = () => {
     });
     channelInput.addEventListener('change', () => {
       const channel = Number(channelInput.value);
-      mapping.channel = Math.min(Math.max(channel - 1, 0), 15);
+      // Store 1-16 directly (matches getMidiChannel / learn path / applyMappings
+      // comparison). The previous `channel - 1` -> 0-15 stored values that never
+      // matched the 1-16 comparison, so manually-edited mappings silently never
+      // fired.
+      mapping.channel = Math.min(Math.max(channel, 1), 16);
     });
     controlInput.addEventListener('change', () => {
       mapping.control = Number(controlInput.value);
@@ -5114,7 +5122,7 @@ const addMidiMapping = () => {
     {
       id: `map-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       message: 'cc',
-      channel: 0,
+      channel: 1,
       control: 1,
       target: midiTargetOptions[0].id,
       mode: 'momentary'
