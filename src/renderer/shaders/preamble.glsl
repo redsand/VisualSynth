@@ -268,10 +268,18 @@ float getWaveform(float t) {
 vec3 hueRotate(vec3 col, float angle) {
   float c = cos(angle);
   float s = sin(angle);
+  // Luminance-preserving hue rotation about L = (0.299, 0.587, 0.114). This is
+  // the same matrix as shiftPalette() (which is unit-tested in
+  // paletteShaderBehavior.test.ts); the previous hueRotate had a magnitude
+  // typo (0.900 vs 1.250 at the col2/row0 sin term) and inconsistent sin
+  // signs that made it not a true hue rotation. Callers pass the angle
+  // directly (e.g. hueShift * 6.28), whereas shiftPalette takes a 0..1 shift
+  // and multiplies by 2*pi internally — same rotation, different parameter
+  // scaling.
   mat3 m = mat3(
-    0.299 + 0.701*c - 0.168*s, 0.587 - 0.587*c + 0.330*s, 0.114 - 0.114*c - 0.497*s,
-    0.299 - 0.299*c + 0.328*s, 0.587 + 0.413*c + 0.035*s, 0.114 - 0.114*c - 0.292*s,
-    0.299 - 0.300*c - 0.900*s, 0.587 - 0.588*c + 1.050*s, 0.114 + 0.886*c + 0.203*s
+    0.299 + 0.701*c + 0.168*s, 0.587 - 0.587*c + 0.330*s, 0.114 - 0.114*c - 0.497*s,
+    0.299 - 0.299*c - 0.328*s, 0.587 + 0.413*c + 0.035*s, 0.114 - 0.114*c + 0.292*s,
+    0.299 - 0.300*c + 1.250*s, 0.587 - 0.588*c - 1.050*s, 0.114 + 0.886*c - 0.203*s
   );
   return clamp(m * col, 0.0, 1.0);
 }

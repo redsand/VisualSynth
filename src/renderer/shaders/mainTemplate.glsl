@@ -256,9 +256,20 @@ void main() {
    color = applySaturation(color, uSaturation);
    color = applyContrast(color, uContrast);
 
-   // Soft clamp: values ≤ 1 pass through unchanged; HDR values compress smoothly.
+   // High-end clamp: values <= 1 pass through unchanged; values > 1 are driven
+   // toward 1.0 (c / (c + 0.001) ~= 1.0). This is effectively a hard clip, not a
+   // smooth Reinhard tonemap (c / (1 + c)) — HDR detail above 1.0 collapses into
+   // a narrow near-white band. Intentional for the LDR output target; the gamma
+   // curve below then brightens the [0,1] range.
    color = color / max(vec3(1.0), color + vec3(0.001));
 
+   // Clamp to [0, inf) before gamma. applySaturation/applyContrast can drive
+   // channels negative within their documented ranges (e.g. contrast 2.0 on a
+   // 0.1 channel -> -0.3; saturation 2.0 on a sub-luma channel -> negative),
+   // and the soft clamp above only reins in the high end, so negatives pass
+   // through. pow(negative, 1.0/1.35) is undefined per GLSL ES 3.0 and yields
+   // NaN (renders as black/garbage instead of the intended gamma brightening).
+   color = max(color, vec3(0.0));
    color = pow(color, vec3(1.0 / 1.35));
 
    color *= uGlobalColor;
