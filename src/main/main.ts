@@ -1538,11 +1538,16 @@ ipcMain.handle('screenshot:capture-automated', async (_event, data: Uint8Array, 
 // Session logging IPC handlers
 // ---------------------------------------------------------------------------
 ipcMain.on('session-log:write', (_event, entry: object) => {
+  // Guard against a null/undefined/non-object entry from the renderer:
+  // writeEntry reads entry.level/event/data outside its try/catch, so a null
+  // entry would throw inside setImmediate and crash the main process.
+  if (!entry || typeof entry !== 'object') return;
   setImmediate(() => sessionLogger.writeEntry(entry as any));
 });
 
 ipcMain.handle('session:get-id', () => sessionLogger.getSessionId());
 
 ipcMain.on('session-log:write-snapshot', (_event, snapshot: object) => {
+  if (!snapshot || typeof snapshot !== 'object') return;
   setImmediate(() => sessionLogger.writeFailureSnapshot(snapshot as Record<string, unknown>));
 });

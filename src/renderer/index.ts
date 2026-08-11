@@ -11405,6 +11405,10 @@ const runNowPlayingLookup = async (detectedAt: number) => {
       const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
       await consumeNowPlayingResult(result, 'Now playing');
     }
+  } catch (error) {
+    // Fire-and-forget from onSongChange; swallow to avoid an unhandled
+    // promise rejection on recognition/lookup failure.
+    console.warn('[Now Playing] Lookup failed:', error);
   } finally {
     nowPlayingLookupInFlight = false;
   }
@@ -11436,6 +11440,11 @@ const pollNowPlayingMetadataSource = async () => {
     lastMetadataTrackKey = trackKey;
     lastMetadataTrackAt = Date.now();
     await consumeNowPlayingResult(result, 'Metadata bridge');
+  } catch (error) {
+    // Network/parse failures are expected (the metadata source may be down or
+    // return malformed data). This is fire-and-forget from a setInterval, so
+    // swallow to avoid an unhandled promise rejection every poll cycle.
+    console.warn('[Now Playing] Metadata poll failed:', error);
   } finally {
     nowPlayingMetadataPollInFlight = false;
   }
@@ -14789,6 +14798,13 @@ const render = (time: number) => {
    
   // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
   renderer.render(renderState);
+
+  // Cap the program cache so it doesn't grow unbounded as shader variants
+  // compile over many scene/generator switches (GPU memory leak in the live
+  // path — the bootstrap output.ts path already trims every render). Keep 4:
+  // the active program plus a buffer for scenes that cycle back to earlier
+  // generator sets. Cheap when under the cap (returns 0 immediately).
+  renderer.trimProgramCache?.(4);
 
   if (postTransitionFramesLeft > 0 && transitionTracerSeq !== null) {
     const brightness = renderer.captureFrameBrightness?.() ?? { avgBrightness: 0, nonBlackRatio: 0 };

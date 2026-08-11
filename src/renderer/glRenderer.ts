@@ -160,7 +160,10 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
       }
       console.log(`[GLRenderer] WebGL rebuild attempt ${attempt}`);
       try {
-        createInternalTextures();
+        // initInternalTextures() untracks the (now-dead) old handles and
+        // creates fresh, parameterized ones. The previous createInternalTextures()
+        // call here created an extra set of 5 textures that were never
+        // parameterized or referenced — leaked on every context restore.
         initInternalTextures();
 
         positionBuffer = trackBuffer(gl.createBuffer());
@@ -264,16 +267,6 @@ void main() {
   let previousFrameTexture: WebGLTexture | null = null;
   let previousFrameWidth = 0;
   let previousFrameHeight = 0;
-
-  const createInternalTextures = () => {
-    waveformTexture = trackTexture(gl.createTexture());
-    spectrumTexture = trackTexture(gl.createTexture());
-    modulatorTexture = trackTexture(gl.createTexture());
-    midiTexture = trackTexture(gl.createTexture());
-    previousFrameTexture = trackTexture(gl.createTexture());
-    previousFrameWidth = 0;
-    previousFrameHeight = 0;
-  };
 
   const initInternalTextures = () => {
     // Drop any previous handles (no-op on first init; after a context restore

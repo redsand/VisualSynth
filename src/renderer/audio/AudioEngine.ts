@@ -203,6 +203,13 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       analyser = null;
       onsetAnalyser = null;
       audioContext = null;
+      // Stop the media stream tracks so the microphone hardware is released
+      // (otherwise the mic indicator stays on after a failed setup). getUserMedia
+      // may have succeeded before a later setup step threw, leaving live tracks.
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        mediaStream = null;
+      }
       rollingAudioCapture.stop();
       songChangeDetector.reset();
 
