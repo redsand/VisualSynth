@@ -2189,14 +2189,12 @@ export const patchMilkDropGlsl = (source: string): string => {
 
   // The @shaderfrog/glsl-parser generator renders a group node as
   // `generate(lp) + generate(expression) + generate(rp)`. When the group's
-  // first token is an identifier (e.g. a `vec2(...)` constructor we injected in
-  // preprocess for the uAspect.zw expansion), the identifier carries a default
-  // leading-whitespace space, so `(vec2(1.0)/uAspect)` is emitted as
-  // `( vec2(1.0)/uAspect)`. A literal-first group like `(1.0/uAspect.x)` gets no
-  // such space. Collapse the spurious space after `(` directly preceding a vec
-  // constructor so both inverse-aspect forms render identically. This only
-  // touches `( vecN(` — never a function-name arg list like `foo(vec3(..))`,
-  // because the `(` there is preceded by `foo`, and removing a single space
-  // before a constructor is semantically inert in GLSL regardless.
-  return out.replace(/\(\s+(vec[234]\()/g, '($1');
+  // first token is an identifier (e.g. a `vec2(...)` constructor — whether one
+  // we injected for the uAspect.zw expansion, or one produced by scalar-vector
+  // coercion like `uv*(1-...)` -> `uv*( vec2(1.0) - ...)`), the identifier
+  // carries a default leading-whitespace space, so the group is emitted as
+  // `( vec2(...)`. A literal-first group like `(1.0/uAspect.x)` gets no such
+  // space. This space is semantically inert in GLSL and is the generator's
+  // consistent output, so callers/tests that assert these forms must expect it.
+  return out;
 };
