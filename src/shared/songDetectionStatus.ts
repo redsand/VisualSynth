@@ -21,6 +21,8 @@ export interface SongDetectionStatus {
     bufferHealth?: number; // 0-1
     activeChunks?: number;
     totalBytes?: number;
+    /** Spectral distance of the last window vs the learned baseline (0-1) */
+    lastWindowDistance?: number;
   };
 }
 

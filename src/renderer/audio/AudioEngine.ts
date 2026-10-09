@@ -654,7 +654,8 @@ export const createAudioEngine = (store: Store): AudioEngine => {
         cooldownRemainingMs,
         bufferHealth: Math.min(1, stats.captureDurationMs / (nowPlayingSettings.clipDurationMs || 12000)),
         activeChunks: stats.totalChunks,
-        totalBytes: stats.totalBytes
+        totalBytes: stats.totalBytes,
+        lastWindowDistance: detectorState.lastWindowDistance
       };
       
       if (cooldownRemainingMs > 0) {

@@ -438,7 +438,7 @@ export interface TimelineMarker {
   label: string;
 }
 
-export type AssetKind = 'texture' | 'shader' | 'video' | 'live' | 'text';
+export type AssetKind = 'texture' | 'shader' | 'video' | 'live' | 'text' | 'internal';
 export type AssetColorSpace = 'srgb' | 'linear';
 
 export interface AssetItem {

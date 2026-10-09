@@ -18,7 +18,11 @@ import {
 } from '../src/shared/resolvers';
 import type { VisualSynthProject, SceneConfig, LayerConfig, AssetItem } from '../src/shared/project';
 
-// Helper to create a test project
+// Canonical default layer transform (matches DEFAULT_PROJECT / shared/layers.ts fallback).
+const defaultTransform = { x: 0, y: 0, scale: 1, rotation: 0 };
+
+// Helper to create a test project. Intentionally minimal — only the fields
+// the resolvers read — cast to VisualSynthProject.
 const createTestProject = (): VisualSynthProject => {
   const assets: AssetItem[] = [
     { id: 'asset-a', name: 'Texture A', kind: 'texture', tags: [], addedAt: '2024-01-01' },
@@ -28,26 +32,25 @@ const createTestProject = (): VisualSynthProject => {
 
   // Create layers with explicit IDs (simulating real UI state)
   const layers: LayerConfig[] = [
-    { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', assetId: 'asset-a' },
-    { id: 'layer-spectrum', name: 'Spectrum', role: 'support', enabled: true, opacity: 0.75, blendMode: 'add', assetId: 'asset-b' },
-    { id: 'layer-media', name: 'Media', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-video' },
-    { id: 'layer-no-asset', name: 'No Asset', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen' },
-    { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', assetId: 'asset-a' }
+    { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-a' },
+    { id: 'layer-spectrum', name: 'Spectrum', role: 'support', enabled: true, opacity: 0.75, blendMode: 'add', transform: { ...defaultTransform }, assetId: 'asset-b' },
+    { id: 'layer-media', name: 'Media', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-video' },
+    { id: 'layer-no-asset', name: 'No Asset', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen', transform: { ...defaultTransform } },
+    { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-a' }
   ];
 
   const scenes: SceneConfig[] = [
     {
       id: 'scene-main',
       name: 'Main Scene',
-      layers: [...layers],
-      activeSceneId: 'scene-main'
+      layers: [...layers]
     },
     {
       id: 'scene-alt',
       name: 'Alternative Scene',
       layers: [
-        { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', assetId: 'asset-a' },
-        { id: 'layer-alt', name: 'Alt Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', generatorId: 'gen-plasma' }
+        { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-a' },
+        { id: 'layer-alt', name: 'Alt Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, generatorId: 'gen-plasma' }
       ]
     }
   ];
@@ -58,7 +61,7 @@ const createTestProject = (): VisualSynthProject => {
     assets,
     scenes,
     activeSceneId: 'scene-main'
-  };
+  } as VisualSynthProject;
 };
 
 describe('layerAssetBinding', () => {
@@ -154,6 +157,7 @@ describe('layerAssetBinding', () => {
         enabled: true,
         opacity: 1,
         blendMode: 'normal',
+        transform: { ...defaultTransform },
         assetId: 'asset-does-not-exist'
       };
       scene.layers.push(missingAssetLayer);
@@ -218,6 +222,7 @@ describe('layerAssetBinding', () => {
         enabled: true,
         opacity: 1,
         blendMode: 'normal',
+        transform: { ...defaultTransform },
         assetId: 'missing-id-12345'
       };
       scene.layers.push(missingAssetLayer);

@@ -3,7 +3,7 @@ import type { AssetItem, OverlayConfig, SceneConfig, VisualSynthProject } from '
 import type { CustomShaderBlock } from '../../shared/customShaderBlock';
 import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
 import {
-  resolveSceneAssetBindings,
+  resolveLayerAsset as resolveLayerAssetBinding,
   type ResolutionStatus
 } from '../../shared/resolvers';
 
@@ -83,6 +83,10 @@ const serializeAssetForOutput = (asset: AssetItem | null): SerializedOutputAsset
 /**
  * Resolve and serialize an asset binding for output using canonical resolver.
  * Returns null for layers that cannot render (no binding, missing asset, generator-bound).
+ *
+ * Resolves against the scene passed in — NOT via a project.scenes lookup by
+ * ID — because callers may hand us a scene that is not (yet) in the project's
+ * scene list, e.g. mid-transition.
  */
 const resolveLayerAsset = (
   project: VisualSynthProject,
@@ -91,10 +95,11 @@ const resolveLayerAsset = (
 ): SerializedOutputAsset | null => {
   if (!scene) return null;
 
-  const bindings = resolveSceneAssetBindings(project, scene.id);
-  const binding = bindings[layerId];
+  const layer = scene.layers.find(l => l.id === layerId);
+  if (!layer) return null;
 
-  if (binding?.status !== 'resolved' || !binding.asset) {
+  const binding = resolveLayerAssetBinding(layer, project.assets);
+  if (binding.status !== 'resolved' || !binding.asset) {
     return null;
   }
 

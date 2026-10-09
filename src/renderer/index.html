@@ -1408,6 +1408,12 @@
                   </div>
                 </div>
                 <div class="diag-row">
+                  <span class="diag-label">Spectral Change:</span>
+                  <div class="mixer-meter-container mini-meter">
+                    <div id="now-playing-spectral-bar" class="mixer-meter-fill"></div>
+                  </div>
+                </div>
+                <div class="diag-row">
                   <span class="diag-label">Last Success:</span>
                   <span id="now-playing-last-success" class="diag-value">--</span>
                 </div>
@@ -1517,6 +1523,10 @@
             <option value="custom">Custom Webhook</option>
           </select>
         </label>
+        <label class="scene-inline modal-checkbox">
+          Try free Shazam first
+          <input id="now-playing-free-shazam-first" type="checkbox" checked />
+        </label>
         <label id="now-playing-endpoint-group" class="scene-label">
           Endpoint
           <input id="now-playing-endpoint" type="text" placeholder="http://127.0.0.1:3001/identify" />
@@ -1541,6 +1551,26 @@
           <label class="scene-inline">
             Cooldown (ms)
             <input id="now-playing-cooldown" type="number" min="5000" max="120000" step="1000" value="15000" />
+          </label>
+        </div>
+        <div class="scene-row">
+          <label class="scene-inline">
+            Change Threshold
+            <input id="now-playing-change-threshold" type="number" min="0.1" max="0.9" step="0.05" value="0.35" />
+          </label>
+          <label class="scene-inline">
+            Confirm Windows
+            <input id="now-playing-confirm-windows" type="number" min="1" max="5" step="1" value="2" />
+          </label>
+        </div>
+        <div class="scene-row">
+          <label class="scene-inline">
+            Min Track (ms)
+            <input id="now-playing-min-track-ms" type="number" min="5000" max="120000" step="1000" value="30000" />
+          </label>
+          <label class="scene-inline">
+            Silence Threshold
+            <input id="now-playing-silence-threshold" type="number" min="0.005" max="0.2" step="0.005" value="0.025" />
           </label>
         </div>
         <div class="scene-row">

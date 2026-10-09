@@ -24,7 +24,7 @@ const sortObjectKeys = (obj: any): any => {
   return sorted;
 };
 
-const ensureSceneDefaults = (scene: any) => {
+export const ensureSceneDefaults = (scene: any) => {
   const next = {
     ...scene,
     scene_id: scene.scene_id ?? scene.id,
@@ -65,7 +65,7 @@ const ensureSceneDefaults = (scene: any) => {
   return next;
 };
 
-const upgradeProject = (project: VisualSynthProject): VisualSynthProject => {
+export const upgradeProject = (project: VisualSynthProject): VisualSynthProject => {
   if (project.version >= CURRENT_VERSION) return project;
   let upgraded = { ...project };
   if (upgraded.version < 2) {

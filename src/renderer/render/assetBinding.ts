@@ -153,7 +153,7 @@ export const getSceneAssetDiagnostics = (
         summaryKey = status.replace(/-asset/g, 'Asset').replace(/-found/g, 'Found').replace(/-/g, '');
     }
     if (summaryKey in summary) {
-      summary[summaryKey]++;
+      summary[summaryKey as keyof typeof summary]++;
     }
     summary.total++;
 

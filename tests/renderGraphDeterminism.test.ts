@@ -13,6 +13,7 @@ import {
 import {
   createVisualNode,
   createFloatParameter,
+  createInputPort,
   createOutputPort
 } from '../src/shared/visualNode';
 
@@ -143,7 +144,7 @@ describe('renderGraph determinism', () => {
       name: 'Node B',
       kind: 'effect',
       category: 'blur',
-      inputs: [createOutputPort('in', 'Input', 'rgba', true)],
+      inputs: [createInputPort('in', 'Input', 'rgba', true)],
       outputs: [createOutputPort('out', 'Output', 'rgba')]
     });
 

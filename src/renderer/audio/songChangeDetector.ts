@@ -77,6 +77,9 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
   let consecutiveChanges = 0;
   let pendingSignature: number[] | null = null;
   let lastDetectionAt = -Infinity;
+  // Distance of the most recent completed window vs the baseline — live
+  // feedback for tuning changeThreshold in the settings modal.
+  let lastWindowDistance = 0;
 
   const flushWindow = (nowMs: number) => {
     if (!activeWindow || activeWindow.sampleCount === 0) return;
@@ -95,6 +98,7 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
     }
 
     const distance = spectralDistance(baselineSignature, signature);
+    lastWindowDistance = distance;
     const longEnough = nowMs - baselineStartedAt >= minTrackMs;
     const cooledDown = nowMs - lastDetectionAt >= cooldownMs;
 
@@ -182,6 +186,7 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
       consecutiveChanges = 0;
       pendingSignature = null;
       lastDetectionAt = -Infinity;
+      lastWindowDistance = 0;
     },
     getState() {
       return {
@@ -189,7 +194,8 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
         baselineStartedAt,
         consecutiveChanges,
         pendingSignature,
-        lastDetectionAt
+        lastDetectionAt,
+        lastWindowDistance
       };
     }
   };

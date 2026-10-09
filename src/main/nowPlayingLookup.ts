@@ -560,6 +560,12 @@ const postAcrCloudLookup = async (
         title?: string;
         album?: { name?: string };
         artists?: Array<{ name?: string }>;
+        // ACRCloud reports a 0-100 match score and where in the submitted
+        // sample the match begins (ms). Both are optional and arrive as
+        // numbers or numeric strings depending on API revision.
+        score?: number | string;
+        sample_begin_time_ms?: number | string;
+        play_offset_ms?: number | string;
         external_metadata?: {
           spotify?: { album?: { images?: Array<{ url?: string }> } };
           youtube?: { vid?: string };
@@ -578,6 +584,8 @@ const postAcrCloudLookup = async (
   }
 
   const artworkUrl = top.external_metadata?.spotify?.album?.images?.[0]?.url;
+  const score = Number(top.score);
+  const timeOffset = Number(top.sample_begin_time_ms ?? top.play_offset_ms);
 
   return {
     matched: true,
@@ -585,7 +593,8 @@ const postAcrCloudLookup = async (
     artist: top.artists?.map((artist) => artist.name).filter(Boolean).join(', '),
     album: top.album?.name,
     artworkUrl,
-    confidence: 1,
+    confidence: Number.isFinite(score) && score > 0 ? Math.min(1, score / 100) : 1,
+    timeOffsetMs: Number.isFinite(timeOffset) && timeOffset >= 0 ? timeOffset : undefined,
     provider: 'ACRCloud',
     raw: payload
   };

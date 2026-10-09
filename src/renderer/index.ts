@@ -79,6 +79,17 @@ import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
 import { reorderScenes } from '../shared/project';
 import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
+import {
+  createNowPlayingGateState,
+  recordNoMatch,
+  recordRecognition,
+  resetGateRetry,
+  seedGateFromBridge,
+  shouldSkipLookup,
+  nowPlayingTrackKey
+} from '../shared/nowPlayingGate';
+import { createNowPlayingOverlayConfig, migrateProjectNowPlayingOverlays } from '../shared/nowPlayingOverlays';
+import type { SongChangeEvent } from './audio/songChangeDetector';
 import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult, type RecentAudioClip } from './audio/rollingAudioCapture';
 import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
 import type { Store } from './state/store';
@@ -241,6 +252,12 @@ const nowPlayingClipDurationInput = document.getElementById('now-playing-clip-du
 const nowPlayingCooldownInput = document.getElementById('now-playing-cooldown') as HTMLInputElement;
 const nowPlayingArtworkPreferenceSelect = document.getElementById('now-playing-artwork-preference') as HTMLSelectElement;
 const nowPlayingAutoOverlaysInput = document.getElementById('now-playing-auto-overlays') as HTMLInputElement;
+const nowPlayingFreeShazamFirstInput = document.getElementById('now-playing-free-shazam-first') as HTMLInputElement;
+const nowPlayingChangeThresholdInput = document.getElementById('now-playing-change-threshold') as HTMLInputElement;
+const nowPlayingConfirmWindowsInput = document.getElementById('now-playing-confirm-windows') as HTMLInputElement;
+const nowPlayingMinTrackMsInput = document.getElementById('now-playing-min-track-ms') as HTMLInputElement;
+const nowPlayingSilenceThresholdInput = document.getElementById('now-playing-silence-threshold') as HTMLInputElement;
+const nowPlayingSpectralBar = document.getElementById('now-playing-spectral-bar') as HTMLDivElement | null;
 const nowPlayingProviderHint = document.getElementById('now-playing-provider-hint') as HTMLDivElement;
 const nowPlayingApplyCompanionPresetButton = document.getElementById('now-playing-apply-companion-preset') as HTMLButtonElement;
 const nowPlayingTestBridgeButton = document.getElementById('now-playing-test-bridge') as HTMLButtonElement;
@@ -1243,6 +1260,10 @@ let nowPlayingMetadataPollInFlight = false;
 let lastMetadataTrackKey: string | null = null;
 let lastMetadataTrackAt = 0;
 let lastMetadataPollAt = 0;
+// Token-saving gate for the recognition path (same-track dedup, adaptive
+// cooldown, same-song false-positive gate) plus the bounded no-match retry.
+const nowPlayingGate = createNowPlayingGateState();
+let nowPlayingRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let tapTempoTimes: number[] = [];
 
 // Handle Shazam file decode requests from main process
@@ -10967,7 +10988,7 @@ const syncNowPlayingProviderFields = () => {
   nowPlayingMetadataUrlGroup.classList.toggle('hidden', !nowPlayingMetadataEnabledInput.checked);
   nowPlayingMetadataSecretGroup.classList.toggle('hidden', !nowPlayingMetadataEnabledInput.checked);
 
-  nowPlayingProviderHint.textContent =
+  const baseHint =
     nowPlayingMetadataEnabledInput.checked
       ? 'Metadata bridge mode polls a local service like What\'s Now Playing first, then falls back to audio recognition if configured.'
       : provider === 'audd'
@@ -10977,6 +10998,11 @@ const syncNowPlayingProviderFields = () => {
         : provider === 'shazam'
           ? 'Shazam identifies tracks directly — no API key or proxy needed. Uses the Shazam mobile app endpoint.'
           : 'Custom mode posts the captured clip to your own lookup endpoint.';
+  const freeFirstHint =
+    nowPlayingFreeShazamFirstInput.checked && provider !== 'shazam'
+      ? ' Free Shazam is tried first; the configured provider is only used when Shazam fails.'
+      : '';
+  nowPlayingProviderHint.textContent = baseHint + freeFirstHint;
 };
 
 const openNowPlayingModal = () => {
@@ -10985,6 +11011,11 @@ const openNowPlayingModal = () => {
   nowPlayingMetadataUrlInput.value = nowPlayingSettings.metadataSourceUrl;
   nowPlayingMetadataSecretInput.value = nowPlayingSettings.metadataSourceSecret;
   nowPlayingProviderSelect.value = nowPlayingSettings.provider;
+  nowPlayingFreeShazamFirstInput.checked = nowPlayingSettings.freeShazamFirst;
+  nowPlayingChangeThresholdInput.value = String(nowPlayingSettings.changeThreshold);
+  nowPlayingConfirmWindowsInput.value = String(nowPlayingSettings.confirmWindows);
+  nowPlayingMinTrackMsInput.value = String(nowPlayingSettings.minTrackMs);
+  nowPlayingSilenceThresholdInput.value = String(nowPlayingSettings.silenceThreshold);
   nowPlayingEndpointInput.value = nowPlayingSettings.endpoint;
   nowPlayingHostInput.value = nowPlayingSettings.host;
   nowPlayingApiKeyInput.value = nowPlayingSettings.apiKey;
@@ -11020,6 +11051,12 @@ const applyWhatsNowPlayingDraftPreset = () => {
 
 const applyNowPlayingSettings = (settings: Partial<NowPlayingSettings>) => {
   Object.assign(nowPlayingSettings, DEFAULT_NOW_PLAYING_SETTINGS, settings);
+  if (!nowPlayingSettings.enabled) {
+    // The only path that clears the managed overlays: the user turned the
+    // feature off. Failed/absent lookups deliberately keep the last track.
+    clearNowPlayingOverlays();
+    cancelNowPlayingRetry();
+  }
   updateNowPlayingStatusText();
 };
 
@@ -11030,24 +11067,68 @@ const buildNowPlayingDraftSettings = (): NowPlayingSettings => ({
   metadataSourceUrl: nowPlayingMetadataUrlInput.value.trim(),
   metadataSourceSecret: nowPlayingMetadataSecretInput.value.trim(),
   provider: nowPlayingProviderSelect.value as NowPlayingSettings['provider'],
+  freeShazamFirst: nowPlayingFreeShazamFirstInput.checked,
   endpoint: nowPlayingEndpointInput.value.trim(),
   host: nowPlayingHostInput.value.trim(),
   apiKey: nowPlayingApiKeyInput.value.trim(),
   apiSecret: nowPlayingApiSecretInput.value.trim(),
   clipDurationMs: Math.max(4000, Number(nowPlayingClipDurationInput.value) || 12000),
   cooldownMs: Math.max(5000, Number(nowPlayingCooldownInput.value) || 15000),
+  changeThreshold: Math.min(0.9, Math.max(0.1, Number(nowPlayingChangeThresholdInput.value) || 0.35)),
+  confirmWindows: Math.min(5, Math.max(1, Math.round(Number(nowPlayingConfirmWindowsInput.value) || 2))),
+  minTrackMs: Math.min(120000, Math.max(5000, Number(nowPlayingMinTrackMsInput.value) || 30000)),
+  silenceThreshold: Math.min(0.2, Math.max(0.005, Number(nowPlayingSilenceThresholdInput.value) || 0.025)),
   artworkPreference: nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'],
   autoCreateOverlays: nowPlayingAutoOverlaysInput.checked
 });
 
+type NowPlayingResultSource = 'recognition' | 'bridge' | 'test';
+
+const cancelNowPlayingRetry = () => {
+  if (nowPlayingRetryTimer) {
+    clearTimeout(nowPlayingRetryTimer);
+    nowPlayingRetryTimer = null;
+  }
+};
+
 const consumeNowPlayingResult = async (
   result: NowPlayingRecognitionResponse,
-  statusPrefix: string
+  statusPrefix: string,
+  source: NowPlayingResultSource = 'recognition'
 ) => {
   if (!result.matched) {
-    clearNowPlayingOverlays();
+    // Keep the last identified track on screen: a no-match usually means the
+    // mic caught talk/crowd noise, not that the song changed. Clearing here
+    // made the title flicker off on every failed lookup.
     setStatus(result.error ? `${statusPrefix}: ${result.error}` : `${statusPrefix}: no match found.`);
+    if (source === 'recognition') {
+      const outcome = recordNoMatch(nowPlayingGate, Date.now());
+      if (outcome.scheduleRetryInMs && !nowPlayingRetryTimer) {
+        nowPlayingRetryTimer = setTimeout(() => {
+          nowPlayingRetryTimer = null;
+          void runNowPlayingLookup(Date.now(), { isRetry: true });
+        }, outcome.scheduleRetryInMs);
+      }
+    }
     return;
+  }
+
+  // A match settles the question — a pending retry would only re-burn quota.
+  cancelNowPlayingRetry();
+
+  if (source === 'bridge') {
+    // Free, authoritative metadata: seed the gate so detector misfires don't
+    // spend a paid lookup re-identifying the track the bridge already named.
+    seedGateFromBridge(nowPlayingGate, result, Date.now());
+  } else if (source === 'recognition') {
+    const sameTrack = recordRecognition(nowPlayingGate, nowPlayingSettings, result, Date.now());
+    if (sameTrack) {
+      // Recognized the track we already display: skip artwork enrichment and
+      // overlay writes, and let the gate's geometric cooldown do its work.
+      const songLabel = [result.title, result.artist].filter(Boolean).join(' - ');
+      setStatus(songLabel ? `${statusPrefix}: ${songLabel} (unchanged)` : `${statusPrefix} unchanged.`);
+      return;
+    }
   }
 
   let artworkResult = result;
@@ -11099,43 +11180,10 @@ const ensureNowPlayingOverlay = (type: 'text' | 'image', overlayId: string): Ove
   let overlay = currentProject.overlays.find((item) => item.id === overlayId);
   if (overlay) return overlay;
 
-  const targetSceneId = previewSceneId ?? currentProject.activeSceneId;
-
-  overlay =
-    type === 'text'
-      ? {
-          id: overlayId,
-          name: 'Now Playing',
-          type: 'text',
-          enabled: true,
-          x: 0.03,
-          y: 0.82,
-          width: 0.38,
-          height: 0.13,
-          opacity: 1,
-          rotation: 0,
-          includeInFx: false,
-          text: 'Listening...',
-          fontSize: 30,
-          fontColor: '#ffffff',
-          fontWeight: 'bold',
-          textShadow: true,
-          targetSceneId
-        }
-      : {
-          id: overlayId,
-          name: 'Now Playing Artwork',
-          type: 'image',
-          enabled: true,
-          x: 0.03,
-          y: 0.62,
-          width: 0.14,
-          height: 0.18,
-          opacity: 0.95,
-          rotation: 0,
-          includeInFx: false,
-          targetSceneId
-        };
+  // Factory-built config is deliberately GLOBAL (no targetSceneId) so the
+  // title/artwork persist across scene changes and appear in every scene on
+  // both the main window and the projector window.
+  overlay = createNowPlayingOverlayConfig(type, overlayId);
 
   currentProject.overlays.push(overlay);
   renderOverlayList();
@@ -11209,14 +11257,15 @@ const buildRecognitionRequest = async (
   capture: ReturnType<typeof createRollingAudioCapture>,
   clip: RecentAudioClip,
   settings: NowPlayingSettings,
-  detectedAt: number
+  detectedAt: number,
+  provider: NowPlayingSettings['provider'] = settings.provider
 ): Promise<BuildRecognitionRequestResult> => {
   const diagnostics: BuildRecognitionRequestResult['diagnostics'] = {
     clipSizeKb: Math.round(clip.blob.size / 1024 * 10) / 10,
     clipDurationMs: Math.max(0, clip.endedAt - clip.startedAt)
   };
 
-  if (settings.provider === 'shazam') {
+  if (provider === 'shazam') {
     // Try raw PCM export first (bypasses WebM/Opus decode issues). The capture
     // instance is passed in (rather than referenced as a free variable) so this
     // helper doesn't depend on the caller's block-scoped `rollingAudioCapture`
@@ -11283,7 +11332,7 @@ const buildRecognitionRequest = async (
   const audioBase64 = await blobToBase64(clip.blob);
   return {
     request: {
-      provider: settings.provider,
+      provider,
       endpoint: settings.endpoint || undefined,
       host: settings.host || undefined,
       apiKey: settings.apiKey || undefined,
@@ -11436,7 +11485,7 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
 
   nowPlayingTestStatus.textContent = `Running ${settings.provider} lookup (${actualDurationSec}s audio, ${(clip.blob.size / 1024).toFixed(1)}KB)...`;
 
-  const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, settings, Date.now());
+  const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, settings, Date.now(), settings.provider);
   if (!buildResult.request) {
     const diag = buildResult.diagnostics;
     if (diag) {
@@ -11456,15 +11505,56 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
 
   const label = [result.title, result.artist].filter(Boolean).join(' - ');
   nowPlayingTestStatus.textContent = label || 'Live lookup succeeded.';
-  await consumeNowPlayingResult(result, 'Live now playing test');
+  await consumeNowPlayingResult(result, 'Live now playing test', 'test');
 };
 
-const runNowPlayingLookup = async (detectedAt: number) => {
+const nowPlayingProviderChain = (): NowPlayingSettings['provider'][] => {
+  // Free-first escalation: try Shazam (no credentials, no quota) before the
+  // configured provider so a successful match costs zero AudD/ACRCloud
+  // requests. The paid provider only runs when Shazam fails or no-matches.
+  if (nowPlayingSettings.freeShazamFirst && nowPlayingSettings.provider !== 'shazam') {
+    return ['shazam', nowPlayingSettings.provider];
+  }
+  return [nowPlayingSettings.provider];
+};
+
+const runNowPlayingLookup = async (
+  detectedAt: number,
+  opts: { event?: SongChangeEvent; isRetry?: boolean } = {}
+) => {
   if (!isNowPlayingLookupConfigured(nowPlayingSettings)) return;
   if (nowPlayingLookupInFlight) return;
-  if (detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) return;
+  // The base cooldown rate-limits detector firings; a bounded no-match retry
+  // (one per firing, ~10s later) is allowed through — it's the only way an
+  // unlucky clip gets a second chance.
+  if (!opts.isRetry && detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) return;
   if (isNowPlayingMetadataSourceConfigured(nowPlayingSettings) && detectedAt - lastMetadataTrackAt < 5000) {
     return;
+  }
+
+  if (opts.isRetry) {
+    // Retries still respect the gate's adaptive backoff…
+    if (detectedAt < nowPlayingGate.adaptiveCooldownUntil) return;
+  } else {
+    // …while a fresh firing cancels any pending retry, resets the retry
+    // budget, and asks the gate whether a recognition request is warranted
+    // at all (same-song false positives and adaptive cooldown are skipped
+    // BEFORE any clip export or IPC).
+    cancelNowPlayingRetry();
+    resetGateRetry(nowPlayingGate);
+    const gate = shouldSkipLookup(
+      nowPlayingGate,
+      nowPlayingSettings,
+      {
+        distance: opts.event?.distance ?? 1,
+        nextSignature: opts.event?.nextSignature ?? []
+      },
+      detectedAt
+    );
+    if (gate.skip) {
+      setStatus(`Song change detected, but ${gate.reason?.toLowerCase() ?? 'gated'}.`);
+      return;
+    }
   }
 
   const rollingAudioCapture = getAudioEngineSafe()?.getRollingAudioCapture();
@@ -11481,10 +11571,25 @@ const runNowPlayingLookup = async (detectedAt: number) => {
   lastNowPlayingLookupAt = detectedAt;
 
   try {
-    const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, nowPlayingSettings, detectedAt);
-    if (buildResult.request) {
+    let lastResult: NowPlayingRecognitionResponse | null = null;
+    for (const provider of nowPlayingProviderChain()) {
+      const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, nowPlayingSettings, detectedAt, provider);
+      if (!buildResult.request) {
+        // Couldn't prepare audio for this provider (e.g. PCM export failed
+        // for Shazam) — fall through to the next one.
+        continue;
+      }
       const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
-      await consumeNowPlayingResult(result, 'Now playing');
+      if (result.matched) {
+        await consumeNowPlayingResult(result, 'Now playing');
+        return;
+      }
+      lastResult = result;
+    }
+    if (lastResult) {
+      // Consume once with the final result so the no-match streak/retry
+      // bookkeeping isn't double-counted per provider attempt.
+      await consumeNowPlayingResult(lastResult, 'Now playing');
     }
   } catch (error) {
     // Fire-and-forget from onSongChange; swallow to avoid an unhandled
@@ -11520,7 +11625,7 @@ const pollNowPlayingMetadataSource = async () => {
     }
     lastMetadataTrackKey = trackKey;
     lastMetadataTrackAt = Date.now();
-    await consumeNowPlayingResult(result, 'Metadata bridge');
+    await consumeNowPlayingResult(result, 'Metadata bridge', 'bridge');
   } catch (error) {
     // Network/parse failures are expected (the metadata source may be down or
     // return malformed data). This is fire-and-forget from a setInterval, so
@@ -11537,12 +11642,12 @@ const setupAudio = async (deviceId?: string) => {
     await engine.setup(deviceId);
     sessionLog.log('info', 'audio.engine_init', { deviceId: deviceId ?? 'default', deviceLabel: '' });
     engine.updateNowPlayingSettings(nowPlayingSettings);
-    engine.onSongChange(({ detectedAt }) => {
+    engine.onSongChange((event) => {
       if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
         setStatus('Song change detected. Configure Now Playing in the System tab to enable lookup.');
         return;
       }
-      void runNowPlayingLookup(detectedAt);
+      void runNowPlayingLookup(event.detectedAt, { event });
     });
   }
 };
@@ -11594,6 +11699,17 @@ const updateNowPlayingDiagnosticsUI = () => {
     const bufferHealth = status.details.bufferHealth ?? 0;
     nowPlayingBufferBar.style.width = `${bufferHealth * 100}%`;
     nowPlayingBufferBar.style.backgroundColor = bufferHealth < 0.5 ? '#ffd166' : '#1ec8ff';
+
+    // Spectral change meter: last window's distance vs the change threshold.
+    // Green = at/over threshold (firing range), amber = approaching, blue = same song.
+    if (nowPlayingSpectralBar) {
+      const distance = status.details.lastWindowDistance ?? 0;
+      const threshold = Math.max(0.01, diag.settings.changeThreshold || 0.35);
+      const ratio = Math.min(1, distance / threshold);
+      nowPlayingSpectralBar.style.width = `${ratio * 100}%`;
+      nowPlayingSpectralBar.style.backgroundColor =
+        ratio >= 1 ? '#4caf50' : ratio >= 0.5 ? '#ffd166' : '#1ec8ff';
+    }
   }
 
   if (diag.metrics.lastSuccessAt) {
@@ -11901,6 +12017,11 @@ const applyProject = async (project: VisualSynthProject) => {
 
   currentProject = applied.project;
   outputConfig = applied.outputConfig;
+
+  // Self-heal projects saved before now-playing overlays became global: clear
+  // scene scoping on the two managed overlay ids (matched by id, never by
+  // name) so the song title persists across scene changes.
+  migrateProjectNowPlayingOverlays(currentProject, nowPlayingSettings);
 
   initStylePresets();
   initPalettes();
@@ -12817,6 +12938,10 @@ nowPlayingProviderSelect.addEventListener('change', () => {
   syncNowPlayingProviderFields();
 });
 
+nowPlayingFreeShazamFirstInput.addEventListener('change', () => {
+  syncNowPlayingProviderFields();
+});
+
 nowPlayingMetadataEnabledInput.addEventListener('change', () => {
   syncNowPlayingProviderFields();
 });
@@ -12852,7 +12977,7 @@ nowPlayingTestBridgeButton.addEventListener('click', async () => {
 
   const label = [result.title, result.artist].filter(Boolean).join(' - ');
   nowPlayingTestStatus.textContent = label || 'Metadata bridge returned a track.';
-  await consumeNowPlayingResult(result, 'Metadata bridge');
+  await consumeNowPlayingResult(result, 'Metadata bridge', 'test');
 });
 
 nowPlayingOpenBridgeDocsButton.addEventListener('click', () => {

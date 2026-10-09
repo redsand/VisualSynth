@@ -94,7 +94,6 @@ const FFT_SIZE = 2048;
 const HOP_SIZE = 128;
 const FFT_OUT_BINS = FFT_SIZE / 2 + 1; // 1025
 const RING_SIZE = 256;
-const INV_32768 = 1 / 32768;
 
 // Frequency band Hz ranges
 const BAND_RANGES = [
@@ -188,6 +187,13 @@ export class ShazamSignatureGenerator {
   /**
    * Feed signed 16-bit mono PCM samples at 16 000 Hz.
    * Processes in HOP_SIZE (128) sample batches.
+   *
+   * Samples are stored RAW (int16 scale, not normalized to ±1). The
+   * magnitude pipeline below divides power by 2^17 and thresholds peaks at
+   * 1/64 — both constants come from the reference implementation, which
+   * operates on raw int16 values. Normalizing here made every magnitude
+   * ~2^30 too small, so the threshold rejected all bins and the fingerprint
+   * left with ZERO peaks — Shazam could never match anything.
    */
   feed(samples: Int16Array): void {
     let offset = 0;
@@ -195,7 +201,7 @@ export class ShazamSignatureGenerator {
       const remaining = Math.ceil((3.1 * 16000) - this.numSamplesIngested);
       const batch = Math.min(HOP_SIZE, samples.length - offset, remaining);
       for (let i = 0; i < batch; i++) {
-        this.sampleRing[this.ringWritePos] = samples[offset + i] * INV_32768;
+        this.sampleRing[this.ringWritePos] = samples[offset + i];
         this.ringWritePos = (this.ringWritePos + 1) & (FFT_SIZE - 1);
       }
       offset += batch;

@@ -8,7 +8,7 @@
 
 import type { MilkDropShaderData } from '../shared/project';
 import type { SessionHealth } from '../shared/sessionHealth';
-import type { AssetBindingDiagnostic } from './render/assetBinding';
+import type { SceneAssetDiagnostics } from './render/assetBinding';
 
 export interface RenderTelemetryState {
   timeMs: number;
@@ -217,5 +217,5 @@ export interface RenderState
    * Asset binding diagnostics for debugging render issues.
    * Shows which layers have resolved bindings, missing assets, etc.
    */
-  assetBindingDiagnostics?: AssetBindingDiagnostic[];
+  assetBindingDiagnostics?: SceneAssetDiagnostics;
 }

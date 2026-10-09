@@ -23,8 +23,18 @@ import { projectSchema } from '../src/shared/projectSchema';
 // Test Fixtures
 // ============================================================================
 
+// Canonical default layer transform (matches DEFAULT_PROJECT / shared/layers.ts fallback).
+const defaultTransform = { x: 0, y: 0, scale: 1, rotation: 0 };
+
+/**
+ * Complete an intentionally-minimal project fixture. Runtime values are
+ * unchanged; only the compile-time shape is filled in.
+ */
+const asProject = (fixture: Partial<VisualSynthProject>): VisualSynthProject => fixture as VisualSynthProject;
+
 /**
  * Create a project with multiple assets and layers with various binding states.
+ * Intentionally minimal — the zod schema fills defaults on deserialize.
  */
 const createTestProjectWithAssets = (): VisualSynthProject => {
   const assets: AssetItem[] = [
@@ -36,37 +46,36 @@ const createTestProjectWithAssets = (): VisualSynthProject => {
 
   const layers: LayerConfig[] = [
     // Layer with asset binding - should persist
-    { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', assetId: 'asset-texture-a' },
+    { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-texture-a' },
     // Layer with different asset binding - should persist
-    { id: 'layer-spectrum', name: 'Spectrum', role: 'support', enabled: true, opacity: 0.75, blendMode: 'add', assetId: 'asset-texture-b' },
+    { id: 'layer-spectrum', name: 'Spectrum', role: 'support', enabled: true, opacity: 0.75, blendMode: 'add', transform: { ...defaultTransform }, assetId: 'asset-texture-b' },
     // Layer with video asset - should persist
-    { id: 'layer-media', name: 'Media', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-video-clip' },
+    { id: 'layer-media', name: 'Media', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-video-clip' },
     // Layer with no asset binding - should persist with no-binding state
-    { id: 'layer-no-asset', name: 'Atmosphere Layer', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen' },
+    { id: 'layer-no-asset', name: 'Atmosphere Layer', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen', transform: { ...defaultTransform } },
     // Disabled layer with asset - asset binding should persist even if not rendered
-    { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', assetId: 'asset-texture-a' },
+    { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-texture-a' },
     // Layer with generator instead of asset - should persist
-    { id: 'layer-generator', name: 'Generator Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', generatorId: 'gen-plasma' }
+    { id: 'layer-generator', name: 'Generator Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, generatorId: 'gen-plasma' }
   ];
 
   const scenes: SceneConfig[] = [
     {
       id: 'scene-main',
       name: 'Main Scene',
-      layers: [...layers],
-      activeSceneId: 'scene-main'
+      layers: [...layers]
     },
     {
       id: 'scene-secondary',
       name: 'Secondary Scene',
       layers: [
-        { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', assetId: 'asset-texture-c' },
-        { id: 'layer-alt', name: 'Alt Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', generatorId: 'gen-vortex' }
+        { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-texture-c' },
+        { id: 'layer-alt', name: 'Alt Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, generatorId: 'gen-vortex' }
       ]
     }
   ];
 
-  return {
+  return asProject({
     version: 6,
     name: 'Asset Binding Test Project',
     category: 'test',
@@ -75,7 +84,7 @@ const createTestProjectWithAssets = (): VisualSynthProject => {
     assets,
     scenes,
     activeSceneId: 'scene-main'
-  };
+  });
 };
 
 // ============================================================================
@@ -212,7 +221,7 @@ describe('saveLoadRegression', () => {
 
   describe('missing asset handling', () => {
     it('preserves missing asset references as missing-asset status', () => {
-      const projectWithMissingAssets: VisualSynthProject = {
+      const projectWithMissingAssets = asProject({
         version: 6,
         name: 'Project with Missing Assets',
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -224,13 +233,13 @@ describe('saveLoadRegression', () => {
             id: 'scene-main',
             name: 'Main',
             layers: [
-              { id: 'layer-valid', name: 'Valid Layer', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-a' },
-              { id: 'layer-missing', name: 'Missing Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-does-not-exist' }
+              { id: 'layer-valid', name: 'Valid Layer', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-a' },
+              { id: 'layer-missing', name: 'Missing Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-does-not-exist' }
             ]
           }
         ],
         activeSceneId: 'scene-main'
-      };
+      });
 
       const serialized = serializeProject(projectWithMissingAssets);
       const deserialized = deserializeProject(serialized);
@@ -241,7 +250,7 @@ describe('saveLoadRegression', () => {
     });
 
     it('does not silently remove missing asset references', () => {
-      const projectWithMissingAssets: VisualSynthProject = {
+      const projectWithMissingAssets = asProject({
         version: 6,
         name: 'Project with Missing Assets',
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -251,12 +260,12 @@ describe('saveLoadRegression', () => {
             id: 'scene-main',
             name: 'Main',
             layers: [
-              { id: 'layer-orphan', name: 'Orphan Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-never-existed' }
+              { id: 'layer-orphan', name: 'Orphan Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-never-existed' }
             ]
           }
         ],
         activeSceneId: 'scene-main'
-      };
+      });
 
       const serialized = serializeProject(projectWithMissingAssets);
       const deserialized = deserializeProject(serialized);
@@ -269,7 +278,7 @@ describe('saveLoadRegression', () => {
 
   describe('cross-scene asset references', () => {
     it('preserves asset references across multiple scenes', () => {
-      const project: VisualSynthProject = {
+      const project = asProject({
         version: 6,
         name: 'Multi-Scene Project',
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -281,19 +290,19 @@ describe('saveLoadRegression', () => {
             id: 'scene-1',
             name: 'Scene 1',
             layers: [
-              { id: 'layer-1', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'shared-asset' }
+              { id: 'layer-1', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'shared-asset' }
             ]
           },
           {
             id: 'scene-2',
             name: 'Scene 2',
             layers: [
-              { id: 'layer-2', name: 'Layer 2', role: 'support', enabled: true, opacity: 1, blendMode: 'add', assetId: 'shared-asset' }
+              { id: 'layer-2', name: 'Layer 2', role: 'support', enabled: true, opacity: 1, blendMode: 'add', transform: { ...defaultTransform }, assetId: 'shared-asset' }
             ]
           }
         ],
         activeSceneId: 'scene-1'
-      };
+      });
 
       const serialized = serializeProject(project);
       const deserialized = deserializeProject(serialized);
@@ -365,7 +374,7 @@ describe('saveLoadRegression', () => {
 
   describe('edge cases', () => {
     it('handles project with minimal layers', () => {
-      const minimalProject: VisualSynthProject = {
+      const minimalProject = asProject({
         version: 6,
         name: 'Minimal',
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -377,12 +386,12 @@ describe('saveLoadRegression', () => {
             id: 'scene-1',
             name: 'Scene',
             layers: [
-              { id: 'layer-1', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen' }
+              { id: 'layer-1', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform } }
             ]
           }
         ],
         activeSceneId: 'scene-1'
-      };
+      });
 
       const serialized = serializeProject(minimalProject);
       const deserialized = deserializeProject(serialized);
@@ -392,7 +401,7 @@ describe('saveLoadRegression', () => {
     });
 
     it('handles project with no asset bindings', () => {
-      const project: VisualSynthProject = {
+      const project = asProject({
         version: 6,
         name: 'No Bindings',
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -404,12 +413,12 @@ describe('saveLoadRegression', () => {
             id: 'scene-1',
             name: 'Scene 1',
             layers: [
-              { id: 'layer-1', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen' }
+              { id: 'layer-1', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform } }
             ]
           }
         ],
         activeSceneId: 'scene-1'
-      };
+      });
 
       const serialized = serializeProject(project);
       const deserialized = deserializeProject(serialized);
@@ -419,7 +428,7 @@ describe('saveLoadRegression', () => {
     });
 
     it('handles duplicate layer IDs across scenes correctly', () => {
-      const project: VisualSynthProject = {
+      const project = asProject({
         version: 6,
         name: 'Duplicate IDs',
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -432,19 +441,19 @@ describe('saveLoadRegression', () => {
             id: 'scene-1',
             name: 'Scene 1',
             layers: [
-              { id: 'layer-shared', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-a' }
+              { id: 'layer-shared', name: 'Layer 1', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-a' }
             ]
           },
           {
             id: 'scene-2',
             name: 'Scene 2',
             layers: [
-              { id: 'layer-shared', name: 'Layer 2', role: 'support', enabled: true, opacity: 1, blendMode: 'add', assetId: 'asset-b' }
+              { id: 'layer-shared', name: 'Layer 2', role: 'support', enabled: true, opacity: 1, blendMode: 'add', transform: { ...defaultTransform }, assetId: 'asset-b' }
             ]
           }
         ],
         activeSceneId: 'scene-1'
-      };
+      });
 
       const serialized = serializeProject(project);
       const deserialized = deserializeProject(serialized);
@@ -471,7 +480,7 @@ describe('schema validation', () => {
   });
 
   it('accepts valid project with all asset binding types', () => {
-    const validProject: VisualSynthProject = {
+    const validProject = asProject({
       version: 6,
       name: 'Valid Project',
       createdAt: '2024-01-01T00:00:00.000Z',
@@ -483,14 +492,14 @@ describe('schema validation', () => {
           id: 'scene-1',
           name: 'Scene',
           layers: [
-            { id: 'layer-bound', name: 'Bound', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-1' },
-            { id: 'layer-gen', name: 'Gen', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', generatorId: 'gen-test' },
-            { id: 'layer-none', name: 'None', role: 'atmosphere', enabled: true, opacity: 1, blendMode: 'screen' }
+            { id: 'layer-bound', name: 'Bound', role: 'core', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-1' },
+            { id: 'layer-gen', name: 'Gen', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, generatorId: 'gen-test' },
+            { id: 'layer-none', name: 'None', role: 'atmosphere', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform } }
           ]
         }
       ],
       activeSceneId: 'scene-1'
-    };
+    });
 
     expect(() => serializeProject(validProject)).not.toThrow();
   });

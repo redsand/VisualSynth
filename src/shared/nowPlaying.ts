@@ -22,6 +22,8 @@ export interface NowPlayingRecognitionResponse {
   artworkUrl?: string;
   artistImageUrl?: string;
   confidence?: number;
+  /** Offset of the matched sample within the submitted clip (ACRCloud) */
+  timeOffsetMs?: number;
   provider?: string;
   raw?: unknown;
   error?: string;
@@ -34,6 +36,13 @@ export interface NowPlayingSettings {
   metadataSourceSecret: string;
   metadataSourcePollMs: number;
   provider: 'custom' | 'audd' | 'acrcloud' | 'shazam';
+  /**
+   * Try the free Shazam path before the configured provider when a song
+   * change is detected. A successful Shazam match costs zero paid
+   * (AudD/ACRCloud) quota; the configured provider is only hit when Shazam
+   * fails or returns no match.
+   */
+  freeShazamFirst: boolean;
   endpoint: string;
   apiKey: string;
   apiSecret: string;
@@ -60,6 +69,7 @@ export const DEFAULT_NOW_PLAYING_SETTINGS: NowPlayingSettings = {
   metadataSourceSecret: '',
   metadataSourcePollMs: 1500,
   provider: 'custom',
+  freeShazamFirst: true,
   endpoint: '',
   apiKey: '',
   apiSecret: '',
@@ -97,6 +107,9 @@ export const normalizeNowPlayingSettings = (
 export const isNowPlayingLookupConfigured = (settings: NowPlayingSettings): boolean =>
   settings.enabled &&
   (
+    // Free-first Shazam needs no credentials, so recognition is possible
+    // even when the configured paid provider has empty keys.
+    settings.freeShazamFirst ||
     (settings.provider === 'custom' && settings.endpoint.trim().length > 0) ||
     (settings.provider === 'audd' && settings.apiKey.trim().length > 0) ||
     (

@@ -15,6 +15,7 @@ import {
   createDefaultDeterministicPrng
 } from '../src/shared/deterministicPrng';
 import { createMilkwaveBuiltinState } from '../src/renderer/milkwave/runtime/milkwaveBuiltins';
+import type { RenderState } from '../src/renderer/renderState';
 import {
   createNodeInstance,
   resetInstanceIdCounter,
@@ -103,13 +104,15 @@ describe('deterministicRendering', () => {
 
   describe('milkwave builtin determinism', () => {
     it('createMilkwaveBuiltinState uses deterministic random values', () => {
+      // Minimal audio-shaped render state — only the fields the milkwave
+      // builtins read — cast to RenderState.
       const dummyRenderState = {
         rms: 0.5,
         bass: 0.3,
         mid: 0.4,
         treb: 0.2,
         spectrum: new Float32Array(64)
-      };
+      } as RenderState;
 
       // The PRNG is seeded at module load time and advances between calls
       // So consecutive calls will produce different values in the sequence

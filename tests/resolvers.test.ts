@@ -35,33 +35,45 @@ import {
   type LayerAssetResolution
 } from '../src/shared/resolvers';
 import { createPrng, DEFAULT_DETERMINISTIC_SEED } from '../src/shared/deterministicPrng';
+import type { VisualSynthProject, SceneConfig, AssetItem } from '../src/shared/project';
 
-// Helper to create a test project with scenes, layers, and assets
+/**
+ * Complete an intentionally-minimal project fixture. Runtime values are
+ * unchanged; only the compile-time shape is filled in.
+ */
+const asProject = (fixture: Partial<VisualSynthProject>): VisualSynthProject => fixture as VisualSynthProject;
+
+// Canonical default layer transform (matches DEFAULT_PROJECT / shared/layers.ts fallback).
+const defaultTransform = { x: 0, y: 0, scale: 1, rotation: 0 };
+
+// Helper to create a test project with scenes, layers, and assets.
+// The project is an intentionally minimal fixture — only the fields the
+// resolvers read — cast to VisualSynthProject.
 const createTestProject = () => {
-  const assets = [
-    { id: 'asset-1', name: 'Texture A', kind: 'texture' as const, tags: [], addedAt: '2024-01-01' },
-    { id: 'asset-2', name: 'Texture B', kind: 'texture' as const, tags: [], addedAt: '2024-01-01' },
-    { id: 'asset-missing', name: 'Missing Asset', kind: 'texture' as const, tags: [], addedAt: '2024-01-01' },
-    { id: 'asset-video', name: 'Video Clip', kind: 'video' as const, tags: [], addedAt: '2024-01-01' }
+  const assets: AssetItem[] = [
+    { id: 'asset-1', name: 'Texture A', kind: 'texture', tags: [], addedAt: '2024-01-01' },
+    { id: 'asset-2', name: 'Texture B', kind: 'texture', tags: [], addedAt: '2024-01-01' },
+    { id: 'asset-missing', name: 'Missing Asset', kind: 'texture', tags: [], addedAt: '2024-01-01' },
+    { id: 'asset-video', name: 'Video Clip', kind: 'video', tags: [], addedAt: '2024-01-01' }
   ];
 
-  const scenes = [
+  const scenes: SceneConfig[] = [
     {
       id: 'scene-1',
       name: 'Main Scene',
       layers: [
-        { id: 'layer-with-asset', name: 'Layer With Asset', role: 'core', enabled: true, opacity: 1, blendMode: 'normal', assetId: 'asset-1' },
-        { id: 'layer-with-asset-2', name: 'Layer With Asset 2', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', assetId: 'asset-2' },
-        { id: 'layer-no-binding', name: 'Layer No Binding', role: 'atmosphere', enabled: true, opacity: 1, blendMode: 'normal' },
-        { id: 'layer-with-generator', name: 'Layer With Generator', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', generatorId: 'gen-plasma' },
-        { id: 'layer-missing-asset', name: 'Layer Missing Asset', role: 'core', enabled: true, opacity: 1, blendMode: 'normal', assetId: 'asset-does-not-exist' }
+        { id: 'layer-with-asset', name: 'Layer With Asset', role: 'core', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-1' },
+        { id: 'layer-with-asset-2', name: 'Layer With Asset 2', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-2' },
+        { id: 'layer-no-binding', name: 'Layer No Binding', role: 'atmosphere', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform } },
+        { id: 'layer-with-generator', name: 'Layer With Generator', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, generatorId: 'gen-plasma' },
+        { id: 'layer-missing-asset', name: 'Layer Missing Asset', role: 'core', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-does-not-exist' }
       ]
     },
     {
       id: 'scene-2',
       name: 'Secondary Scene',
       layers: [
-        { id: 'layer-scene2', name: 'Layer Scene 2', role: 'core', enabled: true, opacity: 1, blendMode: 'normal', assetId: 'asset-video' }
+        { id: 'layer-scene2', name: 'Layer Scene 2', role: 'core', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-video' }
       ]
     }
   ];
@@ -69,13 +81,13 @@ const createTestProject = () => {
   return {
     assets,
     scenes,
-    project: {
+    project: asProject({
       version: 6,
       name: 'Test Project',
       assets,
       scenes,
       activeSceneId: 'scene-1'
-    }
+    })
   };
 };
 
@@ -108,12 +120,12 @@ describe('resolvers', () => {
     });
 
     it('returns not-found when scenes array is empty', () => {
-      const project = {
+      const project = asProject({
         version: 6,
         name: 'Empty Project',
         assets: [],
         scenes: []
-      };
+      });
       const result = resolveScene(project, 'scene-1');
       expect(result.status).toBe('not-found');
     });
@@ -128,12 +140,12 @@ describe('resolvers', () => {
     });
 
     it('returns not-found when activeSceneId is missing', () => {
-      const project = {
+      const project = asProject({
         version: 6,
         name: 'No Active Scene',
         assets: [],
         scenes: [{ id: 'scene-1', name: 'Scene 1', layers: [] }]
-      };
+      });
       const result = resolveActiveScene(project);
       expect(result.status).toBe('not-found');
       expect(result.reason).toBe('No active scene ID');
@@ -209,12 +221,12 @@ describe('resolvers', () => {
     });
 
     it('returns not-found when no active scene', () => {
-      const project = {
+      const project = asProject({
         version: 6,
         name: 'No Active',
         assets: [],
         scenes: []
-      };
+      });
       const result = resolveActiveSceneLayer(project, 'layer-with-asset');
       expect(result.status).toBe('not-found');
       expect(result.reason).toBe('No active scene');

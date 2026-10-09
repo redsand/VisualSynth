@@ -182,6 +182,44 @@ describe('identifyNowPlaying', () => {
     expect(result.provider).toBe('ACRCloud');
   });
 
+  it('passes through ACRCloud score and sample offset as confidence/timeOffsetMs', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: { code: 0, msg: 'Success' },
+        metadata: {
+          music: [
+            {
+              title: 'One More Time',
+              album: { name: 'Discovery' },
+              artists: [{ name: 'Daft Punk' }],
+              score: '86',
+              sample_begin_time_ms: 3200
+            }
+          ]
+        }
+      })
+    });
+
+    const result = await identifyNowPlaying(
+      {
+        provider: 'acrcloud',
+        host: 'identify-eu-west-1.acrcloud.com',
+        apiKey: 'access-key',
+        apiSecret: 'access-secret',
+        audioBase64: 'YWJj',
+        mimeType: 'audio/webm',
+        durationMs: 12000,
+        detectedAt: 123
+      },
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(result.matched).toBe(true);
+    expect(result.confidence).toBeCloseTo(0.86);
+    expect(result.timeOffsetMs).toBe(3200);
+  });
+
   it('shortens ACRCloud no-match responses', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,

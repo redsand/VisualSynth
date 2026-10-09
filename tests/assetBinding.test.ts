@@ -27,30 +27,33 @@ import {
 } from '../src/renderer/render/assetBinding';
 import type { VisualSynthProject, SceneConfig, LayerConfig, AssetItem } from '../src/shared/project';
 
-// Helper to create a test project
+// Canonical default layer transform (matches DEFAULT_PROJECT / shared/layers.ts fallback).
+const defaultTransform = { x: 0, y: 0, scale: 1, rotation: 0 };
+
+// Helper to create a test project.
+// Intentionally minimal — only the fields the resolver/diagnostic code reads.
 const createTestProject = (): VisualSynthProject => {
-  const assets = [
+  const assets: AssetItem[] = [
     { id: 'asset-a', name: 'Texture A', kind: 'texture', tags: [], addedAt: '2024-01-01' },
     { id: 'asset-b', name: 'Texture B', kind: 'texture', tags: [], addedAt: '2024-01-01' },
     { id: 'asset-video', name: 'Video Clip', kind: 'video', tags: [], addedAt: '2024-01-01' }
   ];
 
   const layers: LayerConfig[] = [
-    { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', assetId: 'asset-a' },
-    { id: 'layer-spectrum', name: 'Spectrum', role: 'support', enabled: true, opacity: 0.75, blendMode: 'add', assetId: 'asset-b' },
-    { id: 'layer-media', name: 'Media', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', assetId: 'asset-video' },
-    { id: 'layer-no-asset', name: 'No Asset', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen' },
-    { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', assetId: 'asset-a' },
-    { id: 'layer-missing', name: 'Missing Asset Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', assetId: 'asset-does-not-exist' },
-    { id: 'layer-generator', name: 'Generator Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', generatorId: 'gen-plasma' }
+    { id: 'layer-plasma', name: 'Plasma', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-a' },
+    { id: 'layer-spectrum', name: 'Spectrum', role: 'support', enabled: true, opacity: 0.75, blendMode: 'add', transform: { ...defaultTransform }, assetId: 'asset-b' },
+    { id: 'layer-media', name: 'Media', role: 'support', enabled: true, opacity: 1, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-video' },
+    { id: 'layer-no-asset', name: 'No Asset', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen', transform: { ...defaultTransform } },
+    { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-a' },
+    { id: 'layer-missing', name: 'Missing Asset Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-does-not-exist' },
+    { id: 'layer-generator', name: 'Generator Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, generatorId: 'gen-plasma' }
   ];
 
   const scenes: SceneConfig[] = [
     {
       id: 'scene-main',
       name: 'Main Scene',
-      layers: [...layers],
-      activeSceneId: 'scene-main'
+      layers: [...layers]
     }
   ];
 
@@ -60,7 +63,7 @@ const createTestProject = (): VisualSynthProject => {
     assets,
     scenes,
     activeSceneId: 'scene-main'
-  };
+  } as VisualSynthProject;
 };
 
 describe('assetBindingDiagnostics', () => {
@@ -260,7 +263,7 @@ describe('assetBindingDiagnostics', () => {
         path: '/path/to/texture.png',
         width: 1920,
         height: 1080
-      };
+      } as AssetItem;
 
       const result = serializeAssetForOutput(asset);
 
@@ -362,13 +365,13 @@ describe('layerVisibilityDiagnostic', () => {
     ];
 
     const layers: LayerConfig[] = [
-      { id: 'layer-visible', name: 'Visible Layer', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', assetId: 'asset-good' },
-      { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', assetId: 'asset-good' },
-      { id: 'layer-zero-opacity', name: 'Zero Opacity', role: 'support', enabled: true, opacity: 0, blendMode: 'screen', assetId: 'asset-good' },
-      { id: 'layer-no-asset', name: 'No Asset', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen' },
-      { id: 'layer-missing-asset', name: 'Missing Asset', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', assetId: 'asset-does-not-exist' },
-      { id: 'layer-file-missing', name: 'File Missing', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', assetId: 'asset-missing' },
-      { id: 'layer-generator', name: 'Generator Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', generatorId: 'gen-plasma' }
+      { id: 'layer-visible', name: 'Visible Layer', role: 'core', enabled: true, opacity: 0.75, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-good' },
+      { id: 'layer-disabled', name: 'Disabled Layer', role: 'support', enabled: false, opacity: 0.5, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-good' },
+      { id: 'layer-zero-opacity', name: 'Zero Opacity', role: 'support', enabled: true, opacity: 0, blendMode: 'screen', transform: { ...defaultTransform }, assetId: 'asset-good' },
+      { id: 'layer-no-asset', name: 'No Asset', role: 'atmosphere', enabled: true, opacity: 0.8, blendMode: 'screen', transform: { ...defaultTransform } },
+      { id: 'layer-missing-asset', name: 'Missing Asset', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-does-not-exist' },
+      { id: 'layer-file-missing', name: 'File Missing', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, assetId: 'asset-missing' },
+      { id: 'layer-generator', name: 'Generator Layer', role: 'support', enabled: true, opacity: 1, blendMode: 'normal', transform: { ...defaultTransform }, generatorId: 'gen-plasma' }
     ];
 
     return {
@@ -379,11 +382,10 @@ describe('layerVisibilityDiagnostic', () => {
       scenes: [{
         id: 'scene-test',
         name: 'Test Scene',
-        layers,
-        activeSceneId: 'scene-test'
+        layers
       }],
       activeSceneId: 'scene-test'
-    };
+    } as VisualSynthProject;
   };
 
   describe('getSeverityDescription', () => {
