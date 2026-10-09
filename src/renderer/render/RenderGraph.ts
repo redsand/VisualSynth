@@ -4,20 +4,26 @@ import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
 import {
   DEFAULT_PROJECT,
+  DEFAULT_DETERMINISTIC_SEED,
   LayerConfig,
   type VisualSynthProject,
   type EffectConfig,
   type FxScope
 } from '../../shared/project';
+import { createPrng } from '../../shared/deterministicPrng';
 import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
+import { getSceneAssetDiagnostics, getRenderableLayers } from './assetBinding';
 import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
 import { NodeInstance } from '../../shared/visualNode';
 import { EDM_DROP_COLLECTION, getEdmPreset } from '../sdf/presets/edmPresets';
 import { registerSdfNodes, sdfRegistry } from '../sdf/nodes';
+// Deterministic PRNG for reproducible rendering
+const renderGraphPrng = createPrng(DEFAULT_DETERMINISTIC_SEED);
+
 import {
   SceneMacro,
   MacroExecutionState,
@@ -243,7 +249,7 @@ export class RenderGraph {
     strength: 0,
     polarity: 1,
     active: false,
-    phase: Math.random() * Math.PI * 2
+    phase: renderGraphPrng() * Math.PI * 2
   }));
   private gravityPositions = new Float32Array(16);
   private gravityStrengths = new Float32Array(8);
@@ -264,7 +270,7 @@ export class RenderGraph {
     y: 0,
     radius: 0.2,
     active: false,
-    phase: Math.random() * Math.PI * 2
+    phase: renderGraphPrng() * Math.PI * 2
   }));
   private portalPositions = new Float32Array(8);
   private portalRadii = new Float32Array(4);
@@ -1029,15 +1035,15 @@ export class RenderGraph {
     const state = this.store.getState();
     const index = this.portals.findIndex((portal) => !portal.active);
     const slot = index === -1 ? 0 : index;
-    const x = (Math.random() - 0.5) * 1.2;
-    const y = (Math.random() - 0.5) * 1.2;
+    const x = (renderGraphPrng() - 0.5) * 1.2;
+    const y = (renderGraphPrng() - 0.5) * 1.2;
     this.portals[slot] = {
       ...this.portals[slot],
       x,
       y,
       radius: 0.18 + (state.audio.bands[2] ?? 0) * 0.35,
       active: true,
-      phase: Math.random() * Math.PI * 2
+      phase: renderGraphPrng() * Math.PI * 2
     };
   }
 
@@ -2152,7 +2158,9 @@ export class RenderGraph {
       shapeBurstActives: this.shapeBurstActives,
       milkDropShaderData: activeScene?._shaderData ?? null,
       genUniforms,
-      ...scopedFxUniforms
+      ...scopedFxUniforms,
+      // Asset binding diagnostics
+      assetBindingDiagnostics: getSceneAssetDiagnostics(state.project, activeScene)
     };
 
     this.updateDebug(activeScene, canvasSize, renderState);

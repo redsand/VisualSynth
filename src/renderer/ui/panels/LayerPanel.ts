@@ -1,11 +1,13 @@
 import { removeLayer as removeLayerFromScene } from '../../../shared/layers';
-import type { AssetItem, LayerConfig } from '../../../shared/project';
+import type { AssetItem, LayerConfig, VisualSynthProject } from '../../../shared/project';
 import type { Store } from '../../state/store';
 import { actions } from '../../state/actions';
 import { GENERATORS, GeneratorId, getVisibleGenerators, toggleFavorite, updateRecents, supportsAsset } from '../../../shared/generatorLibrary';
 import { assetService } from '../assetService';
 import { setStatus } from '../../state/events';
 import type { CustomShaderBlock } from '../../../shared/customShaderBlock';
+import { resolveLayerAsset, type LayerAssetResolution } from '../../../shared/resolvers';
+import { getLayerVisibilityDiagnostic, getSeverityClass } from '../../render/assetBinding';
 
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media';
 
@@ -61,6 +63,48 @@ export const createLayerPanel = ({
   const formatAssetLabel = (asset: AssetItem) => {
     const status = asset.missing ? ' [MISSING]' : '';
     return `${asset.name} (${asset.kind})${status}`;
+  };
+
+  // Get status chip text and class from LayerAssetResolution
+  const getAssetStatusText = (result: LayerAssetResolution): { text: string; class: string } => {
+    switch (result.status) {
+      case 'resolved':
+        return { text: result.asset?.name ?? '', class: 'status-bound' };
+      case 'no-binding':
+        return { text: 'No asset assigned', class: 'status-none' };
+      case 'missing-asset':
+        return { text: `Missing: ${result.assetId}`, class: 'status-missing' };
+      case 'not-found':
+        return { text: 'Layer not found', class: 'status-error' };
+      case 'generator-bound':
+        return { text: `Gen: ${result.generatorId}`, class: 'status-generator' };
+      default:
+        return { text: '', class: '' };
+    }
+  };
+
+  // Create status chip element for a layer using the visibility diagnostic
+  const createStatusChip = (project: VisualSynthProject, sceneId: string, layerId: string): HTMLDivElement | null => {
+    const diagnostic = getLayerVisibilityDiagnostic(project, sceneId, layerId);
+
+    if (!diagnostic) return null;
+
+    // Create the chip element
+    const chip = document.createElement('div');
+    chip.className = `layer-status-chip ${getSeverityClass(diagnostic.severity)}`;
+    chip.textContent = diagnostic.message;
+
+    // Add tooltip with more details
+    if (diagnostic.message) {
+      chip.title = diagnostic.message;
+    }
+
+    // Add specific class for non-visible layers to style appropriately
+    if (!diagnostic.visible) {
+      chip.classList.add('layer-not-visible');
+    }
+
+    return chip;
   };
 
   const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, forceRefresh = false) => {
@@ -335,6 +379,13 @@ export const createLayerPanel = ({
       }
 
       row.appendChild(assetControl);
+
+      // Add status chip after asset control to show binding status
+      const project = store.getState().project;
+      const statusChip = createStatusChip(project, scene.id, layer.id);
+      if (statusChip) {
+        row.appendChild(statusChip);
+      }
 
       // Find custom shader block for this layer (if any)
       const customBlock = layer.generatorId

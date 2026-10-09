@@ -11,6 +11,10 @@ import { bindMilkwaveBuiltins } from './milkwave/runtime/milkwaveBuiltins';
 import { bindMilkwaveSamplers } from './milkwave/runtime/milkwaveSamplers';
 import { createMilkwaveShapeRenderer } from './milkwave/runtime/milkwaveShapeRenderer';
 import { createMilkwaveWaveRenderer } from './milkwave/runtime/milkwaveWaveRenderer';
+import { createPrng, DEFAULT_DETERMINISTIC_SEED } from '../shared/deterministicPrng';
+
+// Deterministic PRNG for reproducible rendering
+const milkdropPrng = createPrng(DEFAULT_DETERMINISTIC_SEED);
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -858,7 +862,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   const customVars: Record<string, number> = {};
   const megabufData: Record<number, number> = {};
   // Random preset value — set once per preset load, not per frame
-  let randomPreset = [Math.random(), Math.random()];
+  // Use deterministic PRNG for reproducibility
+  let randomPreset = [milkdropPrng(), milkdropPrng()];
   const gmegabufData: Record<number, number> = {};
   let perFrameInitRun = false;
   const shapeRenderer = createMilkwaveShapeRenderer({
@@ -1201,7 +1206,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     Object.keys(customVars).forEach(k => delete customVars[k]);
     variables.frame = 0;
     perFrameInitRun = false;
-    randomPreset = [Math.random(), Math.random()];
+    randomPreset = [milkdropPrng(), milkdropPrng()];
 
     // Clean up old custom textures
     customTextures.forEach(t => { if (t) { untrackTexture(t); gl.deleteTexture(t); } });
@@ -1667,7 +1672,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         trebAtt: variables.treb_att,
         qVars,
         randomPreset: randomPreset as [number, number],
-        randomFrame: [Math.random(), Math.random(), Math.random(), Math.random()],
+        randomFrame: [milkdropPrng(), milkdropPrng(), milkdropPrng(), milkdropPrng()],
         mouseX,
         mouseY,
         isMouseDown,

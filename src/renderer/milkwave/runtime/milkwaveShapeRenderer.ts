@@ -1,4 +1,9 @@
 import type { MilkShapeConfig } from '../../../shared/milkwaveParser';
+import { createPrng, DEFAULT_DETERMINISTIC_SEED } from '../../../shared/deterministicPrng';
+
+// Deterministic PRNG for reproducible rendering
+const shapePrng = createPrng(DEFAULT_DETERMINISTIC_SEED);
+
 import {
   buildMilkwaveShapeFan,
   createMilkwaveShapePlan
@@ -243,7 +248,7 @@ const createBaseShapeContext = ({
     int: Math.trunc,
     sqr: (a: number) => a * a,
     frac: (x: number) => x - Math.trunc(x),
-    rand: (max: number) => Math.random() * max,
+    rand: (max: number) => shapePrng() * max,
     bor: (a: number, b: number) => (a || b ? 1 : 0),
     band: (a: number, b: number) => (a && b ? 1 : 0),
     bnot: (a: number) => (a ? 0 : 1),

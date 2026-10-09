@@ -1,6 +1,10 @@
-import { DEFAULT_OUTPUT_CONFIG, DEFAULT_PROJECT, OutputConfig, VisualSynthProject } from '../../shared/project';
+import { DEFAULT_OUTPUT_CONFIG, DEFAULT_PROJECT, DEFAULT_DETERMINISTIC_SEED, OutputConfig, VisualSynthProject } from '../../shared/project';
+import { createPrng } from '../../shared/deterministicPrng';
 import type { BpmRange } from '../../shared/bpm';
 import type { UiMode } from '../../shared/uiModes';
+
+// Deterministic PRNG for reproducible rendering
+const storePrng = createPrng(DEFAULT_DETERMINISTIC_SEED);
 
 export interface AudioState {
   rms: number;
@@ -169,7 +173,7 @@ export const createInitialState = (): AppState => ({
     gravityFixedIndex: 0,
     lastGravityIndex: -1,
     glyphMode: 0,
-    glyphSeed: Math.random() * 1000,
+    glyphSeed: storePrng() * 1000,
     glyphBeatPulse: 0,
     crystalMode: 0,
     crystalBrittleness: 0.4,
@@ -183,7 +187,7 @@ export const createInitialState = (): AppState => ({
     weatherMode: 0,
     weatherIntensity: 0.6,
     portalShift: 0,
-    portalSeed: Math.random() * 1000,
+    portalSeed: storePrng() * 1000,
     oscilloMode: 0,
     oscilloFreeze: 0,
     oscilloRotate: 0

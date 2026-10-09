@@ -10,6 +10,7 @@ import {
   gpuCostEstimate
 } from './visualNode';
 import { getNodeById, FX_CATALOG } from './fxCatalog';
+import { createPrng, DEFAULT_DETERMINISTIC_SEED } from './deterministicPrng';
 
 /**
  * Render Graph Implementation
@@ -23,6 +24,37 @@ import { getNodeById, FX_CATALOG } from './fxCatalog';
  */
 
 // ============================================================================
+// Deterministic Instance ID Generator
+// ============================================================================
+// Uses a counter instead of Date.now() + Math.random() for reproducibility
+// When determinism is needed, instance IDs should be generated from a seed
+
+let instanceIdCounter = 0;
+
+/**
+ * Generate a deterministic instance ID based on node ID and a counter
+ * For determinism, ensure instanceIdCounter is reset before each render
+ */
+export const generateInstanceId = (nodeId: string): string => {
+  const id = instanceIdCounter++;
+  return `${nodeId}-${id}`;
+};
+
+/**
+ * Reset the instance ID counter (for determinism between runs)
+ */
+export const resetInstanceIdCounter = (): void => {
+  instanceIdCounter = 0;
+};
+
+/**
+ * Set the instance ID counter (for determinism between runs)
+ */
+export const setInstanceIdCounter = (value: number): void => {
+  instanceIdCounter = value;
+};
+
+// ============================================================================
 // Graph Building & Validation
 // ============================================================================
 
@@ -33,12 +65,17 @@ export interface GraphBuildResult {
   warnings: string[];
 }
 
+/**
+ * Create a node instance with a deterministic instance ID
+ * If an instanceId is provided, it will be used directly
+ * Otherwise, a counter-based ID is generated for determinism
+ */
 export const createNodeInstance = (
   node: VisualNode,
   instanceId?: string
 ): NodeInstance => ({
   nodeId: node.id,
-  instanceId: instanceId || `${node.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  instanceId: instanceId || generateInstanceId(node.id),
   parameterValues: Object.fromEntries(
     node.parameters.map((p) => [p.id, p.defaultValue])
   ),
@@ -151,7 +188,7 @@ export const buildRenderGraph = (
   }
 
   const graph: RenderGraph = {
-    id: `graph-${Date.now()}`,
+    id: `graph-${instanceIdCounter}`, // Use counter for determinism
     name: 'Render Graph',
     nodes,
     connections,
@@ -266,6 +303,10 @@ export interface SendReturn {
   wetAmount: number;
 }
 
+/**
+ * Create a SendReturn with a deterministic ID
+ * The counter must be reset between runs for determinism
+ */
 export const createSendReturn = (
   name: string,
   sourceNodeId: string,
@@ -275,7 +316,7 @@ export const createSendReturn = (
   returnInputId: string,
   wetAmount = 1.0
 ): SendReturn => ({
-  id: `send-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  id: `send-${instanceIdCounter++}`,
   name,
   sourceNodeId,
   sourceOutputId,
@@ -352,6 +393,10 @@ export interface FeedbackTap {
   delay: number;  // Frames of delay (0 = previous frame)
 }
 
+/**
+ * Create a FeedbackTap with a deterministic ID
+ * The counter must be reset between runs for determinism
+ */
 export const createFeedbackTap = (
   sourceNodeId: string,
   sourceOutputId: string,
@@ -359,7 +404,7 @@ export const createFeedbackTap = (
   targetInputId: string,
   delay = 0
 ): FeedbackTap => ({
-  id: `feedback-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  id: `feedback-${instanceIdCounter++}`,
   sourceNodeId,
   sourceOutputId,
   targetNodeId,
@@ -417,7 +462,7 @@ export const allocateFBO = (
   }
 
   // Create new FBO entry (actual WebGL resources created by renderer)
-  const id = `fbo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = `fbo-${instanceIdCounter++}`;
   pool.fbos.set(id, {
     id,
     framebuffer: null,
@@ -474,7 +519,7 @@ export const allocateTexture = (
     }
   }
 
-  const id = `tex-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = `tex-${instanceIdCounter++}`;
   pool.textures.set(id, {
     id,
     texture: null,

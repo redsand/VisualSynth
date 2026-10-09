@@ -2,6 +2,10 @@ import type { RenderState } from '../glRenderer';
 import type { AssetItem, OverlayConfig, SceneConfig, VisualSynthProject } from '../../shared/project';
 import type { CustomShaderBlock } from '../../shared/customShaderBlock';
 import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
+import {
+  resolveSceneAssetBindings,
+  type ResolutionStatus
+} from '../../shared/resolvers';
 
 type ExcludedOutputField = 'sdfScene' | 'debugTint';
 type AssetLayerId = 'layer-plasma' | 'layer-spectrum' | 'layer-media' | 'gen-asset-vortex' | 'gen-asset-slices' | 'gen-asset-polar' | 'gen-asset-mosaic' | 'gen-asset-ripple' | 'gen-asset-scatter' | 'gen-asset-echo';
@@ -76,15 +80,25 @@ const serializeAssetForOutput = (asset: AssetItem | null): SerializedOutputAsset
       }
     : null;
 
+/**
+ * Resolve and serialize an asset binding for output using canonical resolver.
+ * Returns null for layers that cannot render (no binding, missing asset, generator-bound).
+ */
 const resolveLayerAsset = (
   project: VisualSynthProject,
   scene: SceneConfig | undefined,
   layerId: AssetLayerId
 ): SerializedOutputAsset | null => {
-  const layer = scene?.layers.find((candidate) => candidate.id === layerId);
-  if (!layer?.assetId) return null;
-  const asset = project.assets.find((item) => item.id === layer.assetId) ?? null;
-  return serializeAssetForOutput(asset);
+  if (!scene) return null;
+
+  const bindings = resolveSceneAssetBindings(project, scene.id);
+  const binding = bindings[layerId];
+
+  if (binding?.status !== 'resolved' || !binding.asset) {
+    return null;
+  }
+
+  return serializeAssetForOutput(binding.asset);
 };
 
 const buildCustomBlocksHash = (customBlocks: CustomShaderBlock[]): string =>

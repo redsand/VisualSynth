@@ -1,4 +1,8 @@
 import type { RenderState } from '../../renderState';
+import { createPrng, DEFAULT_DETERMINISTIC_SEED } from '../../../shared/deterministicPrng';
+
+// Deterministic PRNG for reproducible rendering
+const milkwavePrng = createPrng(DEFAULT_DETERMINISTIC_SEED);
 
 export interface MilkwaveBuiltinState {
   timeSeconds: number;
@@ -219,5 +223,5 @@ export const createMilkwaveBuiltinState = ({
   trebAtt: renderState.rms,
   qVars,
   randomPreset,
-  randomFrame: [Math.random(), Math.random(), Math.random(), Math.random()]
+  randomFrame: [milkwavePrng(), milkwavePrng(), milkwavePrng(), milkwavePrng()]
 });

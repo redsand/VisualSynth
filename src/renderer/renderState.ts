@@ -8,6 +8,7 @@
 
 import type { MilkDropShaderData } from '../shared/project';
 import type { SessionHealth } from '../shared/sessionHealth';
+import type { AssetBindingDiagnostic } from './render/assetBinding';
 
 export interface RenderTelemetryState {
   timeMs: number;
@@ -201,4 +202,10 @@ export interface RenderState
    * Replaces all explicit per-generator properties.
    */
   genUniforms: Record<string, number>;
+
+  /**
+   * Asset binding diagnostics for debugging render issues.
+   * Shows which layers have resolved bindings, missing assets, etc.
+   */
+  assetBindingDiagnostics?: AssetBindingDiagnostic[];
 }

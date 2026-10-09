@@ -1,0 +1,1110 @@
+{
+  "version": 6,
+  "metadata": {
+    "version": 6,
+    "name": "Selena",
+    "createdAt": "2026-04-10T19:52:06.564Z",
+    "updatedAt": "2026-04-10T19:52:06.564Z",
+    "category": "Scene Preset",
+    "compatibility": {
+      "minVersion": "1.4.0"
+    },
+    "presetType": "scene",
+    "intendedMusicStyle": "Any",
+    "visualIntentTags": [],
+    "colorChemistry": [
+      "analog"
+    ],
+    "defaultTransition": {
+      "durationMs": 600,
+      "curve": "easeInOut",
+      "type": "fade"
+    },
+    "activeModeId": "mode-performance",
+    "activeEngineId": "engine-none"
+  },
+  "scenes": [
+    {
+      "id": "scene-67",
+      "scene_id": "scene-67",
+      "name": "Selena",
+      "intent": "calm",
+      "duration": 0,
+      "transition_in": {
+        "durationMs": 600,
+        "curve": "easeInOut",
+        "type": "fade"
+      },
+      "transition_out": {
+        "durationMs": 600,
+        "curve": "easeInOut",
+        "type": "fade"
+      },
+      "trigger": {
+        "type": "manual"
+      },
+      "assigned_layers": {
+        "core": [
+          "layer-plasma"
+        ],
+        "support": [],
+        "atmosphere": []
+      },
+      "layers": [
+        {
+          "id": "layer-media",
+          "name": "Media Overlay",
+          "role": "core",
+          "enabled": true,
+          "opacity": 0.9,
+          "blendMode": "screen",
+          "transform": {
+            "x": 0,
+            "y": 0,
+            "scale": 1,
+            "rotation": 0
+          },
+          "assetId": "asset-1775849286185-825",
+          "params": {
+            "opacity": 1
+          },
+          "effects": []
+        }
+      ],
+      "depthScore": 0,
+      "complexity": 0,
+      "tags": []
+    }
+  ],
+  "activeSceneId": "scene-67",
+  "assets": [
+    {
+      "id": "asset-1775849286185-825",
+      "name": "067760d8825ea2e2fef4beda1991e97bded4b774fdd798d84ffc4b7ebe493338.png",
+      "kind": "texture",
+      "path": "/Users/timothyshelton/Library/Application Support/VisualSynth/assets/067760d8825ea2e2fef4beda1991e97bded4b774fdd798d84ffc4b7ebe493338.png",
+      "tags": [],
+      "addedAt": "2026-04-10T19:28:06.185Z",
+      "hash": "067760d8825ea2e2fef4beda1991e97bded4b774fdd798d84ffc4b7ebe493338",
+      "mime": "image/png",
+      "width": 891,
+      "height": 1080,
+      "colorSpace": "srgb",
+      "missing": false,
+      "options": {
+        "textureSampling": "linear"
+      }
+    }
+  ],
+  "roleWeights": {
+    "core": 0.85,
+    "support": 1.35,
+    "atmosphere": 0.3
+  },
+  "tempoSync": {
+    "bpm": 120,
+    "source": "manual"
+  },
+  "modulations": [],
+  "macros": [
+    {
+      "id": "macro-1",
+      "name": "Energy",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "effects.bloom",
+          "amount": 0.6
+        },
+        {
+          "target": "particles.glow",
+          "amount": 0.35
+        },
+        {
+          "target": "effects.feedback",
+          "amount": 0.2
+        }
+      ]
+    },
+    {
+      "id": "macro-2",
+      "name": "Motion",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "particles.speed",
+          "amount": 0.4
+        },
+        {
+          "target": "layer-plasma.speed",
+          "amount": 0.35
+        },
+        {
+          "target": "layer-origami.speed",
+          "amount": 0.25
+        },
+        {
+          "target": "layer-glyph.speed",
+          "amount": 0.2
+        }
+      ]
+    },
+    {
+      "id": "macro-3",
+      "name": "Color",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "style.saturation",
+          "amount": 0.35
+        },
+        {
+          "target": "style.paletteShift",
+          "amount": 0.25
+        },
+        {
+          "target": "effects.chroma",
+          "amount": 0.2
+        }
+      ]
+    },
+    {
+      "id": "macro-4",
+      "name": "Density",
+      "value": 0.5,
+      "targets": [
+        {
+          "target": "particles.density",
+          "amount": 0.5
+        },
+        {
+          "target": "layer-spectrum.opacity",
+          "amount": 0.35
+        },
+        {
+          "target": "layer-plasma.opacity",
+          "amount": 0.2
+        }
+      ]
+    },
+    {
+      "id": "macro-5",
+      "name": "Macro 5",
+      "value": 0.5,
+      "targets": []
+    },
+    {
+      "id": "macro-6",
+      "name": "Macro 6",
+      "value": 0.5,
+      "targets": []
+    },
+    {
+      "id": "macro-7",
+      "name": "Macro 7",
+      "value": 0.5,
+      "targets": []
+    },
+    {
+      "id": "macro-8",
+      "name": "Macro 8",
+      "value": 0.5,
+      "targets": []
+    }
+  ],
+  "project": {
+    "version": 6,
+    "name": "Master Showcase - Varied Palettes",
+    "createdAt": "2026-02-06T19:39:45.348Z",
+    "updatedAt": "2026-04-10T19:48:29.010Z",
+    "output": {
+      "enabled": false,
+      "fullscreen": false,
+      "scale": 1
+    },
+    "stylePresets": [],
+    "activeStylePresetId": "style-neutral",
+    "palettes": [
+      {
+        "id": "heat",
+        "name": "Heat",
+        "colors": [
+          "#000000",
+          "#ff0000",
+          "#ff7f00",
+          "#ffff00",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "ocean",
+        "name": "Ocean",
+        "colors": [
+          "#000000",
+          "#0000ff",
+          "#007fff",
+          "#00ffff",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "forest",
+        "name": "Forest",
+        "colors": [
+          "#000000",
+          "#004000",
+          "#008000",
+          "#00c000",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "synthwave",
+        "name": "Synthwave",
+        "colors": [
+          "#000000",
+          "#ff00ff",
+          "#7f00ff",
+          "#00ffff",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "industrial",
+        "name": "Industrial",
+        "colors": [
+          "#000000",
+          "#808080",
+          "#c0c0c0",
+          "#ffffff",
+          "#ff0000"
+        ]
+      },
+      {
+        "id": "grayscale",
+        "name": "Grayscale",
+        "colors": [
+          "#000000",
+          "#404040",
+          "#808080",
+          "#c0c0c0",
+          "#ffffff"
+        ]
+      },
+      {
+        "id": "citrus-pop",
+        "name": "Citrus Pop",
+        "colors": [
+          "#ff6b00",
+          "#ffb100",
+          "#ffe100",
+          "#a6ff00",
+          "#2aff8a"
+        ]
+      },
+      {
+        "id": "aurora",
+        "name": "Aurora",
+        "colors": [
+          "#2a00ff",
+          "#00b3ff",
+          "#00ff9d",
+          "#a6ff00",
+          "#ff4fd8"
+        ]
+      },
+      {
+        "id": "lagoon",
+        "name": "Lagoon",
+        "colors": [
+          "#0057ff",
+          "#00b3ff",
+          "#00f5d4",
+          "#7cff6b",
+          "#ffd166"
+        ]
+      },
+      {
+        "id": "ember",
+        "name": "Ember",
+        "colors": [
+          "#7a0011",
+          "#ff2d00",
+          "#ff6a00",
+          "#ff9f1c",
+          "#ffd000"
+        ]
+      },
+      {
+        "id": "prism",
+        "name": "Prism",
+        "colors": [
+          "#ff2a6d",
+          "#ff8c42",
+          "#f6e05e",
+          "#5ef38c",
+          "#3a86ff"
+        ]
+      },
+      {
+        "id": "tropical",
+        "name": "Tropical",
+        "colors": [
+          "#ff4d6d",
+          "#f8c046",
+          "#2ec4b6",
+          "#00a6fb",
+          "#6a4c93"
+        ]
+      },
+      {
+        "id": "velvet",
+        "name": "Velvet",
+        "colors": [
+          "#3a0ca3",
+          "#7209b7",
+          "#b5179e",
+          "#f72585",
+          "#4cc9f0"
+        ]
+      },
+      {
+        "id": "voltage",
+        "name": "Voltage",
+        "colors": [
+          "#fb5607",
+          "#ffbe0b",
+          "#3a86ff",
+          "#8338ec",
+          "#ff006e"
+        ]
+      },
+      {
+        "id": "desert-bloom",
+        "name": "Desert Bloom",
+        "colors": [
+          "#ff9f1c",
+          "#ff6b6b",
+          "#f9844a",
+          "#90be6d",
+          "#43aa8b"
+        ]
+      }
+    ],
+    "activePaletteId": "heat",
+    "macros": [
+      {
+        "id": "macro-1",
+        "name": "Energy",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "effects.bloom",
+            "amount": 0.6
+          },
+          {
+            "target": "particles.glow",
+            "amount": 0.35
+          },
+          {
+            "target": "effects.feedback",
+            "amount": 0.2
+          }
+        ]
+      },
+      {
+        "id": "macro-2",
+        "name": "Motion",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "particles.speed",
+            "amount": 0.4
+          },
+          {
+            "target": "layer-plasma.speed",
+            "amount": 0.35
+          },
+          {
+            "target": "layer-origami.speed",
+            "amount": 0.25
+          },
+          {
+            "target": "layer-glyph.speed",
+            "amount": 0.2
+          }
+        ]
+      },
+      {
+        "id": "macro-3",
+        "name": "Color",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "style.saturation",
+            "amount": 0.35
+          },
+          {
+            "target": "style.paletteShift",
+            "amount": 0.25
+          },
+          {
+            "target": "effects.chroma",
+            "amount": 0.2
+          }
+        ]
+      },
+      {
+        "id": "macro-4",
+        "name": "Density",
+        "value": 0.5,
+        "targets": [
+          {
+            "target": "particles.density",
+            "amount": 0.5
+          },
+          {
+            "target": "layer-spectrum.opacity",
+            "amount": 0.35
+          },
+          {
+            "target": "layer-plasma.opacity",
+            "amount": 0.2
+          }
+        ]
+      },
+      {
+        "id": "macro-5",
+        "name": "Macro 5",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-6",
+        "name": "Macro 6",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-7",
+        "name": "Macro 7",
+        "value": 0.5,
+        "targets": []
+      },
+      {
+        "id": "macro-8",
+        "name": "Macro 8",
+        "value": 0.5,
+        "targets": []
+      }
+    ],
+    "effects": {
+      "enabled": false,
+      "bloom": 0.25,
+      "blur": 0.05,
+      "chroma": 0.16,
+      "posterize": 0.1,
+      "kaleidoscope": 0.2,
+      "feedback": 0.1,
+      "persistence": 0.25
+    },
+    "expressiveFx": {
+      "enabled": true,
+      "energyBloom": {
+        "enabled": false,
+        "macro": 0.35,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "threshold": 0.55,
+          "accumulation": 0.65
+        }
+      },
+      "radialGravity": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "strength": 0.6,
+          "radius": 0.65,
+          "focusX": 0.5,
+          "focusY": 0.5
+        }
+      },
+      "motionEcho": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "decay": 0.6,
+          "warp": 0.35
+        }
+      },
+      "spectralSmear": {
+        "enabled": false,
+        "macro": 0.3,
+        "intentBinding": {
+          "enabled": false,
+          "intent": "ambient",
+          "amount": 0.35
+        },
+        "expert": {
+          "offset": 0.4,
+          "mix": 0.6
+        }
+      }
+    },
+    "particles": {
+      "enabled": true,
+      "density": 0.55,
+      "speed": 0.35,
+      "size": 0.5,
+      "glow": 0.8
+    },
+    "sdf": {
+      "enabled": false,
+      "shape": "circle",
+      "scale": 0,
+      "edge": 0,
+      "glow": 0,
+      "rotation": 0,
+      "fill": 0
+    },
+    "visualizer": {
+      "enabled": false,
+      "mode": "off",
+      "opacity": 0.8,
+      "macroEnabled": false,
+      "macroId": 8
+    },
+    "lfos": [
+      {
+        "id": "lfo-1",
+        "name": "LFO 1",
+        "shape": "sine",
+        "rate": 0.5,
+        "sync": true,
+        "phase": 0
+      },
+      {
+        "id": "lfo-2",
+        "name": "LFO 2",
+        "shape": "triangle",
+        "rate": 1,
+        "sync": true,
+        "phase": 0.25
+      },
+      {
+        "id": "lfo-3",
+        "name": "LFO 3",
+        "shape": "saw",
+        "rate": 0.75,
+        "sync": true,
+        "phase": 0.5
+      },
+      {
+        "id": "lfo-4",
+        "name": "LFO 4",
+        "shape": "square",
+        "rate": 0.35,
+        "sync": false,
+        "phase": 0.1
+      }
+    ],
+    "envelopes": [
+      {
+        "id": "env-1",
+        "name": "Env 1",
+        "attack": 0.05,
+        "decay": 0.2,
+        "sustain": 0.4,
+        "release": 0.8,
+        "hold": 0.1,
+        "trigger": "engine.low",
+        "threshold": 0.65
+      },
+      {
+        "id": "env-2",
+        "name": "Env 2",
+        "attack": 0.1,
+        "decay": 0.3,
+        "sustain": 0.5,
+        "release": 0.4,
+        "hold": 0.5,
+        "trigger": "strobe",
+        "threshold": 0.4
+      },
+      {
+        "id": "env-3",
+        "name": "Env 3",
+        "attack": 0.08,
+        "decay": 0.25,
+        "sustain": 0.5,
+        "release": 0.35,
+        "hold": 0.3,
+        "trigger": "audio.peak",
+        "threshold": 0.5
+      },
+      {
+        "id": "env-4",
+        "name": "Env 4",
+        "attack": 0.15,
+        "decay": 0.35,
+        "sustain": 0.45,
+        "release": 0.5,
+        "hold": 0.45,
+        "trigger": "strobe",
+        "threshold": 0.35
+      }
+    ],
+    "sampleHold": [
+      {
+        "id": "sh-1",
+        "name": "S&H 1",
+        "rate": 0.5,
+        "sync": true,
+        "smooth": 0.2
+      },
+      {
+        "id": "sh-2",
+        "name": "S&H 2",
+        "rate": 2,
+        "sync": false,
+        "smooth": 0.1
+      }
+    ],
+    "padMappings": [
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "toggle-plasma",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "strobe",
+      "origami-mountain",
+      "origami-valley",
+      "origami-collapse",
+      "origami-explode",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+    ],
+    "timelineMarkers": [],
+    "assets": [
+      {
+        "id": "asset-1775849286185-825",
+        "name": "067760d8825ea2e2fef4beda1991e97bded4b774fdd798d84ffc4b7ebe493338.png",
+        "kind": "texture",
+        "path": "/Users/timothyshelton/Library/Application Support/VisualSynth/assets/067760d8825ea2e2fef4beda1991e97bded4b774fdd798d84ffc4b7ebe493338.png",
+        "tags": [],
+        "addedAt": "2026-04-10T19:28:06.185Z",
+        "hash": "067760d8825ea2e2fef4beda1991e97bded4b774fdd798d84ffc4b7ebe493338",
+        "mime": "image/png",
+        "width": 891,
+        "height": 1080,
+        "colorSpace": "srgb",
+        "missing": false,
+        "options": {
+          "textureSampling": "linear"
+        }
+      }
+    ],
+    "plugins": [],
+    "scenes": [
+      {
+        "id": "scene-67",
+        "scene_id": "scene-67",
+        "name": "Selena",
+        "intent": "calm",
+        "duration": 0,
+        "transition_in": {
+          "durationMs": 600,
+          "curve": "easeInOut",
+          "type": "fade"
+        },
+        "transition_out": {
+          "durationMs": 600,
+          "curve": "easeInOut",
+          "type": "fade"
+        },
+        "trigger": {
+          "type": "manual"
+        },
+        "assigned_layers": {
+          "core": [
+            "layer-plasma"
+          ],
+          "support": [],
+          "atmosphere": []
+        },
+        "layers": [
+          {
+            "id": "layer-media",
+            "name": "Media Overlay",
+            "role": "core",
+            "enabled": true,
+            "opacity": 0.9,
+            "blendMode": "screen",
+            "transform": {
+              "x": 0,
+              "y": 0,
+              "scale": 1,
+              "rotation": 0
+            },
+            "assetId": "asset-1775849286185-825",
+            "params": {
+              "opacity": 1
+            },
+            "effects": []
+          }
+        ],
+        "depthScore": 0,
+        "complexity": 0,
+        "tags": []
+      }
+    ],
+    "modMatrix": [],
+    "midiMappings": [],
+    "activeSceneId": "scene-67",
+    "activeModeId": "mode-performance",
+    "activeEngineId": "engine-none",
+    "colorChemistry": [
+      "analog"
+    ],
+    "roleWeights": {
+      "core": 0.85,
+      "support": 1.35,
+      "atmosphere": 0.3
+    },
+    "tempoSync": {
+      "bpm": 120,
+      "source": "manual"
+    },
+    "customShaderBlocks": [],
+    "overlays": [
+      {
+        "id": "ovl-mn9ediu9-wjw9l",
+        "name": "be5a041d5bd90aba7f1b190da0cab21c41920bbed0cd72587340e5d868c2f53a.png",
+        "type": "image",
+        "enabled": true,
+        "x": 0.8901408450704226,
+        "y": 0,
+        "width": 0.09929577464788732,
+        "height": 0.20758885686839584,
+        "opacity": 1,
+        "rotation": 0,
+        "includeInFx": false,
+        "assetPath": "/Users/timothyshelton/Library/Application Support/VisualSynth/assets/be5a041d5bd90aba7f1b190da0cab21c41920bbed0cd72587340e5d868c2f53a.png"
+      },
+      {
+        "id": "ovl-mn9edpz3-acsvh",
+        "name": "Text Overlay",
+        "type": "text",
+        "enabled": true,
+        "x": 0.0035211267605633825,
+        "y": 0.0008645533141211637,
+        "width": 0.3,
+        "height": 0.08,
+        "opacity": 1,
+        "rotation": 0,
+        "includeInFx": false,
+        "text": "@djathenagow",
+        "fontFamily": "sans-serif",
+        "fontSize": 40,
+        "fontColor": "#ffffff",
+        "fontWeight": "normal",
+        "textShadow": true
+      },
+      {
+        "id": "now-playing-title",
+        "name": "Now Playing",
+        "type": "text",
+        "enabled": true,
+        "x": 0.03,
+        "y": 0.82,
+        "width": 0.5039436619718309,
+        "height": 0.12812206572769952,
+        "opacity": 1,
+        "rotation": 0,
+        "includeInFx": false,
+        "text": "Life\nAbstract Posters\nAbstract Posters Sublime Tribute: Subrestry",
+        "fontSize": 30,
+        "fontColor": "#ffffff",
+        "fontWeight": "bold",
+        "textShadow": true
+      },
+      {
+        "id": "now-playing-artwork",
+        "name": "Now Playing Artwork",
+        "type": "image",
+        "enabled": true,
+        "x": 0.03,
+        "y": 0.62,
+        "width": 0.14,
+        "height": 0.18,
+        "opacity": 0.95,
+        "rotation": 0,
+        "includeInFx": false
+      }
+    ],
+    "engineGrammar": {},
+    "engineFinish": {
+      "grain": 0,
+      "vignette": 0,
+      "ca": 0
+    }
+  }
+}

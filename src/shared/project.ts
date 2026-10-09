@@ -4,6 +4,8 @@ import type { MilkwaveOfflineTranslationReport } from './milkwaveOfflineTranslat
 import type { PerformanceModeConfig } from './performanceGuardrails';
 import { DEFAULT_PERFORMANCE_MODE_CONFIG } from './performanceGuardrails';
 
+export { DEFAULT_DETERMINISTIC_SEED } from './deterministicPrng';
+
 export interface MilkDropShaderData {
   warp: string;
   comp: string;

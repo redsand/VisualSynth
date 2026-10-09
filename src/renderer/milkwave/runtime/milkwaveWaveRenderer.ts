@@ -1,4 +1,8 @@
 import type { MilkWaveConfig } from '../../../shared/milkwaveParser';
+import { createPrng, DEFAULT_DETERMINISTIC_SEED } from '../../../shared/deterministicPrng';
+
+// Deterministic PRNG for reproducible rendering
+const wavePrng = createPrng(DEFAULT_DETERMINISTIC_SEED);
 
 interface MilkwaveWaveRuntimeFrameState {
   timeSeconds: number;
@@ -214,7 +218,7 @@ const createBaseWaveContext = ({
     int: Math.trunc,
     sqr: (a: number) => a * a,
     frac: (x: number) => x - Math.trunc(x),
-    rand: (max: number) => Math.random() * max,
+    rand: (max: number) => wavePrng() * max,
     bor: (a: number, b: number) => (a || b ? 1 : 0),
     band: (a: number, b: number) => (a && b ? 1 : 0),
     bnot: (a: number) => (a ? 0 : 1),
