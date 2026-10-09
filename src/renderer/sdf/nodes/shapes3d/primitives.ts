@@ -63,6 +63,7 @@ export const sdEllipsoid: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdEllipsoid(vec3 p, vec3 r)',
+    argPack: { r: ['radiusX', 'radiusY', 'radiusZ'] },
     body: `float k0 = length(p / r);
 float k1 = length(p / (r * r));
 return k0 * (k0 - 1.0) / k1;`
@@ -96,6 +97,7 @@ export const sdBox3D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdBox3D(vec3 p, vec3 b)',
+    argPack: { b: ['width', 'height', 'depth'] },
     body: `vec3 q = abs(p) - b;
 return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);`
   },
@@ -130,6 +132,7 @@ export const sdRoundedBox3D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdRoundedBox3D(vec3 p, vec3 b, float r)',
+    argPack: { b: ['width', 'height', 'depth'], r: ['radius'] },
     body: `vec3 q = abs(p) - b + r;
 return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r;`
   },
@@ -322,6 +325,7 @@ export const sdTorus: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdTorus(vec3 p, vec2 t)',
+    argPack: { t: ['majorRadius', 'minorRadius'] },
     body: `vec2 q = vec2(length(p.xz) - t.x, p.y);
 return length(q) - t.y;`
   },
@@ -425,6 +429,7 @@ export const sdHexPrism: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdHexPrism(vec3 p, vec2 h)',
+    argPack: { h: ['height', 'radius'] },
     body: `vec3 k = vec3(-0.8660254, 0.5, 0.57735);
 p = abs(p);
 p.xy -= 2.0 * min(dot(k.xy, p.xy), 0.0) * k.xy;
@@ -461,6 +466,7 @@ export const sdTriPrism: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdTriPrism(vec3 p, vec2 h)',
+    argPack: { h: ['height', 'radius'] },
     body: `vec3 q = abs(p);
 return max(q.z - h.y, max(q.x * 0.866025 + p.y * 0.5, -p.y) - h.x * 0.5);`
   },
@@ -492,6 +498,7 @@ export const sdPlane: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdPlane(vec3 p, vec3 n, float h)',
+    argPack: { n: ['normalX', 'normalY', 'normalZ'], h: ['height'] },
     body: 'return dot(p, normalize(n)) + h;'
   },
   defaults: { height: 0.0, normalX: 0.0, normalY: 1.0, normalZ: 0.0 },

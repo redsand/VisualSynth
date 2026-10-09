@@ -202,12 +202,20 @@ export const resolveGenUniforms = (deps: ResolverDeps): Record<string, number> =
         value = deps.modValue(modTarget, value);
       }
 
-      // Apply MIDI sum (multiplicative for opacity, additive for others)
+      // Apply MIDI sum. resolveMidiMappedValue returns an ABSOLUTE value: 0/1 for
+      // booleans, the enum index for enums, and a value scaled to [min,max] for
+      // numbers. Opacity multiplies; numbers add (existing offset design shared
+      // with the macro path below); but booleans/enums must REPLACE — adding an
+      // absolute 0/1 or index to the base meant a boolean whose base was 1
+      // stayed 1 even when MIDI sent 0 (MIDI could never turn it off), and an
+      // enum's base+offset selected the wrong option.
       const midiKey = `${blockId}.${param.id}`;
       const midiVal = deps.midiSum[midiKey];
       if (midiVal != null) {
         if (param.id === 'opacity') {
           value *= midiVal;
+        } else if (param.type === 'boolean' || param.type === 'enum') {
+          value = midiVal;
         } else {
           value += midiVal;
         }

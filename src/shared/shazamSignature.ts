@@ -154,9 +154,14 @@ export class ShazamSignatureGenerator {
   // Collected peaks per band (in order of fftPass ascending)
   private readonly peaksByBand: Peak[][] = [[], [], [], []];
 
-  // Whether we have enough history to start detecting peaks
+  // Whether we have enough history to start detecting peaks. detectPeaks reads
+  // spreadRing[ringIdx(p - 49)] as the frequency-local-max baseline (spdM49);
+  // that slot is only written once pass (p - 49) has executed, i.e. p >= 49.
+  // Gating at 46 (the fftM46 lookback) left p=46,47,48 reading never-written
+  // (zero) spread slots, making the freq-local-max check vacuous and admitting
+  // spurious peaks on the first 3 detection passes.
   private get canDetectPeaks(): boolean {
-    return this.numFFTPasses >= 46;
+    return this.numFFTPasses >= 49;
   }
 
   // ---------------------------------------------------------------------------

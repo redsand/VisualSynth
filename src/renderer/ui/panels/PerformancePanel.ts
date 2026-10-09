@@ -335,9 +335,11 @@ export const createPerformancePanel = ({
     const { isPlaying, timeMs } = store.getState().transport;
   };
 
-  transportTap.addEventListener('click', () => {
-    setStatus('Tap tempo (placeholder).');
-  });
+  // The transport-tap button's real tap-tempo handler lives in index.ts
+  // (module scope): it averages recent tap intervals, clamps to 40-240 BPM,
+  // and applies the result via syncTempoInputs. A stub here previously
+  // overwrote that handler's "Tap tempo: X BPM" status with a misleading
+  // "(placeholder)" message on every click, so it is intentionally omitted.
 
   transportBpmInput.addEventListener('change', () => {
     syncTempoInputs(Number(transportBpmInput.value));

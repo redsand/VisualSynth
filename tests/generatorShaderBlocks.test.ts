@@ -22,15 +22,19 @@ describe('GeneratorShaderBlocks registry', () => {
       expect(block.mainCall, `Block ${block.id} has mainCall`).toBeTruthy();
 
       // Functions are optional (some generators like spectrum don't need them)
-      // If functions exist, they should contain a function definition
+      // If functions exist, they should contain a function definition. vec2 is
+      // included because some blocks ship UV-warp helpers (e.g. vortexWarp)
+      // alongside their color-generating mainCall.
       if (block.functions) {
-        expect(block.functions).toMatch(/(vec3|float|void)\s+\w+\(/);
+        expect(block.functions).toMatch(/(vec3|vec2|float|void)\s+\w+\(/);
       }
 
-      // Main call should contain the if statement and color addition
+      // Main call should gate on the enabled uniform and modify color — either
+      // additively (color +=) or via a blend-mode assignment
+      // (color = applyBlendMode(color, ...)), as asset-backed blocks do.
       expect(block.mainCall).toContain('if (u');
       expect(block.mainCall).toContain('Enabled > 0.5');
-      expect(block.mainCall).toContain('color +=');
+      expect(block.mainCall).toMatch(/color\s*(\+?=)/);
     }
   });
 
@@ -52,13 +56,19 @@ describe('GeneratorShaderBlocks registry', () => {
 
       // If block has functions, check that mainCall uses them (directly or indirectly)
       if (block.functions) {
-        const funcMatch = block.functions.match(/(vec3|float|void)\s+(\w+)\(/);
-        if (funcMatch) {
-          const funcName = funcMatch[2];
-          // Function might be called directly or through a wrapper like samplePlasma
-          const isCalledDirectly = block.mainCall.includes(`${funcName}(`);
+        const allFuncs = [...block.functions.matchAll(/(?:vec3|float|void)\s+(\w+)\(/g)].map(m => m[1]);
+        if (allFuncs.length > 0) {
+          // The mainCall must invoke the block's entry-point function. A block may
+          // declare helper functions first (e.g. gen-raymarch-terrain defines
+          // `terrainHeight` before `raymarchTerrain`, and gen-hillshade defines
+          // `terrainElev` before `hillshade`); the entry point is the function the
+          // mainCall calls, and the helper is called internally by it. So check
+          // that the mainCall calls ANY of the block's functions, not just the
+          // first one. (The function might also be reached through a wrapper like
+          // samplePlasma/plasmaColor.)
+          const isCalledDirectly = allFuncs.some((fn) => block.mainCall.includes(`${fn}(`));
           const isCalledIndirectly = block.mainCall.includes('samplePlasma(') || block.mainCall.includes('plasmaColor');
-          expect(isCalledDirectly || isCalledIndirectly).toBe(true);
+          expect(isCalledDirectly || isCalledIndirectly, `Block ${block.id} mainCall does not call any of its functions: ${allFuncs.join(', ')}`).toBe(true);
         }
       }
     }

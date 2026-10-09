@@ -104,24 +104,20 @@ export const star = defineNode()
   .modTarget('ratio')
   .glsl(
     'float sdStar(vec2 p, float r, int n, float m)',
-    `// m is the inner radius to outer radius ratio
+    `// m is the inner/outer radius ratio in (0,1]: m=1 -> regular n-gon,
+     // m->0 -> spikiest star. Map to iq's shape parameter mi in [1,n]
+     // (mi=1 polygon, mi=n spikiest) so the ratio slider is monotonic.
+     float mi = 1.0 + (1.0 - m) * (float(n) - 1.0);
      float an = 3.141593 / float(n);
-     float en = 3.141593 / m;  // m is 2..n for regular polygon, but here it's ratio
+     float en = 3.141593 / mi;
      vec2  acs = vec2(cos(an), sin(an));
-     vec2  ecs = vec2(cos(an), sin(an)); // This math needs verification, simplified version below
-     
-     // Simplified Star 5 (optimized)
-     // For generic N-star, complex logic needed.
-     // Fallback to Star 5 logic for now
-     const vec2 k1 = vec2(0.809016994375, -0.587785252292);
-     const vec2 k2 = vec2(-k1.x, k1.y);
-     p.x = abs(p.x);
-     p -= 2.0 * max(dot(k1, p), 0.0) * k1;
-     p -= 2.0 * max(dot(k2, p), 0.0) * k2;
-     p.x = abs(p.x);
-     p.y -= r;
-     vec2 ba = -vec2(sin(an), cos(an)) * r - vec2(0, r); // incorrect math here
-     // Returning circle as placeholder to avoid compile error until rigorous math provided
-     return length(p) - r * 0.5;`
+     vec2  ecs = vec2(cos(en), sin(en));
+     // reduce to the first sector
+     float bn = mod(atan(p.x, p.y), 2.0 * an) - an;
+     p = length(p) * vec2(cos(bn), abs(sin(bn)));
+     // line equation (outer vertex -> inner vertex)
+     p -= r * acs;
+     p += ecs * clamp(-dot(p, ecs) / dot(ecs, ecs), 0.0, r * acs.y / max(ecs.y, 1e-6));
+     return length(p) * sign(p.x);`
   )
   .register();

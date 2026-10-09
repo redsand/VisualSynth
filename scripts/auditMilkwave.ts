@@ -291,7 +291,15 @@ const createAuditHarnessSource = () => `
       const runtimeReport = renderer.getLastNativeRuntimeReport();
       const warpStatus = compileReport?.warp.status;
       const compStatus = compileReport?.comp.status;
-      const hasVisibleMilkwaveActivity =
+      // A preset with no enabled shapes or waves is a warp-only preset: its
+      // visible activity is the warp shader itself (feedback displacement),
+      // not shapes/waves. The previous gate required shapes+waves>0 for EVERY
+      // preset, which correctly-native warp-only presets could never satisfy,
+      // marking them runtime-failed. Treat warp-only as activity-satisfied.
+      const enabledShapes = (preset.shaderData?.shapes ?? []).filter((s) => s.enabled).length;
+      const enabledWaves = (preset.shaderData?.waves ?? []).filter((w) => w.enabled).length;
+      const isWarpOnly = enabledShapes === 0 && enabledWaves === 0;
+      const hasVisibleMilkwaveActivity = isWarpOnly ||
         (runtimeReport?.shapes.rendered ?? 0) > 0 || (runtimeReport?.waves.rendered ?? 0) > 0;
 
       let classification = 'runtime-failed';
@@ -417,14 +425,21 @@ const resolveBrowserExecutablePath = () => {
 const CHROMIUM_AUDIT_ARGS = [
   '--headless=new',
   '--no-sandbox',
-  '--disable-gpu',
-  '--test-type',
-  '--no-first-run',
-  '--no-default-browser-check',
-  '--disable-background-networking',
-  '--disable-component-update',
-  '--metrics-recording-only',
-  '--remote-allow-origins=*'
+  '--disable-crash-reporter',
+  '--disable-breakpad',
+  // Software WebGL2 via SwiftShader. The previous combo (`--disable-gpu` plus
+  // `--use-angle=vulkan`) was self-contradictory: `--disable-gpu` blocks the
+  // GPU path while `--use-angle=vulkan` demands it, so no WebGL2 context was
+  // ever available and every audit failed with "[MilkDrop] WebGL2 required".
+  // SwiftShader implements OpenGL ES 3.0 in software, which is what WebGL2
+  // needs; `--enable-unsafe-swiftshader` lifts the Chrome block on software GL.
+  // `--single-process` is intentionally omitted: it crashes Chrome when used
+  // with SwiftShader/GPU compositing.
+  '--use-gl=angle',
+  '--use-angle=swiftshader',
+  '--enable-unsafe-swiftshader',
+  '--ignore-gpu-blocklist',
+  '--enable-webgl'
 ];
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

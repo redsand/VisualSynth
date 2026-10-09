@@ -247,12 +247,13 @@ export const resolveSceneAssetBindings = (
   sceneId: string
 ): Record<string, LayerAssetResolution> => {
   const sceneRes = resolveScene(project, sceneId);
-  if (sceneRes.status !== 'resolved') {
+  if (sceneRes.status !== 'resolved' || !sceneRes.scene) {
     return {};
   }
+  const scene = sceneRes.scene;
 
   const bindings: Record<string, LayerAssetResolution> = {};
-  for (const layer of sceneRes.scene.layers) {
+  for (const layer of scene.layers) {
     bindings[layer.id] = resolveLayerAsset(layer, project?.assets);
   }
   return bindings;

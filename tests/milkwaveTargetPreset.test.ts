@@ -78,7 +78,17 @@ describe('Milkwave focused preset suite', () => {
       expect(auditEntry.warpCompiled).toBe(true);
       expect(auditEntry.compCompiled).toBe(true);
       expect(auditEntry.errors).toEqual([]);
-      expect(auditEntry.shapesRendered + auditEntry.wavesRendered).toBeGreaterThan(0);
+      // A warp-only preset (no enabled shapes or waves) has its visible activity
+      // in the warp shader itself, not in shapes/waves — so it legitimately
+      // renders 0 shapes/waves. Only require shape/wave activity when the preset
+      // actually has enabled shapes or waves.
+      const enabledShapes = (preset._shaderData?.shapes ?? []).filter((s: any) => s.enabled).length;
+      const enabledWaves = (preset._shaderData?.waves ?? []).filter((w: any) => w.enabled).length;
+      if (enabledShapes + enabledWaves > 0) {
+        expect(auditEntry.shapesRendered + auditEntry.wavesRendered).toBeGreaterThan(0);
+      } else {
+        expect(auditEntry.warpCompiled).toBe(true);
+      }
       expect(auditEntry.proof.proven).toBe(true);
       expect(auditEntry.proof.fallbackReached).toBe(false);
       expect(auditEntry.proof.visibleActivity).toBe(true);

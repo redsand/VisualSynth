@@ -4,6 +4,45 @@ import path from 'path';
 import { NowPlayingRecognitionRequest, NowPlayingRecognitionResponse } from '../shared/nowPlaying';
 import { ShazamSignatureGenerator, SHAZAM_SAMPLE_RATE } from '../shared/shazamSignature';
 
+// SSRF guard for user-supplied recognition/metadata endpoints. Enforces
+// http/https and blocks the link-local 169.254.0.0/16 range (which includes the
+// 169.254.169.254 cloud-metadata endpoint — the classic SSRF prize) and its IPv6
+// counterpart, plus the wildcard "any" addresses. Loopback (127.0.0.0/8, ::1,
+// "localhost") and private ranges (10/192.168/172.16) are deliberately ALLOWED:
+// a user pointing at their own self-hosted recognition server on the LAN is a
+// supported use case, and the test suite runs against a local mock server.
+const isSsrfDisallowedHost = (hostname: string): boolean => {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === '0.0.0.0' || h === '::') return true; // wildcard "any" — never a real target
+  const ipv4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const a = Number(ipv4[1]);
+    const b = Number(ipv4[2]);
+    if (a === 0) return true;                // 0.0.0.0/8 "this" network
+    if (a === 169 && b === 254) return true;  // 169.254.0.0/16 link-local (cloud metadata)
+  }
+  if (h.startsWith('fe80:') && h.indexOf('.') < 0) return true; // IPv6 link-local
+  return false;
+};
+
+const safeHttpUrl = (raw: string, defaultScheme = 'https:'): URL => {
+  let candidate = raw;
+  if (!/^https?:\/\//i.test(candidate)) candidate = `${defaultScheme}//${candidate}`;
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    throw new Error('Invalid endpoint URL');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Only http/https endpoints are allowed');
+  }
+  if (isSsrfDisallowedHost(url.hostname)) {
+    throw new Error('Requests to link-local or wildcard addresses are not allowed');
+  }
+  return url;
+};
+
 const IMAGE_EXTENSIONS: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
@@ -263,7 +302,11 @@ const postCustomLookup = async (
     return { matched: false, error: 'Custom provider requires an endpoint.' };
   }
 
-  const response = await fetchImpl(request.endpoint, {
+  // Validate the endpoint through the SSRF guard (same policy as ACRCloud /
+  // metadata-bridge paths): allow loopback/private so self-hosted LAN
+  // recognition servers work, block link-local/wildcard/cloud-metadata.
+  const endpoint = safeHttpUrl(request.endpoint);
+  const response = await fetchImpl(endpoint.toString(), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -485,8 +528,13 @@ const postAcrCloudLookup = async (
   form.set('signature', signature);
   form.set('timestamp', String(timestamp));
 
-  const host = request.host.startsWith('http') ? request.host : `https://${request.host}`;
-  const response = await fetchImpl(`${host.replace(/\/$/, '')}/v1/identify`, {
+  let identifyUrl: URL;
+  try {
+    identifyUrl = safeHttpUrl(`${request.host.replace(/\/$/, '')}/v1/identify`);
+  } catch (err) {
+    return { matched: false, error: err instanceof Error ? err.message : 'Invalid recognition host' };
+  }
+  const response = await fetchImpl(identifyUrl.toString(), {
     method: 'POST',
     body: form
   });
@@ -658,7 +706,12 @@ export const fetchNowPlayingMetadataBridge = async (
   fetchImpl: typeof fetch = fetch
 ): Promise<NowPlayingRecognitionResponse> => {
   try {
-    const url = new URL(endpoint);
+    let url: URL;
+    try {
+      url = safeHttpUrl(endpoint);
+    } catch (err) {
+      return { matched: false, error: err instanceof Error ? err.message : 'Invalid metadata endpoint' };
+    }
     if (secret?.trim()) {
       url.searchParams.set('token', secret);
     }
@@ -761,7 +814,12 @@ export const cacheRemoteArtwork = async (
   fetchImpl: typeof fetch = fetch
 ): Promise<{ cached: boolean; filePath?: string; error?: string }> => {
   try {
-    const response = await fetchImpl(imageUrl);
+    // Validate the artwork URL through the SSRF guard. The URL may originate
+    // from a recognition response (custom/Shazam/AudD/ACRCloud) and a malicious
+    // upstream could point it at a link-local/cloud-metadata address. Legitimate
+    // CDN artwork (mzstatic, coverartarchive, etc.) passes the guard unchanged.
+    const url = safeHttpUrl(imageUrl);
+    const response = await fetchImpl(url.toString());
     if (!response.ok) {
       return { cached: false, error: `Artwork fetch failed with HTTP ${response.status}` };
     }
@@ -769,7 +827,7 @@ export const cacheRemoteArtwork = async (
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const contentType = response.headers.get('content-type')?.split(';')[0]?.trim() ?? 'image/jpeg';
-    const ext = IMAGE_EXTENSIONS[contentType] || path.extname(new URL(imageUrl).pathname) || '.jpg';
+    const ext = IMAGE_EXTENSIONS[contentType] || path.extname(url.pathname) || '.jpg';
     const hash = crypto.createHash('sha256').update(buffer).digest('hex');
     fs.mkdirSync(assetStorage, { recursive: true });
     const filePath = path.join(assetStorage, `${hash}${ext.startsWith('.') ? ext : `.${ext}`}`);

@@ -271,11 +271,21 @@ const presetV3ModulationSchema = z.object({
   source: z.string(),
   target: z.union([presetV3ModulationTargetSchema, z.string()]),
   amount: z.number(),
-  min: z.number(),
-  max: z.number(),
-  curve: z.enum(['linear', 'exp', 'log']),
-  smoothing: z.number(),
-  bipolar: z.boolean()
+  // These fields are optional in the on-disk preset shape: the newer
+  // generator-emitted presets (preset-220..239) use a minimal modulation
+  // form `{source, target:{type,param}, amount}` with no range/curve fields.
+  // Defaults match the canonical values the legacy→V3 migration already
+  // fills in (presetMigration.ts L669-671) and sceneModulation defaults. The
+  // min/max default of [0,1] is intentionally the schema-default sentinel:
+  // modMatrix.applyModMatrix substitutes the parameter's true registered range
+  // when it sees min===0 && max===1 (modMatrix.ts L81-87), so a modulation
+  // with no explicit range modulates across the param's full natural range
+  // rather than being clamped to [0,1].
+  min: z.number().default(0),
+  max: z.number().default(1),
+  curve: z.enum(['linear', 'exp', 'log']).default('linear'),
+  smoothing: z.number().default(0),
+  bipolar: z.boolean().default(false)
 });
 
 export const presetV3Schema = z.object({
@@ -313,7 +323,7 @@ export const presetV4Schema = z.object({
     visualIntentTags: z.array(z.string()),
     defaultTransition: z.object({
       durationMs: z.number(),
-      curve: z.enum(['linear', 'easeInOut'])
+      curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
     })
   }),
   scenes: projectSchema.shape.scenes,
@@ -342,7 +352,7 @@ export const presetV5Schema = z.object({
     colorChemistry: z.array(z.string()),
     defaultTransition: z.object({
       durationMs: z.number(),
-      curve: z.enum(['linear', 'easeInOut'])
+      curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
     })
   }),
   scenes: projectSchema.shape.scenes,
@@ -374,7 +384,7 @@ export const presetV6Schema = z.object({
     colorChemistry: z.array(z.string()),
     defaultTransition: z.object({
       durationMs: z.number(),
-      curve: z.enum(['linear', 'easeInOut'])
+      curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut'])
     }),
     author: z.string().optional(),
     source: z.string().optional(),
@@ -490,6 +500,21 @@ export const migratePreset = (preset: any): MigrationResult => {
   const errors: string[] = [];
 
   try {
+    // Reject input that isn't a preset object. A preset must be a plain
+    // object (not an array) carrying a numeric `version` in the supported
+    // range (1-6). Without this guard, feeding an index/report file (e.g.
+    // archive_list.json) or any non-preset JSON silently "succeeds" with an
+    // undefined version, which later surfaces as a confusing "unsupported
+    // migrated version" error downstream instead of a clear migration failure.
+    if (
+      !preset || typeof preset !== 'object' || Array.isArray(preset) ||
+      typeof preset.version !== 'number' || !Number.isFinite(preset.version) ||
+      preset.version < 1 || preset.version > 6
+    ) {
+      errors.push('Input is not a valid preset (expected an object with a numeric version 1-6).');
+      return { success: false, preset, warnings, errors };
+    }
+
     // Check compatibility first
     const compatibility = checkCompatibility(preset);
     if (!compatibility.compatible) {
@@ -1226,7 +1251,10 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
       max: mod.max,
       curve: mod.curve,
       smoothing: mod.smoothing,
-      bipolar: mod.bipolar
+      bipolar: mod.bipolar,
+      // Restore enabled (serialized since the fix). Older presets without the
+      // field default to enabled so existing behavior is unchanged.
+      enabled: mod.enabled !== false
     }));
   }
 
@@ -1234,14 +1262,31 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
     const engineId = project.activeEngineId as EngineId;
     const engine = ENGINE_REGISTRY[engineId];
     if (engine) {
-      // Re-map macros to ensure they adhere to Engine Surface (5-7 macros)
+      // Re-map macros to ensure they adhere to Engine Surface (5-7 macros).
+      // Preserve the preset's own macro routing (targets) when present — the
+      // engine default target is only a fallback. Previously every preset macro
+      // had its user-defined targets discarded and replaced with the single
+      // engine default target whenever an engine was active. Preset targets are
+      // normalized to legacy string form (object-form targets {type,param} are
+      // converted) so the result still validates against MacroConfig.
+      const normalizeTargets = (targets: any) =>
+        (targets ?? []).map((t: any) => ({
+          ...t,
+          target:
+            typeof t.target === 'string'
+              ? t.target
+              : buildLegacyTarget(t.target.type || t.target.layerType, t.target.param)
+        }));
       project.macros = engine.macros.map((m, i) => {
         const incoming = preset.macros.find((pm: any) => pm.name === m.name || pm.id === `macro-${i + 1}`);
+        const incomingTargets = incoming?.targets;
         return {
           id: `macro-${i + 1}`,
           name: m.name,
           value: incoming?.value ?? m.defaultValue,
-          targets: [{ target: m.target, amount: 1.0 }]
+          targets: Array.isArray(incomingTargets) && incomingTargets.length
+            ? normalizeTargets(incomingTargets)
+            : [{ target: m.target, amount: 1.0 }]
         };
       });
       // Fill remaining to 8 with empty to keep UI stable

@@ -44,15 +44,19 @@ uniform float uTransitionAmount;
 uniform float uTransitionType;
 uniform float uChemistryMode;
 uniform float uMotionTemplate;
-uniform float uEngineMass;
-uniform float uEngineFriction;
-uniform float uEngineElasticity;
+// NOTE: uEngineMass/uEngineFriction/uEngineElasticity were the shader-side
+// "Inertial Energy Accumulation" block. That accumulation now lives on the CPU
+// (audio/energyModel.ts -> engine.low/mid/high modMatrix sources), so these
+// uniforms were declared + uploaded but never read by any shader body. They
+// and their uploads were removed. uEngineGrain/Vignette/CA below ARE used.
 uniform float uMaxBloom;
 uniform float uForceFeedback;
 uniform float uEngineGrain;
 uniform float uEngineVignette;
 uniform float uEngineCA;
-uniform float uEngineSignature;
+// uEngineSignature (engine "watermark" overlay) was deliberately removed from
+// mainTemplate (ac611a820: "caused visible dot grid on black canvas"). The
+// uniform + its per-frame upload were dead, so they were removed.
 uniform float uEffectsEnabled;
 
 // Post-FX & feedback uniforms (always needed by mainTemplate)
@@ -264,10 +268,18 @@ float getWaveform(float t) {
 vec3 hueRotate(vec3 col, float angle) {
   float c = cos(angle);
   float s = sin(angle);
+  // Luminance-preserving hue rotation about L = (0.299, 0.587, 0.114). This is
+  // the same matrix as shiftPalette() (which is unit-tested in
+  // paletteShaderBehavior.test.ts); the previous hueRotate had a magnitude
+  // typo (0.900 vs 1.250 at the col2/row0 sin term) and inconsistent sin
+  // signs that made it not a true hue rotation. Callers pass the angle
+  // directly (e.g. hueShift * 6.28), whereas shiftPalette takes a 0..1 shift
+  // and multiplies by 2*pi internally — same rotation, different parameter
+  // scaling.
   mat3 m = mat3(
-    0.299 + 0.701*c - 0.168*s, 0.587 - 0.587*c + 0.330*s, 0.114 - 0.114*c - 0.497*s,
-    0.299 - 0.299*c + 0.328*s, 0.587 + 0.413*c + 0.035*s, 0.114 - 0.114*c - 0.292*s,
-    0.299 - 0.300*c - 0.900*s, 0.587 - 0.588*c + 1.050*s, 0.114 + 0.886*c + 0.203*s
+    0.299 + 0.701*c + 0.168*s, 0.587 - 0.587*c + 0.330*s, 0.114 - 0.114*c - 0.497*s,
+    0.299 - 0.299*c - 0.328*s, 0.587 + 0.413*c + 0.035*s, 0.114 - 0.114*c + 0.292*s,
+    0.299 - 0.300*c + 1.250*s, 0.587 - 0.588*c - 1.050*s, 0.114 + 0.886*c - 0.203*s
   );
   return clamp(m * col, 0.0, 1.0);
 }
@@ -323,8 +335,7 @@ float sdfSceneMap(vec3 p) {
 }
 
 vec2 advancedSdfMap(vec3 p) {
-  // Default returns distance and material (0.0 for no material)
-  return vec2(/* @@SDF_MAP_BODY */, 0.0);
+  /* @@SDF_MAP_BODY */
 }
 
 vec3 calcSdfNormal(vec3 p) {
@@ -337,7 +348,7 @@ vec3 calcSdfNormal(vec3 p) {
 }
 
 vec3 getSdfColor(float id) {
-  return vec3(1.0);
+  /* @@SDF_COLOR_BODY */
 }
 
 float calcSdfShadow(vec3 ro, vec3 rd, float k) {

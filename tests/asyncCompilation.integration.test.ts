@@ -82,6 +82,17 @@ const createMockGlWithParallel = () => {
     vertexAttribPointer: () => {},
     drawArrays: () => {},
     copyTexSubImage2D: () => {},
+    // GL state methods the renderer touches during program (re)link and draw.
+    // detachShader in particular is called on every recompile; without it the
+    // mock threw "gl.detachShader is not a function" and the test couldn't
+    // exercise the async-compile path it exists to check.
+    detachShader: () => {},
+    disable: () => {},
+    enable: () => {},
+    isEnabled: () => false,
+    getParameter: () => 0,
+    disableVertexAttribArray: () => {},
+    BLEND: 0x0be2,
   };
 
   return { 

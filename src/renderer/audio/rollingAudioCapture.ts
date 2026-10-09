@@ -81,10 +81,16 @@ const MIN_CHUNKS_FOR_12_SECONDS = 10;
 async function decodeAudioDataUniversal(blob: Blob): Promise<AudioBuffer | null> {
   const arrayBuffer = await blob.arrayBuffer();
 
+  // Use an OfflineAudioContext at the Shazam target rate, not a real-time
+  // AudioContext. A real-time AudioContext starts suspended and can leave
+  // decodeAudioData hanging or failing (the live path's unreliability); an
+  // OfflineAudioContext is the reliable offline-decode path the disk test
+  // already uses (decodeClipToPcmWithDiagnostics non-webm branch). It holds no
+  // hardware so there is nothing to close, and decoding straight to 16kHz
+  // makes the caller's resample step a no-op.
   try {
-    const audioCtx = new AudioContext();
+    const audioCtx = new OfflineAudioContext(1, 1, 16000);
     const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-    await audioCtx.close();
     return decoded;
   } catch (e) {
     console.warn('[Now Playing] decodeAudioData failed, blob may be in unsupported format:', (e as Error).message);
@@ -272,12 +278,19 @@ async function resampleAudioBuffer(buffer: AudioBuffer, targetSampleRate: number
 
 async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000): Promise<AudioBuffer | null> {
   let audioCtx: AudioContext | null = null;
+  // Declared outside the try (as a `string` initialized to '') so the catch can
+  // revoke it on a mid-setup throw (e.g. createMediaElementSource / addModule
+  // failure) — the explicit reject paths revoke before rejecting, but a throw
+  // between them would leak the URL. Kept as `string` (not `string | null`) so
+  // the closures below keep the narrowed type; '' is the "not yet created"
+  // sentinel and the catch's `if (blobUrl)` guard skips it.
+  let blobUrl = '';
 
   console.log(`[Now Playing] Attempting webm decode via Audio element: ${blob.size} bytes, type=${blob.type}`);
 
   try {
     // Use blob URL instead of data URL for better compatibility with opus
-    const blobUrl = URL.createObjectURL(blob);
+    blobUrl = URL.createObjectURL(blob);
     console.log(`[Now Playing] Created blob URL: ${blobUrl.substring(0, 50)}...`);
 
     const audio = new Audio();
@@ -326,6 +339,20 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
 
     let writeIndex = 0;
     const workletNode = new AudioWorkletNode(audioCtx, 'pcm-capture-processor');
+
+    // An AudioWorkletNode's process() is only pulled when the node is
+    // reachable from the destination in the rendering graph. source ->
+    // workletNode alone is a dead-end: process() never fires, no samples are
+    // captured, and the energy check below always returns null. Route the
+    // worklet through a zero-gain GainNode to destination (mirrors
+    // startPcmCapture) so process() pulls without audible monitoring. Done
+    // before the await below so audioCtx is still narrowed to AudioContext
+    // (inside the Promise closure a captured `let` reverts to its declared
+    // AudioContext | null type).
+    const silentGain = audioCtx.createGain();
+    silentGain.gain.value = 0;
+    workletNode.connect(silentGain);
+    silentGain.connect(audioCtx.destination);
 
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -396,6 +423,7 @@ async function capturePcmFromAudioElement(blob: Blob, targetSampleRate = 16000):
     return actualBuffer;
   } catch (error) {
     console.warn('[Now Playing] PCM capture from audio element failed:', error);
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
     if (audioCtx && audioCtx.state !== 'closed') {
       await audioCtx.close().catch(() => {});
     }
@@ -561,6 +589,7 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
   let pcmProcessor: AudioWorkletNode | null = null;
   let pcmRing: Float32Array = new Float32Array(16000 * 30); // 30 seconds at 16kHz
   let pcmWritePos = 0;
+  let pcmSamplesWritten = 0; // total samples written (caps reads before the ring is full)
   let pcmStartedAt = 0;
   const PCM_SAMPLE_RATE = 16000;
 
@@ -579,11 +608,37 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     pcmAudioCtx = null;
   };
 
-  const startPcmCapture = (stream: MediaStream) => {
+  const startPcmCapture = async (stream: MediaStream) => {
     stopPcmCapture();
-    const ctx = new AudioContext({ sampleRate: PCM_SAMPLE_RATE });
+    // attach() calls this fire-and-forget (`void startPcmCapture(stream)`), so
+    // it must never reject — an unhandled rejection would leak. new
+    // AudioContext() throws synchronously in environments without Web Audio
+    // (e.g. the node test runner, or a browser where construction fails), so
+    // guard it and degrade the raw-PCM path gracefully rather than rejecting.
+    let ctx: AudioContext;
+    try {
+      ctx = new AudioContext({ sampleRate: PCM_SAMPLE_RATE });
+    } catch (e) {
+      console.warn('[Now Playing] PCM AudioContext unavailable, raw-PCM capture disabled:', e);
+      return;
+    }
     pcmAudioCtx = ctx;
-    if (ctx.state === 'suspended') ctx.resume();
+    // A 16kHz AudioContext created without a fresh user gesture in the same
+    // call stack can start suspended. If resume() is fire-and-forget and the
+    // context stays suspended, the AudioWorklet's process() never pulls, so
+    // pcmSamplesWritten stays 0 and the raw-PCM Shazam path is permanently
+    // dead. Await resume (mirroring AudioEngine's main-context handling) so
+    // the worklet actually receives samples.
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.warn('[Now Playing] PCM AudioContext resume failed:', e);
+      }
+    }
+    if (ctx.state !== 'running') {
+      console.warn('[Now Playing] PCM AudioContext not running after resume; state=' + ctx.state + '. Raw-PCM capture may be unavailable.');
+    }
 
     ctx.audioWorklet.addModule(getWorkletUrl()).then(() => {
       if (pcmAudioCtx !== ctx) return; // stopped before module loaded
@@ -596,9 +651,18 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
           pcmRing[pcmWritePos] = inputData[i];
           pcmWritePos = (pcmWritePos + 1) % pcmRing.length;
         }
+        pcmSamplesWritten += inputData.length;
       };
       pcmSource.connect(pcmProcessor);
-      // No destination connection needed — AudioWorkletNode processes without it
+      // AudioWorklet process() is only pulled when the node reaches the
+      // destination, but wiring the mic straight to destination plays it out
+      // of the speakers — a guaranteed feedback howl on a laptop with built-in
+      // mic+speakers. Connect through a zero-gain GainNode so the pull happens
+      // with no audible monitoring.
+      const silentGain = pcmAudioCtx.createGain();
+      silentGain.gain.value = 0;
+      pcmProcessor.connect(silentGain);
+      silentGain.connect(pcmAudioCtx.destination);
       console.log('[Now Playing] Raw PCM capture started at 16kHz (AudioWorklet)');
     }).catch((e) => {
       console.warn('[Now Playing] Failed to start PCM capture:', e);
@@ -617,7 +681,18 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     }
 
     const numSamples = Math.floor(durationMs / 1000 * PCM_SAMPLE_RATE);
-    const availableSamples = Math.min(numSamples, pcmRing.length);
+    // The ScriptProcessor fires in 4096-sample quanta, so after exactly 12s of
+    // capture (a 192000-sample request) pcmSamplesWritten is only ~188416 —
+    // short of the 192000 the previous strict gate demanded, so the raw-PCM
+    // Shazam path returned null until the 47th quantum (12.256s) and often
+    // never. Shazam's signature generator only needs ~3s, so gate on that real
+    // minimum and export however many real samples we have (capped by the
+    // request), never zeros.
+    if (pcmSamplesWritten < MIN_SAMPLES_FOR_SHAZAM) {
+      console.warn(`[Now Playing] Insufficient PCM captured: ${pcmSamplesWritten} of ${numSamples} samples requested (need ${MIN_SAMPLES_FOR_SHAZAM})`);
+      return null;
+    }
+    const availableSamples = Math.min(numSamples, pcmSamplesWritten);
 
     // Read backwards from current write position
     const pcmS16le = new Int16Array(availableSamples);
@@ -628,13 +703,14 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
       readPos = (readPos + 1) % pcmRing.length;
     }
 
-    // Calculate energy
+    // Calculate energy across the entire returned region (not just the first
+    // second, which could be silence at the start of the clip).
     let energy = 0;
-    for (let i = 0; i < Math.min(availableSamples, PCM_SAMPLE_RATE); i++) {
+    for (let i = 0; i < availableSamples; i++) {
       const val = pcmS16le[i] / 32768;
       energy += val * val;
     }
-    energy = Math.sqrt(energy / Math.min(availableSamples, PCM_SAMPLE_RATE));
+    energy = Math.sqrt(energy / availableSamples);
 
     const endedAt = Date.now();
     const startedAt = endedAt - Math.round(availableSamples / PCM_SAMPLE_RATE * 1000);
@@ -666,6 +742,8 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
     firstChunkAt = null;
     stopPcmCapture();
     pcmStartedAt = 0;
+    pcmSamplesWritten = 0;
+    pcmWritePos = 0;
   };
 
   return {
@@ -686,9 +764,14 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
 
       mimeType = pickMimeType();
       try {
+        // 128 kbps gives the Opus/webm fallback enough spectral fidelity for
+        // Shazam's landmark matcher; the browser default (~32-64 kbps, speech-
+        // tuned) smears the peaks Shazam relies on. The raw-PCM path bypasses
+        // Opus entirely, so this only matters when that path is unavailable.
+        const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 128000 };
         recorder = mimeType
-          ? new MediaRecorder(stream, { mimeType })
-          : new MediaRecorder(stream);
+          ? new MediaRecorder(stream, { mimeType, ...recorderOptions })
+          : new MediaRecorder(stream, recorderOptions);
       } catch {
         recorder = null;
         mimeType = '';
@@ -706,8 +789,10 @@ export const createRollingAudioCapture = (historyMs = 20000) => {
       });
       recorder.start(1000);
 
-      // Start parallel PCM capture for Shazam
-      startPcmCapture(stream);
+      // Start parallel PCM capture for Shazam. Fire-and-forget: attach must stay
+      // synchronous (it returns a boolean), and capture isn't needed for ~10s
+      // anyway. startPcmCapture has its own try/catch and never rejects.
+      void startPcmCapture(stream);
 
       return true;
     },

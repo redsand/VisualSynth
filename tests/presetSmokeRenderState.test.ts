@@ -87,7 +87,20 @@ describe('preset smoke render-state snapshots', () => {
   });
 
   it('applies every preset and produces a stable render-state subset', () => {
-    const presetFiles = fs.readdirSync(presetsDir).filter((file) => file.endsWith('.json')).sort();
+    // assets/presets also ships non-preset JSON manifests (e.g. archive_list.json,
+    // an array). migratePreset correctly rejects those; this smoke test only
+    // cares about actual preset objects carrying a numeric version 1-6.
+    const presetFiles = fs.readdirSync(presetsDir)
+      .filter((file) => file.endsWith('.json'))
+      .filter((file) => {
+        const parsed = loadPreset(file);
+        return (
+          parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+          typeof parsed.version === 'number' && Number.isFinite(parsed.version) &&
+          parsed.version >= 1 && parsed.version <= 6
+        );
+      })
+      .sort();
     const entries = presetFiles.map((fileName) => {
       const project = applyPresetToProject(fileName);
       store.update((state: any) => {

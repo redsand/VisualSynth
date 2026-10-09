@@ -54,6 +54,21 @@ describe('project serialization', () => {
     expect(reloaded.activeSceneId).toBe('scene-69');
   });
 
+  it('preserves the output config across a save/load round-trip', () => {
+    // serializeProject previously stripped `output`, so the file never carried
+    // it and a reload reset the output window to DEFAULT_OUTPUT_CONFIG. The
+    // round-trip must keep the authored output so resolveProjectOutputConfig
+    // (project-wins) can re-apply it on load.
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.output = { ...project.output, scale: 0.5, fullscreen: true, enabled: true };
+
+    const reloaded = deserializeProject(serializeProject(project));
+
+    expect(reloaded.output.scale).toBe(0.5);
+    expect(reloaded.output.fullscreen).toBe(true);
+    expect(reloaded.output.enabled).toBe(true);
+  });
+
   it('loads legacy projects with array-shaped effects blocks', () => {
     const legacy = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
     legacy.effects = [
@@ -93,5 +108,31 @@ describe('project serialization', () => {
     expect(reloaded.effects.enabled).toBe(true);
     expect(Array.isArray(reloaded.scenes[0].look?.effects)).toBe(false);
     expect(reloaded.scenes[0].look?.effects?.enabled).toBe(true);
+  });
+});
+
+describe('asset-layer blend/audio-react persistence', () => {
+  it('preserves assetLayerBlendModes and assetLayerAudioReact across a save/load round-trip', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    project.assetLayerBlendModes = { 'layer-plasma': 4, 'layer-media': 2 };
+    project.assetLayerAudioReact = { 'layer-spectrum': 0.25 };
+
+    const reloaded = deserializeProject(serializeProject(project));
+
+    expect(reloaded.assetLayerBlendModes).toEqual({ 'layer-plasma': 4, 'layer-media': 2 });
+    expect(reloaded.assetLayerAudioReact).toEqual({ 'layer-spectrum': 0.25 });
+  });
+
+  it('omits the fields when the source project does not set them (no churn for legacy projects)', () => {
+    const project = JSON.parse(JSON.stringify(DEFAULT_PROJECT));
+    delete project.assetLayerBlendModes;
+    delete project.assetLayerAudioReact;
+
+    const reloaded = deserializeProject(serializeProject(project));
+
+    // Optional with no default: absent stays absent, so old projects do not
+    // gain a spurious {} key on load.
+    expect(reloaded.assetLayerBlendModes).toBeUndefined();
+    expect(reloaded.assetLayerAudioReact).toBeUndefined();
   });
 });

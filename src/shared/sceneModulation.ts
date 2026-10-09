@@ -35,7 +35,7 @@ export interface SceneTransitionConfig {
   fromSceneId: string;
   toSceneId: string;
   durationMs: number;
-  curve: 'linear' | 'easeInOut';
+  curve: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
   trigger: 'manual' | 'audio' | 'time' | 'midi';
   audioThreshold?: number;
   timeMs?: number;

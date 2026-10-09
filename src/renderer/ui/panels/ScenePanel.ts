@@ -181,20 +181,32 @@ export const createScenePanel = ({ store, loadPreset, applyScene, onSceneCreated
       return;
     }
     
+    // Duplicate layers first, recording an old-id -> new-id map. The
+    // assigned_layers role buckets must reference the duplicated layers' new
+    // ids; the old code generated independent ids for them, so the duplicate
+    // scene's assigned_layers pointed at non-existent layers.
+    const layerIdMap = new Map<string, string>();
+    const duplicatedLayers = scene.layers.map(layer => {
+      const newId = generateLayerId();
+      layerIdMap.set(layer.id, newId);
+      return { ...JSON.parse(JSON.stringify(layer)), id: newId };
+    });
+    const remapAssigned = (ids: string[]) =>
+      ids.map(oldId => layerIdMap.get(oldId) ?? generateLayerId());
+
     const newScene: SceneConfig = {
       ...JSON.parse(JSON.stringify(scene)),
       id: generateId(),
       scene_id: generateId(),
       name: `${scene.name} (copy)`,
-      layers: scene.layers.map(layer => ({
-        ...JSON.parse(JSON.stringify(layer)),
-        id: generateLayerId()
-      })),
-      assigned_layers: scene.assigned_layers ? {
-        core: scene.assigned_layers.core.map(() => generateLayerId()),
-        support: scene.assigned_layers.support.map(() => generateLayerId()),
-        atmosphere: scene.assigned_layers.atmosphere.map(() => generateLayerId())
-      } : undefined
+      layers: duplicatedLayers,
+      assigned_layers: scene.assigned_layers
+        ? {
+            core: remapAssigned(scene.assigned_layers.core),
+            support: remapAssigned(scene.assigned_layers.support),
+            atmosphere: remapAssigned(scene.assigned_layers.atmosphere)
+          }
+        : undefined
     };
     
     project.scenes.push(newScene);

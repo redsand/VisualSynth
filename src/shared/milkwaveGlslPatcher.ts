@@ -382,6 +382,37 @@ const preprocess = (source: string): string => {
   // Handle mod with parentheses: mod(a, b).xyz → mod(a, b)
   source = source.replace(/\bmod\s*\(([^()]*)\)\s*\.([xyzwrgba]{2,})/g, 'mod($1)');
 
+  // ── 0a.2. uAspect inverse-aspect swizzles ──
+  // MilkDrop's uAspect (vec2: x=aspect, y=inverse-ish) exposes the inverse
+  // aspect via .z (1/x), .w (1/y), and .zw (vec2(1)/uAspect). These swizzles
+  // are invalid on a vec2 in GLSL, so expand them to the real arithmetic
+  // before parsing. (Longest match .zw first; \b prevents .z from matching
+  // inside .zw.)
+  source = source.replace(/\buAspect\.zw\b/g, '(vec2(1.0)/uAspect)');
+  source = source.replace(/\buAspect\.z\b/g, '(1.0/uAspect.x)');
+  source = source.replace(/\buAspect\.w\b/g, '(1.0/uAspect.y)');
+
+  // ── 0a.3. Numeric literal swizzles ──
+  // `1.0.xy` swizzles a numeric literal, which is invalid GLSL (scalars have
+  // no components). Wrap the literal in a vec constructor of the swizzle's
+  // width so the swizzle applies to a real vector: 1.0.xy → vec2(1.0).xy.
+  source = source.replace(/\b(\d+\.?\d*)\.([xyzwrgba]{2,4})\b/g, (_m, lit, sw) =>
+    `vec${sw.length}(${lit}).${sw}`);
+
+  // ── 0a.4. Float-declaration int-literal promotion ──
+  // GLSL ES 3.00 forbids implicit int→float conversion, so `float x = 0;`
+  // (or `const float x = -1;`) fails to compile. Promote the bare integer
+  // initializer to a float literal by appending `.0`. Mirrors the
+  // `int-literal-float-decl` rule in milkwaveDiagnostics, whose regex is
+  // `\b(?:const\s+)?float\s+\w+\s*=\s*-?\d+\s*;` — we match the same shape and
+  // only touch cases where the int literal is the sole initializer directly
+  // before `;` (already-float `0.0`, expressions, and multi-declarator lists
+  // with a trailing `,` are all left untouched).
+  source = source.replace(
+    /\b((?:const\s+)?float\s+\w+\s*=\s*-?)(\d+)(\s*;)/g,
+    (_m, pre, num, post) => `${pre}${num}.0${post}`
+  );
+
   source = source.replace(/\bint\s*\(/g, 'float(');                         // `int(expr)` casts → `float(expr)` (HLSL int*float invalid in GLSL)
   // Modulo on floats: `a % b` → `mod(a, b)` (GLSL % only works on integers)
   // Handle simple cases first: identifier/literal % identifier/literal
@@ -675,6 +706,69 @@ const preprocess = (source: string): string => {
     }
   }
 
+  // ── 0h. Dangling statement commas → semicolons ──
+  // EEL per-pixel code sometimes ends a statement with `,` instead of `;`
+  // (`ret = vec3(1.0),\n  ret = mix(...)`). A comma at paren depth 0 that
+  // immediately follows a closing `)` and precedes a newline is a statement
+  // separator the GLSL parser rejects; convert it to `;`. Commas inside
+  // argument lists (depth>0) and declaration commas (`float a, b`, where the
+  // comma follows an identifier, not `)`) are left untouched.
+  {
+    let outStr = '';
+    let depth = 0;
+    for (let i = 0; i < source.length; i++) {
+      const ch = source[i];
+      if (ch === '(') depth++;
+      else if (ch === ')') depth = depth > 0 ? depth - 1 : 0;
+      if (ch === ',' && depth === 0) {
+        let p = outStr.length - 1;
+        while (p >= 0 && (outStr[p] === ' ' || outStr[p] === '\t')) p--;
+        let j = i + 1;
+        while (j < source.length && (source[j] === ' ' || source[j] === '\t')) j++;
+        if (p >= 0 && outStr[p] === ')' && source[j] === '\n') {
+          outStr += ';';
+          continue;
+        }
+      }
+      outStr += ch;
+    }
+    source = outStr;
+  }
+
+  // ── 0i. Close unterminated main-body blocks before fragColor ──
+  // `while (...) {\n  ...\n  fragColor = ...` leaves the inner block open past
+  // the fragColor assignment, unbalancing braces so the AST parse fails. Count
+  // brace depth between main's opening `{` and the fragColor assignment; if
+  // positive, insert that many `}` lines before fragColor (dedenting the
+  // fragColor line to column 0) so the block(s) close and the output assignment
+  // sits at main-body scope.
+  {
+    const mainIdx2 = source.indexOf('void main()');
+    if (mainIdx2 !== -1) {
+      const openBrace = source.indexOf('{', mainIdx2);
+      const fragIdx = source.lastIndexOf('fragColor');
+      if (openBrace !== -1 && fragIdx !== -1 && fragIdx > openBrace) {
+        const between = source.substring(openBrace + 1, fragIdx);
+        let d = 0;
+        for (const ch of between) { if (ch === '{') d++; else if (ch === '}') d--; }
+        if (d > 0) {
+          let lineStart = fragIdx;
+          while (lineStart > 0 && source[lineStart - 1] !== '\n') lineStart--;
+          const fragLine = source.substring(lineStart);
+          source = source.substring(0, lineStart) + '}\n'.repeat(d) + fragLine.replace(/^\s+/, '');
+        }
+      }
+    }
+  }
+
+  // ── 0j. Repair truncated function calls with a missing trailing argument ──
+  // `mix(a, b,\n  )` — a trailing comma + close paren with no final argument
+  // is invalid GLSL. The offline translator sometimes truncates a mix() blend
+  // factor. Supply a neutral 0.5 blend factor: `mix(a, b, 0.5)`. Matches a
+  // comma at the end of an argument line directly followed by the call's
+  // closing `)` (with only whitespace between).
+  source = source.replace(/,\s*\)\s*;/g, ', 0.5);');
+
   return source;
 };
 
@@ -844,6 +938,16 @@ const astTransform = (source: string): string => {
    'rand12', 'rand13', 'rand14', 'rand15',
   ].forEach(v => builtins.add(v));
 
+  // Single-letter names that live in `builtins` ONLY to suppress stray swizzle
+  // *usages* (e.g. `x`, `y`, `a` read as bare identifiers). When such a name is
+  // the target of an assignment (`a = q1; b = q2;`), it is a real variable and
+  // must be declared — see the assignments loop below. Field selections like
+  // `color.a` parse the component as a literal, not an identifier, so they are
+  // not affected by declaring these.
+  const swizzleLetters = new Set([
+    'i', 'j', 'k', 'n', 'x', 'y', 'z', 'w', 'r', 'g', 'b', 'a', 's', 't', 'p'
+  ]);
+
   // ── Find all identifiers used in expressions ──
   const allUsedIdentifiers = new Set<string>();
   const functionNames = new Set<string>();
@@ -882,11 +986,18 @@ const astTransform = (source: string): string => {
   // ── Find undeclared identifiers (assigned or used but not declared, not builtin) ──
   const undeclared = new Set<string>();
   for (const name of assignments) {
-    if (!declaredNames.has(name) && !builtins.has(name)) {
+    if (declaredNames.has(name)) continue;
+    // A name assigned as an identifier LHS is a real variable. Only true
+    // builtins (gl_FragCoord, sin, uniforms, q1..q32, etc.) are skipped; a name
+    // that is "builtin" solely because it is a swizzle letter (a, b, x, ...)
+    // is still declared — EEL per-pixel code uses `a = q1; b = q2;` as genuine
+    // float variables, and leaving them undeclared is a compile error.
+    if (!builtins.has(name) || swizzleLetters.has(name)) {
       undeclared.add(name);
     }
   }
-  // Also add used-but-not-declared identifiers
+  // Also add used-but-not-declared identifiers (here swizzle letters stay
+  // suppressed — a bare `x` read without an assignment is ambiguous).
   for (const name of allUsedIdentifiers) {
     if (!declaredNames.has(name) && !builtins.has(name)) {
       undeclared.add(name);
@@ -1027,6 +1138,12 @@ const astTransform = (source: string): string => {
               }
             }
           }
+          // The declaration is now `vec3 ret`; reflect that in the type map so
+          // later passes (e.g. Pass 11 vec-constructor arg sizing) infer `ret`
+          // as 3 components. Without this, `vec4(ret, 1.0)` (built by Pass 5)
+          // reads as 4+1=5 components and Pass 11 swizzles `ret` down to `.xy`,
+          // producing the invalid `vec4(ret.xy, 1.0)` (only 3 components).
+          typeMap.set(decls[0].identifier.identifier, 3);
         }
       },
     },
@@ -1099,6 +1216,38 @@ const astTransform = (source: string): string => {
     },
   });
 
+  // ── Pass 7.5: matching-dim fn scalar arg widening ──
+  // dot/cross/distance/reflect require both args to share a dimension, so
+  // `dot(vec3, float)` is invalid GLSL. When exactly one arg is scalar (dim 1)
+  // and the other is a vector (dim 2-4), widen the scalar to vecN(scalar) so
+  // the dimensions match. (refract/faceforward are excluded: their last arg
+  // is an intentionally-scalar eta/Nref-like operand, not a matching-dim pair.)
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (name !== 'dot' && name !== 'cross' && name !== 'distance' && name !== 'reflect') return;
+        const args = getArgs(p.node);
+        if (args.length !== 2) return;
+        const aDim = inferDim(args[0], typeMap);
+        const bDim = inferDim(args[1], typeMap);
+        // One side scalar (1), the other a true vector (2-4). Matrices are
+        // dim >= 4 in typeMap and are left untouched (a mat operand makes the
+        // call a matrix builtin, not something to coerce here).
+        const vecDim = Math.max(aDim, bDim);
+        if (vecDim < 2 || vecDim > 3) return;
+        const allArgs = p.node.args;
+        if (aDim === 1 && bDim >= 2 && bDim <= 3) {
+          const idx = allArgs.indexOf(args[0]);
+          if (idx !== -1) allArgs[idx] = mkFnCall(`vec${bDim}`, [args[0]], ' ') as unknown as AstNode;
+        } else if (bDim === 1 && aDim >= 2 && aDim <= 3) {
+          const idx = allArgs.indexOf(args[1]);
+          if (idx !== -1) allArgs[idx] = mkFnCall(`vec${aDim}`, [args[1]], ' ') as unknown as AstNode;
+        }
+      },
+    },
+  });
+
   // ── Pass 8: ret = scalar_fn(...) → ret = vec3(scalar_fn(...)) ──
   visit(ast, {
     assignment: {
@@ -1111,7 +1260,113 @@ const astTransform = (source: string): string => {
         const right = p.node.right;
         const rightDim = inferDim(right, typeMap);
         if (rightDim === 1) {
-          (p.node as any).right = mkFnCall('vec3', [right], ' ') as unknown as AstNode;
+          // Use the variable's declared dimension when available. The
+          // VEC3_VARS heuristic assumes vec3, but a variable can be declared
+          // vec4 (e.g. `vec4 color = vec4(0.0)`); wrapping its scalar RHS as
+          // vec3 and then letting Pass 10.5 pad to vec4 produces
+          // `vec4(vec3(1.0), 0.0)` (alpha 0.0). vecN(scalar) broadcasts the
+          // scalar to all N components, so `color = 1.0` → `vec4(1.0)` (alpha
+          // 1.0). Falls back to 3 for undeclared EEL per-pixel vars.
+          const targetDim = typeMap.get(varName) ?? 3;
+          if (targetDim >= 2) {
+            (p.node as any).right = mkFnCall(`vec${targetDim}`, [right], ' ') as unknown as AstNode;
+          }
+        }
+      },
+    },
+  });
+
+  // ── Pass 8.5: vec2-context binary lowering ──
+  // A vec2 assignment/declaration whose RHS is built from vec3-returning calls
+  // (GetPixel/GetBlurN/GetMain) and scalars otherwise comes out as vec3 and is
+  // assigned to a vec2 target — invalid GLSL. Lower the whole RHS to vec2 in
+  // place: swizzle each vec3-returning call to .xy, and widen a bare scalar
+  // +/- operand to vec2(scalar). `*`/`/` scalar multipliers stay scalar
+  // (component-wise), and existing swizzles are left alone. Runs before Pass 9
+  // so the rebalancer sees matching vec2 dims and does not pad to vec3.
+  const lowerToVec2 = (node: AstNode): AstNode => {
+    if (!node) return node;
+    switch (node.type) {
+      case 'postfix':
+        // Already swizzled/indexed — never add a second swizzle.
+        return node;
+      case 'function_call': {
+        const fn = getFnName(node as FunctionCallNode);
+        if (VEC3_FNS.has(fn)) {
+          return mkPostfixSwizzle(node, 'xy') as unknown as AstNode;
+        }
+        return node;
+      }
+      case 'group': {
+        (node as any).expression = lowerToVec2((node as any).expression);
+        // A widened `vecN(scalar)` at the very start of the group has no
+        // leading whitespace of its own (function_call emits none), so the
+        // space before it must live on the group's `(`. If the group's
+        // expression now begins with such a widened scalar call, add it.
+        let leaf: AstNode | undefined = (node as any).expression;
+        while (leaf && (leaf.type === 'binary' || leaf.type === 'group' || leaf.type === 'unary')) {
+          leaf = (leaf as any).type === 'group' || (leaf as any).type === 'unary'
+            ? (leaf as any).expression
+            : (leaf as any).left;
+        }
+        if (leaf && leaf.type === 'function_call') {
+          const fn = getFnName(leaf as FunctionCallNode);
+          const la = getArgs(leaf as FunctionCallNode);
+          if ((fn === 'vec2' || fn === 'vec3') && la.length === 1 && inferDim(la[0], typeMap) === 1) {
+            ((node as any).lp as any).whitespace = ' ';
+          }
+        }
+        return node;
+      }
+      case 'unary': {
+        (node as any).expression = lowerToVec2((node as any).expression);
+        return node;
+      }
+      case 'binary': {
+        const bn = node as BinaryNode;
+        const bop = bn.operator.literal;
+        if (['+', '-', '*', '/'].includes(bop)) {
+          bn.left = lowerToVec2(bn.left);
+          bn.right = lowerToVec2(bn.right);
+          if (bop === '+' || bop === '-') {
+            const lDim = inferDim(bn.left, typeMap);
+            const rDim = inferDim(bn.right, typeMap);
+            // Only widen a bare scalar +/- operand; `scalar * vec2` stays scalar.
+            if (lDim === 1 && rDim >= 2 && rDim <= 3) {
+              const widened = mkFnCall('vec2', [bn.left], ' ') as unknown as FunctionCallNode;
+              (widened.rp as any).whitespace = ' ';
+              bn.left = widened as unknown as AstNode;
+              (bn.operator as any).whitespace = ' ';
+            } else if (rDim === 1 && lDim >= 2 && lDim <= 3) {
+              bn.right = mkFnCall('vec2', [bn.right], ' ') as unknown as AstNode;
+              (bn.operator as any).whitespace = ' ';
+            }
+          }
+        }
+        return bn;
+      }
+      default:
+        return node;
+    }
+  };
+
+  visit(ast, {
+    assignment: {
+      enter: (p) => {
+        const a = p.node as AssignmentNode;
+        if (a.left.type !== 'identifier') return;
+        if (inferDim(a.left, typeMap) !== 2) return;
+        a.right = lowerToVec2(a.right);
+      },
+    },
+    declarator_list: {
+      enter: (p) => {
+        if (getTypeKeyword(p.node) !== 'vec2') return;
+        for (const d of (p.node as DeclaratorListNode).declarations) {
+          const decl = d as DeclarationNode;
+          if (decl.initializer) {
+            decl.initializer = lowerToVec2(decl.initializer as unknown as AstNode) as any;
+          }
         }
       },
     },
@@ -1135,7 +1390,29 @@ const astTransform = (source: string): string => {
         // Skip matrix types (dim >= 4) - mat*vec is valid GLSL
         if (leftDim >= 4 || rightDim >= 4) return;
         if (leftDim === rightDim) return;
-        if (leftDim === 1 || rightDim === 1) return; // GLSL allows vec * scalar
+        if (leftDim === 1 || rightDim === 1) {
+          // `vec * scalar` / `vec / scalar` (and the reverse) are valid GLSL
+          // applied component-wise — leave them alone. But `scalar +/- vec` is
+          // not portable across GLSL ES drivers, so widen the scalar operand to
+          // vecN(scalar). Matrices are dim >= 4 and already excluded above, so
+          // the non-scalar side here is a true vector (dim 2 or 3).
+          if (op === '*' || op === '/') return;
+          const vecDim = Math.max(leftDim, rightDim);
+          const vecType = `vec${vecDim}`;
+          if (leftDim === 1) {
+            const widened = mkFnCall(vecType, [left], ' ') as unknown as FunctionCallNode;
+            // glsl-parser stores whitespace as TRAILING; a function_call emits
+            // its closing `)` (rp) last, so the space before the operator lives
+            // on rp.whitespace. operator.whitespace is the space after it.
+            (widened.rp as any).whitespace = ' ';
+            p.node.left = widened as unknown as AstNode;
+            (p.node.operator as any).whitespace = ' ';
+          } else {
+            p.node.right = mkFnCall(vecType, [right], ' ') as unknown as AstNode;
+            (p.node.operator as any).whitespace = ' ';
+          }
+          return;
+        }
 
         // For vec2 + vec4 or vec3 + vec4, truncate the wider operand instead of padding
         // This preserves semantics better than padding with zeros
@@ -1200,10 +1477,16 @@ const astTransform = (source: string): string => {
           if (spec.type === 'keyword') (spec as any).token = newType;
           typeMap.set(decl.identifier.identifier, initDim);
         } else if (declaredDim >= 2 && initDim === 1) {
-          // vecX x = scalar_expr → float x = scalar_expr
-          const spec = node.specified_type.specifier.specifier;
-          if (spec.type === 'keyword') (spec as any).token = 'float';
-          typeMap.set(decl.identifier.identifier, 1);
+          // vecX x = scalar_expr → vecX x = vecX(scalar_expr)
+          // Promote the scalar initializer to the declared vector dimension
+          // rather than silently downgrading the variable's declared type to
+          // float. Downgrading changes the variable's type and breaks later
+          // vector uses (e.g. `vec3(uv2, 0.0)` reading uv2 as a scalar). vecN
+          // with a single scalar arg broadcasts it to all N components, so
+          // `vec2 uv2 = 0.5` → `vec2 uv2 = vec2(0.5)` and the declared vec2
+          // type is preserved.
+          const vecType = `vec${declaredDim}`;
+          decl.initializer = mkFnCall(vecType, [decl.initializer as unknown as AstNode], ' ') as unknown as AstNode;
         }
       },
     },
@@ -1230,11 +1513,17 @@ const astTransform = (source: string): string => {
         if (rightDim === 0 || rightDim === varDim) return;
 
         if (rightDim > varDim) {
-          // Swizzle down: vecX → smaller
-          const swizzle = varDim === 0 ? 'x' : varDim === 1 ? 'x' : varDim === 2 ? 'xy' : 'xyz';
+          // Swizzle down: vecX → smaller. Only do this when the LHS dimension is
+          // KNOWN (>=1). When varDim is 0 the variable is undeclared (e.g. EEL
+          // per-pixel vars like `ag = ang + 3.1415;` or `zm = -.45;`) and we
+          // cannot know its target type. The previous code swizzled a scalar
+          // RHS down to `.x` whenever the LHS was unknown, producing invalid
+          // GLSL like `ag = (ang + 3.1415).x;` and `zm = -.45.x;` — a scalar
+          // swizzled to `.x` is a compile error. An unknown LHS assigned a
+          // scalar is left alone (the auto-declare pass declares it float).
+          if (varDim === 0) return;
+          const swizzle = varDim === 1 ? 'x' : varDim === 2 ? 'xy' : 'xyz';
           p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
-          // If varDim was 0 (unknown), assume it's float after swizzling
-          if (varDim === 0) typeMap.set(varName, 1);
         } else if (isCompound) {
           // Only pad for compound assignments (+= -= *= /=)
           const targetDim = varDim || rightDim;
@@ -1896,5 +2185,16 @@ export const patchMilkDropGlsl = (source: string): string => {
   const preprocessed = preprocess(source);
 
   // Phase 2: AST transforms (all structural fixes)
-  return astTransform(preprocessed);
+  const out = astTransform(preprocessed);
+
+  // The @shaderfrog/glsl-parser generator renders a group node as
+  // `generate(lp) + generate(expression) + generate(rp)`. When the group's
+  // first token is an identifier (e.g. a `vec2(...)` constructor — whether one
+  // we injected for the uAspect.zw expansion, or one produced by scalar-vector
+  // coercion like `uv*(1-...)` -> `uv*( vec2(1.0) - ...)`), the identifier
+  // carries a default leading-whitespace space, so the group is emitted as
+  // `( vec2(...)`. A literal-first group like `(1.0/uAspect.x)` gets no such
+  // space. This space is semantically inert in GLSL and is the generator's
+  // consistent output, so callers/tests that assert these forms must expect it.
+  return out;
 };

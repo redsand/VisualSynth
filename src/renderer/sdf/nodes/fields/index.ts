@@ -126,6 +126,7 @@ export const fieldPerlin2D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float fieldPerlin2D(vec2 p, float scale, float threshold, float thickness, float octaves)',
+    argPack: { scale: ['scale'], threshold: ['threshold'], thickness: ['thickness'], octaves: ['octaves'] },
     body: `p *= scale;
 float value = 0.0;
 float amplitude = 0.5;
@@ -225,6 +226,7 @@ export const fieldPolyline: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float fieldPolyline(vec2 p, float th, vec2 p0, vec2 p1, vec2 p2)',
+    argPack: { th: ['thickness'], p0: ['x0', 'y0'], p1: ['x1', 'y1'], p2: ['x2', 'y2'] },
     body: `float d = 1e10;
 // Segment 0-1
 vec2 pa = p - p0, ba = p1 - p0;

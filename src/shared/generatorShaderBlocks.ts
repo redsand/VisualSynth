@@ -5030,7 +5030,7 @@ uniform float uMilkwaveOpacity;
   return col * (0.35 + haze * 0.85);
 }
 `,
-    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity;
+    mainCall: `  if (uMilkwaveEnabled > 0.5) color += milkwave(effectUv, uTime, mid) * uMilkwaveOpacity * uRoleWeights.y;
 `,
   },
 
@@ -5218,7 +5218,7 @@ uniform float uSankeyColorSeed;
     float audio = uSpectrum[int(i * 8.0)];
     float flowWidth = (0.3 + audio * 0.5) / count * uSankeySpread;
     float drift = sin(t * uSankeySpeed * 0.5 + i * 2.1) * 0.08;
-    float bend = sin(uv.x * 3.14159 + i * 1.7) * 0.06 * (1.0 + mid);
+    float bend = sin(uv.x * 3.14159 + i * 1.7) * 0.06 * (1.0 + audio);
     float y = yBase + drift + bend * uv.x;
     float dist = abs(uv.y - y);
     float flow = smoothstep(flowWidth, flowWidth * 0.3, dist);

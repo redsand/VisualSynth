@@ -113,6 +113,7 @@ export const sdRhombus: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdRhombus(vec2 p, vec2 b)',
+    argPack: { b: ['width', 'height'] },
     body: `p = abs(p);
 float h = clamp(ndot(b - 2.0 * p, b) / dot(b, b), -1.0, 1.0);
 float d = length(p - 0.5 * b * vec2(1.0 - h, 1.0 + h));
@@ -329,6 +330,7 @@ export const sdClover: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdClover(vec2 p, float r, float n)',
+    argPack: { r: ['radius'], n: ['lobes'] },
     body: `float a = atan(p.y, p.x);
 float d = length(p);
 float f = cos(a * n) * 0.5 + 0.5;
@@ -404,6 +406,7 @@ export const sdSuperellipse: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdSuperellipse(vec2 p, vec2 ab, float n)',
+    argPack: { ab: ['width', 'height'], n: ['power'] },
     body: `p = abs(p) / ab;
 float k = pow(pow(p.x, n) + pow(p.y, n), 1.0 / n);
 return (k - 1.0) * min(ab.x, ab.y);`
@@ -440,6 +443,7 @@ export const sdGear2D: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdGear2D(vec2 p, float ro, float ri, float teeth, float depth, float hole)',
+    argPack: { ro: ['outerRadius'], ri: ['innerRadius'], teeth: ['teeth'], depth: ['toothDepth'], hole: ['holeRadius'] },
     body: `float a = atan(p.y, p.x);
 float r = length(p);
 float toothAngle = 3.14159265 / teeth;

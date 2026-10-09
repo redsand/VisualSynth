@@ -37,6 +37,17 @@ const createMockGl = () => {
     attachShader: (program: { attached: unknown[] }, shader: unknown) => {
       program.attached.push(shader);
     },
+    // The renderer detaches previously-attached shaders when it (re)links a
+    // program during startup/compile, and touches a few GL state queries.
+    // Without these stubs the mock throws "gl.detachShader is not a function"
+    // before the startup path can produce its minimal shader.
+    detachShader: () => {},
+    disable: () => {},
+    enable: () => {},
+    isEnabled: () => false,
+    getParameter: () => 0,
+    disableVertexAttribArray: () => {},
+    BLEND: 0x0be2,
     linkProgram: () => {},
     getProgramParameter: () => true,
     getProgramInfoLog: () => '',

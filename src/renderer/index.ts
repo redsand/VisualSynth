@@ -18,7 +18,8 @@ import {
   AssetItem,
   AssetColorSpace
 } from '../shared/project';
-import { SceneManager } from './scene/SceneManager';
+import type { ModConnection, MidiMapping } from '../shared/project';
+import { SceneManager, captureSceneSnapshot } from './scene/SceneManager';
 import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
@@ -30,12 +31,14 @@ import { createMixerPanel } from './ui/panels/MixerPanel';
 import { createSdfPanel } from './ui/panels/SdfPanel';
 import { createOutputManagerPanel, injectOutputManagerStyles } from './ui/panels/OutputManagerPanel';
 import { registerSdfNodes } from './sdf/nodes';
+import { modulateSdfScene } from './sdf/applySdfModulation';
 import { createModulationPanel } from './ui/panels/ModulationPanel';
 import { getBeatMs, getNextQuantizedTimeMs, QuantizationUnit } from '../shared/quantization';
 import { BpmRange, clampBpmRange, fitBpmToRange } from '../shared/bpm';
 import { GENERATORS, GeneratorId, getVisibleGenerators, updateRecents, toggleFavorite, supportsAsset, needsInput } from '../shared/generatorLibrary';
 import { getMidiChannel, mapPadWithBank, scaleMidiValue } from '../shared/midiMapping';
-import { applyModMatrix } from '../shared/modMatrix';
+import { applyModMatrix, ModSmoothEntry } from '../shared/modMatrix';
+import { GLOBAL_MOD_TARGETS, resolveModTargetRange } from '../shared/modTargets';
 import { PARAMETER_REGISTRY, buildLegacyTarget, getLayerType, getModulatableParams, getMidiMappableParams, getParamDef, parseLegacyTarget } from '../shared/parameterRegistry';
 import { resolveGenUniforms } from '../shared/genUniformResolver';
 import { lfoValueForShape } from '../shared/lfoUtils';
@@ -68,17 +71,15 @@ import {
   resolveSceneSwitch,
   tickFpsTracker
 } from './render/renderLoopHelpers';
-import {
-  buildRendererOutputBroadcastPayload,
-  type OutputTransitionPayload
-} from './render/outputPayload';
+import { buildRendererOutputBroadcastPayload } from './render/outputPayload';
+import type { OutputTransitionPayload } from './render/outputPayload';
 import { collectSceneGeneratorIds } from '../shared/shaderUtils';
 import { ensureVisualSynthBridge } from './visualSynthBridge';
 import { createOverlayRenderer } from './overlayRenderer';
 import type { OverlayConfig } from '../shared/project';
 import { reorderScenes } from '../shared/project';
 import { DEFAULT_NOW_PLAYING_SETTINGS, isNowPlayingMetadataSourceConfigured, isNowPlayingLookupConfigured, type NowPlayingRecognitionRequest, type NowPlayingRecognitionResponse, type NowPlayingSettings } from '../shared/nowPlaying';
-import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult } from './audio/rollingAudioCapture';
+import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult, type RecentAudioClip } from './audio/rollingAudioCapture';
 import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
 import type { Store } from './state/store';
 import { sessionHealthService } from './sessionHealthService';
@@ -88,8 +89,8 @@ import { sessionLog, initSessionLog } from './sessionLog';
 declare global {
   interface Window {
     visualSynth: {
-      saveProject: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
-      saveProjectAs: (payload: string) => Promise<{ canceled: boolean; filePath?: string }>;
+      saveProject: (payload: string, filePath?: string) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
+      saveProjectAs: (payload: string) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
       autosaveProject: (payload: string) => Promise<{ saved: boolean; filePath?: string }>;
       showSaveDialog: (isRecovery: boolean) => Promise<{ result: 'save' | 'discard' | 'cancel' }>;
       confirmClose: () => Promise<void>;
@@ -97,15 +98,16 @@ declare global {
       savePreset: (
         payload: string,
         defaultName: string
-      ) => Promise<{ canceled: boolean; filePath?: string }>;
+      ) => Promise<{ canceled: boolean; filePath?: string; error?: string }>;
       saveExchange: (
         payload: string,
         defaultName: string
       ) => Promise<{ canceled: boolean; filePath?: string }>;
-      openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; error?: string }>;
-      openSceneFile: () => Promise<{ canceled: boolean; files?: { filePath: string; payload: string }[] }>;
+      openProject: () => Promise<{ canceled: boolean; project?: VisualSynthProject; filePath?: string; error?: string }>;
+      openSceneFile: () => Promise<{ canceled: boolean; files?: { filePath: string; payload: string }[]; filePath?: string; error?: string }>;
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
-      getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string }>;
+      getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string; error?: string }>;
+      getSessionId: () => Promise<string>;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
       listPresets: () => Promise<PresetIndexEntry[]>;
       loadPreset: (presetPath: string) => Promise<{ preset?: any; error?: string }>;
@@ -113,6 +115,7 @@ declare global {
       loadTemplate: (templatePath: string) => Promise<{ project?: VisualSynthProject; error?: string }>;
       listNodeMidi: () => Promise<{ index: number; name: string }[]>;
       openNodeMidi: (portIndex: number) => Promise<{ opened: boolean; error?: string }>;
+      closeNodeMidi: () => Promise<{ closed: boolean }>;
       onNodeMidiMessage: (handler: (message: number[]) => void) => void;
       getOutputConfig: () => Promise<OutputConfig>;
       isOutputOpen: () => Promise<boolean>;
@@ -658,7 +661,7 @@ const restoreDynamicAssets = async () => {
         video.srcObject = stream;
         video.muted = true;
         video.playsInline = true;
-        void video.play();
+        void video.play().catch(() => undefined);
 
         livePreviewElements.set(asset.id, video);
         liveStreams.set(asset.id, stream);
@@ -843,6 +846,10 @@ const getLastAssignedLayerForKind = (assetKind: string): string | null => {
 };
 let lastMidiLatencyMs: number | null = null;
 let pendingSceneSwitch: { targetSceneId: string; scheduledTimeMs: number; transitionOverride?: SceneTransition | null } | null = null;
+// Cooldown for scene.next / scene.prev modulation triggers so a source that
+// stays above threshold doesn't fire a scene advance every frame.
+let lastSceneModTriggerMs = -Infinity;
+const SCENE_MOD_COOLDOWN_MS = 1500;
 let sdfPanel: { render: () => void } | null = null;
 let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, bands: number[]) => void } | null = null;
 let autoBpm: number | null = null;
@@ -963,6 +970,15 @@ const triggerPlaylistSlot = async (index: number) => {
 
   // applyScene handles transitions via sceneRuntime
   applyScene(scene.id);
+  // Carry live layer tweaks (recorded via recordPlaylistOverride while the
+  // playlist is running) into the newly-activated scene. The preset-based
+  // PlaylistManager path applies these in applyPresetPath; the legacy
+  // timer/manual path only swaps activeSceneId, so without this every live
+  // tweak was silently dropped on each slot change. No-op when the playlist
+  // isn't active (applyPlaylistOverrides early-returns).
+  applyPlaylistOverrides(currentProject);
+  renderLayerList();
+  syncPerformanceToggles();
   setStatus(`Playlist: ${scene.name}`);
   renderPlaylist();
 };
@@ -1097,6 +1113,12 @@ const audioState = {
   bands: new Float32Array(8),
   spectrum: new Float32Array(64),
   waveform: new Float32Array(256),
+  bass: 0,
+  mid: 0,
+  treb: 0,
+  bassAtt: 0,
+  midAtt: 0,
+  trebAtt: 0,
   energyLow: 0,
   energyMid: 0,
   energyHigh: 0
@@ -1108,17 +1130,23 @@ const audioStoreBridge: Store = {
   getState: () => ({
     audio: audioState,
     project: currentProject,
-    bpm: { 
+    bpm: {
       source: bpmSource,
-      range: bpmRange, 
+      range: bpmRange,
       autoBpm,
       networkBpm,
       networkActive: bpmNetworkActive,
-      manualBpm: Number(tempoInput?.value ?? 120)
+      manualBpm: Number(tempoInput?.value ?? 120),
+      // Live beat-detection config sourced from the UI-controlled module
+      // variables. Without these the AudioEngine always fell back to defaults
+      // and the beat-sensitivity / filter / hold-off sliders had no effect.
+      sensitivity: beatSensitivity,
+      filterRange: beatFilterRange,
+      holdOffMs: beatHoldOffMs
     },
-    runtime: { 
-      strobeIntensity, 
-      strobeDecay, 
+    runtime: {
+      strobeIntensity,
+      strobeDecay,
       glyphBeatPulse,
       glyphMode,
       glyphSeed,
@@ -1137,7 +1165,11 @@ const audioStoreBridge: Store = {
       portalSeed,
       oscilloMode,
       oscilloFreeze,
-      oscilloRotate
+      oscilloRotate,
+      // Persisted across analysis frames so the engine's beat hold-off works;
+      // previously this was absent so lastBeatTime read as 0 every frame and
+      // every onset was accepted.
+      lastBeatTime
     },
     modulators: { 
       lfoPhases: [], 
@@ -1312,6 +1344,11 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
 
 // AudD file decode handler - extracts a clip from longer files
 (window as any).visualSynth?.onAuddDecodeFile?.(async (data: { requestId: string; fileBase64: string; mimeType: string; seekSeconds: number; durationSeconds: number }) => {
+  // Declare audioCtx outside the try so any later step throwing (after a
+  // successful decodeAudioData) still gets cleaned up. Previously audioCtx was
+  // block-scoped inside the try and the outer catch couldn't close it, leaking
+  // an AudioContext (and its audio-hardware handle) on every post-decode failure.
+  let audioCtx: AudioContext | null = null;
   try {
     const { requestId, fileBase64, seekSeconds, durationSeconds } = data;
 
@@ -1327,13 +1364,12 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
     const arrayBuffer = await blob.arrayBuffer();
 
     // Decode audio data
-    const audioCtx = new AudioContext();
+    audioCtx = new AudioContext();
     let decoded: AudioBuffer;
     try {
       decoded = await audioCtx.decodeAudioData(arrayBuffer);
     } catch {
       (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, { base64: null, mimeType: '', durationMs: 0, error: 'Failed to decode audio file' });
-      await audioCtx.close();
       return;
     }
 
@@ -1374,8 +1410,6 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
       mimeType: 'audio/wav',
       durationMs: actualDurationMs
     });
-
-    await audioCtx.close();
   } catch (error) {
     const requestId = (data as any).requestId;
     (window as any).visualSynth?.sendAuddDecodeResult?.(requestId, {
@@ -1384,6 +1418,10 @@ const mixToMonoBuffer = (buffer: AudioBuffer): Float32Array => {
       durationMs: 0,
       error: (error as Error).message
     });
+  } finally {
+    if (audioCtx) {
+      try { await audioCtx.close(); } catch { /* already closing/failed */ }
+    }
   }
 });
 
@@ -1737,8 +1775,8 @@ const applyVisualEngine = (engineId: EngineId) => {
   }
 
   if (engineId === 'engine-none') {
-    currentProject.engineGrammar = {};
-    currentProject.engineFinish = { grain: 0, vignette: 0, ca: 0 };
+    (currentProject as any).engineGrammar = {};
+    (currentProject as any).engineFinish = { grain: 0, vignette: 0, ca: 0 };
     
     // Reset core FX systems to defaults
     currentProject.effects = JSON.parse(JSON.stringify(DEFAULT_PROJECT.effects));
@@ -1847,20 +1885,29 @@ const applyVisualMode = (
   // We'll append these or replace them? User said "grouped into high-level expressions"
   // Let's replace the mod matrix for a clean "expression"
   if (!options?.preserveModMatrix) {
-    currentProject.modMatrix = mode.audioMappings.map((mapping, index) => {
-      const defaults = getTargetDefaults(mapping.target);
-      return {
-        id: `mod-mode-${index}`,
-        source: mapping.source,
-        target: mapping.target,
-        amount: mapping.amount,
-        curve: 'linear',
-        smoothing: 0.1,
-        bipolar: false,
-        min: defaults.min,
-        max: defaults.max
-      };
-    });
+    // Replace only the connections previously injected by a Visual Mode
+    // (id prefix 'mod-mode-'), preserving user-created mod connections. The
+    // old behavior replaced the entire mod matrix on every mode switch,
+    // silently wiping any connections the user had hand-configured. Built as a
+    // single assignment so the object literals stay contextually typed as
+    // ModConnection (curve: 'linear' must not widen to string).
+    currentProject.modMatrix = [
+      ...currentProject.modMatrix.filter((c) => c.id?.startsWith('mod-mode-') !== true),
+      ...mode.audioMappings.map((mapping, index): ModConnection => {
+        const defaults = getTargetDefaults(mapping.target);
+        return {
+          id: `mod-mode-${index}`,
+          source: mapping.source,
+          target: mapping.target,
+          amount: mapping.amount,
+          curve: 'linear',
+          smoothing: 0.1,
+          bipolar: false,
+          min: defaults.min,
+          max: defaults.max
+        };
+      })
+    ];
     renderModMatrix();
   }
 
@@ -2623,8 +2670,12 @@ const renderPlaylist = () => {
     trigger.textContent = '▶';
     trigger.title = 'Activate scene';
     trigger.addEventListener('click', () => {
-      applyScene(scene.id);
-      setStatus(`Scene: ${scene.name}`);
+      // Route through triggerPlaylistSlot so playlistIndex and the active-slot
+      // highlight stay in sync with the manually-activated scene. Calling
+      // applyScene directly left playlistIndex pointing at the previous slot, so
+      // the ▶ highlight and any later ◀▶ / auto-advance worked off the wrong
+      // index.
+      void triggerPlaylistSlot(index);
     });
 
     row.appendChild(indexLabel);
@@ -2668,6 +2719,11 @@ const applyPresetPath = async (path: string, reason?: string) => {
     // Migrate preset if needed
     const presetMigration = await import('../shared/presetMigration');
     const migrationResult = presetMigration.migratePreset(result.preset);
+    // Aggregate every warning produced across the migrate → validate → apply
+    // pipeline so the final status reflects the true count. Previously only
+    // migration warnings were counted; validation/application warnings were
+    // logged but invisible to the user.
+    const presetWarnings: string[] = [...migrationResult.warnings];
 
     if (!migrationResult.success) {
       const reasonText = migrationResult.errors.join(', ');
@@ -2703,6 +2759,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
     }
     if (validationResult.warnings.length > 0) {
       logPresetDebug(traceId, 'Preset validation warnings', validationResult.warnings);
+      presetWarnings.push(...validationResult.warnings);
     }
 
     // Apply the (possibly migrated) preset
@@ -2713,6 +2770,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV6(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2742,6 +2800,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV5(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2771,6 +2830,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV4(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2800,6 +2860,7 @@ const applyPresetPath = async (path: string, reason?: string) => {
       const applyResult = presetMigration.applyPresetV3(migratedProject, currentProject);
       if (applyResult.warnings.length > 0) {
         logPresetDebug(traceId, 'Preset application warnings', applyResult.warnings);
+        presetWarnings.push(...applyResult.warnings);
       }
       logPresetDebug(
         traceId,
@@ -2852,8 +2913,8 @@ const applyPresetPath = async (path: string, reason?: string) => {
 
     const presetName = path.split(/[\\/]/).pop()?.replace(/\.\w+$/, '') ?? path;
     const message = `${reason ? `${reason}: ` : ''}Preset applied: ${presetName}`;
-    if (migrationResult.warnings.length > 0) {
-      setStatus(`${message} (${migrationResult.warnings.length} warnings - see console)`);
+    if (presetWarnings.length > 0) {
+      setStatus(`${message} (${presetWarnings.length} warnings - see console)`);
     } else {
       setStatus(message);
     }
@@ -2989,8 +3050,15 @@ const applyPlasmaShaderSource = (source: string | null, label: string, scene: Sc
   const fxUniforms = getFxUniformsDeclarations(currentProject, scene);
   const result = renderer.setPlasmaShaderSource(source, fxUniforms);
   if (!result.ok) {
-    setStatus(`Shader compile failed (${label}).`);
-    shaderStatus.textContent = `Shader compile failed for ${label}.`;
+    // Surface the actual GLSL info log so the user can see why the shader
+    // failed (the renderer captures it in lastShaderError). Without this the
+    // user only saw "Shader compile failed for {label}." with no detail.
+    const detail = renderer.getLastShaderError?.();
+    const msg = detail
+      ? `Shader compile failed for ${label}: ${detail}`
+      : `Shader compile failed for ${label}.`;
+    setStatus(msg);
+    shaderStatus.textContent = msg;
     return false;
   }
   shaderStatus.textContent = `Shader applied (${label}).`;
@@ -3194,27 +3262,7 @@ const modSourceOptions = [
   { id: 'macro-8', label: 'Macro 8' }
 ];
 
-const globalModTargets = [
-  { id: 'style.contrast', label: 'Style Contrast', min: 0.6, max: 1.6 },
-  { id: 'style.saturation', label: 'Style Saturation', min: 0.6, max: 1.8 },
-  { id: 'style.paletteShift', label: 'Palette Shift', min: -0.5, max: 0.5 },
-  { id: 'effects.bloom', label: 'Bloom', min: 0, max: 1 },
-  { id: 'effects.blur', label: 'Blur', min: 0, max: 1 },
-  { id: 'effects.chroma', label: 'Chromatic', min: 0, max: 0.5 },
-  { id: 'effects.posterize', label: 'Posterize', min: 0, max: 1 },
-  { id: 'effects.kaleidoscope', label: 'Kaleidoscope', min: 0, max: 1 },
-  { id: 'effects.feedback', label: 'Feedback', min: 0, max: 1 },
-  { id: 'effects.persistence', label: 'Persistence', min: 0, max: 1 },
-  { id: 'particles.density', label: 'Particle Density', min: 0, max: 1 },
-  { id: 'particles.speed', label: 'Particle Speed', min: 0, max: 1 },
-  { id: 'particles.size', label: 'Particle Size', min: 0, max: 1 },
-  { id: 'particles.glow', label: 'Particle Glow', min: 0, max: 1 },
-  { id: 'sdf.scale', label: 'SDF Scale', min: 0, max: 1 },
-  { id: 'sdf.edge', label: 'SDF Edge', min: 0, max: 0.5 },
-  { id: 'sdf.glow', label: 'SDF Glow', min: 0, max: 1 },
-  { id: 'sdf.rotation', label: 'SDF Rotation', min: -3.14, max: 3.14 },
-  { id: 'sdf.fill', label: 'SDF Fill', min: 0, max: 1 }
-];
+const globalModTargets = GLOBAL_MOD_TARGETS;
 
 function buildModTargetOptions() {
   const activeScene =
@@ -3716,17 +3764,33 @@ const addSceneFromSourceProject = (
     renderAssets();
   }
 
+  // Prefer the source scene's own per-scene look over the source project's
+  // project-level fields. The project-level fields hold the source project's
+  // ACTIVE scene's look at save time — which is a *different* scene than
+  // sourceScene whenever a non-active scene is imported, so building the look
+  // from sourceProject.* silently replaces the imported scene's effects /
+  // palette / macros with another scene's. applySceneLookToProject
+  // (sceneRuntime) treats scene.look as authoritative on activation, so the
+  // imported scene must carry its own look. Fall back to the project-level
+  // field only when the scene has no look (e.g. presets saved before per-scene
+  // looks existed). activePaletteId keeps the caller's explicit override first
+  // (callers resolve it from the source project/scene), then the scene look,
+  // then the project field — never undefined, which would orphan the palette.
+  const sceneLook = sourceScene.look;
   const look: SceneLook = {
-    effects: cloneValue(sourceProject.effects || {}),
-    particles: cloneValue(sourceProject.particles || {}),
-    sdf: cloneValue(sourceProject.sdf || {}),
-    visualizer: cloneValue(sourceProject.visualizer || {}),
-    stylePresets: cloneValue(sourceProject.stylePresets || []),
-    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
-    palettes: cloneValue(sourceProject.palettes || []),
-    activePaletteId: options.explicitPaletteId,
-    macros: cloneValue(sourceProject.macros || []),
-    modMatrix: cloneValue(sourceProject.modMatrix || [])
+    effects: cloneValue(sceneLook?.effects ?? sourceProject.effects ?? {}),
+    particles: cloneValue(sceneLook?.particles ?? sourceProject.particles ?? {}),
+    sdf: cloneValue(sceneLook?.sdf ?? sourceProject.sdf ?? {}),
+    visualizer: cloneValue(sceneLook?.visualizer ?? sourceProject.visualizer ?? {}),
+    stylePresets: cloneValue(sceneLook?.stylePresets ?? sourceProject.stylePresets ?? []),
+    activeStylePresetId: cloneValue(
+      sceneLook?.activeStylePresetId ?? sourceProject.activeStylePresetId ?? ''
+    ),
+    palettes: cloneValue(sceneLook?.palettes ?? sourceProject.palettes ?? []),
+    activePaletteId:
+      options.explicitPaletteId ?? sceneLook?.activePaletteId ?? sourceProject.activePaletteId,
+    macros: cloneValue(sceneLook?.macros ?? sourceProject.macros ?? []),
+    modMatrix: cloneValue(sceneLook?.modMatrix ?? sourceProject.modMatrix ?? [])
   };
 
   const newSceneId = getNextSceneId();
@@ -3744,6 +3808,16 @@ const addSceneFromSourceProject = (
       support: sourceScene.assigned_layers?.support ?? [],
       atmosphere: sourceScene.assigned_layers?.atmosphere ?? []
     },
+    // Carry over scene-scoring / classification metadata so imported scenes keep
+    // their depth/complexity scores and tags. Without these, SceneManager
+    // .getNextBestScene scores imported scenes as zero and calculateSimilarity
+    // never matches their (undefined) tags, so auto-switch systematically
+    // deprioritizes every imported scene — and the schema's .default(0)/([])
+    // would bake those zeros in on the next save.
+    certification: sourceScene.certification ? cloneValue(sourceScene.certification) : undefined,
+    depthScore: sourceScene.depthScore,
+    complexity: sourceScene.complexity,
+    tags: sourceScene.tags ? [...sourceScene.tags] : undefined,
     layers: sourceScene.layers.map((layer) => {
       const cloned = cloneLayerConfig(layer);
       if (cloned.assetId && assetIdMap.has(cloned.assetId)) {
@@ -3787,6 +3861,15 @@ const removeScene = (sceneId: string) => {
     setStatus('At least one scene is required.');
     return;
   }
+  // Scene deletion is destructive and infrequent (a scene bundles several
+  // layers + trigger/transition config), so confirm before discarding. Layer
+  // deletion is left unconfirmed: it is a frequent creative action, cheap to
+  // redo, and already guarded against emptying a scene.
+  const scene = currentProject.scenes.find((item) => item.id === sceneId);
+  const sceneName = scene?.name ?? 'this scene';
+  if (!window.confirm(`Delete scene "${sceneName}"? This cannot be undone.`)) {
+    return;
+  }
   const nextScenes = currentProject.scenes.filter((scene) => scene.id !== sceneId);
   if (nextScenes.length === currentProject.scenes.length) return;
   currentProject.scenes = nextScenes;
@@ -3799,6 +3882,16 @@ const removeScene = (sceneId: string) => {
   } else {
     refreshSceneSelect();
   }
+  // The scene-strip ✕, the scene-list ✕, and the timeline onRemove all call
+  // removeScene directly. Previously only handleDeleteScene repaired the
+  // selection afterwards, so the strip/list delete paths left selectedSceneId
+  // pointing at the removed scene and never refreshed the dropdown / context
+  // panel (populateSceneSelectors highlighted a missing row). Re-target the
+  // selection at the new active scene and refresh selectors for every caller.
+  if (!selectedSceneId || !currentProject.scenes.some((s) => s.id === selectedSceneId)) {
+    selectedSceneId = currentProject.activeSceneId;
+  }
+  populateSceneSelectors();
   renderSceneStrip();
   renderPlaylist();
   setStatus('Scene removed.');
@@ -3936,6 +4029,8 @@ const saveSceneAsPreset = async (sceneId: string) => {
     );
     if (!result.canceled) {
       setStatus(`Scene preset saved: ${scene.name}`);
+    } else if (result.error) {
+      setStatus(`Scene preset save failed: ${result.error}`);
     }
   } catch (error) {
     setStatus('Scene preset save failed.');
@@ -4430,17 +4525,18 @@ const renderLayerList = () => {
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
   if (!scene) return;
 
-  // Reset all layer toggle references (they may point to elements from the previous scene)
-  plasmaToggle = undefined;
-  spectrumToggle = undefined;
-  origamiToggle = undefined;
-  glyphToggle = undefined;
-  crystalToggle = undefined;
-  inkToggle = undefined;
-  topoToggle = undefined;
-  weatherToggle = undefined;
-  portalToggle = undefined;
-  oscilloToggle = undefined;
+  // Reset all layer toggle references (they may point to elements from the previous scene).
+  // These are typed `HTMLInputElement | null`, so reset to `null` (not `undefined`).
+  plasmaToggle = null;
+  spectrumToggle = null;
+  origamiToggle = null;
+  glyphToggle = null;
+  crystalToggle = null;
+  inkToggle = null;
+  topoToggle = null;
+  weatherToggle = null;
+  portalToggle = null;
+  oscilloToggle = null;
 
   // Count modulation connections for each layer
   const getModCountForLayer = (layerId: string): number => {
@@ -4749,6 +4845,13 @@ const renderLayerList = () => {
     if (layer.id === 'layer-portal') portalToggle = layerList.querySelector(`[data-learn-target="layer-portal.enabled"]`) as HTMLInputElement;
     if (layer.id === 'layer-oscillo') oscilloToggle = layerList.querySelector(`[data-learn-target="layer-oscillo.enabled"]`) as HTMLInputElement;
   });
+
+  // The forEach above rebuilt every layer toggle checkbox (new DOM nodes with
+  // data-learn-target). Re-bind the MIDI-learn click handler on the fresh nodes
+  // so layer-toggle MIDI-learn keeps working after scene switches / layer adds.
+  // initLearnables is idempotent (skips data-learn-bound elements), so macro
+  // rows that persist across this rebuild are not double-bound.
+  initLearnables();
 };
 
 const renderModMatrix = () => {
@@ -4776,6 +4879,7 @@ const renderModMatrix = () => {
     });
 
     const sourceSelect = document.createElement('select');
+    sourceSelect.title = 'Source — the signal driving this connection (macro, audio feature, MIDI CC, etc.).';
     modSourceOptions.forEach((option) => {
       const item = document.createElement('option');
       item.value = option.id;
@@ -4789,6 +4893,7 @@ const renderModMatrix = () => {
     });
 
     const targetSelect = document.createElement('select');
+    targetSelect.title = 'Target — the parameter this connection modifies. SDF node params are addressed as nodeId.paramId (vector comps: .x/.y/.z/.w).';
     modTargetOptions.forEach((option) => {
       const item = document.createElement('option');
       item.value = option.id;
@@ -4803,8 +4908,10 @@ const renderModMatrix = () => {
     amountInput.max = '2';
     amountInput.step = '0.05';
     amountInput.value = String(connection.amount);
+    amountInput.title = 'Amount — modulation depth added to the base value. Bipolar maps the source to ±amount; unipolar adds +amount.';
 
     const curveSelect = document.createElement('select');
+    curveSelect.title = 'Curve — response curve applied to the source before scaling by amount (linear / exp / log).';
     ['linear', 'exp', 'log'].forEach((curve) => {
       const option = document.createElement('option');
       option.value = curve;
@@ -4819,24 +4926,29 @@ const renderModMatrix = () => {
     smoothingInput.max = '1';
     smoothingInput.step = '0.05';
     smoothingInput.value = String(connection.smoothing);
+    smoothingInput.title = 'Smoothing — temporal low-pass lag. 0 = instant (no smoothing), 1 = very slow (~2s settle). Higher = lazier response.';
 
     const bipolarToggle = document.createElement('input');
     bipolarToggle.type = 'checkbox';
     bipolarToggle.checked = connection.bipolar;
+    bipolarToggle.title = 'Bipolar — when on, the source maps to ±amount around the base; when off, only adds +amount.';
 
     const minInput = document.createElement('input');
     minInput.type = 'number';
     minInput.step = '0.05';
     minInput.value = String(connection.min);
+    minInput.title = 'Min — output clamp lower bound. Auto-set from the target range when you pick a target.';
 
     const maxInput = document.createElement('input');
     maxInput.type = 'number';
     maxInput.step = '0.05';
     maxInput.value = String(connection.max);
+    maxInput.title = 'Max — output clamp upper bound. Auto-set from the target range when you pick a target.';
 
     const removeButton = document.createElement('button');
     removeButton.className = 'matrix-remove';
     removeButton.textContent = '✕';
+    removeButton.title = 'Remove this modulation connection.';
     removeButton.addEventListener('click', () => {
       currentProject.modMatrix = currentProject.modMatrix.filter((item) => item.id !== connection.id);
       renderModMatrix();
@@ -4861,8 +4973,13 @@ const renderModMatrix = () => {
     curveSelect.addEventListener('change', () => {
       connection.curve = curveSelect.value as typeof connection.curve;
     });
+    const updateSmoothingTitle = () => {
+      smoothingInput.title = `Smoothing — temporal low-pass lag. 0 = instant (no smoothing), 1 = very slow (~2s settle). Current: ${Number(smoothingInput.value).toFixed(2)}`;
+    };
+    updateSmoothingTitle();
     smoothingInput.addEventListener('input', () => {
       connection.smoothing = Number(smoothingInput.value);
+      updateSmoothingTitle();
     });
     bipolarToggle.addEventListener('change', () => {
       connection.bipolar = bipolarToggle.checked;
@@ -4879,7 +4996,10 @@ const renderModMatrix = () => {
     midiLearnBtn.textContent = 'M';
     midiLearnBtn.title = 'MIDI learn toggle for this mod connection';
     midiLearnBtn.addEventListener('click', () => {
-      armMidiLearn(`modMatrix.${index}.enabled`, `Mod ${index + 1} Enable`);
+      // Learn against the connection's stable id, not its positional index.
+      // Reordering or deleting other mod rows would otherwise retarget the
+      // learned mapping onto whatever row now occupies that slot.
+      armMidiLearn(`modMatrix.${connection.id}.enabled`, `Mod ${connection.id} Enable`);
     });
 
     row.appendChild(enableButton);
@@ -4949,7 +5069,11 @@ const renderMidiMappings = () => {
     channelInput.min = '1';
     channelInput.max = '16';
     channelInput.step = '1';
-    channelInput.value = String(mapping.channel + 1);
+    // mapping.channel is stored 1-16 (the MIDI user-facing convention used by
+    // getMidiChannel and the learn path), so display it directly. The previous
+    // `+ 1` assumed a 0-15 store and showed learned mappings one channel high
+    // (a ch-1 learn stored 1 but displayed "2", and even overflowed to "17").
+    channelInput.value = String(mapping.channel);
 
     const controlInput = document.createElement('input');
     controlInput.type = 'number';
@@ -4991,7 +5115,11 @@ const renderMidiMappings = () => {
     });
     channelInput.addEventListener('change', () => {
       const channel = Number(channelInput.value);
-      mapping.channel = Math.min(Math.max(channel - 1, 0), 15);
+      // Store 1-16 directly (matches getMidiChannel / learn path / applyMappings
+      // comparison). The previous `channel - 1` -> 0-15 stored values that never
+      // matched the 1-16 comparison, so manually-edited mappings silently never
+      // fired.
+      mapping.channel = Math.min(Math.max(channel, 1), 16);
     });
     controlInput.addEventListener('change', () => {
       mapping.control = Number(controlInput.value);
@@ -5020,7 +5148,7 @@ const addMidiMapping = () => {
     {
       id: `map-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       message: 'cc',
-      channel: 0,
+      channel: 1,
       control: 1,
       target: midiTargetOptions[0].id,
       mode: 'momentary'
@@ -5099,6 +5227,12 @@ const renderMappingTargets = (filterText = '') => {
     item.dataset.learnLabel = target.label;
     mappingTargetList.appendChild(item);
   });
+
+  // Re-bind MIDI-learn click handlers on the fresh chips. renderMappingTargets
+  // rebuilds mappingTargetList.innerHTML (new nodes) on every call — search
+  // filtering, mode/scene switches — so without re-binding, the chips lose
+  // MIDI-learn after the first re-render. initLearnables is idempotent.
+  initLearnables();
 };
 
 const initDragAndDropMapping = () => {
@@ -5565,7 +5699,11 @@ type AssetLayerId = (typeof ASSET_LAYER_IDS)[number];
 const isAssetLayerId = (layerId: string): layerId is AssetLayerId =>
   (ASSET_LAYER_IDS as readonly string[]).includes(layerId);
 
-const assetLayerBlendModes: Record<AssetLayerId, number> = {
+// Built-in per-asset-layer defaults, kept as a separate snapshot so a project
+// load can reset the runtime records back to these before applying persisted
+// overrides. Without the reset, edits made in one project would leak into the
+// next because the runtime records below are module-level (single instance).
+const DEFAULT_ASSET_BLEND_MODES: Record<AssetLayerId, number> = {
   'layer-plasma': 3,
   'layer-spectrum': 1,
   'layer-media': 3,
@@ -5577,7 +5715,7 @@ const assetLayerBlendModes: Record<AssetLayerId, number> = {
   'gen-asset-scatter': 3,
   'gen-asset-echo': 1
 };
-const assetLayerAudioReact: Record<AssetLayerId, number> = {
+const DEFAULT_ASSET_AUDIO_REACT: Record<AssetLayerId, number> = {
   'layer-plasma': 0.6,
   'layer-spectrum': 0.8,
   'layer-media': 0.5,
@@ -5589,10 +5727,47 @@ const assetLayerAudioReact: Record<AssetLayerId, number> = {
   'gen-asset-scatter': 0.5,
   'gen-asset-echo': 0.5
 };
+const assetLayerBlendModes: Record<AssetLayerId, number> = { ...DEFAULT_ASSET_BLEND_MODES };
+const assetLayerAudioReact: Record<AssetLayerId, number> = { ...DEFAULT_ASSET_AUDIO_REACT };
 const getAssetBlendModeValue = (layerId: string): number =>
   (assetLayerBlendModes as Record<string, number>)[layerId] ?? 0;
 const getAssetAudioReactValue = (layerId: string): number =>
   (assetLayerAudioReact as Record<string, number>)[layerId] ?? 0.5;
+
+// Restore the per-asset-layer blend/audio-react runtime records from a loaded
+// project. Resets to the built-in defaults first so overrides carried over
+// from a previously-loaded project can't leak in, then applies only the keys
+// the saved project explicitly persisted (unknown layer ids are ignored).
+const restoreAssetLayerSettings = (project: VisualSynthProject) => {
+  Object.assign(assetLayerBlendModes, DEFAULT_ASSET_BLEND_MODES);
+  Object.assign(assetLayerAudioReact, DEFAULT_ASSET_AUDIO_REACT);
+  const savedBlend = project.assetLayerBlendModes;
+  if (savedBlend) {
+    for (const [key, value] of Object.entries(savedBlend)) {
+      if (isAssetLayerId(key)) assetLayerBlendModes[key] = value;
+    }
+  }
+  const savedReact = project.assetLayerAudioReact;
+  if (savedReact) {
+    for (const [key, value] of Object.entries(savedReact)) {
+      if (isAssetLayerId(key)) assetLayerAudioReact[key] = value;
+    }
+  }
+};
+
+// Snapshot only the asset-layer entries that differ from the built-in
+// defaults, so a project with no edits serializes to {} and only the user's
+// overrides are written to disk.
+const snapshotAssetLayerOverrides = (
+  current: Record<AssetLayerId, number>,
+  defaults: Record<AssetLayerId, number>
+): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const key of Object.keys(current) as AssetLayerId[]) {
+    if (current[key] !== defaults[key]) out[key] = current[key];
+  }
+  return out;
+};
 
 const formatAssetLabel = (asset: AssetItem) => {
   const status = asset.missing ? ' [MISSING]' : '';
@@ -5609,7 +5784,10 @@ const bindRendererLayerAsset = async (layerId: AssetLayerId, assetId: string | n
   const textCanvas = target?.kind === 'text' ? getTextCanvas(target) ?? undefined : undefined;
   try {
     await renderer.setLayerAsset(layerId, target, previewVideo, textCanvas);
-  } catch {
+  } catch (error) {
+    // Auto-sync path (scene switch): don't spam the status bar for every
+    // layer, but log the failure so a silently unbound asset is diagnosable.
+    console.warn(`[Asset] Failed to bind ${target ? target.name : '(clear)'} to ${layerId}:`, error);
     rendererLayerAssetBindings[layerId] = null;
   }
 };
@@ -5642,8 +5820,9 @@ const assignAssetToLayer = async (layer: LayerConfig, assetId: string | null, fo
     } else {
       setStatus(`${layer.name} asset cleared`);
     }
-  } catch {
-    setStatus(`Failed to bind asset to ${layer.name}`);
+  } catch (error) {
+    const reason = (error as Error)?.message ?? String(error);
+    setStatus(`Failed to bind asset to ${layer.name}: ${reason}`);
   }
 };
 
@@ -6156,7 +6335,7 @@ const startLiveCapture = async (source: 'webcam' | 'screen') => {
     video.srcObject = stream;
     video.muted = true;
     video.playsInline = true;
-    void video.play();
+    void video.play().catch(() => undefined);
 
     const asset = createAssetItem({
       name,
@@ -6404,7 +6583,17 @@ const startRecording = () => {
     if (event.data.size > 0) recordingChunks.push(event.data);
   };
   mediaRecorder.onstop = async () => {
-    const blob = new Blob(recordingChunks, { type: 'video/webm' });
+    // MediaRecorder does not await this callback's promise, so any rejection
+    // here would become an unhandled promise rejection (and the status would
+    // stay stuck on "Recording..."). Wrap the whole body so failures surface.
+    try {
+    // Snapshot the chunks and release the module-level array immediately. A
+    // rapid stop->start calls startRecording (which does `recordingChunks = []`)
+    // before this onstop fires; without the snapshot the Blob read the now-empty
+    // array and saved a 0-byte file, silently discarding the previous recording.
+    const chunks = recordingChunks;
+    recordingChunks = [];
+    const blob = new Blob(chunks, { type: 'video/webm' });
     const buffer = new Uint8Array(await blob.arrayBuffer());
     const format = captureFormatSelect.value as 'webm' | 'mp4';
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -6413,19 +6602,31 @@ const startRecording = () => {
       const result = await window.visualSynth.transcodeCapture(buffer, defaultName, 'mp4');
       if (result.error) {
         setCaptureStatus(`FFmpeg failed: ${result.error}. Saved WebM instead.`);
-        await window.visualSynth.saveCapture(
+        const fallback = await window.visualSynth.saveCapture(
           buffer,
           `visualsynth-recording-${timestamp}.webm`,
           'webm'
         );
-      } else if (!result.canceled) {
+        if (fallback.canceled) setCaptureStatus(fallback.error ? `Recording failed: ${fallback.error}` : 'Recording canceled.');
+      } else if (result.canceled) {
+        // Save dialog dismissed — recording was not written. Without this the
+        // status stayed stuck on "Recording..." after the onstop fired.
+        setCaptureStatus('Recording canceled.');
+      } else {
         setCaptureStatus('Recording saved.');
       }
     } else {
       const result = await window.visualSynth.saveCapture(buffer, defaultName, 'webm');
-      if (!result.canceled) setCaptureStatus('Recording saved.');
+      if (result.canceled) setCaptureStatus(result.error ? `Recording failed: ${result.error}` : 'Recording canceled.');
+      else setCaptureStatus('Recording saved.');
     }
-    recordingChunks = [];
+    // NOTE: do NOT reset recordingChunks here — we already released it at the
+    // top of onstop. A reset here would wipe a NEW recording's chunks if the user
+    // started recording again during the async transcode/save above.
+    } catch (error) {
+      console.error('[Capture] onstop save/transcode failed:', error);
+      setCaptureStatus(`Recording failed: ${(error as Error)?.message ?? String(error)}`);
+    }
   };
   mediaRecorder.start();
   recordingStartedAt = performance.now();
@@ -6453,16 +6654,23 @@ const toggleRecording = () => {
 const takeScreenshot = async () => {
   setCaptureStatus('Capturing screenshot...');
   canvas.toBlob(async (blob) => {
-    if (!blob) {
+    try {
+      if (!blob) {
+        setCaptureStatus('Screenshot failed.');
+        return;
+      }
+      const buffer = new Uint8Array(await blob.arrayBuffer());
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const defaultName = `visualsynth-screenshot-${timestamp}.png`;
+      const result = await window.visualSynth.saveCapture(buffer, defaultName, 'png');
+      if (result.canceled) {
+        setCaptureStatus(result.error ? `Screenshot failed: ${result.error}` : 'Screenshot canceled.');
+      } else {
+        setCaptureStatus('Screenshot saved.');
+      }
+    } catch (error) {
+      console.error('[Capture] Screenshot failed:', error);
       setCaptureStatus('Screenshot failed.');
-      return;
-    }
-    const buffer = new Uint8Array(await blob.arrayBuffer());
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const defaultName = `visualsynth-screenshot-${timestamp}.png`;
-    const result = await window.visualSynth.saveCapture(buffer, defaultName, 'png');
-    if (!result.canceled) {
-      setCaptureStatus('Screenshot saved.');
     }
   }, 'image/png');
 };
@@ -6680,6 +6888,14 @@ const renderLfoList = () => {
       if (val === 'hz') {
         lfo.sync = false;
         rateDial.wrapper.style.display = '';
+        // Sync the dial to the actual rate. Picking a sync division overwrote
+        // lfo.rate with that division's beats value; switching back to Hz shows
+        // the wrapper but left the dial displaying the pre-sync Hz (or the init
+        // placeholder), so the shown Hz and the running rate disagreed until the
+        // user nudged the dial. Re-running the input handler also refreshes the
+        // knob visual + value label (onChange just reassigns lfo.rate = itself).
+        rateDial.input.value = String(lfo.rate);
+        rateDial.input.dispatchEvent(new Event('input'));
       } else {
         lfo.sync = true;
         const div = LFO_SYNC_DIVISIONS.find((d) => d.label === val);
@@ -6703,6 +6919,19 @@ const renderLfoList = () => {
 
 const renderEnvelopeList = () => {
   envList.innerHTML = '';
+  // The mixer panel mirrors envelopes[0]'s attack/release with its own dials.
+  // Coalesce a mixer rebuild so editing those values here doesn't leave the
+  // mixer showing stale numbers. One rAF token is shared across this render's
+  // dials; a subsequent render replaces the node set and orphans this closure.
+  let mixerEnvRaf = 0;
+  const syncMixerEnvelopes = () => {
+    if (!mixerPanel) return;
+    if (mixerEnvRaf) return;
+    mixerEnvRaf = requestAnimationFrame(() => {
+      mixerEnvRaf = 0;
+      mixerPanel?.render();
+    });
+  };
   currentProject.envelopes.forEach((env, index) => {
     const row = document.createElement('div');
     row.className = 'mod-row';
@@ -6716,6 +6945,7 @@ const renderEnvelopeList = () => {
       step: 0.01,
       onChange: (value) => {
         env.attack = value;
+        if (index === 0) syncMixerEnvelopes();
       },
       title: 'Attack',
       format: (value) => value.toFixed(2),
@@ -6755,6 +6985,7 @@ const renderEnvelopeList = () => {
       step: 0.01,
       onChange: (value) => {
         env.release = value;
+        if (index === 0) syncMixerEnvelopes();
       },
       title: 'Release',
       format: (value) => value.toFixed(2),
@@ -6775,7 +7006,11 @@ const renderEnvelopeList = () => {
     });
 
     const triggerSelect = document.createElement('select');
-    ['audio.peak', 'strobe', 'manual'].forEach((trigger) => {
+    // Must match the triggers updateEnvelopes actually handles (audio.peak,
+    // engine.low, strobe, manual). Omitting engine.low left engine.low-triggered
+    // envelopes with a blank dropdown whose first edit silently rewrote the
+    // trigger.
+    ['audio.peak', 'engine.low', 'strobe', 'manual'].forEach((trigger) => {
       const option = document.createElement('option');
       option.value = trigger;
       option.textContent = trigger;
@@ -7007,6 +7242,10 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean; tran
   postTransitionFramesLeft = 5;
 
   currentProject = activation.project;
+  // Reset the modMatrix temporal low-pass so the new scene's connections start
+  // fresh — a stale `prev` from the prior scene's connections (possibly reused
+  // ids) would otherwise bleed a convergence transient into the first frames.
+  modSmoothingState.clear();
   transitionTracer.recordStep(transitionTracerSeq, 'sceneStateSwapped');
   previewSceneId = sceneId;
   if (scene.look) {
@@ -7309,17 +7548,28 @@ const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
     renderAssets();
   }
 
+  // Prefer the preset's per-scene look over its project-level fields (see
+  // addSceneFromSourceProject for why). Keep the existing scene's active
+  // palette first — a refresh re-applies the preset but should not clobber a
+  // palette the user changed after import — falling back to the source scene's
+  // look, then the project field, so the palette is never orphaned.
+  const sourceSceneLook = sourceScene.look;
   const updatedLook: SceneLook = {
-    effects: cloneValue(sourceProject.effects || {}),
-    particles: cloneValue(sourceProject.particles || {}),
-    sdf: cloneValue(sourceProject.sdf || {}),
-    visualizer: cloneValue(sourceProject.visualizer || {}),
-    stylePresets: cloneValue(sourceProject.stylePresets || []),
-    activeStylePresetId: cloneValue(sourceProject.activeStylePresetId || ''),
-    palettes: cloneValue(sourceProject.palettes || []),
-    activePaletteId: scene.look?.activePaletteId,
-    macros: cloneValue(sourceProject.macros || []),
-    modMatrix: cloneValue(sourceProject.modMatrix || [])
+    effects: cloneValue(sourceSceneLook?.effects ?? sourceProject.effects ?? {}),
+    particles: cloneValue(sourceSceneLook?.particles ?? sourceProject.particles ?? {}),
+    sdf: cloneValue(sourceSceneLook?.sdf ?? sourceProject.sdf ?? {}),
+    visualizer: cloneValue(sourceSceneLook?.visualizer ?? sourceProject.visualizer ?? {}),
+    stylePresets: cloneValue(sourceSceneLook?.stylePresets ?? sourceProject.stylePresets ?? []),
+    activeStylePresetId: cloneValue(
+      sourceSceneLook?.activeStylePresetId ?? sourceProject.activeStylePresetId ?? ''
+    ),
+    palettes: cloneValue(sourceSceneLook?.palettes ?? sourceProject.palettes ?? []),
+    activePaletteId:
+      scene.look?.activePaletteId ??
+      sourceSceneLook?.activePaletteId ??
+      sourceProject.activePaletteId,
+    macros: cloneValue(sourceSceneLook?.macros ?? sourceProject.macros ?? []),
+    modMatrix: cloneValue(sourceSceneLook?.modMatrix ?? sourceProject.modMatrix ?? [])
   };
 
   const sceneIndex = currentProject.scenes.findIndex((s) => s.id === sceneId);
@@ -7343,6 +7593,7 @@ const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
   compileSceneShaders(
     renderer,
     currentProject.scenes[sceneIndex],
+    currentProject,
     currentProject.customShaderBlocks ?? [],
     currentProject.sdf?.enabled ?? false
   );
@@ -8893,14 +9144,44 @@ const addGenerator = (id: GeneratorId) => {
 
 const applyMidiTargetValue = (target: string, value: number, isToggle = false) => {
   if (target === 'layer-plasma.enabled') {
-    if (plasmaToggle) {
-      plasmaToggle.checked = isToggle ? !plasmaToggle.checked : value > 0.5;
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-plasma', 'Shader Plasma');
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-plasma', { enabled: next });
+      if (plasmaToggle) plasmaToggle.checked = next;
+      renderLayerList();
     }
     return;
   }
   if (target === 'layer-spectrum.enabled') {
-    if (spectrumToggle) {
-      spectrumToggle.checked = isToggle ? !spectrumToggle.checked : value > 0.5;
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-spectrum', 'Spectrum Bars');
+      const next = isToggle ? !layer.enabled : value > 0.5;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-spectrum', { enabled: next });
+      if (spectrumToggle) spectrumToggle.checked = next;
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-plasma.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-plasma', 'Shader Plasma');
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
+    }
+    return;
+  }
+  if (target === 'layer-spectrum.opacity') {
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-spectrum', 'Spectrum Bars');
+      layer.opacity = scaleMidiValue(value, 0, 1);
+      renderLayerList();
     }
     return;
   }
@@ -9241,6 +9522,12 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     applyStyleControls();
     return;
   }
+  const fxTarget = fxMidiTargetMap[target];
+  if (fxTarget) {
+    fxTarget.input.value = String(scaleMidiValue(value, fxTarget.min, fxTarget.max));
+    fxTarget.commit();
+    return;
+  }
   if (target.startsWith('macro-')) {
     const index = Number(target.split('-')[1]) - 1;
     const slider = macroInputs[index];
@@ -9248,6 +9535,13 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
       slider.value = String(scaleMidiValue(value, 0, 1));
       currentProject.macros[index].value = Number(slider.value);
       updateMacroPreviews();
+      // Mirror the per-macro slider input handler: keep the hero slider
+      // (macros 1-4) in sync. A MIDI CC moving a macro otherwise left the hero
+      // slider showing its stale value.
+      if (index < 4) {
+        const heroSlider = [macroEnergy, macroMotion, macroColor, macroDensity][index];
+        if (heroSlider) heroSlider.value = slider.value;
+      }
     }
     return;
   }
@@ -9255,6 +9549,19 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     const index = Number(target.split('-')[2]) - 1;
     if (value > 0.5) {
       void triggerPlaylistSlot(index);
+    }
+    return;
+  }
+  if (target.startsWith('modMatrix.') && target.endsWith('.enabled')) {
+    // MIDI-learn target for a modulation-matrix connection's enable toggle.
+    // Format: modMatrix.<connectionId>.enabled — the id (not positional index)
+    // is used so reordering/deleting other rows never retargets the mapping.
+    const connId = target.slice('modMatrix.'.length, -'.enabled'.length);
+    const conn = currentProject.modMatrix.find((c) => c.id === connId);
+    if (conn) {
+      conn.enabled = isToggle ? conn.enabled === false : value > 0.5;
+      renderModMatrix();
+      renderLayerList();
     }
     return;
   }
@@ -9269,8 +9576,15 @@ const armMidiLearn = (target: string, label: string) => {
 };
 
 const initLearnables = () => {
-  const learnables = document.querySelectorAll<HTMLElement>('[data-learn-target]');
+  // Only bind elements that haven't been bound yet. renderLayerList rebuilds the
+  // layer toggle checkboxes (new DOM nodes with data-learn-target) on every
+  // call; without re-binding, MIDI-learn clicks on layer toggles stop working
+  // after any scene switch / layer add. The data-learn-bound guard keeps this
+  // idempotent so persistent elements (macro rows) don't accumulate duplicate
+  // listeners on repeated calls.
+  const learnables = document.querySelectorAll<HTMLElement>('[data-learn-target]:not([data-learn-bound])');
   learnables.forEach((element) => {
+    element.dataset.learnBound = '1';
     element.addEventListener('click', () => {
       if (!midiLearnEnabled) return;
       const target = element.dataset.learnTarget;
@@ -9496,10 +9810,18 @@ const initPalettes = () => {
 
   paletteSelect.onchange = () => {
     applyPaletteSelection(paletteSelect.value);
+    // Keep the mixer's mirrored palette select in sync (the mixer panel owns a
+    // duplicate of this control; without this, changing it here leaves the
+    // mixer showing the previous palette until it is next rebuilt).
+    const mixerPalette = document.getElementById('mixer-palette-select') as HTMLSelectElement | null;
+    if (mixerPalette) mixerPalette.value = paletteSelect.value;
   };
   chemistrySelect.onchange = () => {
     currentProject.colorChemistry = [chemistrySelect.value];
     setStatus(`Color Chemistry set to: ${chemistrySelect.value}`);
+    // Mirror to the mixer's duplicate chemistry select.
+    const mixerChem = document.getElementById('mixer-chemistry-select') as HTMLSelectElement | null;
+    if (mixerChem) mixerChem.value = chemistrySelect.value;
   };
   paletteApplyToggle.onchange = () => {
     const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
@@ -9592,6 +9914,11 @@ const initMacros = () => {
           const heroSlider = [macroEnergy, macroMotion, macroColor, macroDensity][index];
           if (heroSlider) heroSlider.value = slider.value;
       }
+      // Mirror the hero-slider path (updateMacroFromHero), which syncs the
+      // edited macro value into the active scene's look so it survives a
+      // save. Without this, per-macro slider drags only mutate the in-memory
+      // currentProject.macros entry and are lost on save/scene switch.
+      syncMacrosToActiveScene();
     });
 
     const learn = document.createElement('button');
@@ -9852,7 +10179,18 @@ const initSdf = () => {
     sdfPanel = createSdfPanel({
       store: {
         getState: () => ({ project: currentProject }),
-        dispatch: (action: any) => { /* dummy if not needed yet */ }
+        // SdfPanel writes exclusively through actions.mutateProject, which
+        // calls store.update with a mutator that edits state.project in place.
+        // The previous dummy omitted `update`, so every SDF advanced-editor
+        // edit (add/remove node, param, color, connection, render settings)
+        // threw "store.update is not a function" and the change was lost.
+        // currentProject is the live module-level project the render loop
+        // reads each frame, so mutating it here is picked up immediately;
+        // addNode/removeNode then call the panel's own render() to refresh.
+        update: (updater: (state: any) => void) => {
+          updater({ project: currentProject });
+        },
+        dispatch: (action: any) => { /* SdfPanel does not use dispatch */ }
       } as any
     });
   }
@@ -9959,6 +10297,7 @@ const applyParticleControls = () => {
   syncActiveSceneLookSection(currentProject, 'particles', currentProject.particles);
 };
 
+let sdfPanelRenderRaf = 0;
 const applySdfControls = () => {
   currentProject.sdf = {
     enabled: sdfEnabled.checked,
@@ -9976,8 +10315,44 @@ const applySdfControls = () => {
   };
   syncActiveSceneLookSection(currentProject, 'sdf', currentProject.sdf);
   if (sdfAdvancedToggle.checked) {
-    sdfPanel?.render();
+    // The project state update above is synchronous (the renderer reads it
+    // directly), but rebuilding the advanced SDF editor is deferred and
+    // coalesced to one per animation frame. Without this, a stream of `input`
+    // events (e.g. a macro/modulation driving a simple control while the
+    // advanced editor is open) rebuilt the whole advanced panel on every tick,
+    // interrupting in-progress dial drags inside it.
+    if (sdfPanelRenderRaf) return;
+    sdfPanelRenderRaf = requestAnimationFrame(() => {
+      sdfPanelRenderRaf = 0;
+      sdfPanel?.render();
+    });
   }
+};
+
+// MIDI-learn target map for the global effects.*/particles.*/sdf.* targets.
+// These are listed in globalMidiTargets but previously had no handler in
+// applyMidiTargetValue, so mapping a controller to them silently did nothing.
+// Each entry sets the DOM input to the scaled MIDI value (matching the input's
+// min/max) then runs the section's commit function, mirroring the style.*
+// handlers and the slider `input` listeners. Defined after applySdfControls so
+// the commit functions and input consts are initialized; referenced from
+// applyMidiTargetValue via closure (resolved at call time, after module load).
+const fxMidiTargetMap: Record<string, { input: HTMLInputElement; min: number; max: number; commit: () => void }> = {
+  'effects.bloom': { input: effectBloom, min: 0, max: 1, commit: applyEffectControls },
+  'effects.blur': { input: effectBlur, min: 0, max: 1, commit: applyEffectControls },
+  'effects.chroma': { input: effectChroma, min: 0, max: 0.5, commit: applyEffectControls },
+  'effects.posterize': { input: effectPosterize, min: 0, max: 1, commit: applyEffectControls },
+  'effects.kaleidoscope': { input: effectKaleidoscope, min: 0, max: 1, commit: applyEffectControls },
+  'effects.feedback': { input: effectFeedback, min: 0, max: 1, commit: applyEffectControls },
+  'effects.persistence': { input: effectPersistence, min: 0, max: 1, commit: applyEffectControls },
+  'particles.density': { input: particlesDensity, min: 0, max: 1, commit: applyParticleControls },
+  'particles.speed': { input: particlesSpeed, min: 0, max: 1, commit: applyParticleControls },
+  'particles.size': { input: particlesSize, min: 0, max: 1, commit: applyParticleControls },
+  'particles.glow': { input: particlesGlow, min: 0, max: 1, commit: applyParticleControls },
+  'sdf.scale': { input: sdfScale, min: 0, max: 1, commit: applySdfControls },
+  'sdf.rotation': { input: sdfRotation, min: -3.14, max: 3.14, commit: applySdfControls },
+  'sdf.edge': { input: sdfEdge, min: 0, max: 0.5, commit: applySdfControls },
+  'sdf.glow': { input: sdfGlow, min: 0, max: 1, commit: applySdfControls }
 };
 
 const syncOutputConfig = async (next: Partial<OutputConfig>) => {
@@ -10219,21 +10594,35 @@ const handlePadTrigger = (logicalIndex: number, velocity: number) => {
   const localIndex = logicalIndex % 64;
   const action = currentProject.padMappings[logicalIndex] ?? 'none';
   if (action === 'toggle-plasma') {
-    padStates[logicalIndex] = !padStates[logicalIndex];
-    updatePadUI(localIndex, padStates[logicalIndex]);
-    if (plasmaToggle) plasmaToggle.checked = padStates[logicalIndex];
-    const plasmaScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
-    const plasmaLayer = plasmaScene?.layers.find((l) => l.id === 'layer-plasma');
-    if (plasmaLayer) plasmaLayer.enabled = padStates[logicalIndex];
+    // Mirror the layer-plasma.enabled MIDI path: actually flip layer.enabled
+    // (the render loop reads layer.enabled, not the checkbox) and sync the pad
+    // + checkbox + layer list. Previously this only toggled the checkbox, so the
+    // pad appeared to do nothing to the visible layer.
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-plasma', 'Shader Plasma');
+      const next = !layer.enabled;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-plasma', { enabled: next });
+      padStates[logicalIndex] = next;
+      updatePadUI(localIndex, next);
+      if (plasmaToggle) plasmaToggle.checked = next;
+      renderLayerList();
+    }
     return;
   }
   if (action === 'toggle-spectrum') {
-    padStates[logicalIndex] = !padStates[logicalIndex];
-    updatePadUI(localIndex, padStates[logicalIndex]);
-    if (spectrumToggle) spectrumToggle.checked = padStates[logicalIndex];
-    const spectrumScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
-    const spectrumLayer = spectrumScene?.layers.find((l) => l.id === 'layer-spectrum');
-    if (spectrumLayer) spectrumLayer.enabled = padStates[logicalIndex];
+    const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
+    if (scene) {
+      const layer = ensureLayerWithDefaults(scene, 'layer-spectrum', 'Spectrum Bars');
+      const next = !layer.enabled;
+      layer.enabled = next;
+      recordPlaylistOverride('layer-spectrum', { enabled: next });
+      padStates[logicalIndex] = next;
+      updatePadUI(localIndex, next);
+      if (spectrumToggle) spectrumToggle.checked = next;
+      renderLayerList();
+    }
     return;
   }
   if (action.startsWith('origami-')) {
@@ -10817,7 +11206,8 @@ interface BuildRecognitionRequestResult {
 }
 
 const buildRecognitionRequest = async (
-  clip: NonNullable<Awaited<ReturnType<typeof rollingAudioCapture.exportRecentClip>>>,
+  capture: ReturnType<typeof createRollingAudioCapture>,
+  clip: RecentAudioClip,
   settings: NowPlayingSettings,
   detectedAt: number
 ): Promise<BuildRecognitionRequestResult> => {
@@ -10827,8 +11217,12 @@ const buildRecognitionRequest = async (
   };
 
   if (settings.provider === 'shazam') {
-    // Try raw PCM export first (bypasses WebM/Opus decode issues)
-    const pcmClip = rollingAudioCapture.exportRecentPcm?.(settings.clipDurationMs);
+    // Try raw PCM export first (bypasses WebM/Opus decode issues). The capture
+    // instance is passed in (rather than referenced as a free variable) so this
+    // helper doesn't depend on the caller's block-scoped `rollingAudioCapture`
+    // -- which was out of scope here and would have thrown ReferenceError on
+    // the Shazam path.
+    const pcmClip = capture.exportRecentPcm?.(settings.clipDurationMs);
     if (pcmClip && pcmClip.pcmS16le.length >= 48000) {
       const rawCopy = new Uint8Array(pcmClip.pcmS16le.byteLength);
       rawCopy.set(new Uint8Array(
@@ -10955,7 +11349,12 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
 
   log('[Now Playing Test] Calling decodeClipToPcmWithDiagnostics...');
 
-  // For Shazam, try raw PCM export first (bypasses WebM/Opus decode issues)
+  // For Shazam, try raw PCM export first (bypasses WebM/Opus decode issues).
+  // Build the request inline from the exported PCM rather than calling
+  // buildRecognitionRequest, which would call exportRecentPcm a SECOND time
+  // and, if that second export returned null (a ring-buffer timing edge),
+  // discard the already-exported clean PCM and fall through to a lossy
+  // WebM/Opus decode. We already have the bytes — use them directly.
   if (settings.provider === 'shazam') {
     log('[Now Playing Test] Using raw PCM export for Shazam...');
     const pcmData = rollingAudioCapture.exportRecentPcm(settings.clipDurationMs);
@@ -10964,23 +11363,19 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
       const rawCopy = new Uint8Array(pcmData.pcmS16le.byteLength);
       rawCopy.set(new Uint8Array(pcmData.pcmS16le.buffer, pcmData.pcmS16le.byteOffset, pcmData.pcmS16le.byteLength));
       const audioBase64 = await blobToBase64(new Blob([rawCopy.buffer as ArrayBuffer]));
-
-      const buildResult = await buildRecognitionRequest(
-        { blob: new Blob([rawCopy.buffer as ArrayBuffer]), mimeType: 'audio/pcm-s16le', startedAt: pcmData.startedAt, endedAt: pcmData.endedAt },
-        settings,
-        Date.now()
-      );
-      if (buildResult.request) {
-        buildResult.request.audioBase64 = audioBase64;
-        buildResult.request.mimeType = 'audio/pcm-s16le';
-        buildResult.request.numSamples = pcmData.numSamples;
-        buildResult.request.durationMs = pcmData.durationMs;
-        log(`[Now Playing Test] Built Shazam request: ${buildResult.request.numSamples} samples, ${buildResult.request.durationMs}ms`);
-        const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
-        log(`[Now Playing Test] Shazam result: matched=${result.matched}, title=${result.title}, artist=${result.artist}`);
-        await consumeNowPlayingResult(result, 'Shazam live test');
-        return;
-      }
+      log(`[Now Playing Test] Built Shazam request from raw PCM: ${pcmData.numSamples} samples, ${pcmData.durationMs}ms`);
+      const result = await window.visualSynth.identifyNowPlaying({
+        provider: 'shazam',
+        audioBase64,
+        mimeType: 'audio/pcm-s16le',
+        numSamples: pcmData.numSamples,
+        durationMs: pcmData.durationMs,
+        market: settings.market || undefined,
+        detectedAt: Date.now()
+      });
+      log(`[Now Playing Test] Shazam result: matched=${result.matched}, title=${result.title}, artist=${result.artist}`);
+      await consumeNowPlayingResult(result, 'Shazam live test');
+      return;
     }
     log('[Now Playing Test] PCM export failed or too short, falling back to blob decode...');
   }
@@ -11041,7 +11436,7 @@ const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
 
   nowPlayingTestStatus.textContent = `Running ${settings.provider} lookup (${actualDurationSec}s audio, ${(clip.blob.size / 1024).toFixed(1)}KB)...`;
 
-  const buildResult = await buildRecognitionRequest(clip, settings, Date.now());
+  const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, settings, Date.now());
   if (!buildResult.request) {
     const diag = buildResult.diagnostics;
     if (diag) {
@@ -11086,11 +11481,15 @@ const runNowPlayingLookup = async (detectedAt: number) => {
   lastNowPlayingLookupAt = detectedAt;
 
   try {
-    const buildResult = await buildRecognitionRequest(clip, nowPlayingSettings, detectedAt);
+    const buildResult = await buildRecognitionRequest(rollingAudioCapture, clip, nowPlayingSettings, detectedAt);
     if (buildResult.request) {
       const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
       await consumeNowPlayingResult(result, 'Now playing');
     }
+  } catch (error) {
+    // Fire-and-forget from onSongChange; swallow to avoid an unhandled
+    // promise rejection on recognition/lookup failure.
+    console.warn('[Now Playing] Lookup failed:', error);
   } finally {
     nowPlayingLookupInFlight = false;
   }
@@ -11122,6 +11521,11 @@ const pollNowPlayingMetadataSource = async () => {
     lastMetadataTrackKey = trackKey;
     lastMetadataTrackAt = Date.now();
     await consumeNowPlayingResult(result, 'Metadata bridge');
+  } catch (error) {
+    // Network/parse failures are expected (the metadata source may be down or
+    // return malformed data). This is fire-and-forget from a setInterval, so
+    // swallow to avoid an unhandled promise rejection every poll cycle.
+    console.warn('[Now Playing] Metadata poll failed:', error);
   } finally {
     nowPlayingMetadataPollInFlight = false;
   }
@@ -11225,9 +11629,19 @@ const setupMIDI = async () => {
 
 const startMidiInput = async () => {
   if (midiAccess) {
+    // If a node-midi input was previously opened (Web MIDI was unavailable at
+    // the time), close it now so its 'message' listener stops firing alongside
+    // Web MIDI and doesn't leak the port. No-op if none was open.
+    await window.visualSynth.closeNodeMidi();
     const inputId = midiSelect.value;
     const input = Array.from((midiAccess.inputs as unknown as Map<string, MIDIInput>).values()).find((item) => item.id === inputId);
     if (!input) return;
+    // Clear the message handler on every other input. Without this, switching
+    // from controller A to B leaves A's handler active: playing A still triggers
+    // mappings and A's active-sensing/clock messages keep firing alongside B.
+    for (const other of (midiAccess.inputs as unknown as Map<string, MIDIInput>).values()) {
+      if (other.id !== inputId) other.onmidimessage = null;
+    }
     (input as MIDIInput).onmidimessage = (event: MIDIMessageEvent) =>
       handleMidiMessage(Array.from((event as MIDIMessageEvent).data ?? []), event.timeStamp ?? performance.now());
     setStatus(`MIDI connected: ${input.name ?? 'Unknown'}`);
@@ -11254,6 +11668,12 @@ const startMidiInput = async () => {
     );
   }
 };
+
+// Per-mapping CC edge state for toggle/trigger modes: stores the last normalized
+// CC value so a rising-edge crossing of 0.5 flips/fires exactly once instead of
+// re-triggering on every knob tick. WeakMap so entries are reclaimed when a
+// mapping object is replaced/removed.
+const ccEdgeState = new WeakMap<MidiMapping, number>();
 
 const handleMidiMessage = (message: number[], eventTime: number) => {
   const [status, data1, data2 = 0] = message;
@@ -11285,21 +11705,57 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
   const applyMappings = () => {
     currentProject.midiMappings.forEach((mapping) => {
       if (mapping.channel !== channel) return;
-      if (mapping.message === 'note' && messageType === 0x90) {
+      if (mapping.message === 'note') {
         if (mapping.control !== data1) return;
-        if (data2 === 0) return;
-        applyMidiTargetValue(mapping.target, data2 / 127, mapping.mode === 'toggle');
+        // 0x90 with velocity 0 is an alternative Note Off encoding; treat both.
+        const isNoteOn = messageType === 0x90 && data2 > 0;
+        const isNoteOff = messageType === 0x80 || (messageType === 0x90 && data2 === 0);
+        if (!isNoteOn && !isNoteOff) return;
+        // applyMidiTargetValue expects RAW 0-127 (its handlers either threshold
+        // `value > 0.5` or call scaleMidiValue, which divides by 127). Passing
+        // data2/127 here meant a note mapped to a continuous target (e.g. a
+        // layer opacity) was divided by 127 twice — velocity 64 -> ~0.004, so the
+        // pad appeared to do nothing. Pass raw data2 (0-127), matching the CC
+        // momentary path below.
+        if (mapping.mode === 'toggle') {
+          // Toggle flips only on the Note On edge; Note Off is ignored.
+          if (isNoteOn) applyMidiTargetValue(mapping.target, data2, true);
+        } else {
+          // momentary / trigger: press sets the value, release resets to 0.
+          // Previously only Note On was handled, so a momentary/trigger pad
+          // pegged the target on press and never released it.
+          applyMidiTargetValue(mapping.target, isNoteOn ? data2 : 0, false);
+        }
       }
       if (mapping.message === 'cc' && messageType === 0xb0) {
         if (mapping.control !== data1) return;
-        applyMidiTargetValue(mapping.target, data2);
+        const v = data2 / 127;
+        if (mapping.mode === 'toggle') {
+          // Flip on the rising edge (crossing 0.5 upward) so one knob gesture
+          // toggles once, not on every tick.
+          const last = ccEdgeState.get(mapping) ?? 0;
+          if (v > 0.5 && last <= 0.5) applyMidiTargetValue(mapping.target, 1, true);
+          ccEdgeState.set(mapping, v);
+        } else if (mapping.mode === 'trigger') {
+          // One-shot fire on the rising edge.
+          const last = ccEdgeState.get(mapping) ?? 0;
+          if (v > 0.5 && last <= 0.5) applyMidiTargetValue(mapping.target, 1, false);
+          ccEdgeState.set(mapping, v);
+        } else {
+          // momentary: direct continuous value (CC has no release event).
+          applyMidiTargetValue(mapping.target, data2);
+        }
       }
       if (mapping.message === 'aftertouch' && messageType === 0xd0) {
-        applyMidiTargetValue(mapping.target, data1 / 127);
+        // data1 is pressure 0-127; pass raw (same 0-127 convention as above).
+        applyMidiTargetValue(mapping.target, data1);
       }
       if (mapping.message === 'pitchbend' && messageType === 0xe0) {
+        // combined is 14-bit 0-16383; scale to 0-127 so scaleMidiValue maps it
+        // to 0-1 (a centered bend lands at ~0.5). Passing combined/16383 here
+        // was the same double-divide bug as notes/aftertouch.
         const combined = ((data2 ?? 0) << 7) | (data1 ?? 0);
-        applyMidiTargetValue(mapping.target, combined / 16383);
+        applyMidiTargetValue(mapping.target, (combined / 16383) * 127);
       }
     });
   };
@@ -11348,7 +11804,10 @@ const serializePerformance = () => {
         max: mod.max,
         curve: mod.curve,
         smoothing: mod.smoothing,
-        bipolar: mod.bipolar
+        bipolar: mod.bipolar,
+        // Persist enabled so a user-disabled connection survives save/reload
+        // (previously omitted, so every connection came back enabled).
+        enabled: mod.enabled !== false
       };
     }),
     macros: currentProject.macros.map(macro => ({
@@ -11366,7 +11825,16 @@ const buildProjectSnapshotForSave = (): VisualSynthProject => {
     ...currentProject,
     updatedAt: now,
     output: outputConfig,
-    macros: currentProject.macros.map((macro) => ({ ...macro })),
+    // Persist the live per-asset-layer blend/audio-react overrides (only the
+    // entries that differ from the built-in defaults). Placed after the
+    // ...currentProject spread so a stale copy carried on currentProject is
+    // replaced by the current runtime values.
+    assetLayerBlendModes: snapshotAssetLayerOverrides(assetLayerBlendModes, DEFAULT_ASSET_BLEND_MODES),
+    assetLayerAudioReact: snapshotAssetLayerOverrides(assetLayerAudioReact, DEFAULT_ASSET_AUDIO_REACT),
+    macros: currentProject.macros.map((macro, index) => ({
+      ...macro,
+      value: Number(macroInputs[index]?.value ?? macro.value)
+    })),
     scenes: currentProject.scenes.map((scene) => ({
       ...scene,
       layers: scene.layers.map((layer) => ({ ...layer }))
@@ -11378,7 +11846,17 @@ const serializeProject = () => {
   return JSON.stringify(buildProjectSnapshotForSave(), null, 2);
 };
 
+// Load-generation token for applyProject. applyProject is async and is often
+// invoked fire-and-forget (preset load, recovery, rapid manual loads). Two
+// concurrent loads interleave across the awaits inside applyLoadableProjectRuntime
+// (asset resolution), and the one that finishes LAST wins — which can be the
+// earlier (slower) load, clobbering the user's most recent choice. Each call
+// increments this counter; late-finishing loads see a stale generation and
+// become no-ops so the last-initiated load is the one that takes effect.
+let applyProjectGeneration = 0;
+
 const applyProject = async (project: VisualSynthProject) => {
+  const myGen = ++applyProjectGeneration;
   isRecoveryProject = false;
   projectDirty = false;
   if (!preservePresetPreviewState && presetPreviewBaseProject) {
@@ -11389,7 +11867,15 @@ const applyProject = async (project: VisualSynthProject) => {
   const applied = await applyLoadableProjectRuntime(project, {
     currentOutputConfig: outputConfig,
     onResolvedProject: (normalized) => {
+      // A newer load may have started while we awaited asset resolution inside
+      // applyLoadableProjectRuntime. If so, this (stale) load must not clobber
+      // currentProject or apply its scene — the newer load owns the state now.
+      if (myGen !== applyProjectGeneration) return;
       currentProject = normalized;
+      // Restore the per-asset-layer blend/audio-react runtime records from
+      // the loaded project before applyScene renders, so the first frame
+      // uses the persisted overrides (and prior-project edits don't leak).
+      restoreAssetLayerSettings(currentProject);
       initEngineSelect();
       refreshSceneSelect();
       const activeGeneratorCount = primeProjectShaders(renderer, currentProject, 200);
@@ -11401,9 +11887,12 @@ const applyProject = async (project: VisualSynthProject) => {
           .join(', ')}`
       );
     },
-    syncOutputConfig,
-    setOutputEnabled
+    syncOutputConfig: async (cfg) => { if (myGen === applyProjectGeneration) await syncOutputConfig(cfg); },
+    setOutputEnabled: async (enabled) => { if (myGen === applyProjectGeneration) await setOutputEnabled(enabled); }
   });
+  // A newer load superseded this one while we were awaiting — bail before
+  // re-initializing UI state so the stale project doesn't overwrite it.
+  if (myGen !== applyProjectGeneration) return;
   if (!applied.ok) {
     console.error(`[Project] Zod Validation Failed for "${applied.name}":`, applied.errorDetail);
     setStatus(`Invalid project: ${applied.name}`);
@@ -11462,27 +11951,63 @@ const applyProject = async (project: VisualSynthProject) => {
 };
 
 const saveProjectToDisk = async () => {
-  const payload = serializeProject();
-  const saveResult = isRecoveryProject
-    ? await window.visualSynth.saveProjectAs(payload)
-    : await window.visualSynth.saveProject(payload);
-  if (!saveResult.canceled) {
-    projectDirty = false;
-    isRecoveryProject = false;
-    setStatus(`Saved project: ${currentProject.name}`);
+  try {
+    const payload = serializeProject();
+    const saveResult = isRecoveryProject
+      ? await window.visualSynth.saveProjectAs(payload)
+      : await window.visualSynth.saveProject(payload);
+    if (!saveResult.canceled) {
+      projectDirty = false;
+      isRecoveryProject = false;
+      setStatus(`Saved project: ${currentProject.name}`);
+    } else if (saveResult.error) {
+      // The save IPC returns canceled:true WITH an error on a real failure
+      // (disk full, permission denied). Without this, a failed save was
+      // indistinguishable from a user cancel and gave no feedback.
+      setStatus(`Save failed: ${saveResult.error}`);
+    }
+  } catch (error) {
+    setStatus(`Save failed: ${(error as Error).message ?? error}`);
   }
 };
 
 const savePerformanceToDisk = async () => {
-  const payload = serializePerformance();
-  const saveResult = await window.visualSynth.saveProject(payload);
-  if (!saveResult.canceled) {
-    projectDirty = false;
-    setStatus(`Saved project: ${currentProject.name}`);
+  try {
+    const payload = serializePerformance();
+    const saveResult = await window.visualSynth.saveProject(payload);
+    if (!saveResult.canceled) {
+      projectDirty = false;
+      setStatus(`Saved project: ${currentProject.name}`);
+    } else if (saveResult.error) {
+      setStatus(`Save failed: ${saveResult.error}`);
+    }
+  } catch (error) {
+    setStatus(`Save failed: ${(error as Error).message ?? error}`);
   }
 };
 
 const loadProjectFromDisk = async () => {
+  // Guard against silently discarding unsaved edits. Opening a project
+  // overwrites currentProject unconditionally; without this check a user
+  // with dirty changes lost them with no prompt (the close handler already
+  // guards exit, but not mid-session loads). Reuses the same save/discard/
+  // cancel dialog the close path uses.
+  if (projectDirty && typeof window.visualSynth?.showSaveDialog === 'function') {
+    const { result } = await window.visualSynth.showSaveDialog(isRecoveryProject);
+    if (result === 'cancel') return;
+    if (result === 'save') {
+      const payload = serializeProject();
+      const saveResult = isRecoveryProject
+        ? await window.visualSynth.saveProjectAs(payload)
+        : await window.visualSynth.saveProject(payload);
+      if (saveResult.canceled) return;
+      if (saveResult.error) {
+        setStatus(`Save failed: ${saveResult.error}`);
+        return;
+      }
+      projectDirty = false;
+    }
+  }
   suppressStartupRecovery = true;
   console.log('[Project] Manual open requested; suppressing startup recovery.');
   try {
@@ -11690,25 +12215,34 @@ document.addEventListener('keydown', (event) => {
   if (!filteredPresetLibrary.length) return;
   if (event.key === 'ArrowDown') {
     event.preventDefault();
+    event.stopPropagation();
     presetNextButton.click();
   } else if (event.key === 'ArrowUp') {
     event.preventDefault();
+    event.stopPropagation();
     presetPrevButton.click();
   } else if (event.key === 'Enter' && event.shiftKey) {
     event.preventDefault();
+    event.stopPropagation();
     applyPresetButton.click();
   } else if (event.key === 'Enter' && event.ctrlKey) {
     event.preventDefault();
+    event.stopPropagation();
     presetLoadProjectButton.click();
   } else if (event.key.toLowerCase() === 'f') {
+    // Stop propagation so the global window keydown handler doesn't also fire
+    // fullscreen on 'f' (double-fire: favorite + fullscreen).
     event.preventDefault();
+    event.stopPropagation();
     presetFavoriteButton.click();
   } else if (event.key === 'Escape' && presetSearchInput.value) {
+    event.stopPropagation();
     presetSearchInput.value = '';
     renderPresetBrowser();
     renderPresetPreview();
   } else if (event.key === 'Escape' && presetPreviewBaseProject) {
     event.preventDefault();
+    event.stopPropagation();
     const baseProject = cloneValue(presetPreviewBaseProject);
     clearPresetPreviewState();
     void applyProject(baseProject);
@@ -11738,14 +12272,21 @@ document.addEventListener('keydown', (event) => {
       livePlaylistIndex = idx;
       triggerLivePreset(presets[idx]);
     }
+    // Reserve numMap keys for live-preset triggers in live mode and stop
+    // propagation so they don't fall through to the global window shortcuts
+    // (e.g. 'r' would also toggle recording, 'p' would also screenshot).
+    event.stopPropagation();
+    return;
   }
   if (key === ' ') {
     event.preventDefault();
+    event.stopPropagation();
     if (livePlaylistActive) {
       stopLivePlaylist();
     } else {
       startLivePlaylist();
     }
+    return;
   }
 });
 
@@ -13051,16 +13592,21 @@ const initShortcuts = () => {
       event.preventDefault();
       void loadProjectFromDisk();
     }
-    if (event.key.toLowerCase() === 'f') {
+    // Bare-key shortcuts: guard against ctrl/meta so they don't hijack browser
+    // shortcuts (Ctrl+F find, Ctrl+R reload, Ctrl+P print) or fire on modified
+    // keypresses. The mode-specific document handlers (live/performance) call
+    // stopPropagation for their own keys, so these only fire in modes without a
+    // conflicting handler.
+    if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'f') {
       document.documentElement.requestFullscreen().catch(() => undefined);
     }
-    if (event.key.toLowerCase() === 'r') {
+    if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'r') {
       toggleRecording();
     }
-    if (event.key.toLowerCase() === 'p') {
+    if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'p') {
       void takeScreenshot();
     }
-    if (event.code === 'Space') {
+    if (!event.ctrlKey && !event.metaKey && event.code === 'Space') {
       event.preventDefault();
       if (isPlaying) {
         isPlaying = false;
@@ -13133,6 +13679,35 @@ try {
   updateWebglDiagnostics();
   renderer = createSafeModeRenderer(canvas);
 }
+
+// H4 — Main-canvas WebGL context-loss recovery.
+// The GL renderer rebuilds its own GL resources on context restore (it
+// registers its own webglcontextrestored listener and fires the synthetic
+// `visualsynth-contextrestored` event once the rebuild completes). But on
+// loss it clears its internal assetCache + layerBindings, while index.ts's
+// dedup mirror `rendererLayerAssetBindings` is NOT cleared. So after restore
+// the per-frame syncRendererAssetBindingsForScene sees a matching id and
+// skips re-binding — the (now-destroyed) textures never come back and the
+// main canvas loses its media layers. Clear the mirror on restore so the
+// next frame re-binds, and re-bind immediately, reusing the existing
+// livePreviewElements video elements so a restore doesn't tear down or
+// re-prompt live camera/screen streams. Mirrors the output-window fix in
+// output.ts. The synthetic event fires only after contextRestoring is false,
+// so setLayerAsset's context-loss guard won't reject the rebind.
+canvas.addEventListener('visualsynth-contextlost', () => {
+  sessionLog.log('error', 'main.context_lost', {});
+  setStatus('WebGL context lost — recovering…');
+});
+canvas.addEventListener('visualsynth-contextrestored', () => {
+  for (const id of (ASSET_LAYER_IDS as readonly AssetLayerId[])) {
+    rendererLayerAssetBindings[id] = null;
+  }
+  syncRendererAssetBindingsForScene(
+    currentProject.scenes.find((s) => s.id === currentProject.activeSceneId)
+  );
+  sessionLog.log('info', 'main.context_restored', {});
+  setStatus('WebGL context restored.');
+});
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Debug Overlay - Press 'D' to toggle
@@ -13332,6 +13907,13 @@ renderOverlayList();
 
 let lastTime = performance.now();
 let currentFps = 0;
+// Per-connection modMatrix temporal low-pass state, keyed by
+// `${mod.id}|${targetId}`. Owned by the render loop so the low-pass persists
+// across frames. This is the live-path counterpart of RenderGraph's
+// modSmoothingState (the bootstrap/test path keeps its own on the instance).
+const modSmoothingState = new Map<string, ModSmoothEntry>();
+// Monotonic frame counter for the modMatrix low-pass idempotency token.
+let modSmoothingFrame = 0;
 
 const buildModSources = (bpm: number, macros: MacroConfig[] = currentProject.macros) => {
   const bpmNormalized = Math.min(Math.max((bpm - 60) / 140, 0), 1);
@@ -13350,6 +13932,8 @@ const buildModSources = (bpm: number, macros: MacroConfig[] = currentProject.mac
     'tempo.bpm': bpmNormalized,
     'lfo-1': lfoValues[0] ?? 0,
     'lfo-2': lfoValues[1] ?? 0,
+    'lfo-3': lfoValues[2] ?? 0,
+    'lfo-4': lfoValues[3] ?? 0,
     'env-1': envValues[0] ?? 0,
     'env-2': envValues[1] ?? 0,
     'sh-1': shValues[0] ?? 0,
@@ -13465,6 +14049,10 @@ const getChemistryModeIndex = (tags: string[] = []) => {
 const render = (time: number) => {
   const delta = time - lastTime;
   lastTime = time;
+  // One low-pass frame token for this animation frame, shared by all three
+  // buildRenderStateForScene calls (active/preview/output) so a target
+  // resolved in more than one of them is idempotent within the frame.
+  const modFrame = modSmoothingFrame++;
   const fpsTick = tickFpsTracker(fpsTracker, delta);
   fpsTracker = fpsTick.tracker;
   if (fpsTick.fps !== null) {
@@ -13505,11 +14093,23 @@ const render = (time: number) => {
       watchdogLabel.classList.add('watchdog-warning');
       healthWatchdog.textContent = 'Watchdog: Warning';
       guardrailStatus.textContent = 'Guardrails: Active';
+      // Persistent frame drops are a safe-mode condition: surface it through
+      // the safe-mode banner (not just a debug label) so the user is told to
+      // lower output scale/quality. Removed again when cadence recovers.
+      if (!safeModeReasons.includes('Poor frame cadence')) {
+        safeModeReasons.push('Poor frame cadence');
+        updateSafeModeBanner();
+      }
     } else {
       watchdogLabel.textContent = 'Watchdog: OK';
       watchdogLabel.classList.remove('watchdog-warning');
       healthWatchdog.textContent = 'Watchdog: OK';
       guardrailStatus.textContent = 'Guardrails: OK';
+      const cadenceIdx = safeModeReasons.indexOf('Poor frame cadence');
+      if (cadenceIdx >= 0) {
+        safeModeReasons.splice(cadenceIdx, 1);
+        updateSafeModeBanner();
+      }
     }
   }
 
@@ -13680,7 +14280,7 @@ const render = (time: number) => {
   const legacyNeutral = isLegacyNeutralProject(currentProject);
   const hasActiveEngine = Boolean(currentProject.activeEngineId && currentProject.activeEngineId !== 'engine-none');
 
-  const buildRenderStateForScene = (renderScene: typeof activeScene | undefined) => {
+  const buildRenderStateForScene = (renderScene: typeof activeScene | undefined, dt: number, frame: number) => {
     const isBlendTarget = renderScene === activeScene || renderScene === outputScene;
 
     const effectiveStyleSettings = (!isBlendTarget && renderScene?.look?.stylePresets?.find((p) => p.id === renderScene.look?.activeStylePresetId)?.settings)
@@ -13710,8 +14310,54 @@ const render = (time: number) => {
       : currentProject.modMatrix;
 
     const modSources = buildModSources(activeBpm, effectiveMacros);
+    // Per-frame temporal low-pass context for connection `smoothing`. The state
+    // Map persists at module scope across frames; dt is the frame delta (ms→s).
+    const modCtx = { dt, frame, state: modSmoothingState };
     const modValue = (target: string, base: number) =>
-      applyModMatrix(base, target, modSources, modMatrix);
+      applyModMatrix(base, target, modSources, modMatrix, resolveModTargetRange(target), modCtx);
+
+    // Resolve scene.next / scene.prev / scene.mix modulation targets — these are
+    // trigger/blend targets the numeric applyModMatrix path can't represent, so
+    // without this block a learned "scene.next" connection never advanced the
+    // scene. scene.next/prev fire a debounced scene advance via the quantized
+    // pendingSceneSwitch path; scene.mix drives a value-driven crossfade
+    // between the active scene and the next scene.
+    const sceneModConns = currentProject.modMatrix.filter(
+      (c) => (c.target === 'scene.next' || c.target === 'scene.prev' || c.target === 'scene.mix') && c.enabled !== false
+    );
+    const scenes = currentProject.scenes;
+    const activeSceneIdx = scenes.findIndex((s) => s.id === currentProject.activeSceneId);
+    if (scenes.length >= 2 && activeSceneIdx !== -1) {
+      // Trigger targets (next/prev): fire once per cooldown.
+      const triggerConn = sceneModConns.find((c) => c.target === 'scene.next' || c.target === 'scene.prev');
+      if (triggerConn && !pendingSceneSwitch && time - lastSceneModTriggerMs > SCENE_MOD_COOLDOWN_MS) {
+        const sv = (modSources as Record<string, number>)[triggerConn.source] ?? 0;
+        const threshold = triggerConn.amount > 0 ? triggerConn.amount : 0.7;
+        if (sv >= threshold) {
+          const dir = triggerConn.target === 'scene.next' ? 1 : -1;
+          const nextIdx = (activeSceneIdx + dir + scenes.length) % scenes.length;
+          pendingSceneSwitch = { targetSceneId: scenes[nextIdx].id, scheduledTimeMs: time, transitionOverride: undefined };
+          lastSceneModTriggerMs = time;
+        }
+      }
+      // Blend target (scene.mix): continuous crossfade toward the next scene.
+      const mixConn = sceneModConns.find((c) => c.target === 'scene.mix');
+      if (mixConn) {
+        const fromSnap = captureSceneSnapshot(currentProject, scenes[activeSceneIdx].id);
+        const toSnap = captureSceneSnapshot(currentProject, scenes[(activeSceneIdx + 1) % scenes.length].id);
+        if (fromSnap && toSnap) {
+          const mv = (modSources as Record<string, number>)[mixConn.source] ?? 0;
+          // Bipolar remaps a [-1,1] deflection to a [0,1] mix; unipolar uses
+          // the source value directly as the blend amount.
+          const mixVal = mixConn.bipolar ? mv * 0.5 + 0.5 : mv;
+          sceneManager.setContinuousMix(fromSnap, toSnap, mixVal);
+        }
+      } else {
+        sceneManager.clearContinuousMix();
+      }
+    } else {
+      sceneManager.clearContinuousMix();
+    }
 
     const lowFreq = ((audioState.bands[0] ?? 0) + (audioState.bands[1] ?? 0)) * 0.5;
     const macroSum = effectiveMacros.reduce((acc, macro) => {
@@ -13796,13 +14442,6 @@ const render = (time: number) => {
     const portalLayer = findLayerById(renderScene?.layers, 'layer-portal');
     const mediaLayer = findLayerById(renderScene?.layers, 'layer-media');
     const oscilloLayer = findLayerById(renderScene?.layers, 'layer-oscillo');
-    const assetVortexLayer = findLayerById(renderScene?.layers, 'gen-asset-vortex');
-    const assetSlicesLayer = findLayerById(renderScene?.layers, 'gen-asset-slices');
-    const assetPolarLayer = findLayerById(renderScene?.layers, 'gen-asset-polar');
-    const assetMosaicLayer = findLayerById(renderScene?.layers, 'gen-asset-mosaic');
-    const assetRippleLayer = findLayerById(renderScene?.layers, 'gen-asset-ripple');
-    const assetScatterLayer = findLayerById(renderScene?.layers, 'gen-asset-scatter');
-    const assetEchoLayer = findLayerById(renderScene?.layers, 'gen-asset-echo');
 
   const plasmaRole = getLayerRole(plasmaLayer);
   const spectrumRole = getLayerRole(spectrumLayer);
@@ -14119,6 +14758,12 @@ const render = (time: number) => {
     timeMs: transportTimeMs,
     rms: audioState.rms,
     peak: audioState.peak,
+    bass: audioState.bass,
+    mid: audioState.mid,
+    treb: audioState.treb,
+    bassAtt: audioState.bassAtt,
+    midAtt: audioState.midAtt,
+    trebAtt: audioState.trebAtt,
     strobe: strobeIntensity,
     plasmaEnabled,
     spectrumEnabled,
@@ -14263,7 +14908,14 @@ const render = (time: number) => {
     sdfRotation: moddedSdf.rotation,
     sdfFill: moddedSdf.fill,
     sdfColor: sdf.color,
-    sdfScene: sdfAdvancedToggle.checked ? renderScene?.layers.find((layer) => layer.id === 'gen-sdf-scene')?.sdfScene : undefined,
+    sdfScene: sdfAdvancedToggle.checked
+      ? modulateSdfScene(
+          renderScene?.layers.find((layer) => layer.id === 'gen-sdf-scene')?.sdfScene,
+          modSources,
+          modMatrix,
+          modCtx
+        )
+      : undefined,
     gravityPositions,
     gravityStrengths,
     gravityPolarities,
@@ -14275,11 +14927,11 @@ const render = (time: number) => {
     return { renderState };
   };
 
-  const activeSceneData = buildRenderStateForScene(activeScene);
-  const previewData = buildRenderStateForScene(previewScene);
+  const activeSceneData = buildRenderStateForScene(activeScene, delta / 1000, modFrame);
+  const previewData = buildRenderStateForScene(previewScene, delta / 1000, modFrame);
   const outputData =
     outputOpen && outputScene?.id && outputScene?.id !== previewScene?.id
-      ? buildRenderStateForScene(outputScene)
+      ? buildRenderStateForScene(outputScene, delta / 1000, modFrame)
       : activeSceneData;
   lastOutputRenderState = outputData.renderState;
   const renderState = previewData.renderState;
@@ -14330,12 +14982,23 @@ const render = (time: number) => {
     posterize: renderState.posterize,
   };
 
-  if (renderState.milkDropShaderData) {
+  // updateMilkDropShaders compiles GL programs and has no internal context-lost
+  // guard (unlike render(), which no-ops when lost/restoring). Skip it while the
+  // context is lost or mid-restore so we don't issue GL compile/create calls on
+  // a dead device. render() below already no-ops via its own guard.
+  if (renderState.milkDropShaderData && !renderer.isContextLost?.()) {
     renderer.updateMilkDropShaders?.(renderState.milkDropShaderData);
   }
    
   // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
   renderer.render(renderState);
+
+  // Cap the program cache so it doesn't grow unbounded as shader variants
+  // compile over many scene/generator switches (GPU memory leak in the live
+  // path — the bootstrap output.ts path already trims every render). Keep 4:
+  // the active program plus a buffer for scenes that cycle back to earlier
+  // generator sets. Cheap when under the cap (returns 0 immediately).
+  renderer.trimProgramCache?.(4);
 
   if (postTransitionFramesLeft > 0 && transitionTracerSeq !== null) {
     const brightness = renderer.captureFrameBrightness?.() ?? { avgBrightness: 0, nonBlackRatio: 0 };
@@ -14664,6 +15327,13 @@ const init = async () => {
       chemistrySelect.value = chemistry;
       setStatus(`Color Chemistry set to: ${chemistry}`);
     },
+    onEnvelopeChange: () => {
+      // The mixer's intensity-envelope dials are a duplicate of the modulation
+      // panel's envelope dials (same underlying project envelopes). Rebuild
+      // the modulation list so it reflects attack/release edits made from the
+      // mixer instead of showing stale values.
+      renderEnvelopeList();
+    },
     getProjectData: () => currentProject as any,
   });
   initModulators();
@@ -14796,6 +15466,16 @@ const init = async () => {
     // Running outside Electron (browser testing) — no close handler needed
   }
 
+  // M9 — Release microphone (AudioEngine) and camera/screen capture streams
+  // (live assets) on unload so the OS media indicators turn off promptly
+  // instead of lingering until the renderer process is killed. pagehide fires
+  // for close, reload, and crash-recovery reload. Both calls are synchronous
+  // and null-tolerant; safe when no media was ever acquired.
+  window.addEventListener('pagehide', () => {
+    try { stopAllLiveStreams(); } catch { /* ignore on unload */ }
+    try { getAudioEngineSafe()?.dispose?.(); } catch { /* ignore on unload */ }
+  });
+
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {
     applyProject: async (project: VisualSynthProject, options: { skipRecovery?: boolean } = {}) => {
@@ -14905,5 +15585,15 @@ const init = async () => {
   console.log('[Init] Capture API exposed');
 };
 
-// Initialize the application
-void init();
+// Initialize the application. init() is async; `void` alone would drop the
+// returned Promise, turning any startup rejection into an unhandled promise
+// rejection with no user-visible signal. Catch it so a fatal init failure is
+// logged and surfaced instead of silently swallowed.
+void init().catch((error) => {
+  console.error('[Init] Fatal startup error:', error);
+  try {
+    setStatus(`Startup failed: ${(error as Error)?.message ?? String(error)}`);
+  } catch {
+    // setStatus may itself be unavailable if init failed before it was wired.
+  }
+});

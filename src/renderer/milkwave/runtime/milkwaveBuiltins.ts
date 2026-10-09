@@ -42,10 +42,16 @@ export const bindMilkwaveBuiltins = ({
 }) => {
   const aspect = state.width / state.height;
 
+  // q1..q32 are declared as uniforms on the comp pass (read-only) and as
+  // uQ1..uQ32 uniforms + local q1..q32 copies on the warp pass (writable, so
+  // per-pixel EEL can reassign them). Set whichever the program exposes.
   const qLoc = (index: number) => loc(`q${index + 1}`);
+  const uQLoc = (index: number) => loc(`uQ${index + 1}`);
   for (let i = 0; i < 32; i++) {
-    const target = qLoc(i);
-    if (target) gl.uniform1f(target, state.qVars[i] ?? 0);
+    const qTarget = qLoc(i);
+    if (qTarget) gl.uniform1f(qTarget, state.qVars[i] ?? 0);
+    const uQTarget = uQLoc(i);
+    if (uQTarget) gl.uniform1f(uQTarget, state.qVars[i] ?? 0);
   }
 
   const c0 = loc('_c0');
@@ -209,19 +215,34 @@ export const createMilkwaveBuiltinState = ({
   height: number;
   qVars: number[];
   randomPreset: [number, number];
-}): MilkwaveBuiltinState => ({
+}): MilkwaveBuiltinState => {
+  const specLen = renderState.spectrum?.length ?? 0;
+  // Prefer the AudioEngine's authoritative log-spaced band aggregates and
+  // slow-attacking followers. The previous code indexed spectrum[] directly
+  // (bin 0 = DC, last bin = Nyquist — neither is musical) and set all three
+  // _att followers to rms, which made milkwave presets that gate on
+  // bass_att/treb_att behave identically. Fall back to a log-spaced spectrum
+  // slice only when the engine values are absent (standalone projector page).
+  const bass = renderState.bass ??
+    (specLen > 0 ? renderState.spectrum![Math.floor(specLen * 0.08)] : renderState.rms) ?? 0;
+  const mid = renderState.mid ??
+    (specLen > 0 ? renderState.spectrum![Math.floor(specLen * 0.5)] : renderState.rms) ?? 0;
+  const treb = renderState.treb ??
+    (specLen > 0 ? renderState.spectrum![Math.floor(specLen * 0.92)] : renderState.rms) ?? 0;
+  return {
   timeSeconds,
   frame,
   width,
   height,
   rms: renderState.rms,
-  bass: renderState.spectrum?.[0] ?? renderState.rms ?? 0,
-  mid: renderState.spectrum?.[Math.floor((renderState.spectrum?.length ?? 0) / 2)] ?? renderState.rms ?? 0,
-  treb: renderState.spectrum?.[(renderState.spectrum?.length ?? 1) - 1] ?? renderState.rms ?? 0,
-  bassAtt: renderState.rms,
-  midAtt: renderState.rms,
-  trebAtt: renderState.rms,
+  bass,
+  mid,
+  treb,
+  bassAtt: renderState.bassAtt ?? bass,
+  midAtt: renderState.midAtt ?? mid,
+  trebAtt: renderState.trebAtt ?? treb,
   qVars,
   randomPreset,
   randomFrame: [milkwavePrng(), milkwavePrng(), milkwavePrng(), milkwavePrng()]
-});
+  };
+};

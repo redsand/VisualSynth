@@ -23,7 +23,7 @@ export interface SceneTemplate {
   intent: SceneIntent;
   suggestedTransition: {
     durationMs: number;
-    curve: 'linear' | 'easeInOut';
+    curve: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
   };
   layerRoles: {
     core: Omit<LayerConfig, 'id'>[];

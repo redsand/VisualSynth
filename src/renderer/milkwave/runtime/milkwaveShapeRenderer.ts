@@ -406,13 +406,22 @@ export interface MilkwaveShapeRendererOptions {
 }
 
 export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOptions | WebGL2RenderingContext) => {
-  const gl = options instanceof WebGL2RenderingContext ? options : options.gl;
-  const trackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
-  const untrackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
-  const trackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
-  const untrackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
-  const trackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
-  const untrackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  // Discriminate by shape rather than `instanceof WebGL2RenderingContext`:
+  // the options-object form carries a `gl` field, a bare context (real or a
+  // test mock) does not. `instanceof` throws ReferenceError in the Node test
+  // environment where the WebGL2RenderingContext global is undefined. The
+  // inline `in` check narrows the union directly: the true branch keeps the
+  // options object (which declares `gl`), the false branch wraps the bare
+  // context. Stashing the result in a typed const lets every `track*` accessor
+  // resolve without per-branch casts.
+  const opts: MilkwaveShapeRendererOptions = 'gl' in options ? options : { gl: options };
+  const gl = opts.gl;
+  const trackProgram = opts.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const untrackProgram = opts.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const trackShader = opts.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const untrackShader = opts.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const trackBuffer = opts.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  const untrackBuffer = opts.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
 
   const compileShaderLocal = (
     gl: WebGL2RenderingContext,
@@ -496,6 +505,18 @@ export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOption
     let evaluatedShapes = 0;
     let evaluatedPoints = 0;
 
+    // Track GL state we mutate so it can be restored after rendering. The
+    // caller's comp/feedback pass expects BLEND off and its own attrib setup;
+    // previously this renderer left BLEND enabled (with an additive
+    // blendFunc) and vertex attrib arrays bound to the milkwave buffer,
+    // leaking into the fullscreen composite.
+    const enabledAttribs = new Set<number>();
+    const enableAttr = (loc: number) => { enabledAttribs.add(loc); gl.enableVertexAttribArray(loc); };
+    const blendWasEnabled = gl.isEnabled(gl.BLEND);
+    const prevSrc = gl.getParameter(gl.BLEND_SRC_RGB);
+    const prevDst = gl.getParameter(gl.BLEND_DST_RGB);
+
+    try {
     for (const [index, shape] of shapes.entries()) {
       const memoryKey = `shape-${index}`;
       const memory =
@@ -620,9 +641,9 @@ export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOption
           if (posLoc >= 0 && uvLoc >= 0 && colorLoc >= 0) {
             gl.useProgram(texturedProgram!);
             gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.enableVertexAttribArray(posLoc);
-            gl.enableVertexAttribArray(uvLoc);
-            gl.enableVertexAttribArray(colorLoc);
+            enableAttr(posLoc);
+            enableAttr(uvLoc);
+            enableAttr(colorLoc);
             gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 32, 0);
             gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 32, 8);
             gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 32, 16);
@@ -645,8 +666,8 @@ export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOption
             if (posLoc >= 0 && colorLoc >= 0) {
               gl.useProgram(program);
               gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-              gl.enableVertexAttribArray(posLoc);
-              gl.enableVertexAttribArray(colorLoc);
+              enableAttr(posLoc);
+              enableAttr(colorLoc);
               gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 24, 0);
               gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 24, 8);
               const fillVertices = createInterleavedBuffer({
@@ -668,8 +689,8 @@ export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOption
           if (posLoc >= 0 && colorLoc >= 0) {
             gl.useProgram(program);
             gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.enableVertexAttribArray(posLoc);
-            gl.enableVertexAttribArray(colorLoc);
+            enableAttr(posLoc);
+            enableAttr(colorLoc);
             gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 24, 0);
             gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 24, 8);
             const borderVertices = createInterleavedBuffer({
@@ -682,6 +703,13 @@ export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOption
           }
         }
       }
+    }
+    } finally {
+      // Restore GL state so the milkwave blend/attrib setup doesn't leak into
+      // the caller's comp/feedback fullscreen pass.
+      for (const loc of enabledAttribs) gl.disableVertexAttribArray(loc);
+      if (blendWasEnabled) gl.enable(gl.BLEND); else gl.disable(gl.BLEND);
+      gl.blendFunc(prevSrc as number, prevDst as number);
     }
 
     return { renderedShapes, renderedBorders, ignoredTexturedShapes, evaluatedShapes, evaluatedPoints };

@@ -12,12 +12,13 @@ import {
   OUTPUT_BASE_WIDTH,
   OutputConfig,
   AssetColorSpace,
+  DEFAULT_PROJECT,
   type OverlayConfig,
   type VisualSynthProject
 } from '../shared/project';
 import { deserializeProject, serializeProject } from '../shared/serialization';
 import { normalizeAssetPath } from '../shared/assets';
-import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema } from '../shared/presetMigration';
+import { presetV3Schema, presetV4Schema, presetV5Schema, presetV6Schema, migratePreset, applyPresetV6 } from '../shared/presetMigration';
 import { buildPresetIndexEntry } from '../shared/presetIndex';
 import { registerOutputIntegrationHandlers, cleanupOutputIntegrations } from './outputIntegration';
 import {
@@ -44,6 +45,8 @@ let prolinkStatusHandler: ((status: { trackBPM: number | null; isMaster: boolean
   null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let prolinkModule: any | null = null;
+// Re-entrancy guard for bpm:network-start — see handler.
+let prolinkStartInProgress = false;
 
 let lastMasterBpmAt = 0;
 const ASSET_STORAGE = path.join(app.getPath('userData'), 'assets');
@@ -51,6 +54,25 @@ fs.mkdirSync(ASSET_STORAGE, { recursive: true });
 initSessionLogger(app.getPath('userData'));
 
 const clampScale = (value: number) => Math.min(1, Math.max(0.25, value));
+
+// Containment check for asset paths that originate from loaded project files
+// (attacker-controlled). At save time rewritePortableProjectAssets reads and
+// copies the file at each asset.path; a path like "../../secret.png" or an
+// absolute path outside the app's data dir would exfiltrate arbitrary files
+// into the saved project. Only allow paths that resolve inside one of the
+// given roots (ASSET_STORAGE and the project directory for portable saves).
+const isPathWithinRoots = (candidate: string, roots: string[]): boolean => {
+  const resolved = path.resolve(candidate);
+  for (const root of roots) {
+    const resolvedRoot = path.resolve(root);
+    const rel = path.relative(resolvedRoot, resolved);
+    if (rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const captureFilters: Record<string, { name: string; extensions: string[] }> = {
   png: { name: 'PNG Image', extensions: ['png'] },
   webm: { name: 'WebM Video', extensions: ['webm'] },
@@ -74,6 +96,14 @@ const getProlinkModule = async () => {
 
 const runFfmpeg = (inputPath: string, outputPath: string) =>
   new Promise<void>((resolve, reject) => {
+    // Drain stderr (ffmpeg writes progress at the default log level) and ignore
+    // stdout/stdin. With default piped stdio that is never read, a long recording's
+    // stderr volume exceeds the OS pipe buffer (~64 KB on Windows); ffmpeg then
+    // blocks on the stderr write and never exits — hanging the transcode, leaving
+    // the renderer stuck on "Recording...", and leaking the temp dir because the
+    // surrounding finally never runs. Drain stderr into a buffer so non-zero exits
+    // also surface a useful message.
+    let stderrText = '';
     const ffmpeg = spawn('ffmpeg', [
       '-y',
       '-i',
@@ -83,17 +113,64 @@ const runFfmpeg = (inputPath: string, outputPath: string) =>
       '-pix_fmt',
       'yuv420p',
       outputPath
-    ]);
-    ffmpeg.on('error', (error) => reject(error));
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    // Guard against a hung transcode. ffmpeg can stall on a corrupt/malformed
+    // input and never exit, which hangs the Promise forever, leaves the
+    // renderer stuck on "Recording...", and leaks the temp dir (the surrounding
+    // finally never runs). Cap the run at 5 minutes; on expiry kill the process
+    // (SIGTERM, then SIGKILL if it won't die) and reject so cleanup runs.
+    const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
+    const timeout = setTimeout(() => {
+      if (!ffmpeg.killed) {
+        ffmpeg.kill('SIGTERM');
+        // Give it a grace period, then force-kill.
+        setTimeout(() => {
+          if (!ffmpeg.killed) {
+            try { ffmpeg.kill('SIGKILL'); } catch { /* already dead */ }
+          }
+        }, 2000);
+      }
+      reject(new Error('ffmpeg transcode timed out'));
+    }, FFMPEG_TIMEOUT_MS);
+    // Don't keep the Node event loop alive solely for this timer.
+    if (typeof timeout.unref === 'function') timeout.unref();
+    ffmpeg.stderr.on('data', (chunk: Buffer) => {
+      stderrText += chunk.toString();
+      // Cap accumulation so a pathological run can't grow memory unbounded.
+      if (stderrText.length > 8192) stderrText = stderrText.slice(-8192);
+    });
+    ffmpeg.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
     ffmpeg.on('close', (code) => {
+      clearTimeout(timeout);
       if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with code ${code ?? 'unknown'}`));
+      else reject(new Error(`ffmpeg exited with code ${code ?? 'unknown'}${stderrText ? `: ${stderrText.trim().slice(-500)}` : ''}`));
     });
   });
 
 const hashFile = (filePath: string) => {
-  const data = fs.readFileSync(filePath);
-  return crypto.createHash('sha256').update(data).digest('hex');
+  // Hash the file in 1 MB chunks instead of readFileSync-ing the whole file.
+  // Asset import / Save Project call this for every referenced asset, and
+  // video assets can be hundreds of MB to GB — readFileSync loaded the entire
+  // file into the main process (blocking the UI, and large enough files OOM-
+  // crashed the app). Chunked reads keep main-process memory flat regardless
+  // of asset size; the hash is identical (SHA-256 over the same bytes).
+  const hash = crypto.createHash('sha256');
+  const fd = fs.openSync(filePath, 'r');
+  const chunkSize = 1024 * 1024;
+  const buffer = Buffer.alloc(chunkSize);
+  try {
+    let bytesRead: number;
+    do {
+      bytesRead = fs.readSync(fd, buffer, 0, chunkSize, null);
+      if (bytesRead > 0) hash.update(buffer.subarray(0, bytesRead));
+    } while (bytesRead > 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return hash.digest('hex');
 };
 
 const mimeFromExt = (ext: string) => {
@@ -150,7 +227,44 @@ const applyOutputConfig = (config: OutputConfig) => {
   outputWindow.setFullScreen(outputConfig.fullscreen);
 };
 
+// Wire crash/hang resilience on a window's renderer. Without this, a crashed or
+// hung renderer leaves the main process idling with a dead window — no log, no
+// recovery. On a gone renderer we log the reason and reload; on unresponsive we
+// log a warning (Electron will offer the kill dialog itself).
+const wireRendererCrashHandlers = (win: BrowserWindow, label: string) => {
+  const wc = win.webContents;
+  wc.on('render-process-gone', (_e, details) => {
+    console.error(`[${label}] Renderer process gone:`, details.reason);
+    try {
+      sessionLogger.writeEntry({
+        level: 'error',
+        event: 'renderer.crashed',
+        data: { label, reason: details.reason, exitCode: details.exitCode }
+      });
+    } catch { /* best-effort */ }
+    if (!win.isDestroyed()) {
+      try { wc.reload(); } catch { /* window gone */ }
+    }
+  });
+  wc.on('unresponsive', () => {
+    console.warn(`[${label}] Renderer unresponsive.`);
+    try {
+      sessionLogger.writeEntry({ level: 'warn', event: 'renderer.unresponsive', data: { label } });
+    } catch { /* best-effort */ }
+  });
+};
+
 const createWindow = () => {
+  // Reset the close-confirmation state for the new window. closeConfirmed is
+  // module-level and never reset otherwise; on macOS (where window-all-closed
+  // doesn't quit and activate re-creates the window) the next window's close
+  // handler would see closeConfirmed === true from the prior session and skip
+  // the save prompt, silently losing edits made in the re-opened window.
+  closeConfirmed = false;
+  if (closeTimeout) {
+    clearTimeout(closeTimeout);
+    closeTimeout = null;
+  }
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -166,7 +280,17 @@ const createWindow = () => {
   void mainWindow.loadFile(indexPath);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    // Only forward http/https URLs to the OS browser. Without this scheme
+    // validation, a page could open arbitrary-scheme URLs (file:, javascript:,
+    // custom handlers) via shell.openExternal.
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+        void shell.openExternal(url);
+      }
+    } catch {
+      /* malformed URL: ignore rather than forward */
+    }
     return { action: 'deny' };
   });
 
@@ -174,6 +298,19 @@ const createWindow = () => {
     if (!closeConfirmed) {
       event.preventDefault();
       mainWindow?.webContents.send('app:close-requested');
+      // Fallback: if the renderer never confirms within 5s (it may be hung,
+      // still saving, or the IPC listener is gone), force the close so the
+      // window does not hang open indefinitely.
+      if (!closeTimeout) {
+        closeTimeout = setTimeout(() => {
+          closeConfirmed = true;
+          closeTimeout = null;
+          try { mainWindow?.close(); } catch { /* window already gone */ }
+        }, 5000);
+      }
+    } else if (closeTimeout) {
+      clearTimeout(closeTimeout);
+      closeTimeout = null;
     }
   });
 
@@ -183,6 +320,8 @@ const createWindow = () => {
     }
     mainWindow = null;
   });
+
+  wireRendererCrashHandlers(mainWindow, 'main');
 
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -220,6 +359,8 @@ const createOutputWindow = () => {
     }
   });
 
+  wireRendererCrashHandlers(outputWindow, 'output');
+
   applyOutputConfig(outputConfig);
 };
 
@@ -234,11 +375,25 @@ app.whenReady().then(() => {
       recoveryFound: fs.existsSync(recoveryPath),
     },
   });
+  // Gate media (microphone/camera) permission to the app's own local origin.
+  // The window loads from file://; any remote/unknown origin that ever ends up
+  // in a webContents must not be granted device access unconditionally.
+  const isLocalOrigin = (wc: Electron.WebContents | null): boolean => {
+    try {
+      const url = wc?.getURL?.() ?? '';
+      return (
+        url.startsWith('file://') ||
+        url.startsWith('http://localhost') ||
+        url.startsWith('http://127.0.0.1')
+      );
+    } catch {
+      return false;
+    }
+  };
 
   // Set up permission handler for media devices (microphone/camera)
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    // Always allow microphone and camera access
-    if (permission === 'media') {
+    if (permission === 'media' && isLocalOrigin(webContents)) {
       callback(true);
     } else {
       callback(false);
@@ -247,8 +402,7 @@ app.whenReady().then(() => {
 
   // Handle permission check requests
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    // Always allow microphone and camera access
-    if (permission === 'media') {
+    if (permission === 'media' && isLocalOrigin(webContents)) {
       return true;
     }
     return false;
@@ -275,11 +429,51 @@ app.on('window-all-closed', () => {
 });
 
 let closeConfirmed = false;
+// Timer for the close-button fallback (see mainWindow 'close' handler).
+let closeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-app.on('before-quit', async () => {
-  await cleanupOutputIntegrations();
-  sessionLogger.writeEntry({ level: 'info', event: 'session.end', data: { reason: 'normal' } });
-  await sessionLogger.flushAndClose();
+// will-quit fires after all windows are closed and the app is about to exit.
+// Unlike before-quit (which Electron does NOT await), we can preventDefault here
+// and run the async cleanup to completion before calling app.exit() — otherwise
+// flushAndClose's stream.end() never reaches 'finish' before the process exits
+// and the last log entries (including session.end) are lost.
+app.on('will-quit', (event) => {
+  event.preventDefault();
+  // Safety net: if cleanup hangs (e.g. a network disconnect that never
+  // resolves), don't strand the app — force-exit after 3s.
+  let exited = false;
+  const forceExit = setTimeout(() => {
+    if (!exited) {
+      exited = true;
+      try { sessionLogger.flushAndClose(); } catch { /* best-effort */ }
+      app.exit(0);
+    }
+  }, 3000);
+  if (typeof forceExit.unref === 'function') forceExit.unref();
+  void (async () => {
+    try {
+      await cleanupOutputIntegrations();
+      sessionLogger.writeEntry({ level: 'info', event: 'session.end', data: { reason: 'normal' } });
+      await sessionLogger.flushAndClose();
+      closeOpenMidiInput();
+      // Tear down the Pro DJ Link UDP listener so the OS port binding is
+      // released before exit (previously leaked until process death; a quick
+      // restart could find the port still held).
+      await stopProlinkNetwork();
+    } catch (error) {
+      console.error('[Quit] Async cleanup failed:', error);
+    } finally {
+      if (!exited) {
+        exited = true;
+        clearTimeout(forceExit);
+        if (closeTimeout) {
+          clearTimeout(closeTimeout);
+          closeTimeout = null;
+        }
+        app.exit(0);
+      }
+    }
+  })();
 });
 
 const clearRecoverySession = () => {
@@ -327,10 +521,24 @@ const rewritePortableProjectAssets = (project: VisualSynthProject, targetPath: s
   const projectDir = path.dirname(targetPath);
   const projectAssetsDir = path.join(projectDir, 'assets');
   const portablePathByAssetId = new Map<string, string>();
+  // Allowed roots for asset reads/copies during a portable save: the app's
+  // asset storage (where imports land) and the project directory (for
+  // already-portable relative paths). Paths resolving outside these — e.g. a
+  // malicious project with asset.path = "../../secret.png" — are dropped
+  // rather than read, so a crafted project can't exfiltrate arbitrary files
+  // into the saved bundle.
+  const allowedRoots = [ASSET_STORAGE, projectDir];
+  const resolveAssetPath = (p: string) =>
+    path.isAbsolute(p) ? p : path.resolve(projectDir, p);
 
   project.assets = project.assets.map((asset) => {
     if (asset.kind === 'internal' || !asset.path) {
       return asset;
+    }
+    if (!isPathWithinRoots(resolveAssetPath(asset.path), allowedRoots)) {
+      // Path escapes the allowed roots — drop the reference instead of reading
+      // a file the project shouldn't reach.
+      return { ...asset, path: undefined };
     }
     if (asset.kind === 'texture') {
       const embeddedData = readEmbeddedImageData(asset.path);
@@ -355,6 +563,9 @@ const rewritePortableProjectAssets = (project: VisualSynthProject, targetPath: s
       return overlay;
     }
     const portableFromAssetId = overlay.assetId ? portablePathByAssetId.get(overlay.assetId) : undefined;
+    if (overlay.assetPath && !isPathWithinRoots(resolveAssetPath(overlay.assetPath), allowedRoots)) {
+      return { ...overlay, assetPath: undefined };
+    }
     const portablePath = portableFromAssetId
       ?? (overlay.assetPath ? copyProjectAssetToPortableLocation(overlay.assetPath, projectAssetsDir) : undefined);
     return {
@@ -369,6 +580,37 @@ const rewritePortableProjectAssets = (project: VisualSynthProject, targetPath: s
 const buildPortableProjectPayload = (payload: string, targetPath: string) => {
   const project = rewritePortableProjectAssets(deserializeProject(payload), targetPath);
   return serializeProject(project);
+};
+
+// Presets are a different shape from projects: name/createdAt live in
+// `metadata`, not at the top level, so they must NOT go through
+// deserializeProject/projectSchema (which requires top-level name/createdAt) —
+// that route throws "Invalid project data" and every preset save silently
+// fails. Instead parse the preset JSON, rewrite the embedded project's
+// assets/overlays for portability, keep the top-level `assets` mirror in sync,
+// and re-serialize.
+const buildPortablePresetPayload = (payload: string, targetPath: string) => {
+  const preset = JSON.parse(payload);
+  if (preset && typeof preset === 'object' && preset.project) {
+    preset.project = rewritePortableProjectAssets(preset.project as VisualSynthProject, targetPath);
+    preset.assets = preset.project.assets;
+  }
+  return JSON.stringify(preset, null, 2);
+};
+
+// Atomically write a text file by writing to a temp sibling then renaming.
+// Prevents a crash/power loss mid-write from leaving a truncated project or
+// recovery file that would fail to parse on the next launch.
+const writeFileAtomic = (filePath: string, payload: string) => {
+  const dir = path.dirname(filePath);
+  const tmp = path.join(dir, `.${path.basename(filePath)}.${process.pid}.tmp`);
+  fs.writeFileSync(tmp, payload, 'utf-8');
+  try {
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* temp already gone */ }
+    throw err;
+  }
 };
 
 ipcMain.handle('project:save', async (_event, payload: string, filePath?: string) => {
@@ -390,7 +632,7 @@ ipcMain.handle('project:save', async (_event, payload: string, filePath?: string
 
   try {
     const portablePayload = buildPortableProjectPayload(payload, targetPath);
-    fs.writeFileSync(targetPath, portablePayload, 'utf-8');
+    writeFileAtomic(targetPath, portablePayload);
     clearRecoverySession();
     return { canceled: false, filePath: targetPath };
   } catch (error) {
@@ -406,7 +648,16 @@ ipcMain.handle('project:autosave', async (_event, payload: string) => {
     const sessionDir = path.join(baseDir, 'sessions');
     fs.mkdirSync(sessionDir, { recursive: true });
     const filePath = path.join(sessionDir, 'recovery.json');
-    fs.writeFileSync(filePath, JSON.stringify(project, null, 2), 'utf-8');
+    // Validate the project shape before persisting so a structurally corrupt
+    // in-memory state is surfaced (logged) rather than silently resurrected.
+    // Recovery is a safety net, so we still save the original object on
+    // validation failure rather than dropping the user's work — safeParse is
+    // run for diagnostics, not as a gate.
+    const validation = projectSchema.safeParse(project);
+    if (!validation.success) {
+      console.error('[Main] Autosave validation warning:', validation.error.flatten());
+    }
+    writeFileAtomic(filePath, JSON.stringify(project, null, 2));
     return { saved: true, filePath };
   } catch (error) {
     return { saved: false };
@@ -423,18 +674,31 @@ ipcMain.handle('preset:save', async (_event, payload: string, defaultName: strin
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  const portablePayload = buildPortableProjectPayload(payload, result.filePath);
-  fs.writeFileSync(result.filePath, portablePayload, 'utf-8');
-  clearRecoverySession();
-  return { canceled: false, filePath: result.filePath };
+  try {
+    const portablePayload = buildPortablePresetPayload(payload, result.filePath);
+    writeFileAtomic(result.filePath, portablePayload);
+    clearRecoverySession();
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('project:recovery', async () => {
   const baseDir = app.getPath('userData');
   const filePath = path.join(baseDir, 'sessions', 'recovery.json');
   if (!fs.existsSync(filePath)) return { found: false };
-  const payload = fs.readFileSync(filePath, 'utf-8');
-  return { found: true, payload, filePath };
+  try {
+    const payload = fs.readFileSync(filePath, 'utf-8');
+    return { found: true, payload, filePath };
+  } catch (error) {
+    // A locked/corrupted/zero-byte recovery file would otherwise reject the
+    // IPC and surface as a raw "Error invoking remote method" at startup.
+    // Treat unreadable recovery as no recovery — the renderer will fall back
+    // to a normal startup instead of crashing the recovery check.
+    console.warn('[Main] Failed to read recovery file:', error);
+    return { found: false, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('app:confirm-close', () => {
@@ -471,8 +735,18 @@ ipcMain.handle('project:save-as', async (_event, payload: string) => {
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, payload, 'utf-8');
-  return { canceled: false, filePath: result.filePath };
+  try {
+    // Run the payload through buildPortableProjectPayload so the saved-as file
+    // rewrites asset/overlay paths to be relative to the new location, matching
+    // project:save and preset:save. Without this, Save As kept the old (often
+    // absolute / original-project-relative) asset paths and bundled no assets/,
+    // so moving or sharing the saved-as file lost every texture/video/overlay.
+    const portablePayload = buildPortableProjectPayload(payload, result.filePath);
+    writeFileAtomic(result.filePath, portablePayload);
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('exchange:save', async (_event, payload: string, defaultName: string) => {
@@ -485,8 +759,12 @@ ipcMain.handle('exchange:save', async (_event, payload: string, defaultName: str
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, payload, 'utf-8');
-  return { canceled: false, filePath: result.filePath };
+  try {
+    writeFileAtomic(result.filePath, payload);
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('project:open', async () => {
@@ -504,7 +782,20 @@ ipcMain.handle('project:open', async () => {
   console.log(`[Main] Opening project file: ${filePath}`);
   try {
     const data = fs.readFileSync(filePath, 'utf-8');
-    const parsed = projectSchema.safeParse(JSON.parse(data));
+    const raw = JSON.parse(data);
+    // Legacy project/preset files (version 1-5) must be migrated to v6 before
+    // the v6 project schema can validate them. Without this, opening an old
+    // file silently failed with "Invalid project file".
+    let projectData: unknown = raw;
+    if (typeof raw?.version === 'number' && raw.version >= 1 && raw.version < 6) {
+      const migrated = migratePreset(raw);
+      if (!migrated.success) {
+        console.error('[Main] Legacy project migration failed:', migrated.errors);
+        return { canceled: true, error: 'Could not migrate legacy project file.', filePath };
+      }
+      projectData = applyPresetV6(migrated.preset, DEFAULT_PROJECT).project;
+    }
+    const parsed = projectSchema.safeParse(projectData);
     if (!parsed.success) {
       console.error('[Main] Project parse failed:', parsed.error.flatten());
       return { canceled: true, error: 'Invalid project file.', filePath };
@@ -531,10 +822,18 @@ ipcMain.handle('scene:open', async () => {
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true };
   }
-  const files = result.filePaths.map((filePath) => ({
-    filePath,
-    payload: fs.readFileSync(filePath, 'utf-8'),
-  }));
+  const files: { filePath: string; payload: string }[] = [];
+  for (const filePath of result.filePaths) {
+    try {
+      const payload = fs.readFileSync(filePath, 'utf-8');
+      files.push({ filePath, payload });
+    } catch (error) {
+      // A file can be locked/deleted between dialog selection and read; without
+      // this guard readFileSync throws inside the handler and the renderer's
+      // invoke() rejects with a raw Error instead of the documented {canceled,...} shape.
+      return { canceled: true, filePath, error: error instanceof Error ? error.message : 'Failed to read scene file.' };
+    }
+  }
   return { canceled: false, files };
 });
 
@@ -566,8 +865,12 @@ ipcMain.handle('exchange:open', async () => {
     return { canceled: true };
   }
   const filePath = result.filePaths[0];
-  const payload = fs.readFileSync(filePath, 'utf-8');
-  return { canceled: false, filePath, payload };
+  try {
+    const payload = fs.readFileSync(filePath, 'utf-8');
+    return { canceled: false, filePath, payload };
+  } catch (error) {
+    return { canceled: true, filePath, error: error instanceof Error ? error.message : 'Failed to read exchange file.' };
+  }
 });
 
 ipcMain.handle('capture:save', async (_event, data: Uint8Array, defaultName: string, format: 'png' | 'webm' | 'mp4') => {
@@ -581,8 +884,16 @@ ipcMain.handle('capture:save', async (_event, data: Uint8Array, defaultName: str
   if (result.canceled || !result.filePath) {
     return { canceled: true };
   }
-  fs.writeFileSync(result.filePath, Buffer.from(data));
-  return { canceled: false, filePath: result.filePath };
+  try {
+    fs.writeFileSync(result.filePath, Buffer.from(data));
+    return { canceled: false, filePath: result.filePath };
+  } catch (error) {
+    // Disk full / permission denied / target folder removed between dialog
+    // selection and write. Previously this threw an unhandled rejection and left
+    // the renderer stuck on "Capturing screenshot..."/"Recording...". Return a
+    // structured error so callers can surface it (matching capture:transcode).
+    return { canceled: true, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 ipcMain.handle('capture:transcode', async (_event, data: Uint8Array, defaultName: string) => {
@@ -646,6 +957,11 @@ ipcMain.handle('assets:import', async (_event, kind: 'texture' | 'shader' | 'vid
 });
 
 ipcMain.handle('assets:copy', async (_event, sourcePath: string) => {
+  // Confine reads to the asset store. These handlers accept a renderer-supplied
+  // path with no dialog; without confinement a compromised/XSS'd renderer could
+  // copy arbitrary files (e.g. ~/.ssh/id_rsa) into the asset store and read them
+  // back through the asset pipeline. Only already-imported assets live here.
+  if (!isPathWithinRoots(sourcePath, [ASSET_STORAGE])) return { success: false };
   if (!fs.existsSync(sourcePath)) return { success: false };
   const hash = hashFile(sourcePath);
   const ext = path.extname(sourcePath);
@@ -657,6 +973,7 @@ ipcMain.handle('assets:copy', async (_event, sourcePath: string) => {
 });
 
 ipcMain.handle('assets:analyze', async (_event, filePath: string) => {
+  if (!isPathWithinRoots(filePath, [ASSET_STORAGE])) return { exists: false };
   if (!fs.existsSync(filePath)) return { exists: false };
   const hash = hashFile(filePath);
   return {
@@ -668,7 +985,11 @@ ipcMain.handle('assets:analyze', async (_event, filePath: string) => {
 
 ipcMain.handle('assets:checkPaths', async (_event, paths: string[]) => {
   const results: Record<string, boolean> = {};
-  for (const p of paths) {
+  // Cap the batch so a runaway caller can't pin the main process on sync
+  // existsSync calls. The renderer only ever sends its own asset list, but
+  // bound it defensively.
+  const capped = Array.isArray(paths) ? paths.slice(0, 2000) : [];
+  for (const p of capped) {
     results[p] = fs.existsSync(p);
   }
   return results;
@@ -717,8 +1038,12 @@ ipcMain.handle('plugins:import', async () => {
     return { canceled: true };
   }
   const filePath = result.filePaths[0];
-  const payload = fs.readFileSync(filePath, 'utf-8');
-  return { canceled: false, filePath, payload };
+  try {
+    const payload = fs.readFileSync(filePath, 'utf-8');
+    return { canceled: false, filePath, payload };
+  } catch (error) {
+    return { canceled: true, error: `Failed to read plugin manifest: ${(error as Error).message}` };
+  }
 });
 
 ipcMain.handle('now-playing:settings:get', () => {
@@ -787,16 +1112,25 @@ ipcMain.handle(
 
         const rendererPcm = await new Promise<Int16Array | null>((resolve) => {
           const requestId = `shazam-decode-${Date.now()}`;
-          const timeout = setTimeout(() => resolve(null), 30000); // 30 sec timeout
-          ipcMain.once(requestId, (_ev, result: { pcmBase64: string | null; error?: string }) => {
+          // Use a named handler + ipcMain.on (not .once) so we can removeListener
+          // on timeout/no-window. .once leaves the listener registered forever
+          // if the renderer never responds (tab backgrounded, decoder crashed),
+          // orphaning one ipcMain listener per timed-out decode.
+          const handler = (_ev: Electron.IpcMainEvent, result: { pcmBase64: string | null; error?: string }) => {
             clearTimeout(timeout);
+            ipcMain.removeListener(requestId, handler);
             if (result.pcmBase64) {
               const buf = Buffer.from(result.pcmBase64, 'base64');
               resolve(new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2));
             } else {
               resolve(null);
             }
-          });
+          };
+          const timeout = setTimeout(() => {
+            ipcMain.removeListener(requestId, handler);
+            resolve(null);
+          }, 30000); // 30 sec timeout
+          ipcMain.on(requestId, handler);
           if (mainWindow && !mainWindow.webContents.isDestroyed()) {
             mainWindow.webContents.send('shazam:decode-file', {
               requestId,
@@ -806,6 +1140,8 @@ ipcMain.handle(
               durationSeconds
             });
           } else {
+            clearTimeout(timeout);
+            ipcMain.removeListener(requestId, handler);
             resolve(null);
           }
         });
@@ -871,11 +1207,17 @@ ipcMain.handle(
           // Send to renderer for decoding (reuses Shazam decode infrastructure)
           const rendererClip = await new Promise<{ base64: string | null; mimeType: string; durationMs: number } | null>((resolve) => {
             const requestId = `audd-decode-${Date.now()}`;
-            const timeout = setTimeout(() => resolve(null), 30000);
-            ipcMain.once(requestId, (_ev, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
+            // Named handler + removeListener on timeout/no-window (see shazam block).
+            const handler = (_ev: Electron.IpcMainEvent, result: { base64: string | null; mimeType: string; durationMs: number; error?: string }) => {
               clearTimeout(timeout);
+              ipcMain.removeListener(requestId, handler);
               resolve(result);
-            });
+            };
+            const timeout = setTimeout(() => {
+              ipcMain.removeListener(requestId, handler);
+              resolve(null);
+            }, 30000);
+            ipcMain.on(requestId, handler);
             if (mainWindow && !mainWindow.webContents.isDestroyed()) {
               mainWindow.webContents.send('audd:decode-file', {
                 requestId,
@@ -885,6 +1227,8 @@ ipcMain.handle(
                 durationSeconds
               });
             } else {
+              clearTimeout(timeout);
+              ipcMain.removeListener(requestId, handler);
               resolve(null);
             }
           });
@@ -1115,12 +1459,16 @@ ipcMain.handle('templates:list', async () => {
 });
 
 ipcMain.handle('templates:load', async (_event, templatePath: string) => {
-  const data = fs.readFileSync(templatePath, 'utf-8');
-  const parsed = projectSchema.safeParse(JSON.parse(data));
-  if (!parsed.success) {
-    return { error: 'Invalid template file.' };
+  try {
+    const data = fs.readFileSync(templatePath, 'utf-8');
+    const parsed = projectSchema.safeParse(JSON.parse(data));
+    if (!parsed.success) {
+      return { error: 'Invalid template file.' };
+    }
+    return { project: parsed.data };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to load template.' };
   }
-  return { project: parsed.data };
 });
 
 ipcMain.handle('output:get-config', () => outputConfig);
@@ -1177,17 +1525,41 @@ const findInterface = (iface: { name: string; address: string } | null): Network
   return null;
 };
 
+const stopProlinkNetwork = async () => {
+  if (prolinkNetwork?.statusEmitter && prolinkStatusHandler) {
+    prolinkNetwork.statusEmitter.off('status', prolinkStatusHandler);
+  }
+  prolinkStatusHandler = null;
+  if (prolinkNetwork) {
+    try {
+      await prolinkNetwork.disconnect();
+    } catch (e) {
+      console.warn('Error disconnecting Prolink:', e);
+    }
+    prolinkNetwork = null;
+  }
+};
+
 ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; address: string } | null) => {
+  // Serialize against re-entrancy. The `if (prolinkNetwork)` guard below is
+  // check-then-act: prolinkNetwork is only assigned after `await
+  // module.bringOnline(config)`. Two rapid invokes both see null, both call
+  // bringOnline, the second overwrites the first, which is never disconnect()ed
+  // → leaked UDP port + status listener. Drop the re-entrant call; the in-flight
+  // start completes and the caller can retry if needed.
+  if (prolinkStartInProgress) {
+    return { started: false, message: 'Pro DJ Link start already in progress.' };
+  }
   if (prolinkNetwork) {
     return { started: true, message: 'Pro DJ Link already running.' };
   }
-
-  const module = await getProlinkModule();
-  if (!module) {
-    return { started: false, message: 'Prolink Connect not available.' };
-  }
-
+  prolinkStartInProgress = true;
   try {
+    const module = await getProlinkModule();
+    if (!module) {
+      return { started: false, message: 'Prolink Connect not available.' };
+    }
+
     const selected = findInterface(iface);
     const config = selected ? { iface: selected, vcdjId: 7 } : undefined;
     prolinkNetwork = await module.bringOnline(config);
@@ -1228,23 +1600,19 @@ ipcMain.handle('bpm:network-start', async (_event, iface: { name: string; addres
     };
   } catch (error) {
     console.error('Failed to start Prolink network:', error);
+    // If bringOnline() succeeded but a later step (autoconfig/connect) threw,
+    // prolinkNetwork is set but not working. Tear it down so a subsequent
+    // bpm:network-start isn't short-circuited by the `if (prolinkNetwork)`
+    // guard above ("already running" while nothing actually runs).
+    await stopProlinkNetwork();
     return { started: false, message: `Prolink start failed: ${(error as Error).message}` };
+  } finally {
+    prolinkStartInProgress = false;
   }
 });
 
 ipcMain.handle('bpm:network-stop', async () => {
-  if (prolinkNetwork?.statusEmitter && prolinkStatusHandler) {
-    prolinkNetwork.statusEmitter.off('status', prolinkStatusHandler);
-  }
-  prolinkStatusHandler = null;
-  if (prolinkNetwork) {
-    try {
-      await prolinkNetwork.disconnect();
-    } catch (e) {
-      console.warn('Error disconnecting Prolink:', e);
-    }
-    prolinkNetwork = null;
-  }
+  await stopProlinkNetwork();
   return { stopped: true };
 });
 
@@ -1265,25 +1633,72 @@ ipcMain.handle('midi:list-node', async () => {
   }
 });
 
+// Track the currently open node-midi input so re-opening a port closes the
+// previous one instead of leaking an open port + 'message' listener per call.
+let openMidiInput: any = null;
+let openMidiPortIndex: number | null = null;
+
+const closeOpenMidiInput = () => {
+  if (openMidiInput) {
+    try { openMidiInput.closePort(); } catch { /* already closed */ }
+    try { openMidiInput.removeAllListeners('message'); } catch { /* ignore */ }
+    openMidiInput = null;
+    openMidiPortIndex = null;
+  }
+};
+
 ipcMain.handle('midi:open-node', async (event, portIndex: number) => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const midi = require('midi');
+    // Close any previously opened input first to avoid leaking ports and
+    // 'message' listeners (every prior call left an open port + listener
+    // behind, eventually exhausting MIDI ports and memory).
+    closeOpenMidiInput();
     const input = new midi.Input();
     input.ignoreTypes(false, false, false);
     input.on('message', (_delta: number, message: number[]) => {
-      event.sender.send('midi:node-message', message);
+      // The renderer that requested this input may have been destroyed; guard
+      // the send so we don't throw into a dead webContents.
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('midi:node-message', message);
+      }
     });
     input.openPort(portIndex);
+    openMidiInput = input;
+    openMidiPortIndex = portIndex;
     return { opened: true };
   } catch (error) {
     return { opened: false, error: 'Unable to open node-midi input.' };
   }
 });
 
+ipcMain.handle('midi:close-node', async () => {
+  closeOpenMidiInput();
+  return { closed: true };
+});
+
 // Automated screenshot capture for documentation
 ipcMain.handle('screenshot:capture-automated', async (_event, data: Uint8Array, filePath: string) => {
   try {
+    // Defense-in-depth: this handler takes a raw renderer-supplied path (no save
+    // dialog, unlike capture:save/transcode) for automated screenshot runs.
+    // Restrict the extension to image types so a compromised renderer can't
+    // overwrite arbitrary non-image files (e.g. a .dll) via this path. The
+    // legitimate caller (scripts/capture-screenshots.js) only ever writes .png.
+    const ext = path.extname(filePath).toLowerCase();
+    if (!['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+      return { success: false, error: 'Screenshot path must have an image extension (.png/.jpg/.jpeg/.webp).' };
+    }
+    // Confine writes to the app's userData dir. Without this a compromised/XSS'd
+    // renderer could write a .png-named file anywhere the user has write access
+    // (e.g. the Startup folder) or overwrite an existing image. This handler is
+    // unused by the production renderer (the capture script registers its own),
+    // so confining it can't break a live flow; a future feature wanting writes
+    // elsewhere should use the dialog-based capture:save channel instead.
+    if (!isPathWithinRoots(filePath, [app.getPath('userData')])) {
+      return { success: false, error: 'Screenshot path must be inside the app data directory.' };
+    }
     const dir = path.dirname(filePath);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(filePath, Buffer.from(data));
@@ -1297,11 +1712,16 @@ ipcMain.handle('screenshot:capture-automated', async (_event, data: Uint8Array, 
 // Session logging IPC handlers
 // ---------------------------------------------------------------------------
 ipcMain.on('session-log:write', (_event, entry: object) => {
+  // Guard against a null/undefined/non-object entry from the renderer:
+  // writeEntry reads entry.level/event/data outside its try/catch, so a null
+  // entry would throw inside setImmediate and crash the main process.
+  if (!entry || typeof entry !== 'object') return;
   setImmediate(() => sessionLogger.writeEntry(entry as any));
 });
 
 ipcMain.handle('session:get-id', () => sessionLogger.getSessionId());
 
 ipcMain.on('session-log:write-snapshot', (_event, snapshot: object) => {
+  if (!snapshot || typeof snapshot !== 'object') return;
   setImmediate(() => sessionLogger.writeFailureSnapshot(snapshot as Record<string, unknown>));
 });

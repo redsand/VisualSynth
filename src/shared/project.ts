@@ -87,7 +87,7 @@ export type PresetCertification = 'safe' | 'degraded' | 'unstable' | 'archived';
 
 export interface SceneTransition {
   durationMs: number;
-  curve: 'linear' | 'easeInOut';
+  curve: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
   type?: 'fade' | 'crossfade' | 'warp' | 'glitch' | 'dissolve';
 }
 
@@ -564,7 +564,11 @@ export interface VisualSynthProject {
   visualIntentTags?: string[];
   createdAt: string;
   updatedAt?: string;
-  output?: OutputConfig;
+  // Required: the zod schema (outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG))
+  // and DEFAULT_PROJECT always populate this. Was `output?` previously, which
+  // drifted from the schema and forced every `project.output` read to be
+  // `OutputConfig | undefined`.
+  output: OutputConfig;
   stylePresets: StylePreset[];
   activeStylePresetId: string;
   palettes: ColorPalette[];
@@ -601,6 +605,11 @@ export interface VisualSynthProject {
   overlays?: OverlayConfig[];
   customShaderBlocks?: CustomShaderBlock[];
   performanceMode?: PerformanceModeConfig;
+  // Per-asset-layer blend mode + audio-react overrides persisted on save.
+  // Optional; absent/{} falls back to the renderer's built-in per-layer
+  // defaults. Only entries the user edited are stored.
+  assetLayerBlendModes?: Record<string, number>;
+  assetLayerAudioReact?: Record<string, number>;
   _shaderData?: MilkDropShaderData;
 }
 
@@ -621,7 +630,14 @@ export interface EffectConfig {
 }
 
 export interface SceneLook {
-  effects?: EffectConfig[];
+  // Schema (projectSchema `effectsSchema`) normalizes this to a single
+  // EffectConfig: it accepts a bare object or a 1-element array and unwraps
+  // the array via .transform. Both the index.ts render loop (reads .enabled /
+  // .bloom directly) and sceneRuntime consume it as a single object; the FX
+  // graph builder (RenderGraph) still coerces with Array.isArray for any
+  // pre-parse legacy data. The old `EffectConfig[]` here was stale and caused
+  // the render path's single-object access to fail type-checking.
+  effects?: EffectConfig;
   particles?: ParticleConfig;
   sdf?: SdfConfig;
   visualizer?: {

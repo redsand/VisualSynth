@@ -242,13 +242,22 @@ export interface MilkwaveWaveRendererOptions {
 }
 
 export const createMilkwaveWaveRenderer = (options: MilkwaveWaveRendererOptions | WebGL2RenderingContext) => {
-  const gl = options instanceof WebGL2RenderingContext ? options : options.gl;
-  const trackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
-  const untrackProgram = options instanceof WebGL2RenderingContext ? <T extends WebGLProgram | null>(p: T) => p : options.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
-  const trackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
-  const untrackShader = options instanceof WebGL2RenderingContext ? <T extends WebGLShader | null>(s: T) => s : options.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
-  const trackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
-  const untrackBuffer = options instanceof WebGL2RenderingContext ? <T extends WebGLBuffer | null>(b: T) => b : options.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  // Discriminate by shape rather than `instanceof WebGL2RenderingContext`:
+  // the options-object form carries a `gl` field, a bare context (real or a
+  // test mock) does not. `instanceof` throws ReferenceError in the Node test
+  // environment where the WebGL2RenderingContext global is undefined. The
+  // inline `in` check narrows the union directly: the true branch keeps the
+  // options object (which declares `gl`), the false branch wraps the bare
+  // context. Stashing the result in a typed const lets every `track*` accessor
+  // resolve without per-branch casts.
+  const opts: MilkwaveWaveRendererOptions = 'gl' in options ? options : { gl: options };
+  const gl = opts.gl;
+  const trackProgram = opts.trackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const untrackProgram = opts.untrackProgram ?? (<T extends WebGLProgram | null>(p: T) => p);
+  const trackShader = opts.trackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const untrackShader = opts.untrackShader ?? (<T extends WebGLShader | null>(s: T) => s);
+  const trackBuffer = opts.trackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
+  const untrackBuffer = opts.untrackBuffer ?? (<T extends WebGLBuffer | null>(b: T) => b);
 
   const compileShaderLocal = (
     gl: WebGL2RenderingContext,
@@ -319,12 +328,21 @@ export const createMilkwaveWaveRenderer = (options: MilkwaveWaveRendererOptions 
     gl.enableVertexAttribArray(colorLoc);
     gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 24, 0);
     gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 24, 8);
+
+    // Save blend state BEFORE enabling so we can restore it after rendering.
+    // The caller (milkdrop comp/feedback pass) expects BLEND to be off;
+    // leaving it enabled with an additive blendFunc leaked into the
+    // fullscreen composite and corrupted the feedback loop.
+    const blendWasEnabled = gl.isEnabled(gl.BLEND);
+    const prevSrc = gl.getParameter(gl.BLEND_SRC_RGB);
+    const prevDst = gl.getParameter(gl.BLEND_DST_RGB);
     gl.enable(gl.BLEND);
 
     let renderedWaves = 0;
     let renderedPoints = 0;
     let evaluatedPoints = 0;
 
+    try {
     for (const [index, wave] of waves.entries()) {
       if (!wave.enabled) continue;
       const memoryKey = `wave-${index}`;
@@ -428,6 +446,14 @@ export const createMilkwaveWaveRenderer = (options: MilkwaveWaveRendererOptions 
       }
       renderedWaves++;
       renderedPoints += vertices.length;
+    }
+    } finally {
+      // Restore GL state so the BLEND enable and attrib arrays don't leak
+      // into the caller's passes.
+      gl.disableVertexAttribArray(posLoc);
+      gl.disableVertexAttribArray(colorLoc);
+      if (blendWasEnabled) gl.enable(gl.BLEND); else gl.disable(gl.BLEND);
+      gl.blendFunc(prevSrc as number, prevDst as number);
     }
 
     return { renderedWaves, renderedPoints, evaluatedPoints };

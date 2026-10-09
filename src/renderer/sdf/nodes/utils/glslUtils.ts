@@ -74,15 +74,21 @@ vec3 rotateZ(vec3 p, float angle) {
   return vec3(c * p.x - s * p.y, s * p.x + c * p.y, p.z);
 }
 
-// Rotation matrix from Euler angles (XYZ order)
+// Rotation matrix from Euler angles (Rz * Ry * Rx, i.e. angles.x applied first).
+// GLSL mat3(...) is column-major, so the coefficients are laid out as columns
+// of the rotation matrix. The previous version wrote them in row-major order,
+// which made rotationMatrix(angles) * p apply the transpose — rotation by
+// negated angles in reversed order (e.g. angles=(0,0,pi/2) mapped (1,0,0) to
+// (0,-1,0) instead of (0,1,0)). Compare domRotate3D (domain/index.ts) which
+// builds proper column-major matrices.
 mat3 rotationMatrix(vec3 angles) {
   float cx = cos(angles.x), sx = sin(angles.x);
   float cy = cos(angles.y), sy = sin(angles.y);
   float cz = cos(angles.z), sz = sin(angles.z);
   return mat3(
-    cy * cz, -cy * sz, sy,
-    sx * sy * cz + cx * sz, -sx * sy * sz + cx * cz, -sx * cy,
-    -cx * sy * cz + sx * sz, cx * sy * sz + sx * cz, cx * cy
+    cy * cz, sx * sy * cz + cx * sz, -cx * sy * cz + sx * sz,
+    -cy * sz, -sx * sy * sz + cx * cz, cx * sy * sz + sx * cz,
+    sy, -sx * cy, cx * cy
   );
 }
 `;
@@ -174,11 +180,14 @@ float sminExp(float a, float b, float k) {
   return -log2(res) / k;
 }
 
-// Power smooth minimum
+// Power smooth minimum. Mirrors opSmoothUnionPow (ops/index.ts): the max(0.0,
+// ...) clamp is required because pow of a negative base is NaN in GLSL for
+// non-integer k, and SDF distances are negative inside shapes; the +0.0001
+// epsilon guards the divide when a + b -> 0.
 float sminPow(float a, float b, float k) {
-  a = pow(a, k);
-  b = pow(b, k);
-  return pow((a * b) / (a + b), 1.0 / k);
+  a = pow(max(0.0, a), k);
+  b = pow(max(0.0, b), k);
+  return pow((a * b) / (a + b + 0.0001), 1.0 / k);
 }
 
 // Smooth absolute value
@@ -243,10 +252,18 @@ float opExtrusion(vec3 p, float d2d, float h) {
   return min(max(w.x, w.y), 0.0) + length(max(w, 0.0));
 }
 
-// Revolution (2D to 3D around Y axis)
+// Revolution (lathe a 2D SDF around the Y axis). NOTE: this is a non-functional
+// placeholder. A true revolution must evaluate the 2D SDF *at* the revolved
+// coordinate q = vec2(length(p.xz) - offset, p.y), but this helper receives a
+// pre-evaluated scalar d2d and has no way to re-evaluate it, so it returns the
+// 2D distance unchanged (the computed q is unused). GLSL cannot pass SDF
+// functions as parameters, so the revolution must be inlined at the call site:
+//   vec2 q = vec2(length(p.xz) - offset, p.y);
+//   float d = <your2DSDF>(q);   // evaluate the 2D SDF at q, not at p.xy
+// Currently no SDF node requires opRevolution (it is not emitted by glslBuilder).
 float opRevolution(vec3 p, float d2d, float offset) {
   vec2 q = vec2(length(p.xz) - offset, p.y);
-  return d2d; // d2d should be evaluated at q instead of p.xy
+  return d2d; // broken: returns the pre-evaluated 2D distance, not the revolved SDF
 }
 
 // Elongation (stretch in one direction)

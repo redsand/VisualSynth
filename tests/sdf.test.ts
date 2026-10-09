@@ -74,7 +74,11 @@ describe('SDF System', () => {
       
       const result = buildSdfShader([s1], [], '2d');
       
-      expect(result.functionsCode).toContain('getSdfColor');
+      // getSdfColor is defined once in the shared preamble; the builder emits
+      // only the per-node color branches into colorBody (referencing uColor_<id>),
+      // NOT a second getSdfColor definition into functionsCode.
+      expect(result.colorBody).toContain('uColor_');
+      expect(result.functionsCode).not.toContain('vec3 getSdfColor');
       expect(result.uniforms.some(u => u.parameterId === 'color')).toBe(true);
       expect(result.mapBody).toContain('vec2'); // Should return vec2(dist, id)
     });

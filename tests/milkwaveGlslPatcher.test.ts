@@ -142,7 +142,12 @@ describe('patchMilkDropGlsl – unit', () => {
     const src = '#version 300 es\nprecision highp float;\nout vec4 fragColor;\nuniform vec2 uAspect;\nvoid main() {\n  float invAspect = uAspect.z;\n  vec2 invTerms = uAspect.zw;\n  fragColor = vec4(invAspect, invTerms.x, invTerms.y, 1.0);\n}';
     const out = patchMilkDropGlsl(src);
     expect(out).toContain('(1.0/uAspect.x)');
-    expect(out).toContain('(vec2(1.0)/uAspect)');
+    // The @shaderfrog generator emits a leading space for identifier-first
+    // groups, so `(vec2(1.0)/uAspect)` (from the 0a.2 regex substitution) is
+    // re-emitted by astTransform as `( vec2(1.0)/uAspect)`. The space is
+    // semantically inert in GLSL and is the generator's consistent output
+    // (the same space milkdropRendererSeed.test.ts asserts for `uv*( vec2(1.0) - ...)`).
+    expect(out).toContain('( vec2(1.0)/uAspect)');
     expect(out).not.toContain('uAspect.z');
     expect(out).not.toContain('uAspect.zw');
   });

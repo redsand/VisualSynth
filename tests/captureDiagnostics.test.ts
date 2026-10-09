@@ -36,8 +36,42 @@ describe('buildCaptureDiagnostics', () => {
       ],
       ['uFeedbackMix'],
       {
-        warp: { requested: true, compiled: false, fallbackUsed: true },
-        comp: { requested: true, compiled: true, fallbackUsed: false }
+        warp: {
+          requested: true,
+          compiled: false,
+          fallbackUsed: true,
+          status: 'fallback',
+          diagnostics: {
+            stage: 'glsl',
+            pass: 'warp',
+            sourceLength: 0,
+            lineCount: 0,
+            shaderBodyDetected: false,
+            version300esDetected: false,
+            qVarCount: 0,
+            previousFrameSamplerAliasCount: 0,
+            blurSamplerCount: 0,
+            issues: []
+          }
+        },
+        comp: {
+          requested: true,
+          compiled: true,
+          fallbackUsed: false,
+          status: 'success',
+          diagnostics: {
+            stage: 'glsl',
+            pass: 'comp',
+            sourceLength: 0,
+            lineCount: 0,
+            shaderBodyDetected: true,
+            version300esDetected: true,
+            qVarCount: 0,
+            previousFrameSamplerAliasCount: 0,
+            blurSamplerCount: 0,
+            issues: []
+          }
+        }
       },
       {
         shapes: {

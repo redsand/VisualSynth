@@ -92,6 +92,7 @@ export const sdEllipse: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdEllipse(vec2 p, vec2 ab)',
+    argPack: { ab: ['radiusX', 'radiusY'] },
     body: `p = abs(p);
 if (p.x > p.y) { p = p.yx; ab = ab.yx; }
 float l = ab.y * ab.y - ab.x * ab.x;
@@ -210,6 +211,7 @@ export const sdBox: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdBox(vec2 p, vec2 b)',
+    argPack: { b: ['width', 'height'] },
     body: `vec2 d = abs(p) - b;
 return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);`
   },
@@ -242,6 +244,7 @@ export const sdRoundedBox: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdRoundedBox(vec2 p, vec2 b, float r)',
+    argPack: { b: ['width', 'height'], r: ['radius'] },
     body: `vec2 q = abs(p) - b + r;
 return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;`
   },
@@ -274,6 +277,7 @@ export const sdChamferedBox: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdChamferedBox(vec2 p, vec2 b, float c)',
+    argPack: { b: ['width', 'height'], c: ['chamfer'] },
     body: `p = abs(p);
 float m = max(p.x - b.x + c, p.y - b.y + c);
 p = (p.x > p.y) ? p : p.yx;
@@ -317,6 +321,7 @@ export const sdBoxPerCorner: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdBoxPerCorner(vec2 p, vec2 b, vec4 r)',
+    argPack: { b: ['width', 'height'], r: ['topRight', 'bottomRight', 'topLeft', 'bottomLeft'] },
     body: `// r.x = top right, r.y = bottom right, r.z = top left, r.w = bottom left
 r.xy = (p.x > 0.0) ? r.xy : r.zw;
 r.x = (p.y > 0.0) ? r.x : r.y;
@@ -384,6 +389,7 @@ export const sdTriangleIsosceles: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdTriangleIsosceles(vec2 p, vec2 q)',
+    argPack: { q: ['base', 'height'] },
     body: `p.x = abs(p.x);
 vec2 a = p - q * clamp(dot(p, q) / dot(q, q), 0.0, 1.0);
 vec2 b = p - q * vec2(clamp(p.x / q.x, 0.0, 1.0), 1.0);
@@ -418,6 +424,7 @@ export const sdPolygon: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdPolygon(vec2 p, float r, float n)',
+    argPack: { r: ['radius'], n: ['sides'] },
     body: `float an = 3.14159265 / n;
 float he = r * tan(an);
 p = vec2(abs(p.x), p.y);
@@ -454,6 +461,7 @@ export const sdStar: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdStar(vec2 p, float r, float rf, float n)',
+    argPack: { r: ['outerRadius'], rf: ['innerRadius'], n: ['points'] },
     body: `float an = 3.14159265 / n;
 float en = 3.14159265 / (n * 2.0 - 2.0);
 vec2 acs = vec2(cos(an), sin(an));
@@ -557,6 +565,7 @@ export const sdCross: SdfNodeDefinition = {
   ],
   glsl: {
     signature: 'float sdCross(vec2 p, vec2 b)',
+    argPack: { b: ['length', 'thickness'] },
     body: `p = abs(p);
 p = (p.y > p.x) ? p.yx : p;
 vec2 q = p - b;

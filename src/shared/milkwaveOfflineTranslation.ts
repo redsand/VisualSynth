@@ -38,8 +38,12 @@ export interface MilkwaveOfflineTranslationPass {
 export interface MilkwaveOfflineTranslationReport {
   pipeline: 'milkwave-offline-v1';
   supportTier: MilkwaveSupportTier; // @deprecated
-  staticSupportTier: MilkwaveSupportTier;
-  runtimeSupportTier: MilkwaveSupportTier;
+  // Optional: the persisted (zod) translation schema stores only the
+  // deprecated `supportTier`, not these split tiers — they are populated when
+  // a report is freshly generated at runtime. Kept optional so zod-loaded
+  // project data (which omits them) satisfies this interface.
+  staticSupportTier?: MilkwaveSupportTier;
+  runtimeSupportTier?: MilkwaveSupportTier;
   featureSummary: string[];
   runtimePatchRecommended: boolean;
   passes: {
@@ -107,8 +111,8 @@ uniform sampler2D sampler_noise_hq;
 uniform sampler2D sampler_blur1;
 uniform sampler2D sampler_blur2;
 uniform sampler2D sampler_blur3;
-uniform highp sampler3D sampler_noisevol_lq;
-uniform highp sampler3D sampler_noisevol_hq;
+#define sampler_noisevol_lq sampler_noise_lq
+#define sampler_noisevol_hq sampler_noise_hq
 #define sampler_fc_main sampler_main
 #define sampler_pc_main sampler_main
 #define sampler_fw_main sampler_main

@@ -70,12 +70,21 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
   let customPlasmaSource: string | null = null;
   let contextLost = false;
   let contextRestoring = false;
+  // Monotonic generation bumped on every context loss. Asset loads tag
+  // themselves with the generation at start; if the context is lost while a
+  // (necessarily async) load is in flight, the generation differs on
+  // completion and the now-invalid texture is discarded instead of being
+  // cached/bound. Without this, a load started before loss resolves after
+  // the context-restore handler has already cleared assetCache, re-polluting
+  // it with a null/invalid texture that the renderer would try to sample.
+  let contextGeneration = 0;
 
   // Handle WebGL context loss / restore
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
     contextLost = true;
     contextRestoring = false;
+    contextGeneration += 1;
     console.warn('[GLRenderer] WebGL context lost — marking all resources invalid');
     // Clear all caches immediately to prevent use of invalid resources
     programCache.clear();
@@ -151,7 +160,10 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
       }
       console.log(`[GLRenderer] WebGL rebuild attempt ${attempt}`);
       try {
-        createInternalTextures();
+        // initInternalTextures() untracks the (now-dead) old handles and
+        // creates fresh, parameterized ones. The previous createInternalTextures()
+        // call here created an extra set of 5 textures that were never
+        // parameterized or referenced — leaked on every context restore.
         initInternalTextures();
 
         positionBuffer = trackBuffer(gl.createBuffer());
@@ -168,7 +180,8 @@ export const createGLRenderer = (canvas: HTMLCanvasElement, options: RendererOpt
           currentPlasmaSource,
           currentCustomBlocks,
           false,
-          currentFxUniforms
+          currentFxUniforms,
+          currentSdfColorBody
         );
         currentProgram = standardProgram;
         currentShaderVariantKey = standardProgram
@@ -243,29 +256,41 @@ void main() {
   let currentMilkDropShaderData: MilkDropShaderData | null = null;
   let milkDropEnabled = false;
   let milkDropTexture: WebGLTexture | null = null;
-  
-  let waveformTexture = trackTexture(gl.createTexture());
-  let spectrumTexture = trackTexture(gl.createTexture());
-  let modulatorTexture = trackTexture(gl.createTexture());
-  let midiTexture = trackTexture(gl.createTexture());
-  let previousFrameTexture = trackTexture(gl.createTexture());
+
+  // Mutable so they can be recreated after a WebGL context loss+restore:
+  // the old WebGLTexture handles are invalidated by the restore and must be
+  // replaced with fresh createTexture() objects, not just re-parameterised.
+  let waveformTexture: WebGLTexture | null = null;
+  let spectrumTexture: WebGLTexture | null = null;
+  let modulatorTexture: WebGLTexture | null = null;
+  let midiTexture: WebGLTexture | null = null;
+  let previousFrameTexture: WebGLTexture | null = null;
   let previousFrameWidth = 0;
   let previousFrameHeight = 0;
 
-  const createInternalTextures = () => {
+  const initInternalTextures = () => {
+    // Drop any previous handles (no-op on first init; after a context restore
+    // the old names are already dead so we only need to untrack our counter,
+    // not call deleteTexture which would touch the lost context).
+    if (waveformTexture) untrackTexture(waveformTexture);
+    if (spectrumTexture) untrackTexture(spectrumTexture);
+    if (modulatorTexture) untrackTexture(modulatorTexture);
+    if (midiTexture) untrackTexture(midiTexture);
+    if (previousFrameTexture) untrackTexture(previousFrameTexture);
     waveformTexture = trackTexture(gl.createTexture());
     spectrumTexture = trackTexture(gl.createTexture());
     modulatorTexture = trackTexture(gl.createTexture());
     midiTexture = trackTexture(gl.createTexture());
     previousFrameTexture = trackTexture(gl.createTexture());
+    // Force the previous-frame backing store to reallocate against the new
+    // texture on the next render (size check uses these cached dims).
     previousFrameWidth = 0;
     previousFrameHeight = 0;
-  };
 
-  const initInternalTextures = () => {
     // R32F textures (waveform, spectrum, modulators, midi) are not linearly filterable in WebGL2
     // without OES_texture_float_linear — use NEAREST to avoid silent zeros.
     [waveformTexture, spectrumTexture, modulatorTexture, midiTexture].forEach(tex => {
+        if (!tex) return;
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -273,11 +298,13 @@ void main() {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     });
     // previousFrame is RGBA UNSIGNED_BYTE — linear filtering is fine
-    gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (previousFrameTexture) {
+      gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
   };
   initInternalTextures();
 
@@ -392,7 +419,8 @@ void main() {
   // Cache current SDF parameters for recompilation
   let currentSdfUniforms = '';
   let currentSdfFunctions = '';
-  let currentSdfMapBody = '10.0';
+  let currentSdfMapBody = 'return vec2(10.0, 0.0);';
+  let currentSdfColorBody = 'return vec3(1.0);';
   let currentPlasmaSource: string | null = null;
   let currentFxUniforms = '';
   let currentActiveIds = new Set<string>();
@@ -418,11 +446,12 @@ void main() {
     activeIds: Set<string>,
     sdfUniforms = '',
     sdfFunctions = '',
-    sdfMapBody = '10.0',
+    sdfMapBody = 'return vec2(10.0, 0.0);',
     plasmaSource: string | null = null,
     customBlocks: CustomShaderBlock[] = [],
     deferLinkCheck = false,
-    fxUniforms = ''
+    fxUniforms = '',
+    sdfColorBody = 'return vec3(1.0);'
   ): WebGLProgram | null => {
     const customHash = [...customBlocks]
       .sort((a, b) => a.id.localeCompare(b.id))
@@ -442,7 +471,8 @@ void main() {
       effectiveBlocks,
       activeIds,
       sdfUniforms, sdfFunctions, sdfMapBody, plasmaSource,
-      fxUniforms
+      fxUniforms,
+      sdfColorBody
     );
 
     const prog = createProgram(vertexShaderSrc, fSrc, deferLinkCheck);
@@ -468,12 +498,12 @@ void main() {
   const initialFx = 'uniform float uscene_scene_0_bloom;\nuniform float uscene_scene_0_chroma;\nuniform float uscene_scene_0_blur;\nuniform float uscene_scene_0_posterize;\n';
   let standardProgram = getOrCompileProgram(
     EMPTY_GENERATOR_SET,
-    '', '', '10.0', null, [], false, initialFx
+    '', '', 'return vec2(10.0, 0.0);', null, [], false, initialFx
   );
   if (!standardProgram) {
     throw new Error('Failed to compile standard shader program.');
   }
-  currentShaderVariantKey = shaderCacheKey(EMPTY_GENERATOR_SET, '10.0', '', initialFx);
+  currentShaderVariantKey = shaderCacheKey(EMPTY_GENERATOR_SET, 'return vec2(10.0, 0.0);', '', initialFx);
   let currentProgram: WebGLProgram | null = standardProgram;
   let lastSdfSceneJson = '';
 
@@ -492,6 +522,7 @@ void main() {
       currentSdfUniforms = uniformsCode;
       currentSdfFunctions = compiled.functionsCode;
       currentSdfMapBody = compiled.mapBody;
+      currentSdfColorBody = compiled.colorBody;
 
       const newProg = getOrCompileProgram(
         currentActiveIds,
@@ -501,7 +532,8 @@ void main() {
         customPlasmaSource,
         currentCustomBlocks,
         false,
-        currentFxUniforms
+        currentFxUniforms,
+        compiled.colorBody
       );
       if (newProg) {
         advancedSdfProgram = newProg;
@@ -632,9 +664,20 @@ void main() {
     gl.uniform1f(getLocation('uPlasmaScale'), state.plasmaScale || 1.0);
     gl.uniform1f(getLocation('uPlasmaComplexity'), state.plasmaComplexity || 3.0);
     gl.uniform1f(getLocation('uPlasmaAudioReact'), state.plasmaAudioReact || 0.5);
+    // Plasma asset blend/audio-react were declared & sampled by the layer-plasma
+    // shader block (generatorShaderBlocks.ts) but never uploaded here, so they
+    // stayed at the GL default 0.0 — the user's blend-mode and audio-react slider
+    // choices for the plasma layer's bound image had no effect. Mirror the media
+    // path (uMediaAssetBlend/uMediaAssetAudioReact at the uploads below).
+    gl.uniform1f(getLocation('uPlasmaAssetBlend'), state.plasmaAssetBlendMode);
+    gl.uniform1f(getLocation('uPlasmaAssetAudioReact'), state.plasmaAssetAudioReact);
     gl.uniform1f(getLocation('uSpectrumEnabled'), getSafeEnabled(state.spectrumEnabled, 'low'));
     gl.uniform1f(getLocation('uSpectrumOpacity'), state.spectrumOpacity);
     gl.uniform1fv(getLocation('uSpectrum[0]'), state.spectrum);
+    // Same gap as plasma above: the layer-spectrum block samples
+    // uSpectrumAssetBlend/uSpectrumAssetAudioReact but they were never uploaded.
+    gl.uniform1f(getLocation('uSpectrumAssetBlend'), state.spectrumAssetBlendMode);
+    gl.uniform1f(getLocation('uSpectrumAssetAudioReact'), state.spectrumAssetAudioReact);
     gl.uniform1f(getLocation('uOrigamiEnabled'), getSafeEnabled(state.origamiEnabled, 'medium'));
     gl.uniform1f(getLocation('uOrigamiOpacity'), state.origamiOpacity);
     gl.uniform1f(getLocation('uOrigamiFoldState'), state.origamiFoldState);
@@ -750,15 +793,11 @@ void main() {
     gl.uniform1f(getLocation('uTransitionType'), state.transitionType);
     gl.uniform1f(getLocation('uChemistryMode'), state.chemistryMode);
     gl.uniform1f(getLocation('uMotionTemplate'), state.motionTemplate);
-    gl.uniform1f(getLocation('uEngineMass'), state.engineMass);
-    gl.uniform1f(getLocation('uEngineFriction'), state.engineFriction);
-    gl.uniform1f(getLocation('uEngineElasticity'), state.engineElasticity);
     gl.uniform1f(getLocation('uMaxBloom'), state.maxBloom);
     gl.uniform1f(getLocation('uForceFeedback'), state.forceFeedback ? 1.0 : 0.0);
     gl.uniform1f(getLocation('uEngineGrain'), state.engineGrain);
     gl.uniform1f(getLocation('uEngineVignette'), state.engineVignette);
     gl.uniform1f(getLocation('uEngineCA'), state.engineCA);
-    gl.uniform1f(getLocation('uEngineSignature'), state.engineSignature);
     // Gen-* uniforms: all handled dynamically via state.genUniforms below.
     // Only special-case array uniforms remain explicit:
     gl.uniform1fv(getLocation('uBurstSpawnTimes[0]'), state.shapeBurstSpawnTimes ?? new Float32Array(8));
@@ -864,8 +903,14 @@ void main() {
     'gen-asset-mosaic': 7,
     'gen-asset-ripple': 8,
     'gen-asset-scatter': 9,
-    'gen-asset-echo': 10,
-    'gen-signal-noise': 14
+    // Units 10-18 are reserved for internal textures (waveform/spectrum/
+    // modulators/midi/previousFrame at 10-14) and internal-source bindings
+    // (15-18). echo previously used 10 (colliding with the waveform texture)
+    // and signal-noise used 14 (colliding with previousFrame), so activating
+    // those layers silently overwrote the internal textures they shared a
+    // unit with. Move them above the internal range.
+    'gen-asset-echo': 19,
+    'gen-signal-noise': 20
   };
 
   interface AssetCacheEntry {
@@ -883,6 +928,24 @@ void main() {
   const assetCache = new Map<string, AssetCacheEntry>();
   const pendingAssetLoads = new Map<string, Promise<AssetCacheEntry>>();
   const layerBindings: Partial<Record<AssetLayerId, AssetCacheEntry>> = {};
+
+  // Release the GL texture + video element owned by a cache entry. Used both
+  // when an asset's options change (the old entry is replaced) and when
+  // pruning unused entries — previously the old texture was orphaned (the map
+  // entry was deleted but gl.deleteTexture was never called and the video kept
+  // playing), leaking GPU textures and decode resources across an edit session.
+  const disposeAssetCacheEntry = (entry: AssetCacheEntry) => {
+    if (entry.texture) {
+      untrackTexture(entry.texture);
+      gl.deleteTexture(entry.texture);
+    }
+    if (entry.video) {
+      entry.video.pause();
+      entry.video.src = '';
+      entry.video.load();
+      entry.video.remove();
+    }
+  };
 
   const isPowerOf2 = (value: number) => (value & (value - 1)) === 0;
   const getSamplingFilter = (sampling: AssetTextureSampling | undefined) =>
@@ -997,6 +1060,11 @@ void main() {
     if (assetCache.has(asset.id)) {
       const cached = assetCache.get(asset.id)!;
       if (JSON.stringify(cached.options ?? {}) === JSON.stringify(asset.options ?? {})) return Promise.resolve(cached);
+      // Options changed (loop, playbackRate, textureSampling, text content) →
+      // the asset must reload. Dispose the old GL texture + video before
+      // dropping the map entry, otherwise each edit leaks one texture (and
+      // orphans the video element) that nothing else references.
+      disposeAssetCacheEntry(cached);
       assetCache.delete(asset.id);
     }
     if (pendingAssetLoads.has(asset.id)) return pendingAssetLoads.get(asset.id)!;
@@ -1006,18 +1074,38 @@ void main() {
     else if (asset.kind === 'text' && textCanvas) loader = loadTextAsset(asset, textCanvas);
     else loader = loadImageAsset(asset);
     pendingAssetLoads.set(asset.id, loader);
-    loader.then((entry) => { assetCache.set(asset.id, entry); pendingAssetLoads.delete(asset.id); });
+    const startGen = contextGeneration;
+    // A rejection handler is required: without one, a failed load (image 404,
+    // video error, internal-asset fetch failure) leaves the rejected promise
+    // pinned in pendingAssetLoads, so every later setLayerAsset for this asset
+    // returns it (the `pendingAssetLoads.has` short-circuit above) and the
+    // asset can never be retried — one failed load permanently blocks it.
+    loader.then(
+      (entry) => {
+        // If the GL context was lost while this (async) load was in flight, the
+        // resulting texture is invalid. The context-restore handler clears
+        // assetCache; don't let this stale loader re-pollute it after restore.
+        if (contextGeneration === startGen) assetCache.set(asset.id, entry);
+        pendingAssetLoads.delete(asset.id);
+      },
+      (err) => {
+        pendingAssetLoads.delete(asset.id);
+        console.error(`[GLRenderer] Asset load failed for ${asset.id}:`, err);
+      }
+    );
     return loader;
   };
 
   const updateVideoTextures = () => {
     (Object.keys(ASSET_LAYER_UNITS) as AssetLayerId[]).forEach((layerId) => {
       const entry = layerBindings[layerId];
-      if (entry?.video && entry.texture && entry.video.readyState >= entry.video.HAVE_CURRENT_DATA) {
-        gl.activeTexture(gl.TEXTURE0 + ASSET_LAYER_UNITS[layerId]);
-        gl.bindTexture(gl.TEXTURE_2D, entry.texture);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.video);
+      if (entry?.video && entry.texture) {
+        if (entry.video.readyState >= entry.video.HAVE_CURRENT_DATA) {
+          gl.activeTexture(gl.TEXTURE0 + ASSET_LAYER_UNITS[layerId]);
+          gl.bindTexture(gl.TEXTURE_2D, entry.texture);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.video);
+        }
       }
     });
   };
@@ -1059,8 +1147,12 @@ void main() {
     gl.bindTexture(gl.TEXTURE_2D, midiTexture);
     gl.uniform1i(gl.getUniformLocation(prog, 'uMidiTex'), units.midi);
 
-    ensurePreviousFrameTextureSize();
+    // Set the previousFrame unit active BEFORE ensurePreviousFrameTextureSize,
+    // which binds previousFrameTexture on resize — otherwise it binds to the
+    // still-active midi unit (13), corrupting uMidiTex. (Dormant today: no
+    // shader samples uMidiTex, but would break midi-driven rendering once one does.)
     gl.activeTexture(gl.TEXTURE0 + units.previousFrame);
+    ensurePreviousFrameTextureSize();
     gl.bindTexture(gl.TEXTURE_2D, previousFrameTexture);
     gl.uniform1i(gl.getUniformLocation(prog, 'uPreviousFrame'), units.previousFrame);
   };
@@ -1090,12 +1182,26 @@ void main() {
     if (enabledLoc) gl.uniform1f(enabledLoc, entry ? 1 : 0);
     
     if (entry?.internalSourceId) {
-        let internalUnit = 15;
-        if (entry.internalSourceId === 'audio-spectrum') internalUnit = 16;
-        if (entry.internalSourceId === 'modulators') internalUnit = 17;
-        if (entry.internalSourceId === 'midi-history') internalUnit = 18;
+        // Internal-source asset layers sample the engine's own data textures.
+        // Reuse the units already bound by applyInternalTextures (10-14)
+        // rather than separate 15-18 units that were never bound — the
+        // previous code pointed samplers at unbound units, so these layers
+        // sampled garbage instead of the waveform/spectrum/etc. Also add the
+        // missing 'audio-waveform' source.
+        let internalUnit: number | null = null;
+        if (entry.internalSourceId === 'audio-waveform') internalUnit = 10;
+        else if (entry.internalSourceId === 'audio-spectrum') internalUnit = 11;
+        else if (entry.internalSourceId === 'modulators') internalUnit = 12;
+        else if (entry.internalSourceId === 'midi-history') internalUnit = 13;
 
-        if (samplerLoc) gl.uniform1i(samplerLoc, internalUnit);
+        if (internalUnit !== null) {
+            if (samplerLoc) gl.uniform1i(samplerLoc, internalUnit);
+        } else if (samplerLoc) {
+            // Unknown internal source: fall through to the normal binding path
+            gl.uniform1i(samplerLoc, unitIndex);
+            gl.activeTexture(gl.TEXTURE0 + unitIndex);
+            gl.bindTexture(gl.TEXTURE_2D, entry?.texture ?? null);
+        }
     } else {
         if (samplerLoc) gl.uniform1i(samplerLoc, unitIndex);
         gl.activeTexture(gl.TEXTURE0 + unitIndex);
@@ -1104,9 +1210,30 @@ void main() {
   };
 
   const setLayerAsset = async (layerId: string, asset: AssetItem | null, videoOverride?: HTMLVideoElement, textCanvas?: HTMLCanvasElement) => {
-    if (!asset) { delete layerBindings[layerId as AssetLayerId]; return; }
+    if (!asset) {
+      delete layerBindings[layerId as AssetLayerId];
+      // Evict now-unreferenced cache entries so unbinding an asset releases its
+      // GL texture + video instead of pinning them for the whole session.
+      pruneUnusedAssets(new Set(Object.values(layerBindings).map((e) => e.assetId)));
+      return;
+    }
+    // setLayerAsset fires from the output window's BroadcastChannel onmessage,
+    // which is independent of the render loop. Guard it the same way render()
+    // does: during context loss/restoration all GL resources are invalid, so
+    // starting an asset load (createTexture/bindTexture/texImage2D) here would
+    // be a stream of no-ops producing a null texture.
+    if (contextLost || contextRestoring) return;
+    const loadGen = contextGeneration;
     const entry = await ensureAssetEntry(asset, videoOverride, textCanvas);
+    // The context may have been lost while awaiting the (async) load — the
+    // loader's own .then already refused to cache an invalid entry, so make
+    // sure we don't bind one either.
+    if (contextLost || contextRestoring || contextGeneration !== loadGen) return;
     layerBindings[layerId as AssetLayerId] = entry;
+    // Bound the cache to what's actually in use: a long slideshow cycling many
+    // unique asset IDs would otherwise accumulate every asset's texture + video
+    // for the whole session. Prune to the currently-bound set after each rebind.
+    pruneUnusedAssets(new Set(Object.values(layerBindings).map((e) => e.assetId)));
   };
 
   const setPalette = (colors: [string, string, string, string, string]) => {
@@ -1132,7 +1259,8 @@ void main() {
       nextSource,
       currentCustomBlocks,
       false,
-      effectiveFxUniforms
+      effectiveFxUniforms,
+      currentSdfColorBody
     );
     if (!nextProgram) {
       return { ok: false };
@@ -1184,6 +1312,7 @@ void main() {
             console.log(`[Shader] Async precompile finished successfully`);
           } else {
             console.error('Async precompile failed:', gl.getProgramInfoLog(pending.program));
+            untrackProgram(pending.program);
             gl.deleteProgram(pending.program);
           }
         } else {
@@ -1239,14 +1368,25 @@ void main() {
 
       advancedSdfUniforms.forEach(u => {
         const loc = advancedSdfUniformLocations.get(u.name);
-        if (loc) {
-          const node = state.sdfScene.nodes.find((n: any) => n.instanceId === u.instanceId);
-          const val = node?.params[u.parameterId];
-          if (typeof val === 'number') gl.uniform1f(loc, val);
-          else if (Array.isArray(val)) {
-            if (val.length === 2) gl.uniform2fv(loc, val);
-            else if (val.length === 3) gl.uniform3fv(loc, val);
+        if (!loc) return;
+        const node = state.sdfScene.nodes.find((n: any) => n.instanceId === u.instanceId);
+        if (!node) return;
+        // Per-node color uniforms (parameterId === 'color') are sourced from
+        // node.color, NOT node.params['color'] — color lives on the instance
+        // directly (sdf/api.ts). Without this, scene-graph node colors never
+        // reached the shader and everything rendered the default color.
+        if (u.parameterId === 'color') {
+          const c = node.color;
+          if (Array.isArray(c) && c.length >= 3) {
+            gl.uniform3fv(loc, [c[0], c[1], c[2]]);
           }
+          return;
+        }
+        const val = node?.params[u.parameterId];
+        if (typeof val === 'number') gl.uniform1f(loc, val);
+        else if (Array.isArray(val)) {
+          if (val.length === 2) gl.uniform2fv(loc, val);
+          else if (val.length === 3) gl.uniform3fv(loc, val);
         }
       });
     }
@@ -1340,6 +1480,7 @@ void main() {
       if (options.onError) {
         options.onError(log, 'link');
       }
+      untrackProgram(pending.program);
       gl.deleteProgram(pending.program);
       return;
     }
@@ -1410,7 +1551,8 @@ void main() {
       currentPlasmaSource,
       customBlocks,
       useAsync,
-      effectiveFx
+      effectiveFx,
+      currentSdfColorBody
     );
 
     if (!prog) {
@@ -1457,7 +1599,7 @@ void main() {
     currentFxUniforms = effectiveFx;
 
     const useAsync = !!extParallel;
-    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, effectiveFx);
+    const prog = getOrCompileProgram(ids, currentSdfUniforms, currentSdfFunctions, currentSdfMapBody, currentPlasmaSource, currentCustomBlocks, useAsync, effectiveFx, currentSdfColorBody);
     
     if (prog) {
       if (useAsync) {
@@ -1494,9 +1636,17 @@ void main() {
     uniformLocationCache.clear();
     // Discard any in-flight async compile — its cache key is now stale.
     if (pendingProgram) {
+      untrackProgram(pendingProgram.program);
       gl.deleteProgram(pendingProgram.program);
       pendingProgram = null;
     }
+    // Discard queued precompiles too — they were compiled with the old blocks and
+    // would re-populate the (now-cleared) cache with stale, never-freed programs.
+    pendingPrecompiles.forEach(p => {
+      untrackProgram(p.program);
+      gl.deleteProgram(p.program);
+    });
+    pendingPrecompiles.length = 0;
     // Null out program references so the render loop skips frames gracefully
     // until recompileForGenerators provides a fresh program.
     standardProgram = null;
@@ -1627,16 +1777,7 @@ void main() {
   const pruneUnusedAssets = (activeAssetIds: Set<string>) => {
     assetCache.forEach((entry, id) => {
       if (!activeAssetIds.has(id)) {
-        if (entry.texture) {
-          untrackTexture(entry.texture);
-          gl.deleteTexture(entry.texture);
-        }
-        if (entry.video) {
-          entry.video.pause();
-          entry.video.src = '';
-          entry.video.load();
-          entry.video.remove();
-        }
+        disposeAssetCacheEntry(entry);
         assetCache.delete(id);
       }
     });

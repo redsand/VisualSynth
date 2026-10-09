@@ -6,6 +6,11 @@ export interface MixerPanelDeps {
   onLayerListChanged: () => void;
   onPaletteChange: (paletteId: string) => void;
   onChemistryChange: (chemistry: string) => void;
+  // Fired when the mixer's intensity-envelope dials change attack/release so
+  // the modulation panel's envelope list (which has its own copy of the same
+  // dials) can stay in sync. Optional because the mixer can render before the
+  // modulation panel exists.
+  onEnvelopeChange?: () => void;
   getProjectData: () => { palettes: any[]; activePaletteId: string; colorChemistry?: string[]; scenes: any[]; activeSceneId: string };
 }
 
@@ -19,10 +24,15 @@ export const createMixerPanel = ({
   onLayerListChanged,
   onPaletteChange,
   onChemistryChange,
+  onEnvelopeChange,
   getProjectData
 }: MixerPanelDeps): MixerPanelApi => {
   const container = document.getElementById('mixer-panel-anchor') as HTMLDivElement;
   let soloedLayerId: string | null = null;
+  // Snapshot of each layer's `enabled` state taken at solo-on, so unsoloing
+  // restores the user's prior mute configuration instead of force-enabling every
+  // layer (which erased any mutes the user had set).
+  let soloMuteSnapshot: Map<string, boolean> | null = null;
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -94,9 +104,18 @@ export const createMixerPanel = ({
       soloBtn.title = 'Solo';
       soloBtn.onclick = () => {
         if (soloedLayerId === layer.id) {
-          scene.layers.forEach(l => l.enabled = true);
+          // Un-solo: restore each layer's pre-solo enabled state. Falls back to
+          // enabled=true for any layer not in the snapshot (e.g. added mid-solo).
+          scene.layers.forEach(l => {
+            const restored = soloMuteSnapshot?.get(l.id);
+            l.enabled = restored ?? true;
+          });
+          soloMuteSnapshot = null;
           soloedLayerId = null;
         } else {
+          // Solo-on: remember the current enabled state of every layer before
+          // muting all but the soloed one, so unsolo can restore it.
+          soloMuteSnapshot = new Map(scene.layers.map(l => [l.id, l.enabled]));
           scene.layers.forEach(l => l.enabled = (l.id === layer.id));
           soloedLayerId = layer.id;
         }
@@ -115,10 +134,19 @@ export const createMixerPanel = ({
       fader.max = '1';
       fader.step = '0.01';
       fader.value = String(layer.opacity);
+      let faderRaf = 0;
       fader.oninput = () => {
         layer.opacity = Number(fader.value);
         if (layer.params) layer.params.opacity = Number(fader.value);
-        onLayerListChanged();
+        // Coalesce layer-list rebuilds to one per animation frame. The fader
+        // only mutates opacity (the renderer reads it directly), so a full
+        // synchronous rebuild on every drag tick (~60×/sec) was causing UI
+        // jank and interrupting in-progress interactions in the layer panels.
+        if (faderRaf) return;
+        faderRaf = requestAnimationFrame(() => {
+          faderRaf = 0;
+          onLayerListChanged();
+        });
       };
       nameStack.appendChild(name);
       nameStack.appendChild(fader);
@@ -227,14 +255,30 @@ export const createMixerPanel = ({
         const row = document.createElement('div');
         row.className = 'mixer-env-dials';
 
+        // Envelope edits mutate the shared project envelope object directly, so
+        // the modulation panel's envelope list (which reads the same object)
+        // would otherwise keep showing stale attack/release values until it is
+        // rebuilt. Coalesce the rebuild to one per animation frame.
+        let envRaf = 0;
+        const scheduleEnvelopeSync = () => {
+          if (!onEnvelopeChange) return;
+          if (envRaf) return;
+          envRaf = requestAnimationFrame(() => {
+            envRaf = 0;
+            onEnvelopeChange();
+          });
+        };
+
         row.appendChild(
           createDial('Attack', env.attack, 0, 1, 0.01, (value) => {
             env.attack = value;
+            scheduleEnvelopeSync();
           })
         );
         row.appendChild(
           createDial('Release', env.release, 0, 1, 0.01, (value) => {
             env.release = value;
+            scheduleEnvelopeSync();
           })
         );
 

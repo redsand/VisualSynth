@@ -7,6 +7,7 @@ import { createSongChangeDetector, SongChangeEvent } from './songChangeDetector'
 import { SongDetectionDiagnostics, SongDetectionStatus } from '../../shared/songDetectionStatus';
 import { NowPlayingSettings, DEFAULT_NOW_PLAYING_SETTINGS } from '../../shared/nowPlaying';
 import { ENGINE_REGISTRY, EngineId } from '../../shared/engines';
+import { stepEnergyModel } from './energyModel';
 
 export interface AudioEngine {
   initDevices: (select: HTMLSelectElement) => Promise<void>;
@@ -18,9 +19,15 @@ export interface AudioEngine {
   getState: () => {
     rms: number;
     peak: number;
-    bands: Float32Array;
+    bands: number[];
     spectrum: Float32Array;
     waveform: Float32Array;
+    bass: number;
+    mid: number;
+    treb: number;
+    bassAtt: number;
+    midAtt: number;
+    trebAtt: number;
     energyLow: number;
     energyMid: number;
     energyHigh: number;
@@ -30,6 +37,10 @@ export interface AudioEngine {
   updateNowPlayingSettings: (settings: Partial<NowPlayingSettings>) => void;
   onSongChange: (handler: (event: SongChangeEvent) => void) => void;
   getRollingAudioCapture: () => ReturnType<typeof createRollingAudioCapture>;
+  // Release the microphone MediaStream + AudioContext. Called on renderer
+  // unload so the OS mic indicator turns off promptly rather than lingering
+  // until the process is killed. Safe to call when never set up.
+  dispose: () => void;
 }
 
 let instance: AudioEngine | null = null;
@@ -41,6 +52,10 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   
   let audioContext: AudioContext | null = null;
   let analyser: AnalyserNode | null = null;
+  // Dedicated onset analyser with no smoothing so transient flux is sharp.
+  // The visual analyser above uses smoothing for stable visuals; onset
+  // detection needs per-frame deltas, which smoothing flattens.
+  let onsetAnalyser: AnalyserNode | null = null;
   let mediaStream: MediaStream | null = null;
   let lastTempoEstimateTime = 0;
   let fluxPrev = 0;
@@ -50,6 +65,28 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   let onsetTimes: number[] = [];
   let spectrumPrev: Float32Array | null = null;
   let currentDeviceId: string | null = null;
+
+  // Re-entrancy guard for setup() — see setup().
+  let setupInProgress = false;
+
+  // Reusable hot-path buffers (avoid per-frame allocation / GC pressure).
+  // Typed as Uint8Array<ArrayBuffer> (not the looser Uint8Array<ArrayBufferLike>)
+  // so the buffers satisfy the TS 5.7 lib.dom signatures of
+  // analyser.getByteFrequencyData/getByteTimeDomainData, which require a
+  // Uint8Array backed by a real ArrayBuffer. `new Uint8Array(length)` always
+  // allocates an ArrayBuffer, so this annotation matches the runtime.
+  let freqBuf: Uint8Array<ArrayBuffer> | null = null;
+  let timeBuf: Uint8Array<ArrayBuffer> | null = null;
+  let onsetBuf: Uint8Array<ArrayBuffer> | null = null;
+
+  // 8 log-spaced musical band edges (Hz). Index 0 = sub-bass, 7 = air.
+  // These replace the old linear 8-bin split where "bass" spanned 0–~3 kHz.
+  const BAND_EDGES_HZ = [20, 60, 150, 400, 1000, 2500, 6000, 12000, 20000];
+
+  // Persistent slow-attacking followers for the MilkDrop "_att" idiom.
+  let bassAttState = 0;
+  let midAttState = 0;
+  let trebAttState = 0;
 
   // Song Detection State
   let nowPlayingSettings: NowPlayingSettings = { ...DEFAULT_NOW_PLAYING_SETTINGS };
@@ -122,16 +159,43 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   };
 
   const setup = async (deviceId?: string) => {
+    // Serialize against re-entrancy: setup is async and can be invoked again
+    // while a previous call is still awaiting getUserMedia (rapid mic toggle,
+    // device-change firing mid-setup). Without this guard two concurrent
+    // setups race on mediaStream/analyser — the second closes the first's
+    // AudioContext and stops its tracks mid-flight, then the first's
+    // getUserMedia resolves and overwrites the now-correct state with stale
+    // sources. Drop the re-entrant call; the in-flight setup completes and
+    // the caller can retry if they still want a different device.
+    if (setupInProgress) return;
+    setupInProgress = true;
+    try {
     currentDeviceId = deviceId || null;
     if (mediaStream) {
       mediaStream.getTracks().forEach((track) => track.stop());
     }
     rollingAudioCapture.stop();
-    audioContext?.close();
+    // Null the analysers alongside closing the old context. During the awaits
+    // below (resume/getUserMedia) the render loop's updateAnalysis guard
+    // `if (!analyser || !audioContext) return` would otherwise pass: audioContext
+    // is reassigned to a new context at line 178, but analyser/onsetAnalyser
+    // still point at the old (now-closed) context → getByteFrequencyData on a
+    // dead context + sampleRate read from the new one (cross-context mismatch).
+    analyser = null;
+    onsetAnalyser = null;
+    // close() returns a Promise that can reject unhandled; catch it.
+    void audioContext?.close?.().catch(() => {});
     transitionTo('initializing', `Opening audio device: ${deviceId || 'default'}`);
 
     try {
       audioContext = new AudioContext({ latencyHint: 'interactive' });
+      // A freshly created AudioContext can start (or fall back to) 'suspended'
+      // — especially when mic permission is auto-granted without a user gesture.
+      // Without resume(), getByteFrequencyData returns all zeros and reactivity
+      // silently dies. Await so we never analyze a suspended context.
+      if (audioContext.state === 'suspended') {
+        try { await audioContext.resume(); } catch { /* resume can reject if interrupted */ }
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: deviceId ? { deviceId: { exact: deviceId } } : true
       });
@@ -142,12 +206,42 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       analyser.smoothingTimeConstant = 0.7;
       source.connect(analyser);
 
+      // Second analyser for onset detection: no smoothing so per-frame spectral
+      // flux preserves transients (smoothing flattens kicks into long ramps).
+      onsetAnalyser = audioContext.createAnalyser();
+      onsetAnalyser.fftSize = 2048;
+      onsetAnalyser.smoothingTimeConstant = 0;
+      source.connect(onsetAnalyser);
+
+      // Reset onset/tempo state for the new stream so stale history from a
+      // previous device doesn't poison the BPM estimate.
+      fluxPrev = 0;
+      fluxPrevPrev = 0;
+      fluxPrevTime = 0;
+      fluxHistory = [];
+      onsetTimes = [];
+      spectrumPrev = null;
+      lastTempoEstimateTime = 0;
+
       songChangeDetector.reset();
       rollingAudioCapture.attach(stream);
       transitionTo('listening', 'Audio input connected');
     } catch (error) {
       analyser = null;
+      onsetAnalyser = null;
+      // Close the AudioContext created at line 178 before dropping the
+      // reference — browsers don't reliably GC an open AudioContext, so the
+      // native audio thread lingers. Fire-and-forget with a catch so a reject
+      // can't propagate as an unhandled rejection out of the catch path.
+      void audioContext?.close?.().catch(() => {});
       audioContext = null;
+      // Stop the media stream tracks so the microphone hardware is released
+      // (otherwise the mic indicator stays on after a failed setup). getUserMedia
+      // may have succeeded before a later setup step threw, leaving live tracks.
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        mediaStream = null;
+      }
       rollingAudioCapture.stop();
       songChangeDetector.reset();
 
@@ -156,6 +250,9 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       
       actions.addSafeModeReason(store, 'Audio input unavailable');
       setStatus('Audio input unavailable. Safe mode enabled.');
+    }
+    } finally {
+      setupInProgress = false;
     }
   };
 
@@ -175,13 +272,18 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     }));
   };
 
-  const updateAnalysis = () => {
-    if (!analyser) return;
+  const updateAnalysis = (deltaMs: number) => {
+    if (!analyser || !audioContext) return;
     const bufferLength = analyser.frequencyBinCount;
-    const data = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(data);
-    const timeData = new Uint8Array(analyser.fftSize);
-    analyser.getByteTimeDomainData(timeData);
+    if (!freqBuf || freqBuf.length !== bufferLength) freqBuf = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(freqBuf);
+    if (!timeBuf || timeBuf.length !== analyser.fftSize) timeBuf = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(timeBuf);
+    const data = freqBuf;
+    const timeData = timeBuf;
+
+    const sampleRate = audioContext.sampleRate;
+    const binHz = sampleRate / analyser.fftSize; // Hz per bin
 
     let sum = 0;
     let peak = 0;
@@ -195,18 +297,51 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     audioState.rms = rms;
     audioState.peak = peak;
 
-    const bandSize = Math.floor(bufferLength / 8);
+    // 8 log-spaced musical bands (sub/bass/low-mid/mid/high-mid/presence/brilliance/air).
+    // Skip bin 0 (DC, 0 Hz) — it is not audio and was previously read as "bass",
+    // making reactivity track the DC offset. The old linear split made "bass"
+    // span 0–~3 kHz (the entire low-mid/vocal range).
+    const bandFor = (loHz: number, hiHz: number) => {
+      const start = Math.max(1, Math.floor(loHz / binHz));
+      const end = Math.min(bufferLength - 1, Math.ceil(hiHz / binHz));
+      if (end < start) return 0;
+      let s = 0;
+      for (let i = start; i <= end; i += 1) s += data[i] / 255;
+      return s / (end - start + 1);
+    };
     for (let band = 0; band < 8; band += 1) {
-      let bandSum = 0;
-      for (let i = 0; i < bandSize; i += 1) {
-        bandSum += data[band * bandSize + i] / 255;
-      }
-      audioState.bands[band] = bandSum / bandSize;
+      audioState.bands[band] = bandFor(BAND_EDGES_HZ[band], BAND_EDGES_HZ[band + 1]);
     }
 
+    // Musical aggregates consumed by the render graph and Milkdrop emulation.
+    const bass = (audioState.bands[0] + audioState.bands[1]) * 0.5;            // sub + bass
+    const midAgg = (audioState.bands[2] + audioState.bands[3] + audioState.bands[4]) / 3; // low-mid..high-mid
+    const treb = (audioState.bands[5] + audioState.bands[6] + audioState.bands[7]) / 3;  // presence..air
+    audioState.bass = bass;
+    audioState.mid = midAgg;
+    audioState.treb = treb;
+
+    // Slow-attacking followers — the MilkDrop "_att" idiom for slow blooms vs.
+    // fast transients. Time constant ~0.3 s. The previous `1/60` assumed a
+    // fixed 60 fps; at other frame rates the attack was wrong (too slow when
+    // vsync was off / fast, too fast when the tab was throttled). Use the real
+    // frame delta so the 0.3 s time constant holds regardless of fps.
+    const attAlpha = 1 - Math.exp(-(deltaMs / 1000) / 0.3);
+    bassAttState += (bass - bassAttState) * attAlpha;
+    midAttState += (midAgg - midAttState) * attAlpha;
+    trebAttState += (treb - trebAttState) * attAlpha;
+    audioState.bassAtt = bassAttState;
+    audioState.midAtt = midAttState;
+    audioState.trebAtt = trebAttState;
+
+    // 64 log-spaced averaged spectrum buckets (20 Hz–20 kHz), excluding DC.
+    // Previously this picked 64 individual single bins linearly, aliasing high
+    // frequencies and reading the DC bin at index 0.
+    const minHz = 20, maxHz = 20000;
     for (let i = 0; i < 64; i += 1) {
-      const index = Math.floor((i / 64) * bufferLength);
-      audioState.spectrum[i] = data[index] / 255;
+      const lo = minHz * Math.pow(maxHz / minHz, i / 64);
+      const hi = minHz * Math.pow(maxHz / minHz, (i + 1) / 64);
+      audioState.spectrum[i] = bandFor(lo, hi);
     }
     for (let i = 0; i < audioState.waveform.length; i += 1) {
       const sample = timeData[Math.floor((i / audioState.waveform.length) * timeData.length)];
@@ -222,7 +357,7 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       });
     }
 
-    // Engine Grammar: Inertial Energy Accumulation
+    // Engine Grammar: Inertial Energy Accumulation — now driven by musical bands.
     const state = store.getState();
     const engine = ENGINE_REGISTRY[state.project.activeEngineId as EngineId];
     if (engine) {
@@ -230,49 +365,81 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       const friction = engine.grammar.friction;
       const elastic = engine.grammar.elasticity;
 
-      const rawLow = audioState.bands[0]; // Kick region
-      const rawMid = (audioState.bands[2] + audioState.bands[3] + audioState.bands[4]) / 3;
-      const rawHigh = (audioState.bands[6] + audioState.bands[7]) / 2;
+      const rawLow = bass;
+      const rawMid = midAgg;
+      const rawHigh = treb;
 
       const targetLow = Math.pow(rawLow, 2.0 / elastic);
       const targetMid = Math.pow(rawMid, 1.5 / elastic);
       const targetHigh = Math.pow(rawHigh, 1.0 / elastic);
 
-      // Apply smoothing based on Mass (inertia)
-      audioState.energyLow = audioState.energyLow * friction + targetLow * (1.0 - mass);
-      audioState.energyMid = audioState.energyMid * friction + targetMid * (1.0 - mass);
-      audioState.energyHigh = audioState.energyHigh * friction + targetHigh * (1.0 - mass);
+      // One-pole exponential low-pass ("inertia"). mass is the smoothing pole
+      // (the documented Inertia knob — engines differ in mass to give each a
+      // distinct feel), friction scales the input so the steady state is
+      // target*friction (motion decay). Steady-state gain is friction (<= 1),
+      // so energy stays in the [0,1] range of the bass/mid/treb bands — which
+      // the env-1 'engine.low' threshold of 0.65 and the 'engine.low/mid/high'
+      // modMatrix sources all assume. The previous `energy*friction +
+      // target*(1-mass)` was a leaky integrator whose steady-state gain
+      // (1-mass)/(1-friction) was 10x at the default mass=0.5/friction=0.95,
+      // saturating energy and making the 0.65 threshold fire on any
+      // bass >= ~0.065.
+      const energyNext = stepEnergyModel(
+        { low: audioState.energyLow, mid: audioState.energyMid, high: audioState.energyHigh },
+        { low: targetLow, mid: targetMid, high: targetHigh },
+        mass,
+        friction
+      );
+      audioState.energyLow = energyNext.low;
+      audioState.energyMid = energyNext.mid;
+      audioState.energyHigh = energyNext.high;
     } else {
       audioState.energyLow = audioState.rms;
       audioState.energyMid = audioState.rms;
       audioState.energyHigh = audioState.rms;
     }
 
+    // Onset detection from the UNSMOOTHED onset analyser so transients stay
+    // sharp (the 0.7-smoothed visual analyser flattens kicks into long ramps).
     const now = performance.now();
+    if (!onsetBuf || onsetBuf.length !== bufferLength) onsetBuf = new Uint8Array(bufferLength);
+    if (onsetAnalyser) onsetAnalyser.getByteFrequencyData(onsetBuf);
     if (!spectrumPrev || spectrumPrev.length !== bufferLength) {
       spectrumPrev = new Float32Array(bufferLength);
     }
+    const onsetData = onsetAnalyser ? onsetBuf : data;
     let flux = 0;
-    
-    // Apply Filter Range to Flux calculation
+
+    // Filter range now in real Hz, matching the UI labels ("bass" 150–250 Hz
+    // kick body, "mids" 150 Hz–2 kHz). Previously these were bin-index slices
+    // that didn't match the displayed ranges.
     const beatFilterRange = state.bpm.filterRange || 'full';
-    const startBin = beatFilterRange === 'bass' ? 0 : beatFilterRange === 'mids' ? 8 : 0;
-    const endBin = beatFilterRange === 'bass' ? 8 : beatFilterRange === 'mids' ? 32 : bufferLength;
+    const startBin = beatFilterRange === 'bass' ? Math.max(1, Math.floor(150 / binHz))
+      : beatFilterRange === 'mids' ? Math.max(1, Math.floor(150 / binHz))
+      : 1;
+    const endBin = beatFilterRange === 'bass' ? Math.min(bufferLength, Math.ceil(250 / binHz))
+      : beatFilterRange === 'mids' ? Math.min(bufferLength, Math.ceil(2000 / binHz))
+      : bufferLength;
 
     for (let i = startBin; i < endBin; i += 1) {
-      const value = data[i] / 255;
+      const value = onsetData[i] / 255;
       const delta = value - spectrumPrev[i];
       if (delta > 0) flux += delta;
       spectrumPrev[i] = value;
     }
-
-    // Track all spectrum for next frame
+    // Keep the rest of the spectrum history current for next frame.
     for (let i = 0; i < bufferLength; i += 1) {
-      spectrumPrev[i] = data[i] / 255;
+      if (i >= startBin && i < endBin) continue;
+      spectrumPrev[i] = onsetData[i] / 255;
     }
 
+    // Tempo-aware flux window (~3 s covers ~4 beats at 80 BPM; the old 1 s
+    // window made the adaptive threshold statistically unstable at low tempo).
+    const fluxWindowMs = 3000;
     fluxHistory.push({ time: now, value: flux });
-    fluxHistory = fluxHistory.filter((entry) => now - entry.time < 1000);
+    if (fluxHistory.length && now - fluxHistory[0].time > fluxWindowMs) {
+      fluxHistory = fluxHistory.filter((entry) => now - entry.time < fluxWindowMs);
+    }
 
     const mean =
       fluxHistory.reduce((sumEntry, entry) => sumEntry + entry.value, 0) /
@@ -284,14 +451,18 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     const beatSensitivity = state.bpm.sensitivity || 1.5;
     const threshold = mean + std * beatSensitivity;
 
-    const beatHoldOffMs = state.bpm.holdOffMs || 200;
+    // Tempo-aware hold-off: clamp the fixed hold-off to 75% of one beat so fast
+    // tempos (>300 BPM, beat < 200 ms) don't drop every other onset.
+    const beatMs = 60000 / Math.max(40, getActiveBpm());
+    const configuredHoldOff = state.bpm.holdOffMs || 200;
+    const beatHoldOffMs = Math.min(configuredHoldOff, beatMs * 0.75);
     const lastBeatTime = state.runtime.lastBeatTime || 0;
 
     if (fluxPrev > fluxPrevPrev && fluxPrev > flux && fluxPrev > threshold) {
       if (now - lastBeatTime > beatHoldOffMs) {
         onsetTimes.push(fluxPrevTime);
         onsetTimes = onsetTimes.filter((time) => now - time < 8000);
-        
+
         state.runtime.glyphBeatPulse = 1;
         state.runtime.lastBeatTime = now;
       }
@@ -349,12 +520,19 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       const envState = state.modulators.envStates[index];
       if (!envState) return;
 
+      // Resolve the trigger source. Mirrors index.ts updateEnvelopes — the
+      // trigger enum is 'audio.peak' | 'engine.low' | 'strobe' | 'manual'
+      // (project.ts). 'engine.low' is the DEFAULT env-1 trigger, so omitting it
+      // here (as this previously did) left env-1 permanently dead in the
+      // bootstrap path, where RenderGraph reads state.modulators.envStates.
       const triggerValue =
         env.trigger === 'audio.peak'
           ? state.audio.peak
-          : env.trigger === 'strobe'
-            ? state.runtime.strobeIntensity
-            : 0;
+          : env.trigger === 'engine.low'
+            ? state.audio.energyLow
+            : env.trigger === 'strobe'
+              ? state.runtime.strobeIntensity
+              : 0;
       if (env.trigger !== 'manual') {
         if (triggerValue >= env.threshold && envState.triggerArmed) {
           envState.stage = 'attack';
@@ -410,6 +588,11 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     state.project.sampleHold.forEach((sh, index) => {
       const shState = state.modulators.shStates[index];
       if (!shState) return;
+      // In sync mode `rate` is the period in beats (the S&H UI's rate dial is a
+      // per-beat period; the LFO division selector sets lfo.rate = div.beats,
+      // e.g. 1/4 → 1 beat, 1/16 → 0.25). Frequency in Hz is therefore
+      // (bpm/60) / rate. A prior edit multiplied instead, which inverted the
+      // knob — 1/16 ran slower than 1/4 instead of 4x faster.
       const rateHz = sh.sync ? Math.max(bpm / 60 / Math.max(sh.rate, 0.05), 0.1) : Math.max(sh.rate, 0.05);
       const interval = 1 / rateHz;
       shState.timer += dt;
@@ -425,16 +608,24 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   const updateLfos = (dt: number, bpm: number) => {
     const state = store.getState();
     state.project.lfos.forEach((lfo, index) => {
+      // In sync mode `rate` is the period in beats (the LFO division selector
+      // sets lfo.rate = div.beats, e.g. 1/4 → 1 beat, 1/16 → 0.25). Frequency in
+      // Hz is therefore (bpm/60) / rate — matching src/shared/lfoUtils.ts and
+      // the legacy index.ts updateLfos. A prior edit multiplied instead, which
+      // inverted the knob (1/16 ran slower than 1/4 instead of 4x faster).
       const rateHz = lfo.sync ? Math.max(bpm / 60 / Math.max(lfo.rate, 0.05), 0.1) : Math.max(lfo.rate, 0.05);
       state.modulators.lfoPhases[index] = (state.modulators.lfoPhases[index] + dt * rateHz) % 1;
     });
   };
 
   const update = (deltaMs: number) => {
-    updateAnalysis();
+    // Clamp the frame delta so a tab background / long stall can't make LFO
+    // phases, envelopes, and transport time jump by seconds at once.
+    const clampedMs = Math.max(0, Math.min(deltaMs, 100));
+    updateAnalysis(clampedMs);
     const bpm = getActiveBpm();
     if (store.getState().transport.isPlaying) {
-      const dt = deltaMs * 0.001;
+      const dt = clampedMs * 0.001;
       updateLfos(dt, bpm);
       updateEnvelopes(dt);
       updateSampleHold(dt, bpm);
@@ -494,7 +685,18 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   const updateNowPlayingSettings = (settings: Partial<NowPlayingSettings>) => {
     const oldEnabled = nowPlayingSettings.enabled;
     nowPlayingSettings = { ...nowPlayingSettings, ...settings };
-    
+
+    // Push the (possibly changed) thresholds into the live detector so edits
+    // take effect immediately, without a restart. Previously these were
+    // captured in the detector's closure at construction and never updated.
+    songChangeDetector.setOptions({
+      minTrackMs: nowPlayingSettings.minTrackMs,
+      silenceThreshold: nowPlayingSettings.silenceThreshold,
+      changeThreshold: nowPlayingSettings.changeThreshold,
+      confirmWindows: nowPlayingSettings.confirmWindows,
+      cooldownMs: nowPlayingSettings.cooldownMs
+    });
+
     if (nowPlayingSettings.enabled && !oldEnabled) {
       songChangeDetector.reset();
       transitionTo('listening', 'Song detection enabled');
@@ -507,7 +709,28 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     songChangeHandler = handler;
   };
 
-  instance = {
+  const dispose = () => {
+    // Release the microphone MediaStream promptly (so the OS mic indicator
+    // turns off) and close the AudioContext — browsers don't reliably GC an
+    // open AudioContext. Mirrors setup()'s teardown but also clears the
+    // singleton so a later createAudioEngine() can build a fresh engine.
+    // All guards are null-tolerant so this is safe when audio was never set up.
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+      mediaStream = null;
+    }
+    analyser = null;
+    onsetAnalyser = null;
+    void audioContext?.close?.().catch(() => {});
+    audioContext = null;
+    try { rollingAudioCapture.stop(); } catch { /* ignore */ }
+    try { songChangeDetector.reset(); } catch { /* ignore */ }
+    setupInProgress = false;
+    currentDeviceId = null;
+    instance = null;
+  };
+
+  const engine: AudioEngine = {
     initDevices,
     setup,
     update,
@@ -518,8 +741,10 @@ export const createAudioEngine = (store: Store): AudioEngine => {
     getSongDetectionDiagnostics,
     updateNowPlayingSettings,
     onSongChange,
-    getRollingAudioCapture: () => rollingAudioCapture
+    getRollingAudioCapture: () => rollingAudioCapture,
+    dispose
   };
+  instance = engine;
 
-  return instance;
+  return engine;
 };

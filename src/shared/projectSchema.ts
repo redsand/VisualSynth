@@ -113,10 +113,22 @@ const layerSchema = z.object({
   role: z.enum(['core', 'support', 'atmosphere']).default('support'),
   enabled: z.boolean().default(true),
   opacity: z.number().default(1),
-  blendMode: z.enum(['normal', 'add', 'multiply', 'screen', 'overlay', 'difference']).default('normal'),
+  // 'additive' is accepted as a synonym for 'add' and normalized on parse:
+  // the newer preset generator emits 'additive' (the common term for additive
+  // blending) for layers, but the canonical layer blend-mode name and the GLSL
+  // applyBlendMode numeric mapping use 'add'. Normalizing here lets those
+  // presets validate and renders them with true additive blending instead of
+  // falling back to 'normal'.
+  blendMode: z.preprocess(
+    (v) => (v === 'additive' ? 'add' : v),
+    z.enum(['normal', 'add', 'multiply', 'screen', 'overlay', 'difference'])
+  ).default('normal'),
   transform: transformSchema.default({ x: 0, y: 0, scale: 1, rotation: 0 }),
   assetId: z.string().optional(),
   generatorId: z.string().optional(),
+  // Declared on LayerConfig; without it in the schema, zod strips the flag on
+  // every save and layers that require a user-supplied input silently revert.
+  inputRequired: z.boolean().optional(),
   params: z.record(z.any()).default({}),
   effects: z.array(z.any()).default([]),
   sdfScene: sdfSceneConfigSchema.optional()
@@ -209,7 +221,12 @@ const effectsObjectSchema = z.object({
 
 const effectsSchema = z.union([
   effectsObjectSchema,
-  z.array(effectsObjectSchema).length(1).transform(([effects]) => effects)
+  // Some presets serialize effects as a single-element array and a few hand-edited
+  // project files carry more than one entry. `.length(1)` rejected anything but a
+  // one-element array, so the project failed to load entirely. Accept any
+  // non-empty array and normalize to its first entry (the schema is a single
+  // EffectConfig, not a list).
+  z.array(effectsObjectSchema).min(1).transform((effects) => effects[0])
 ]);
 
 
@@ -240,6 +257,18 @@ const visualizerSchema = z.object({
   opacity: z.number(),
   macroEnabled: z.boolean(),
   macroId: z.number()
+});
+
+// Mirrors PerformanceModeConfig from performanceGuardrails.ts. Kept inline (not
+// imported) to avoid a schema module dependency on the guardrails module; the
+// default below must stay in sync with DEFAULT_PERFORMANCE_MODE_CONFIG.
+const performanceModeSchema = z.object({
+  enabled: z.boolean(),
+  restrictToSafePresets: z.boolean(),
+  forceMinimalQualityOnStruggle: z.boolean(),
+  disableExperimentalEngines: z.boolean(),
+  autoRecoveryEnabled: z.boolean(),
+  maxMemoryMB: z.number()
 });
 
 const sceneLookSchema = z
@@ -317,7 +346,7 @@ const expressiveFxSchema = z.object({
 
 const sceneTransitionSchema = z.object({
   durationMs: z.number(),
-  curve: z.enum(['linear', 'easeInOut']),
+  curve: z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut']),
   type: z.enum(['fade', 'crossfade', 'warp', 'glitch', 'dissolve']).default('fade')
 });
 
@@ -328,9 +357,14 @@ const sceneTriggerSchema = z.object({
 });
 
 const sceneLayerRolesSchema = z.object({
-  core: z.array(z.string()),
-  support: z.array(z.string()),
-  atmosphere: z.array(z.string())
+  // Role buckets default to empty when absent. The runtime already treats a
+  // missing bucket as empty everywhere (serialization/exchange/index/runtimeProject
+  // all do `?.atmosphere ?? [...]`), and generator-emitted presets (preset-2623/2625)
+  // declare only the buckets they use (e.g. {core, support} with no atmosphere).
+  // Requiring all three keys rejected those partial-but-valid scenes on parse.
+  core: z.array(z.string()).default([]),
+  support: z.array(z.string()).default([]),
+  atmosphere: z.array(z.string()).default([])
 });
 
 const milkWaveConfigSchema = z.object({
@@ -419,7 +453,7 @@ const milkDropShaderDataSchema = z.object({
           sourceLength: z.number(),
           issueCount: z.number(),
           issues: z.array(z.object({
-            severity: z.enum(['warning', 'error']),
+            severity: z.enum(['info', 'warning', 'error']),
             code: z.string(),
             message: z.string()
           }))
@@ -446,7 +480,7 @@ const milkDropShaderDataSchema = z.object({
           sourceLength: z.number(),
           issueCount: z.number(),
           issues: z.array(z.object({
-            severity: z.enum(['warning', 'error']),
+            severity: z.enum(['info', 'warning', 'error']),
             code: z.string(),
             message: z.string()
           }))
@@ -475,6 +509,13 @@ const sceneSchema = z.object({
   layers: z.array(layerSchema).default([]),
   look: sceneLookSchema.optional(),
   _shaderData: milkDropShaderDataSchema.optional(),
+  // presetPath is set when a scene is created from a preset file and read by the
+  // "refresh preset" feature. It was previously absent from the schema, so zod
+  // stripped it on parse and every save/reload lost it — breaking preset refresh
+  // for all saved scenes. certification is declared on SceneConfig for preset
+  // provenance; keep it round-tripping too.
+  presetPath: z.string().optional(),
+  certification: z.enum(['safe', 'degraded', 'unstable', 'archived']).optional(),
   depthScore: z.number().default(0),
   complexity: z.number().default(0),
   tags: z.array(z.string()).default([])
@@ -675,7 +716,15 @@ export const projectSchema = z.object({
   visualIntentTags: z.array(z.string()).optional(),
   createdAt: z.string(),
   updatedAt: z.string().optional(),
-  output: outputConfigSchema.optional(),
+  output: outputConfigSchema.default(DEFAULT_OUTPUT_CONFIG),
+  performanceMode: performanceModeSchema.default({
+    enabled: false,
+    restrictToSafePresets: true,
+    forceMinimalQualityOnStruggle: true,
+    disableExperimentalEngines: true,
+    autoRecoveryEnabled: true,
+    maxMemoryMB: 2048
+  }),
   stylePresets: z.array(stylePresetSchema).default([]),
   activeStylePresetId: z.string().default('style-neutral'),
   palettes: z.array(colorPaletteSchema).default([]),
@@ -774,12 +823,16 @@ export const projectSchema = z.object({
   }),
   sdf: sdfSchema.default({
     enabled: false,
+    // Schema fallback used when a project arrives with no sdf block at all.
+    // DEFAULT_PROJECT.sdf deliberately ships shape 'triangle'; the parse
+    // fallback stays 'circle' (neutral) — see tests/effects.test.ts.
     shape: 'circle',
-    scale: 0,
-    edge: 0,
-    glow: 0,
-    rotation: 0,
-    fill: 0
+    scale: 0.55,
+    edge: 0.06,
+    glow: 0.65,
+    rotation: 0.2,
+    fill: 0.4,
+    color: [1.0, 0.6, 0.25]
   }),
   visualizer: visualizerSchema.default({
     enabled: false,
@@ -804,11 +857,11 @@ export const projectSchema = z.object({
         name: 'Env 1',
         attack: 0.05,
         decay: 0.2,
-        sustain: 0.6,
-        release: 0.3,
-        hold: 0.4,
-        trigger: 'audio.peak',
-        threshold: 0.6
+        sustain: 0.4,
+        release: 0.8,
+        hold: 0.1,
+        trigger: 'engine.low',
+        threshold: 0.65
       },
       {
         id: 'env-2',
@@ -857,7 +910,7 @@ export const projectSchema = z.object({
   scenes: z.array(sceneSchema).min(1),
   modMatrix: z.array(modConnectionSchema).default([]),
   midiMappings: z.array(midiMappingSchema).default([]),
-  activeSceneId: z.string(),
+  activeSceneId: z.string().default(''),
   activeModeId: z.string().default('mode-cosmic'),
   activeEngineId: z.string().default('engine-radial-core'),
   colorChemistry: z.array(z.string()).default(['analog', 'balanced']),
@@ -893,6 +946,14 @@ export const projectSchema = z.object({
     textShadow: z.boolean().optional(),
     targetSceneId: z.string().optional()
   })).default([]),
+  // Per-asset-layer blend mode + audio-react overrides. Optional: absent
+  // (or {}) means "use the renderer's built-in per-layer defaults". Only
+  // entries the user actually edited are persisted, so a no-edit project
+  // stays clean. Without these in the schema, zod's default strip behavior
+  // would drop the field on load and the live path's save/load round-trip
+  // (buildProjectSnapshotForSave -> applyProject) would silently lose edits.
+  assetLayerBlendModes: z.record(z.string(), z.number()).optional(),
+  assetLayerAudioReact: z.record(z.string(), z.number()).optional(),
   _shaderData: milkDropShaderDataSchema.optional()
 });
 

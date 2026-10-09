@@ -1,5 +1,6 @@
 import { getActiveScene } from '../shaderLifecycle';
-import { applyModMatrix } from '../../shared/modMatrix';
+import { applyModMatrix, ModSmoothEntry, ModMatrixContext } from '../../shared/modMatrix';
+import { resolveModTargetRange } from '../../shared/modTargets';
 import { buildLegacyTarget, getParamDef, parseLegacyTarget } from '../../shared/parameterRegistry';
 import { resolveGenUniforms } from '../../shared/genUniformResolver';
 import {
@@ -12,12 +13,14 @@ import {
 } from '../../shared/project';
 import { createPrng } from '../../shared/deterministicPrng';
 import { getFxUniformsDeclarations } from '../../shared/shaderUtils';
+import type { SessionHealth } from '../../shared/sessionHealth';
 import { ENGINE_REGISTRY, type EngineId } from '../../shared/engines';
 import { scaleMidiValue } from '../../shared/midiMapping';
 import type { Store } from '../state/store';
 import type { RenderState } from '../glRenderer';
 import { getSceneAssetDiagnostics, getRenderableLayers } from './assetBinding';
 import { burstSdfManager } from '../sdf/runtime/burstSdfManager';
+import { modulateSdfScene } from '../sdf/applySdfModulation';
 import { NodeInstance } from '../../shared/visualNode';
 import { EDM_DROP_COLLECTION, getEdmPreset } from '../sdf/presets/edmPresets';
 import { registerSdfNodes, sdfRegistry } from '../sdf/nodes';
@@ -116,6 +119,7 @@ export interface RenderDebugState {
     programs: number;
     shaders: number;
   };
+  sessionHealth?: SessionHealth;
 }
 
 type FxId = 'bloom' | 'blur' | 'chroma' | 'posterize' | 'kaleidoscope' | 'feedback' | 'persistence';
@@ -336,6 +340,13 @@ export class RenderGraph {
   private midiSum: Record<string, number> = {};
   private onLoadPreset: ((path: string, name: string, crossfade: number) => Promise<void>) | null = null;
   private onPlaylistControl: ((control: string) => void) | null = null;
+  // Per-connection modMatrix temporal low-pass state, keyed by
+  // `${mod.id}|${targetId}`. Owned by the render loop so the low-pass
+  // persists across frames; cleared on dispose so a project switch does
+  // not carry a stale convergence transient from a prior scene.
+  private modSmoothingState = new Map<string, ModSmoothEntry>();
+  // Monotonic frame counter for the modMatrix low-pass idempotency token.
+  private modSmoothingFrame = 0;
 
   constructor(private store: Store) {
     // Initialize with Launchpad layout by default
@@ -366,6 +377,8 @@ export class RenderGraph {
     this.gravityWells.forEach(w => w.active = false);
     // Clear shape bursts
     this.shapeBurstSlots.forEach(s => s.active = false);
+    // Clear modMatrix temporal low-pass state so a new scene starts fresh.
+    this.modSmoothingState.clear();
   }
 
   /**
@@ -428,13 +441,16 @@ export class RenderGraph {
       return false;
     }
 
-    const state = this.store.getState();
-    const runtime = state.runtime;
-
+    // Capture the absolute beat at trigger time using the real project BPM so
+    // updateMacro's elapsedBeats is relative to the trigger moment. Previously
+    // startBeat came from runtime.beatCount (never written anywhere -> always 0)
+    // while currentBeat was the absolute wall-clock beat count, so any timed
+    // macro (durationBeats > 0) jumped to progress=1 on the first frame.
+    const triggerTime = performance.now();
     this.macroState = {
       activeMacro: macro,
-      startTime: runtime.time ?? 0,
-      startBeat: runtime.beatCount ?? 0,
+      startTime: triggerTime,
+      startBeat: this.currentBeat(triggerTime),
       progress: 0,
       isRunning: macro.durationBeats > 0
     };
@@ -1201,38 +1217,19 @@ export class RenderGraph {
     });
   }
 
-  private getModdedSdfScene(scene: any, modSources: any, modMatrix: any[]) {
+  private getModdedSdfScene(scene: any, modSources: any, modMatrix: any[], dt: number, frame: number) {
     if (!scene) return undefined;
 
-    // Deep clone the scene to avoid mutating the original project state
-    const cloned = JSON.parse(JSON.stringify(scene));
+    // Clone + modulate each node's params via the shared helper (also used by
+    // the live index.ts path, so SDF node-param modulation is identical on
+    // both). The temporal low-pass ctx carries this RenderGraph's persistent
+    // state Map + the per-frame token.
+    const modCtx: ModMatrixContext = { dt, frame, state: this.modSmoothingState };
+    const cloned = modulateSdfScene(scene, modSources, modMatrix, modCtx);
+    if (!cloned) return undefined;
 
-    // Apply modulation to each node's parameters
-    if (cloned.nodes) {
-      cloned.nodes.forEach((node: any) => {
-        if (!node.params) return;
-
-        Object.keys(node.params).forEach(paramId => {
-          const targetId = `${node.instanceId}.${paramId}`;
-          const baseValue = node.params[paramId];
-
-          if (typeof baseValue === 'number') {
-            node.params[paramId] = applyModMatrix(baseValue, targetId, modSources, modMatrix);
-          } else if (Array.isArray(baseValue)) {
-            // Support modulating vector components like 'nodeId.paramId.x'
-            const components = ['x', 'y', 'z', 'w'];
-            const modded = [...baseValue];
-            for (let i = 0; i < Math.min(baseValue.length, 4); i++) {
-                const subTargetId = `${targetId}.${components[i]}`;
-                modded[i] = applyModMatrix(baseValue[i], subTargetId, modSources, modMatrix);
-            }
-            node.params[paramId] = modded;
-          }
-        });
-      });
-    }
-
-    // Inject burst SDF nodes from the beat-triggered system
+    // Inject burst SDF nodes from the beat-triggered system (bootstrap path
+    // only — the live index.ts path does not use burstSdfManager).
     const burstNodes = burstSdfManager.getActiveNodes();
     if (burstNodes.length > 0) {
       if (!cloned.nodes) cloned.nodes = [];
@@ -1254,20 +1251,28 @@ export class RenderGraph {
 
     // Scene FX
     const scene = getActiveScene(project);
-    if (scene?.look?.effects) {
-      scene.look.effects.forEach((fx, i) => {
-        this.createFxNode('scene', `scene-${i}`, fx);
-      });
-    }
+    // `look.effects` is schema'd as EffectConfig[], but some migrated/legacy
+    // presets store a bare EffectConfig object. Coerce either shape to an
+    // array so a malformed preset doesn't crash the FX graph build with
+    // "effects.forEach is not a function".
+    const sceneEffects = scene?.look?.effects;
+    const sceneFxList = Array.isArray(sceneEffects)
+      ? sceneEffects
+      : (sceneEffects ? [sceneEffects] : []);
+    sceneFxList.forEach((fx: EffectConfig, i: number) => {
+      this.createFxNode('scene', `scene-${i}`, fx);
+    });
 
     // Layer FX
     if (scene?.layers) {
       scene.layers.forEach((layer) => {
-        if (layer.effects) {
-          layer.effects.forEach((fx, i) => {
-            this.createFxNode('layer', `${layer.id}-${i}`, fx);
-          });
-        }
+        const layerEffects = layer.effects;
+        const layerFxList = Array.isArray(layerEffects)
+          ? layerEffects
+          : (layerEffects ? [layerEffects] : []);
+        layerFxList.forEach((fx: EffectConfig, i: number) => {
+          this.createFxNode('layer', `${layer.id}-${i}`, fx);
+        });
       });
     }
     console.log(`[RenderGraph] Recreated ${this.activeFxNodes.size} FX nodes for scene: ${scene?.name}`);
@@ -1300,7 +1305,7 @@ export class RenderGraph {
   getFxUniformsDeclarations(): string {
     const state = this.store.getState();
     const scene = getActiveScene(state.project);
-    return getFxUniformsDeclarations(state.project, scene);
+    return getFxUniformsDeclarations(state.project, scene ?? null);
   }
 
   /**
@@ -1370,6 +1375,10 @@ export class RenderGraph {
       this.lastSceneId = state.project.activeSceneId;
     }
     const deltaSeconds = deltaMs * 0.001;
+    // One low-pass frame token for the whole render frame, shared by the
+    // style/effects modValue closure and getModdedSdfScene so a target
+    // resolved more than once this frame is idempotent.
+    const modFrame = this.modSmoothingFrame++;
 
     this.updateGravityWells(time, deltaSeconds);
     this.updatePortals(time, deltaSeconds);
@@ -1380,7 +1389,7 @@ export class RenderGraph {
     this.updateBurstSdf(time, deltaSeconds);
 
     // Update running scene macros
-    const currentBeat = runtime.beatCount ?? Math.floor(time / 1000 * (runtime.bpm ?? 120) / 60);
+    const currentBeat = this.currentBeat(time);
     this.updateMacro(time, currentBeat);
 
     if (runtime.glyphBeatPulse > 0) {
@@ -1390,7 +1399,12 @@ export class RenderGraph {
     runtime.topoQuake = Math.max(0, runtime.topoQuake - deltaMs * 0.002);
     runtime.topoSlide = Math.max(0, runtime.topoSlide - deltaMs * 0.002);
     runtime.topoPlate = Math.max(0, runtime.topoPlate - deltaMs * 0.002);
-    runtime.topoTravel = (runtime.topoTravel ?? 0) + deltaMs * 0.0001 * (state.project.topo?.speed ?? 1.0);
+    // `project.topo` is not part of the VisualSynthProject schema (no `topo`
+    // field is defined or populated anywhere), so this travel-speed factor is
+    // effectively constant at 1.0. Kept as a narrow cast rather than a bare
+    // property access so the typecheck reflects that the field is optional.
+    const topoSpeed = (state.project as { topo?: { speed?: number } }).topo?.speed ?? 1.0;
+    runtime.topoTravel = (runtime.topoTravel ?? 0) + deltaMs * 0.0001 * topoSpeed;
 
     const activeScene = getActiveScene(state.project);
     const activePalette = state.project.palettes?.find(p => p.id === state.project.activePaletteId) ?? state.project.palettes?.[0];
@@ -1405,7 +1419,11 @@ export class RenderGraph {
     this.debugState.layerCount = activeScene?.layers.length ?? 0;
     this.debugState.glResources = glResources;
     runtime.topoTravel += deltaMs * 0.0002;
-    runtime.strobeIntensity *= runtime.strobeDecay;
+    // strobeDecay (default 0.92) is a per-frame multiplier tuned for ~60 fps, so
+    // decaying by it every frame made the strobe tail frame-rate dependent
+    // (much longer on a 144 Hz display, much shorter when throttled). Correct
+    // it to a per-wall-second decay: 0.92 per 1/60 s regardless of fps.
+    runtime.strobeIntensity *= Math.pow(runtime.strobeDecay, deltaMs / (1000 / 60));
 
     const activeStyle =
       state.project.stylePresets?.find((preset) => preset.id === state.project.activeStylePresetId) ?? null;
@@ -1489,8 +1507,11 @@ export class RenderGraph {
 
     const bpm = this.getActiveBpm();
     const modSources = this.buildModSources(bpm);
+    // Per-frame temporal low-pass context for connection `smoothing`. The
+    // state Map persists on the RenderGraph across frames.
+    const modCtx = { dt: deltaSeconds, frame: modFrame, state: this.modSmoothingState };
     const modValue = (target: string, base: number) =>
-      applyModMatrix(base, target, modSources, state.project.modMatrix);
+      applyModMatrix(base, target, modSources, state.project.modMatrix, resolveModTargetRange(target), modCtx);
     const lowFreq = ((state.audio.bands[0] ?? 0) + (state.audio.bands[1] ?? 0)) * 0.5;
 
     const moddedStyle = {
@@ -1565,8 +1586,12 @@ export class RenderGraph {
 
     if (moddedEffects.persistence > 0) {
       const decay = 0.85 + moddedEffects.persistence * 0.14;
+      // Like the strobe decay above, `decay` is a per-frame multiplier tuned for
+      // ~60 fps; applying it every frame made the trail length frame-rate
+      // dependent. Convert to a per-wall-second decay.
+      const timeDecay = Math.pow(decay, deltaMs / (1000 / 60));
       for (let i = 0; i < this.trailSpectrum.length; i += 1) {
-        this.trailSpectrum[i] = Math.max(this.trailSpectrum[i] * decay, state.audio.spectrum[i]);
+        this.trailSpectrum[i] = Math.max(this.trailSpectrum[i] * timeDecay, state.audio.spectrum[i]);
       }
     } else {
       this.trailSpectrum = new Float32Array(state.audio.spectrum);
@@ -1728,13 +1753,6 @@ export class RenderGraph {
       findLayerById(activeScene?.layers, 'layer-milkwave') ??
       findLayerById(activeScene?.layers, 'layer-milkwave-effects');
     const bossHealthLayer = findLayerById(activeScene?.layers, 'gen-boss-health');
-    const assetVortexLayer = findLayerById(activeScene?.layers, 'gen-asset-vortex');
-    const assetSlicesLayer = findLayerById(activeScene?.layers, 'gen-asset-slices');
-    const assetPolarLayer = findLayerById(activeScene?.layers, 'gen-asset-polar');
-    const assetMosaicLayer = findLayerById(activeScene?.layers, 'gen-asset-mosaic');
-    const assetRippleLayer = findLayerById(activeScene?.layers, 'gen-asset-ripple');
-    const assetScatterLayer = findLayerById(activeScene?.layers, 'gen-asset-scatter');
-    const assetEchoLayer = findLayerById(activeScene?.layers, 'gen-asset-echo');
 
     const plasmaRole = getLayerRole(plasmaLayer);
     const spectrumRole = getLayerRole(spectrumLayer);
@@ -1805,6 +1823,15 @@ export class RenderGraph {
       const base = layer ? layer.opacity : defaultVal;
       return Math.min(1, Math.max(0, base * (1 + macroVal(macroTarget))));
     };
+
+    // Prune stale MIDI sums. midiSum holds the last CC value per target and is
+    // only written on incoming CC (handleMidiCC), so when a mapping is removed
+    // its last value lingered forever and kept modulating the now-unmapped
+    // param. Drop any target the current mappings no longer reference.
+    const activeMidiTargets = new Set(state.project.midiMappings.map((m) => m.target));
+    for (const key of Object.keys(this.midiSum)) {
+      if (!activeMidiTargets.has(key)) delete this.midiSum[key];
+    }
 
     const genUniforms = resolveGenUniforms({
       layers: activeScene?.layers ?? [],
@@ -1983,6 +2010,12 @@ export class RenderGraph {
       timeMs: state.transport.timeMs,
       rms: state.audio.rms,
       peak: state.audio.peak,
+      bass: state.audio.bass,
+      mid: state.audio.mid,
+      treb: state.audio.treb,
+      bassAtt: state.audio.bassAtt,
+      midAtt: state.audio.midAtt,
+      trebAtt: state.audio.trebAtt,
       strobe: runtime.strobeIntensity,
       plasmaEnabled,
       spectrumEnabled,
@@ -2064,35 +2097,9 @@ export class RenderGraph {
       mediaAssetBlendMode: state.renderSettings.assetLayerBlendModes['layer-media'],
       mediaAssetAudioReact:
         state.renderSettings.assetLayerAudioReact['layer-media'] * getRoleAudioScale(mediaRole, lowFreq, legacyNeutral),
-      assetVortexEnabled: assetVortexLayer?.enabled ?? false,
-      assetVortexOpacity: layerOpacity(assetVortexLayer, 'gen-asset-vortex.opacity', 0.8),
-      assetVortexStrength: 2.0,
-      assetVortexSpeed: 1.0,
-      assetSlicesEnabled: assetSlicesLayer?.enabled ?? false,
-      assetSlicesOpacity: layerOpacity(assetSlicesLayer, 'gen-asset-slices.opacity', 0.8),
-      assetSlicesCount: 16.0,
-      assetSlicesShift: 0.3,
-      assetPolarEnabled: assetPolarLayer?.enabled ?? false,
-      assetPolarOpacity: layerOpacity(assetPolarLayer, 'gen-asset-polar.opacity', 0.8),
-      assetPolarRadius: 0.5,
-      assetPolarTwist: 1.0,
-      assetMosaicEnabled: assetMosaicLayer?.enabled ?? false,
-      assetMosaicOpacity: layerOpacity(assetMosaicLayer, 'gen-asset-mosaic.opacity', 0.8),
-      assetMosaicTiles: 8.0,
-      assetMosaicFlip: 0.5,
-      assetRippleEnabled: assetRippleLayer?.enabled ?? false,
-      assetRippleOpacity: layerOpacity(assetRippleLayer, 'gen-asset-ripple.opacity', 0.8),
-      assetRippleAmplitude: 0.03,
-      assetRippleFrequency: 20.0,
-      assetScatterEnabled: assetScatterLayer?.enabled ?? false,
-      assetScatterOpacity: layerOpacity(assetScatterLayer, 'gen-asset-scatter.opacity', 0.8),
-      assetScatterAmount: 0.02,
-      assetScatterSeed: 1.0,
-      assetEchoEnabled: assetEchoLayer?.enabled ?? false,
-      assetEchoOpacity: layerOpacity(assetEchoLayer, 'gen-asset-echo.opacity', 0.8),
-      assetEchoCount: 3.0,
-      assetEchoSpread: 0.15,
-      assetEchoFade: 0.6,
+      // Asset-generator uniforms are populated via genUniforms (resolveGenUniforms)
+      // and their enabled/sampler via applyLayerBinding in glRenderer, so no
+      // per-generator asset fields are written onto RenderState here.
       roleWeights,
       transitionAmount,
       transitionType,
@@ -2147,7 +2154,7 @@ export class RenderGraph {
       sdfGlow: moddedSdf.glow,
       sdfRotation: moddedSdf.rotation,
       sdfFill: moddedSdf.fill,
-      sdfScene: this.getModdedSdfScene((advancedSdfLayer as any)?.sdfScene, modSources, state.project.modMatrix),
+      sdfScene: this.getModdedSdfScene((advancedSdfLayer as any)?.sdfScene, modSources, state.project.modMatrix, deltaSeconds, modFrame),
       gravityPositions: this.gravityPositions,
       gravityStrengths: this.gravityStrengths,
       gravityPolarities: this.gravityPolarities,
@@ -2277,7 +2284,11 @@ export class RenderGraph {
     };
     this.debugState.masterBusFrameId = frameId;
     this.debugState.uniformsUpdatedFrameId = frameId;
-    this.debugState.glResources = renderState.glResources;
+    // glResources is populated onto debugState directly inside buildRenderState
+    // from its `glResources` parameter; RenderState does not carry it. The
+    // previous `renderState.glResources` read referenced a non-existent field
+    // (always undefined) and would have clobbered the value buildRenderState
+    // set, so it is removed.
   }
 
   private buildModSources(bpm: number) {
@@ -2329,6 +2340,16 @@ export class RenderGraph {
     if (state.bpm.source === 'network' && state.bpm.networkBpm) return state.bpm.networkBpm;
     if (state.bpm.source === 'auto' && state.bpm.autoBpm) return state.bpm.autoBpm;
     return state.bpm.manualBpm || 120;
+  }
+
+  /**
+   * Absolute whole-beat count at a given wall-clock time (ms), using the active
+   * project BPM. Used by triggerMacro (to capture startBeat) and buildRenderState
+   * (to compute currentBeat) so timed-macro progress is relative to the trigger
+   * moment and tracks the real BPM, not the never-populated runtime.beatCount/bpm.
+   */
+  private currentBeat(time: number): number {
+    return Math.floor((time / 1000) * this.getActiveBpm() / 60);
   }
 }
 
