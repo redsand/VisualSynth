@@ -23,6 +23,7 @@ const parseArgs = () => {
   const args = process.argv.slice(2);
   let presetId: string | null = null;
   let presetIds: string[] | null = null;
+  let fromReports = false;
   let limit = 100;
   let pack: number | null = null;
   let packSize = 100;
@@ -72,13 +73,50 @@ const parseArgs = () => {
     if (arg === '--all') {
       limit = Number.MAX_SAFE_INTEGER;
     }
+    if (arg === '--from-reports') {
+      fromReports = true;
+    }
   }
 
   if (pack !== null && (presetId || presetIds)) {
     throw new Error('--pack cannot be combined with --preset or --focus');
   }
+  if (fromReports && (presetId || presetIds || pack !== null)) {
+    throw new Error('--from-reports cannot be combined with --preset, --focus, or --pack');
+  }
 
-  return { presetId, presetIds, limit, pack, packSize };
+  return { presetId, presetIds, limit, pack, packSize, fromReports };
+};
+
+// Re-audit only the presets that previously failed real-renderer batch runs —
+// collected from milkwave-test-results/reports/batch-*-report.json, matching
+// the batch tester's --from-reports selection.
+const collectFailingPresetIds = (): string[] => {
+  const reportsDir = path.resolve(__dirname, '../milkwave-test-results/reports');
+  if (!fs.existsSync(reportsDir)) {
+    throw new Error(`No reports directory at ${reportsDir} — nothing to re-audit.`);
+  }
+  const reportFiles = fs.readdirSync(reportsDir).filter(f => /^batch-\d+-report\.json$/.test(f));
+  if (reportFiles.length === 0) {
+    throw new Error(`No batch-*-report.json files in ${reportsDir}.`);
+  }
+  const failing = new Set<string>();
+  for (const reportFile of reportFiles) {
+    try {
+      const report = JSON.parse(fs.readFileSync(path.join(reportsDir, reportFile), 'utf-8'));
+      for (const p of report.summary?.failingPresets ?? []) {
+        if (p?.presetFile) failing.add(p.presetFile.replace(/\.json$/, ''));
+      }
+      for (const r of report.results ?? []) {
+        if (['fallback', 'black_output', 'runtime_error', 'safe_mode'].includes(r?.status) && r?.presetFile) {
+          failing.add(r.presetFile.replace(/\.json$/, ''));
+        }
+      }
+    } catch (e) {
+      console.warn(`Skipping unreadable report: ${reportFile}: ${e}`);
+    }
+  }
+  return [...failing];
 };
 
 const escapeForTemplateLiteral = (value: string) =>
@@ -486,7 +524,16 @@ const connectToExistingBrowser = async ({
 
 async function runAudit() {
   console.log('--- Milkwave Runtime Audit ---');
-  const { presetId, presetIds, limit, pack, packSize } = parseArgs();
+  const { presetId, presetIds: focusIds, limit: parsedLimit, pack, packSize, fromReports } = parseArgs();
+  let presetIds = focusIds;
+  let limit = parsedLimit;
+  if (fromReports) {
+    presetIds = collectFailingPresetIds();
+    // The selection loop breaks at `count >= limit` (default 100) — the
+    // reported-failure set is usually larger, so don't truncate it.
+    limit = Number.MAX_SAFE_INTEGER;
+    console.log(`Collected ${presetIds.length} previously-failing preset ids from batch reports`);
+  }
 
   // 1. Identify Milkwave presets
   const files = fs.readdirSync(PRESETS_DIR)
@@ -539,13 +586,20 @@ async function runAudit() {
   if (presetIds && milkwavePresets.length !== presetIds.length) {
     const foundIds = new Set(milkwavePresets.map((preset) => preset.id));
     const missing = presetIds.filter((id) => !foundIds.has(id));
-    throw new Error(`Focused preset(s) not found: ${missing.join(', ')}`);
+    if (fromReports) {
+      // Reported failures can legitimately disappear (preset re-imported,
+      // _shaderData stripped, or file removed) — warn and audit the rest.
+      console.warn(`${missing.length} reported preset(s) no longer auditable: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? ' …' : ''}`);
+      presetIds = presetIds.filter((id) => foundIds.has(id));
+    } else {
+      throw new Error(`Focused preset(s) not found: ${missing.join(', ')}`);
+    }
   }
 
   if (presetId) {
     console.log(`Auditing single preset: ${presetId}`);
   } else if (presetIds) {
-    console.log(`Auditing focused preset suite (${presetIds.length} presets)`);
+    console.log(`Auditing ${fromReports ? 'previously-failing' : 'focused'} preset suite (${presetIds.length} presets)`);
   } else if (pack !== null) {
     console.log(`Auditing Milkwave pack ${pack} (size ${packSize})`);
   } else {
@@ -628,7 +682,7 @@ async function runAudit() {
     timestamp: new Date().toISOString(),
     totalPresets: allResults.length,
     selection: {
-      mode: presetId ? 'preset' : presetIds ? 'focus' : pack !== null ? 'pack' : 'limit',
+      mode: presetId ? 'preset' : presetIds ? (fromReports ? 'from-reports' : 'focus') : pack !== null ? 'pack' : 'limit',
       presetId,
       presetIds: presetIds ?? null,
       limit: presetIds || presetId || pack !== null ? null : limit,
