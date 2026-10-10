@@ -127,6 +127,8 @@ const PRESERVE_DIM_FNS = new Set([
   'degrees', 'radians',
   // mod and pow are component-wise in GLSL
   'mod', 'pow',
+  // normalize/reflect return the dimension of their (first) vector argument
+  'normalize', 'reflect',
 ]);
 
 /** Known sampler2D-returning function names (for declaration inference). */
@@ -158,6 +160,11 @@ const inferDim = (node: AstNode, typeMap?: Map<string, number>): number => {
       const args = getArgs(node as FunctionCallNode);
       return args.length > 0 ? inferDim(args[0], typeMap) : 0;
     }
+    // User-declared functions: their declared return type was recorded in
+    // typeMap (fn-return visit). Without this, calls to helpers like
+    // `float noise2(...)` infer dim 0 and every dim-aware pass misfires.
+    const declared = typeMap?.get(fn);
+    if (declared !== undefined) return declared >= 16 ? 4 : declared >= 9 ? 3 : declared >= 4 ? 4 : declared >= 1 ? declared : 0;
     return 0;
   }
 
@@ -276,6 +283,113 @@ const mkFnCall = (name: string, args: AstNode[], ws: string | string[] = ''): Fu
   rp: mkLiteral(')'),
 });
 
+/** Build `name = initializer;` from a duplicate declaration's parts. */
+const mkAssignStatement = (decl: DeclarationNode): AstNode =>
+  ({
+    type: 'expression_statement',
+    expression: {
+      type: 'assignment',
+      left: decl.identifier,
+      operator: mkLiteral('='),
+      right: decl.initializer,
+    },
+    semi: mkLiteral(';'),
+  } as unknown as AstNode);
+
+/** Build `left op right` — args to mkFnCall auto-parenthesize binaries. */
+const mkBinary = (left: AstNode, op: string, right: AstNode): AstNode =>
+  ({
+    type: 'binary',
+    left,
+    operator: mkLiteral(op),
+    right,
+  } as unknown as AstNode);
+
+/**
+ * Deduplicate same-scope redeclarations. Mashup presets concatenate the
+ * global blocks of two source shaders, which can declare the same variable
+ * twice in one scope (`vec2 polar, ...;` … `vec2 polar = vec2(...)`) — a
+ * hard `'redefinition'` compile error in GLSL (HLSL tolerates nothing here
+ * either; MilkDrop's translator silently re-hoists). For a duplicate with an
+ * initializer we convert to an assignment (the second block clearly wants a
+ * fresh value); a bare duplicate declarator is dropped. Only fires within a
+ * single statement list — shadowing across nested scopes stays legal.
+ */
+const dedupeSameScopeDeclarations = (ast: Program): void => {
+  const processList = (stmts: AstNode[]): void => {
+    const seen = new Map<string, string>();
+    const out: AstNode[] = [];
+    for (const raw of stmts) {
+      const stmt = raw as unknown as Record<string, unknown>;
+      if (stmt.type === 'compound_statement' && Array.isArray(stmt.statements)) {
+        processList(stmt.statements as AstNode[]);
+        out.push(raw);
+        continue;
+      }
+      if (stmt.type === 'function') {
+        const body = stmt.body as unknown as Record<string, unknown> | undefined;
+        if (body?.type === 'compound_statement' && Array.isArray(body.statements)) {
+          processList(body.statements as AstNode[]);
+        }
+        out.push(raw);
+        continue;
+      }
+      if (
+        stmt.type === 'declaration_statement' &&
+        (stmt.declaration as unknown as Record<string, unknown>)?.type === 'declarator_list'
+      ) {
+        const dl = stmt.declaration as unknown as DeclaratorListNode;
+        const kw = getTypeKeyword(dl);
+        const qualifiers = dl.specified_type?.qualifiers;
+        const decls = (dl.declarations ?? []) as DeclarationNode[];
+        const listIsSafe =
+          kw !== '' && !qualifiers && decls.every((d) => d && d.identifier && !d.quantifier);
+        if (listIsSafe) {
+          const kept: DeclarationNode[] = [];
+          const assignDupes: DeclarationNode[] = [];
+          for (const d of decls) {
+            const name = d.identifier!.identifier;
+            const prev = seen.get(name);
+            if (prev === undefined) {
+              seen.set(name, kw);
+              kept.push(d);
+            } else if (d.initializer && prev === kw) {
+              // same-type redeclaration with initializer → assignment
+              assignDupes.push(d);
+            }
+            // bare or cross-type duplicate declarator → drop
+          }
+          if (kept.length === 0) {
+            // every declarator was a duplicate: emit assignments (if any), drop the declaration
+            for (const d of assignDupes) out.push(mkAssignStatement(d));
+            continue;
+          }
+          if (kept.length !== decls.length) {
+            // trim the declarator list in place; emit assignments for the dropped-with-init ones
+            dl.declarations = kept as unknown as DeclarationNode[];
+            if (Array.isArray(dl.commas)) dl.commas = dl.commas.slice(0, kept.length - 1);
+            out.push(raw);
+            for (const d of assignDupes) out.push(mkAssignStatement(d));
+            continue;
+          }
+          out.push(raw);
+          continue;
+        }
+        // qualified (const/uniform) or untyped lists: never deduped against,
+        // so don't record their names either — a later `float x` after a
+        // `const float x` is a legal shadow in a fresh block and must not be
+        // dropped by cross-storage confusion.
+        out.push(raw);
+        continue;
+      }
+      out.push(raw);
+    }
+    stmts.length = 0;
+    for (const s of out) stmts.push(s);
+  };
+  processList(((ast as unknown as Record<string, unknown>).program ?? []) as AstNode[]);
+};
+
 const mkPostfixSwizzle = (expr: AstNode, swizzle: string): PostfixNode => {
   // Binary expressions need to be wrapped in parentheses to ensure correct output
   // Otherwise `a + b.xyz` would be generated instead of `(a + b).xyz`
@@ -344,6 +458,128 @@ const stripOrphanBraceBlocks = (body: string): string => {
 };
 
 /**
+ * From a file-scope declaration line (`vec2 sunpos = vec2(...), other = ...;`),
+ * extract a bare global declaration stub (`vec2 sunpos, other;`). Returns null
+ * when the line doesn't start with a plain type-keyword declaration.
+ */
+const makeGlobalDeclStub = (line: string): string | null => {
+  const head = /^\s*(?:const\s+)?(float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234])\s+/.exec(line);
+  if (!head) return null;
+  const type = head[1];
+  const rest = line.slice(head[0].length);
+  // Split declarators on top-level commas only (parens/brackets shield the
+  // commas inside constructors and index expressions).
+  const names: string[] = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of rest) {
+    if (ch === '(' || ch === '[') { depth++; cur += ch; continue; }
+    if (ch === ')' || ch === ']') { depth--; cur += ch; continue; }
+    if (depth === 0 && ch === ',') {
+      const m = /^\s*([a-zA-Z_]\w*)\s*(?:[=;\[]|$)/.exec(cur);
+      if (m) names.push(m[1]);
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  const m = /^\s*([a-zA-Z_]\w*)\s*(?:[=;\[]|$)/.exec(cur);
+  if (m) names.push(m[1]);
+  if (names.length === 0) return null;
+  return `${type} ${names.join(', ')};`;
+};
+
+/** Strip the leading type keyword from a declaration line, turning it into an assignment. */
+const stripDeclTypeKeyword = (line: string): string => {
+  const head = /^\s*(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234])\s+/.exec(line);
+  return head ? line.slice(head[0].length) : line;
+};
+
+/**
+ * Insert collected file-scope code into main's body, after the leading
+ * preamble declarations. The moved code comes from the offline translator's
+ * pre-main shader_body emission and routinely references the main preamble
+ * (`uv`, `ret`, `rad`, ...) — so it cannot go at the very top. Skipping the
+ * preamble's declaration statements lands it right where shader_body ran.
+ */
+const insertMovedCode = (source: string, moved: string[]): string => {
+  if (moved.length === 0) return source;
+  const mainIdx = source.indexOf('void main()');
+  if (mainIdx === -1) return source;
+  const bodyStart = source.indexOf('{', mainIdx);
+  if (bodyStart === -1) return source;
+
+  const isPreambleLine = (l: string): boolean => {
+    const t = l.trim();
+    if (!t || t.startsWith('//')) return true;
+    // Preamble is all plain declarations (`vec3 ret = vec3(0.0);` etc.).
+    return /^\s*(?:(?:const\s+)?(?:float|vec[234]|mat[234x]*|int|uint|bool|ivec[234]|bvec[234]|uvec[234])\s+)[a-zA-Z_]\w*(\s*,\s*[a-zA-Z_]\w*)*\s*(?:=[^;]*)?;\s*$/.test(l);
+  };
+
+  const lines = source.substring(bodyStart + 1).split('\n');
+  let insertLine = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (isPreambleLine(lines[i])) continue;
+    insertLine = i;
+    break;
+  }
+
+  // The moved block routinely references names that main declares LATER in
+  // its body (mashups concatenate a stray shader_body mid-file: `shine2` used
+  // here, declared 20 lines down). Emit bare stub declarations before the
+  // moved block; the AST dedupe pass then turns the later real declaration
+  // into an assignment, so the initializer still runs in place.
+  const stubs: string[] = [];
+  const movedText = moved.join('\n');
+  const restText = lines.slice(insertLine).join('\n');
+  const idents = new Set(movedText.match(/\b[a-zA-Z_]\w*\b/g) ?? []);
+  for (const name of idents) {
+    // Skip call sites (`name(`) and keywords/gl_ builtins.
+    if (new RegExp('\\b' + name + '\\s*\\(').test(movedText)) continue;
+    if (/^(uv|ret|rad|ang|uv_orig)$/.test(name) || name.startsWith('gl_')) continue;
+    const declRe = new RegExp(
+      '\\b(?:const\\s+)?(float|vec2|vec3|vec4|int|bool)\\s+' + name + '\\s*(?:=|;|,)',
+    );
+    const m = declRe.exec(restText);
+    if (m) stubs.push('  ' + m[1] + ' ' + name + ';');
+  }
+
+  const insert = [
+    '  // --- moved file-scope code ---',
+    ...stubs,
+    ...moved.map((l) => '  ' + l),
+    '',
+  ];
+  lines.splice(insertLine, 0, ...insert);
+  return source.substring(0, bodyStart + 1) + lines.join('\n');
+};
+
+/**
+ * Repair commas that terminate statements at bracket depth 0 — a corruption
+ * artifact of some mashup imports (`ret += foo(uvm),\nret = ...`). Only line
+ * endings count, so multi-arg declarations and call arguments (depth > 0 or
+ * mid-line) are untouched. Called only as a parse-failure retry, never
+ * speculatively — valid comma-operator usage stays valid because this runs
+ * only when the parser already proved the source unparseable.
+ */
+const repairTrailingCommas = (source: string): string => {
+  let depth = 0;
+  return source
+    .split('\n')
+    .map((line) => {
+      for (const ch of line) {
+        if (ch === '(' || ch === '[') depth++;
+        else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+      }
+      if (depth === 0 && /,\s*(\/\/.*)?$/.test(line)) {
+        return line.replace(/,(\s*(\/\/.*)?)$/, ';$1');
+      }
+      return line;
+    })
+    .join('\n');
+};
+
+/**
  * Phase 1: Minimal string preprocessing.
  * Only handles constructs that would prevent the GLSL parser from succeeding.
  * ALL structural fixes happen in Phase 2 (AST transforms).
@@ -358,10 +594,21 @@ const preprocess = (source: string): string => {
   source = source.replace(/\bfixed\b/g, 'float');                           // `fixed` → `float`
   source = source.replace(/\bfixed(\d)\b/g, 'vec$1');                       // `fixed2/3/4` → `vec2/3/4`
   source = source.replace(/\)\s*:\s*[A-Z_][A-Z0-9_]*/g, ')');               // HLSL semantics (`: COLOR0`)
-  source = source.replace(/\btex3D\b/g, 'texture');                         // HLSL `tex3D()` → `texture()`
+  source = source.replace(/\btex3[Dd]\b/g, 'texture');                       // HLSL `tex3D()` → `texture()`
   source = source.replace(/\btex2[Dd]\b/g, 'texture');                      // HLSL `tex2D()` → `texture()`
   source = source.replace(/\btex2[Dd]bias\b/g, 'textureBias');              // HLSL `tex2Dbias()` → `textureBias()`
   source = source.replace(/\btex2[Dd]lod\b/g, 'textureLod');                // HLSL `tex2Dlod()` → `textureLod()`
+  // MilkDrop per-frame roam banks: the offline translation renamed them to
+  // the _c8-_c11 vec4 uniforms, but some shaders still reference the
+  // original float3 names. Alias them onto the uniforms the renderer feeds
+  // (milkwaveBuiltins.ts _c8/_c9 fast cos/sin, _c10/_c11 slow cos/sin).
+  // Skip when the shader declares its own variable with these names.
+  if (!/\b(?:float|vec[234])\s+(?:slow_)?roam_(?:cos|sin|pos)\b/.test(source)) {
+    source = source.replace(/\bslow_roam_cos\b/g, '_c10');
+    source = source.replace(/\bslow_roam_sin\b/g, '_c11');
+    source = source.replace(/\broam_cos\b/g, '_c8');
+    source = source.replace(/\broam_sin\b/g, '_c9');
+  }
   source = source.replace(/\\\s*\n/g, ' ');                                 // Line continuations
   source = source.replace(/\bfloat\s+smooth\b/g, 'float smooth_');          // `smooth` is GLSL reserved
   source = source.replace(/\bsmooth\s*(?=[+\-*/=;,)])/g, 'smooth_');
@@ -430,9 +677,12 @@ const preprocess = (source: string): string => {
   let tm: RegExpExecArray | null;
   while ((tm = textureSamplerRe.exec(source)) !== null) {
     const name = tm[1];
-    if (!knownSamplers.has(name)) {
-      samplersToAlias.add(name);
-    }
+    if (knownSamplers.has(name)) continue;
+    // The raw already aliases this name itself (`#define sampler_pic
+    // sampler_noise_lq`) — renaming would collide with the macro target and
+    // produce "macro redefined" errors. The macro resolves it for us.
+    if (new RegExp(`#\\s*define\\s+${name}\\b`).test(source)) continue;
+    samplersToAlias.add(name);
   }
   if (samplersToAlias.size > 0) {
     console.log(`[GLSL Patcher] Pre-aliasing unknown samplers: ${Array.from(samplersToAlias).join(', ')}`);
@@ -442,6 +692,38 @@ const preprocess = (source: string): string => {
       source = source.replace(re, 'sampler_noise_lq');
     }
   }
+
+  // ── 0a.2. Duplicate #define dedupe (keep first) ──
+  // Some presets #define the same macro twice with different bodies — a hard
+  // "macro redefined" error in GLSL. Keep the first definition, drop the rest.
+  {
+    const seen = new Set<string>();
+    source = source
+      .split('\n')
+      .filter((line) => {
+        const m = /^\s*#\s*define\s+(\w+)\s*(.*)$/.exec(line);
+        if (!m) return true;
+        if (seen.has(m[1])) return false; // drop duplicate definition
+        seen.add(m[1]);
+        return true;
+      })
+      .join('\n');
+  }
+
+  // ── 0a.4. HLSL brace matrix initializers ──
+  // `mat2 rot = { a, b, c, d };` (HLSL initializer-list syntax, possibly
+  // line-broken) is a syntax error in GLSL ES — rewrite to a constructor.
+  // [^}]* spans newlines; nested braces inside these initializers don't
+  // occur in the corpus.
+  source = source.replace(/\b(mat[234])\s+(\w+)\s*=\s*\{([^}]*)\}\s*;/g,
+    (m, ty: string, name: string, body: string) => `${ty} ${name} = ${ty}(${body});`);
+
+  // ── 0a.3. Strip bare local sampler2D declarations ──
+  // MilkDrop per-shader sampler declarations (`sampler2D sampler_pic;`)
+  // shadow the patcher's uniform samplers — "sampler2Ds must be uniform".
+  // Only unqualified single-name declarations; `uniform sampler2D ...`
+  // headers and function parameters are untouched.
+  source = source.replace(/^[ \t]*sampler2D\s+sampler_\w+\s*;[ \t]*$/gm, '');
 
   // ── 0a. Strip invalid swizzles from scalar function results ──
   // The offline translator sometimes adds .xyz/.xy etc. to scalar function results.
@@ -493,14 +775,24 @@ const preprocess = (source: string): string => {
   // HLSL overloaded multiply() functions → direct matrix multiplication
   // GLSL ES doesn't support function overloading, so replace multiply(v, m) with (m * v)
   // Skip function definitions by requiring the first arg to NOT start with 'vec' or 'mat'
-  source = source.replace(/\bmultiply\s*\(\s*(?!vec[234]|mat[234x])([^,]+)\s*,\s*([^)]+)\s*\)/g, '($2 * $1)');
+  // Args allow ONE level of parenthesized nesting so `multiply(uv3, mat2(a,b,c,d))`
+  // keeps the mat2's closing paren (the old `[^)]+` ate it and produced
+  // `(mat2(a,b,c,d * v)` — a 5-arg constructor).
+  source = source.replace(
+    /\bmultiply\s*\(\s*(?!vec[234]|mat[234x])((?:[^(),]|\([^()]*\))+)\s*,\s*((?:[^()]|\([^()]*\))+)\s*\)/g,
+    '($2 * $1)'
+  );
   // Strip the now-unused multiply function definitions (single-line form)
   source = source.replace(/^vec[234]\s+multiply\s*\([^{}]+\)\s*\{[^}]*\}\s*$/gm, '');
   // Mixed-type comma declarations: `float x, y,\nvec2 a, b;` → split with `;`
   source = source.replace(/,\s*\n\s*(vec[234]|mat[234x]*|float|int|uint|bool|ivec[234]|bvec[234]|uvec[234])\s/g, ';\n$1 ');
 
   // ── 0b. Strip HLSL sampler declarations ──
-  source = source.replace(/\bsampler\s+[^;]+;/g, '');
+  // HLSL sampler declarations (`sampler sampler_pw_noise_lq;`). Must NOT
+  // cross newlines — `[^;]+` would match `sampler ` inside a comment and eat
+  // through a following `#define ... sampler alias` line to a distant `;`,
+  // silently deleting the alias the shader depends on.
+  source = source.replace(/\bsampler\s+[^\n;]+;/g, '');
 
   // ── 0b.5. Move #define statements from inside shader_body to before void main() ──
   // Some presets have #define aliases inside shader_body that need to be moved.
@@ -645,7 +937,21 @@ const preprocess = (source: string): string => {
         if (isTypeDecl && /=/.test(trimmed)) {
           const hasVarRef = /[a-zA-Z_]\w*/.test(trimmed.split('=').slice(1).join('='));
           if (hasVarRef) {
-            moveLines.push(line);
+            // File-scope helper functions (HLSL `static` globals pattern,
+            // e.g. `vec3 cloud(vec2) { ... sunpos ... }`) reference these
+            // names. Moving the whole declaration into main makes the name
+            // invisible to the helper → "'sunpos' : undeclared identifier".
+            // Split instead: keep a global declaration stub at the original
+            // position (`vec2 sunpos;`), and move only the initializer into
+            // main as an assignment (`sunpos = vec2(...);`). Globals are
+            // assignable from main, and helpers see the assigned value.
+            const stub = makeGlobalDeclStub(line);
+            if (stub) {
+              keepLines.push(stub);
+              moveLines.push(stripDeclTypeKeyword(line));
+            } else {
+              moveLines.push(line);
+            }
             continue;
           }
         }
@@ -680,6 +986,10 @@ const preprocess = (source: string): string => {
           // Main already has shader_body content → strip the wrapper braces and keyword
           // but keep the actual shader code
           finalAfterMain = afterMain.replace(/\bshader_body\s*\{/g, '').replace(/\}\s*fragColor/, 'fragColor');
+          // The file-scope code collected in moveLines (non-constant global
+          // initializers etc.) still has to run. Insert after main's preamble
+          // declarations (the moved code may use uv/ret/rad).
+          finalAfterMain = insertMovedCode(finalAfterMain, moveLines);
         } else {
           // Main is boilerplate-only → move pre-main shader_body content into it
           const bodyLines = mainBody.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
@@ -692,6 +1002,11 @@ const preprocess = (source: string): string => {
                 insertContent +
                 finalAfterMain.substring(fragColorIdx);
             }
+          } else {
+            // Main already contains real shader code (no shader_body wrapper).
+            // The collected file-scope code still has to run — insert after
+            // main's preamble declarations (it may use uv/ret/rad).
+            finalAfterMain = insertMovedCode(finalAfterMain, moveLines);
           }
         }
       }
@@ -910,12 +1225,82 @@ const collectIdentifier = (ast: Program): { assignments: Set<string>; assignment
  */
 const astTransform = (source: string): string => {
   let ast: Program;
+  let working = source;
   try {
-    ast = parse(source, { stage: 'fragment', quiet: true });
+    ast = parse(working, { stage: 'fragment', quiet: true });
   } catch (err) {
-    // If parsing fails, return the source as-is (caller will handle fallback)
-    console.warn('[MilkwaveGlslPatcher] AST parse failed, returning source as-is:', err);
-    return source;
+    // Some mashups have source corrupted mid-import: commas where statement
+    // semicolons belong (`ret += foo(x),\n`). If the parser died on exactly
+    // that, repair depth-0 trailing commas into semicolons and re-parse once.
+    if (String(err).includes("Expected \";\" but \",\" found")) {
+      working = repairTrailingCommas(working);
+      try {
+        ast = parse(working, { stage: 'fragment', quiet: true });
+      } catch (err2) {
+        console.warn('[MilkwaveGlslPatcher] AST parse failed, returning source as-is:', err2);
+        return source;
+      }
+    } else {
+      // If parsing fails, return the source as-is (caller will handle fallback)
+      console.warn('[MilkwaveGlslPatcher] AST parse failed, returning source as-is:', err);
+      return source;
+    }
+  }
+
+  // ── Pass 0: same-scope redeclaration dedupe ──
+  // Mashup presets can concatenate two shaders' global blocks, redeclaring
+  // a variable in one scope. Must run before any pass that reads
+  // declarations (collectDeclaredNames, typeMap).
+  dedupeSameScopeDeclarations(ast);
+
+  // ── Pass 0.1: variables shadowing same-named functions ──
+  // `float lum = lum(pic);` declares a local named lum that shadows the
+  // lum() helper — every later `lum(...)` call then fails with "function
+  // name expected" (GLSL and HLSL agree the variable wins). HLSL-era
+  // MilkDrop tolerated nothing here either, but the intent is obvious:
+  // keep the function, rename the variable. Renames all non-call
+  // references so downstream passes see a consistent name.
+  {
+    const shadowed = new Set<string>();
+    visit(ast, {
+      declarator_list: {
+        enter: (p) => {
+          for (const d of (p.node as DeclaratorListNode).declarations) {
+            const decl = d as DeclarationNode;
+            if (
+              decl.identifier &&
+              decl.initializer &&
+              (decl.initializer as any).type === 'function_call' &&
+              getFnName(decl.initializer as unknown as FunctionCallNode) === decl.identifier.identifier
+            ) {
+              shadowed.add(decl.identifier.identifier);
+              decl.identifier.identifier = decl.identifier.identifier + '_shadow';
+            }
+          }
+        },
+      },
+    });
+    if (shadowed.size > 0) {
+      // Function definition names are identifier nodes too — leave those.
+      const fnNameNodes = new Set<unknown>();
+      visit(ast, {
+        function: {
+          enter: (p) => {
+            fnNameNodes.add((p.node as FunctionNode).prototype.header.name);
+          },
+        },
+      });
+      visit(ast, {
+        identifier: {
+          enter: (p) => {
+            if (fnNameNodes.has(p.node)) return;
+            if (shadowed.has((p.node as IdentifierNode).identifier)) {
+              (p.node as IdentifierNode).identifier += '_shadow';
+            }
+          },
+        },
+      });
+    }
   }
 
   const declaredNames = collectDeclaredNames(ast);
@@ -925,6 +1310,11 @@ const astTransform = (source: string): string => {
   // This lets inferDim know the types of declared variables.
   const typeMap = new Map<string, number>();
   const matrixNames = new Set<string>();
+  const boolNames = new Set<string>();
+  // int-typed names (declarations and function params) — used to wrap int
+  // operands into float() when they mix with float expressions (the GLSL ES
+  // driver rejects implicit int→float even in `*`, unlike HLSL).
+  const intNames = new Set<string>();
   visit(ast, {
     declarator_list: {
       enter: (p) => {
@@ -940,13 +1330,17 @@ const astTransform = (source: string): string => {
           if (decl.identifier) {
             typeMap.set(decl.identifier.identifier, dim);
             if (isMat) matrixNames.add(decl.identifier.identifier);
+            if (kw === 'bool') boolNames.add(decl.identifier.identifier);
+            if (kw === 'int' || kw === 'uint') intNames.add(decl.identifier.identifier);
           }
         }
       },
     },
   });
 
-  // Also track function return types
+  // Also track function return types (and parameter dims for arg splat)
+  const userFnParams = new Map<string, number[]>();
+  const userFnIntParams = new Map<string, Set<number>>();
   visit(ast, {
     function: {
       enter: (p) => {
@@ -956,6 +1350,123 @@ const astTransform = (source: string): string => {
         const retKw = retSpec.type === 'keyword' ? retSpec.token : retSpec.type === 'type_name' ? retSpec.identifier : '';
         const dim = retKw === 'float' ? 1 : retKw === 'vec2' ? 2 : retKw === 'vec3' ? 3 : retKw === 'vec4' ? 4 : 0;
         if (name && dim > 0) typeMap.set(name, dim);
+        if (name) {
+          const collect = (): { dims: number[]; ints: Set<number> } => {
+            const dims: number[] = [];
+            const ints = new Set<number>();
+            (fn.prototype.parameters || []).forEach((param, i) => {
+              const pd = (param as unknown as { specifier?: { specifier?: { type?: string; token?: string } } }).specifier;
+              const kw = pd?.specifier?.type === 'keyword' ? pd.specifier.token ?? '' : '';
+              dims.push(kw === 'float' ? 1 : kw === 'vec2' ? 2 : kw === 'vec3' ? 3 : kw === 'vec4' ? 4 : kw === 'mat2' ? 4 : kw === 'mat3' ? 9 : kw === 'mat4' ? 16 : 0);
+              if (kw === 'int') {
+                ints.add(i);
+                const pname = (param as unknown as { identifier?: { identifier?: string } }).identifier?.identifier;
+                if (pname) intNames.add(pname);
+              }
+            });
+            return { dims, ints };
+          };
+          const sig = collect();
+          const prior = userFnParams.get(name);
+          // A name defined more than once with DIFFERENT params (overloaded
+          // clamp01/lum/multiply) has no single signature — mark ambiguous
+          // with [] and never arg-align it. Mashups duplicate identical
+          // definitions verbatim; those keep the (identical) signature.
+          if (prior !== undefined) {
+            if (prior.length !== sig.dims.length || prior.some((d, i) => d !== sig.dims[i])) {
+              userFnParams.set(name, []);
+              userFnIntParams.set(name, new Set());
+            }
+          } else {
+            userFnParams.set(name, sig.dims);
+            userFnIntParams.set(name, sig.ints);
+          }
+        }
+      },
+    },
+  });
+
+  // ── Pass 1.6: uAspect z/w swizzle expansion ──
+  // MilkDrop's `aspect` is a float4 (xy = scale, zw = the inverses) but the
+  // patcher header declares `uniform vec2 uAspect`. Presets legitimately
+  // write `uAspect.wz` / `uAspect.zw` — out-of-range on a vec2. Expand each
+  // component: x→uAspect.x, y→uAspect.y, z→(1.0/uAspect.x), w→(1.0/uAspect.y).
+  {
+    const mkGroup = (expr: AstNode): AstNode =>
+      ({ type: 'group', lp: mkLiteral('('), expression: expr, rp: mkLiteral(')') }) as unknown as AstNode;
+    const mkAspectComp = (ch: string): AstNode => {
+      const n = 'rgba'.includes(ch) ? 'xyzw'['rgba'.indexOf(ch)] : ch;
+      if (n === 'x' || n === 'y') return mkPostfixSwizzle(mkIdentifier('uAspect'), n) as unknown as AstNode;
+      const comp = n === 'z' ? 'x' : 'y';
+      return mkGroup(mkBinary(mkFloat('1.0', ' '), '/', mkPostfixSwizzle(mkIdentifier('uAspect'), comp) as unknown as AstNode));
+    };
+    visit(ast, {
+      postfix: {
+        enter: (p) => {
+          const pf = (p.node as PostfixNode).postfix;
+          if (!pf || pf.type !== 'field_selection') return;
+          const sel = pf as FieldSelectionNode;
+          // Multi-char swizzles lex as identifiers (`wz`), single chars as literals.
+          const swizzle = sel.selection.type === 'literal'
+            ? (sel.selection as LiteralNode).literal
+            : sel.selection.type === 'identifier' ? (sel.selection as unknown as IdentifierNode).identifier : '';
+          if (!/^[xyzwrgba]{1,4}$/.test(swizzle)) return;
+          const expr = (p.node as PostfixNode).expression;
+          if (!expr || expr.type !== 'identifier' || (expr as IdentifierNode).identifier !== 'uAspect') return;
+          const mapped = swizzle.split('').map((ch) => 'rgba'.includes(ch) ? 'xyzw'['rgba'.indexOf(ch)] : ch).join('');
+          if (!/[zw]/.test(mapped)) return; // .xy etc. is valid on the vec2
+          if (mapped.length === 1) {
+            p.replaceWith(mkAspectComp(mapped));
+          } else {
+            const args: AstNode[] = [];
+            for (const ch of mapped.split('')) {
+              if (args.length) args.push(mkLiteral(',') as unknown as AstNode);
+              args.push(mkAspectComp(ch));
+            }
+            p.replaceWith(mkFnCall(`vec${mapped.length}`, args) as unknown as AstNode);
+          }
+        },
+      },
+    });
+  }
+
+  // ── Pass 1.5: return-expression dimension alignment ──
+  // MilkDrop-era HLSL silently truncates a wider return expression to the
+  // declared type (float3 → float takes .x) and splats a scalar to the
+  // declared vector type. GLSL rejects both ("function return is not
+  // matching type"). Rewrite the return expression to the declared dim:
+  // wider → swizzle down, narrower scalar → vecN(expr).
+  visit(ast, {
+    function: {
+      enter: (p) => {
+        const fn = p.node as FunctionNode;
+        const retSpec = fn.prototype.header.returnType.specifier.specifier;
+        const retKw = retSpec.type === 'keyword' ? retSpec.token : '';
+        const retDim = retKw === 'float' ? 1 : retKw === 'vec2' ? 2 : retKw === 'vec3' ? 3 : retKw === 'vec4' ? 4 : 0;
+        if (retDim === 0) return; // void / unknown — leave alone
+        visit(fn, {
+          return_statement: {
+            enter: (rp) => {
+              const retStmt = rp.node as ReturnStatementNode;
+              if (!retStmt.expression) return;
+              const exprDim = inferDim(retStmt.expression as unknown as AstNode, typeMap);
+              if (exprDim <= 0 || exprDim === retDim) return;
+              if (exprDim > 4 || retDim > 4) return;
+              if (exprDim > retDim) {
+                (retStmt as any).expression = mkPostfixSwizzle(
+                  retStmt.expression as unknown as AstNode,
+                  'xyzw'.slice(0, retDim),
+                );
+              } else {
+                (retStmt as any).expression = mkFnCall(
+                  `vec${retDim}`,
+                  [retStmt.expression as unknown as AstNode],
+                  ' ',
+                ) as unknown as AstNode;
+              }
+            },
+          },
+        });
       },
     },
   });
@@ -1121,7 +1632,10 @@ const astTransform = (source: string): string => {
           const idx = 'xyzwrgba'.indexOf(ch) % 4;
           dim = Math.max(dim, idx + 1);
         }
-        if (swizzle.length >= 2) dim = Math.max(dim, 2);
+        // Any swizzle (even single-char `.x`) implies a vector — a float
+        // declaration makes the swizzle a field-selection error. Bare scalar
+        // uses of the same name stay legal (vec-scalar arithmetic broadcasts).
+        if (swizzle.length >= 1) dim = Math.max(dim, 2);
         const name = (expr as IdentifierNode).identifier;
         swizzleUsageDims.set(name, Math.max(swizzleUsageDims.get(name) ?? 0, dim));
       },
@@ -1181,6 +1695,19 @@ const astTransform = (source: string): string => {
       else if (dim === 3) inferredTypes.set(name, 'vec3');
       else if (dim === 4) inferredTypes.set(name, 'vec4');
       else inferredTypes.set(name, 'float');
+    }
+  }
+
+  // Seed typeMap with the injector's inferred types so dim-based passes
+  // (6 pow widening, 9 rebalancing, 10.5, 12 mix alignment, ...) agree with
+  // the declarations that will be injected post-generation. Without this,
+  // `pow(hue_shader, 8.0)` runs Pass 6 while hue_shader is still dim 0 and
+  // the widening never fires — then the injector declares it vec3 and the
+  // driver rejects pow(vec3, float).
+  for (const [name, type] of inferredTypes) {
+    if (!typeMap.has(name)) {
+      const d = type === 'vec2' ? 2 : type === 'vec3' ? 3 : type === 'vec4' ? 4 : 1;
+      typeMap.set(name, d);
     }
   }
 
@@ -1512,21 +2039,82 @@ const astTransform = (source: string): string => {
     if (node.type === 'identifier') return matrixNames.has((node as IdentifierNode).identifier);
     if (node.type === 'function_call') {
       const fn = getFnName(node as FunctionCallNode);
-      return fn === 'mat2' || fn === 'mat3' || fn === 'mat4';
+      return fn === 'mat2' || fn === 'mat3' || fn === 'mat4' || /^mat[234]x[234]$/.test(fn);
     }
     if (node.type === 'group') return isMatrixExpr((node as unknown as { expression: AstNode }).expression);
     return false;
   };
+
+  // Dim inference that understands mat*vec results: typeMap stores mat2 as
+  // 4 (conflated with vec4), so `(rot * uv) - vec4(0.5)` infers the left as
+  // 4 and Pass 9 misses the real vec2-vs-vec4 mismatch. A matN * vecK
+  // product has the VECTOR's dim (mat*mat keeps the left's).
+  const inferDimMatAware = (node: AstNode): number => {
+    if (node.type === 'group') return inferDimMatAware((node as unknown as { expression: AstNode }).expression);
+    if (node.type === 'unary') return inferDimMatAware((node as unknown as { expression: AstNode }).expression);
+    if (node.type === 'binary') {
+      const b = node as BinaryNode;
+      if (b.operator?.literal === '*') {
+        const lm = isMatrixExpr(b.left);
+        const rm = isMatrixExpr(b.right);
+        if (lm && !rm) {
+          const d = inferDim(b.right, typeMap);
+          return d >= 2 && d <= 4 ? d : inferDimMatAware(b.left);
+        }
+        if (rm && !lm) {
+          const d = inferDim(b.left, typeMap);
+          return d >= 2 && d <= 4 ? d : inferDimMatAware(b.right);
+        }
+        if (lm && rm) return inferDim(b.left, typeMap);
+      }
+      // Recurse so an outer op sees the dim AFTER inner rebalancing
+      // (`((rot*uv) - vec2(0.5)) + vec4(0.5)` — the inner fix shrank it).
+      return Math.max(inferDimMatAware(b.left), inferDimMatAware(b.right));
+    }
+    return inferDim(node, typeMap);
+  };
+
+  // ── Pass 8.9: multiply(mat, vec) → mat * vec ──
+  // Presets declare `multiply(vecN v, matN m)` helpers but CALL them with
+  // the arguments reversed (`rs = multiply(mat2(...), rs)`) — no overload
+  // matches in GLSL. The product is the same either way, so inline it.
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (name !== 'multiply') return;
+        const args = getArgs(p.node);
+        if (args.length !== 2) return;
+        if (!isMatrixExpr(args[0]) || isMatrixExpr(args[1])) return;
+        // Non-square: preprocess maps HLSL `float2x3` (2 ROWS) to GLSL
+        // `mat2x3` (2 COLUMNS), so the GLSL matrix is the transpose of the
+        // HLSL one — mul(M, v) = rows(M)·v = transpose(glMat) * v, which
+        // yields the vecR the HLSL preset expects.
+        const callName = args[0].type === 'function_call' ? getFnName(args[0] as FunctionCallNode) : '';
+        const nx = /^mat([234])x([234])$/.exec(callName);
+        if (nx && nx[1] !== nx[2]) {
+          const tr = mkFnCall('transpose', [args[0]], ' ') as unknown as AstNode;
+          p.replaceWith(mkBinary(tr, '*', args[1]) as unknown as AstNode);
+          return;
+        }
+        p.replaceWith(mkBinary(args[0], '*', args[1]) as unknown as AstNode);
+      },
+    },
+  });
   visit(ast, {
     binary: {
-      enter: (p: Path<BinaryNode>) => {
+      // Bottom-up: an outer `+` must see the dims AFTER its inner operands
+      // were rebalanced (e.g. `(vec2 + .1*float4) + .1*uTime` — the inner
+      // vec4 gets truncated to .xy, so the outer scalar widens to vec2,
+      // not vec4). Top-down would widen on the stale pre-truncation dim.
+      exit: (p: Path<BinaryNode>) => {
         const left = p.node.left;
         const right = p.node.right;
         const op = p.node.operator.literal;
         if (!['+', '-', '*', '/'].includes(op)) return;
 
-        const leftDim = inferDim(left, typeMap);
-        const rightDim = inferDim(right, typeMap);
+        const leftDim = inferDimMatAware(left);
+        const rightDim = inferDimMatAware(right);
         if (leftDim === 0 || rightDim === 0) return;
         // Skip matrix operands — mat*vec is valid GLSL. Only mat2 shares dim 4
         // with vec4; mat3/mat4 (9/16) are excluded below.
@@ -1622,8 +2210,19 @@ const astTransform = (source: string): string => {
         const sampler = args[0];
         if (sampler.type !== 'identifier') return;
         const coordDim = inferDim(args[1], typeMap);
-        if (coordDim <= 2) return;
         const allArgs = (p.node as FunctionCallNode).args;
+        if (coordDim === 1) {
+          // HLSL tex2D splats a scalar coord to float2 (`tex2D(s, n*0.074+q25)`);
+          // GLSL has no implicit scalar→vec2 for texture coords.
+          for (let i = 0; i < allArgs.length; i++) {
+            if (allArgs[i] === args[1]) {
+              allArgs[i] = mkFnCall('vec2', [args[1]], ' ') as unknown as AstNode;
+              break;
+            }
+          }
+          return;
+        }
+        if (coordDim <= 2) return;
         for (let i = 0; i < allArgs.length; i++) {
           if (allArgs[i] === args[1]) {
             allArgs[i] = mkPostfixSwizzle(args[1], 'xy') as unknown as AstNode;
@@ -1657,6 +2256,59 @@ const astTransform = (source: string): string => {
         for (let i = 0; i < allArgs.length; i++) {
           if (allArgs[i] === first) {
             allArgs[i] = mkFnCall('vec2', [first], ' ') as unknown as AstNode;
+            break;
+          }
+        }
+      },
+    },
+  });
+
+  // ── Pass 9.2: component-wise builtin arg dimension alignment ──
+  // `max(GetPixel(uv3), GetBlur1(uv3).xy)` — vec3 vs vec2 has no GLSL overload.
+  // HLSL's implicit float2→float3 conversion pads missing components with 0,
+  // so pad the narrower argument up to the wider one's dimension.
+  const componentwiseFns = new Set(['max', 'min', 'pow', 'mod', 'mix']);
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (!componentwiseFns.has(name)) return;
+        const args = getArgs(p.node);
+        // mix(a, b, t): only align the two value args; t is scalar-tolerant.
+        const alignArgs = name === 'mix' && args.length === 3 ? [args[0], args[1]] : args;
+        if (alignArgs.length !== 2) return;
+        const leftDim = inferDim(alignArgs[0], typeMap);
+        const rightDim = inferDim(alignArgs[1], typeMap);
+        // HLSL splats a scalar operand of component-wise fns (pow(2.0, ret),
+        // pow(hue_shader, ret)) — GLSL needs both sides the same dim.
+        if ((leftDim === 1 && rightDim >= 2) || (rightDim === 1 && leftDim >= 2)) {
+          const scalarIdx = leftDim === 1 ? 0 : 1;
+          const wideDim = Math.max(leftDim, rightDim);
+          const splat = mkFnCall(`vec${wideDim}`, [alignArgs[scalarIdx]], ' ') as unknown as AstNode;
+          const all = (p.node as FunctionCallNode).args;
+          for (let i = 0; i < all.length; i++) {
+            if (all[i] === alignArgs[scalarIdx]) {
+              all[i] = splat;
+              break;
+            }
+          }
+          return;
+        }
+        if (leftDim < 2 || rightDim < 2 || leftDim === rightDim) return;
+        if (isMatrixExpr(args[0]) || isMatrixExpr(args[1])) return;
+        // pad the NARROWER argument up to the wider dimension
+        const narrow = leftDim > rightDim ? 1 : 0;
+        const wideDim = Math.max(leftDim, rightDim);
+        const paddingArgs: AstNode[] = [args[narrow]];
+        for (let i = Math.min(leftDim, rightDim); i < wideDim; i++) {
+          paddingArgs.push(mkLiteral(',') as unknown as AstNode);
+          paddingArgs.push(mkFloat('0.0') as unknown as AstNode);
+        }
+        const padded = mkFnCall(`vec${wideDim}`, paddingArgs, ' ') as unknown as AstNode;
+        const allArgs = (p.node as FunctionCallNode).args;
+        for (let i = 0; i < allArgs.length; i++) {
+          if (allArgs[i] === args[narrow]) {
+            allArgs[i] = padded;
             break;
           }
         }
@@ -1761,8 +2413,68 @@ const astTransform = (source: string): string => {
         if (!decl.initializer) return;
 
         const initDim = inferDim(decl.initializer, typeMap);
+        // `float mask = (z <= 1);` — a scalar declaration whose initializer is
+        // a VECTOR comparison. Widening the type to vecN (below) poisons every
+        // later scalar use (`(1.0-mask)*vec3`); the HLSL semantic is a
+        // scalar bool→float, so collapse with any() instead.
+        const unwrapGroup = (n: AstNode): AstNode =>
+          n.type === 'group' ? unwrapGroup((n as unknown as { expression: AstNode }).expression) : n;
+        const isCmpExpr = (n: AstNode): boolean => {
+          const u = unwrapGroup(n);
+          return u.type === 'binary' && ['<', '>', '<=', '>=', '==', '!='].includes((u as BinaryNode).operator?.literal ?? '');
+        };
+        if (declaredDim === 1 && initDim >= 2 && isCmpExpr(decl.initializer as unknown as AstNode)) {
+          decl.initializer = mkFnCall('float', [
+            mkFnCall('any', [decl.initializer as unknown as AstNode], ' ') as unknown as AstNode,
+          ], ' ') as unknown as AstNode;
+          return;
+        }
         if (declaredDim === 1 && initDim >= 2) {
-          // float x = vec_expr → vecX x = vec_expr
+          // float x = vec_expr → vecX x = vec_expr — BUT only when a later
+          // use of x requires vector-ness (a translator artifact downgraded
+          // the declaration). Valid HLSL truncates on assignment
+          // (`float mod = sin(vec2)` keeps mod scalar, taking .x) and the
+          // variable is then used as a scalar. Detect the artifact via any
+          // swizzle beyond the first component on the variable.
+          const varName = decl.identifier.identifier;
+          let needsVector = false;
+          visit(ast, {
+            postfix: {
+              enter: (pp) => {
+                if (needsVector) return;
+                const pn = pp.node as PostfixNode;
+                const e = pn.expression;
+                if (!e || e.type !== 'identifier' || (e as IdentifierNode).identifier !== varName) return;
+                let cur: AstNode | undefined = pn.postfix as unknown as AstNode;
+                while (cur) {
+                  let fs: FieldSelectionNode | undefined;
+                  if (cur.type === 'field_selection') {
+                    fs = cur as FieldSelectionNode;
+                    cur = undefined;
+                  } else if (cur.type === 'postfix') {
+                    const inner = (cur as PostfixNode).expression;
+                    if (inner && inner.type === 'field_selection') fs = inner as FieldSelectionNode;
+                    cur = (cur as PostfixNode).postfix as unknown as AstNode;
+                  } else break;
+                  if (!fs) continue;
+                  const sw = fs.selection.type === 'literal'
+                    ? (fs.selection as LiteralNode).literal
+                    : fs.selection.type === 'identifier' ? (fs.selection as unknown as IdentifierNode).identifier : '';
+                  for (const ch of sw) {
+                    if ('xyzwrgba'.indexOf(ch) % 4 > 0) {
+                      needsVector = true;
+                      return;
+                    }
+                  }
+                }
+              },
+            },
+          });
+          if (!needsVector) {
+            // HLSL implicit truncation: keep the declaration scalar.
+            decl.initializer = mkPostfixSwizzle(decl.initializer as unknown as AstNode, 'x') as unknown as AstNode;
+            return;
+          }
           const newType = initDim === 2 ? 'vec2' : initDim === 3 ? 'vec3' : 'vec4';
           const spec = node.specified_type.specifier.specifier;
           if (spec.type === 'keyword') (spec as any).token = newType;
@@ -1778,6 +2490,14 @@ const astTransform = (source: string): string => {
           // type is preserved.
           const vecType = `vec${declaredDim}`;
           decl.initializer = mkFnCall(vecType, [decl.initializer as unknown as AstNode], ' ') as unknown as AstNode;
+        } else if (declaredDim >= 2 && initDim > declaredDim && !isMatrixExpr(decl.initializer as unknown as AstNode)) {
+          // vecN x = wider_expr → swizzle the initializer down. A narrow
+          // declaration silently truncates in MilkDrop/HLSL but is a
+          // `'=' : dimension mismatch` in GLSL (`vec2 tex = bl*ret.xyz`).
+          // Matrices swizzle differently (vecN(mat) constructors, separate
+          // family) — leave them to the mat passes.
+          const swizzle = declaredDim === 2 ? 'xy' : 'xyz';
+          decl.initializer = mkPostfixSwizzle(decl.initializer as unknown as AstNode, swizzle) as unknown as AstNode;
         }
       },
     },
@@ -1792,11 +2512,19 @@ const astTransform = (source: string): string => {
     assignment: {
       enter: (p) => {
         const op = (p.node as AssignmentNode).operator;
-        const isCompound = op.literal.endsWith('=');
+        // Plain `=` also ends with '=' — exclude it, or scalar→vecN
+        // assignments take the zero-padding path and emit
+        // `vec3(vec3_expr, 0.0, 0.0)` (too many constructor args) instead of
+        // the broadcast `vecN(scalar)` / pass-through the HLSL semantics use.
+        const isCompound = op.literal.length > 1 && op.literal.endsWith('=');
 
         const left = p.node.left;
         if (left.type !== 'identifier') return;
         const varName = (left as IdentifierNode).identifier;
+        // Matrix LHS: typeMap conflates mat2→4 with vec4, but padding/
+        // swizzling a matrix RHS against that dim produces vec4(mat2*4.0,...)
+        // garbage. Matrix assignments keep their own arithmetic.
+        if (matrixNames.has(varName)) return;
         let varDim = typeMap.get(varName) || 0;
 
         const right = p.node.right;
@@ -1804,6 +2532,9 @@ const astTransform = (source: string): string => {
         if (rightDim === 0 || rightDim === varDim) return;
 
         if (rightDim > varDim) {
+          // Swizzling a matrix down (`mat2_expr.xy`) is not valid GLSL field
+          // selection on matrices — leave these for the matrix passes.
+          if (isMatrixExpr(right)) return;
           // Swizzle down: vecX → smaller. Only do this when the LHS dimension is
           // KNOWN (>=1). When varDim is 0 the variable is undeclared (e.g. EEL
           // per-pixel vars like `ag = ang + 3.1415;` or `zm = -.45;`) and we
@@ -1855,12 +2586,19 @@ const astTransform = (source: string): string => {
           if (spec.type === 'keyword') (spec as any).token = 'vec4';
         }
 
-        // Convert integer literal initializers to float
+        // Convert integer literal initializers to float — including NESTED
+        // ones (`int mask = (c.y>0);` has the 0 inside a group/binary).
         for (const decl of node.declarations) {
           const d = decl as DeclarationNode;
-          if (d.initializer && d.initializer.type === 'int_constant') {
-            (d.initializer as any).type = 'float_constant';
-            (d.initializer as any).token = ((d.initializer as any).token || '0') + '.0';
+          if (d.initializer) {
+            visit(d.initializer as unknown as AstNode, {
+              int_constant: {
+                enter: (ip) => {
+                  (ip.node as any).type = 'float_constant';
+                  (ip.node as any).token = ((ip.node as any).token || '0') + '.0';
+                },
+              },
+            });
           }
           // Update typeMap
           if (d.identifier) {
@@ -1891,11 +2629,15 @@ const astTransform = (source: string): string => {
     const parent = p.parentPath?.node as any;
     if (!parent) return false;
     if (conditionStatementTypes.has(parent.type)) return true;
+    // A bare ternary condition: `a >= b ? x : y`.
+    if (parent.type === 'ternary') return parent.expression === p.node;
     // `(a >= b)` in a condition parses the binary under a group node whose
-    // parent is the statement.
+    // parent is the statement (or the ternary's condition slot).
     if (parent.type === 'group') {
       const grand = p.parentPath?.parentPath?.node as any;
-      return Boolean(grand && conditionStatementTypes.has(grand.type));
+      if (grand && conditionStatementTypes.has(grand.type)) return true;
+      if (grand && grand.type === 'ternary' && grand.expression === parent) return true;
+      return false;
     }
     return false;
   };
@@ -1936,13 +2678,261 @@ const astTransform = (source: string): string => {
         if (rightDim === 1 && dim > 1) right = mkFnCall(`vec${dim}`, [right], ' ') as unknown as AstNode;
 
         const cmp = mkFnCall(CMP_FNS[op], [left, mkLiteral(',') as unknown as AstNode, right], ' ') as unknown as FunctionCallNode;
-        const replacement = isInConditionSlot(p)
-          ? mkFnCall('any', [cmp as unknown as AstNode, ], ' ')
-          : mkFnCall(`vec${dim}`, [cmp as unknown as AstNode], ' ');
+        // Already inside `any(...)` (e.g. Pass 10's scalar-decl collapse
+        // emitted `float mask = any((z <= 1))`): the bare comparison is the
+        // correct replacement — wrapping again would nest any(any(...)) or
+        // any(vec2(lessThan(...))).
+        const inAnyCall = (() => {
+          let ctx: Path<any> | undefined = p.parentPath;
+          while (ctx && ctx.node.type === 'group') ctx = ctx.parentPath;
+          const parent = ctx?.node as any;
+          return parent?.type === 'function_call' && getFnName(parent as FunctionCallNode) === 'any';
+        })();
+        const replacement = inAnyCall
+          ? (cmp as unknown as AstNode)
+          : isInConditionSlot(p)
+            ? mkFnCall('any', [cmp as unknown as AstNode, ], ' ')
+            : mkFnCall(`vec${dim}`, [cmp as unknown as AstNode], ' ');
         replaceInParent(p, replacement as unknown as AstNode);
       },
     },
   });
+
+  // ── Pass 10.75: bools in arithmetic / float slots ──
+  // HLSL implicitly converts bool→float (0.0/1.0) in arithmetic
+  // (`vec3 * mask`, `(a > b) * c`) and in float assignments/declarations.
+  // GLSL has no such conversion — wrap the bool operand in `float(...)`,
+  // which then broadcasts against vectors naturally.
+  const isBoolExpr = (node: AstNode | undefined | null): boolean => {
+    if (!node) return false;
+    if (node.type === 'identifier') return boolNames.has((node as IdentifierNode).identifier);
+    if (node.type === 'binary') {
+      const op = (node as BinaryNode).operator?.literal;
+      return typeof op === 'string' && ['<', '>', '<=', '>=', '==', '!=', '&&', '||', '^^'].includes(op);
+    }
+    if (node.type === 'group') return isBoolExpr((node as unknown as { expression?: AstNode }).expression);
+    return false;
+  };
+  visit(ast, {
+    binary: {
+      enter: (p) => {
+        const op = p.node.operator.literal;
+        if (!['+', '-', '*', '/', '%'].includes(op)) return;
+        for (const side of ['left', 'right'] as const) {
+          const operand = p.node[side];
+          if (operand && isBoolExpr(operand)) {
+            (p.node as unknown as Record<string, unknown>)[side] =
+              mkFnCall('float', [operand], ' ') as unknown as AstNode;
+          }
+        }
+      },
+    },
+  });
+  // The mirror case for logical operators: `(tube>0) || dotmask` passes a
+  // float into `||` — HLSL converts float→bool (nonzero = true) implicitly.
+  // GLSL has no such conversion; bool(x) is the explicit form.
+  visit(ast, {
+    binary: {
+      enter: (p) => {
+        const op = p.node.operator.literal;
+        if (!['&&', '||', '^^'].includes(op)) return;
+        for (const side of ['left', 'right'] as const) {
+          const operand = p.node[side];
+          if (operand && !isBoolExpr(operand) && inferDim(operand, typeMap) === 1) {
+            (p.node as unknown as Record<string, unknown>)[side] =
+              mkFnCall('bool', [operand], ' ') as unknown as AstNode;
+          }
+        }
+      },
+    },
+  });
+  visit(ast, {
+    declarator_list: {
+      enter: (p) => {
+        if (getTypeKeyword(p.node) !== 'float') return;
+        for (const d of (p.node as DeclaratorListNode).declarations) {
+          const decl = d as DeclarationNode;
+          if (decl.initializer && isBoolExpr(decl.initializer as unknown as AstNode)) {
+            decl.initializer = mkFnCall('float', [decl.initializer as unknown as AstNode], ' ') as unknown as AstNode;
+          }
+        }
+      },
+    },
+    assignment: {
+      enter: (p) => {
+        const node = p.node as unknown as {
+          left?: AstNode;
+          right?: AstNode;
+          operator?: { literal?: string };
+        };
+        const isCompound = node.operator?.literal && node.operator.literal !== '=';
+        const leftName = node.left?.type === 'identifier' ? (node.left as IdentifierNode).identifier : null;
+        if (!leftName) return;
+        if (!isCompound && typeMap.get(leftName) !== 1) return;
+        if (isCompound && typeMap.get(leftName) !== 1) return;
+        if (node.right && isBoolExpr(node.right)) {
+          node.right = mkFnCall('float', [node.right], ' ') as unknown as AstNode;
+        }
+      },
+    },
+  });
+
+  // ── Pass 10.76: assignment dimension truncation / splat ──
+  // HLSL silently truncates a wider RHS to the LHS type (`float d = vec3;`
+  // takes .x) and splats a scalar RHS to a vector LHS. GLSL rejects both
+  // ("'=' : dimension mismatch"). Plain '=' only — compound ops are
+  // component-wise and never change width.
+  visit(ast, {
+    assignment: {
+      enter: (p) => {
+        const node = p.node as unknown as {
+          left?: AstNode;
+          right?: AstNode;
+          operator?: { literal?: string };
+        };
+        // Compound ops (`+=`) are component-wise for matching dims, but a
+        // mismatched RHS is still truncated/splated by HLSL — handle both.
+        const op = node.operator?.literal ?? '=';
+        if (!/^[+\-*/%]=$|^=$/.test(op)) return;
+        if (!node.left || !node.right) return;
+        const lhsDim = inferDim(node.left, typeMap);
+        if (lhsDim < 1 || lhsDim > 4) return;
+        const leftName = node.left.type === 'identifier' ? (node.left as IdentifierNode).identifier : null;
+        if (leftName && matrixNames.has(leftName)) return;
+        // bool RHS to a float/vector LHS: float() first, then splat. A bool
+        // LHS keeps the bool RHS as-is.
+        if (leftName && boolNames.has(leftName)) return;
+        if (isBoolExpr(node.right)) {
+          node.right = mkFnCall('float', [node.right], ' ') as unknown as AstNode;
+        }
+        if (isMatrixExpr(node.right)) return;
+        const rhsDim = inferDim(node.right, typeMap);
+        if (rhsDim === lhsDim || rhsDim < 1 || rhsDim > 4) return;
+        if (rhsDim > lhsDim) {
+          // truncate: vec → narrower per HLSL implicit truncation
+          node.right = mkPostfixSwizzle(node.right, 'xyzw'.slice(0, lhsDim)) as unknown as AstNode;
+        } else {
+          // splat scalar up to the LHS dim
+          node.right = mkFnCall(`vec${lhsDim}`, [node.right], ' ') as unknown as AstNode;
+        }
+      },
+    },
+  });
+
+  // ── Pass 10.77: bool function arguments → float(...) ──
+  // `sat((a > b) * c)`-style call sites pass comparison results into
+  // float-expecting functions; HLSL converts bool→float implicitly, GLSL
+  // doesn't. Boolean builtins (any/all/not/comparators) are excluded.
+  const boolArgExemptFns = new Set([
+    'any', 'all', 'not', 'equal', 'notEqual', 'lessThan', 'lessThanEqual',
+    'greaterThan', 'greaterThanEqual',
+  ]);
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (boolArgExemptFns.has(name)) return;
+        // Skip our own float(...)/bool(...) wraps — re-visiting them would
+        // wrap the bool again, one nesting level per visit (stack overflow).
+        if (name === 'float' || name === 'bool') return;
+        const allArgs = (p.node as FunctionCallNode).args;
+        for (let i = 0; i < allArgs.length; i++) {
+          const arg = allArgs[i];
+          if (arg && isBoolExpr(arg)) {
+            allArgs[i] = mkFnCall('float', [arg], ' ') as unknown as AstNode;
+          }
+        }
+      },
+    },
+  });
+
+  // ── Pass 10.78: user-function argument dimension alignment ──
+  // HLSL implicitly splats scalar args to vector params (`pwnoise(uv.x, t)`
+  // with `float pwnoise(vec2, float)`) and truncates wider args. GLSL does
+  // neither. Runs after 10.77 so bool args are already float-wrapped.
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        const paramDims = userFnParams.get(name);
+        if (!paramDims || paramDims.length === 0) return;
+        const args = getArgs(p.node);
+        const intParams = userFnIntParams.get(name) ?? new Set<number>();
+        const allArgs = (p.node as FunctionCallNode).args;
+        for (let i = 0; i < args.length && i < paramDims.length; i++) {
+          const pd = paramDims[i];
+          const arg = args[i];
+          // HLSL converts float→int implicitly for int params; GLSL needs an
+          // explicit int(...) constructor.
+          if (intParams.has(i) && arg.type !== 'int_constant' && inferDim(arg, typeMap) === 1) {
+            const idx = allArgs.indexOf(arg);
+            if (idx !== -1) allArgs[idx] = mkFnCall('int', [arg], ' ') as unknown as AstNode;
+            continue;
+          }
+          if (pd < 1 || pd > 4) continue;
+          const argDim = inferDim(arg, typeMap);
+          if (argDim === pd) continue;
+          if (argDim === 1) {
+            // splat scalar up to the param dim
+            const padded = mkFnCall(`vec${pd}`, [arg], ' ') as unknown as AstNode;
+            const idx = allArgs.indexOf(arg);
+            if (idx !== -1) allArgs[idx] = padded;
+          } else if (argDim > pd) {
+            // truncate wider arg down to the param dim
+            const narrowed = mkPostfixSwizzle(arg, 'xyzw'.slice(0, pd)) as unknown as AstNode;
+            const idx = allArgs.indexOf(arg);
+            if (idx !== -1) allArgs[idx] = narrowed;
+          }
+        }
+      },
+    },
+  });
+
+  // ── Pass 10.79: int operands in float expressions → float(...) ──
+  // `polar.x * fins` (fins an `int` param) compiles in HLSL (implicit
+  // int→float) but not on this GLSL ES driver. Wrap the int side when the
+  // other side is confidently float. int↔int stays int (loop counters);
+  // int constants were already float-ified by Pass 1 outside int contexts.
+  {
+    const isFloatSide = (node: AstNode | undefined | null): boolean => {
+      if (!node) return false;
+      if (node.type === 'float_constant' || node.type === 'double_constant') return true;
+      if (node.type === 'int_constant') return false;
+      if (node.type === 'identifier') {
+        const n = (node as IdentifierNode).identifier;
+        return typeMap.get(n) === 1 && !intNames.has(n);
+      }
+      if (node.type === 'function_call') return inferDim(node, typeMap) === 1;
+      if (node.type === 'postfix' || node.type === 'group' || node.type === 'unary' || node.type === 'binary') {
+        return inferDim(node, typeMap) === 1;
+      }
+      return false;
+    };
+    const isIntSide = (node: AstNode | undefined | null): boolean => {
+      if (!node) return false;
+      if (node.type === 'identifier') return intNames.has((node as IdentifierNode).identifier);
+      if (node.type === 'postfix') {
+        const pf = (node as PostfixNode).expression;
+        return pf?.type === 'identifier' ? intNames.has((pf as IdentifierNode).identifier) : false;
+      }
+      return false;
+    };
+    visit(ast, {
+      binary: {
+        enter: (p) => {
+          const op = p.node.operator.literal;
+          if (!['+', '-', '*', '/', '%', '<', '>', '<=', '>=', '==', '!='].includes(op)) return;
+          for (const side of ['left', 'right'] as const) {
+            const other = side === 'left' ? p.node.right : p.node.left;
+            if (isIntSide(p.node[side]) && isFloatSide(other)) {
+              (p.node as unknown as Record<string, unknown>)[side] =
+                mkFnCall('float', [p.node[side]], ' ') as unknown as AstNode;
+            }
+          }
+        },
+      },
+    });
+  }
 
   // ── Pass 10.8: swizzles on scalar variables ──
   // The offline translator sometimes emits `.xyz`/`.xy`/`.x` on identifiers
@@ -1976,13 +2966,13 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 10.9: swizzles on scalar function results ──
-  // Same family as 10.8 but for function calls: the offline translator emits
-  // `.xyz` on scalar results (`lum(a).xyz`). Unlike the old post-gen strip,
-  // this is dimension-aware via inferDim — component-wise functions (fract,
-  // floor, sin, abs, mix, ...) legitimately return vectors and their
-  // swizzles must SURVIVE. Stripping those recreates `'=' : dimension
-  // mismatch` errors on valid code like `uv2 = fract(vec3_expr).xy`.
+  // ── Pass 10.9: swizzles on scalar expressions ──
+  // Same family as 10.8 but for non-identifier bases: the offline translator
+  // emits `.xyz` on scalar results (`lum(a).xyz`, `(a - b).r`). Unlike the
+  // old post-gen strip, this is dimension-aware via inferDim — component-wise
+  // functions (fract, floor, sin, abs, mix, ...) legitimately return vectors
+  // and their swizzles must SURVIVE. Stripping those recreates `'=' :
+  // dimension mismatch` errors on valid code like `uv2 = fract(vec3_expr).xy`.
   visit(ast, {
     postfix: {
       enter: (p) => {
@@ -1994,10 +2984,71 @@ const astTransform = (source: string): string => {
           : sel.type === 'identifier' ? (sel as unknown as IdentifierNode).identifier : '';
         if (!/^[xyzwrgba]+$/.test(swizzle)) return;
         const expr = (p.node as PostfixNode).expression;
-        if (expr.type !== 'function_call') return;
+        // Identifiers are Pass 10.8's job; anything else that confidently
+        // infers scalar (binary of scalar calls, groups of those, ...) is
+        // HLSL scalar-swizzle replication — drop the postfix.
+        if (expr.type === 'identifier') return;
         // Unknown dim (undeclared args) — leave for the post-gen safety net.
         if (inferDim(expr, typeMap) !== 1) return;
         p.replaceWith(expr as unknown as AstNode);
+      },
+    },
+  });
+
+  // ── Pass 10.95: out-of-range swizzle letters → clamp to base dim ──
+  // Corrupted-source presets chain swizzles (`GetBlur1(uvm).xy.zzz` — a
+  // vec2 base with .zzz). Even HLSL rejects these; MilkDrop fell back to a
+  // simpler preset. Clamp each letter to the base's last component so the
+  // shader still compiles and shows something (slightly-wrong-but-rendering
+  // beats fallback). Chained selections nest as a linked list
+  // (postfix.postfix = {type:'postfix', expression: field_selection, ...}),
+  // so walk the chain, shrinking the available dim after each selection.
+  const clampSelection = (fs: FieldSelectionNode, dim: number): number => {
+    const swizzle = fs.selection.type === 'literal'
+      ? (fs.selection as LiteralNode).literal
+      : fs.selection.type === 'identifier' ? (fs.selection as unknown as IdentifierNode).identifier : '';
+    if (!/^[xyzwrgba]{1,4}$/.test(swizzle)) return 0; // struct member / unknown
+    if (dim === 2 || dim === 3) {
+      const chars = 'xyzwrgba';
+      let changed = false;
+      const fixed = swizzle.split('').map((ch) => {
+        const idx = chars.indexOf(ch) % 4;
+        if (idx >= dim) {
+          changed = true;
+          return chars[dim - 1];
+        }
+        return ch;
+      }).join('');
+      if (changed) {
+        (fs.selection as unknown as Record<string, unknown>).type = 'literal';
+        (fs.selection as unknown as Record<string, unknown>).literal = fixed;
+        (fs.selection as unknown as Record<string, unknown>).whitespace = '';
+      }
+    }
+    return swizzle.length;
+  };
+  visit(ast, {
+    postfix: {
+      enter: (p) => {
+        const node = p.node as PostfixNode;
+        const expr = node.expression;
+        if (expr.type === 'identifier') return; // 10.8's job; declarations may be widened later
+        let dim = inferDim(expr, typeMap);
+        let pf: AstNode | undefined = node.postfix as unknown as AstNode;
+        while (pf) {
+          if (pf.type === 'postfix') {
+            const fs = (pf as PostfixNode).expression;
+            if (!fs || fs.type !== 'field_selection') return;
+            dim = clampSelection(fs as FieldSelectionNode, dim);
+            pf = (pf as PostfixNode).postfix as unknown as AstNode;
+          } else if (pf.type === 'field_selection') {
+            dim = clampSelection(pf as FieldSelectionNode, dim);
+            pf = undefined;
+          } else {
+            return; // array access / quantifier — leave the rest untouched
+          }
+          if (dim === 0) return;
+        }
       },
     },
   });
@@ -2092,22 +3143,30 @@ const astTransform = (source: string): string => {
             return mkFnCall(`vec${targetDim}`, [arg], ' ') as unknown as AstNode;
           }
 
-          // Otherwise swizzle down
-          const swizzle = targetDim === 1 ? 'x' : targetDim === 2 ? 'xy' : 'xyz';
+          // Otherwise swizzle down (all four widths reachable — the old
+          // ternary fell through to 'xyz' for vec4, leaving the mismatch)
+          const swizzle = targetDim === 1 ? 'x' : targetDim === 2 ? 'xy' : targetDim === 3 ? 'xyz' : 'xyzw';
           return mkPostfixSwizzle(arg, swizzle) as unknown as AstNode;
         };
 
-        // Handle case where arg0 and arg1 have mismatching dimensions
+        // Handle case where arg0 and arg1 have mismatching dimensions.
+        // Two vectors (both >= 2): narrow the wider to the narrower — the
+        // result feeds the same expression that produced the vecN, and
+        // widening a vecN to vecM has no single-operand GLSL form (the old
+        // code "widened" by swizzling down, producing `ret.xyz.xyz` and
+        // leaving mix(vec3, vec4, float) unmatched). Scalar vs vector: widen
+        // the scalar via constructor.
         if (firstDim !== secondDim && firstDim > 0 && secondDim > 0) {
-          const maxDim = Math.max(firstDim, secondDim);
+          const vecToVec = firstDim >= 2 && secondDim >= 2;
+          const targetDim = vecToVec ? Math.min(firstDim, secondDim) : Math.max(firstDim, secondDim);
           const allArgs = p.node.args;
           for (let i = 0; i < allArgs.length; i++) {
-            if (allArgs[i] === args[0] && firstDim < maxDim) {
-              allArgs[i] = fixDim(args[0], maxDim);
+            if (allArgs[i] === args[0] && firstDim !== targetDim) {
+              allArgs[i] = fixDim(args[0], targetDim);
               break;
             }
-            if (allArgs[i] === args[1] && secondDim < maxDim) {
-              allArgs[i] = fixDim(args[1], maxDim);
+            if (allArgs[i] === args[1] && secondDim !== targetDim) {
+              allArgs[i] = fixDim(args[1], targetDim);
               break;
             }
           }
@@ -2564,9 +3623,22 @@ const injectMissingHelpers = (source: string): string => {
 
   const additions: string[] = [];
 
-  if (/\blum\s*\(/.test(source) && !beforeMain.includes('float lum(')) {
-    additions.push('float lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }');
-    additions.push('float lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }');
+  if (/\blum\s*\(/.test(source)) {
+    // Per-signature: the preset may already define some lum() overloads
+    // (MilkDrop shaders commonly ship lum(vec3)/lum(vec4)) but call it with
+    // a vec2/float — fill in only the missing signatures.
+    if (!beforeMain.includes('float lum(float')) {
+      additions.push('float lum(float x) { return x; }');
+    }
+    if (!beforeMain.includes('float lum(vec2')) {
+      additions.push('float lum(vec2 x) { return dot(x, vec2(0.5)); }');
+    }
+    if (!beforeMain.includes('float lum(vec3')) {
+      additions.push('float lum(vec3 x) { return dot(x, vec3(0.32, 0.49, 0.29)); }');
+    }
+    if (!beforeMain.includes('float lum(vec4')) {
+      additions.push('float lum(vec4 x) { return dot(x.rgb, vec3(0.32, 0.49, 0.29)); }');
+    }
   }
   if (/\bsat\s*\(/.test(source) && !beforeMain.includes('float sat(')) {
     additions.push('float sat(float x) { return clamp(x, 0.0, 1.0); }');

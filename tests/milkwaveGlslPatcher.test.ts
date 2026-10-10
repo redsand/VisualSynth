@@ -884,3 +884,116 @@ describe('patchMilkDropGlsl – corpus (post-patch diagnostics)', () => {
     }
   });
 });
+
+// ── Session: tier-2 compile-family fixes (batch-9221 probe loop) ──────────
+
+describe('patchMilkDropGlsl – tier-2 compile families', () => {
+  it('clamps out-of-range swizzle letters on chained selections (.xy.zzz → .xy.yyy)', () => {
+    const src = '#version 300 es\n' +
+      'vec3 GetBlur1(vec2 uv) { return vec3(0.0); }\n' +
+      'void main() {\n  vec2 uv = vec2(0.0);\n' +
+      '  vec2 uv3 = (uv-.5)*(1.0 - GetBlur1(uv).xy.zzz)+.5;\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/\.xy\.yyy/);
+    expect(out).not.toMatch(/\.xy\.zzz/);
+  });
+
+  it('splats scalar operands of pow to the vector dimension (pow(2.0, vec3))', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec3 v = vec3(1.0);\n  v = pow(2.0, v);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/pow\( *vec3\(/);
+  });
+
+  it('rewrites vector ternary conditions to any(lessThan(...))', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec2 uv = vec2(0.0);\n  vec2 mirrorized = vec2(0.0);\n' +
+      '  mirrorized = (uv < 0.5) ? uv * 2.0 : (vec2(1.0) - uv) * 2.0;\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/any\(lessThan\(/);
+    expect(out).not.toMatch(/vec2\(lessThan\(/);
+  });
+
+  it('collapses float x = (vector comparison) to float(any(...)) instead of widening', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec2 zz = vec2(0.0);\n  float mask = (zz <= 1);\n' +
+      '  vec3 ret = vec3(0.0);\n  ret = (1.0 - mask) * ret;\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/float mask = float\( *any\(/);
+    expect(out).toMatch(/lessThanEqual/);
+    expect(out).not.toMatch(/vec2 mask/);
+  });
+
+  it('inlines reversed multiply(mat, vec) calls as mat * vec', () => {
+    const src = '#version 300 es\n' +
+      'vec2 multiply(vec2 v, mat2 m) { return m * v; }\n' +
+      'void main() {\n  vec2 rs = vec2(0.0);\n' +
+      '  rs = multiply(mat2(1.0,2.0,-2.0,1.0), rs);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).not.toMatch(/rs = multiply\(/);
+    expect(out).toMatch(/mat2\(1\.0, ?2\.0, ?-2\.0, ?1\.0\) *\* ?rs/);
+  });
+
+  it('transposes non-square multiply(mat2x3, vec3) so the product is a vec2', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec3 tss = vec3(1.0);\n  vec3 tt = vec3(2.0);\n  vec3 vv = vec3(3.0);\n' +
+      '  vec2 w = multiply(mat2x3(tss, tt), vv);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/transpose\(mat2x3/);
+    expect(out).toMatch(/\* *vv/);
+  });
+
+  it('truncates float x = vec_expr to .x when the variable is only used as a scalar', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec2 uvp = vec2(0.5);\n  float mm = sin(uvp * 0.3);\n' +
+      '  vec3 ret = vec3(mm);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/float mm = sin\(uvp \* 0\.3\)\.x/);
+    expect(out).not.toMatch(/vec2 mm/);
+  });
+
+  it('still widens float x = vec_expr when a later swizzle needs vector-ness', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec2 uvp = vec2(0.5);\n  float zz = sin(uvp * 0.3);\n' +
+      '  vec3 ret = vec3(zz.y, 0.0, 0.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/vec2 zz/);
+  });
+
+  it('rewrites HLSL brace matrix initializers to constructors', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n' +
+      'mat2 rot = { cos(-0.5) - 0.01, sin(-0.5),\n' +
+      '-sin(-0.5), cos(-0.5) - 0.01\n' +
+      '};\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/mat2 rot = mat2\(/);
+    expect(out).not.toMatch(/= \{/);
+  });
+
+  it('broadcasts scalars on plain = assignments instead of zero-padding (vec3(x,0,0))', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec3 rad1 = vec3(0.0);\n  rad1 = sqrt(2.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/rad1 = vec3\(sqrt\(2\.0\)\)/);
+    expect(out).not.toMatch(/vec3\(sqrt\(2\.0\), *0\.0/);
+  });
+
+  it('widens outer scalars against post-truncation dims (bottom-up Pass 9)', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  vec4 c8 = vec4(1.0);\n  float tt = 1.0;\n' +
+      '  vec2 rr = vec2(0.0);\n  rr = rr * 0.25 + 0.1 * c8 + 0.1 * tt;\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/vec2\(\(?0\.1 \* tt\)?\)/);
+    expect(out).not.toMatch(/vec4\(\(?0\.1 \* tt\)?\)/);
+  });
+
+  it('infers mat2*vec2 products as vec2 so vec4 operands get truncated', () => {
+    const src = '#version 300 es\n' +
+      'void main() {\n  mat2 rot = mat2(1.0, 0.0, 0.0, 1.0);\n  vec2 uvp = vec2(0.0);\n' +
+      '  vec2 w = ((rot * uvp - vec4(0.5)) + vec4(0.5)).xy;\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).not.toMatch(/\+ vec4\(0\.5\)\)/);
+    expect(out).toMatch(/vec4\(0\.5\)\.xy/);
+  });
+});

@@ -608,7 +608,20 @@ const main = async () => {
   let targetPresets;
   let resumeIndex = 0;
 
-  if (fromReports) {
+  const presetListFile = readArg('--preset-list', null);
+  if (presetListFile) {
+    // Explicit preset list (one filename per line) — used to re-test the
+    // subset affected by a specific patcher fix.
+    const listed = fs.readFileSync(presetListFile, 'utf8').split('\n').map(l => l.trim()).filter(Boolean);
+    targetPresets = listed.filter(f => allPresets.includes(f));
+    const missing = listed.length - targetPresets.length;
+    if (missing > 0) console.warn(`${missing} listed presets not in library — skipping`);
+    if (targetPresets.length === 0) {
+      console.error('No valid presets in list.');
+      process.exit(1);
+    }
+    console.log(`Testing ${targetPresets.length} presets from ${presetListFile}`);
+  } else if (fromReports) {
     const failing = collectFailingFromReports();
     targetPresets = failing.filter(f => allPresets.includes(f));
     const missing = failing.length - targetPresets.length;
