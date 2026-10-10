@@ -34,6 +34,7 @@
     "presets:audit-milkwave:focus": "ts-node scripts/auditMilkwave.ts --focus",
     "presets:audit-milkwave:target": "ts-node scripts/auditMilkwave.ts --preset target",
     "presets:certify-milkwave": "ts-node scripts/certifyMilkwavePresets.ts",
+    "presets:certify-batch": "ts-node scripts/applyBatchCertification.ts",
     "showcase:generate": "ts-node scripts/generate-non-milkwave-showcase.ts",
     "visual-regression:v1": "node scripts/compare-v1-visuals.js",
     "visual-regression:v1:prepare": "node scripts/compare-v1-visuals.js --prepare-only",
