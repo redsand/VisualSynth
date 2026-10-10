@@ -40,6 +40,11 @@ const explicitReports = (): string[] => {
   const files: string[] = [];
   for (let i = 0; i < process.argv.length - 1; i++) {
     if (process.argv[i] === '--report') files.push(path.resolve(process.argv[i + 1]));
+    if (process.argv[i] === '--report-list') {
+      const listFile = process.argv[i + 1];
+      const lines = fs.readFileSync(listFile, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+      for (const l of lines) files.push(path.resolve(l));
+    }
   }
   return files;
 };
