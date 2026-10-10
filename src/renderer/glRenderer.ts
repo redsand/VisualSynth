@@ -38,7 +38,7 @@ export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
 };
 
 export interface RendererOptions {
-  onError?: (error: string, type: 'vertex' | 'fragment' | 'link') => void;
+  onError?: (error: string, type: 'vertex' | 'fragment' | 'link' | 'shapes' | 'waves') => void;
 }
 
 export interface RenderDebugSnapshot {

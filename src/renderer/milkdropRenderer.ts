@@ -57,7 +57,7 @@ export const deriveMilkDropSeedColor = (
 
 export interface MilkDropRendererOptions {
   canvas: HTMLCanvasElement;
-  onError?: (error: string, type: 'vertex' | 'fragment' | 'link') => void;
+  onError?: (error: string, type: 'vertex' | 'fragment' | 'link' | 'shapes' | 'waves') => void;
 }
 
 export interface MilkDropVariables {
@@ -166,6 +166,16 @@ const transpileEelExpr = (s: string): string => {
   }
   return out;
 };
+
+// Reserved JS words + transpiler artifacts that appear in transpiled EEL but
+// must never be declared as preset variables (see the undeclared-read fix in
+// executePerFrameCode).
+const EEL_JS_RESERVED = new Set([
+  'for', 'let', 'const', 'var', 'return', 'if', 'else', 'new', 'true', 'false',
+  'null', 'undefined', 'void', 'typeof', 'while', 'do', 'break', 'continue',
+  'function', 'this', '__ctx', '__i', 'trunc', 'Math', 'Number', 'Boolean',
+  'Object', 'String', 'Infinity', 'NaN'
+]);
 
 const transpileEelLine = (line: string): string => {
   let l = line.trim();
@@ -1320,6 +1330,10 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       below: (a: number, b: number) => a < b ? 1 : 0,
       equal: (a: number, b: number) => a === b ? 1 : 0,
       if_milk: (cond: number, a: number, b: number) => cond ? a : b,
+      // transpileEelExpr emits bool(cond) for EEL if(a,b,c) — GLSL coerces the
+      // float condition, so the JS path needs the same helper or every
+      // if()-using per-frame block dies on `bool is not defined`.
+      bool: (v: number | boolean) => Boolean(v) ? 1 : 0,
       max: Math.max,
       min: Math.min,
       sin: Math.sin,
@@ -1365,6 +1379,19 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         .filter(line => line.trim() && !line.trim().startsWith('//'))
         .map(transpileEelLine)
         .join('\n');
+
+      // EEL semantics: reading a variable nobody initialized yields 0 — NOT a
+      // ReferenceError. Presets routinely use custom vars (mtime, vol, …) that
+      // their init code never declared (1116/mashup family: `mtime=mtime+…`
+      // with no `mtime=0` anywhere). One undeclared read used to abort the
+      // whole per-frame block, leaving every q-var pinned at 0 → audio-reactive
+      // shapes collapse → black output. Pre-declare unknown identifiers as 0.
+      const identifiers = allLines.match(/\b[A-Za-z_]\w*\b/g) ?? [];
+      for (const ident of new Set(identifiers)) {
+        if (!(ident in ctx) && !EEL_JS_RESERVED.has(ident)) {
+          ctx[ident] = 0;
+        }
+      }
 
       // Build executable function with all context vars as mutable locals
       const varNames = Object.keys(ctx).filter(k => typeof ctx[k] !== 'function');
@@ -1503,58 +1530,77 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     }
 
     if (shaderData.shapes?.length) {
-      const shapeStats = shapeRenderer.render({
-        shapes: shaderData.shapes,
-        runtime: {
-          timeSeconds: variables.time,
-          frame: variables.frame,
-          fps: variables.fps,
-          progress: 0,
-          bass: variables.bass,
-          mid: variables.mid,
-          treb: variables.treb,
-          bassAtt: variables.bass_att,
-          midAtt: variables.mid_att,
-          trebAtt: variables.treb_att,
-          qVars
-        },
-        mainTexture: mainFbo?.texture ?? null
-      });
-      lastNativeRuntimeReport.shapes = {
-        requested: shaderData.shapes.length,
-        rendered: shapeStats.renderedShapes,
-        borders: shapeStats.renderedBorders,
-        texturedFallbacks: shapeStats.ignoredTexturedShapes,
-        evaluatedShapes: shapeStats.evaluatedShapes,
-        evaluatedPoints: shapeStats.evaluatedPoints
-      };
+      // A throw here (bad shape data, GL state surprise) previously
+      // propagated up and silently killed the whole composite — the runtime
+      // report kept its all-zero initialization, making the frame look like
+      // "shapes evaluated nothing" with no hint why. Report through onError
+      // so sweeps/diagnostics can see the actual cause.
+      let shapeStats: ReturnType<typeof shapeRenderer.render> | null = null;
+      try {
+        shapeStats = shapeRenderer.render({
+          shapes: shaderData.shapes,
+          runtime: {
+            timeSeconds: variables.time,
+            frame: variables.frame,
+            fps: variables.fps,
+            progress: 0,
+            bass: variables.bass,
+            mid: variables.mid,
+            treb: variables.treb,
+            bassAtt: variables.bass_att,
+            midAtt: variables.mid_att,
+            trebAtt: variables.treb_att,
+            qVars
+          },
+          mainTexture: mainFbo?.texture ?? null
+        });
+      } catch (e) {
+        onError?.(`Shape render threw: ${(e as Error).message}`, 'shapes');
+      }
+      if (shapeStats) {
+        lastNativeRuntimeReport.shapes = {
+          requested: shaderData.shapes.length,
+          rendered: shapeStats.renderedShapes,
+          borders: shapeStats.renderedBorders,
+          texturedFallbacks: shapeStats.ignoredTexturedShapes,
+          evaluatedShapes: shapeStats.evaluatedShapes,
+          evaluatedPoints: shapeStats.evaluatedPoints
+        };
+      }
     }
 
     if (shaderData.waves?.length) {
-      const waveStats = waveRenderer.render({
-        waves: shaderData.waves,
-        runtime: {
-          timeSeconds: variables.time,
-          frame: variables.frame,
-          fps: variables.fps,
-          progress: 0,
-          bass: variables.bass,
-          mid: variables.mid,
-          treb: variables.treb,
-          bassAtt: variables.bass_att,
-          midAtt: variables.mid_att,
-          trebAtt: variables.treb_att,
-          qVars,
-          waveform: state.oscilloData,
-          spectrum: state.spectrum
-        }
-      });
-      lastNativeRuntimeReport.waves = {
-        requested: shaderData.waves.length,
-        rendered: waveStats.renderedWaves,
-        renderedPoints: waveStats.renderedPoints,
-        evaluatedPoints: waveStats.evaluatedPoints
-      };
+      let waveStats: ReturnType<typeof waveRenderer.render> | null = null;
+      try {
+        waveStats = waveRenderer.render({
+          waves: shaderData.waves,
+          runtime: {
+            timeSeconds: variables.time,
+            frame: variables.frame,
+            fps: variables.fps,
+            progress: 0,
+            bass: variables.bass,
+            mid: variables.mid,
+            treb: variables.treb,
+            bassAtt: variables.bass_att,
+            midAtt: variables.mid_att,
+            trebAtt: variables.treb_att,
+            qVars,
+            waveform: state.oscilloData,
+            spectrum: state.spectrum
+          }
+        });
+      } catch (e) {
+        onError?.(`Wave render threw: ${(e as Error).message}`, 'waves');
+      }
+      if (waveStats) {
+        lastNativeRuntimeReport.waves = {
+          requested: shaderData.waves.length,
+          rendered: waveStats.renderedWaves,
+          renderedPoints: waveStats.renderedPoints,
+          evaluatedPoints: waveStats.evaluatedPoints
+        };
+      }
     }
 
     if (blurProgram && warpFbo) {
