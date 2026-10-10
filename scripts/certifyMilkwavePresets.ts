@@ -149,6 +149,15 @@ function certify() {
           proofPassed: res.proofPassed,
           proofFailedSteps: res.proofFailedSteps
         };
+        // presetIndex reads metadata.certification (CertificationLevel), not
+        // the milkwave-specific status vocabulary — stamp both so the
+        // browser's Showable filter and certification badges see the result.
+        content.metadata.certification =
+          res.certificationStatus === 'certified-safe'
+            ? 'safe'
+            : res.certificationStatus === 'degraded-usable'
+              ? 'degraded'
+              : 'archived';
         fs.writeFileSync(presetPath, JSON.stringify(content, null, 2));
       }
     }
