@@ -27,6 +27,7 @@ const parseArgs = () => {
   let limit = 100;
   let pack: number | null = null;
   let packSize = 100;
+  let fakeAudioWav: string | null = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -76,6 +77,17 @@ const parseArgs = () => {
     if (arg === '--from-reports') {
       fromReports = true;
     }
+    if (arg === '--fake-audio') {
+      // Optional WAV path as next token; anything starting with `--` is not ours.
+      const nextToken = args[i + 1];
+      fakeAudioWav = nextToken && !nextToken.startsWith('--')
+        ? path.resolve(nextToken)
+        : path.resolve(__dirname, 'test-audio-fake.wav');
+      if (!fs.existsSync(fakeAudioWav)) {
+        throw new Error(`--fake-audio: file not found: ${fakeAudioWav}`);
+      }
+      continue;
+    }
   }
 
   if (pack !== null && (presetId || presetIds)) {
@@ -85,7 +97,7 @@ const parseArgs = () => {
     throw new Error('--from-reports cannot be combined with --preset, --focus, or --pack');
   }
 
-  return { presetId, presetIds, limit, pack, packSize, fromReports };
+  return { presetId, presetIds, limit, pack, packSize, fromReports, fakeAudioWav };
 };
 
 // Re-audit only the presets that previously failed real-renderer batch runs —
@@ -524,7 +536,7 @@ const connectToExistingBrowser = async ({
 
 async function runAudit() {
   console.log('--- Milkwave Runtime Audit ---');
-  const { presetId, presetIds: focusIds, limit: parsedLimit, pack, packSize, fromReports } = parseArgs();
+  const { presetId, presetIds: focusIds, limit: parsedLimit, pack, packSize, fromReports, fakeAudioWav } = parseArgs();
   let presetIds = focusIds;
   let limit = parsedLimit;
   if (fromReports) {
@@ -628,12 +640,31 @@ async function runAudit() {
     console.log('Using Puppeteer default browser executable');
   }
 
-  const browser = browserUrl || wsEndpoint
+  // Launch args, optionally with a fake mic fed by a real WAV. Without audio
+  // input the mic is silent (or absent), audio-gated presets legitimately
+  // render black, and the audit misclassifies them as broken. Mirrors the
+  // batch tester's `--fake-audio` flag.
+  const launchArgs = [...CHROMIUM_AUDIT_ARGS];
+  if (fakeAudioWav) {
+    launchArgs.push(
+      '--use-fake-device-for-media-stream',
+      '--use-fake-ui-for-media-stream',
+      `--use-file-for-fake-audio-capture=${fakeAudioWav}`
+    );
+    console.log(`Fake mic audio: ${fakeAudioWav}`);
+  }
+
+  const usingExistingBrowser = Boolean(browserUrl || wsEndpoint);
+  if (fakeAudioWav && usingExistingBrowser) {
+    console.warn('--fake-audio ignored when connecting to an existing browser — launch args cannot be applied.');
+  }
+
+  const browser = usingExistingBrowser
     ? await connectToExistingBrowser({ browserUrl, wsEndpoint })
     : await puppeteer.launch({
         headless: true,
         executablePath,
-        args: CHROMIUM_AUDIT_ARGS
+        args: launchArgs
       });
 
   const page = await browser.newPage();
