@@ -587,6 +587,139 @@ describe('patchMilkDropGlsl – unit', () => {
     expect(out).toMatch(/pow\s*\(\s*2\.0\s*,\s*3\.0\s*\)/);
   });
 
+  // Presets that named a sampler "main": the translator emits
+  // `#define main sampler_pw_main`, which renames the entry point to
+  // `void sampler_main()` and collides with the sampler uniform
+  // ("'sampler_main' : redefinition of a function" — dylan/led family).
+  it('inlines `#define main <sampler>` and preserves the entry point', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform sampler2D sampler_main;',
+      '#define sampler_pw_main sampler_main',
+      '#define main sampler_pw_main',
+      'void main() {',
+      '  vec3 op = texture(main, vUv);',
+      '  fragColor = vec4(op, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/void main\(\)/);
+    expect(out).not.toMatch(/#define\s+main\b/);
+    expect(out).toMatch(/texture\s*\(\s*sampler_pw_main\s*,\s*vUv\s*\)/);
+  });
+
+  // MilkDrop's rand_frame/rand_preset are scalars; the translator declares
+  // them vec4. Bare scalar-context uses must be swizzled to .x so the
+  // declaration-inference pass doesn't widen `float z` to vec4
+  // (cascade: "tan(z)" → vec4, "'*' : wrong operand types").
+  it('swizzles bare rand_frame/rand_preset uses to .x, keeping vec4 decls and .xy uses', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform vec4 rand_frame;',
+      'uniform vec4 rand_preset;',
+      'void main() {',
+      '  float z = rand_frame * 64.0 + 0.1;',
+      '  vec2 r = rand_preset.xy;',
+      '  fragColor = vec4(vec2(z), r.x, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/uniform vec4 rand_frame;/);
+    expect(out).toMatch(/float z = rand_frame\.x \* 64\.0/);
+    expect(out).toMatch(/rand_preset\.xy/);
+  });
+
+  // MilkDrop allows warp shaders to write q1-q32 (per-pixel local writes);
+  // GLSL uniforms are read-only. Assigned q-vars get a local copy.
+  it('gives assigned q-vars a local copy initialized from the uniform', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform float q24;',
+      'uniform float q25;',
+      'void main() {',
+      '  q25 = q24 + 0.01;',
+      '  float f = q25 * 0.5;',
+      '  fragColor = vec4(f, 0.0, 0.0, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/float q25_l = q25;/);
+    expect(out).toMatch(/q25_l = q24 \+ 0\.01/);
+    expect(out).toMatch(/float f = q25_l \* 0\.5/);
+  });
+
+  // `GetBlur1(0.0)` — scalar passed to the vec2-param lookup helpers
+  // ("'GetBlur1' : no matching overloaded function"). Coerce to vec2.
+  it('coerces scalar args to sampler-lookup helpers into vec2', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform sampler2D sampler_blur1;',
+      'vec3 GetBlur1(vec2 uv) { return texture(sampler_blur1, uv).xyz; }',
+      'void main() {',
+      '  vec3 ret = GetBlur1(0.0) + GetBlur1(vUv);',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/GetBlur1\s*\(\s*vec2\s*\(\s*0\.0\s*\)\s*\)/);
+    expect(out).toMatch(/GetBlur1\s*\(\s*vUv\s*\)/);
+  });
+
+  // Component-wise functions (fract, sin, ...) CAN return vectors — their
+  // swizzles must survive (the old post-gen strip deleted them and
+  // recreated the very dimension errors Pass 10.5 fixes).
+  it('keeps swizzles after component-wise vector results and strips scalar ones', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec2 uv2 = vUv;',
+      '  vec2 uv3;',
+      '  vec3 noise = vec3(0.25);',
+      '  float mask = 0.5;',
+      '  uv3 = fract(uv2 + 0.5 - (noise - 0.5) * mask * 0.2).xy;',
+      '  float l = lum(noise).xyz * 0.1;',
+      '  fragColor = vec4(uv3, l, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/\)\.xy\s*;/);
+    expect(out).not.toMatch(/lum\s*\([^)]*\)\s*\.xyz/);
+  });
+
+  // `-rot_d2 * s` parses as (-rot_d2) * s — Pass 9.2 must unwrap the unary
+  // to see the mat4 and promote the narrow vector operand.
+  it('promotes narrow vectors in unary-negated matrix multiplication', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 sp = vec3(1.0);',
+      '  sp = -rot_d2 * sp;',
+      '  fragColor = vec4(sp, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/-\s*rot_d2\s*\*\s*vec4\s*\(\s*sp\s*,\s*1\.0\s*\)/);
+    expect(out).toMatch(/\)\.xyz/);
+  });
+
   // GLSL has no implicit scalar→vector assignment; MilkDrop did
   // (`ret = lum(...)`, `ret = 0.0`).
   it('broadcasts scalar RHS in simple assignments to vector variables', () => {

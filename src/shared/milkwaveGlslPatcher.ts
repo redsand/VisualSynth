@@ -372,6 +372,37 @@ const preprocess = (source: string): string => {
   source = source.replace(/\boutput\b/g, 'output_');
   source = source.replace(/\bsample\b/g, 'sample_');
   source = source.replace(/\binput\b/g, 'input_');
+  // ── `#define main <sampler>` ──
+  // Some presets name a custom sampler "main"; the offline translator emits
+  // `#define main sampler_pw_main`. Left in place, macro expansion renames the
+  // GLSL entry point — `void main()` becomes `void sampler_main()`, colliding
+  // with the `uniform sampler2D sampler_main` declaration ("'sampler_main' :
+  // redefinition of a function"). Inline the macro instead: substitute bare
+  // `main` tokens with the alias target (protecting `void main`) and drop the
+  // define lines.
+  let mainAliasTarget = '';
+  source = source.replace(/^[ \t]*#[ \t]*define[ \t]+main[ \t]+([A-Za-z_]\w*)[^\n]*\n?/gm, (_m, target: string) => {
+    if (!mainAliasTarget) mainAliasTarget = target;
+    return '';
+  });
+  if (mainAliasTarget) {
+    source = source.replace(/\bvoid(\s+)main\b/g, 'void$1__VS_ENTRY_MAIN__');
+    source = source.replace(/\bmain\b/g, mainAliasTarget);
+    source = source.replace(/\bvoid(\s+)__VS_ENTRY_MAIN__\b/g, 'void$1main');
+  }
+  // ── rand_frame / rand_preset: MilkDrop scalar semantics ──
+  // MilkDrop defines these as scalar 0-1 random values, but the offline
+  // translator declares them `uniform vec4` (component accesses `.z`, `.xy`
+  // exist in the corpus, so the vec4 stays). Bare uses are scalar context:
+  // `float z = ... + rand_frame * 64.0;` — with the vec4 in place, the
+  // declaration-inference pass widens `float z` to vec4 and cascades
+  // "wrong operand types" errors. Swizzle bare uses to `.x`; already-swizzled
+  // uses and the uniform declaration itself are untouched. No corpus preset
+  // assigns the full vec4 (`vec4 v = rand_frame;` — 0 hits in 733 shaders).
+  source = source.replace(
+    /(?<!uniform\s+vec[234]\s+)\b(rand_frame|rand_preset)\b(?!\s*\.)/g,
+    '$1.x'
+  );
   source = source.replace(/\bfilter\b/g, 'filter_');
   // HLSL bool-to-float in arithmetic context: (a<=b)*c → ((a<=b)?1.0:0.0)*c
   // HLSL allows bool*float, GLSL does not.
@@ -1566,7 +1597,35 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 9.2: matrix × narrow vector promotion ──
+  // ── Pass 9.1b: scalar args to MilkDrop sampler-lookup helpers ──
+  // The offline translator emits `GetBlur1(0.0)` / `GetBlur1(uv_y)` — a scalar
+  // passed to helpers whose declared signature is `vec3 GetBlur1(vec2 uv)`.
+  // No matching overload → compile failure ("'GetBlur1' : no matching
+  // overloaded function"). Coerce the scalar into a vec2 broadcast, the same
+  // implicit conversion MilkDrop's compiler performed.
+  const samplerLookupFns = new Set(['GetPixel', 'GetMain', 'GetBlur1', 'GetBlur2', 'GetBlur3']);
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (!samplerLookupFns.has(name)) return;
+        const args = getArgs(p.node);
+        if (args.length === 0) return;
+        const first = args[0];
+        // >1 is already valid; 1 (scalar) broadcasts, and 0 (undeclared —
+        // the auto-declare injector will pick a type) is safe either way:
+        // vec2(vec2) is a copy ctor and vec2(float) broadcasts.
+        if (inferDim(first, typeMap) > 1) return;
+        const allArgs = (p.node as FunctionCallNode).args;
+        for (let i = 0; i < allArgs.length; i++) {
+          if (allArgs[i] === first) {
+            allArgs[i] = mkFnCall('vec2', [first], ' ') as unknown as AstNode;
+            break;
+          }
+        }
+      },
+    },
+  });
   // MilkDrop's per-frame rotation matrices (rot_uf1 & friends) are injected as
   // `uniform mat4` AFTER generation, so every AST pass sees them as unknown
   // identifiers and a translated `rot_uf1 * s` (vec3) reaches the driver —
@@ -1576,6 +1635,8 @@ const astTransform = (source: string): string => {
   //   rot_uf1 * s      → (rot_uf1 * vec4(s, 0.0, 1.0)).xyz
   // matN * vecN (valid) and mat * scalar (component-wise) are left alone.
   const matRowCount = (node: AstNode): number => {
+    // `-rot_d2 * s` parses as (-rot_d2) * s — unwrap unary minus first
+    if (node.type === 'unary') return matRowCount((node as unknown as { expression: AstNode }).expression);
     if (node.type === 'identifier') {
       const name = (node as IdentifierNode).identifier;
       if (/^rot_(?:s|d|f|vf|uf|rand)[1-4]$/.test(name)) return 4;
@@ -1876,6 +1937,32 @@ const astTransform = (source: string): string => {
     },
   });
 
+  // ── Pass 10.9: swizzles on scalar function results ──
+  // Same family as 10.8 but for function calls: the offline translator emits
+  // `.xyz` on scalar results (`lum(a).xyz`). Unlike the old post-gen strip,
+  // this is dimension-aware via inferDim — component-wise functions (fract,
+  // floor, sin, abs, mix, ...) legitimately return vectors and their
+  // swizzles must SURVIVE. Stripping those recreates `'=' : dimension
+  // mismatch` errors on valid code like `uv2 = fract(vec3_expr).xy`.
+  visit(ast, {
+    postfix: {
+      enter: (p) => {
+        const pf = (p.node as PostfixNode).postfix;
+        if (pf.type !== 'field_selection') return;
+        const sel = (pf as FieldSelectionNode).selection;
+        const swizzle = sel.type === 'literal'
+          ? (sel as LiteralNode).literal
+          : sel.type === 'identifier' ? (sel as unknown as IdentifierNode).identifier : '';
+        if (!/^[xyzwrgba]+$/.test(swizzle)) return;
+        const expr = (p.node as PostfixNode).expression;
+        if (expr.type !== 'function_call') return;
+        // Unknown dim (undeclared args) — leave for the post-gen safety net.
+        if (inferDim(expr, typeMap) !== 1) return;
+        p.replaceWith(expr as unknown as AstNode);
+      },
+    },
+  });
+
   // ── Pass 11: vec constructor args too wide → swizzle down ──
   // Runs AFTER Pass 10 so typeMap has updated declaration types.
   // Only applies when total components EXCEED the target (e.g. vec2(vec3, vec3) = 6 > 2).
@@ -2032,7 +2119,13 @@ const astTransform = (source: string): string => {
   // ── Post-generation fix: strip swizzles from scalar function results ──
   // The offline translator sometimes adds .xyz/.xy etc. to scalar function results.
   // Collect all function calls with their positions, then strip swizzles.
-  const scalarFns = 'lum|length|dot|abs|floor|ceil|fract|sin|cos|tan|pow|sqrt|log|log2|log10|exp|sign|step|smoothstep|min|max|clamp|mix|fwidth|dFdx|dFdy|inversesqrt|round|trunc|degrees|radians|asin|acos|atan|float|int|bool';
+  // SAFETY NET ONLY for calls whose args inferDim can't type (undeclared vars):
+  // dimension-aware stripping of swizzles after component-wise functions
+  // (fract, sin, mix, ...) happens in AST Pass 10.9 — those functions CAN
+  // return vectors, so they must NOT appear here. Listing them here strips
+  // valid swizzles like `fract(vec3).xy` and recreates dimension-mismatch
+  // errors that Pass 10.5 just fixed.
+  const scalarFns = 'lum|length|dot|distance|float|int|bool';
   for (let pass = 0; pass < 3; pass++) {
     const fnRegex = new RegExp(`\\b(${scalarFns})\\s*\\(`, 'g');
     let result = '';
@@ -2111,6 +2204,41 @@ const astTransform = (source: string): string => {
   patched = injectMissingConstants(patched);
   patched = injectMissingSamplers(patched);
   patched = injectMissingHelpers(patched);
+
+  // ── Post-generation: q-var assignments → local copies ──
+  // MilkDrop lets warp/comp shaders write q1-q32; writes are per-pixel
+  // locals (they never propagate back to per-frame state). GLSL uniforms
+  // are read-only: `q25 = q24 + .01;` → "'assign' : l-value required
+  // (can't modify a uniform "q25")". Give each assigned q-var a local copy
+  // initialized from the uniform and rename body references to it — reads
+  // stay faithful, writes stay local, exactly like MilkDrop.
+  {
+    const mainIdx2 = patched.indexOf('void main()');
+    if (mainIdx2 !== -1) {
+      const bodyStart = patched.indexOf('{', mainIdx2);
+      if (bodyStart !== -1) {
+        const beforeMain2 = patched.substring(0, mainIdx2);
+        const body = patched.substring(bodyStart + 1);
+        const assigned = new Set<string>();
+        for (const m of body.matchAll(/\b(q\d+)\s*(?:[+\-*/%|&^]|<<|>>)?=(?!=)/g)) {
+          assigned.add(m[1]);
+        }
+        const decls: string[] = [];
+        let newBody = body;
+        for (const name of assigned) {
+          // Only q-vars actually declared as uniforms get a copy; anything
+          // else keeps its injected local declaration.
+          const declMatch = beforeMain2.match(new RegExp(`uniform\\s+(float|vec[234])\\s+${name}\\s*;`));
+          if (!declMatch) continue;
+          decls.push(`${declMatch[1]} ${name}_l = ${name};`);
+          newBody = newBody.replace(new RegExp(`\\b${name}\\b`, 'g'), `${name}_l`);
+        }
+        if (decls.length > 0) {
+          patched = patched.substring(0, bodyStart + 1) + '\n  ' + decls.join('\n  ') + newBody;
+        }
+      }
+    }
+  }
 
   return patched;
 };
