@@ -31,6 +31,19 @@ import path from 'path';
 const PRESETS_DIR = path.resolve(__dirname, '../assets/presets');
 const REPORTS_DIR = path.resolve(__dirname, '../milkwave-test-results/reports');
 
+// --report <file> (repeatable): certify from explicit report files instead of
+// scanning REPORTS_DIR. Files are applied in argv order, so the LAST --report
+// wins per preset. Used with scripts/reverify-batch-screenshots.js output
+// (screenshot-derived statuses), which supersedes the tester's in-page
+// readPixels classification.
+const explicitReports = (): string[] => {
+  const files: string[] = [];
+  for (let i = 0; i < process.argv.length - 1; i++) {
+    if (process.argv[i] === '--report') files.push(path.resolve(process.argv[i + 1]));
+  }
+  return files;
+};
+
 type BatchStatus = 'working' | 'fallback' | 'black_output' | 'runtime_error' | 'safe_mode';
 
 interface BatchResult {
@@ -54,19 +67,24 @@ const batchNumber = (file: string): number => {
 };
 
 const collectLatestStatuses = (): Map<string, BatchStatus> => {
-  if (!fs.existsSync(REPORTS_DIR)) {
+  const explicit = explicitReports();
+  const reportFiles = explicit.length
+    ? explicit // argv order -> later overwrites earlier
+    : fs
+        .readdirSync(REPORTS_DIR)
+        .filter((f) => /^batch-\d+-report\.json$/.test(f))
+        .sort((a, b) => batchNumber(a) - batchNumber(b)); // ascending -> later overwrites earlier
+  if (!explicit.length && !fs.existsSync(REPORTS_DIR)) {
     throw new Error(`No reports directory at ${REPORTS_DIR}.`);
   }
-  const reportFiles = fs
-    .readdirSync(REPORTS_DIR)
-    .filter((f) => /^batch-\d+-report\.json$/.test(f))
-    .sort((a, b) => batchNumber(a) - batchNumber(b)); // ascending -> later overwrites earlier
 
   const latest = new Map<string, BatchStatus>();
   for (const reportFile of reportFiles) {
     let report: { results?: BatchResult[] };
     try {
-      report = JSON.parse(fs.readFileSync(path.join(REPORTS_DIR, reportFile), 'utf-8'));
+      report = JSON.parse(
+        fs.readFileSync(explicit.length ? reportFile : path.join(REPORTS_DIR, reportFile), 'utf-8')
+      );
     } catch (e) {
       console.warn(`Skipping unreadable report ${reportFile}: ${e}`);
       continue;
