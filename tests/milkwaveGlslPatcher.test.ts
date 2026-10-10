@@ -339,12 +339,12 @@ describe('patchMilkDropGlsl – unit', () => {
       'precision highp float;',
       'out vec4 fragColor;',
       'void main() {',
-      '  vec3 output = 0, foo = 1;',
-      '  fragColor = vec4(output, foo.x);',
+      '  vec3 outv = 0, foo = 1;',
+      '  fragColor = vec4(outv, foo.x);',
       '}',
     ].join('\n');
     const out = patchMilkDropGlsl(src);
-    expect(out).toContain('vec3 output = vec3(0.0), foo = vec3(1.0);');
+    expect(out).toContain('vec3 outv = vec3(0.0), foo = vec3(1.0);');
   });
 
   // Pass 9 used to skip every `dim >= 4` binary to protect mat*vec — which
@@ -425,6 +425,37 @@ describe('patchMilkDropGlsl – unit', () => {
     for (const component of ['zx', 'yy', 'xyz', 'rgb', 'xxx']) {
       expect(out).not.toMatch(new RegExp(`\\bfloat\\s+${component}\\b`));
     }
+  });
+
+  // Regression: 28/6856 presets use GLSL ES 3.0 reserved words as MilkDrop
+  // variable names (`output`, `sample`, `input`, `filter`) — guaranteed
+  // "Illegal use of reserved word" compile failures.
+  it('renames reserved-word identifiers consistently', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform sampler2D sampler_main;',
+      'void main() {',
+      '  vec3 output = vec3(0.0);',
+      '  vec3 sample = texture(sampler_main, vUv).xyz;',
+      '  output += sample * 0.5;',
+      '  float filter = length(output);',
+      '  vec3 input = output * filter;',
+      '  fragColor = vec4(input, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/\boutput_\b/);
+    expect(out).toMatch(/\bsample_\b/);
+    expect(out).toMatch(/\bfilter_\b/);
+    expect(out).toMatch(/\binput_\b/);
+    // No bare reserved words survive as identifiers.
+    expect(out).not.toMatch(/[^_\w]output\b/);
+    expect(out).not.toMatch(/[^_\w]sample\b/);
+    expect(out).not.toMatch(/[^_\w]filter\b/);
+    expect(out).not.toMatch(/[^_\w]input\b/);
   });
 });
 

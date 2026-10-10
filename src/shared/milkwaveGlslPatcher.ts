@@ -353,6 +353,14 @@ const preprocess = (source: string): string => {
   source = source.replace(/\\\s*\n/g, ' ');                                 // Line continuations
   source = source.replace(/\bfloat\s+smooth\b/g, 'float smooth_');          // `smooth` is GLSL reserved
   source = source.replace(/\bsmooth\s*(?=[+\-*/=;,)])/g, 'smooth_');
+  // GLSL ES 3.0 reserved words that MilkDrop presets use as variable names
+  // (e.g. `vec3 output = 0;`, `vec3 sample = texture(...)`). Word-boundary
+  // replacement renames declaration and uses consistently; occurrences inside
+  // comments are harmless.
+  source = source.replace(/\boutput\b/g, 'output_');
+  source = source.replace(/\bsample\b/g, 'sample_');
+  source = source.replace(/\binput\b/g, 'input_');
+  source = source.replace(/\bfilter\b/g, 'filter_');
   // HLSL bool-to-float in arithmetic context: (a<=b)*c → ((a<=b)?1.0:0.0)*c
   // HLSL allows bool*float, GLSL does not.
   // Only handle <= and >= when followed by arithmetic operators (not in while/if conditions)
