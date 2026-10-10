@@ -652,17 +652,34 @@ const main = async () => {
   }
 
   console.log(`\nLaunching headless browser...`);
+  const launchArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    // The app awaits AudioContext.resume()/getUserMedia at startup; without
+    // these flags headless Chrome blocks both and app init never completes.
+    '--autoplay-policy=no-user-gesture-required',
+    '--use-fake-device-for-media-stream',
+    '--use-fake-ui-for-media-stream'
+  ];
+  // Feed real audio into the fake mic. Without it the mic is SILENT and
+  // audio-gated presets legitimately render black — indistinguishable from
+  // genuinely-broken output. `--fake-audio [file]` (default
+  // scripts/test-audio-fake.wav) switches the fake device to that WAV.
+  if (hasFlag('--fake-audio')) {
+    const argIdx = args.indexOf('--fake-audio');
+    const nextToken = argIdx + 1 < args.length && !args[argIdx + 1].startsWith('--')
+      ? args[argIdx + 1] : null;
+    const wav = nextToken ? path.resolve(nextToken) : path.resolve(__dirname, 'test-audio-fake.wav');
+    if (fs.existsSync(wav)) {
+      launchArgs.push(`--use-file-for-fake-audio-capture=${wav}`);
+      console.log(`Fake mic audio: ${wav}`);
+    } else {
+      console.warn(`--fake-audio: file not found: ${wav} — using silent mic`);
+    }
+  }
   const browser = await puppeteer.launch({
     headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      // The app awaits AudioContext.resume()/getUserMedia at startup; without
-      // these flags headless Chrome blocks both and app init never completes.
-      '--autoplay-policy=no-user-gesture-required',
-      '--use-fake-device-for-media-stream',
-      '--use-fake-ui-for-media-stream'
-    ]
+    args: launchArgs
   });
 
   const page = await browser.newPage();
