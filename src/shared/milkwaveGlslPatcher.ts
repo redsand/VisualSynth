@@ -1548,6 +1548,69 @@ const astTransform = (source: string): string => {
     },
   });
 
+  // ── Pass 9.2: matrix × narrow vector promotion ──
+  // MilkDrop's per-frame rotation matrices (rot_uf1 & friends) are injected as
+  // `uniform mat4` AFTER generation, so every AST pass sees them as unknown
+  // identifiers and a translated `rot_uf1 * s` (vec3) reaches the driver —
+  // no mat4×vec3 overload exists. Promote the vector operand to the matrix's
+  // row count (padding with 0.0/1.0 like a point transform) and swizzle the
+  // product back down so downstream expression dims are unchanged:
+  //   rot_uf1 * s      → (rot_uf1 * vec4(s, 0.0, 1.0)).xyz
+  // matN * vecN (valid) and mat * scalar (component-wise) are left alone.
+  const matRowCount = (node: AstNode): number => {
+    if (node.type === 'identifier') {
+      const name = (node as IdentifierNode).identifier;
+      if (/^rot_(?:s|d|f|vf|uf|rand)[1-4]$/.test(name)) return 4;
+      const dim = typeMap.get(name) ?? 0;
+      return dim >= 16 ? 4 : dim >= 9 ? 3 : dim >= 4 ? 2 : 0;
+    }
+    if (node.type === 'function_call') {
+      const fn = getFnName(node as FunctionCallNode);
+      return fn === 'mat4' ? 4 : fn === 'mat3' ? 3 : fn === 'mat2' ? 2 : 0;
+    }
+    return 0;
+  };
+  visit(ast, {
+    binary: {
+      enter: (p: Path<BinaryNode>) => {
+        if (p.node.operator.literal !== '*') return;
+        const left = p.node.left;
+        const right = p.node.right;
+        const rows = matRowCount(left);
+        if (rows === 0 || isMatrixExpr(right)) return;
+        // mat * scalar is valid component-wise — only genuine narrow vectors
+        // (dim 2..rows-1) need promotion.
+        const rDim = inferDim(right, typeMap);
+        if (rDim < 2 || rDim >= rows) return;
+        const paddingArgs: AstNode[] = [right];
+        for (let i = rDim; i < rows; i++) {
+          paddingArgs.push(mkLiteral(',') as unknown as AstNode);
+          paddingArgs.push(mkFloat(i === rows - 1 ? '1.0' : '0.0') as unknown as AstNode);
+        }
+        p.node.right = mkFnCall(`vec${rows}`, paddingArgs, ' ') as unknown as AstNode;
+        // Narrow the product back to the operand's dim so downstream passes
+        // infer the same dimension the original expression had.
+        const narrowed = mkPostfixSwizzle(p.node, rDim === 2 ? 'xy' : 'xyz') as unknown as AstNode;
+        const parent = p.parentPath?.node as any;
+        if (parent) {
+          for (const key of Object.keys(parent)) {
+            const value = parent[key];
+            if (Array.isArray(value)) {
+              const idx = value.indexOf(p.node);
+              if (idx !== -1) {
+                value[idx] = narrowed;
+                return;
+              }
+            } else if (value === p.node) {
+              parent[key] = narrowed;
+              return;
+            }
+          }
+        }
+      },
+    },
+  });
+
   // ── Pass 10: Dimension mismatch in declarator lists ──
   // `float x = vec_expr` → change type to match initializer
   // `vecX x = scalar_expr` → change type to float
@@ -1811,6 +1874,22 @@ const astTransform = (source: string): string => {
           totalComponents += Math.max(1, inferDim(arg, typeMap));
         }
 
+        // ── Pass 11.1: too-narrow constructors → pad with zeros ──
+        // `vec3(vec2_expr)` / `vec4(vec3_expr, float)` have no valid overload —
+        // GLSL requires exactly N components from multiple args. A single
+        // scalar arg (`vec3(0.5)`) broadcasts and is legal, so only pad when
+        // the total lands in [2, target). Matrix args construct differently
+        // (vec4(mat2) is 4 components) — leave those alone.
+        if (totalComponents >= 2 && totalComponents < targetDim) {
+          if (args.some((arg) => isMatrixExpr(arg))) return;
+          const missing = targetDim - totalComponents;
+          for (let k = 0; k < missing; k++) {
+            (p.node as FunctionCallNode).args.push(mkLiteral(',') as unknown as AstNode);
+            (p.node as FunctionCallNode).args.push(mkFloat('0.0') as unknown as AstNode);
+          }
+          return;
+        }
+
         // Only swizzle if total exceeds target
         if (totalComponents <= targetDim) return;
 
@@ -1906,7 +1985,7 @@ const astTransform = (source: string): string => {
   // ── Post-generation fix: strip swizzles from scalar function results ──
   // The offline translator sometimes adds .xyz/.xy etc. to scalar function results.
   // Collect all function calls with their positions, then strip swizzles.
-  const scalarFns = 'lum|length|dot|abs|floor|ceil|fract|sin|cos|tan|pow|sqrt|log|log2|log10|exp|sign|step|smoothstep|min|max|clamp|mix|fwidth|dFdx|dFdy|inversesqrt|round|trunc|degrees|radians|asin|acos|atan';
+  const scalarFns = 'lum|length|dot|abs|floor|ceil|fract|sin|cos|tan|pow|sqrt|log|log2|log10|exp|sign|step|smoothstep|min|max|clamp|mix|fwidth|dFdx|dFdy|inversesqrt|round|trunc|degrees|radians|asin|acos|atan|float|int|bool';
   for (let pass = 0; pass < 3; pass++) {
     const fnRegex = new RegExp(`\\b(${scalarFns})\\s*\\(`, 'g');
     let result = '';
@@ -1971,20 +2050,13 @@ const astTransform = (source: string): string => {
     }
   );
 
-  // Also fix compound assignments: float_var += vec3_expr → float_var += vec3_expr.xyz
-  patched = patched.replace(
-    /\b(\w+)\s*(\+=|-=|\*=|\/=)\s*((?:mix|texture|textureLod|textureBias|GetPixel|GetBlur\d|GetMain|vec[234])\s*\([^)]+\)[\.\w]*)/g,
-    (_match, varName, op, rhsExpr) => {
-      // If RHS has .xyz and we're assigning to what might be a scalar, add .xyz truncation
-      if (rhsExpr.includes('.xyz') && !rhsExpr.includes('.xyzw')) {
-        return _match; // Already has swizzle
-      }
-      if (/vec3|GetPixel|GetBlur|GetMain/.test(rhsExpr) && !/\.xyzw?/.test(rhsExpr)) {
-        return `${varName} ${op} ${rhsExpr}.xyz`;
-      }
-      return _match;
-    }
-  );
+  // NOTE: a previous post-gen regex here appended `.xyz` to compound
+  // assignments whose RHS *started* with `vec3(`/`GetPixel(` etc. It fired on
+  // the first balanced `)` only, so `ret -= vec3(float(ret.x), ...)` became
+  // `ret -= vec3(float(ret.x).xyz, ...)` — corrupting valid code and
+  // re-adding the exact scalar-swizzle compile errors the strip above
+  // removes. Legitimate compound-assignment dimension fixes are handled in
+  // the AST by Pass 10.5 (with a real typeMap), so the regex is gone.
 
   // ── Post-generation: inject declarations, constants, samplers, helpers ──
   // These must happen after generation because we need to know what's used.

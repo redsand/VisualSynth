@@ -457,6 +457,82 @@ describe('patchMilkDropGlsl – unit', () => {
     expect(out).not.toMatch(/[^_\w]filter\b/);
     expect(out).not.toMatch(/[^_\w]input\b/);
   });
+
+  // Regression: a removed post-gen regex appended `.xyz` after the FIRST
+  // balanced `)` of any compound assignment starting with `vec3(`/`GetPixel(`,
+  // so `ret -= vec3(float(ret.x), …)` became
+  // `ret -= vec3(float(ret.x).xyz, …)` — re-adding the exact scalar-swizzle
+  // compile error the strip pass removes.
+  it('does not mangle compound assignments whose RHS starts with vec3(', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  ret -= vec3(float(ret.x),float(ret.y),float(ret.z));',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).not.toMatch(/float\s*\(\s*ret\.x\s*\)\s*\.xyz/);
+  });
+
+  it('strips swizzles from scalar cast results', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  ret -= vec3(float(ret.x).xyz,float(ret.y),float(ret.z));',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).not.toMatch(/float\s*\(\s*ret\.x\s*\)\s*\.xyz/);
+  });
+
+  // `vec3(vec2_expr)` has no valid overload — GLSL requires exactly N
+  // components for multi-arg construction, but a single scalar broadcasts.
+  it('pads too-narrow vec constructors with zeros', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec2 w = vUv - vec2(0.5);',
+      '  vec3 c = vec3(w) * 0.5;',
+      '  vec4 d = vec4(w, w.x);',
+      '  fragColor = vec4(c, d.w);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/vec3\s*\(\s*w\s*,\s*0\.0\s*\)/);
+  });
+
+  // MilkDrop per-frame rotation matrices are injected as `uniform mat4` after
+  // generation, so translated `rot_uf1 * s` (vec3) reaches the driver with no
+  // matching overload.
+  it('promotes narrow vectors in mat4 multiplication and narrows the result', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 s = vec3(1.0);',
+      '  s = rot_uf1 * s;',
+      '  fragColor = vec4(s, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/rot_uf1\s*\*\s*vec4\s*\(\s*s\s*,\s*1\.0\s*\)/);
+    expect(out).toMatch(/\)\.xyz/);
+  });
 });
 
 // ── Preset corpus integration tests ────────────────────────────────────────
