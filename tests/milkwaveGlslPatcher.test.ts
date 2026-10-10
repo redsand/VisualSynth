@@ -533,6 +533,49 @@ describe('patchMilkDropGlsl – unit', () => {
     expect(out).toMatch(/rot_uf1\s*\*\s*vec4\s*\(\s*s\s*,\s*1\.0\s*\)/);
     expect(out).toMatch(/\)\.xyz/);
   });
+
+  // GLSL pow has no genType×float overload — both args must match.
+  it('wraps scalar exponents of vector pow() bases', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform sampler2D sampler_main;',
+      'void main() {',
+      '  vec3 c = texture(sampler_main, vUv).xyz;',
+      '  c = pow(c, 2.0);',
+      '  float f = pow(2.0, 3.0);',
+      '  fragColor = vec4(c, f);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/pow\s*\(\s*c\s*,\s*vec3\s*\(\s*2\.0\s*\)\s*\)/);
+    // scalar pow stays untouched
+    expect(out).toMatch(/pow\s*\(\s*2\.0\s*,\s*3\.0\s*\)/);
+  });
+
+  // GLSL has no implicit scalar→vector assignment; MilkDrop did
+  // (`ret = lum(...)`, `ret = 0.0`).
+  it('broadcasts scalar RHS in simple assignments to vector variables', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform sampler2D sampler_main;',
+      'void main() {',
+      '  vec3 c = texture(sampler_main, vUv).xyz;',
+      '  vec3 ret = vec3(0.0);',
+      '  ret = lum(c);',
+      '  ret = 0.0;',
+      '  fragColor = vec4(ret * c, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/ret\s*=\s*vec3\s*\(\s*lum\s*\(/);
+    expect(out).toMatch(/ret\s*=\s*vec3\s*\(\s*0\.0\s*\)/);
+  });
 });
 
 // ── Preset corpus integration tests ────────────────────────────────────────

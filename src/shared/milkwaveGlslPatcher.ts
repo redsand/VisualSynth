@@ -1699,6 +1699,10 @@ const astTransform = (source: string): string => {
           if (varDim === 0) return;
           const swizzle = varDim === 1 ? 'x' : varDim === 2 ? 'xy' : 'xyz';
           p.node.right = mkPostfixSwizzle(right, swizzle) as unknown as AstNode;
+        } else if (!isCompound && varDim >= 2 && rightDim === 1) {
+          // vec3_var = scalar_expr → vec3_var = vec3(scalar_expr).
+          // GLSL has no implicit scalar→vector assignment; MilkDrop did.
+          p.node.right = mkFnCall(`vec${varDim}`, [right], ' ') as unknown as AstNode;
         } else if (isCompound) {
           // Only pad for compound assignments (+= -= *= /=)
           const targetDim = varDim || rightDim;
@@ -1972,6 +1976,31 @@ const astTransform = (source: string): string => {
         for (let i = 0; i < allArgs.length; i++) {
           if (allArgs[i] === args[2]) {
             allArgs[i] = fixDim(args[2], firstDim);
+            break;
+          }
+        }
+      },
+    },
+  });
+
+  // ── Pass 12.1: pow(vec, scalar) → pow(vec, vecN(scalar)) ──
+  // GLSL pow has no genType×float overload — both args must match. MilkDrop's
+  // HLSL pow accepted component-wise scalars, so translated shaders hit
+  // "no matching overloaded function found" on vec bases with scalar exponents.
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        if (getFnName(p.node) !== 'pow') return;
+        if (declaredNames.has('pow')) return;
+        const args = getArgs(p.node);
+        if (args.length !== 2) return;
+        const baseDim = inferDim(args[0], typeMap);
+        if (baseDim < 2) return;
+        if (inferDim(args[1], typeMap) !== 1) return;
+        const allArgs = (p.node as FunctionCallNode).args;
+        for (let i = 0; i < allArgs.length; i++) {
+          if (allArgs[i] === args[1]) {
+            allArgs[i] = mkFnCall(`vec${baseDim}`, [args[1]], ' ') as unknown as AstNode;
             break;
           }
         }
