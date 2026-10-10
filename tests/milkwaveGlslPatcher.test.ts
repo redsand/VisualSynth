@@ -534,6 +534,38 @@ describe('patchMilkDropGlsl – unit', () => {
     expect(out).toMatch(/\)\.xyz/);
   });
 
+  // Preset-1074 family: Pass 9 pads narrow operands into vecN ctors inside a
+  // texture coord. The ctor arg is a binary expression — it must keep its
+  // parens (precedence), and the over-wide coord must be swizzled to .xy for
+  // ANY sampler name (base02, not just sampler_*), structurally in the AST.
+  it('keeps ctor padding parenthesized and swizzles oversize coords on free-named samplers', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'uniform sampler2D base02;',
+      'void main() {',
+      '  vec2 uv = vUv;',
+      '  vec2 uvof = vec2(0.1);',
+      '  vec3 my_mean = vec3(0.5);',
+      '  vec3 sp = vec3(0.0);',
+      '  sp=sin((sp+texture(base02,0.5+(uv-0.5)*0.1*(0.8+0.2*my_mean)-uvof*0.1))*1.5);',
+      '  fragColor = vec4(sp, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    // coord is wrapped and swizzled: texture(base02, (...).xy)
+    expect(out).toMatch(/texture\s*\(\s*base02\s*,\s*\(.*\)\s*\.xy\s*\)/);
+    // padded ctor keeps the binary arg parenthesized: vec3((uv - vec2(0.5)) * 0.1, 0.0)
+    expect(out).toMatch(/vec3\s*\(\s*\(\s*\(uv\s*-\s*vec2\s*\(\s*0\.5\s*\)\s*\)\s*\*\s*0\.1\s*\)\s*,\s*0\.0\s*\)/);
+    // the old corruption left the multiply and pad OUTSIDE the ctor
+    expect(out).not.toMatch(/\)\s*\*\s*0\.1\s*,\s*0\.0/);
+    let bal = 0;
+    for (const ch of out) { if (ch === '(') bal++; if (ch === ')') bal--; expect(bal).toBeGreaterThanOrEqual(0); }
+    expect(bal).toBe(0);
+  });
+
   // GLSL pow has no genType×float overload — both args must match.
   it('wraps scalar exponents of vector pow() bases', () => {
     const src = [
