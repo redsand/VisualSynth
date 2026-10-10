@@ -36,6 +36,51 @@ const presetFilter = readArg('--preset', null);
 const screenshotWidth = parseInt(readArg('--width', '640'), 10);
 const screenshotHeight = parseInt(readArg('--height', '360'), 10);
 
+// Re-run every preset a previous sweep marked as failing (fallback,
+// black_output, runtime_error, …) instead of a fresh batch range. The preset
+// list is rebuilt from the saved batch reports, so one run re-tests the whole
+// known-failure set in a single browser session (~9.5s/preset vs paying
+// browser launch per --preset run).
+const fromReports = hasFlag('--from-reports');
+const effectiveBatchNumber = fromReports && !args.includes('--batch') ? 9001 : batchNumber;
+
+const collectFailingFromReports = () => {
+  if (!fs.existsSync(REPORTS_DIR)) {
+    console.error(`No reports directory at ${REPORTS_DIR} — nothing to re-run.`);
+    process.exit(1);
+  }
+  const reportFiles = fs.readdirSync(REPORTS_DIR)
+    .filter(f => /^batch-\d+-report\.json$/.test(f))
+    .sort();
+  if (reportFiles.length === 0) {
+    console.error(`No batch-*-report.json files in ${REPORTS_DIR}.`);
+    process.exit(1);
+  }
+  const failing = new Set();
+  let scannedReports = 0;
+  for (const reportFile of reportFiles) {
+    let report;
+    try {
+      report = JSON.parse(fs.readFileSync(path.join(REPORTS_DIR, reportFile), 'utf8'));
+    } catch {
+      console.warn(`Skipping unreadable report: ${reportFile}`);
+      continue;
+    }
+    scannedReports++;
+    for (const fp of report?.summary?.failingPresets || []) {
+      if (fp?.presetFile) failing.add(fp.presetFile);
+    }
+    // failingPresets may be trimmed in older reports; also sweep raw results
+    for (const r of report?.results || []) {
+      if (r?.presetFile && (r.status === 'black_output' || r.status === 'runtime_error' || r.status === 'fallback')) {
+        failing.add(r.presetFile);
+      }
+    }
+  }
+  console.log(`Scanned ${scannedReports} batch reports, found ${failing.size} unique failing presets`);
+  return [...failing].sort();
+};
+
 const collectMilkwavePresets = () => {
   if (!fs.existsSync(PRESETS_DIR)) {
     console.error(`Presets directory not found: ${PRESETS_DIR}`);
@@ -555,7 +600,7 @@ const generateBatchReport = (batchNum, results, summary) => {
 
 const main = async () => {
   console.log('=== Milkwave Preset Batch Tester ===');
-  console.log(`Batch: ${batchNumber}, Batch size: ${batchSize}`);
+  console.log(`Batch: ${effectiveBatchNumber}, Batch size: ${batchSize}`);
 
   const allPresets = collectMilkwavePresets();
   console.log(`Total milkwave presets found: ${allPresets.length}`);
@@ -563,7 +608,17 @@ const main = async () => {
   let targetPresets;
   let resumeIndex = 0;
 
-  if (presetFilter) {
+  if (fromReports) {
+    const failing = collectFailingFromReports();
+    targetPresets = failing.filter(f => allPresets.includes(f));
+    const missing = failing.length - targetPresets.length;
+    if (missing > 0) console.warn(`${missing} reported presets no longer exist in the library — skipping`);
+    if (targetPresets.length === 0) {
+      console.error('No failing presets to re-run.');
+      process.exit(1);
+    }
+    console.log(`Re-running ${targetPresets.length} previously-failing presets from saved reports`);
+  } else if (presetFilter) {
     targetPresets = allPresets.filter(p => p.includes(presetFilter));
     if (targetPresets.length === 0) {
       console.error(`No presets matching filter: ${presetFilter}`);
@@ -571,7 +626,7 @@ const main = async () => {
     }
     console.log(`Filtered to ${targetPresets.length} presets matching: ${presetFilter}`);
   } else {
-    const { start, end, presets } = getBatchRange(allPresets, batchNumber, batchSize);
+    const { start, end, presets } = getBatchRange(allPresets, effectiveBatchNumber, batchSize);
     targetPresets = presets;
     console.log(`Batch range: presets ${start + 1} - ${end} of ${allPresets.length}`);
   }
@@ -583,13 +638,13 @@ const main = async () => {
     console.log(`Resuming from: ${targetPresets[resumeIndex]} (index ${resumeIndex})`);
   }
 
-  const { batchDir, batchScreenshots, batchShaders } = ensureDirs(batchNumber);
+  const { batchDir, batchScreenshots, batchShaders } = ensureDirs(effectiveBatchNumber);
 
   const tracking = loadTracking();
   tracking.totalPresets = allPresets.length;
 
   const partialResults = [];
-  const partialPath = path.join(batchDir, `batch-${batchNumber}-partial.json`);
+  const partialPath = path.join(batchDir, `batch-${effectiveBatchNumber}-partial.json`);
   if (resumeFrom && fs.existsSync(partialPath)) {
     const prev = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
     partialResults.push(...(prev.results || []));
@@ -705,7 +760,7 @@ const main = async () => {
 
     fs.mkdirSync(path.dirname(partialPath), { recursive: true });
     fs.writeFileSync(partialPath, JSON.stringify({
-      batchNumber,
+      batchNumber: effectiveBatchNumber,
       batchSize,
       totalInBatch: targetPresets.length,
       processedCount: results.length,
@@ -717,17 +772,17 @@ const main = async () => {
 
   console.log(`\n\n=== Analyzing results ===`);
   const summary = analyzeBatchResults(results);
-  const report = generateBatchReport(batchNumber, results, summary);
+  const report = generateBatchReport(effectiveBatchNumber, results, summary);
 
-  const reportPath = path.join(REPORTS_DIR, `batch-${String(batchNumber).padStart(4, '0')}-report.md`);
-  const reportJsonPath = path.join(REPORTS_DIR, `batch-${String(batchNumber).padStart(4, '0')}-report.json`);
+  const reportPath = path.join(REPORTS_DIR, `batch-${String(effectiveBatchNumber).padStart(4, '0')}-report.md`);
+  const reportJsonPath = path.join(REPORTS_DIR, `batch-${String(effectiveBatchNumber).padStart(4, '0')}-report.json`);
   fs.writeFileSync(reportPath, report, 'utf8');
-  fs.writeFileSync(reportJsonPath, JSON.stringify({ batchNumber, summary, results, consoleEntries }, null, 2) + '\n', 'utf8');
+  fs.writeFileSync(reportJsonPath, JSON.stringify({ batchNumber: effectiveBatchNumber, summary, results, consoleEntries }, null, 2) + '\n', 'utf8');
 
-  tracking.currentBatch = batchNumber;
+  tracking.currentBatch = effectiveBatchNumber;
   if (!tracking.completedBatches) tracking.completedBatches = [];
   const batchEntry = {
-    batchNumber,
+    batchNumber: effectiveBatchNumber,
     totalPresets: targetPresets.length,
     working: summary.working,
     failed: summary.total - summary.working,
@@ -735,17 +790,17 @@ const main = async () => {
     reportPath,
     durationMs: Date.now() - startTime
   };
-  const existingIdx = tracking.completedBatches.findIndex(b => b.batchNumber === batchNumber);
+  const existingIdx = tracking.completedBatches.findIndex(b => b.batchNumber === effectiveBatchNumber);
   if (existingIdx >= 0) tracking.completedBatches[existingIdx] = batchEntry;
   else tracking.completedBatches.push(batchEntry);
   saveTracking(tracking);
 
-  console.log(`\n=== Batch ${batchNumber} Complete ===`);
+  console.log(`\n=== Batch ${effectiveBatchNumber} Complete ===`);
   console.log(`Duration: ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
   console.log(`Working: ${summary.working}/${summary.total} (${(summary.working / summary.total * 100).toFixed(1)}%)`);
   console.log(`Report: ${reportPath}`);
   console.log(`Partial: ${partialPath}`);
-  console.log(`\nNext batch: node scripts/milkwave-batch-test.js --batch ${batchNumber + 1}`);
+  console.log(`\nNext batch: node scripts/milkwave-batch-test.js --batch ${effectiveBatchNumber + 1}`);
 
   await browser.close();
 };
