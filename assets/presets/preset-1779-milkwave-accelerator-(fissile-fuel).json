@@ -25,7 +25,10 @@
         "pipeline": "milkwave-offline-v1",
         "runtimePatchRecommended": false,
         "generatedPasses": []
-      }
+      },
+      "certificationStatus": "broken-archive",
+      "lastCertifiedAt": "2026-10-10T14:56:10.070Z",
+      "certificationSource": "batch-tester"
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -41,7 +44,8 @@
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "certification": "archived"
   },
   "scenes": [
     {

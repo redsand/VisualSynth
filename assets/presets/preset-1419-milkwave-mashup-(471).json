@@ -38,7 +38,10 @@
           "warp",
           "comp"
         ]
-      }
+      },
+      "certificationStatus": "broken-archive",
+      "lastCertifiedAt": "2026-10-10T14:56:09.842Z",
+      "certificationSource": "batch-tester"
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -54,7 +57,8 @@
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "certification": "archived"
   },
   "scenes": [
     {

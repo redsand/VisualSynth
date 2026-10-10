@@ -36,15 +36,16 @@
           "comp"
         ]
       },
-      "certificationStatus": "degraded-usable",
-      "lastCertifiedAt": "2026-03-31T13:52:00.358Z",
+      "certificationStatus": "certified-safe",
+      "lastCertifiedAt": "2026-10-10T14:56:09.613Z",
       "qualityScores": {
         "compile": 0.5,
         "stability": 1,
         "completeness": 0.35
       },
       "proofPassed": false,
-      "proofFailedSteps": []
+      "proofFailedSteps": [],
+      "certificationSource": "batch-tester"
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -60,7 +61,8 @@
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "certification": "safe"
   },
   "scenes": [
     {

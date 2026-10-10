@@ -32,7 +32,10 @@
         "generatedPasses": [
           "comp"
         ]
-      }
+      },
+      "certificationStatus": "degraded-usable",
+      "lastCertifiedAt": "2026-10-10T14:56:09.936Z",
+      "certificationSource": "batch-tester"
     },
     "activeEngineId": "engine-radial-core",
     "activeModeId": "mode-cosmic",
@@ -48,7 +51,8 @@
     "defaultTransition": {
       "durationMs": 600,
       "curve": "easeInOut"
-    }
+    },
+    "certification": "degraded"
   },
   "scenes": [
     {
