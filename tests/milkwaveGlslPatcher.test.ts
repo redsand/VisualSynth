@@ -224,6 +224,208 @@ describe('patchMilkDropGlsl – unit', () => {
     expect(out).toContain('fragColor = vec4(ret, 1.0);');
     expect(out).not.toContain('}//:D\nfragColor');
   });
+
+  // Regression: preset-1070 (batch-0008) — `#define base02 sampler_main` is a
+  // standard MilkDrop sampler alias. The undeclared-variable injector used to
+  // emit `float base02 = 0.0;`, which the preprocessor expanded to
+  // `float sampler_main = 0.0;` — clobbering the sampler uniform and producing
+  // "texture: no matching overloaded function" + ".xyz: field selection
+  // requires structure, vector, or interface block".
+  it('does not inject declarations for #define macro names', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'uniform sampler2D sampler_main;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      '#define base02 sampler_main',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  vec2 uv = vUv;',
+      '  ret = texture(base02, uv).xyz;',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('texture(base02');
+    expect(out).not.toMatch(/\bfloat\s+base02\b/);
+    expect(out).not.toMatch(/\bfloat\s+sampler_main\b/);
+  });
+
+  // Regression: preset-1142 (batch-0015) — `texture(sampler_noisevol_hq, …)`
+  // with a vec3 coordinate. All samplers in the milkdrop pipeline are 2D
+  // (noisevol samplers are aliased down), so a coord wider than vec2 has no
+  // matching overload. Pass 9.1 swizzles the coordinate down to `.xy`.
+  it('swizzles vec3 texture coordinates down to .xy for 2D samplers', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'uniform sampler2D sampler_noise_hq;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  vec2 uv3 = vUv;',
+      '  ret = texture(sampler_noise_hq, uv3.xyy * vUv.xyy * vec3(1.0, 1.0, 0.0) + vUv.xyy).xyz;',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/texture\s*\(\s*sampler_noise_hq\s*,[\s\S]*?\)\s*\.xy\b/);
+    expect(out).not.toMatch(/texture\s*\(\s*sampler_noise_hq\s*,\s*[^)]*\)\s*\.xyz/);
+  });
+
+  // Shader-declared helpers (textureBias(vec4)) define their own prototypes —
+  // Pass 9.1 must not touch their calls even though they share a builtin name.
+  it('leaves shader-declared textureBias(vec4) helper calls untouched', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'uniform sampler2D sampler_main;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'vec4 textureBias(sampler2D s, vec4 uv4) { return textureLod(s, uv4.xy, uv4.w); }',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  ret = textureBias(sampler_main, vec4(vUv, 0.0, 1.0)).xyz;',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('textureBias(sampler_main,');
+    expect(out).not.toMatch(/textureBias\s*\([^)]*\)\s*\.xy\s*\)/);
+  });
+
+  // Regression: preset-1645 (batch-0065) — `noise *= (noise >= .0)`.
+  // MilkDrop allows component-wise vec comparisons; GLSL does not.
+  it('rewrites arithmetic vector comparisons to component-wise bool vectors', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 noise = texture(sampler_noise_hq, vUv).xyz;',
+      '  noise *= (noise >= .0);',
+      '  fragColor = vec4(noise, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/vec3\s*\(\s*greaterThanEqual\s*\(\s*noise\s*,\s*vec3\s*\(\s*\.0/);
+    expect(out).not.toMatch(/noise\s*>=/);
+  });
+
+  it('rewrites vector comparisons in if-conditions to any()', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 noise = texture(sampler_noise_hq, vUv).xyz;',
+      '  if (noise >= vec3(.5)) { noise *= 0.5; }',
+      '  fragColor = vec4(noise, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/if\s*\(\s*any\s*\(\s*greaterThanEqual\s*\(/);
+  });
+  // Multi-declarator lists (`vec3 a = 0, b = 1;`) share one type keyword, so
+  // Pass 10 used to skip them entirely — leaving an invalid scalar→vec
+  // implicit init that no GLSL driver accepts.
+  it('broadcasts scalar initializers in multi-declarator vector declarations', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 output = 0, foo = 1;',
+      '  fragColor = vec4(output, foo.x);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('vec3 output = vec3(0.0), foo = vec3(1.0);');
+  });
+
+  // Pass 9 used to skip every `dim >= 4` binary to protect mat*vec — which
+  // also shielded genuine vec4/vec3 mismatches from truncation (the
+  // "'+' : wrong operand types" driver family). Known matrices keep their
+  // skip; vec4 operands now get truncated.
+  it('truncates vec4 to vec3 in mixed-dimension arithmetic', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec4 vUvOriginal;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 ret = vec3(1.0);',
+      '  ret += vUvOriginal + vec3(0.5);',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/vUvOriginal\s*\.\s*xyz/);
+  });
+
+  it('leaves mat2 * vec arithmetic untouched', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);',
+      '  vec2 p = rot * vUv;',
+      '  fragColor = vec4(p, 0.0, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toContain('rot * vUv');
+    expect(out).not.toMatch(/rot\s*\.\s*xy/);
+  });
+
+  // The offline translator emits multi-char swizzles on scalar *variables*
+  // (scalar function results were already stripped post-generation).
+  it('truncates multi-char swizzles on scalar variables to the first component', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  float x = 0.5;',
+      '  vec3 ret = vec3(0.0);',
+      '  ret += x.xyz;',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/\bx\s*\.\s*x\b/);
+    expect(out).not.toMatch(/\bx\s*\.\s*xyz\b/);
+  });
+
+  // Regression: same preset — the parser represents multi-char swizzle
+  // selections (`.zx`, `.yy`, `.xyz`) as identifier nodes, so the injector used
+  // to emit `float zx = 0.0;`-style declarations for component names.
+  it('does not inject declarations for multi-char swizzle components', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  vec3 c = vec3(1.0);',
+      '  vec3 a;',
+      '  a.xyz = vec3(2.0 * c.x, c.y, 0.0).xyz;',
+      '  ret = c.zx * 0.001 * c.yy + a;',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    for (const component of ['zx', 'yy', 'xyz', 'rgb', 'xxx']) {
+      expect(out).not.toMatch(new RegExp(`\\bfloat\\s+${component}\\b`));
+    }
+  });
 });
 
 // ── Preset corpus integration tests ────────────────────────────────────────

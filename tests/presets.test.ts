@@ -36,123 +36,138 @@ describe('preset library', () => {
     expect(presetFiles.length).toBeGreaterThanOrEqual(10);
   });
 
-  // Test each preset individually for better error reporting
-  presetFiles.forEach((file) => {
-    it(`preset "${file}" should be valid and functional`, async () => {
-      const payload = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
-      const data = JSON.parse(payload);
-      const presetVersion = data.version || 2;
+  // Loop inside a single it rather than one it per preset: registering 7k+
+  // individual tests wedges vitest 1.x's threads pool (see vitest.config.ts).
+  // Failure localization is preserved by collecting file + reason per offender
+  // and failing once with the full list.
+  it(
+    `all ${presetFiles.length} presets should be valid and functional`,
+    () => {
+      const failures: string[] = [];
 
-      let validatedData: any;
-      let isValid = false;
+      const checkPreset = (file: string): void => {
+        const payload = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
+        const data = JSON.parse(payload);
+        const presetVersion = data.version || 2;
 
-      if (presetVersion === 6) {
-        const parsed = presetV6Schema.safeParse(data);
-        if (!parsed.success) {
-          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
-        }
-        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
-        if (parsed.success) {
-          validatedData = parsed.data;
-          isValid = true;
-        }
-      } else if (presetVersion === 5) {
-        const parsed = presetV5Schema.safeParse(data);
-        if (!parsed.success) {
-          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
-        }
-        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
-        if (parsed.success) {
-          validatedData = parsed.data;
-          isValid = true;
-        }
-      } else if (presetVersion === 4) {
-        const parsed = presetV4Schema.safeParse(data);
-        if (!parsed.success) {
-          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
-        }
-        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
-        if (parsed.success) {
-          validatedData = parsed.data;
-          isValid = true;
-        }
-      } else if (presetVersion === 3) {
-        const parsed = presetV3Schema.safeParse(data);
-        if (!parsed.success) {
-          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
-        }
-        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
-        if (parsed.success) {
-          validatedData = parsed.data;
-          isValid = true;
-        }
-      } else {
-        // Validate v2 preset against projectSchema
-        const parsed = projectSchema.safeParse(data);
-        if (!parsed.success) {
-          console.error(`Validation failed for ${file}:`, JSON.stringify(parsed.error.format(), null, 2));
-        }
-        expect(parsed.success, `Schema validation failed for ${file}`).toBe(true);
-        if (parsed.success) {
-          validatedData = parsed.data;
-          isValid = true;
-        }
-      }
+        let validatedData: any;
+        let isValid = false;
 
-      if (isValid) {
+        const schemaForVersion =
+          presetVersion === 6 ? presetV6Schema
+          : presetVersion === 5 ? presetV5Schema
+          : presetVersion === 4 ? presetV4Schema
+          : presetVersion === 3 ? presetV3Schema
+          : projectSchema;
+        const parsed = schemaForVersion.safeParse(data);
+        if (!parsed.success) {
+          failures.push(
+            `${file}: schema validation failed — ${JSON.stringify(parsed.error.format())}`
+          );
+          return;
+        }
+        validatedData = parsed.data;
+        isValid = true;
+
+        if (!isValid) return;
+
         if (presetVersion === 6) {
           const { project: convertedProject } = applyPresetV6(validatedData, DEFAULT_PROJECT);
 
-          expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+          if (convertedProject.scenes.length === 0) {
+            failures.push(`${file} has no scenes`);
+            return;
+          }
 
           const sceneIds = convertedProject.scenes.map((s: any) => s.id);
-          expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
+          if (!sceneIds.includes(convertedProject.activeSceneId)) {
+            failures.push(`${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`);
+          }
         } else if (presetVersion === 5) {
           const { project: convertedProject } = applyPresetV5(validatedData, DEFAULT_PROJECT);
 
-          expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+          if (convertedProject.scenes.length === 0) {
+            failures.push(`${file} has no scenes`);
+            return;
+          }
 
           const sceneIds = convertedProject.scenes.map((s: any) => s.id);
-          expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
+          if (!sceneIds.includes(convertedProject.activeSceneId)) {
+            failures.push(`${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`);
+          }
         } else if (presetVersion === 4) {
           const { project: convertedProject } = applyPresetV4(validatedData, DEFAULT_PROJECT);
 
-          expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+          if (convertedProject.scenes.length === 0) {
+            failures.push(`${file} has no scenes`);
+            return;
+          }
 
           const sceneIds = convertedProject.scenes.map((s: any) => s.id);
-          expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
-
-          expect(validatedData.metadata.intendedMusicStyle).toBeTruthy();
-          expect(Array.isArray(validatedData.metadata.visualIntentTags)).toBe(true);
-          expect(validatedData.metadata.defaultTransition).toBeDefined();
+          if (!sceneIds.includes(convertedProject.activeSceneId)) {
+            failures.push(`${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`);
+          }
+          if (!validatedData.metadata.intendedMusicStyle) {
+            failures.push(`${file} metadata.intendedMusicStyle missing`);
+          }
+          if (!Array.isArray(validatedData.metadata.visualIntentTags)) {
+            failures.push(`${file} metadata.visualIntentTags missing`);
+          }
+          if (validatedData.metadata.defaultTransition === undefined) {
+            failures.push(`${file} metadata.defaultTransition missing`);
+          }
         } else if (presetVersion === 3) {
           const { project: convertedProject } = applyPresetV3(validatedData, DEFAULT_PROJECT);
 
-          expect(convertedProject.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+          if (convertedProject.scenes.length === 0) {
+            failures.push(`${file} has no scenes`);
+            return;
+          }
 
           const sceneIds = convertedProject.scenes.map((s: { id: string }) => s.id);
-          expect(sceneIds, `${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`).toContain(convertedProject.activeSceneId);
+          if (!sceneIds.includes(convertedProject.activeSceneId)) {
+            failures.push(`${file} has activeSceneId "${convertedProject.activeSceneId}" which does not exist`);
+          }
         } else {
           const project = validatedData;
 
-          // Structural Integrity
-          expect(project.scenes.length, `${file} has no scenes`).toBeGreaterThan(0);
+          if (project.scenes.length === 0) {
+            failures.push(`${file} has no scenes`);
+            return;
+          }
 
           const sceneIds = project.scenes.map((s: { id: string }) => s.id);
-          expect(sceneIds, `${file} has activeSceneId "${project.activeSceneId}" which does not exist`).toContain(project.activeSceneId);
+          if (!sceneIds.includes(project.activeSceneId)) {
+            failures.push(`${file} has activeSceneId "${project.activeSceneId}" which does not exist`);
+          }
 
           // Functional Deserialization (smoke test)
           try {
             const functionalProject = deserializeProject(payload);
-            expect(functionalProject).toBeDefined();
-            expect(functionalProject.version).toBeGreaterThanOrEqual(2);
+            if (!functionalProject || functionalProject.version < 2) {
+              failures.push(`${file}: deserialization produced an invalid project`);
+            }
           } catch (err) {
-            throw new Error(`Deserialization failed for ${file}: ${err instanceof Error ? err.message : String(err)}`);
+            failures.push(`${file}: deserialization failed — ${err instanceof Error ? err.message : String(err)}`);
           }
         }
-      }
-    });
-  });
+      };
+
+      presetFiles.forEach((file, index) => {
+        if (index % 500 === 0) {
+          process.stderr.write(`[presets] ${index}/${presetFiles.length}\n`);
+        }
+        try {
+          checkPreset(file);
+        } catch (err) {
+          failures.push(`${file}: threw — ${err instanceof Error ? err.message : String(err)}`);
+        }
+      });
+
+      expect(failures).toEqual([]);
+    },
+    { timeout: 600_000 }
+  );
 
   it('includes VisualSynth DNA presets', () => {
     const names = presetFiles.map((file) => {

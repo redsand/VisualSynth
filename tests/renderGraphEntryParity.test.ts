@@ -23,7 +23,9 @@ const applyPresetToProject = (fileName: string) => {
 };
 
 describe('RenderGraph entry parity', () => {
-  it('matches shipped index spectrum enablement fallback for all presets', () => {
+  it(
+    'matches shipped index spectrum enablement fallback for all presets',
+    () => {
     // Only real presets are objects with a numeric `version`; the presets
     // directory also contains non-preset JSON (archive_list.json index, audit
     // and certification reports) which must be skipped, not migrated.
@@ -55,7 +57,11 @@ describe('RenderGraph entry parity', () => {
     }
 
     expect(mismatches).toEqual([]);
-  });
+    },
+    // Sync sweep over the full preset directory: the default 5s testTimeout
+    // can never fire on a synchronous body, so bound it explicitly.
+    { timeout: 600_000 }
+  );
 
   it('supports both canonical and legacy 8-bit grid layer ids in render state', () => {
     const store = createStore(createInitialState());

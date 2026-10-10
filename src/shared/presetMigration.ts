@@ -1312,34 +1312,43 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
 
   mergePresetAssets(project, preset);
  
+  // Per-preset migration chatter floods test output (~14k events across the
+  // 7k-preset sweeps); opt in explicitly instead of logging by default.
+  const VERBOSE =
+    typeof process !== 'undefined' && process.env?.VS_PRESET_MIGRATION_VERBOSE === '1';
+
   // Preserve MilkDrop shader data for custom presets
   if (preset?._shaderData) {
     const normalizedShaderData = normalizeMilkDropShaderData(preset._shaderData);
-    if (preset?.metadata?.milkwave) {
-      console.log('[PresetMigration] Milkwave support assessment:', {
-        tier: preset.metadata.milkwave.supportTier,
-        featureSummary: preset.metadata.milkwave.featureSummary,
-        reasons: preset.metadata.milkwave.reasons.slice(0, 5)
+    if (VERBOSE) {
+      if (preset?.metadata?.milkwave) {
+        console.log('[PresetMigration] Milkwave support assessment:', {
+          tier: preset.metadata.milkwave.supportTier,
+          featureSummary: preset.metadata.milkwave.featureSummary,
+          reasons: preset.metadata.milkwave.reasons.slice(0, 5)
+        });
+      }
+      console.log('[PresetMigration] Preserving MilkDrop shader data:', {
+        hasWarp: !!normalizedShaderData?.warp,
+        warpLength: normalizedShaderData?.warp?.length || 0,
+        hasComp: !!normalizedShaderData?.comp,
+        compLength: normalizedShaderData?.comp?.length || 0,
+        perFrameCodeLength: normalizedShaderData?.perFrameCode?.length || 0,
+        perPixelCodeLength: normalizedShaderData?.perPixelCode?.length || 0,
+        waveCount: normalizedShaderData?.waves?.length || 0,
+        shapeCount: normalizedShaderData?.shapes?.length || 0
       });
     }
-    console.log('[PresetMigration] Preserving MilkDrop shader data:', {
-      hasWarp: !!normalizedShaderData?.warp,
-      warpLength: normalizedShaderData?.warp?.length || 0,
-      hasComp: !!normalizedShaderData?.comp,
-      compLength: normalizedShaderData?.comp?.length || 0,
-      perFrameCodeLength: normalizedShaderData?.perFrameCode?.length || 0,
-      perPixelCodeLength: normalizedShaderData?.perPixelCode?.length || 0,
-      waveCount: normalizedShaderData?.waves?.length || 0,
-      shapeCount: normalizedShaderData?.shapes?.length || 0
-    });
     const activeScene = project.scenes.find((s: any) => s.id === project.activeSceneId);
     if (activeScene) {
       activeScene._shaderData = normalizedShaderData;
-      console.log('[PresetMigration] Shader data copied to scene:', activeScene.id);
+      if (VERBOSE) {
+        console.log('[PresetMigration] Shader data copied to scene:', activeScene.id);
+      }
     } else {
       console.error('[PresetMigration] Active scene not found:', project.activeSceneId);
     }
-  } else {
+  } else if (VERBOSE) {
     console.log('[PresetMigration] No _shaderData in preset, using fallback');
   }
  

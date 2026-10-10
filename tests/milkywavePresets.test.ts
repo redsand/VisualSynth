@@ -79,46 +79,51 @@ describe('Milkwave Imported Presets', () => {
   );
 
   describe('category distribution', () => {
-    it('should have presets distributed across categories', () => {
-      const categoryCounts: Record<string, number> = {};
+    it(
+      'should have presets distributed across categories',
+      () => {
+        const categoryCounts: Record<string, number> = {};
 
-      for (const file of milkywavePresets) {
-        const content = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
-        const preset = JSON.parse(content);
-        const category = preset.metadata.category || 'Uncategorized';
-        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-      }
+        for (const file of milkywavePresets) {
+          const content = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
+          const preset = JSON.parse(content);
+          const category = preset.metadata.category || 'Uncategorized';
+          categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        }
 
-      console.log('Category distribution:', categoryCounts);
+        // At minimum, we should have Audio Reactive presets (most common in MilkDrop)
+        expect(categoryCounts['Audio Reactive']).toBeGreaterThan(0);
 
-      // At minimum, we should have Audio Reactive presets (most common in MilkDrop)
-      expect(categoryCounts['Audio Reactive']).toBeGreaterThan(0);
-
-      // We should have a variety of categories
-      const categoryCount = Object.keys(categoryCounts).length;
-      expect(categoryCount).toBeGreaterThan(3);
-    });
+        // We should have a variety of categories
+        const categoryCount = Object.keys(categoryCounts).length;
+        expect(categoryCount).toBeGreaterThan(3);
+      },
+      { timeout: 120_000 }
+    );
   });
 
   describe('author attribution', () => {
-    it('should have author information for most presets', () => {
-      let withAuthor = 0;
-      let total = 0;
+    it(
+      'should have author information for most presets',
+      () => {
+        let withAuthor = 0;
+        let total = 0;
 
-      for (const file of milkywavePresets) {
-        const content = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
-        const preset = JSON.parse(content);
-        total++;
-        if (preset.metadata.author && preset.metadata.author !== 'Unknown') {
-          withAuthor++;
+        for (const file of milkywavePresets) {
+          const content = fs.readFileSync(path.join(presetsDir, file), 'utf-8');
+          const preset = JSON.parse(content);
+          total++;
+          if (preset.metadata.author && preset.metadata.author !== 'Unknown') {
+            withAuthor++;
+          }
         }
-      }
 
-      const percentage = (withAuthor / total) * 100;
-      console.log(`Presets with author: ${withAuthor}/${total} (${percentage.toFixed(1)}%)`);
+        const percentage = (withAuthor / total) * 100;
 
-      // At least 50% should have author attribution
-      expect(withAuthor).toBeGreaterThan(total * 0.5);
-    });
+        // At least 50% should have author attribution
+        expect(withAuthor).toBeGreaterThan(total * 0.5);
+      },
+      { timeout: 120_000 }
+    );
   });
 });

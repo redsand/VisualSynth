@@ -256,6 +256,8 @@ console.log(`Scanning ${files.length} milkwave presets...\n`);
 let totalShaders = 0;
 let shadersWithIssues = 0;
 
+let patcherCrashes = 0;
+
 for (const file of files) {
   const preset = JSON.parse(fs.readFileSync(path.join(presetsDir, file), 'utf-8'));
   const sd = preset._shaderData;
@@ -264,11 +266,32 @@ for (const file of files) {
   for (const [pass, shader] of [['warp', sd.warp], ['comp', sd.comp]] as const) {
     if (!shader || typeof shader !== 'string') continue;
     totalShaders++;
-    const patched = patchMilkDropGlsl(shader);
+    // patchMilkDropGlsl can still throw on malformed ASTs (null nodes in the
+    // parsed tree); a crashing shader is itself a failure signal, not a reason
+    // to lose the rest of the corpus.
+    let patched: string;
+    try {
+      patched = patchMilkDropGlsl(shader);
+    } catch (err) {
+      patcherCrashes++;
+      issues.push({
+        file,
+        pass,
+        line: 0,
+        category: 'patcher_crash',
+        evidence: `${file} (${pass}): ${err instanceof Error ? err.message : String(err)}`
+      });
+      shadersWithIssues++;
+      continue;
+    }
     const beforeCount = issues.length;
     detectIssues(patched, file, pass);
     if (issues.length > beforeCount) shadersWithIssues++;
   }
+}
+
+if (patcherCrashes > 0) {
+  console.log(`Patcher crashes:      ${patcherCrashes} shaders threw during patching\n`);
 }
 
 // ── Report ───────────────────────────────────────────────────────────────

@@ -15,7 +15,8 @@
  */
 
 import { parse, generate } from '@shaderfrog/glsl-parser';
-import { visit } from '@shaderfrog/glsl-parser/ast';
+import { visit as glslVisit } from '@shaderfrog/glsl-parser/ast';
+import type { NodeVisitors } from '@shaderfrog/glsl-parser/ast';
 import type {
   AstNode,
   Program,
@@ -38,6 +39,24 @@ import type {
   LiteralNode,
 } from '@shaderfrog/glsl-parser/ast';
 import type { Path } from '@shaderfrog/glsl-parser/ast';
+
+/**
+ * Crash-proof visit: malformed-but-parsable shaders can leave null children
+ * in the AST, and the library's visitor throws on them (reading `.type` of
+ * null). A pass that dies mid-traversal keeps its partial edits — still far
+ * better than propagating the exception, which aborts every remaining pass
+ * and sends the whole shader to the runtime fallback path.
+ */
+const visit = (ast: Program | AstNode, visitors: NodeVisitors): void => {
+  try {
+    glslVisit(ast, visitors);
+  } catch (err) {
+    console.warn(
+      '[MilkwaveGlslPatcher] AST visit pass skipped after traversal error:',
+      err instanceof Error ? err.message : err
+    );
+  }
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AST helper utilities
@@ -854,16 +873,22 @@ const astTransform = (source: string): string => {
   // ── Build a type map from all declarator lists ──
   // This lets inferDim know the types of declared variables.
   const typeMap = new Map<string, number>();
+  const matrixNames = new Set<string>();
   visit(ast, {
     declarator_list: {
       enter: (p) => {
         const kw = getTypeKeyword(p.node);
         const dim = kw === 'float' ? 1 : kw === 'vec2' ? 2 : kw === 'vec3' ? 3 : kw === 'vec4' ? 4 :
                     kw === 'mat2' ? 4 : kw === 'mat3' ? 9 : kw === 'mat4' ? 16 : 0;
+        // mat2 shares inferred dim 4 with vec4, but mat*vec is valid GLSL while
+        // vec4±vec3 is not — passes that "fix" dim mismatches need to know
+        // which is which (see Pass 9's matrix skip).
+        const isMat = kw === 'mat2' || kw === 'mat3' || kw === 'mat4';
         for (const d of (p.node as DeclaratorListNode).declarations) {
           const decl = d as DeclarationNode;
           if (decl.identifier) {
             typeMap.set(decl.identifier.identifier, dim);
+            if (isMat) matrixNames.add(decl.identifier.identifier);
           }
         }
       },
@@ -952,11 +977,28 @@ const astTransform = (source: string): string => {
   const allUsedIdentifiers = new Set<string>();
   const functionNames = new Set<string>();
   const declaredInFunctions = new Set<string>();
+  // `#define` macro names (e.g. `#define base02 sampler_main` — a standard
+  // MilkDrop sampler alias) act like declarations: the preprocessor expands
+  // them before compilation, so injecting `float base02 = 0.0;` would expand
+  // to `float sampler_main = 0.0;` and clobber the sampler uniform.
+  const macroNames = new Set<string>();
   visit(ast, {
     identifier: {
       enter: (p) => {
+        // Multi-char swizzle components (`.zx`, `.xyz`) parse their selection
+        // as an identifier node under a field_selection parent — they are
+        // component names, not variables. (Single-char selections parse as
+        // literals and never reach here.)
+        if (p.parentPath?.node?.type === 'field_selection') return;
         const name = (p.node as IdentifierNode).identifier;
         if (name) allUsedIdentifiers.add(name);
+      },
+    },
+    preprocessor: {
+      enter: (p) => {
+        const line = (p.node as unknown as { line?: string }).line ?? '';
+        const m = /^#\s*define\s+(\w+)/.exec(line);
+        if (m) macroNames.add(m[1]);
       },
     },
     function: {
@@ -986,7 +1028,7 @@ const astTransform = (source: string): string => {
   // ── Find undeclared identifiers (assigned or used but not declared, not builtin) ──
   const undeclared = new Set<string>();
   for (const name of assignments) {
-    if (declaredNames.has(name)) continue;
+    if (declaredNames.has(name) || macroNames.has(name)) continue;
     // A name assigned as an identifier LHS is a real variable. Only true
     // builtins (gl_FragCoord, sin, uniforms, q1..q32, etc.) are skipped; a name
     // that is "builtin" solely because it is a swizzle letter (a, b, x, ...)
@@ -999,7 +1041,7 @@ const astTransform = (source: string): string => {
   // Also add used-but-not-declared identifiers (here swizzle letters stay
   // suppressed — a bare `x` read without an assignment is ambiguous).
   for (const name of allUsedIdentifiers) {
-    if (!declaredNames.has(name) && !builtins.has(name)) {
+    if (!declaredNames.has(name) && !macroNames.has(name) && !builtins.has(name)) {
       undeclared.add(name);
     }
   }
@@ -1376,6 +1418,17 @@ const astTransform = (source: string): string => {
   // When vecA op vecB where dims don't match, wrap the smaller side in a vec constructor
   // to match the larger side. e.g. vec3 + vec2 → vec3 + vec3(vec2, 0.0)
   // Note: This can cause issues with texture() coordinates. Pass 9.1 fixes that.
+  // Matrix operands are skipped (mat*vec is valid GLSL), but a *known matrix*
+  // must not shield a genuine vec4/vec3 mismatch from truncation.
+  const isMatrixExpr = (node: AstNode): boolean => {
+    if (node.type === 'identifier') return matrixNames.has((node as IdentifierNode).identifier);
+    if (node.type === 'function_call') {
+      const fn = getFnName(node as FunctionCallNode);
+      return fn === 'mat2' || fn === 'mat3' || fn === 'mat4';
+    }
+    if (node.type === 'group') return isMatrixExpr((node as unknown as { expression: AstNode }).expression);
+    return false;
+  };
   visit(ast, {
     binary: {
       enter: (p: Path<BinaryNode>) => {
@@ -1387,8 +1440,10 @@ const astTransform = (source: string): string => {
         const leftDim = inferDim(left, typeMap);
         const rightDim = inferDim(right, typeMap);
         if (leftDim === 0 || rightDim === 0) return;
-        // Skip matrix types (dim >= 4) - mat*vec is valid GLSL
-        if (leftDim >= 4 || rightDim >= 4) return;
+        // Skip matrix operands — mat*vec is valid GLSL. Only mat2 shares dim 4
+        // with vec4; mat3/mat4 (9/16) are excluded below.
+        if (isMatrixExpr(left) || isMatrixExpr(right)) return;
+        if (leftDim > 4 || rightDim > 4) return;
         if (leftDim === rightDim) return;
         if (leftDim === 1 || rightDim === 1) {
           // `vec * scalar` / `vec / scalar` (and the reverse) are valid GLSL
@@ -1453,6 +1508,38 @@ const astTransform = (source: string): string => {
     }
   });
 
+  // ── Pass 9.1: texture() coordinate dimension fix ──
+  // Pass 9's binary rebalancing (and the offline translator) can produce
+  // `texture(sampler, vec3-coord)`. Every sampler in the milkdrop pipeline is
+  // 2D (`sampler_noisevol_*` are aliased down to 2D noise samplers by
+  // injectMissingSamplers), so a coord wider than vec2 has no matching overload.
+  // Swizzle the coordinate down to `.xy`.
+  // Shader-declared helpers with the same names (textureBias(vec4), textureLod4)
+  // define their own prototypes and must be left alone — `declaredNames`
+  // contains user function names, builtins like `texture` are never in it.
+  visit(ast, {
+    function_call: {
+      enter: (p) => {
+        const name = getFnName(p.node);
+        if (name !== 'texture' && name !== 'textureLod' && name !== 'textureBias') return;
+        if (declaredNames.has(name)) return;
+        const args = getArgs(p.node);
+        if (args.length < 2) return;
+        const sampler = args[0];
+        if (sampler.type !== 'identifier' || !/^sampler_\w+$/.test((sampler as IdentifierNode).identifier)) return;
+        const coordDim = inferDim(args[1], typeMap);
+        if (coordDim <= 2) return;
+        const allArgs = (p.node as FunctionCallNode).args;
+        for (let i = 0; i < allArgs.length; i++) {
+          if (allArgs[i] === args[1]) {
+            allArgs[i] = mkPostfixSwizzle(args[1], 'xy') as unknown as AstNode;
+            break;
+          }
+        }
+      },
+    },
+  });
+
   // ── Pass 10: Dimension mismatch in declarator lists ──
   // `float x = vec_expr` → change type to match initializer
   // `vecX x = scalar_expr` → change type to float
@@ -1465,6 +1552,23 @@ const astTransform = (source: string): string => {
         if (declaredDim === 0) return;
 
         const decls = node.declarations;
+
+        // Multi-declarator lists (`vec3 a = 0, b = 1;`) share one type keyword,
+        // so the float→vecN type *change* only fires when a single declaration
+        // would be rewritten. But the vecN-broadcast *wrap*
+        // (`vecX x = scalar` → `vecX x = vecX(scalar)`) needs no type change
+        // and can safely be applied per declaration.
+        if (decls.length > 1) {
+          for (const d of decls) {
+            const decl = d as DeclarationNode;
+            if (!decl.initializer) continue;
+            if (declaredDim < 2) continue;
+            if (inferDim(decl.initializer, typeMap) !== 1) continue;
+            decl.initializer = mkFnCall(`vec${declaredDim}`, [decl.initializer as unknown as AstNode], ' ') as unknown as AstNode;
+          }
+          return;
+        }
+
         if (decls.length !== 1) return;
         const decl = decls[0] as DeclarationNode;
         if (!decl.initializer) return;
@@ -1577,13 +1681,107 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Swizzle normalization (pre-generation) ──
-  // Fix invalid swizzles like .zww, .wzy, .zxy on non-vectors.
-  // These come from offline translation errors where vec3 was used as vec4.
-  // Replace multi-char swizzles with the first character (treat as scalar access).
-  source = source.replace(/\.([xyzwrgba])([xyzwrgba]{2,})\b/g, '.$1');
-  // Fix duplicate swizzle chars like .xxx → .x
-  source = source.replace(/\.([xyzwrgba])\1+\b/g, '.$1');
+  // ── Pass 10.7: Vector comparison operators ──
+  // MilkDrop/HLSL allows `vec >= vec` component-wise (bool→float in
+  // arithmetic contexts, "any" semantics in conditions). GLSL only defines
+  // comparisons for scalars, so rewrite:
+  //   arithmetic: `noise *= (noise >= .0)` → vecN(greaterThanEqual(a, b))
+  //   condition:  `if (noise >= x)`       → any(greaterThanEqual(a, b))
+  // Scalar operands are widened via the broadcasting vecN(scalar) constructor.
+  const CMP_FNS: Record<string, string> = {
+    '<': 'lessThan', '>': 'greaterThan',
+    '<=': 'lessThanEqual', '>=': 'greaterThanEqual',
+    '==': 'equal', '!=': 'notEqual',
+  };
+  const conditionStatementTypes = new Set([
+    'if_statement', 'while_statement', 'for_statement', 'do_statement',
+  ]);
+  const isInConditionSlot = (p: Path<BinaryNode>): boolean => {
+    const parent = p.parentPath?.node as any;
+    if (!parent) return false;
+    if (conditionStatementTypes.has(parent.type)) return true;
+    // `(a >= b)` in a condition parses the binary under a group node whose
+    // parent is the statement.
+    if (parent.type === 'group') {
+      const grand = p.parentPath?.parentPath?.node as any;
+      return Boolean(grand && conditionStatementTypes.has(grand.type));
+    }
+    return false;
+  };
+  const replaceInParent = (p: Path<BinaryNode>, replacement: AstNode): boolean => {
+    const parent = p.parentPath?.node as any;
+    if (!parent) return false;
+    for (const key of Object.keys(parent)) {
+      const value = parent[key];
+      if (Array.isArray(value)) {
+        const idx = value.indexOf(p.node);
+        if (idx !== -1) {
+          value[idx] = replacement;
+          return true;
+        }
+      } else if (value === p.node) {
+        parent[key] = replacement;
+        return true;
+      }
+    }
+    return false;
+  };
+  visit(ast, {
+    binary: {
+      enter: (p: Path<BinaryNode>) => {
+        const op = p.node.operator.literal;
+        if (!(op in CMP_FNS)) return;
+        const leftDim = inferDim(p.node.left, typeMap);
+        const rightDim = inferDim(p.node.right, typeMap);
+        const dim = Math.max(leftDim, rightDim);
+        if (dim <= 1) return;
+
+        let left = p.node.left;
+        let right = p.node.right;
+        // Broadcast scalar operands up to the comparison dimension. Unknown
+        // dims (0) are left alone — the comparison only fires when at least
+        // one side is a known vector.
+        if (leftDim === 1 && dim > 1) left = mkFnCall(`vec${dim}`, [left], ' ') as unknown as AstNode;
+        if (rightDim === 1 && dim > 1) right = mkFnCall(`vec${dim}`, [right], ' ') as unknown as AstNode;
+
+        const cmp = mkFnCall(CMP_FNS[op], [left, mkLiteral(',') as unknown as AstNode, right], ' ') as unknown as FunctionCallNode;
+        const replacement = isInConditionSlot(p)
+          ? mkFnCall('any', [cmp as unknown as AstNode, ], ' ')
+          : mkFnCall(`vec${dim}`, [cmp as unknown as AstNode], ' ');
+        replaceInParent(p, replacement as unknown as AstNode);
+      },
+    },
+  });
+
+  // ── Pass 10.8: multi-char swizzles on scalar variables ──
+  // The offline translator sometimes emits `.xyz`/`.xy` on identifiers that
+  // are declared floats ("field selection requires structure, vector, or
+  // interface block"). Scalar *function results* are stripped post-generation;
+  // this pass covers scalar *identifiers* while their typeMap entries are
+  // final (after Pass 10 declaration-type rewrites and 10.6 int→float).
+  // Swizzles on unknown (dim 0) names are left alone — the undeclared-variable
+  // injector may legitimately declare them as vectors.
+  // Runs BEFORE Pass 11 so the constructor-narrowing swizzles Pass 11 creates
+  // (always on real vectors) are unaffected.
+  visit(ast, {
+    postfix: {
+      enter: (p) => {
+        const pf = (p.node as PostfixNode).postfix;
+        if (pf.type !== 'field_selection') return;
+        const sel = (pf as FieldSelectionNode).selection;
+        const swizzle = sel.type === 'literal'
+          ? (sel as LiteralNode).literal
+          : sel.type === 'identifier' ? (sel as unknown as IdentifierNode).identifier : '';
+        if (!/^[xyzwrgba]{2,}$/.test(swizzle)) return;
+        const expr = (p.node as PostfixNode).expression;
+        if (expr.type !== 'identifier') return;
+        const name = (expr as IdentifierNode).identifier;
+        if (typeMap.get(name) !== 1) return;
+        // Scalar access: keep only the first component letter.
+        (pf as any).selection = mkLiteral(swizzle[0]);
+      },
+    },
+  });
 
   // ── Pass 11: vec constructor args too wide → swizzle down ──
   // Runs AFTER Pass 10 so typeMap has updated declaration types.

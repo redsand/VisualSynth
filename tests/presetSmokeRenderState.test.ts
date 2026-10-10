@@ -86,7 +86,9 @@ describe('preset smoke render-state snapshots', () => {
     renderGraph = new RenderGraph(store);
   });
 
-  it('applies every preset and produces a stable render-state subset', () => {
+  it(
+    'applies every preset and produces a stable render-state subset',
+    () => {
     // assets/presets also ships non-preset JSON manifests (e.g. archive_list.json,
     // an array). migratePreset correctly rejects those; this smoke test only
     // cares about actual preset objects carrying a numeric version 1-6.
@@ -110,5 +112,9 @@ describe('preset smoke render-state snapshots', () => {
       return { preset: fileName, snapshot: renderSnapshot(renderState) };
     });
     expect(entries).toMatchSnapshot();
-  });
+    },
+    // Sync sweep over the full preset directory: the default 5s testTimeout
+    // can never fire on a synchronous body, so bound it explicitly.
+    { timeout: 600_000 }
+  );
 });
