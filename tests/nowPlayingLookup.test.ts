@@ -1,3 +1,6 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   cacheRemoteArtwork,
@@ -286,9 +289,14 @@ describe('cacheRemoteArtwork', () => {
       headers: { get: () => 'image/jpeg' }
     });
 
+    // cacheRemoteArtwork writes the fetched bytes to disk — a literal
+    // Windows-style path used to create a junk `C:\art-cache/` dir in the
+    // repo cwd on every run. Use a real throwaway dir instead.
+    const cacheDir = mkdtempSync(path.join(tmpdir(), 'vs-art-cache-'));
+
     const result = await cacheRemoteArtwork(
       'http://127.0.0.1:8899/artwork/cover.jpg',
-      'C:\\art-cache',
+      cacheDir,
       fetchImpl as unknown as typeof fetch
     );
 
