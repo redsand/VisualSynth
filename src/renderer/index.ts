@@ -2161,6 +2161,7 @@ const presetQuickFilterDefs: Array<{ id: string; label: string; match: (preset: 
   { id: 'favorites', label: 'Favorites', match: (preset) => presetFavorites.includes(preset.path) },
   { id: 'recent', label: 'Recent', match: (preset) => presetRecents.includes(preset.path) },
   { id: 'safe', label: 'Safe', match: (preset) => !preset.riskFlags.includes('flash-heavy') && !preset.riskFlags.includes('cpu-heavy') },
+  { id: 'showable', label: 'Showable', match: (preset) => preset.certification === 'safe' || preset.certification === 'degraded' },
   { id: 'audio', label: 'Audio', match: (preset) => preset.sourceDependency === 'audio-reactive' || preset.sourceDependency === 'hybrid' },
   { id: 'no-media', label: 'No Media', match: (preset) => preset.sourceDependency === 'none' || preset.sourceDependency === 'audio-reactive' },
   { id: 'high-energy', label: 'High Energy', match: (preset) => preset.energy === 'high' || preset.energy === 'peak' },
@@ -2287,8 +2288,15 @@ const buildPresetCard = (preset: PresetIndexEntry): HTMLElement => {
   if (preset.certification) {
     const certTag = document.createElement('div');
     certTag.className = 'preset-tag certification-tag';
-    certTag.textContent = preset.certification;
+    // Unstable/archived presets stay browsable (the library's size is part of
+    // the demo) — a muted "needs fix" badge marks them instead of hiding them.
+    certTag.textContent = preset.certification === 'unstable' || preset.certification === 'archived'
+      ? 'needs fix'
+      : preset.certification;
     certTag.style.border = `1px solid ${getCertificationColor(preset.certification)}`;
+    if (preset.certification === 'unstable' || preset.certification === 'archived') {
+      certTag.classList.add('needs-fix');
+    }
     tags.appendChild(certTag);
   }
 
@@ -2388,7 +2396,9 @@ const renderPresetPreview = () => {
   if (preset.certification) {
     const certTag = document.createElement('div');
     certTag.className = 'preset-tag certification-tag';
-    certTag.textContent = preset.certification;
+    certTag.textContent = preset.certification === 'unstable' || preset.certification === 'archived'
+      ? 'needs fix'
+      : preset.certification;
     certTag.style.background = getCertificationColor(preset.certification);
     certTag.style.color = '#fff';
     presetPreviewBadges.appendChild(certTag);
@@ -15665,8 +15675,16 @@ const init = async () => {
     console.log('[Init] initAudioDevices completed');
 
     updateLoadingProgress(85, 'Waiting for audio engine & microphone...');
-    await setupAudio();
-    console.log('[Init] setupAudio completed');
+    // setupAudio awaits AudioContext.resume(), whose promise can stay pending
+    // forever when the browser blocks autoplay (headless/test environments,
+    // or a user who hasn't granted mic permission yet). Don't let a stalled
+    // audio device block app boot — race it and let setup finish in the
+    // background; the engine wires up listeners when it completes.
+    await Promise.race([
+      setupAudio(),
+      new Promise((resolve) => setTimeout(resolve, 10_000))
+    ]);
+    console.log('[Init] setupAudio completed (or timed out; continuing in background)');
 
     updateLoadingProgress(90, 'Connecting MIDI...');
     await setupMIDI();

@@ -654,7 +654,15 @@ const main = async () => {
   console.log(`\nLaunching headless browser...`);
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      // The app awaits AudioContext.resume()/getUserMedia at startup; without
+      // these flags headless Chrome blocks both and app init never completes.
+      '--autoplay-policy=no-user-gesture-required',
+      '--use-fake-device-for-media-stream',
+      '--use-fake-ui-for-media-stream'
+    ]
   });
 
   const page = await browser.newPage();
@@ -733,6 +741,12 @@ const main = async () => {
         hasApplyProject: Boolean(window.__visualSynthCaptureApi?.applyProject),
       }));
       console.error('Init state:', JSON.stringify(initCheck));
+      if (consoleEntries.length > 0) {
+        console.error(`Browser console (${consoleEntries.length} entries):`);
+        for (const entry of consoleEntries.slice(-40)) {
+          console.error(`  [${entry.type}] ${entry.text}`);
+        }
+      }
     } catch {
       console.error('Could not check init state - page frame detached');
     }

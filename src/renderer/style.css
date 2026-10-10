@@ -1354,6 +1354,15 @@ body[data-mode='matrix'] .safe-mode {
   padding: 2px 6px;
 }
 
+/* Muted marker for unstable/archived presets — visible but not alarming.
+   The library's size is part of the demo, so broken presets get a badge
+   instead of being hidden. */
+.preset-tag.needs-fix {
+  opacity: 0.7;
+  font-style: italic;
+  border-style: dashed;
+}
+
 .preset-card-actions {
   display: flex;
   flex-direction: column;
