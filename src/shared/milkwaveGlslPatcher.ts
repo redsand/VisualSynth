@@ -260,7 +260,19 @@ const mkFnCall = (name: string, args: AstNode[], ws: string | string[] = ''): Fu
   type: 'function_call',
   identifier: mkTypeSpecifier(name),
   lp: mkLiteral('('),
-  args,
+  // Binary/assignment args must be parenthesized — a raw binary arg would be
+  // generated without parens, changing precedence inside the call:
+  // vec3(a - b * 0.1, 0.0) means a - (b * 0.1), not (a - b) * 0.1.
+  args: args.map((arg) =>
+    arg.type === 'binary' || arg.type === 'assignment'
+      ? ({
+          type: 'group',
+          lp: mkLiteral('('),
+          expression: arg,
+          rp: mkLiteral(')'),
+        } as unknown as AstNode)
+      : arg
+  ),
   rp: mkLiteral(')'),
 });
 
@@ -1533,8 +1545,14 @@ const astTransform = (source: string): string => {
         if (declaredNames.has(name)) return;
         const args = getArgs(p.node);
         if (args.length < 2) return;
+        // Any identifier is an acceptable first arg: MilkDrop presets name
+        // their samplers freely (base02, sampler_fw_main, ...) and the old
+        // `/^sampler_\w+$/` restriction here let free-named samplers fall
+        // through to a post-gen regex that corrupted nested coord expressions.
+        // Shader-declared helpers are excluded above via declaredNames; the
+        // remaining calls are the real builtin, whose samplers are all 2D.
         const sampler = args[0];
-        if (sampler.type !== 'identifier' || !/^sampler_\w+$/.test((sampler as IdentifierNode).identifier)) return;
+        if (sampler.type !== 'identifier') return;
         const coordDim = inferDim(args[1], typeMap);
         if (coordDim <= 2) return;
         const allArgs = (p.node as FunctionCallNode).args;
@@ -2054,15 +2072,13 @@ const astTransform = (source: string): string => {
     }
   }
 
-  // ── Post-generation fix: texture() with vec3 coordinates ──
-  // The binary rebalancing can cause texture(sampler, vec3(...)+...) which is invalid.
-  // Fix by wrapping the coord in parentheses and adding .xy.
-  patched = patched.replace(
-    /\b(texture|textureLod|textureBias)\s*\(\s*([^,]+)\s*,\s*(vec3\s*\([^)]+\)\s*[\+\-\*\/][^)]*)\s*\)/g,
-    (_match, fn, sampler, coord) => {
-      return `${fn}(${sampler}, (${coord}).xy)`;
-    }
-  );
+  // NOTE: a previous post-gen regex here rewrote `texture(sampler, vec3-coord)`
+  // to `.xy`. Its `[^)]*` stopped at the FIRST close-paren inside the coord, so
+  // Pass 9's padded `vec3(expr, 0.0)` nested in the coord got spliced:
+  // `vec3((uv- vec2(0.5).xy))*0.1,0.0` — operator and pad ended up OUTSIDE the
+  // ctor, producing "constructor not enough data" / syntax errors. This is now
+  // handled structurally in AST Pass 9.1 (all samplers, not just sampler_*),
+  // so the regex is gone.
 
   // ── Post-generation fix: float/var = vecN_expr dimension mismatch ──
   // When a float variable is initialized with a vec3 expression (e.g., from mix/texture),
