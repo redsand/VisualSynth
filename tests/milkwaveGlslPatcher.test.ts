@@ -386,7 +386,9 @@ describe('patchMilkDropGlsl – unit', () => {
 
   // The offline translator emits multi-char swizzles on scalar *variables*
   // (scalar function results were already stripped post-generation).
-  it('truncates multi-char swizzles on scalar variables to the first component', () => {
+  // HLSL scalar swizzles replicate, so the postfix is dropped entirely —
+  // truncating to `.x` would still be invalid GLSL on a float.
+  it('strips multi-char swizzles on scalar variables entirely', () => {
     const src = [
       '#version 300 es',
       'precision highp float;',
@@ -399,8 +401,68 @@ describe('patchMilkDropGlsl – unit', () => {
       '}',
     ].join('\n');
     const out = patchMilkDropGlsl(src);
-    expect(out).toMatch(/\bx\s*\.\s*x\b/);
-    expect(out).not.toMatch(/\bx\s*\.\s*xyz\b/);
+    expect(out).toMatch(/ret\s*\+=\s*x\s*;/);
+    expect(out).not.toMatch(/\bx\s*\.\s*[xyz]/);
+  });
+
+  // Single-char scalar swizzles (`float s; s.x` — legal HLSL replication,
+  // "'x' : field selection requires structure, vector, or interface block"
+  // in GLSL) are the top driver-error family; they strip the same way.
+  it('strips single-char swizzles on scalar variables', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  float s = 0.5;',
+      '  float t = s.x + s.y;',
+      '  fragColor = vec4(t, 0.0, 0.0, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/float t = s\s*\+\s*s;/);
+    expect(out).not.toMatch(/\bs\s*\.\s*[xy]\b/);
+  });
+
+  // An undeclared name used only with a swizzle (`hue_shader.zxy`) must be
+  // declared as a vector sized to the swizzle, not float — otherwise the
+  // injected `float hue_shader` fails with the same field-selection error
+  // (batch 9221: ~150 presets, biggest fallback family).
+  it('declares swizzle-used undeclared names as vectors, not floats', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 ret = vec3(0.0);',
+      '  ret *= hue_shader.zxy * 0.5;',
+      '  fragColor = vec4(ret, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/vec3\s+hue_shader\s*=/);
+    expect(out).not.toMatch(/float\s+hue_shader/);
+  });
+
+  // Swizzles on genuine vectors must survive all of the above.
+  it('keeps swizzles on declared vectors intact', () => {
+    const src = [
+      '#version 300 es',
+      'precision highp float;',
+      'in vec2 vUv;',
+      'out vec4 fragColor;',
+      'void main() {',
+      '  vec3 c = vec3(0.2, 0.4, 0.6);',
+      '  float b = c.zxy.x * 2.0;',
+      '  vec2 uv = vUv.xy * c.zz;',
+      '  fragColor = vec4(b, uv, 1.0);',
+      '}',
+    ].join('\n');
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/c\.zxy/);
+    expect(out).toMatch(/vUv\.xy/);
   });
 
   // Regression: same preset — the parser represents multi-char swizzle

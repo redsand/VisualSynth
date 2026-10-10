@@ -1098,12 +1098,43 @@ const astTransform = (source: string): string => {
   }
 
   // ── Infer types for undeclared variables ──
+  // Swizzle usage widens the inferred type: `hue_shader.zxy` on an undeclared
+  // name requires at least a vec3, no matter what assignment inference says
+  // (declared-as-float + multi-char swizzle is the "'zxy' : field selection
+  // requires structure, vector, or interface block" family). Component max
+  // index gives the true minimum (`.wz` needs a vec4 even though length is 2).
+  const swizzleUsageDims = new Map<string, number>();
+  visit(ast, {
+    postfix: {
+      enter: (p) => {
+        const pf = (p.node as PostfixNode).postfix;
+        if (!pf || pf.type !== 'field_selection') return;
+        const sel = pf as FieldSelectionNode;
+        const swizzle = sel.selection.type === 'literal'
+          ? (sel.selection as LiteralNode).literal
+          : sel.selection.type === 'identifier' ? (sel.selection as unknown as IdentifierNode).identifier : '';
+        if (!/^[xyzwrgba]+$/.test(swizzle)) return;
+        const expr = (p.node as PostfixNode).expression;
+        if (!expr || expr.type !== 'identifier') return;
+        let dim = 0;
+        for (const ch of swizzle) {
+          const idx = 'xyzwrgba'.indexOf(ch) % 4;
+          dim = Math.max(dim, idx + 1);
+        }
+        if (swizzle.length >= 2) dim = Math.max(dim, 2);
+        const name = (expr as IdentifierNode).identifier;
+        swizzleUsageDims.set(name, Math.max(swizzleUsageDims.get(name) ?? 0, dim));
+      },
+    },
+  });
+
   const inferredTypes = new Map<string, string>();
   for (const name of undeclared) {
     const assignNode = assignmentNodes.get(name);
     if (assignNode) {
       // Infer from RHS dimension
       let dim = inferDim(assignNode.right, typeMap);
+      dim = Math.max(dim, swizzleUsageDims.get(name) ?? 0);
 
       // Also check LHS swizzle dimension (for assignments like cnt.xyz = ...)
       if (assignNode.left.type === 'postfix') {
@@ -1143,7 +1174,13 @@ const astTransform = (source: string): string => {
       }
       else inferredTypes.set(name, 'float');
     } else {
-      inferredTypes.set(name, 'float');
+      // Never assigned — a swizzle-using read (`hue_shader.zxy`) still needs a
+      // vector declaration, or the `.zxy` fails on the injected float.
+      const dim = swizzleUsageDims.get(name) ?? 0;
+      if (dim === 2) inferredTypes.set(name, 'vec2');
+      else if (dim === 3) inferredTypes.set(name, 'vec3');
+      else if (dim === 4) inferredTypes.set(name, 'vec4');
+      else inferredTypes.set(name, 'float');
     }
   }
 
@@ -1907,14 +1944,16 @@ const astTransform = (source: string): string => {
     },
   });
 
-  // ── Pass 10.8: multi-char swizzles on scalar variables ──
-  // The offline translator sometimes emits `.xyz`/`.xy` on identifiers that
-  // are declared floats ("field selection requires structure, vector, or
-  // interface block"). Scalar *function results* are stripped post-generation;
-  // this pass covers scalar *identifiers* while their typeMap entries are
-  // final (after Pass 10 declaration-type rewrites and 10.6 int→float).
+  // ── Pass 10.8: swizzles on scalar variables ──
+  // The offline translator sometimes emits `.xyz`/`.xy`/`.x` on identifiers
+  // that are declared floats ("field selection requires structure, vector,
+  // or interface block"). HLSL scalar swizzles replicate (`s.xyz` == `s`), so
+  // the whole postfix is dropped — truncating to `.x` would still be invalid
+  // GLSL on a float and recreates the same driver error with one letter.
+  // Scalar *function results* are handled by Pass 10.9.
   // Swizzles on unknown (dim 0) names are left alone — the undeclared-variable
-  // injector may legitimately declare them as vectors.
+  // injector declares them (swizzle-aware since the inference fix, so a
+  // swizzle-using name becomes a vector, not a float).
   // Runs BEFORE Pass 11 so the constructor-narrowing swizzles Pass 11 creates
   // (always on real vectors) are unaffected.
   visit(ast, {
@@ -1926,13 +1965,13 @@ const astTransform = (source: string): string => {
         const swizzle = sel.type === 'literal'
           ? (sel as LiteralNode).literal
           : sel.type === 'identifier' ? (sel as unknown as IdentifierNode).identifier : '';
-        if (!/^[xyzwrgba]{2,}$/.test(swizzle)) return;
+        if (!/^[xyzwrgba]+$/.test(swizzle) || swizzle.length < 1) return;
         const expr = (p.node as PostfixNode).expression;
         if (expr.type !== 'identifier') return;
         const name = (expr as IdentifierNode).identifier;
         if (typeMap.get(name) !== 1) return;
-        // Scalar access: keep only the first component letter.
-        (pf as any).selection = mkLiteral(swizzle[0]);
+        // HLSL scalar swizzle replicates: `s.<any>` on a float is just `s`.
+        p.replaceWith(expr as unknown as AstNode);
       },
     },
   });
