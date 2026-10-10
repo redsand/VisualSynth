@@ -665,6 +665,14 @@ const main = async () => {
   // audio-gated presets legitimately render black — indistinguishable from
   // genuinely-broken output. `--fake-audio [file]` (default
   // scripts/test-audio-fake.wav) switches the fake device to that WAV.
+  //
+  // NOTE: the getUserMedia mock below REPLACES the browser's mic pipeline in
+  // the page, so Chromium's `--use-file-for-fake-audio-capture` flag alone is
+  // a no-op here — batch 9003 ran "with audio" that never reached the
+  // renderer (results byte-identical to the silent 9001 sweep). The mock
+  // instead decodes this WAV in-page and loops it into the synthetic stream,
+  // which is the path the app actually reads.
+  let fakeAudioWavBase64 = null;
   if (hasFlag('--fake-audio')) {
     const argIdx = args.indexOf('--fake-audio');
     const nextToken = argIdx + 1 < args.length && !args[argIdx + 1].startsWith('--')
@@ -672,7 +680,8 @@ const main = async () => {
     const wav = nextToken ? path.resolve(nextToken) : path.resolve(__dirname, 'test-audio-fake.wav');
     if (fs.existsSync(wav)) {
       launchArgs.push(`--use-file-for-fake-audio-capture=${wav}`);
-      console.log(`Fake mic audio: ${wav}`);
+      fakeAudioWavBase64 = fs.readFileSync(wav).toString('base64');
+      console.log(`Fake mic audio: ${wav} (fed through the page-side getUserMedia mock)`);
     } else {
       console.warn(`--fake-audio: file not found: ${wav} — using silent mic`);
     }
@@ -695,17 +704,46 @@ const main = async () => {
 
   await page.setViewport({ width: screenshotWidth, height: screenshotHeight });
 
-  await page.evaluateOnNewDocument(() => {
+  await page.evaluateOnNewDocument((wavBase64) => {
     window.navigator.requestMIDIAccess = async () => ({
       inputs: new Map(), outputs: new Map(), onstatechange: null, sysexEnabled: false
     });
     if (window.navigator.mediaDevices) {
       window.navigator.mediaDevices.getUserMedia = async () => {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        return audioContext.createMediaStreamDestination().stream;
+        const destination = audioContext.createMediaStreamDestination();
+        // Without a source the synthetic stream is silent. When --fake-audio
+        // supplied a WAV, decode it and loop it into the stream so the app's
+        // analyser reads real audio energy (audio-gated presets light up).
+        if (wavBase64) {
+          try {
+            const binary = atob(wavBase64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+            const buffer = await audioContext.decodeAudioData(bytes.buffer);
+            // A context auto-created without a user gesture may start
+            // 'suspended' — without resume() the looping source produces
+            // silence in the destination stream.
+            if (audioContext.state === 'suspended') {
+              await audioContext.resume();
+            }
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+            source.connect(destination);
+            source.start();
+            window.__vsFakeAudioActive = true;
+            window.__vsFakeAudioContextState = audioContext.state;
+            window.__vsFakeAudioStream = destination.stream;
+          } catch (error) {
+            window.__vsFakeAudioActive = false;
+            window.__vsFakeAudioError = String(error);
+          }
+        }
+        return destination.stream;
       };
       window.navigator.mediaDevices.enumerateDevices = async () => [
-        { deviceId: 'default', kind: 'audioinput', label: 'Synthetic Audio Source' }
+        { deviceId: 'default', kind: 'audioinput', label: wavBase64 ? 'Synthetic WAV Audio Source' : 'Synthetic Audio Source' }
       ];
     }
     window.__mockOnCloseRequested = null;
@@ -717,7 +755,7 @@ const main = async () => {
     window.visualSynth.saveProject = async () => ({ canceled: true });
     window.visualSynth.saveProjectAs = async () => ({ canceled: true });
     window.visualSynth.confirmClose = async () => {};
-  });
+  }, fakeAudioWavBase64);
 
   const rendererPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
   console.log(`Loading app from: ${rendererPath}`);
@@ -736,6 +774,40 @@ const main = async () => {
           await page.waitForFunction(() => Boolean(window.__visualSynthCaptureApi?.applyProject), { timeout: 60000 });
           await waitForFrames(page, 6);
           console.log('App fully initialized with capture API');
+          // Surface whether the --fake-audio WAV actually decoded into the
+          // synthetic mic stream — a silent no-op here poisoned batch 9003.
+          if (hasFlag('--fake-audio')) {
+            const audioState = await page.evaluate(async () => {
+              if (window.__vsFakeAudioActive !== true) {
+                return { active: false, error: window.__vsFakeAudioError || null };
+              }
+              // Verify the signal survives cross-context routing the same way
+              // the app consumes it: a fresh AudioContext + MediaStreamSource +
+              // analyser reading the mock stream. Zero energy here means the
+              // app's analyser is reading silence too.
+              const ctx = new AudioContext();
+              const src = ctx.createMediaStreamSource(window.__vsFakeAudioStream);
+              const an = ctx.createAnalyser();
+              an.fftSize = 2048;
+              src.connect(an);
+              await new Promise((r) => setTimeout(r, 300));
+              const data = new Uint8Array(an.frequencyBinCount);
+              an.getByteFrequencyData(data);
+              let energy = 0;
+              for (const v of data) energy += v;
+              void ctx.close().catch(() => {});
+              return {
+                active: true,
+                contextState: window.__vsFakeAudioContextState,
+                analyserEnergy: energy
+              };
+            });
+            if (audioState.active) {
+              console.log(`Fake mic audio ACTIVE (context=${audioState.contextState}, cross-context analyser energy=${audioState.analyserEnergy})`);
+            } else {
+              console.warn(`Fake mic audio NOT ACTIVE — ${audioState.error || 'getUserMedia mock not yet called; audio-gated results may be invalid'}`);
+            }
+          }
           return true;
         } catch (err) {
           if (err.message.includes('detached') || err.message.includes('detached Frame')) {
