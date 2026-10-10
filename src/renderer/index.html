@@ -85,6 +85,7 @@
           <div class="summary-chips">
             <button type="button" id="summary-auto" class="summary-chip hidden" data-mode="scene">Auto: 0</button>
           </div>
+          <div id="slideshow-roster" class="summary-chips" aria-label="Slideshow rotation"></div>
         </div>
         <div class="brand">
           <img
@@ -1619,6 +1620,15 @@
           <button id="now-playing-cancel" type="button">Cancel</button>
           <button id="now-playing-save" type="button">Save</button>
         </div>
+      </div>
+    </div>
+
+    <div id="slideshow-picker" class="modal-overlay hidden">
+      <div class="modal-card modal-card-wide">
+        <h3>Add Scene to Slideshow</h3>
+        <input id="slideshow-picker-search" type="text" placeholder="Search presets... (Enter add, Shift+Enter add + queue, Esc close)" />
+        <div id="slideshow-picker-results" class="marker-list"></div>
+        <div id="slideshow-picker-status" class="scene-list-meta">Ctrl+K to toggle · Enter adds · Shift+Enter adds + queues on the next bar</div>
       </div>
     </div>
 

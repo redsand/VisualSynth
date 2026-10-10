@@ -51,6 +51,12 @@ import { createAssetItem, normalizeAssetTags } from '../shared/assets';
 import type { AssetImportResult, AssetTextureSampling } from '../shared/assets';
 import { createScenePreset } from '../shared/scenePreset';
 import type { PresetIndexEntry } from '../shared/presetIndex';
+import {
+  advanceSlideshowOnSongChange,
+  applySlideshowDefaults
+} from '../shared/slideshow';
+import { createSlideshowPicker, SlideshowPicker } from './ui/slideshowPicker';
+import { renderSlideshowRoster } from './ui/slideshowRoster';
 import { getCertificationColor } from '../shared/certification';
 import { syncActiveSceneLookSection } from '../shared/sceneLookSync';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
@@ -416,6 +422,14 @@ const manualBpmRow = document.getElementById('manual-bpm-row') as HTMLLabelEleme
 const quantizeSelect = document.getElementById('quantize-select') as HTMLSelectElement | null;
 const queueSceneButton = document.getElementById('queue-scene') as HTMLButtonElement | null;
 const activateSceneButton = document.getElementById('activate-scene') as HTMLButtonElement | null;
+const slideshowPickerOverlay = document.getElementById('slideshow-picker') as HTMLDivElement | null;
+const slideshowPickerSearch = document.getElementById('slideshow-picker-search') as HTMLInputElement | null;
+const slideshowPickerResults = document.getElementById('slideshow-picker-results') as HTMLDivElement | null;
+const slideshowPickerStatus = document.getElementById('slideshow-picker-status') as HTMLDivElement | null;
+const slideshowRosterHost = document.getElementById('slideshow-roster') as HTMLDivElement | null;
+const nowPlayingSlideshowEnabledInput = document.getElementById('now-playing-slideshow-enabled') as HTMLInputElement | null;
+const nowPlayingSlideshowScenesSelect = document.getElementById('now-playing-slideshow-scenes') as HTMLSelectElement | null;
+const nowPlayingSlideshowGroup = document.getElementById('slideshow-scene-select-group') as HTMLDivElement | null;
 const quantizeHud = document.getElementById('quantize-hud') as HTMLDivElement;
 const safeModeBanner = document.getElementById('safe-mode-banner') as HTMLDivElement;
 const mappingHud = document.getElementById('mapping-hud') as HTMLDivElement;
@@ -3953,6 +3967,17 @@ const setSceneStripView = (view: 'cards' | 'list') => {
 };
 
 const renderSceneStrip = () => {
+  // The roster lives in the top bar (visible in show modes) and must stay in
+  // sync with every scene mutation — renderSceneStrip is invoked at each of
+  // those call sites, so this one hook covers adds/removes/exchanges/loads.
+  if (slideshowRosterHost) {
+    renderSlideshowRoster({
+      host: slideshowRosterHost,
+      getProject: () => currentProject,
+      onQueue: (sceneId) => queueSceneSwitch(sceneId),
+      onRemove: (sceneId) => removeScene(sceneId)
+    });
+  }
   if (!sceneStripCards || !sceneStripList) return;
   sceneStripCards.innerHTML = '';
   sceneStripList.innerHTML = '';
@@ -7490,6 +7515,56 @@ const addSceneFromPreset = async (presetPath: string) => {
   return newScene.id;
 };
 
+/**
+ * Queue a beat-quantized switch to a scene on the next bar boundary. Shared by
+ * the roster chips, the [/] keys, the slideshow picker's "add + queue" action
+ * and the now-playing "slideshow on new song" hook.
+ */
+const queueSceneSwitch = (targetSceneId: string, statusContext = 'Queued scene switch') => {
+  const targetName =
+    currentProject.scenes.find((scene) => scene.id === targetSceneId)?.name ?? targetSceneId;
+  const bpm = getActiveBpm();
+  const unit = (quantizeSelect?.value ?? 'bar') as QuantizationUnit;
+  pendingSceneSwitch = {
+    targetSceneId,
+    scheduledTimeMs: getNextQuantizedTimeMs(performance.now(), bpm, unit)
+  };
+  setStatus(`${statusContext} to ${targetName}`);
+};
+
+/**
+ * Add a preset's scene to the live slideshow rotation. Applies auto-advance
+ * defaults (time trigger + duration) so the scene actually participates in
+ * the rotation — presets ship with manual triggers, which would freeze
+ * auto-advance the moment the auto-DJ landed on the scene. The currently
+ * playing scene is untouched: the scene is appended, never activated.
+ */
+const addPresetToSlideshowRotation = async (
+  presetPath: string,
+  queueNext: boolean
+): Promise<void> => {
+  markPresetRecent(presetPath);
+  const sceneId = await addSceneFromPreset(presetPath);
+  if (!sceneId) return; // errors already surfaced via setStatus/ensureSafeVisuals
+
+  const scene = currentProject.scenes.find((candidate) => candidate.id === sceneId);
+  if (scene) {
+    // Created this frame — nothing has snapshotted it yet, so patch in place.
+    Object.assign(scene, applySlideshowDefaults(scene));
+  }
+
+  renderSceneStrip();
+  renderSceneTimeline();
+  renderPlaylist();
+
+  if (queueNext && isPlaying) {
+    queueSceneSwitch(sceneId, 'Added + queued scene switch');
+  } else {
+    const sceneName = scene?.name ?? sceneId;
+    setStatus(`Scene added to slideshow: ${sceneName}`);
+  }
+};
+
 const refreshSceneFromPreset = async (sceneId: string): Promise<boolean> => {
   const scene = currentProject.scenes.find((s) => s.id === sceneId);
   if (!scene) {
@@ -11005,6 +11080,23 @@ const syncNowPlayingProviderFields = () => {
   nowPlayingProviderHint.textContent = baseHint + freeFirstHint;
 };
 
+/** Populate the slideshow-on-new-song controls from live settings + scenes. */
+const syncNowPlayingSlideshowFields = () => {
+  if (!nowPlayingSlideshowEnabledInput || !nowPlayingSlideshowScenesSelect || !nowPlayingSlideshowGroup) {
+    return;
+  }
+  nowPlayingSlideshowEnabledInput.checked = nowPlayingSettings.slideshowEnabled;
+  nowPlayingSlideshowScenesSelect.innerHTML = '';
+  currentProject.scenes.forEach((scene) => {
+    const option = document.createElement('option');
+    option.value = scene.id;
+    option.textContent = scene.name;
+    option.selected = nowPlayingSettings.slideshowSceneIds.includes(scene.id);
+    nowPlayingSlideshowScenesSelect.appendChild(option);
+  });
+  nowPlayingSlideshowGroup.classList.toggle('hidden', !nowPlayingSettings.slideshowEnabled);
+};
+
 const openNowPlayingModal = () => {
   nowPlayingEnabledInput.checked = nowPlayingSettings.enabled;
   nowPlayingMetadataEnabledInput.checked = nowPlayingSettings.metadataSourceEnabled;
@@ -11026,6 +11118,7 @@ const openNowPlayingModal = () => {
   nowPlayingAutoOverlaysInput.checked = nowPlayingSettings.autoCreateOverlays;
   nowPlayingTestStatus.textContent = 'No lookup test run yet.';
   syncNowPlayingProviderFields();
+  syncNowPlayingSlideshowFields();
   nowPlayingModal.classList.remove('hidden');
 };
 
@@ -11079,7 +11172,11 @@ const buildNowPlayingDraftSettings = (): NowPlayingSettings => ({
   minTrackMs: Math.min(120000, Math.max(5000, Number(nowPlayingMinTrackMsInput.value) || 30000)),
   silenceThreshold: Math.min(0.2, Math.max(0.005, Number(nowPlayingSilenceThresholdInput.value) || 0.025)),
   artworkPreference: nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'],
-  autoCreateOverlays: nowPlayingAutoOverlaysInput.checked
+  autoCreateOverlays: nowPlayingAutoOverlaysInput.checked,
+  slideshowEnabled: nowPlayingSlideshowEnabledInput?.checked ?? nowPlayingSettings.slideshowEnabled,
+  slideshowSceneIds: nowPlayingSlideshowScenesSelect
+    ? Array.from(nowPlayingSlideshowScenesSelect.selectedOptions).map((option) => option.value)
+    : nowPlayingSettings.slideshowSceneIds
 });
 
 type NowPlayingResultSource = 'recognition' | 'bridge' | 'test';
@@ -11089,6 +11186,29 @@ const cancelNowPlayingRetry = () => {
     clearTimeout(nowPlayingRetryTimer);
     nowPlayingRetryTimer = null;
   }
+};
+
+/** Index into slideshowSceneIds of the scene chosen on the previous song change. */
+let slideshowSongIndex = -1;
+
+/**
+ * "Slideshow on new song": when a genuinely new track is confirmed, queue the
+ * next scene from the configured list on the next bar. Stored ids can go
+ * stale mid-show — live-mode preset triggers replace the whole project — so
+ * advanceSlideshowOnSongChange skips ids that no longer resolve.
+ */
+const advanceSlideshowForNewSong = () => {
+  if (!nowPlayingSettings.slideshowEnabled || nowPlayingSettings.slideshowSceneIds.length === 0) {
+    return;
+  }
+  const { sceneId, nextIndex } = advanceSlideshowOnSongChange(
+    nowPlayingSettings.slideshowSceneIds,
+    slideshowSongIndex,
+    (sceneId) => currentProject.scenes.find((scene) => scene.id === sceneId)
+  );
+  if (!sceneId) return;
+  slideshowSongIndex = nextIndex;
+  queueSceneSwitch(sceneId, 'Slideshow: queued scene switch');
 };
 
 const consumeNowPlayingResult = async (
@@ -11129,6 +11249,14 @@ const consumeNowPlayingResult = async (
       setStatus(songLabel ? `${statusPrefix}: ${songLabel} (unchanged)` : `${statusPrefix} unchanged.`);
       return;
     }
+  }
+
+  // A confirmed NEW track (same-track hits returned above; the bridge poll
+  // dedupes before ever reaching here). Advance the on-song slideshow if the
+  // user enabled it. Test lookups are a deliberate user action, not a song
+  // change, so they don't advance it.
+  if (source === 'recognition' || source === 'bridge') {
+    advanceSlideshowForNewSong();
   }
 
   let artworkResult = result;
@@ -13064,6 +13192,12 @@ nowPlayingModal.addEventListener('click', (event) => {
   }
 });
 
+if (nowPlayingSlideshowEnabledInput && nowPlayingSlideshowGroup) {
+  nowPlayingSlideshowEnabledInput.addEventListener('change', () => {
+    nowPlayingSlideshowGroup.classList.toggle('hidden', !nowPlayingSlideshowEnabledInput.checked);
+  });
+}
+
 requestMicPermissionButton.addEventListener('click', async () => {
   try {
     // Request microphone permission explicitly
@@ -13697,6 +13831,26 @@ const updateTransportUI = () => {
   transportPauseButton.textContent = isPlaying ? 'Pause' : 'Resume';
 };
 
+let slideshowPicker: SlideshowPicker | null = null;
+
+const initSlideshowPicker = () => {
+  if (!slideshowPickerOverlay || !slideshowPickerSearch || !slideshowPickerResults || !slideshowPickerStatus) {
+    return;
+  }
+  slideshowPicker = createSlideshowPicker({
+    overlay: slideshowPickerOverlay,
+    input: slideshowPickerSearch,
+    results: slideshowPickerResults,
+    status: slideshowPickerStatus,
+    getEntries: () => presetLibrary,
+    getFavorites: () => presetFavorites,
+    getRecents: () => presetRecents,
+    isInRotation: (presetPath) => currentProject.scenes.some((scene) => scene.presetPath === presetPath),
+    onAdd: (presetPath) => addPresetToSlideshowRotation(presetPath, false),
+    onAddAndQueue: (presetPath) => addPresetToSlideshowRotation(presetPath, true)
+  });
+};
+
 const initShortcuts = () => {
   window.addEventListener('keydown', (event) => {
     const target = event.target as HTMLElement | null;
@@ -13716,6 +13870,37 @@ const initShortcuts = () => {
     if (event.ctrlKey && event.key.toLowerCase() === 'o') {
       event.preventDefault();
       void loadProjectFromDisk();
+    }
+    if (event.ctrlKey && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      slideshowPicker?.toggle();
+    }
+    // Bare [/] — prev/next scene, beat-quantized while the transport plays
+    // (same semantics as the scene-next/scene-prev pad actions).
+    if (
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !slideshowPicker?.isOpen() &&
+      (event.key === '[' || event.key === ']')
+    ) {
+      event.preventDefault();
+      const sceneCount = currentProject.scenes.length;
+      if (sceneCount < 2) return;
+      const activeIdx = currentProject.scenes.findIndex(
+        (scene) => scene.id === currentProject.activeSceneId
+      );
+      if (activeIdx === -1) return;
+      const nextIdx =
+        event.key === ']'
+          ? (activeIdx + 1) % sceneCount
+          : (activeIdx - 1 + sceneCount) % sceneCount;
+      const target = currentProject.scenes[nextIdx];
+      if (isPlaying) {
+        queueSceneSwitch(target.id, 'Queued scene switch');
+      } else {
+        applyScene(target.id);
+        setStatus(`Scene active: ${target.name}`);
+      }
     }
     // Bare-key shortcuts: guard against ctrl/meta so they don't hijack browser
     // shortcuts (Ctrl+F find, Ctrl+R reload, Ctrl+P print) or fire on modified
@@ -15347,6 +15532,7 @@ const init = async () => {
   updateLoadingProgress(5, 'Setting up interface...');
   initPads();
   initShortcuts();
+  initSlideshowPicker();
   initSceneStrip();
   initPanelCollapse();
   initDragAndDropMapping();
