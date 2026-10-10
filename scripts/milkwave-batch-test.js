@@ -686,167 +686,196 @@ const main = async () => {
       console.warn(`--fake-audio: file not found: ${wav} — using silent mic`);
     }
   }
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: launchArgs
-  });
-
-  const page = await browser.newPage();
+  // ── Harness lifecycle ──────────────────────────────────────────────────
+  // A single long-lived browser session DEGRADES after ~10 presets: the page's
+  // accumulated render state makes later presets freeze into a shared "safe
+  // mode" placeholder (byte-identical output across different presets) even
+  // though a FRESH browser renders those same presets normally. Batch 9200
+  // showed preset-1096 and preset-1110 as `safe_mode` mid-run, but each is
+  // `black_output` / `fallback` when launched alone — i.e. the mid-run statuses
+  // are artifacts of a tired page, not the preset. Relaunching the browser every
+  // RELAUNCH_EVERY presets keeps each result attributable to a healthy page.
+  const RELAUNCH_EVERY = Number(readArg('--relaunch-every', '6')) || 6;
   const consoleEntries = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error' || msg.type() === 'warning') {
-      consoleEntries.push({ type: msg.type(), text: msg.text().substring(0, 500) });
-    }
-  });
-  page.on('pageerror', (error) => {
-    consoleEntries.push({ type: 'pageerror', text: String(error).substring(0, 500) });
-  });
 
-  await page.setViewport({ width: screenshotWidth, height: screenshotHeight });
-
-  await page.evaluateOnNewDocument((wavBase64) => {
-    window.navigator.requestMIDIAccess = async () => ({
-      inputs: new Map(), outputs: new Map(), onstatechange: null, sysexEnabled: false
+  const createHarness = async () => {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: launchArgs
     });
-    if (window.navigator.mediaDevices) {
-      window.navigator.mediaDevices.getUserMedia = async () => {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const destination = audioContext.createMediaStreamDestination();
-        // Without a source the synthetic stream is silent. When --fake-audio
-        // supplied a WAV, decode it and loop it into the stream so the app's
-        // analyser reads real audio energy (audio-gated presets light up).
-        if (wavBase64) {
-          try {
-            const binary = atob(wavBase64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-            const buffer = await audioContext.decodeAudioData(bytes.buffer);
-            // A context auto-created without a user gesture may start
-            // 'suspended' — without resume() the looping source produces
-            // silence in the destination stream.
-            if (audioContext.state === 'suspended') {
-              await audioContext.resume();
-            }
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.loop = true;
-            source.connect(destination);
-            source.start();
-            window.__vsFakeAudioActive = true;
-            window.__vsFakeAudioContextState = audioContext.state;
-            window.__vsFakeAudioStream = destination.stream;
-          } catch (error) {
-            window.__vsFakeAudioActive = false;
-            window.__vsFakeAudioError = String(error);
-          }
-        }
-        return destination.stream;
-      };
-      window.navigator.mediaDevices.enumerateDevices = async () => [
-        { deviceId: 'default', kind: 'audioinput', label: wavBase64 ? 'Synthetic WAV Audio Source' : 'Synthetic Audio Source' }
-      ];
-    }
-    window.__mockOnCloseRequested = null;
-    if (!window.visualSynth) {
-      window.visualSynth = {};
-    }
-    window.visualSynth.onCloseRequested = (cb) => { window.__mockOnCloseRequested = cb; };
-    window.visualSynth.showSaveDialog = async () => ({ result: 'cancel' });
-    window.visualSynth.saveProject = async () => ({ canceled: true });
-    window.visualSynth.saveProjectAs = async () => ({ canceled: true });
-    window.visualSynth.confirmClose = async () => {};
-  }, fakeAudioWavBase64);
-
-  const rendererPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
-  console.log(`Loading app from: ${rendererPath}`);
-
-  try {
-    await page.goto(`file://${rendererPath.replace(/\\/g, '/')}`, { waitUntil: 'load' });
-    console.log('Page loaded, waiting for app init...');
-
-    // Use retry logic for waitForFunction to handle frame detachment
-    const waitForInit = async () => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          await page.waitForFunction(() => Boolean(window.__visualSynthInitialized), { timeout: 120000 });
-          console.log('App initialized flag set, waiting for capture API...');
-          await sleep(5000);
-          await page.waitForFunction(() => Boolean(window.__visualSynthCaptureApi?.applyProject), { timeout: 60000 });
-          await waitForFrames(page, 6);
-          console.log('App fully initialized with capture API');
-          // Surface whether the --fake-audio WAV actually decoded into the
-          // synthetic mic stream — a silent no-op here poisoned batch 9003.
-          if (hasFlag('--fake-audio')) {
-            const audioState = await page.evaluate(async () => {
-              if (window.__vsFakeAudioActive !== true) {
-                return { active: false, error: window.__vsFakeAudioError || null };
+  
+    const page = await browser.newPage();
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' || msg.type() === 'warning') {
+        consoleEntries.push({ type: msg.type(), text: msg.text().substring(0, 500) });
+      }
+    });
+    page.on('pageerror', (error) => {
+      consoleEntries.push({ type: 'pageerror', text: String(error).substring(0, 500) });
+    });
+  
+    await page.setViewport({ width: screenshotWidth, height: screenshotHeight });
+  
+    await page.evaluateOnNewDocument((wavBase64) => {
+      window.navigator.requestMIDIAccess = async () => ({
+        inputs: new Map(), outputs: new Map(), onstatechange: null, sysexEnabled: false
+      });
+      if (window.navigator.mediaDevices) {
+        window.navigator.mediaDevices.getUserMedia = async () => {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const destination = audioContext.createMediaStreamDestination();
+          // Without a source the synthetic stream is silent. When --fake-audio
+          // supplied a WAV, decode it and loop it into the stream so the app's
+          // analyser reads real audio energy (audio-gated presets light up).
+          if (wavBase64) {
+            try {
+              const binary = atob(wavBase64);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+              const buffer = await audioContext.decodeAudioData(bytes.buffer);
+              // A context auto-created without a user gesture may start
+              // 'suspended' — without resume() the looping source produces
+              // silence in the destination stream.
+              if (audioContext.state === 'suspended') {
+                await audioContext.resume();
               }
-              // Verify the signal survives cross-context routing the same way
-              // the app consumes it: a fresh AudioContext + MediaStreamSource +
-              // analyser reading the mock stream. Zero energy here means the
-              // app's analyser is reading silence too.
-              const ctx = new AudioContext();
-              const src = ctx.createMediaStreamSource(window.__vsFakeAudioStream);
-              const an = ctx.createAnalyser();
-              an.fftSize = 2048;
-              src.connect(an);
-              await new Promise((r) => setTimeout(r, 300));
-              const data = new Uint8Array(an.frequencyBinCount);
-              an.getByteFrequencyData(data);
-              let energy = 0;
-              for (const v of data) energy += v;
-              void ctx.close().catch(() => {});
-              return {
-                active: true,
-                contextState: window.__vsFakeAudioContextState,
-                analyserEnergy: energy
-              };
-            });
-            if (audioState.active) {
-              console.log(`Fake mic audio ACTIVE (context=${audioState.contextState}, cross-context analyser energy=${audioState.analyserEnergy})`);
-            } else {
-              console.warn(`Fake mic audio NOT ACTIVE — ${audioState.error || 'getUserMedia mock not yet called; audio-gated results may be invalid'}`);
+              const source = audioContext.createBufferSource();
+              source.buffer = buffer;
+              source.loop = true;
+              source.connect(destination);
+              source.start();
+              window.__vsFakeAudioActive = true;
+              window.__vsFakeAudioContextState = audioContext.state;
+              window.__vsFakeAudioStream = destination.stream;
+            } catch (error) {
+              window.__vsFakeAudioActive = false;
+              window.__vsFakeAudioError = String(error);
             }
           }
-          return true;
-        } catch (err) {
-          if (err.message.includes('detached') || err.message.includes('detached Frame')) {
-            console.log(`Frame detached (attempt ${attempt + 1}), retrying...`);
-            await sleep(2000);
-            continue;
-          }
-          throw err;
-        }
+          return destination.stream;
+        };
+        window.navigator.mediaDevices.enumerateDevices = async () => [
+          { deviceId: 'default', kind: 'audioinput', label: wavBase64 ? 'Synthetic WAV Audio Source' : 'Synthetic Audio Source' }
+        ];
       }
-      throw new Error('Frame detached after 3 retries');
-    };
-    await waitForInit();
-  } catch (err) {
-    console.error(`Failed to initialize app: ${err}`);
+      window.__mockOnCloseRequested = null;
+      if (!window.visualSynth) {
+        window.visualSynth = {};
+      }
+      window.visualSynth.onCloseRequested = (cb) => { window.__mockOnCloseRequested = cb; };
+      window.visualSynth.showSaveDialog = async () => ({ result: 'cancel' });
+      window.visualSynth.saveProject = async () => ({ canceled: true });
+      window.visualSynth.saveProjectAs = async () => ({ canceled: true });
+      window.visualSynth.confirmClose = async () => {};
+    }, fakeAudioWavBase64);
+    return { browser, page };
+  };
+
+  const initPage = async (browser, page) => {
+    const rendererPath = path.join(__dirname, '..', 'dist', 'renderer', 'index.html');
+    console.log(`Loading app from: ${rendererPath}`);
+  
     try {
-      const initCheck = await page.evaluate(() => ({
-        initialized: window.__visualSynthInitialized,
-        hasCaptureApi: Boolean(window.__visualSynthCaptureApi),
-        hasApplyProject: Boolean(window.__visualSynthCaptureApi?.applyProject),
-      }));
-      console.error('Init state:', JSON.stringify(initCheck));
-      if (consoleEntries.length > 0) {
-        console.error(`Browser console (${consoleEntries.length} entries):`);
-        for (const entry of consoleEntries.slice(-40)) {
-          console.error(`  [${entry.type}] ${entry.text}`);
+      await page.goto(`file://${rendererPath.replace(/\\/g, '/')}`, { waitUntil: 'load' });
+      console.log('Page loaded, waiting for app init...');
+  
+      // Use retry logic for waitForFunction to handle frame detachment
+      const waitForInit = async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            await page.waitForFunction(() => Boolean(window.__visualSynthInitialized), { timeout: 120000 });
+            console.log('App initialized flag set, waiting for capture API...');
+            await sleep(5000);
+            await page.waitForFunction(() => Boolean(window.__visualSynthCaptureApi?.applyProject), { timeout: 60000 });
+            await waitForFrames(page, 6);
+            console.log('App fully initialized with capture API');
+            // Surface whether the --fake-audio WAV actually decoded into the
+            // synthetic mic stream — a silent no-op here poisoned batch 9003.
+            if (hasFlag('--fake-audio')) {
+              const audioState = await page.evaluate(async () => {
+                if (window.__vsFakeAudioActive !== true) {
+                  return { active: false, error: window.__vsFakeAudioError || null };
+                }
+                // Verify the signal survives cross-context routing the same way
+                // the app consumes it: a fresh AudioContext + MediaStreamSource +
+                // analyser reading the mock stream. Zero energy here means the
+                // app's analyser is reading silence too.
+                const ctx = new AudioContext();
+                const src = ctx.createMediaStreamSource(window.__vsFakeAudioStream);
+                const an = ctx.createAnalyser();
+                an.fftSize = 2048;
+                src.connect(an);
+                await new Promise((r) => setTimeout(r, 300));
+                const data = new Uint8Array(an.frequencyBinCount);
+                an.getByteFrequencyData(data);
+                let energy = 0;
+                for (const v of data) energy += v;
+                void ctx.close().catch(() => {});
+                return {
+                  active: true,
+                  contextState: window.__vsFakeAudioContextState,
+                  analyserEnergy: energy
+                };
+              });
+              if (audioState.active) {
+                console.log(`Fake mic audio ACTIVE (context=${audioState.contextState}, cross-context analyser energy=${audioState.analyserEnergy})`);
+              } else {
+                console.warn(`Fake mic audio NOT ACTIVE — ${audioState.error || 'getUserMedia mock not yet called; audio-gated results may be invalid'}`);
+              }
+            }
+            return true;
+          } catch (err) {
+            if (err.message.includes('detached') || err.message.includes('detached Frame')) {
+              console.log(`Frame detached (attempt ${attempt + 1}), retrying...`);
+              await sleep(2000);
+              continue;
+            }
+            throw err;
+          }
         }
+        throw new Error('Frame detached after 3 retries');
+      };
+      await waitForInit();
+    } catch (err) {
+      console.error(`Failed to initialize app: ${err}`);
+      try {
+        const initCheck = await page.evaluate(() => ({
+          initialized: window.__visualSynthInitialized,
+          hasCaptureApi: Boolean(window.__visualSynthCaptureApi),
+          hasApplyProject: Boolean(window.__visualSynthCaptureApi?.applyProject),
+        }));
+        console.error('Init state:', JSON.stringify(initCheck));
+        if (consoleEntries.length > 0) {
+          console.error(`Browser console (${consoleEntries.length} entries):`);
+          for (const entry of consoleEntries.slice(-40)) {
+            console.error(`  [${entry.type}] ${entry.text}`);
+          }
+        }
+      } catch {
+        console.error('Could not check init state - page frame detached');
       }
-    } catch {
-      console.error('Could not check init state - page frame detached');
+      await browser.close();
+      process.exit(1);
     }
-    await browser.close();
-    process.exit(1);
-  }
+  };
+
+  let { browser, page } = await createHarness();
+  await initPage(browser, page);
 
   const results = [...partialResults];
   const startTime = Date.now();
 
   for (let i = resumeIndex; i < targetPresets.length; i++) {
+    // Fatigue isolation: relaunch the browser periodically so a degraded
+    // mid-run page can't masquerade as black_output / safe_mode. See the
+    // createHarness comment above for the evidence.
+    if (i > resumeIndex && (i - resumeIndex) % RELAUNCH_EVERY === 0) {
+      console.log(`\n[harness] relaunching browser after ${RELAUNCH_EVERY} presets (fatigue isolation)`);
+      await browser.close().catch(() => {});
+      ({ browser, page } = await createHarness());
+      await initPage(browser, page);
+    }
+
     const presetFile = targetPresets[i];
     const presetNum = i + 1;
     console.log(`\n[${presetNum}/${targetPresets.length}] Testing: ${presetFile.substring(0, 80)}`);
