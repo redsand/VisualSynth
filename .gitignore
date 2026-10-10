@@ -10,3 +10,14 @@ build/icon.ico
 .worktrees/
 release/
 docs/visual-regression-*/
+
+# Local sweep artifacts — inputs to the audit/certify chain, regenerable via
+# scripts/milkwave-batch-test.js; 155M of screenshots/shaders/reports.
+milkwave-test-results/
+# MilkDrop source reference clone (local-only reference material).
+Milkwave/
+# External tool artifacts (other CLIs run in this repo).
+.qwen/
+kv_cache/
+# Local project saves — user data, not source.
+showcase-performance.project-sues.json
