@@ -36,7 +36,7 @@
         ]
       },
       "certificationStatus": "degraded-usable",
-      "lastCertifiedAt": "2026-10-10T14:56:10.054Z",
+      "lastCertifiedAt": "2026-10-22T23:06:36.590Z",
       "certificationSource": "batch-tester"
     },
     "activeEngineId": "engine-radial-core",

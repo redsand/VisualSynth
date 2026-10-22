@@ -36,8 +36,8 @@
           "comp"
         ]
       },
-      "certificationStatus": "degraded-usable",
-      "lastCertifiedAt": "2026-10-10T14:56:09.778Z",
+      "certificationStatus": "broken-archive",
+      "lastCertifiedAt": "2026-10-22T23:06:36.492Z",
       "certificationSource": "batch-tester"
     },
     "activeEngineId": "engine-radial-core",
@@ -55,7 +55,7 @@
       "durationMs": 600,
       "curve": "easeInOut"
     },
-    "certification": "degraded"
+    "certification": "archived"
   },
   "scenes": [
     {
