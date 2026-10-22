@@ -314,10 +314,22 @@ const mkBinary = (left: AstNode, op: string, right: AstNode): AstNode =>
  * initializer we convert to an assignment (the second block clearly wants a
  * fresh value); a bare duplicate declarator is dropped. Only fires within a
  * single statement list — shadowing across nested scopes stays legal.
+ *
+ * Exception: FUNCTION BODIES inherit the file-scope names. The offline
+ * translator and our moved-code stub machinery hoist per-frame variables to
+ * file scope while main keeps (or gets a stub-inserted) real declaration with
+ * an initializer. That shadow is legal GLSL and the frontend compiles it,
+ * but ANGLE's Metal backend flattens scopes and emits the local twice under
+ * one MSL name → a *link*-stage "redefinition" failure the compile probe
+ * cannot see (02_mw_new* family). Converting the function-body declaration
+ * to an assignment restores MilkDrop semantics: the variable is the global.
+ * Cross-type inherited names keep their declaration (a legal shadow we have
+ * no business rewriting); nested blocks still get a fresh map.
  */
 const dedupeSameScopeDeclarations = (ast: Program): void => {
-  const processList = (stmts: AstNode[]): void => {
-    const seen = new Map<string, string>();
+  const processList = (stmts: AstNode[], seed?: Map<string, string>): void => {
+    const seen = new Map<string, string>(seed ?? []);
+    const inherited = new Set<string>(seed?.keys() ?? []);
     const out: AstNode[] = [];
     for (const raw of stmts) {
       const stmt = raw as unknown as Record<string, unknown>;
@@ -329,7 +341,7 @@ const dedupeSameScopeDeclarations = (ast: Program): void => {
       if (stmt.type === 'function') {
         const body = stmt.body as unknown as Record<string, unknown> | undefined;
         if (body?.type === 'compound_statement' && Array.isArray(body.statements)) {
-          processList(body.statements as AstNode[]);
+          processList(body.statements as AstNode[], seen);
         }
         out.push(raw);
         continue;
@@ -353,11 +365,15 @@ const dedupeSameScopeDeclarations = (ast: Program): void => {
             if (prev === undefined) {
               seen.set(name, kw);
               kept.push(d);
+            } else if (inherited.has(name) && prev !== kw) {
+              // cross-type shadow of an inherited (file-scope) name is legal
+              // GLSL — keep the declaration, do not rewrite it
+              kept.push(d);
             } else if (d.initializer && prev === kw) {
               // same-type redeclaration with initializer → assignment
               assignDupes.push(d);
             }
-            // bare or cross-type duplicate declarator → drop
+            // bare or cross-type same-scope duplicate declarator → drop
           }
           if (kept.length === 0) {
             // every declarator was a duplicate: emit assignments (if any), drop the declaration

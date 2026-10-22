@@ -996,4 +996,33 @@ describe('patchMilkDropGlsl – tier-2 compile families', () => {
     expect(out).not.toMatch(/\+ vec4\(0\.5\)\)/);
     expect(out).toMatch(/vec4\(0\.5\)\.xy/);
   });
+
+  it('converts same-type function-body redeclarations of file-scope names to assignments (ANGLE link)', () => {
+    // 02_mw_new* family: globals hoisted to file scope, main redeclares uv2.
+    // Legal GLSL (compiles) but ANGLE/Metal emits _uuv2 twice → link failure.
+    const src = '#version 300 es\n' +
+      'vec2 rs, uv1, uv2, uv3;\n' +
+      'void main() {\n' +
+      '  uv1 = vec2(0.5);\n' +
+      '  uv2 = 1.0 * uv1;\n' +
+      '  vec2 uv2 = 32.0 * uv1;\n' +
+      '  vec3 ret = vec3(uv2, 0.0);\n}';
+    const out = patchMilkDropGlsl(src);
+    // the redeclaration became a bare assignment to the global
+    expect(out).toMatch(/uv2 = *32\.0/);
+    // only the file-scope declaration mentions the type keyword
+    expect(out).not.toMatch(/vec2 uv2/);
+    expect((out.match(/uv2 =/g) ?? []).length).toBe(2);
+  });
+
+  it('keeps cross-type shadows of file-scope names (legal GLSL, no rewrite)', () => {
+    const src = '#version 300 es\n' +
+      'vec2 q = vec2(0.0);\n' +
+      'void main() {\n' +
+      '  float q = 0.5;\n' +
+      '  vec3 ret = vec3(q);\n}';
+    const out = patchMilkDropGlsl(src);
+    expect(out).toMatch(/float q = *0\.5/);
+    expect(out).not.toMatch(/vec3 q/);
+  });
 });
