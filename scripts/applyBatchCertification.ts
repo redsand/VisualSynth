@@ -49,7 +49,7 @@ const explicitReports = (): string[] => {
   return files;
 };
 
-type BatchStatus = 'working' | 'fallback' | 'black_output' | 'runtime_error' | 'safe_mode';
+type BatchStatus = 'working' | 'fallback' | 'black_output' | 'blown_output' | 'runtime_error' | 'safe_mode';
 
 interface BatchResult {
   presetId?: string;
@@ -62,6 +62,9 @@ const STATUS_TO_CERTIFICATION: Record<BatchStatus, { certification: string; cert
   fallback: { certification: 'degraded', certificationStatus: 'degraded-usable' },
   safe_mode: { certification: 'degraded', certificationStatus: 'degraded-usable' },
   black_output: { certification: 'archived', certificationStatus: 'broken-archive' },
+  // saturated-white runaway render (additive comp compounding through the
+  // feedback loop) — unusable, same archived bucket as black_output
+  blown_output: { certification: 'archived', certificationStatus: 'broken-archive' },
   runtime_error: { certification: 'archived', certificationStatus: 'broken-archive' }
 };
 

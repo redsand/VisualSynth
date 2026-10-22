@@ -44,6 +44,11 @@ const CONCURRENCY = Number(readArg('--concurrency', '8')) || 8;
 
 const VISIBLE_YMAX = 48; // peak luma below this = effectively black
 const VISIBLE_RANGE = 16; // YMAX-YMIN below this = uniform placeholder frame
+const BLOWN_YAVG = 200; // average luma above this = saturated-white runaway frame
+// The feedback loop writes comp output into the main texture, so additive
+// comp shaders (starfield presets adding stars+roam terms every frame)
+// compound and saturate to white. A mostly-white frame (YAVG>=200) is an
+// unusable blown-out render even though its spread passes the visible test.
 
 if (!REPORT || !fs.existsSync(REPORT)) {
   console.error(`usage: node scripts/reverify-batch-screenshots.js --report <batch-report.json>`);
@@ -119,11 +124,13 @@ const main = async () => {
     const safeMode = (r.diagnostics?.safeModeReasons || []).length > 0;
 
     const visible = shotStatsList.some((s) => s.ymax >= VISIBLE_YMAX && s.ymax - s.ymin >= VISIBLE_RANGE);
+    const blownOut = shotStatsList.some((s) => s.yavg !== undefined && s.yavg >= BLOWN_YAVG);
     const native = warpStatus === 'success' && compStatus === 'success';
 
     let corrected;
     if (shotStatsList.length === 0) corrected = r.status; // no readable shots — trust the tester
     else if (!visible) corrected = 'black_output';
+    else if (blownOut) corrected = 'blown_output';
     else if (native && !safeMode) corrected = 'working';
     else corrected = 'fallback';
 
@@ -133,7 +140,7 @@ const main = async () => {
     r.originalStatus = r.status;
     r.status = corrected;
     r.shotStats = shotStatsList;
-    r.reverify = { visible, native, safeMode, warpStatus, compStatus };
+    r.reverify = { visible, blownOut, native, safeMode, warpStatus, compStatus };
   }
 
   const out = OUT || REPORT.replace(/\.json$/, '-reverified.json');
