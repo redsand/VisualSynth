@@ -36,7 +36,18 @@ const main = async () => {
   const expectedNeedsFix = typed.filter((e) => e.certification === 'archived').length;
   console.log(`library: ${entries.length} presets (main-process read), showable=${expectedShowable}, needs-fix=${expectedNeedsFix}`);
 
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      // without this headless Chrome blocks AudioContext.resume()/getUserMedia
+      // and song detection hangs at "initializing" (see batch tester)
+      '--autoplay-policy=no-user-gesture-required',
+      '--use-fake-device-for-media-stream',
+      '--use-fake-ui-for-media-stream'
+    ]
+  });
   const page = await browser.newPage();
   const consoleErrors: string[] = [];
   page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text().slice(0, 200)); });
@@ -46,12 +57,12 @@ const main = async () => {
   await page.evaluateOnNewDocument((lib: unknown[], wav: string) => {
     // Same environment mocks the batch tester uses: synthetic mic (so song
     // detection initializes without a permission error), no MIDI devices.
-    window.navigator.requestMIDIAccess = async () => ({
+    (window.navigator as any).requestMIDIAccess = async () => ({
       inputs: new Map(), outputs: new Map(), onstatechange: null, sysexEnabled: false
     });
     if (window.navigator.mediaDevices) {
       window.navigator.mediaDevices.getUserMedia = async () => {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const destination = audioContext.createMediaStreamDestination();
         if (wav) {
           try {
@@ -69,7 +80,7 @@ const main = async () => {
         }
         return destination.stream;
       };
-      window.navigator.mediaDevices.enumerateDevices = async () => [
+      (window.navigator.mediaDevices as any).enumerateDevices = async () => [
         { deviceId: 'default', kind: 'audioinput', label: 'Synthetic WAV Audio Source' }
       ];
     }
@@ -93,7 +104,7 @@ const main = async () => {
     page.$eval('#preset-results-count', (el) => el.textContent || '');
   const clickChip = (label: string) =>
     page.evaluate((l: string) => {
-      const chip = [...document.querySelectorAll('.preset-filter-chip')].find((b) => b.textContent === l);
+      const chip = Array.from(document.querySelectorAll('.preset-filter-chip')).find((b) => b.textContent === l);
       if (!chip) throw new Error(`filter chip "${l}" not found`);
       (chip as HTMLElement).click();
     }, label);
@@ -125,7 +136,7 @@ const main = async () => {
   await clickChip('All');
   await setSearch(NEEDS_FIX_NAME);
   const badge = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('.preset-card')];
+    const cards = Array.from(document.querySelectorAll('.preset-card'));
     const target = cards.find((c) => (c as HTMLElement).dataset.presetPath?.includes('preset-1691'));
     if (!target) return { found: false, cards: cards.length, badged: false };
     return { found: true, cards: cards.length, badged: Boolean(target.querySelector('.preset-tag.needs-fix')) };

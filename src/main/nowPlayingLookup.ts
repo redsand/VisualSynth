@@ -642,7 +642,9 @@ const postShazamLookup = async (
   // Build request URL with two random UUIDs
   const uuid1 = crypto.randomUUID().toUpperCase();
   const uuid2 = crypto.randomUUID().toUpperCase();
-  const market = request.market?.trim() || 'US';
+  // amp.shazam.com rejects lowercase market codes with an empty-body 400 at
+  // the edge (e.g. the settings default 'us') — normalize to uppercase.
+  const market = request.market?.trim().toUpperCase() || 'US';
   const qs = 'sync=true&webv3=true&sampling=true&connected=&shazamapiversion=v3&sharehub=true&hubv5minorversion=v5.1&hidelb=true&video=v3';
   const url = `https://amp.shazam.com/discovery/v5/en-US/${market}/iphone/-/tag/${uuid1}/${uuid2}?${qs}`;
 
@@ -670,6 +672,15 @@ const postShazamLookup = async (
   });
 
   if (!response.ok) {
+    // Surface what the server actually said — an empty body with edge/cache
+    // headers distinguishes WAF/edge rejection from application errors.
+    const errBody = await response.text().catch(() => '');
+    const interestingHeaders = ['server', 'x-cache', 'via', 'cf-ray', 'x-amz-cf-id', 'content-length', 'date', 'x-amz-cf-pop'];
+    const headerDump = interestingHeaders
+      .map((h) => response.headers.get(h) ? `${h}=${response.headers.get(h)}` : null)
+      .filter(Boolean)
+      .join(' ');
+    console.error(`[Shazam] HTTP ${response.status} from amp.shazam.com — headers: ${headerDump || 'none'} — body: ${errBody.slice(0, 500)}`);
     return {
       matched: false,
       error: `Shazam request failed (HTTP ${response.status}).`

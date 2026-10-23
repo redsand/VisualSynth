@@ -88,7 +88,9 @@ export const DEFAULT_NOW_PLAYING_SETTINGS: NowPlayingSettings = {
   silenceThreshold: 0.025,
   changeThreshold: 0.35,
   confirmWindows: 2,
-  market: 'us',
+  // Shazam market codes are case-sensitive at the edge ('us' → HTTP 400);
+  // the main-process lookup also normalizes to uppercase as a belt-and-braces.
+  market: 'US',
   artworkPreference: 'album',
   autoCreateOverlays: true,
   titleOverlayId: 'now-playing-title',
