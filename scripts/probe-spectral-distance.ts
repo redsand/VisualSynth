@@ -35,6 +35,9 @@ const clipA = slice(fileA, path.join(os.tmpdir(), `vs-probe-a-${process.pid}.m4a
 const clipB = slice(fileB, path.join(os.tmpdir(), `vs-probe-b-${process.pid}.m4a`));
 const clipIsTemp = (p: string) => p.endsWith('.m4a');
 
+// ts-node transpiles fine with top-level await, but tsc (CommonJS tsconfig)
+// rejects it — wrap the run in main().
+const main = async () => {
 const server = http.createServer((req, res) => {
   const f = req.url === '/a.m4a' ? clipA : req.url === '/b.m4a' ? clipB : null;
   if (!f) { res.writeHead(404); res.end(); return; }
@@ -135,3 +138,6 @@ server.close();
 if (clipIsTemp(clipA)) fs.unlinkSync(clipA);
 if (clipIsTemp(clipB)) fs.unlinkSync(clipB);
 process.exit(0);
+};
+
+main();
