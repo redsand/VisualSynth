@@ -501,6 +501,12 @@ channel.onmessage = (event) => {
 
   // Auto-sync all standard RenderState fields
   syncRenderState(data, state);
+  // syncRenderState skips milkDropShaderData (IGNORED_FIELDS) — take it
+  // explicitly, or the render loop's updateMilkDropShaders never sees it and
+  // milkwave scenes render the generic pipeline only on the output window.
+  if ('milkDropShaderData' in data) {
+    state.milkDropShaderData = data.milkDropShaderData ?? null;
+  }
 
   if (data.transition) {
     lastTransition = data.transition;
