@@ -13211,7 +13211,10 @@ if (nowPlayingSlideshowEnabledInput && nowPlayingSlideshowGroup) {
 requestMicPermissionButton.addEventListener('click', async () => {
   try {
     // Request microphone permission explicitly
-    await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Permission probe only — release the tracks so this stream doesn't keep
+    // the mic open alongside the engine's own stream.
+    const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+    probe.getTracks().forEach((track) => track.stop());
     // Refresh the device list
     await initAudioDevices();
     // Setup audio with the selected device

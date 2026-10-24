@@ -196,8 +196,17 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       if (audioContext.state === 'suspended') {
         try { await audioContext.resume(); } catch { /* resume can reject if interrupted */ }
       }
+      // Disable Chromium's voice-call processing. With the defaults, echo
+      // cancellation subtracts whatever the machine is playing (i.e. the music
+      // we're trying to react to) and noise suppression gates sustained tones,
+      // so the stream is "live" (mic indicator on) but the analyser sees ~0.
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: deviceId ? { deviceId: { exact: deviceId } } : true
+        audio: {
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
       });
       mediaStream = stream;
       const source = audioContext.createMediaStreamSource(stream);
