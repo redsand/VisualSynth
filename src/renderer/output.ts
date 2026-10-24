@@ -676,6 +676,16 @@ const render = (time: number) => {
     lastCanvasHeight = canvas.height;
   }
 
+  // MilkDrop/milkwave scenes: feed the broadcast shader data to the renderer,
+  // mirroring the main window (index.ts render loop). Without this the output
+  // window renders the generic pipeline only — milkwave scenes visibly
+  // diverged from the preview (milkdrop warp/comp passes never ran here).
+  // updateMilkDropShaders compiles GL programs and has no internal
+  // context-lost guard, so skip it while the context is lost or mid-restore.
+  if (state.milkDropShaderData && !renderer.isContextLost?.()) {
+    renderer.updateMilkDropShaders?.(state.milkDropShaderData);
+  }
+
   renderer.render({
     ...state,
     timeMs: Number.isFinite(state.timeMs) ? state.timeMs : time
