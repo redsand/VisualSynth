@@ -13,7 +13,7 @@
 // Usage:
 //   ts-node --transpile-only scripts/audit-project.ts --project=<file>
 //     [--out=<dir>] [--shard=<i>/<n>] [--audio=fake|silent] [--no-output]
-import { execFile } from 'child_process';
+import { execFile, type ChildProcess } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import puppeteer, { Page } from 'puppeteer';
@@ -47,6 +47,30 @@ const SHOT_TIMES_MS = [2000, 6000, 10000];
 // the browser is relaunched periodically: long single-session runs degrade
 // (GPU program caches, leaked FBOs) and poison later scenes' results
 const RELAUNCH_EVERY = 20;
+// A pathological shader can peg the renderer main thread at 100% forever —
+// then page.evaluate never runs again and the audit DEADLOCKS on that scene
+// (seen live: two presets hung both parallel shards for 15+ minutes). Each
+// scene gets a wall-clock budget; on breach the scene is recorded as HUNG
+// and the browser is killed and relaunched so the rest of the shard still
+// completes.
+const SCENE_TIMEOUT_MS = 60000;
+
+const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | null> =>
+  Promise.race([
+    p.then(
+      (v) => v,
+      () => null
+    ),
+    new Promise<null>((r) => setTimeout(() => r(null), ms))
+  ]);
+
+// A wedged renderer can make browser.close() itself hang — always bound it.
+const closeSession = async (sess: {
+  browser: { close: () => Promise<unknown>; process: () => unknown };
+}): Promise<void> => {
+  const closed = await withTimeout(sess.browser.close(), 10000);
+  if (closed === null) (sess.browser.process() as ChildProcess | null)?.kill('SIGKILL');
+};
 
 interface Stats { ymin: number; ymax: number; yavg: number }
 
@@ -228,17 +252,13 @@ const main = async () => {
   const allConsoleErrors: string[] = [];
   let session: Awaited<ReturnType<typeof launch>> | null = null;
 
-  for (let n = 0; n < indices.length; n += 1) {
-    if (!session || n % RELAUNCH_EVERY === 0) {
-      if (session) {
-        allConsoleErrors.push(...session.consoleErrors);
-        await session.browser.close();
-      }
-      session = await launch(entries, wavBase64, auditProject);
-    }
-    const { page, outputPage } = session;
-    const i = indices[n];
-    const scene = project.scenes[i];
+  // The per-scene audit: apply, settle, shoot, collect diagnostics.
+  const auditOneScene = async (
+    sess: NonNullable<typeof session>,
+    scene: any,
+    i: number
+  ): Promise<any> => {
+    const { page, outputPage } = sess;
     const slug = `scene-${String(i + 1).padStart(3, '0')}`;
 
     await page.evaluate((id: string) => (window as any).__visualSynthCaptureApi.applyScene(id), scene.id);
@@ -274,7 +294,7 @@ const main = async () => {
       .filter(([, st]) => st && st !== 'success' && st !== 'not_present')
       .map(([stage, st]) => `${stage}:${st}`);
 
-    const row = {
+    return {
       index: i + 1,
       name: scene.name,
       activated,
@@ -287,18 +307,53 @@ const main = async () => {
       mainStats: mainStats.map((s) => `${s.ymin}/${s.ymax}/${s.yavg.toFixed(0)}`).join(' '),
       outStats: outStats.map((s) => `${s.ymin}/${s.ymax}/${s.yavg.toFixed(0)}`).join(' ')
     };
+  };
+
+  for (let n = 0; n < indices.length; n += 1) {
+    if (!session || n % RELAUNCH_EVERY === 0) {
+      if (session) {
+        allConsoleErrors.push(...session.consoleErrors);
+        await closeSession(session);
+      }
+      session = await launch(entries, wavBase64, auditProject);
+    }
+    const i = indices[n];
+    const scene = project.scenes[i];
+
+    let row = await withTimeout(auditOneScene(session, scene, i), SCENE_TIMEOUT_MS);
+    if (!row) {
+      // The scene hung the renderer (see SCENE_TIMEOUT_MS). Record it as a
+      // failure — a preset that deadlocks the render loop must never reach a
+      // show — then kill and relaunch so the shard continues.
+      row = {
+        index: i + 1,
+        name: scene.name,
+        activated: false,
+        main: 'HUNG',
+        output: 'skipped',
+        shaderError: `renderer did not complete a scene within ${SCENE_TIMEOUT_MS}ms`,
+        safeMode: null,
+        compileProblems: [],
+        outputMessages: null,
+        mainStats: '',
+        outStats: ''
+      };
+      allConsoleErrors.push(`HUNG: ${scene.name} (renderer main thread stalled >${SCENE_TIMEOUT_MS}ms)`);
+      await closeSession(session);
+      session = await launch(entries, wavBase64, auditProject);
+    }
     rows.push(row);
     const pass =
-      activated && row.main === 'ok' && (row.output === 'ok' || row.output === 'skipped') &&
-      !row.shaderError && !row.safeMode && compileProblems.length === 0;
+      row.activated && row.main === 'ok' && (row.output === 'ok' || row.output === 'skipped') &&
+      !row.shaderError && !row.safeMode && !row.compileProblems.length;
     console.log(
       `${pass ? 'PASS' : 'FAIL'}  ${String(i + 1).padStart(3)}. ${scene.name}  main=${row.main}[${row.mainStats}] out=${row.output}[${row.outStats}]` +
-        `${row.shaderError ? ' SHADER-ERR' : ''}${row.safeMode ? ' SAFE-MODE' : ''}${compileProblems.length ? ' ' + compileProblems.join(',') : ''}${activated ? '' : ' NOT-ACTIVATED'}`
+        `${row.shaderError ? ` SHADER-ERR(${String(row.shaderError).slice(0, 60)})` : ''}${row.safeMode ? ' SAFE-MODE' : ''}${row.compileProblems.length ? ' ' + row.compileProblems.join(',') : ''}${row.activated ? '' : ' NOT-ACTIVATED'}`
     );
   }
   if (session) {
     allConsoleErrors.push(...session.consoleErrors);
-    await session.browser.close();
+    await closeSession(session);
   }
 
   const realErrors = [...new Set(allConsoleErrors.filter((e) => !/favicon|net::ERR|ResizeObserver/.test(e)))];

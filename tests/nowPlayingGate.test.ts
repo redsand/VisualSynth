@@ -43,8 +43,9 @@ describe('shouldSkipLookup', () => {
 
   it('skips small-distance firings as same-song false positives', () => {
     const state = createNowPlayingGateState();
-    // changeThreshold default is 0.35; the same-song gate is 0.5 * that.
-    const verdict = shouldSkipLookup(state, settings, eventWithDistance(0.10), 1000);
+    // changeThreshold default is 0.15 (v2 feature scale); the same-song
+    // gate is 0.5 * that = 0.075.
+    const verdict = shouldSkipLookup(state, settings, eventWithDistance(0.06), 1000);
     expect(verdict.skip).toBe(true);
     expect(verdict.reason).toContain('same-song');
   });
@@ -115,7 +116,7 @@ describe('seedGateFromBridge', () => {
     expect(state.currentTrackKey).toBe(nowPlayingTrackKey(TRACK_A.title, TRACK_A.artist, TRACK_A.album));
 
     // The detector now fires with a small distance: same song, skip.
-    const verdict = shouldSkipLookup(state, settings, eventWithDistance(0.1), 6000);
+    const verdict = shouldSkipLookup(state, settings, eventWithDistance(0.06), 6000);
     expect(verdict.skip).toBe(true);
     expect(verdict.reason).toContain('same-song');
   });

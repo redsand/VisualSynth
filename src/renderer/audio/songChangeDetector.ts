@@ -1,3 +1,30 @@
+// Song-change detector v2.
+//
+// v1 compared amplitude-normalized spectral SHAPES (8 bands), which cannot
+// discriminate real content: mastered dance tracks share nearly identical
+// normalized band shapes, so measured cross-song distances (0.03–0.047
+// rolling, 0.077 settled) sat far below any threshold that same-song drift
+// (0.02–0.03) would not also cross — the detector never fired on real DJ
+// transitions (see scripts/probe-spectral-distance.ts, the Oct-22 pre-show
+// measurement). v2 adds a second feature block that IS discriminative:
+//
+//   shape — normalized 64-bin log-spaced spectrum mean (loudness-invariant
+//           timbre; prefers the fine spectrum over the coarse 8 bands)
+//   flux  — normalized per-bin mean positive RISE rate max(0, m−prev)/dt
+//           (rhythmic texture: where and how fast energy enters each band)
+//
+// Measured on real songs via scripts/probe-song-features.ts (Danza Kuduro,
+// Da' Butt, Cha Cha Slide, rAF-rate frames through an AnalyserNode set up
+// exactly like AudioEngine's): cross-song window distance median ≈ 0.16
+// (min 0.063, max 0.34) vs same-song adjacent-window drift median ≈ 0.12
+// with the low half under 0.08. changeThreshold defaults to 0.15 — just
+// under the cross-song median, so a typical transition crosses it within a
+// couple of windows, while quiet stretches of the same track stay under it.
+// The distributions overlap at the tails: section changes within a song can
+// fire, which is an accepted trade — the now-playing lookup gate
+// (shared/nowPlayingGate) dedupes same-track recognitions and the geometric
+// cooldown makes repeat fires cheap, while a MISSED change costs the whole
+// feature.
 export interface SongChangeAudioFrame {
   nowMs: number;
   rms: number;
@@ -25,7 +52,8 @@ export interface SongChangeEvent {
 interface AggregatedWindow {
   startedAt: number;
   sampleCount: number;
-  sums: number[];
+  magSums: number[];
+  fluxSums: number[];
 }
 
 const normalizeVector = (values: number[]): number[] => {
@@ -36,6 +64,7 @@ const normalizeVector = (values: number[]): number[] => {
   return values.map((value) => Math.max(0, value) / total);
 };
 
+// Total-variation distance between two normalized vectors ∈ [0,1].
 const spectralDistance = (a: number[], b: number[]): number => {
   const len = Math.min(a.length, b.length);
   if (len === 0) return 0;
@@ -44,6 +73,16 @@ const spectralDistance = (a: number[], b: number[]): number => {
     sum += Math.abs(a[i] - b[i]);
   }
   return sum * 0.5;
+};
+
+// Distance between two signatures (shape block ++ flux block), with the
+// blocks weighted equally. `size` is the length of one block.
+const signatureDistance = (a: number[], b: number[]): number => {
+  const size = Math.floor(Math.min(a.length, b.length) / 2);
+  if (size === 0) return 0;
+  const shape = 0.5 * spectralDistance(a.slice(0, size), b.slice(0, size));
+  const flux = 0.5 * spectralDistance(a.slice(size, size * 2), b.slice(size, size * 2));
+  return shape + flux;
 };
 
 const downsampleSpectrum = (spectrum: ArrayLike<number>, buckets = 12): number[] => {
@@ -58,46 +97,92 @@ const downsampleSpectrum = (spectrum: ArrayLike<number>, buckets = 12): number[]
     }
     result[bucket] = sum / Math.max(1, end - start);
   }
-  return normalizeVector(result);
+  return result;
 };
+
+// Flux rises are meaningless across a frame gap (render stall, silence, tab
+// throttle): the spectrum moved by wall-clock time the per-second rise rate
+// cannot represent. Cap the usable gap; larger gaps resync without aggregating.
+const MAX_FRAME_GAP_MS = 500;
 
 export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}) => {
   // Mutable thresholds so live settings edits take effect without rebuilding
   // the detector (which would discard the learned baseline).
   let windowMs = options.windowMs ?? 2500;
-  let minTrackMs = options.minTrackMs ?? 45000;
+  let minTrackMs = options.minTrackMs ?? 30000;
   let silenceThreshold = options.silenceThreshold ?? 0.025;
-  let changeThreshold = options.changeThreshold ?? 0.42;
-  let confirmWindows = Math.max(1, options.confirmWindows ?? 3);
+  let changeThreshold = options.changeThreshold ?? 0.15;
+  let confirmWindows = Math.max(1, options.confirmWindows ?? 2);
   let cooldownMs = options.cooldownMs ?? 15000;
 
   let activeWindow: AggregatedWindow | null = null;
   let baselineSignature: number[] | null = null;
   let baselineStartedAt = 0;
+  // The baseline is averaged over the first BASELINE_WINDOWS completed
+  // windows: a single first window can be an unrepresentative sample of the
+  // track (fade-in, DJ ramp) whose flux profile differs from steady-state
+  // playback — then the song's own body reads as "changed" and fires once
+  // right when the minTrackMs gate opens (seen live in the e2e: a 2s
+  // fade-in taught a ramp baseline and steady danza fired as a false song
+  // change ~35s in, before the real transition).
+  let baselineAccumulator: number[] | null = null;
+  let baselineWindows = 0;
+  const BASELINE_WINDOWS = 2;
   let consecutiveChanges = 0;
   let pendingSignature: number[] | null = null;
   let lastDetectionAt = -Infinity;
   // Distance of the most recent completed window vs the baseline — live
   // feedback for tuning changeThreshold in the settings modal.
   let lastWindowDistance = 0;
+  // Previous frame's per-band magnitudes (for the rise-rate flux); stale
+  // after gaps > MAX_FRAME_GAP_MS.
+  let prevMag: number[] | null = null;
+  let prevMagAt = -Infinity;
 
   const flushWindow = (nowMs: number) => {
     if (!activeWindow || activeWindow.sampleCount === 0) return;
     const currentWindow = activeWindow;
-    const signature = normalizeVector(
-      currentWindow.sums.map((value) => value / Math.max(1, currentWindow.sampleCount))
+    const shape = normalizeVector(
+      currentWindow.magSums.map((value) => value / Math.max(1, currentWindow.sampleCount))
     );
+    const flux = normalizeVector(
+      currentWindow.fluxSums.map((value) => value / Math.max(1, currentWindow.sampleCount))
+    );
+    const signature = [...shape, ...flux];
 
     if (!baselineSignature) {
-      baselineSignature = signature;
-      baselineStartedAt = currentWindow.startedAt;
+      // Accumulate the first BASELINE_WINDOWS windows into an averaged
+      // baseline before the detector arms.
+      if (!baselineAccumulator) {
+        baselineAccumulator = signature.slice();
+        baselineWindows = 1;
+        // The minTrackMs clock starts at the FIRST window's start so the
+        // arming delay is not extended by the extra baseline window.
+        baselineStartedAt = currentWindow.startedAt;
+      } else {
+        for (let i = 0; i < signature.length && i < baselineAccumulator.length; i += 1) {
+          baselineAccumulator[i] += signature[i];
+        }
+        baselineWindows += 1;
+      }
+      if (baselineWindows >= BASELINE_WINDOWS) {
+        // Renormalize PER BLOCK: the accumulator holds [shape…, flux…]
+        // concatenated, and a whole-vector normalize would halve each block's
+        // mass (total mass 2) against full-mass comparison windows — every
+        // same-song distance would then read inflated by the mass mismatch.
+        const size = Math.floor(baselineAccumulator.length / 2);
+        baselineSignature = [
+          ...normalizeVector(baselineAccumulator.slice(0, size)),
+          ...normalizeVector(baselineAccumulator.slice(size))
+        ];
+      }
       activeWindow = null;
       consecutiveChanges = 0;
       pendingSignature = null;
       return;
     }
 
-    const distance = spectralDistance(baselineSignature, signature);
+    const distance = signatureDistance(baselineSignature, signature);
     lastWindowDistance = distance;
     const longEnough = nowMs - baselineStartedAt >= minTrackMs;
     const cooledDown = nowMs - lastDetectionAt >= cooldownMs;
@@ -122,14 +207,13 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
       consecutiveChanges = 0;
       pendingSignature = null;
       // Hysteresis: do NOT track the baseline toward a diverging signature.
-      // The previous code blended 80/20 every non-detection window, so a slow
-      // crossfade (which moves <20% per window) was tracked and never reached
-      // changeThreshold. Only nudge the baseline for genuine near-identical
-      // drift (distance well below threshold), so gradual spectral shifts
-      // accumulate distance and eventually fire.
-      if (distance < changeThreshold * 0.25) {
+      // Only nudge the baseline for genuine near-identical drift (distance
+      // well below threshold), so gradual spectral shifts accumulate distance
+      // and eventually fire. Same-song drift below the nudge zone keeps the
+      // baseline warm without letting a slow crossfade sneak under the gate.
+      if (distance < changeThreshold * 0.4) {
         baselineSignature = normalizeVector(
-          baselineSignature.map((value, index) => value * 0.95 + signature[index] * 0.05)
+          baselineSignature.map((value, index) => value * 0.9 + signature[index] * 0.1)
         );
       }
     }
@@ -144,28 +228,43 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
       // pattern produces a window that spans a long silent gap and is
       // compared as if it were a contiguous snapshot.
       if (frame.rms < silenceThreshold) {
+        prevMag = null; // rises from silence are onset artifacts, not texture
         if (activeWindow && frame.nowMs - activeWindow.startedAt >= windowMs) {
           flushWindow(frame.nowMs);
         }
         return;
       }
 
-      const signature = frame.bands
-        ? normalizeVector(Array.from(frame.bands as ArrayLike<number>, (value) => Number(value ?? 0)))
-        : downsampleSpectrum(frame.spectrum);
+      // Prefer the fine spectrum (64 log-spaced bins from AudioEngine); the
+      // coarse 8 musical bands wash out exactly the detail that separates
+      // songs. Bands remain a fallback for callers without a spectrum.
+      const mag = frame.spectrum?.length
+        ? Array.from(frame.spectrum as ArrayLike<number>, (value) => Number(value ?? 0))
+        : frame.bands
+          ? normalizeVector(Array.from(frame.bands as ArrayLike<number>, (value) => Number(value ?? 0)))
+          : downsampleSpectrum(frame.spectrum);
 
-      if (!activeWindow) {
+      const dtMs = prevMag ? frame.nowMs - prevMagAt : Infinity;
+      const fluxUsable = prevMag !== null && dtMs > 0 && dtMs <= MAX_FRAME_GAP_MS;
+
+      if (!activeWindow || activeWindow.magSums.length !== mag.length) {
         activeWindow = {
           startedAt: frame.nowMs,
           sampleCount: 0,
-          sums: new Array(signature.length).fill(0)
+          magSums: new Array(mag.length).fill(0),
+          fluxSums: new Array(mag.length).fill(0)
         };
       }
 
-      for (let i = 0; i < signature.length; i += 1) {
-        activeWindow.sums[i] += signature[i];
+      for (let i = 0; i < mag.length; i += 1) {
+        activeWindow.magSums[i] += mag[i];
+        activeWindow.fluxSums[i] += fluxUsable
+          ? Math.max(0, mag[i] - (prevMag as number[])[i]) / (dtMs / 1000)
+          : 0;
       }
       activeWindow.sampleCount += 1;
+      prevMag = mag;
+      prevMagAt = frame.nowMs;
 
       if (frame.nowMs - activeWindow.startedAt >= windowMs) {
         flushWindow(frame.nowMs);
@@ -182,11 +281,15 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
     reset() {
       activeWindow = null;
       baselineSignature = null;
+      baselineAccumulator = null;
+      baselineWindows = 0;
       baselineStartedAt = 0;
       consecutiveChanges = 0;
       pendingSignature = null;
       lastDetectionAt = -Infinity;
       lastWindowDistance = 0;
+      prevMag = null;
+      prevMagAt = -Infinity;
     },
     getState() {
       return {

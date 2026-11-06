@@ -4,14 +4,17 @@
 // real capture API, then cycles every scene checking the app's own
 // diagnostics: no shader errors, no safe-mode fallbacks, warp+comp compiled.
 //
-// Usage: ts-node --transpile-only scripts/verify-quality-showcase.ts
+// Usage: ts-node --transpile-only scripts/verify-quality-showcase.ts [--project=<file>]
 import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer';
 import { buildPresetIndexEntry } from '../src/shared/presetIndex';
 
 const ROOT = path.resolve(__dirname, '..');
-const PROJECT_PATH = path.join(ROOT, 'showcase-quality-tonight.project.json');
+const projectArg = process.argv.find((a) => a.startsWith('--project='));
+const PROJECT_PATH = projectArg
+  ? path.resolve(projectArg.slice('--project='.length))
+  : path.join(ROOT, 'showcase-quality-tonight.project.json');
 const PRESET_DIR = path.join(ROOT, 'assets/presets');
 const DIST = 'file://' + path.join(ROOT, 'dist/renderer/index.html');
 const WAV = path.join(__dirname, 'test-audio-fake.wav');
@@ -90,6 +93,10 @@ const main = async () => {
       saveProject: async () => ({ canceled: true }),
       saveProjectAs: async () => ({ canceled: true }),
       confirmClose: async () => {},
+      // Called from the main render tick — a missing method throws
+      // synchronously and kills the rAF loop (canvas freezes). Same mock the
+      // audit-project harness carries.
+      autosaveProject: async () => ({ saved: false }),
     } as any;
   }, entries, wavBase64);
 

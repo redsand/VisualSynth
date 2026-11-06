@@ -60,7 +60,6 @@ import { renderSlideshowRoster } from './ui/slideshowRoster';
 import { getCertificationColor } from '../shared/certification';
 import { syncActiveSceneLookSection } from '../shared/sceneLookSync';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
-import { VISUAL_MODES, VisualMode } from '../shared/modes';
 import { ENGINE_REGISTRY, VisualEngine, EngineId } from '../shared/engines';
 import { playlistManager, PlaylistEvent } from './playlist/PlaylistManager';
 import { buildCaptureDiagnostics } from './captureDiagnostics';
@@ -347,7 +346,6 @@ const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputE
 const transportBpmState = document.getElementById('transport-bpm-state') as HTMLSpanElement;
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
 const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
-const visualModeSelect = document.getElementById('visual-mode-select') as HTMLSelectElement;
 const topbarOpenProjectButton = document.getElementById('topbar-open-project') as HTMLButtonElement | null;
 const topbarSaveProjectButton = document.getElementById('topbar-save-project') as HTMLButtonElement | null;
 const engineSelect = document.getElementById('engine-select') as HTMLSelectElement | null;
@@ -893,6 +891,13 @@ let beatSensitivity = 1.5;
 let beatFilterRange: 'full' | 'bass' | 'mids' = 'full';
 let beatHoldOffMs = 0;
 let lastBeatTime = 0;
+// Last lastBeatTime value already recorded into onsetTimes (see
+// updateBpmDisplay) — a change means the engine detected a new beat.
+let prevLastBeatTimeForOnsets = 0;
+// Rolling record of the auto-detected BPM (see updateBpmDisplay's Stable
+// label): judges stability by how long the ESTIMATE holds, not by raw
+// interval regularity.
+let bpmEstimateHistory: Array<{ at: number; bpm: number | null }> = [];
 let fluxPrev = 0;
 let fluxPrevPrev = 0;
 let projectDirty = false;
@@ -1883,99 +1888,6 @@ const applyVisualEngine = (engineId: EngineId) => {
   renderLayerList();
   renderModMatrix();
   renderSceneStrip(); // Ensure UI reflects preserved scenes
-};
-
-const applyVisualMode = (
-  modeId: string,
-  options?: {
-    preservePalette?: boolean;
-    preserveEffects?: boolean;
-    preserveModMatrix?: boolean;
-    preserveMotionMacro?: boolean;
-  }
-) => {
-  const mode = VISUAL_MODES.find(m => m.id === modeId);
-  if (!mode) return;
-
-  // Trigger Transition Effect
-  const tMap: Record<string, number> = { fade: 1, crossfade: 1, warp: 2, glitch: 3, dissolve: 4 };
-  currentTransitionType = tMap[mode.transition.type || 'fade'] || 1;
-  currentTransitionAmount = 1.0;
-  currentTransitionDecay = 1.0 / (mode.transition.durationMs || 600);
-
-  currentProject.activeModeId = modeId;
-  setStatus(`Visual Mode applied: ${mode.name}`);
-  
-  // 1. Apply Palette
-  if (!options?.preservePalette) {
-    const activeScene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
-    if (!activeScene?.look?.activePaletteId) {
-      // Only apply mode palette if scene doesn't have a custom palette
-      applyPaletteSelection(mode.palette.id);
-      paletteSelect.value = mode.palette.id;
-    }
-  }
-
-  // 2. Apply Audio Mappings (Mod Matrix)
-  // We'll append these or replace them? User said "grouped into high-level expressions"
-  // Let's replace the mod matrix for a clean "expression"
-  if (!options?.preserveModMatrix) {
-    // Replace only the connections previously injected by a Visual Mode
-    // (id prefix 'mod-mode-'), preserving user-created mod connections. The
-    // old behavior replaced the entire mod matrix on every mode switch,
-    // silently wiping any connections the user had hand-configured. Built as a
-    // single assignment so the object literals stay contextually typed as
-    // ModConnection (curve: 'linear' must not widen to string).
-    currentProject.modMatrix = [
-      ...currentProject.modMatrix.filter((c) => c.id?.startsWith('mod-mode-') !== true),
-      ...mode.audioMappings.map((mapping, index): ModConnection => {
-        const defaults = getTargetDefaults(mapping.target);
-        return {
-          id: `mod-mode-${index}`,
-          source: mapping.source,
-          target: mapping.target,
-          amount: mapping.amount,
-          curve: 'linear',
-          smoothing: 0.1,
-          bipolar: false,
-          min: defaults.min,
-          max: defaults.max
-        };
-      })
-    ];
-    renderModMatrix();
-  }
-
-  // 3. Apply Glow/Depth (Effects)
-  if (!options?.preserveEffects) {
-    currentProject.effects.bloom = mode.glowDepth.glow;
-    // We'll use 'blur' as a proxy for depth for now if not available
-    currentProject.effects.blur = mode.glowDepth.depth * 0.2; 
-    initEffects();
-  }
-
-  // 4. Intensity Envelopes
-  if (currentProject.envelopes[0]) {
-    currentProject.envelopes[0].attack = mode.intensityEnvelopes.attack;
-    currentProject.envelopes[0].release = mode.intensityEnvelopes.release;
-    renderEnvelopeList();
-  }
-
-  // 5. Motion Template (Set macro targets for motion)
-  // We'll map motionTemplate to macro-2 (Motion)
-  if (!options?.preserveMotionMacro) {
-    const motionMacro = currentProject.macros.find(m => m.id === 'macro-2');
-    if (motionMacro) {
-      if (mode.motionTemplate === 'vortex') {
-        motionMacro.value = 0.8;
-      } else if (mode.motionTemplate === 'radial') {
-        motionMacro.value = 0.3;
-      } else {
-        motionMacro.value = 0.5;
-      }
-      updateMacroPreviews();
-    }
-  }
 };
 
 const applyPlaylistOverrides = (project: VisualSynthProject) => {
@@ -7804,7 +7716,16 @@ const updateBpmDisplay = () => {
   }
 
   const now = performance.now();
-  const recentOnsets = onsetTimes.filter((time) => now - time < 8000);
+  // onsetTimes was declared but never written — the transport state label
+  // could never advance past "Learning". Derive onsets from the engine's
+  // lastBeatTime stream (synced through the audio store bridge): a new
+  // beat time since the previous display update is one onset.
+  if (lastBeatTime && lastBeatTime !== prevLastBeatTimeForOnsets) {
+    prevLastBeatTimeForOnsets = lastBeatTime;
+    if (lastBeatTime > now - 8000) onsetTimes.push(lastBeatTime);
+  }
+  onsetTimes = onsetTimes.filter((time) => now - time < 8000);
+  const recentOnsets = onsetTimes;
   let stateLabel = 'Idle';
   let stateClass = 'transport-state-idle';
   if (bpmSource === 'manual') {
@@ -7820,18 +7741,19 @@ const updateBpmDisplay = () => {
     stateLabel = 'Learning';
     stateClass = 'transport-state-learning';
   } else {
-    const intervals: number[] = [];
-    for (let i = 1; i < recentOnsets.length; i += 1) {
-      intervals.push(recentOnsets[i] - recentOnsets[i - 1]);
-    }
-    const mean =
-      intervals.reduce((sum, interval) => sum + interval, 0) / Math.max(1, intervals.length);
-    const variance =
-      intervals.reduce((sum, interval) => sum + (interval - mean) ** 2, 0) /
-      Math.max(1, intervals.length);
-    const stability = mean > 0 ? Math.sqrt(variance) / mean : 1;
-    const estimateAgeMs = now - lastTempoEstimateTime;
-    if (recentOnsets.length >= 6 && stability < 0.12 && estimateAgeMs < 2500) {
+    // Judge stability by the ESTIMATE's hold, not raw interval regularity:
+    // real music yields mixed subdivisions (8th-note hihats between quarter
+    // kicks), so the interval stream always reads "irregular" even when the
+    // detected tempo has been locked for minutes. The display should say
+    // Stable when the BPM itself isn't moving.
+    bpmEstimateHistory.push({ at: now, bpm: autoBpm });
+    bpmEstimateHistory = bpmEstimateHistory.filter((s) => now - s.at < 15000 && s.bpm);
+    const heldSamples = bpmEstimateHistory;
+    const heldSpread =
+      heldSamples.length >= 4
+        ? Math.max(...heldSamples.map((s) => s.bpm)) - Math.min(...heldSamples.map((s) => s.bpm))
+        : Infinity;
+    if (recentOnsets.length >= 6 && heldSamples.length >= 4 && heldSpread <= 2.5) {
       stateLabel = 'Stable';
       stateClass = 'transport-state-stable';
     } else {
@@ -11153,12 +11075,30 @@ const applyWhatsNowPlayingDraftPreset = () => {
 };
 
 const applyNowPlayingSettings = (settings: Partial<NowPlayingSettings>) => {
+  const prevEnabled = nowPlayingSettings.enabled;
   Object.assign(nowPlayingSettings, DEFAULT_NOW_PLAYING_SETTINGS, settings);
   if (!nowPlayingSettings.enabled) {
     // The only path that clears the managed overlays: the user turned the
     // feature off. Failed/absent lookups deliberately keep the last track.
     clearNowPlayingOverlays();
     cancelNowPlayingRetry();
+  }
+  // Song-detection settings land in the session log on every change (boot
+  // load included): the Oct show's logs held ZERO song events, so when
+  // auto-detect silently never fired there was no way to tell whether it
+  // was disabled, misconfigured, or hearing silence.
+  if (nowPlayingSettings.enabled !== prevEnabled || prevEnabled) {
+    sessionLog.log('info', 'song.settings', {
+      enabled: nowPlayingSettings.enabled,
+      provider: nowPlayingSettings.provider,
+      freeShazamFirst: nowPlayingSettings.freeShazamFirst,
+      lookupConfigured: isNowPlayingLookupConfigured(nowPlayingSettings),
+      metadataBridge: nowPlayingSettings.metadataSourceEnabled,
+      changeThreshold: nowPlayingSettings.changeThreshold,
+      confirmWindows: nowPlayingSettings.confirmWindows,
+      minTrackMs: nowPlayingSettings.minTrackMs,
+      silenceThreshold: nowPlayingSettings.silenceThreshold
+    });
   }
   updateNowPlayingStatusText();
 };
@@ -11177,7 +11117,7 @@ const buildNowPlayingDraftSettings = (): NowPlayingSettings => ({
   apiSecret: nowPlayingApiSecretInput.value.trim(),
   clipDurationMs: Math.max(4000, Number(nowPlayingClipDurationInput.value) || 12000),
   cooldownMs: Math.max(5000, Number(nowPlayingCooldownInput.value) || 15000),
-  changeThreshold: Math.min(0.9, Math.max(0.1, Number(nowPlayingChangeThresholdInput.value) || 0.35)),
+  changeThreshold: Math.min(0.9, Math.max(0.1, Number(nowPlayingChangeThresholdInput.value) || 0.15)),
   confirmWindows: Math.min(5, Math.max(1, Math.round(Number(nowPlayingConfirmWindowsInput.value) || 2))),
   minTrackMs: Math.min(120000, Math.max(5000, Number(nowPlayingMinTrackMsInput.value) || 30000)),
   silenceThreshold: Math.min(0.2, Math.max(0.005, Number(nowPlayingSilenceThresholdInput.value) || 0.025)),
@@ -11409,7 +11349,11 @@ const buildRecognitionRequest = async (
     // helper doesn't depend on the caller's block-scoped `rollingAudioCapture`
     // -- which was out of scope here and would have thrown ReferenceError on
     // the Shazam path.
-    const pcmClip = capture.exportRecentPcm?.(settings.clipDurationMs);
+    // Re-export the SAME duration as the passed clip: detector-triggered
+    // lookups export a short clip (see DETECTOR_CLIP_MS) so the fingerprint
+    // holds the NEW song, not the pre-transition track.
+    const clipDurationMs = Math.max(6000, Math.max(0, clip.endedAt - clip.startedAt)) || settings.clipDurationMs;
+    const pcmClip = capture.exportRecentPcm?.(clipDurationMs);
     if (pcmClip && pcmClip.pcmS16le.length >= 48000) {
       const rawCopy = new Uint8Array(pcmClip.pcmS16le.byteLength);
       rawCopy.set(new Uint8Array(
@@ -11698,7 +11642,18 @@ const runNowPlayingLookup = async (
   const rollingAudioCapture = getAudioEngineSafe()?.getRollingAudioCapture();
   if (!rollingAudioCapture) return;
 
-  const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(nowPlayingSettings.clipDurationMs);
+  // Detector-triggered lookups export a SHORTER clip than manual tests: the
+  // detection fires only confirmWindows × windowMs (~5s) after the actual
+  // change, so the standard 12s window is dominated by the PREVIOUS track —
+  // Shazam then matches the old song, the same-track gate suppresses the
+  // update, and the overlay lags one song until the next transition. The
+  // most recent ~6s is all-new-song audio; a too-short clip that no-matches
+  // still gets the ~10s bounded retry with a fresh (by then fully clean) clip.
+  const DETECTOR_CLIP_MS = 6000;
+  const exportMs = opts.event
+    ? Math.min(nowPlayingSettings.clipDurationMs, DETECTOR_CLIP_MS)
+    : nowPlayingSettings.clipDurationMs;
+  const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(exportMs);
   if (!exportResult.success || !exportResult.clip) {
     setStatus(`Song change detected, but ${exportResult.error}`);
     return;
@@ -11778,9 +11733,26 @@ const setupAudio = async (deviceId?: string) => {
   const engine = getAudioEngineSafe();
   if (engine) {
     await engine.setup(deviceId);
-    sessionLog.log('info', 'audio.engine_init', { deviceId: deviceId ?? 'default', deviceLabel: '' });
+    sessionLog.log('info', 'audio.engine_init', {
+      deviceId: deviceId ?? 'default',
+      deviceLabel: '',
+      songDetection: {
+        enabled: nowPlayingSettings.enabled,
+        provider: nowPlayingSettings.provider,
+        freeShazamFirst: nowPlayingSettings.freeShazamFirst,
+        lookupConfigured: isNowPlayingLookupConfigured(nowPlayingSettings),
+        changeThreshold: nowPlayingSettings.changeThreshold,
+        confirmWindows: nowPlayingSettings.confirmWindows,
+        minTrackMs: nowPlayingSettings.minTrackMs,
+        silenceThreshold: nowPlayingSettings.silenceThreshold
+      }
+    });
     engine.updateNowPlayingSettings(nowPlayingSettings);
     engine.onSongChange((event) => {
+      sessionLog.log('info', 'song.change_detected', {
+        distance: Number(event.distance.toFixed(4)),
+        changeThreshold: nowPlayingSettings.changeThreshold
+      });
       if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
         setStatus('Song change detected. Configure Now Playing in the System tab to enable lookup.');
         return;
@@ -11805,6 +11777,14 @@ const updateAudioAnalysis = (deltaMs: number) => {
   }
 };
 
+// Song-detection health goes to the session log on every state CHANGE plus a
+// 30s heartbeat while listening. This is the telemetry that was missing at
+// the October show: the detector ran for hours with zero log lines, so a
+// never-firing detector was indistinguishable from a disabled one.
+let lastSongDetectionStateLogged = '';
+let lastSongDetectionTelemetryAt = 0;
+const SONG_DETECTION_TELEMETRY_MS = 30000;
+
 const updateNowPlayingDiagnosticsUI = () => {
   const engine = getAudioEngineSafe();
   if (!engine) return;
@@ -11813,6 +11793,34 @@ const updateNowPlayingDiagnosticsUI = () => {
   const { status, settings } = diag;
 
   sessionHealthService.updateSongDetection(status.state);
+
+  if (settings.enabled) {
+    const now = Date.now();
+    const distance = status.details?.lastWindowDistance ?? 0;
+    if (status.state !== lastSongDetectionStateLogged) {
+      lastSongDetectionStateLogged = status.state;
+      sessionLog.log('info', 'song.detection_state', {
+        state: status.state,
+        reason: status.reason ?? '',
+        distance: Number(distance.toFixed(4)),
+        threshold: settings.changeThreshold,
+        confidence: status.details?.confidence ?? 0
+      });
+    }
+    if (now - lastSongDetectionTelemetryAt >= SONG_DETECTION_TELEMETRY_MS) {
+      lastSongDetectionTelemetryAt = now;
+      sessionLog.log('info', 'song.detection_telemetry', {
+        state: status.state,
+        distance: Number(distance.toFixed(4)),
+        threshold: settings.changeThreshold,
+        confidence: status.details?.confidence ?? 0,
+        detections: diag.metrics.totalDetections,
+        failedDetections: diag.metrics.failedDetections
+      });
+    }
+  } else {
+    lastSongDetectionStateLogged = '';
+  }
 
   if (!settings.enabled) {
     nowPlayingDiagnostics.classList.add('hidden');
@@ -11842,7 +11850,7 @@ const updateNowPlayingDiagnosticsUI = () => {
     // Green = at/over threshold (firing range), amber = approaching, blue = same song.
     if (nowPlayingSpectralBar) {
       const distance = status.details.lastWindowDistance ?? 0;
-      const threshold = Math.max(0.01, diag.settings.changeThreshold || 0.35);
+      const threshold = Math.max(0.01, diag.settings.changeThreshold || 0.15);
       const ratio = Math.min(1, distance / threshold);
       nowPlayingSpectralBar.style.width = `${ratio * 100}%`;
       nowPlayingSpectralBar.style.backgroundColor =
@@ -12023,9 +12031,6 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
 
 const serializePerformance = () => {
   const now = new Date().toISOString();
-  
-  // Find current visual mode metadata
-  const currentMode = VISUAL_MODES.find(m => m.id === currentProject.activeModeId) || VISUAL_MODES[0];
 
   const performance: any = {
     version: 6,
@@ -12035,11 +12040,14 @@ const serializePerformance = () => {
       createdAt: currentProject.createdAt || now,
       updatedAt: now,
       activeEngineId: currentProject.activeEngineId || 'engine-radial-core',
-      activeModeId: currentProject.activeModeId || 'mode-cosmic',
+      // Visual modes were removed from the UI (palette + engine styling
+      // replaced them); the field stays in saved metadata for schema
+      // compatibility with older projects.
+      activeModeId: currentProject.activeModeId || '',
       intendedMusicStyle: currentProject.intendedMusicStyle || 'Any',
       visualIntentTags: currentProject.visualIntentTags || [],
       colorChemistry: currentProject.colorChemistry || ['analog', 'balanced'],
-      defaultTransition: currentMode.transition
+      defaultTransition: DEFAULT_SCENE_TRANSITION
     },
     scenes: currentProject.scenes,
     activeSceneId: currentProject.activeSceneId,
@@ -12168,9 +12176,6 @@ const applyProject = async (project: VisualSynthProject) => {
   initParticles();
   initSdf();
   syncVisualizerFromProject();
-  if (visualModeSelect) {
-    visualModeSelect.value = currentProject.activeModeId || 'mode-cosmic';
-  }
   if (engineSelect) {
     const engineId = currentProject.activeEngineId || 'engine-radial-core';
     engineSelect.value = engineId;
@@ -13039,10 +13044,6 @@ document.addEventListener('click', (event) => {
   });
 sdfShape.addEventListener('change', () => {
   applySdfControls();
-});
-
-visualModeSelect.addEventListener('change', () => {
-  applyVisualMode(visualModeSelect.value);
 });
 
 if (engineSelect) {
@@ -15735,15 +15736,6 @@ const init = async () => {
   setMode('performance');
   console.log('[Init] setMode completed');
 
-  if (currentProject.activeModeId) {
-    applyVisualMode(currentProject.activeModeId, {
-      preservePalette: true,
-      preserveEffects: true,
-      preserveModMatrix: true,
-      preserveMotionMacro: true
-    });
-  }
-
   updateTransportUI();
   console.log('[Init] updateTransportUI completed');
 
@@ -15801,11 +15793,24 @@ const init = async () => {
   // M9 — Release microphone (AudioEngine) and camera/screen capture streams
   // (live assets) on unload so the OS media indicators turn off promptly
   // instead of lingering until the renderer process is killed. pagehide fires
-  // for close, reload, and crash-recovery reload. Both calls are synchronous
+  // for close, reload, and crash-recovery reload. All calls are synchronous
   // and null-tolerant; safe when no media was ever acquired.
   window.addEventListener('pagehide', () => {
     try { stopAllLiveStreams(); } catch { /* ignore on unload */ }
+    // Finalize an in-progress capture: stop the recorder's tracks
+    // synchronously (the async onstop save can't complete during unload, but
+    // the recorder itself and its dedicated stream must not outlive the
+    // page). requestData flushes what it can to the pending chunks first.
+    try {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try { mediaRecorder.requestData(); } catch { /* best-effort flush */ }
+        mediaRecorder.stream?.getTracks().forEach((track) => track.stop());
+      }
+    } catch { /* ignore on unload */ }
     try { getAudioEngineSafe()?.dispose?.(); } catch { /* ignore on unload */ }
+    // Close the output BroadcastChannel opened at module load — tidy when
+    // multiple renderer contexts share it (harmless otherwise).
+    try { outputChannel.close(); } catch { /* already closed */ }
   });
 
   // Expose capture API for screenshot automation

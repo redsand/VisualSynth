@@ -783,7 +783,7 @@ const migrateV4ToV5 = (preset: PresetV4): { preset: any; warnings: string[]; err
     scenes: preset.scenes,
     activeSceneId: preset.activeSceneId,
     roleWeights: { core: 1, support: 1, atmosphere: 1 },
-    tempoSync: { bpm: 120, source: 'manual' },
+    tempoSync: { bpm: 120, source: 'auto' },
     modulations: preset.modulations ?? [],
     macros: preset.macros ?? [],
     project: applied.project
@@ -810,7 +810,7 @@ const migrateV5ToV6 = (preset: PresetV5): { preset: any; warnings: string[]; err
     scenes: preset.scenes,
     activeSceneId: preset.activeSceneId,
     roleWeights: preset.roleWeights || { core: 1, support: 1, atmosphere: 1 },
-    tempoSync: preset.tempoSync || { bpm: 120, source: 'manual' },
+    tempoSync: preset.tempoSync || { bpm: 120, source: 'auto' },
     modulations: preset.modulations ?? [],
     macros: preset.macros ?? [],
     project: preset.project
@@ -1163,7 +1163,7 @@ export const applyPresetV5 = (preset: any, currentProject: any): { project: any;
   project.activeModeId = preset.metadata?.activeModeId ?? project.activeModeId ?? '';
   project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
-  project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
+  project.tempoSync = preset.tempoSync || { bpm: 120, source: 'auto' };
   
   // Narrative scenes
   if (Array.isArray(preset.scenes) && preset.scenes.length > 0) {
@@ -1218,7 +1218,7 @@ export const applyPresetV6 = (preset: any, currentProject: any): { project: any;
   project.activeModeId = preset.metadata?.activeModeId ?? project.activeModeId ?? '';
   project.colorChemistry = preset.metadata?.colorChemistry || ['analog', 'balanced'];
   project.roleWeights = preset.roleWeights || { core: 1, support: 1, atmosphere: 1 };
-  project.tempoSync = preset.tempoSync || { bpm: 120, source: 'manual' };
+  project.tempoSync = preset.tempoSync || { bpm: 120, source: 'auto' };
 
   if (isLiveMode) {
     project.activeEngineId = 'engine-none';

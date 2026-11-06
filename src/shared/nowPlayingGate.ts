@@ -99,7 +99,7 @@ export const shouldSkipLookup = (
     const secondsLeft = Math.round((state.adaptiveCooldownUntil - nowMs) / 1000);
     return { skip: true, reason: `Adaptive cooldown active (${secondsLeft}s left)` };
   }
-  const threshold = Math.max(0.01, settings.changeThreshold || 0.35);
+  const threshold = Math.max(0.01, settings.changeThreshold || 0.15);
   if (event.distance < threshold * SAME_SONG_DISTANCE_FACTOR) {
     return { skip: true, reason: 'Spectral change below same-song gate' };
   }

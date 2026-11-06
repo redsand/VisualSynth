@@ -5,7 +5,9 @@ export type EngineId =
   | 'engine-radial-core'
   | 'engine-particle-flow'
   | 'engine-kaleido-pulse'
-  | 'engine-vapor-grid';
+  | 'engine-vapor-grid'
+  | 'engine-fractal-bloom'
+  | 'engine-data-stream';
 
 export interface EngineMacro {
   id: string;
@@ -254,6 +256,96 @@ export const ENGINE_REGISTRY: Record<EngineId, VisualEngine> = {
         blendMode: 'screen',
         transform: { x: 0, y: 0, scale: 1.8, rotation: 0 },
         params: { scale: 1.2, elevation: 0.6 }
+      }
+    ]
+  },
+  'engine-fractal-bloom': {
+    id: 'engine-fractal-bloom',
+    name: 'Fractal Bloom',
+    description: 'Iterative bloom growth. Kicks pulse the field; mids deepen the recursion.',
+    curatedPalette: COLOR_PALETTES.find(p => p.id === 'aurora') || COLOR_PALETTES[3],
+    semantics: {
+      kick: 'sdf.scale.pulse',
+      mids: 'layer-plasma.complexity.swirl',
+      highs: 'style.paletteShift.sparkle'
+    },
+    grammar: {
+      mass: 0.6,
+      friction: 0.9,
+      elasticity: 1.5
+    },
+    constraints: {
+      maxBloom: 0.8,
+      forceFeedback: false,
+      preferredMotion: 'fractal'
+    },
+    finish: {
+      grain: 0.15,
+      vignette: 0.9,
+      ca: 0.5
+    },
+    macros: [
+      { id: 'frac-bloom', name: 'Bloom', defaultValue: 0.7, description: 'Growth intensity', target: 'effects.bloom' },
+      { id: 'frac-depth', name: 'Depth', defaultValue: 0.6, description: 'Recursion levels', target: 'layer-plasma.complexity' },
+      { id: 'frac-swell', name: 'Swell', defaultValue: 0.55, description: 'Field expansion', target: 'sdf.scale' },
+      { id: 'frac-hue', name: 'Prism Drift', defaultValue: 0.45, description: 'Color drift', target: 'style.paletteShift' },
+      { id: 'frac-echo', name: 'Echo', defaultValue: 0.35, description: 'Feedback trails', target: 'effects.feedback' }
+    ],
+    baseLayers: [
+      {
+        id: 'layer-plasma',
+        name: 'Bloom Field',
+        role: 'core',
+        enabled: true,
+        opacity: 0.85,
+        blendMode: 'screen',
+        transform: { x: 0, y: 0, scale: 1.6, rotation: 0 },
+        params: { speed: 1.1, scale: 1.0, complexity: 0.9 }
+      }
+    ]
+  },
+  'engine-data-stream': {
+    id: 'engine-data-stream',
+    name: 'Data Stream',
+    description: 'Digital scanline drift. Highs tick rows; kicks punch the signal.',
+    curatedPalette: COLOR_PALETTES.find(p => p.id === 'industrial') || COLOR_PALETTES[4],
+    semantics: {
+      kick: 'layer-datastream.speed.thrust',
+      mids: 'effects.chroma.jitter',
+      highs: 'layer-datastream.opacity.flicker'
+    },
+    grammar: {
+      mass: 0.5,
+      friction: 0.96,
+      elasticity: 0.8
+    },
+    constraints: {
+      maxBloom: 0.45,
+      forceFeedback: false,
+      preferredMotion: 'data'
+    },
+    finish: {
+      grain: 0.5,
+      vignette: 1.0,
+      ca: 0.6
+    },
+    macros: [
+      { id: 'data-rate', name: 'Bit Rate', defaultValue: 0.65, description: 'Stream velocity', target: 'layer-datastream.speed' },
+      { id: 'data-density', name: 'Density', defaultValue: 0.55, description: 'Row count', target: 'layer-datastream.density' },
+      { id: 'data-glitch', name: 'Glitch', defaultValue: 0.4, description: 'Chroma tearing', target: 'effects.chroma' },
+      { id: 'data-scan', name: 'Scanlines', defaultValue: 0.5, description: 'CRT overlay', target: 'effects.posterize' },
+      { id: 'data-noise', name: 'Noise', defaultValue: 0.3, description: 'Signal grain', target: 'effects.feedback' }
+    ],
+    baseLayers: [
+      {
+        id: 'layer-datastream',
+        name: 'Signal Stream',
+        role: 'core',
+        enabled: true,
+        opacity: 0.9,
+        blendMode: 'add',
+        transform: { x: 0, y: 0, scale: 1.4, rotation: 0 },
+        params: { speed: 1.2, density: 0.6 }
       }
     ]
   }

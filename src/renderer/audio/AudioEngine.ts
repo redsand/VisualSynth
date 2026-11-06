@@ -58,6 +58,7 @@ export const createAudioEngine = (store: Store): AudioEngine => {
   let onsetAnalyser: AnalyserNode | null = null;
   let mediaStream: MediaStream | null = null;
   let lastTempoEstimateTime = 0;
+  let stableWinnerCount = 0;
   let fluxPrev = 0;
   let fluxPrevPrev = 0;
   let fluxPrevTime = 0;
@@ -231,6 +232,7 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       onsetTimes = [];
       spectrumPrev = null;
       lastTempoEstimateTime = 0;
+      stableWinnerCount = 0;
 
       songChangeDetector.reset();
       rollingAudioCapture.attach(stream);
@@ -472,8 +474,16 @@ export const createAudioEngine = (store: Store): AudioEngine => {
         onsetTimes.push(fluxPrevTime);
         onsetTimes = onsetTimes.filter((time) => now - time < 8000);
 
-        state.runtime.glyphBeatPulse = 1;
-        state.runtime.lastBeatTime = now;
+        // Route through store.update, not direct state mutation: the
+        // audioStoreBridge in index.ts returns a FRESH runtime object from
+        // every getState() call, so writing fields on it directly silently
+        // dropped the beat pulse and lastBeatTime — the bridge only syncs
+        // mutations made inside update() (and the real bootstrap store has
+        // the same semantics for its subscribers).
+        store.update((s) => {
+          s.runtime.glyphBeatPulse = 1;
+          s.runtime.lastBeatTime = now;
+        });
       }
     }
     fluxPrevPrev = fluxPrev;
@@ -485,25 +495,55 @@ export const createAudioEngine = (store: Store): AudioEngine => {
       for (let i = 1; i < onsetTimes.length; i += 1) {
         intervals.push(onsetTimes[i] - onsetTimes[i - 1]);
       }
-      const histogram = new Map<number, number>();
+      // Coarse-grid histogram (2 BPM bins) so detection jitter doesn't split
+      // votes across adjacent bins — the previous exact-integer histogram let
+      // a steady 125-BPM track flip its winner between 124/125/126 every
+      // estimate, and the live log showed autoBpm wandering 120→132→125→130.
+      const binOf = (bpm: number) => Math.round(bpm / 2) * 2;
+      const coarse = new Map<number, { score: number; sum: number }>();
       for (const interval of intervals) {
         const bpm = 60000 / interval;
         const fitted = fitBpmToRange(bpm, store.getState().bpm.range);
         if (!fitted) continue;
-        const rounded = Math.round(fitted);
-        histogram.set(rounded, (histogram.get(rounded) ?? 0) + 1);
+        const bin = binOf(fitted);
+        const acc = coarse.get(bin) ?? { score: 0, sum: 0 };
+        acc.score += 1;
+        acc.sum += fitted;
+        coarse.set(bin, acc);
       }
       let bestBpm: number | null = null;
       let bestScore = 0;
-      for (const [bpm, score] of histogram) {
-        if (score > bestScore) {
-          bestScore = score;
-          bestBpm = bpm;
+      let runnerUpScore = 0;
+      for (const [bin, { score, sum }] of coarse) {
+        // Reinforce a bin by votes that landed on its neighbours (±1 bin):
+        // real tempos recruit near-misses; spurious bins stay isolated.
+        const neighbourScore =
+          (coarse.get(bin - 2)?.score ?? 0) + (coarse.get(bin + 2)?.score ?? 0);
+        const effective = score + neighbourScore * 0.5;
+        if (effective > bestScore) {
+          runnerUpScore = bestScore;
+          bestScore = effective;
+          bestBpm = sum / Math.max(1, score);
+        } else if (effective > runnerUpScore) {
+          runnerUpScore = effective;
         }
       }
       if (bestBpm) {
         const current = store.getState().bpm.autoBpm;
-        actions.setAutoBpm(store, current ? current * 0.85 + bestBpm * 0.15 : bestBpm);
+        // Stability gate: a new tempo only takes over when it clearly beats
+        // the incumbent (1.5× the runner-up share) or repeats as the winner
+        // across consecutive estimates. One noisy estimate can no longer
+        // yank the displayed BPM.
+        const clearlyBetter =
+          bestScore > runnerUpScore * 1.5 && (!current || Math.abs(bestBpm - current) > 2);
+        if (clearlyBetter) {
+          stableWinnerCount += 1;
+        } else {
+          stableWinnerCount = 0;
+        }
+        if (!current || clearlyBetter || stableWinnerCount >= 2) {
+          actions.setAutoBpm(store, current ? current * 0.85 + bestBpm * 0.15 : bestBpm);
+        }
       }
       lastTempoEstimateTime = now;
     }

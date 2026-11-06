@@ -37,13 +37,27 @@ void main() {
       float torque = uTime * 0.2 + mid * 2.5; // Torque driven by mids
       float a = atan(centered.y, centered.x) + r * 3.1415 * (1.0 + sin(torque));
       uv = vec2(cos(a), sin(a)) * r * 0.5 + 0.5;
+  } else if (uMotionTemplate > 2.5 && uMotionTemplate < 3.5) { // Fractal — bounded fbm domain warp
+      vec2 warp = vec2(fbm(uv * 3.0 + uTime * 0.08), fbm(uv * 3.0 - uTime * 0.06 + 7.3));
+      uv += (warp - 0.5) * 0.18; // same in-domain scale as the Organic branch
   } else if (uMotionTemplate > 4.5 && uMotionTemplate < 5.5) { // Organic
       vec2 noiseOffset = vec2(fbm(uv * 2.5 + uTime * 0.15), fbm(uv * 3.0 - uTime * 0.1));
       uv += (noiseOffset - 0.5) * 0.12;
-  } else if (uMotionTemplate > 7.5) { // Vapor
-      uv.y = 1.0 / (uv.y + 0.5);
-      uv.x = (uv.x - 0.5) * uv.y + 0.5;
-      uv.y += uTime * 0.05; // Scents of movement
+  } else if (uMotionTemplate > 5.5 && uMotionTemplate < 6.5) { // Data — quantized scanline drift
+      float row = floor(uv.y * 24.0);
+      float drift = (hash21(vec2(row, floor(uTime * 2.0))) - 0.5) * 0.04;
+      uv.x = clamp(uv.x + drift, 0.0, 1.0);
+  } else if (uMotionTemplate > 7.5) { // Vapor — retro perspective warp
+      // Bounded perspective: quadratic compression toward a horizon band
+      // with a gentle seamless sway. Every sample stays inside the unit
+      // domain — the previous warp (uv.y = 1/(uv.y+0.5) plus an unbounded
+      // uTime drift) pushed samples far outside it and rendered the whole
+      // canvas black within seconds of selecting the engine.
+      float sway = sin(uTime * 0.05) * 0.08;
+      float y = clamp(uv.y + sway, 0.0, 1.0);
+      float horizon = 0.22;
+      uv.y = horizon + y * y * (1.0 - horizon);
+      uv.x = 0.5 + (uv.x - 0.5) * (0.35 + 0.65 * uv.y);
   }
 
   // Apply Transition Distortion

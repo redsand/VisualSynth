@@ -160,7 +160,11 @@ export const createInitialState = (): AppState => ({
   uiMode: 'performance',
   transport: { isPlaying: true, timeMs: 0 },
   bpm: {
-    source: 'manual',
+    // Auto by default: manual BPM requires the operator to type a value for
+    // every show; auto detection (with the stability-gated estimator) tracks
+    // the music, and getActiveBpm falls back to manualBpm when no audio has
+    // produced an estimate yet.
+    source: 'auto',
     range: { min: 80, max: 150 },
     autoBpm: null,
     networkBpm: null,

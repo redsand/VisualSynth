@@ -1039,7 +1039,7 @@ export const DEFAULT_PROJECT: VisualSynthProject = {
   modMatrix: [],
   midiMappings: [],
   activeSceneId: 'scene-1',
-  activeModeId: 'mode-cosmic',
+  activeModeId: '',
   activeEngineId: 'engine-radial-core',
   colorChemistry: ['analog', 'balanced'],
   roleWeights: { core: 1, support: 1, atmosphere: 1 },

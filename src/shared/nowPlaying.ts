@@ -80,13 +80,18 @@ export const DEFAULT_NOW_PLAYING_SETTINGS: NowPlayingSettings = {
   // so the defaults ARE the user's only out-of-box experience. The previous
   // values (45s baseline, 0.42 threshold, 3 confirm windows = 7.5s of sustained
   // change) were conservative enough that the detector essentially never fired
-  // for typical live/DJ listening — a song change rarely produces 3 consecutive
-  // 2.5s windows all above 0.42, and waiting 45s before the first detection is
-  // excessive. Loosened modestly; cooldownMs still rate-limits any false
-  // positives to one lookup per 15s.
+  // for typical live/DJ listening.
   minTrackMs: 30000,
   silenceThreshold: 0.025,
-  changeThreshold: 0.35,
+  // Calibrated 2026-11-06 via scripts/probe-song-features.ts against the
+  // detector v2 features (spectral shape + rise-rate flux, 2.5s windows):
+  // cross-song window distance median ≈ 0.16 (min 0.063), same-song
+  // adjacent-window drift median ≈ 0.12 with the low half under 0.08. 0.15
+  // sits just under the cross-song median so a typical transition fires
+  // within ~2 windows, while steady same-song playback stays under it.
+  // (The pre-v2 feature produced cross-song 0.03–0.08 — under ANY sane
+  // threshold — which is why auto-detect never fired at shows.)
+  changeThreshold: 0.15,
   confirmWindows: 2,
   // Shazam market codes are case-sensitive at the edge ('us' → HTTP 400);
   // the main-process lookup also normalizes to uppercase as a belt-and-braces.

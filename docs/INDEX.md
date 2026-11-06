@@ -94,6 +94,23 @@ Comprehensive catalog of bundled presets:
 
 ## Developer Documentation
 
+### [Unique 100 Showcase](unique-100-showcase.md)
+**The 100 fresh-scene show project: provenance, quality bar, and rebuild pipeline**
+
+Where showcase-unique-100.project.json's scenes come from, the ground-truth
+screening that validated all of them, the full-library audit coverage
+completed 2026-11-06, and how to rebuild or grow the show. **Best for**: anyone
+curating shows from the certified preset library.
+
+---
+
+### [Song Detection Redesign](song-detection-redesign.md)
+**Why auto song-change detection never fired at live shows — and the v2 fix**
+
+Root-cause analysis (mic voice-call processing, non-discriminative spectral-shape features, missing log telemetry) plus the v2 detector design (spectral shape + rise-rate flux), calibration data from the probe, and the session-log telemetry now emitted. **Best for**: anyone touching `songChangeDetector.ts`, tuning `changeThreshold`, or diagnosing a gig's song-detection logs.
+
+---
+
 ### [FX System](FX_SYSTEM.md)
 **Effect system architecture**
 

@@ -1,7 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-export const SESSION_MAX_FILES = 10;
+// Retention: enough sessions to keep a live show's logs through pre/post-show
+// tooling bursts (E2E smokes and audits spawn many short sessions; at 10 the
+// October show's live logs were rotated away before they could be reviewed).
+export const SESSION_MAX_FILES = 30;
 export const SESSION_MAX_BYTES = 20 * 1024 * 1024; // 20 MB
 
 export interface SessionLogEntry {

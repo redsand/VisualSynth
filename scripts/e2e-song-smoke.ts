@@ -183,10 +183,16 @@ const main = async () => {
           let source = audioContext.createBufferSource();
           source.buffer = buffer;
           source.loop = true;
-          // gentle fade-in so the song-change detector sees silence→music
+          // gentle fade-in so the song-change detector sees silence→music.
+          // Keep it SHORT: a long (2s) ramp makes the detector's first
+          // window a fade whose flux profile differs from steady-state
+          // playback — with a single-window baseline that armed the detector
+          // against the song's own body and it false-fired mid-song
+          // (see songChangeDetector's BASELINE_WINDOWS note). 0.5s keeps the
+          // onset natural without distorting the first window.
           const gain = audioContext.createGain();
           gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
-          gain.gain.exponentialRampToValueAtTime(1.0, audioContext.currentTime + 2);
+          gain.gain.exponentialRampToValueAtTime(1.0, audioContext.currentTime + 0.5);
           source.connect(gain).connect(destination);
           source.start();
           // Pre-decode the second song so the duck helper stays synchronous.
@@ -337,9 +343,20 @@ const main = async () => {
     });
   }
   // wait for at least one identify call (Node-side polling — the page can't
-  // see the Node array)
+  // see the Node array). A no-match triggers the gate's ~10s bounded retry
+  // with a FRESH clip (production behavior — a thin first clip must not fail
+  // the whole chain), so keep waiting while the first call no-matched and a
+  // retry may still be in flight.
   const deadline = Date.now() + 45000;
   while (Date.now() < deadline && identifyCalls.length === 0) {
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  const retryDeadline = Date.now() + 35000;
+  while (
+    Date.now() < retryDeadline &&
+    !identifyCalls.some((c) => c.matched) &&
+    identifyCalls.length < 2
+  ) {
     await new Promise((r) => setTimeout(r, 1000));
   }
   check('identifyNowPlaying called (real Shazam path)', identifyCalls.length > 0,

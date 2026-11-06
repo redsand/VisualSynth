@@ -911,7 +911,10 @@ export const projectSchema = z.object({
   modMatrix: z.array(modConnectionSchema).default([]),
   midiMappings: z.array(midiMappingSchema).default([]),
   activeSceneId: z.string().default(''),
-  activeModeId: z.string().default('mode-cosmic'),
+  // Visual modes were removed from the UI (palette + engine styling replaced
+  // them). The field is kept so older projects load unchanged; new projects
+  // carry '' and nothing reads a value other than the legacy-neutral check.
+  activeModeId: z.string().default(''),
   activeEngineId: z.string().default('engine-radial-core'),
   colorChemistry: z.array(z.string()).default(['analog', 'balanced']),
   roleWeights: z.object({
