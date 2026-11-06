@@ -36,7 +36,6 @@ import {
   VisualSynthProject
 } from '../src/shared/project';
 import { cloneLayerConfig } from '../src/shared/layers';
-import { applySlideshowDefaults } from '../src/shared/slideshow';
 import { projectSchema } from '../src/shared/projectSchema';
 
 const ROOT = path.resolve(__dirname, '..');
@@ -365,7 +364,13 @@ const assembleScene = (
     presetPath: candidate.presetPath
   };
 
-  return applySlideshowDefaults(scene);
+  // NO applySlideshowDefaults: this project's scenes keep the presets' own
+  // manual triggers. The quality-showcase builder baked `trigger: {type:'time'}`
+  // + 16s durations into every scene (pre-show auto-advance), and copying
+  // that here made the whole project auto-run its slideshow the moment it
+  // loaded — the user decides when the slideshow runs (Live-mode roster
+  // applies the auto-advance defaults at add-time instead).
+  return scene;
 };
 
 const migratedPaletteId = (migratedPreset: any): string | undefined =>

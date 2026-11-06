@@ -1284,7 +1284,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     return warpProgram !== null || compProgram !== null;
   };
 
-  const executePerFrameCode = (code: string[], state: RenderState) => {
+  const executePerFrameCode = (code: string[], state: RenderState, originalParameters?: Record<string, unknown>) => {
     // Prefer the AudioEngine's authoritative log-spaced band aggregates and
     // slow-attacking followers. The previous code derived bass/mid/treb by
     // indexing spectrum[] — but spectrum[] used to be raw FFT bins, so
@@ -1307,10 +1307,52 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     ]);
     for (let qi = 1; qi <= 32; qi++) standardVarNames.add(`q${qi}`);
 
+    // MilkDrop semantics: the built-in warp variables (zoom/rot/cx/cy/…)
+    // START each frame at their preset-declared values, then per-frame code
+    // modifies them. Persisting them across frames (as ordinary custom vars)
+    // made read-modify-write lines like `zoom = zoom + q9*0.1` accumulate
+    // from 0 (0.002 → 0.062 → 0.122 …) instead of hovering at the declared
+    // ~1.0 — the warp mesh collapsed the feedback frame to a point and the
+    // preset rendered as a static, slowly decaying seed pattern (seen live
+    // on Mashup (432): a checkerboard that never moves).
+    const p = originalParameters ?? {};
+    const builtInWarpVars: Record<string, number> = {
+      zoom: Number(p.zoom ?? 1),
+      zoomexp: Number(p.zoomexp ?? p.fZoomExponent ?? 1),
+      rot: Number(p.rot ?? 0),
+      cx: Number(p.cx ?? 0.5),
+      cy: Number(p.cy ?? 0.5),
+      dx: Number(p.dx ?? 0),
+      dy: Number(p.dy ?? 0),
+      sx: Number(p.sx ?? 1),
+      sy: Number(p.sy ?? 1),
+      warp: Number(p.warp ?? 0),
+      decay: Number(p.decay ?? p.fDecay ?? 0.98),
+      wave_r: Number(p.wave_r ?? 1),
+      wave_g: Number(p.wave_g ?? 1),
+      wave_b: Number(p.wave_b ?? 1),
+      wave_x: Number(p.wave_x ?? 0.5),
+      wave_y: Number(p.wave_y ?? 0.5),
+      wave_mystery: Number(p.wave_mystery ?? 1),
+      wave_mode: Number(p.wave_mode ?? p.nWaveMode ?? 0),
+      ob_size: Number(p.ob_size ?? 0),
+      ib_size: Number(p.ib_size ?? 0),
+      mv_dx: Number(p.mv_dx ?? 0),
+      mv_dy: Number(p.mv_dy ?? 0)
+    };
+    // Persisted after execution so the uniform upload reads the EEL's
+    // result; the per-frame reset above (builtInWarpVars in ctx) is what
+    // enforces the reset-to-declared semantics — persistence alone would
+    // accumulate.
+
+
     const ctx: Record<string, any> = {
       // Custom vars from previous frame (persistent state like 'puls', 'beat', etc.)
       // Must come FIRST so fresh values below overwrite standard variable names
       ...customVars,
+      // Built-in warp variables reset to their preset-declared values every
+      // frame (MilkDrop semantics — see the builtInWarpVars comment above).
+      ...builtInWarpVars,
       // Fresh values — always take priority
       time: state.timeMs / 1000,
       frame: variables.frame,
@@ -1468,10 +1510,10 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
 
     // Run per-frame init code once on first frame
     if (!perFrameInitRun && shaderData.perFrameInitCode?.length) {
-      executePerFrameCode(shaderData.perFrameInitCode, state);
+      executePerFrameCode(shaderData.perFrameInitCode, state, shaderData.originalParameters);
       perFrameInitRun = true;
     }
-    executePerFrameCode(shaderData.perFrameCode, state);
+    executePerFrameCode(shaderData.perFrameCode, state, shaderData.originalParameters);
 
     lastNativeRuntimeReport = {
       shapes: {
