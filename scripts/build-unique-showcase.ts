@@ -55,19 +55,23 @@ const EXISTING_PROJECTS = [
 ];
 
 const TARGET_SCENE_COUNT = 100;
-const GEM_QUALITY_FLOOR = 0.35;
-const MASHUP_QUOTA = 30;
-const STARFIELD_FAMILY_CAP = 3;
+// Calibrated 2026-11-06 against the post-fix audit (milkwave-test-results/
+// postfix-audit): comp gamma shifted every brightness score down, so the
+// pre-gamma 0.35 floor rejected scenes that now represent the good tail of
+// the 123-passer pool. 0.20 keeps genuinely flat scenes out.
+const GEM_QUALITY_FLOOR = 0.20;
+const MASHUP_QUOTA = 45;
+const STARFIELD_FAMILY_CAP = 4;
 // Enough breadth to fill 100 scenes after the ~55% historical pass rate and
 // name-variant dedupe, without auditing all 400 unscreened presets.
 const SCREEN_POOL_SIZE = 160;
 
-// Verified-quality by screenshot stats, but tripped the renderer's
-// "Poor frame cadence" safe-mode guard consistently in the dist verification
-// (scripts/verify-quality-showcase.ts, even with a 4s settle) — excluded so
-// the show never lands on a shader that stalls frames. Same list as
-// build-quality-showcase.ts.
-const EXCLUDED_PRESETS = ['mashup-(282)', '02_mw_new01f_u'];
+// Excluded from shows: `mashup-(282)` and `02_mw_new01f_u` trip the
+// "Poor frame cadence" guard consistently (inherited list); `mashup-(290)`
+// and `02_mw_new02c4` trip it in the diagnostics cycle on the post-fix
+// engine (verify-quality-showcase 2026-11-06: sustained dwell exposes them
+// even though they pass the screenshot ground-truth audit).
+const EXCLUDED_PRESETS = ['mashup-(282)', '02_mw_new01f_u', 'mashup-(290)', '02_mw_new02c4'];
 
 // ── candidate collection + scoring (same scale as build-quality-showcase) ──
 
@@ -245,7 +249,7 @@ const selectScenes = (candidates: Candidate[], exclusions: Exclusions): Candidat
     if (c.group === 'mashup' && count('mashup') < MASHUP_QUOTA) take(c);
   }
   for (const c of pool) {
-    if (c.group === 'starfield' && (perFamily.get(c.family) ?? 0) < STARFIELD_FAMILY_CAP && count('starfield') < 40) take(c);
+    if (c.group === 'starfield' && (perFamily.get(c.family) ?? 0) < STARFIELD_FAMILY_CAP && count('starfield') < 50) take(c);
   }
   // Pass 2 — top up to the target from what's left, still respecting caps.
   for (const c of pool) {
@@ -406,7 +410,7 @@ const reportedPresetPaths = (): Set<string> => {
   return paths;
 };
 
-const writeScreenProject = (outFile: string, opts: { familyCap: number; excludeProjects: string[]; poolSize: number }): void => {
+const writeScreenProject = (outFile: string, opts: { familyCap: number; excludeProjects: string[]; poolSize: number; all?: boolean }): void => {
   const base: VisualSynthProject = JSON.parse(fs.readFileSync(BASE_PROJECT, 'utf8'));
   const template = makeTemplate(base);
   const exclusions = collectExclusions();
@@ -418,6 +422,15 @@ const writeScreenProject = (outFile: string, opts: { familyCap: number; excludeP
     for (const s of JSON.parse(fs.readFileSync(prev, 'utf8')).scenes ?? []) {
       if (s.presetPath) exclusions.paths.add(path.basename(s.presetPath));
     }
+  }
+  // --all: fresh ground truth for the ENTIRE certified-safe library. Used when
+  // the renderer changed materially (EEL built-in reset, comp gamma): prior
+  // verdicts/scores are stale — BLACKs may have been collapsed-warp victims
+  // that now render, and every brightness score predates the gamma change.
+  if (opts.all) {
+    reported.clear();
+    exclusions.paths.clear();
+    exclusions.names.clear();
   }
 
   // unique names only; spread the pool across families (the audit is the
@@ -434,8 +447,8 @@ const writeScreenProject = (outFile: string, opts: { familyCap: number; excludeP
     if (reported.has(file) || exclusions.paths.has(file)) continue;
     const name = preset.metadata.name || file.replace(/\.json$/, '');
     const { family, group } = classify(name);
-    if (byName.has(name.toUpperCase().replace(/\s+/g, ' '))) continue;
-    if (familyCount.get(family) >= opts.familyCap) continue; // breadth over depth per family
+    if (!opts.all && byName.has(name.toUpperCase().replace(/\s+/g, ' '))) continue;
+    if (!opts.all && familyCount.get(family) >= opts.familyCap) continue; // breadth over depth per family
     byName.set(name.toUpperCase().replace(/\s+/g, ' '), name);
     familyCount.set(family, (familyCount.get(family) ?? 0) + 1);
     poolPaths.push({ presetPath, family, group });
@@ -473,16 +486,20 @@ const writeScreenProject = (outFile: string, opts: { familyCap: number; excludeP
 
 // ── the build ──────────────────────────────────────────────────────────────
 
-const buildShowProject = (auditDirs: Array<{ dir: string; screenProject: string }>): void => {
+const buildShowProject = (auditDirs: Array<{ dir: string; screenProject: string }>, freshOnly = false): void => {
   const base: VisualSynthProject = JSON.parse(fs.readFileSync(BASE_PROJECT, 'utf8'));
   const template = makeTemplate(base);
   const exclusions = collectExclusions();
 
+  // --fresh-only: skip the reverified batch reports — their verdicts and
+  // quality scores predate renderer fixes (EEL built-in reset, comp gamma)
+  // and the brightness scale changed under gamma. Use only audits run on
+  // the current engine.
   const candidates = dedupeByPath([
-    ...collectReverifiedCandidates(),
+    ...(freshOnly ? [] : collectReverifiedCandidates()),
     ...auditDirs.flatMap(({ dir, screenProject }) => collectScreenedCandidates(dir, screenProject))
   ]);
-  console.log(`${candidates.length} ground-truth-passing candidates (reverified + screened)`);
+  console.log(`${candidates.length} ground-truth-passing candidates (${freshOnly ? 'fresh only' : 'reverified + screened'})`);
 
   const selection = selectScenes(candidates, exclusions);
   if (selection.length < TARGET_SCENE_COUNT) {
@@ -577,12 +594,15 @@ const screenedArgs = process.argv
 if (screenOut) {
   const capArg = argValue('family-cap');
   const excludeArg = argValue('exclude-project');
+  const sizeArg = argValue('pool-size');
   writeScreenProject(screenOut, {
     familyCap: capArg ? Number(capArg) : 4,
-    excludeProjects: excludeArg ? excludeArg.split(',') : []
+    excludeProjects: excludeArg ? excludeArg.split(',') : [],
+    poolSize: sizeArg ? Number(sizeArg) : SCREEN_POOL_SIZE,
+    all: process.argv.includes('--all')
   });
 } else if (screenedArgs.length > 0 || process.argv.includes('--build')) {
-  buildShowProject(screenedArgs);
+  buildShowProject(screenedArgs, process.argv.includes('--fresh-only'));
 } else {
   console.error('Usage: --screen-out=<file>  |  --build [--screened=<audit dir>:<screen project file> ...]');
   process.exit(1);

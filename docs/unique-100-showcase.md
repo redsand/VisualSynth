@@ -10,34 +10,44 @@ the builder).
 
 ## Where the scenes come from
 
-Every scene passed the **ground-truth visibility bar** (the certification
-chain: screenshots + ffmpeg signalstats — visible, not blown out, no
-safe-mode stalls, no shader errors) in one of:
+**Rebuilt 2026-11-06 (post-fix) from fresh ground truth.** The original
+selection was scored before two renderer changes (the milkwave EEL built-in
+reset and the comp-stage gamma) — brightness scores moved under gamma and
+some former failures rendered differently. The entire certified-safe library
+(490 presets) was re-audited on the fixed engine
+(`milkwave-test-results/postfix-audit/`), plus a solo re-audit of the
+safe-mode failure class (frame-cadence trips are contention-sensitive under
+parallel shards — `safemode-solo-check2/` and `safemode-solo-rest/` restored
+the presets that pass solo). The show is built `--fresh-only` from that
+evidence.
 
-1. The reverified batch reports (`milkwave-test-results/reports/batch-*-report-reverified.json`)
-2. This session's screening audits of the previously-unscreened library:
-   `milkwave-test-results/unique-100-screen{,-b2,-b3}/results-shard*.json`
+**Library retirement, same day:** presets that fail the post-fix audit
+(BLACK / BLOWN / safe-mode / shader errors / HUNG) were flipped from
+`certified safe` to `degraded` with provenance in
+`metadata.milkwave.reasons` (`scripts/retire-failing-presets.ts`; solo
+passes restored by `scripts/restore-solo-passes.ts`). Certified-safe now
+means "verified to render end-to-end on the current engine": the post-fix
+pool is 127 passers (123 from the full audit + 4 solo restorations) out of
+490 previously-certified.
 
-Screening completed 2026-11-06 covers **the entire certified-safe library**
-(404 presets newly audited this session: 73 clean, 18.1% — the unscreened
-tail is dominated by BLACK / BLOWN / safe-mode presets, exactly what
-screening exists to filter). Future shows can draw straight from this ground
-truth without re-auditing.
+Every scene passed the ground-truth bar (visible, not blown, no safe-mode
+stalls, no shader errors) on the current engine, imported through the REAL
+path (migratePreset → validatePreset → applyPresetV6), carries
+`presetPath` provenance, and the project passes `projectSchema`. Scenes
+keep MANUAL triggers — no auto-advance on load.
 
 ## Quality & diversity
 
 - Quality score = 0.40·midBrightness + 0.35·contrastSpread + 0.25·motion
-  (same scale as the quality-showcase builder). Selected scores run
-  **0.255..0.855** — the weak tail (score ~0.01 near-flat scenes in the
-  pool) was deliberately rejected.
-- Mix: **11 gems** (distinct-author presets above the quality floor),
-  **35 mashups** (each name once), **54 starfields** (per-subfamily caps so
-  letter variants don't stack).
+  (same scale as the quality-showcase builder). Post-fix scores run
+  **0.173..0.799** — the gem floor was recalibrated to 0.20 for the
+  post-gamma score distribution (the pre-gamma 0.35 floor rejected the
+  good tail of the 127-passer pool).
+- Mix: **8 gems** (distinct-author presets), **48 mashups** (each name
+  once), **44 starfields** (per-subfamily caps so letter variants don't
+  stack).
 - Scenes interleave groups so the auto-advance rotation alternates visual
   families.
-- Each scene was imported through the REAL path (migratePreset →
-  validatePreset → applyPresetV6), carries `presetPath` provenance, and the
-  project passes `projectSchema`.
 
 ## How to rebuild / grow
 
@@ -58,19 +68,22 @@ Verification: `scripts/verify-quality-showcase.ts --project=<file>`
 `scripts/rotation-check-quality-showcase.ts --project=<file>` (drives every
 scene-pair transition twice and reads the TransitionTracer).
 
-## This build's verification results (2026-11-06)
+## This build's verification results (2026-11-06, post-fix rebuild)
 
 - **Diagnostics cycle: 100/100 scenes clean** — no shader errors, no
   safe-mode fallbacks, warp+comp compiled everywhere, no console errors.
-- **Rotation sweep (200 transitions + 2 from apply): 2 deterministic pairs
-  flag a brief entry black — `02_MW_new03B2 → X-spiral tiles (2)` and
-  `02_MW_new03K3 → disco mix (FireOptics)...`** — 3–5 frames (~60–80ms),
-  tracer suspicion `framebufferAllocated` (first-activation FBO allocation).
-  Both target scenes render clean sustained (their per-scene ground truth
-  and the diagnostics cycle pass), and the live slideshow transitions are
-  crossfaded, which covers a sub-100ms blink. Accepted as known minor
-  behavior; a renderer-level warm-up (pre-allocating scene FBOs on project
-  apply) would remove it if it ever matters in practice.
+  (The first rebuild pass exposed two cadence-stallers — Mashup (290),
+  02_MW_new02C4 — which were excluded and re-degraded; the final build
+  cycles clean.)
+- **Rotation sweep (200 transitions): 4 scene pairs flag a brief entry
+  black** — `Mashup (360)→01_MW_new16j_U`, `02_MW_new03C3→X-spiral tiles (2)`,
+  `02_MW_new02A1→Hexcollie…`, `02_MW_new03K3→acid wiring…` — the
+  first-activation framebuffer-allocation class (same as the 2 pairs in
+  the pre-fix build; all four target scenes render clean sustained and
+  pass the diagnostics cycle). The live slideshow transitions are
+  crossfaded, which covers a sub-100ms entry blink. Accepted as known
+  behavior; a renderer-level warm-up (pre-allocating scene framebuffers
+  on project apply) would remove it if it ever matters in practice.
 
 ## Tooling hardening from this build
 
