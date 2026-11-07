@@ -94,6 +94,16 @@ Comprehensive catalog of bundled presets:
 
 ## Developer Documentation
 
+### [Milkwave Grading](milkwave-grading.md)
+**Engines, palettes, and MilkDrop gamma applied to milkwave scenes**
+
+How the milkdrop composite gained palette grading, engine finish, and the
+previously-missing fGammaAdj (the long-dwell white-drift fix), plus the
+probes that verify each. **Best for**: anyone touching the milkwave
+composite path or wondering why palettes now recolor MilkDrop scenes.
+
+---
+
 ### [Unique 100 Showcase](unique-100-showcase.md)
 **The 100 fresh-scene show project: provenance, quality bar, and rebuild pipeline**
 

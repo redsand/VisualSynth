@@ -517,7 +517,6 @@ void main() {
 const createDefaultWarpShader = (params: Record<string, number | boolean>): string => {
   const zoom = Number(params.zoom ?? 1);
   const rot = Number(params.rot ?? 0);
-  const decay = Number(params.fDecay ?? 0.95);
   const warpAmount = Number(params.warp ?? 0.01);
   const cx = Number(params.cx ?? 0.5);
   const cy = Number(params.cy ?? 0.5);
@@ -538,6 +537,10 @@ uniform float audioLow;
 uniform float audioMid;
 uniform float audioHigh;
 uniform float audioLowSmooth;
+// EEL-driven decay (per-frame code writes the decay variable; uploaded each
+// frame with the preset's declared fDecay as the base — a baked constant
+// here ignored every per-frame decay modification).
+uniform float uBaseDecay;
 
 void main() {
   vec2 center = vec2(${cx.toFixed(4)}, ${cy.toFixed(4)});
@@ -570,13 +573,12 @@ void main() {
 
   // Sample previous frame with decay
   vec3 color = texture(sampler_main, uv).rgb;
-  color *= ${decay.toFixed(4)};
+  color *= clamp(uBaseDecay, 0.1, 1.0);
   fragColor = vec4(color, 1.0);
 }`;
 };
 
 const createNativePerPixelWarpShader = (params: Record<string, number | boolean>, perPixelCode: string[]): string => {
-  const decay = Number(params.fDecay ?? 0.95);
   let glslBody = transpileEelToGlsl(perPixelCode);
   const qShadowLines = Array.from({ length: 32 }, (_, index) => {
     const qName = `q${index + 1}`;
@@ -652,6 +654,8 @@ uniform float uBaseDy;
 uniform float uBaseSx;
 uniform float uBaseSy;
 uniform float uBaseWarp;
+// EEL-driven decay (see createDefaultWarpShader's uBaseDecay note).
+uniform float uBaseDecay;
 
 // Q variables - per-frame computed values, passed in as read-only uniforms.
 // They are copied into local writable q1..q32 in main() so per-pixel EEL code
@@ -734,7 +738,7 @@ ${nativePrelude ? `\n${nativePrelude}\n` : ''}
   uv += center;
 
   vec3 color = texture(sampler_main, uv).rgb;
-  color *= ${decay.toFixed(4)};
+  color *= clamp(uBaseDecay, 0.1, 1.0);
   fragColor = vec4(color, 1.0);
 }`;
   
@@ -1774,6 +1778,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.uniform1f(loc('uBaseSx'), customVars['sx'] ?? Number(p.sx ?? 1));
     gl.uniform1f(loc('uBaseSy'), customVars['sy'] ?? Number(p.sy ?? 1));
     gl.uniform1f(loc('uBaseWarp'), customVars['warp'] ?? Number(p.warp ?? 0));
+    // EEL-driven decay (per-frame `decay` writes now take effect; was baked
+    // at compile time from fDecay).
+    gl.uniform1f(loc('uBaseDecay'), Math.min(1.0, Math.max(0.1, customVars['decay'] ?? Number(p.fDecay ?? 0.98))));
 
     const getBlurScale = (idx: number) => {
       const min = Number(p[`blur${idx}_min`] ?? 0);

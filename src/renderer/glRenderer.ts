@@ -1404,7 +1404,17 @@ void main() {
       if (milkDropSuccess) {
         const mdTexture = milkDropRenderer.getMainTexture();
         if (mdTexture) {
-          // Lazily create the composite program (reused across frames)
+          // Lazily create the composite program (reused across frames).
+          // This is the single point where the milkwave output reaches the
+          // canvas — the right place to give milkwave scenes the same
+          // finishing the generator pipeline applies (measured 2026-11-06:
+          // engines and palettes had ZERO effect on milkwave scenes):
+          //   - MilkDrop's comp-stage gamma (fGammaAdj) — never applied
+          //     before, so bright presets (fGammaAdj ~1.9-2.0) rendered
+          //     searing white and drift toward blowout over long dwells
+          //   - palette grade (the active palette ramp, by luminance)
+          //   - engine finish: grain / vignette / chromatic aberration,
+          //     mirroring mainTemplate.glsl's formulas exactly
           if (!milkDropCompositeProgram) {
             milkDropCompositeProgram = createProgram(
               `#version 300 es
@@ -1419,9 +1429,66 @@ precision highp float;
 in vec2 vUv;
 uniform sampler2D uTexture;
 uniform float uOpacity;
+// MilkDrop comp-stage gamma (fGammaAdj): 1.0 = unchanged, >1 darkens.
+uniform float uGammaAdj;
+// Active palette ramp — recolors the milkwave output by luminance.
+uniform vec3 uPalette[5];
+uniform float uPaletteMix;
+// Engine finish — same values/formulas as the generator pipeline.
+uniform float uEngineGrain;
+uniform float uEngineVignette;
+uniform float uEngineCA;
+uniform float uTime;
+uniform vec2 uResolution;
 out vec4 fragColor;
+
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+vec3 paletteRamp(float t) {
+  t = clamp(t, 0.0, 1.0) * 4.0;
+  int i = int(floor(t));
+  if (i >= 4) return uPalette[4];
+  float f = t - float(i);
+  return mix(uPalette[i], uPalette[i + 1], smoothstep(0.0, 1.0, f));
+}
+
 void main() {
-  fragColor = texture(uTexture, vUv) * uOpacity;
+  vec3 color = texture(uTexture, vUv).rgb;
+
+  // MilkDrop comp gamma (fidelity: presets authored with fGammaAdj ~2 look
+  // far brighter than intended when this is skipped).
+  color = pow(color, vec3(uGammaAdj));
+
+  // Palette grade: remap luminance through the active palette ramp,
+  // preserving the image's structure. This is what makes the palette
+  // selector affect milkwave scenes.
+  float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  vec3 graded = paletteRamp(luma);
+  color = mix(color, graded, uPaletteMix);
+
+  // Engine finish — mirrors mainTemplate.glsl exactly.
+  float energy = max(color.r, max(color.g, color.b));
+  if (energy > 0.001 && uEngineGrain > 0.01) {
+    float noise = hash21(vUv * uResolution + floor(uTime * 2.0));
+    color += (noise - 0.5) * uEngineGrain * 0.1;
+  }
+  if (energy > 0.001 && uEngineVignette > 0.01) {
+    vec2 centered = vUv * 2.0 - 1.0;
+    float vignette = 1.0 - dot(centered, centered) * 0.3;
+    color *= pow(vignette, 1.0 + uEngineVignette * 2.0);
+  }
+  if (energy > 0.001 && uEngineCA > 0.01) {
+    vec2 centered = vUv * 2.0 - 1.0;
+    float edge = length(centered);
+    vec2 caOffset = normalize(centered + 1e-6) * uEngineCA * 0.01 * edge;
+    float caBlend = clamp(uEngineCA, 0.0, 1.0);
+    color.r = mix(color.r, texture(uTexture, vUv + caOffset).r, caBlend * 0.5);
+    color.b = mix(color.b, texture(uTexture, vUv - caOffset).b, caBlend * 0.5);
+  }
+
+  fragColor = vec4(color, 1.0) * uOpacity;
 }`
             );
           }
@@ -1429,8 +1496,26 @@ void main() {
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             gl.useProgram(milkDropCompositeProgram);
-            gl.uniform1i(gl.getUniformLocation(milkDropCompositeProgram, 'uTexture'), 0);
-            gl.uniform1f(gl.getUniformLocation(milkDropCompositeProgram, 'uOpacity'), state.genUniforms?.MilkwaveOpacity ?? 1.0);
+            const mdUniform = (name: string) => gl.getUniformLocation(milkDropCompositeProgram!, name);
+            gl.uniform1i(mdUniform('uTexture'), 0);
+            gl.uniform1f(mdUniform('uOpacity'), state.genUniforms?.MilkwaveOpacity ?? 1.0);
+            gl.uniform1f(mdUniform('uGammaAdj'),
+              Number(currentMilkDropShaderData?.originalParameters?.fGammaAdj ?? 1.0));
+            if (currentPalette.length >= 5) {
+              for (let pi = 0; pi < 5; pi++) {
+                const loc = mdUniform(`uPalette[${pi}]`);
+                if (loc !== null) gl.uniform3fv(loc, currentPalette[pi]);
+              }
+            }
+            // Strength of the palette recolor: strong enough that switching
+            // palettes visibly changes milkwave scenes, gentle enough that
+            // the preset's own shading shows through.
+            gl.uniform1f(mdUniform('uPaletteMix'), 0.65);
+            gl.uniform1f(mdUniform('uEngineGrain'), state.engineGrain ?? 0);
+            gl.uniform1f(mdUniform('uEngineVignette'), state.engineVignette ?? 0);
+            gl.uniform1f(mdUniform('uEngineCA'), state.engineCA ?? 0);
+            gl.uniform1f(mdUniform('uTime'), (state.timeMs ?? 0) / 1000);
+            gl.uniform2f(mdUniform('uResolution'), canvas.width, canvas.height);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, mdTexture);
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
