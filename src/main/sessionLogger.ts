@@ -190,12 +190,112 @@ class SessionLogger {
 }
 
 // ---------------------------------------------------------------------------
-// Module-level singleton — initialised by initSessionLogger()
+// Shader failure log — a dedicated, rotating, plain-text record of every
+// shader compile error and degraded/fallback stage the renderer hits at
+// runtime. The session log holds scene/show events, but shader failures
+// were invisible there (the renderer's onError surfaced only as a status
+// line) — this gives permissive visibility so failures can be triaged and
+// fixed: every line names the scene, its preset file, the stage, and the
+// status/error.
+// ---------------------------------------------------------------------------
+export const SHADER_LOG_MAX_BYTES = 5 * 1024 * 1024; // 5 MB before rollover
+export const SHADER_LOG_MAX_FILES = 5;
+
+class ShaderFailureLogger {
+  private logPath: string;
+  private stream: fs.WriteStream | null = null;
+  private bytesWritten = 0;
+  private partIndex = 1;
+
+  constructor(userData: string) {
+    const logsDir = path.join(userData, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    this.pruneOldFiles(logsDir);
+    this.logPath = path.join(logsDir, 'shader-failures.log');
+    this.stream = fs.createWriteStream(this.logPath, { flags: 'a', encoding: 'utf8' });
+  }
+
+  private pruneOldFiles(logsDir: string): void {
+    try {
+      const files = fs
+        .readdirSync(logsDir)
+        .filter((f) => /^shader-failures(-\d+)?\.log$/.test(f))
+        .map((f) => ({ name: f, full: path.join(logsDir, f), mtime: fs.statSync(path.join(logsDir, f)).mtime.getTime() }))
+        .sort((a, b) => b.mtime - a.mtime);
+      for (const file of files.slice(SHADER_LOG_MAX_FILES)) {
+        try { fs.unlinkSync(file.full); } catch { /* best-effort */ }
+      }
+    } catch {
+      // best-effort — never crash the app due to log pruning
+    }
+  }
+
+  write(line: string): void {
+    if (!this.stream || this.stream.destroyed) return;
+    try {
+      this.stream.write(line);
+      this.bytesWritten += line.length;
+      if (this.bytesWritten >= SHADER_LOG_MAX_BYTES) this.rollover();
+    } catch {
+      // never crash the app due to logging
+    }
+  }
+
+  private rollover(): void {
+    this.stream?.end();
+    this.partIndex += 1;
+    const rolledPath = this.logPath.replace(/\.log$/, `-${this.partIndex}.log`);
+    try { fs.renameSync(this.logPath, rolledPath); } catch { /* best-effort */ }
+    this.bytesWritten = 0;
+    this.stream = fs.createWriteStream(this.logPath, { flags: 'a', encoding: 'utf8' });
+    this.pruneOldFiles(path.dirname(this.logPath));
+  }
+
+  flushAndClose(): Promise<void> {
+    const stream = this.stream;
+    if (!stream) return Promise.resolve();
+    return new Promise((resolve) => {
+      stream.end(resolve);
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Module-level singletons — initialised by initSessionLogger()
 // ---------------------------------------------------------------------------
 let _logger: SessionLogger | null = null;
+let _shaderLogger: ShaderFailureLogger | null = null;
 
 export const initSessionLogger = (userData: string): void => {
   _logger = new SessionLogger(userData);
+  _shaderLogger = new ShaderFailureLogger(userData);
+};
+
+export interface ShaderFailureEntry {
+  sceneId?: string;
+  sceneName?: string;
+  presetPath?: string;
+  stage?: string;        // 'warp' | 'comp' | 'generator' | …
+  status?: string;       // 'degraded' | 'fallback' | 'error' | …
+  error?: string;
+  kind?: string;         // 'compile-report' | 'shader-error' | 'safe-mode'
+}
+
+export const shaderFailureLogger = {
+  write: (entry: ShaderFailureEntry): void => {
+    if (!_shaderLogger) return;
+    const ts = new Date().toISOString();
+    const fields = [
+      `scene=${entry.sceneName ?? entry.sceneId ?? '-'}`,
+      `preset=${entry.presetPath ? path.basename(entry.presetPath) : '-'}`,
+      `stage=${entry.stage ?? '-'}`,
+      `status=${entry.status ?? '-'}`,
+      `kind=${entry.kind ?? 'compile-report'}`,
+    ];
+    const err = (entry.error ?? '').replace(/\s+/g, ' ').slice(0, 300);
+    _shaderLogger.write(`${ts} | ${fields.join(' | ')}${err ? ` | error=${err}` : ''}\n`);
+  },
+  flushAndClose: (): Promise<void> => _shaderLogger?.flushAndClose() ?? Promise.resolve(),
 };
 
 export const sessionLogger = {

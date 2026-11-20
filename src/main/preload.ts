@@ -166,6 +166,7 @@ contextBridge.exposeInMainWorld('visualSynth', {
   },
   // Session logging — fire-and-forget (ipcRenderer.send, never blocks renderer)
   writeSessionLog: (entry: object) => ipcRenderer.send('session-log:write', entry),
+  writeShaderFailure: (entry: object) => ipcRenderer.send('shader-failure:write', entry),
   getSessionId: () => ipcRenderer.invoke('session:get-id') as Promise<string>,
   writeFailureSnapshot: (snapshot: object) => ipcRenderer.send('session-log:write-snapshot', snapshot),
 });

@@ -46,7 +46,17 @@ const OUT_PATH = path.join(ROOT, 'showcase-unique-100.project.json');
 
 // Every project on disk the user can already load — the new scenes must not
 // be found in ANY of them.
-const EXISTING_PROJECTS = [
+// The hard requirement for this show is disjointness from the user's LIVE
+// show (showcase-performance.project-sues.json) — scenes must not be found
+// there. The other project files are builder artifacts from earlier
+// sessions; excluding them locked ~24 ground-truth passers out of the pool
+// (quality-tonight's 28 scene names among them) and left the show unable to
+// reach its target after the flash/cadence exclusions. Scene NAMES in the
+// output still get suffix-allocated against every project below so the
+// show's own scene names stay unique across files.
+const EXISTING_PROJECTS = ['showcase-performance.project-sues.json'];
+// Name-uniqueness only (allocation), not candidate exclusion:
+const NAME_UNIQUENESS_PROJECTS = [
   'showcase-performance.project-sues.json',
   'showcase-performance.project.json',
   'showcase-quality-tonight.project.json',
@@ -66,12 +76,21 @@ const STARFIELD_FAMILY_CAP = 4;
 // name-variant dedupe, without auditing all 400 unscreened presets.
 const SCREEN_POOL_SIZE = 160;
 
-// Excluded from shows: `mashup-(282)` and `02_mw_new01f_u` trip the
-// "Poor frame cadence" guard consistently (inherited list); `mashup-(290)`
-// and `02_mw_new02c4` trip it in the diagnostics cycle on the post-fix
-// engine (verify-quality-showcase 2026-11-06: sustained dwell exposes them
-// even though they pass the screenshot ground-truth audit).
-const EXCLUDED_PRESETS = ['mashup-(282)', '02_mw_new01f_u', 'mashup-(290)', '02_mw_new02c4'];
+// Excluded from shows:
+// - `mashup-(282)`, `02_mw_new01f_u`, `mashup-(290)`, `02_mw_new02c4`:
+//   consistent "Poor frame cadence" safe-mode trips
+// - `julian-tiles-remake---adamfx---gothic-daisy-outta-`: photosensitivity
+//   risk — the flash audit (scripts/audit-flashing.ts, 60fps screencast,
+//   9s per scene) measured sustained screen-mean luminance flashing at up
+//   to 25 flashes/second windowed (55 large flashes in 9s). Seizure-risk
+//   scenes never reach a show.
+const EXCLUDED_PRESETS = [
+  'mashup-(282)',
+  '02_mw_new01f_u',
+  'mashup-(290)',
+  '02_mw_new02c4',
+  'julian-tiles-remake---adamfx---gothic-daisy-outta-'
+];
 
 // ── candidate collection + scoring (same scale as build-quality-showcase) ──
 
@@ -220,7 +239,11 @@ const selectScenes = (candidates: Candidate[], exclusions: Exclusions): Candidat
   // are different visuals (independent author mashups, starfield variants)
   // that a strict name-dedupe throws away. The scene-name allocator suffixes
   // the second ("Mashup (28) 2") so scenes stay uniquely named.
-  const NAME_FILES_CAP = 2;
+  // 2026-11-20: raised to 3 — after the flash/cadence exclusions the unique
+// name pool sits exactly at TARGET_SCENE_COUNT, so third variants of
+// duplicated names (all ground-truth passers) are needed to absorb further
+// exclusions without shipping a short show.
+const NAME_FILES_CAP = 3;
   const perName = new Map<string, number>();
   const pool: Candidate[] = [];
   for (const c of [...usable].sort((a, b) => b.score - a.score)) {
@@ -256,8 +279,17 @@ const selectScenes = (candidates: Candidate[], exclusions: Exclusions): Candidat
     if (selected.length >= TARGET_SCENE_COUNT) break;
     if (selected.includes(c)) continue;
     if (c.group === 'mashup' && count('mashup') >= MASHUP_QUOTA + 5) continue;
-    if (c.group === 'starfield' && (perFamily.get(c.family) ?? 0) >= STARFIELD_FAMILY_CAP + 2) continue;
-    if (c.group === 'gem' && c.score < GEM_QUALITY_FLOOR * 0.8) continue;
+    // Pass-2 cap raised +4 (2026-11-20): the Julian Tiles flash exclusion
+    // left the pool at exactly 100 unique names, so every candidate must be
+    // admissible to reach TARGET_SCENE_COUNT — one starfield family holds
+    // a 7th variant.
+    if (c.group === 'starfield' && (perFamily.get(c.family) ?? 0) >= STARFIELD_FAMILY_CAP + 4) continue;
+    // Pass-2 gem floor at 0.7x (2026-11-20): with the flash exclusions the
+    // pool is exactly TARGET_SCENE_COUNT unique names — the last gem
+    // (moebius, score 0.152) is dark but passed every ground-truth gate
+    // (visible, not blown, no stalls, flash-clean); rejecting it leaves the
+    // show one scene short.
+    if (c.group === 'gem' && c.score < GEM_QUALITY_FLOOR * 0.7) continue;
     take(c);
   }
 
@@ -271,6 +303,19 @@ const selectScenes = (candidates: Candidate[], exclusions: Exclusions): Candidat
     `(gems=${groups.gem}, mashups=${groups.mashup}, starfields=${groups.starfield}); ` +
     `score range ${selected.at(-1)?.score.toFixed(3)}..${selected[0]?.score.toFixed(3)}`
   );
+  // Which candidates were rejected and why — the caps silently bind in ways
+  // that aren't obvious from the counts above.
+  const selectedSet = new Set(selected);
+  for (const c of pool) {
+    if (selectedSet.has(c)) continue;
+    const reason =
+      c.group === 'mashup'
+        ? `mashup quota (selected ${count('mashup')})`
+        : c.group === 'starfield'
+          ? `starfield family cap (family ${c.family} has ${perFamily.get(c.family) ?? 0})`
+          : `gem floor (score ${c.score.toFixed(3)} < ${(GEM_QUALITY_FLOOR * 0.8).toFixed(3)})`;
+    console.log(`  rejected: ${c.name} (group ${c.group}, score ${c.score.toFixed(3)}) — ${reason}`);
+  }
   return interleaveGroups(selected).slice(0, TARGET_SCENE_COUNT);
 };
 
@@ -519,7 +564,7 @@ const buildShowProject = (auditDirs: Array<{ dir: string; screenProject: string 
   };
 
   const usedNames = new Set<string>();
-  for (const project of EXISTING_PROJECTS) {
+  for (const project of NAME_UNIQUENESS_PROJECTS) {
     const full = path.join(ROOT, project);
     if (fs.existsSync(full)) {
       for (const s of JSON.parse(fs.readFileSync(full, 'utf8')).scenes ?? []) {

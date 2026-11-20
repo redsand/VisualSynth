@@ -122,7 +122,7 @@ const main = async () => {
   const sceneIds: string[] = project.scenes
     .map((s: any, i: number) => ({ id: s.id as string, name: s.name as string, index: i }))
     .filter((s: { id: string; name: string; index: number }) =>
-      !ONLY || ONLY.some((q) => s.name.toLowerCase().includes(q)))
+      !ONLY || ONLY.some((q) => s.name.toLowerCase().includes(q.toLowerCase())))
     .map((s: { id: string }) => s.id);
   const nameById = new Map<string, { name: string; index: number }>(
     project.scenes.map((s: any, i: number) => [s.id, { name: s.name as string, index: i }])

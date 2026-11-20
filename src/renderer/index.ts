@@ -124,6 +124,8 @@ declare global {
       loadShowcaseProject: () => Promise<{ found: boolean; payload?: string; error?: string }>;
       getRecovery: () => Promise<{ found: boolean; payload?: string; filePath?: string; error?: string }>;
       getSessionId: () => Promise<string>;
+      /** Append a shader-failure record to the rotating shader-failures.log */
+      writeShaderFailure: (entry: object) => void;
       openExchange: () => Promise<{ canceled: boolean; payload?: string; filePath?: string }>;
       listPresets: () => Promise<PresetIndexEntry[]>;
       loadPreset: (presetPath: string) => Promise<{ preset?: any; error?: string }>;
@@ -891,6 +893,10 @@ let beatSensitivity = 1.5;
 let beatFilterRange: 'full' | 'bass' | 'mids' = 'full';
 let beatHoldOffMs = 0;
 let lastBeatTime = 0;
+// Throttle + dedupe for the per-scene shader-failure logger below: one
+// record per (scene, statuses) change, checked at most once a second.
+let lastShaderFailureCheckAt = 0;
+let lastShaderFailureSignature = '';
 // Last lastBeatTime value already recorded into onsetTimes (see
 // updateBpmDisplay) — a change means the engine detected a new beat.
 let prevLastBeatTimeForOnsets = 0;
@@ -13991,6 +13997,19 @@ try {
       lastShaderError = `[${type}] ${err}`;
       setStatus(`Shader error: ${err.substring(0, 40)}...`);
       updateWebglDiagnostics();
+      // Every shader error lands in the rotating shader-failures log
+      // (userData/logs/shader-failures.log) — runtime visibility for
+      // compile problems that used to surface only as a status line.
+      try {
+        window.visualSynth?.writeShaderFailure?.({
+          sceneName: currentProject.scenes.find((s) => s.id === currentProject.activeSceneId)?.name,
+          presetPath: currentProject.scenes.find((s) => s.id === currentProject.activeSceneId)?.presetPath,
+          stage: type,
+          status: 'error',
+          kind: 'shader-error',
+          error: err
+        });
+      } catch { /* fire-and-forget */ }
     }
   });
   cacheWarmer = new SceneCacheWarmer(renderer);
@@ -14467,6 +14486,48 @@ const render = (time: number) => {
       ? 'MIDI Latency: --'
       : `MIDI Latency: ${Math.round(lastMidiLatencyMs)}ms`;
   updateBpmDisplay();
+
+  // Throttled shader-failure logging: poll the milkwave compile report and
+  // record every degraded/fallback stage once per (scene, statuses) change
+  // to the rotating shader-failures log — compile degradations were silent
+  // before (the diagnostics object held them but nothing recorded them).
+  if (time - lastShaderFailureCheckAt > 1000) {
+    lastShaderFailureCheckAt = time;
+    try {
+      const report = renderer?.getMilkDropCompileReport?.();
+      const activeScene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+      if (report && activeScene) {
+        const badStages = (['warp', 'comp'] as const).filter((stage) => {
+          const status = report[stage]?.status;
+          return status && status !== 'success' && status !== 'not_present';
+        });
+        if (badStages.length === 0) {
+          lastShaderFailureSignature = '';
+        } else {
+          const signature = `${activeScene.id}:${badStages.map((st) => `${st}:${report[st].status}`).join(',')}`;
+          if (signature !== lastShaderFailureSignature) {
+            lastShaderFailureSignature = signature;
+            for (const stage of badStages) {
+              window.visualSynth?.writeShaderFailure?.({
+                sceneId: activeScene.id,
+                sceneName: activeScene.name,
+                presetPath: activeScene.presetPath,
+                stage,
+                status: report[stage].status,
+                kind: 'compile-report',
+                error: lastShaderError ?? undefined
+              });
+            }
+            sessionLog.log('warn', 'shader.compile_degraded', {
+              scene: activeScene.name,
+              presetPath: activeScene.presetPath,
+              stages: badStages.map((st) => `${st}:${report[st].status}`)
+            });
+          }
+        }
+      }
+    } catch { /* diagnostics are best-effort */ }
+  }
 
   const sceneSwitch = resolveSceneSwitch(isPlaying, pendingSceneSwitch, time, getActiveBpm());
   updateQuantizeHud(sceneSwitch.quantizeHudMessage);

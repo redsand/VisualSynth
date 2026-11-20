@@ -30,7 +30,7 @@ import {
 import type { NowPlayingRecognitionRequest, NowPlayingSettings } from '../shared/nowPlaying';
 import { loadNowPlayingSettings, saveNowPlayingSettings } from './nowPlayingSettingsStore';
 import { installAndLaunchWhatsNowPlaying, openWhatsNowPlayingFolder } from './companionTools';
-import { initSessionLogger, sessionLogger } from './sessionLogger';
+import { initSessionLogger, sessionLogger, shaderFailureLogger, type ShaderFailureEntry } from './sessionLogger';
 
 const isDev = !app.isPackaged;
 
@@ -446,6 +446,7 @@ app.on('will-quit', (event) => {
     if (!exited) {
       exited = true;
       try { sessionLogger.flushAndClose(); } catch { /* best-effort */ }
+      try { shaderFailureLogger.flushAndClose(); } catch { /* best-effort */ }
       app.exit(0);
     }
   }, 3000);
@@ -1724,4 +1725,12 @@ ipcMain.handle('session:get-id', () => sessionLogger.getSessionId());
 ipcMain.on('session-log:write-snapshot', (_event, snapshot: object) => {
   if (!snapshot || typeof snapshot !== 'object') return;
   setImmediate(() => sessionLogger.writeFailureSnapshot(snapshot as Record<string, unknown>));
+});
+
+// Shader failures get their own rotating log (userData/logs/
+// shader-failures.log) so compile degradations and errors are visible for
+// triage instead of surfacing only as a transient status line.
+ipcMain.on('shader-failure:write', (_event, entry: object) => {
+  if (!entry || typeof entry !== 'object') return;
+  setImmediate(() => shaderFailureLogger.write(entry as ShaderFailureEntry));
 });

@@ -68,22 +68,47 @@ Verification: `scripts/verify-quality-showcase.ts --project=<file>`
 `scripts/rotation-check-quality-showcase.ts --project=<file>` (drives every
 scene-pair transition twice and reads the TransitionTracer).
 
-## This build's verification results (2026-11-06, post-fix rebuild)
+## Photosensitivity (flash) safety — 2026-11-20
+
+Massive flashing is a seizure risk, so every scene is flash-audited
+(`scripts/audit-flashing.ts`: 60fps screencast, 9s per scene, screen-MEAN
+luma swings >25/255 between frames; a scene is flagged when any 1-second
+window holds >= 4 such flashes). **Every scene swapped into the show is
+flash-screened before inclusion** — the iteration found strobers among
+spare candidates that the ground-truth audit alone would have admitted:
+
+| Excluded preset | Flash measurement |
+|---|---|
+| Julian Tiles Remake | peak 25 flashes/sec windowed, 55 large flashes in 9s |
+| Mashup (269) | peak 78 flashes/sec windowed, 185 flashes |
+| acid wiring (RewiredFX)…Hexcollie | peak **119 flashes/sec** windowed, 525 flashes in 9s |
+
+All three are also flipped to certification `degraded` with the flash
+reason in `metadata.milkwave.reasons`, so no future show can draw them.
+`01_MW_new34` was additionally excluded for flaky "Poor frame cadence"
+(passed one verify cycle, tripped on two others) — unreliable cadence has
+no place in a live show; it is likewise degraded.
+
+The final show: **100 scenes, all flash-audited clean** (main sweep +
+per-swap screening + the converged rebuild's entrants).
+
+## This build's verification results (2026-11-20 rebuild)
 
 - **Diagnostics cycle: 100/100 scenes clean** — no shader errors, no
   safe-mode fallbacks, warp+comp compiled everywhere, no console errors.
-  (The first rebuild pass exposed two cadence-stallers — Mashup (290),
-  02_MW_new02C4 — which were excluded and re-degraded; the final build
-  cycles clean.)
-- **Rotation sweep (200 transitions): 4 scene pairs flag a brief entry
-  black** — `Mashup (360)→01_MW_new16j_U`, `02_MW_new03C3→X-spiral tiles (2)`,
-  `02_MW_new02A1→Hexcollie…`, `02_MW_new03K3→acid wiring…` — the
-  first-activation framebuffer-allocation class (same as the 2 pairs in
-  the pre-fix build; all four target scenes render clean sustained and
-  pass the diagnostics cycle). The live slideshow transitions are
-  crossfaded, which covers a sub-100ms entry blink. Accepted as known
-  behavior; a renderer-level warm-up (pre-allocating scene framebuffers
-  on project apply) would remove it if it ever matters in practice.
+- **Flash audit: 0/100 scenes flagged** (99 audited in the main sweep +
+  1 post-swap scene audited separately).
+- **Rotation sweep (200 transitions, 2026-11-06 selection): 4 scene pairs
+  flag a brief entry black** — the first-activation
+  framebuffer-allocation class; all target scenes render clean sustained,
+  and the live slideshow transitions are crossfaded, which covers a
+  sub-100ms entry blink. Accepted as known behavior; a renderer-level
+  warm-up (pre-allocating scene framebuffers on project apply) would
+  remove it if it ever matters in practice.
+- **Shader failures now logged**: the app writes every runtime shader
+  compile error and degraded/fallback stage to a rotating
+  `userData/logs/shader-failures.log` (5 MB x 5 files) — per-scene records
+  for triage, plus a `shader.compile_degraded` session-log event.
 
 ## Tooling hardening from this build
 
