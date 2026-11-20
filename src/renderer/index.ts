@@ -345,6 +345,7 @@ const sceneStripViewButtons = sceneStrip
   : [];
 const addBlankSceneButton = document.getElementById('scene-add-blank') as HTMLButtonElement | null;
 const transportTap = document.getElementById('transport-tap') as HTMLButtonElement;
+const transportDetect = document.getElementById('transport-detect') as HTMLButtonElement | null;
 const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
 const transportBpmState = document.getElementById('transport-bpm-state') as HTMLSpanElement;
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
@@ -7749,7 +7750,9 @@ const updateBpmDisplay = () => {
     stateClass = networkBpm ? 'transport-state-stable' : 'transport-state-learning';
   } else if (audioState.rms < 0.02) {
     stateLabel = 'Listening';
-    stateClass = 'transport-state-idle';
+    // Pulses (CSS) — a DJ must see at a glance that the app is hearing and
+    // calculating, not sitting dead.
+    stateClass = 'transport-state-listening';
   } else if (!autoBpm || recentOnsets.length < 4) {
     stateLabel = 'Learning';
     stateClass = 'transport-state-learning';
@@ -11425,6 +11428,33 @@ const buildRecognitionRequest = async (
     };
   }
 
+  // AudD / ACRCloud / custom: prefer a WAV built from the clean PCM capture.
+  // The MediaRecorder webm clip is a recent-window slice of chunks, and only
+  // the FIRST chunk carries the EBML header — once the rolling history trims
+  // it (after ~1 minute), every webm clip is headerless and undecodable, so
+  // the paid fallback could never fingerprint a live set. The webm blob stays
+  // as the fallback when PCM capture is unavailable.
+  const pcmForWav = capture.exportRecentPcm?.(Math.max(6000, Math.max(0, clip.endedAt - clip.startedAt)) || settings.clipDurationMs);
+  if (pcmForWav && pcmForWav.pcmS16le.length >= 48000) {
+    const wavBytes = encodeWavS16Mono(pcmForWav.pcmS16le, 16000);
+    const audioBase64 = await blobToBase64(new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' }));
+    return {
+      request: {
+        provider,
+        endpoint: settings.endpoint || undefined,
+        host: settings.host || undefined,
+        apiKey: settings.apiKey || undefined,
+        apiSecret: settings.apiSecret || undefined,
+        market: settings.market || undefined,
+        audioBase64,
+        mimeType: 'audio/wav',
+        durationMs: pcmForWav.durationMs,
+        detectedAt
+      },
+      diagnostics
+    };
+  }
+
   const audioBase64 = await blobToBase64(clip.blob);
   return {
     request: {
@@ -11441,6 +11471,31 @@ const buildRecognitionRequest = async (
     },
     diagnostics
   };
+};
+
+/** 16-bit mono PCM -> a standard RIFF/WAVE byte buffer (44-byte header). */
+const encodeWavS16Mono = (pcm: Int16Array, sampleRate: number): Uint8Array => {
+  const dataBytes = pcm.length * 2;
+  const buf = new ArrayBuffer(44 + dataBytes);
+  const view = new DataView(buf);
+  const writeStr = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i += 1) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataBytes, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);        // PCM fmt chunk size
+  view.setUint16(20, 1, true);         // audio format: PCM
+  view.setUint16(22, 1, true);         // channels: mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // byte rate
+  view.setUint16(32, 2, true);         // block align
+  view.setUint16(34, 16, true);        // bits per sample
+  writeStr(36, 'data');
+  view.setUint32(40, dataBytes, true);
+  new Int16Array(buf, 44).set(pcm);
+  return new Uint8Array(buf);
 };
 
 const testNowPlayingLiveInput = async (settings: NowPlayingSettings) => {
@@ -11616,19 +11671,28 @@ const nowPlayingProviderChain = (): NowPlayingSettings['provider'][] => {
 
 const runNowPlayingLookup = async (
   detectedAt: number,
-  opts: { event?: SongChangeEvent; isRetry?: boolean } = {}
+  opts: { event?: SongChangeEvent; isRetry?: boolean; manual?: boolean } = {}
 ) => {
   if (!isNowPlayingLookupConfigured(nowPlayingSettings)) return;
   if (nowPlayingLookupInFlight) return;
-  // The base cooldown rate-limits detector firings; a bounded no-match retry
-  // (one per firing, ~10s later) is allowed through — it's the only way an
-  // unlucky clip gets a second chance.
-  if (!opts.isRetry && detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) return;
-  if (isNowPlayingMetadataSourceConfigured(nowPlayingSettings) && detectedAt - lastMetadataTrackAt < 5000) {
-    return;
+  // A MANUAL lookup (the DJ pressed Detect Song) skips every gate below:
+  // the cooldowns and same-song check exist to stop false AUTO firings
+  // from burning lookups, not to override a human who just mixed in a
+  // track the detector can't hear as a change (hot mixes, same-BPM blends).
+  if (!opts.manual) {
+    // The base cooldown rate-limits detector firings; a bounded no-match retry
+    // (one per firing, ~10s later) is allowed through — it's the only way an
+    // unlucky clip gets a second chance.
+    if (!opts.isRetry && detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) return;
+    if (isNowPlayingMetadataSourceConfigured(nowPlayingSettings) && detectedAt - lastMetadataTrackAt < 5000) {
+      return;
+    }
   }
 
-  if (opts.isRetry) {
+  if (opts.manual) {
+    cancelNowPlayingRetry();
+    resetGateRetry(nowPlayingGate);
+  } else if (opts.isRetry) {
     // Retries still respect the gate's adaptive backoff…
     if (detectedAt < nowPlayingGate.adaptiveCooldownUntil) return;
   } else {
@@ -11664,9 +11728,18 @@ const runNowPlayingLookup = async (
   // most recent ~6s is all-new-song audio; a too-short clip that no-matches
   // still gets the ~10s bounded retry with a fresh (by then fully clean) clip.
   const DETECTOR_CLIP_MS = 6000;
+  // Manual presses usually come right after the DJ brings a track in; the
+  // oldest seconds of a 12s window are still the outgoing track, so take the
+  // most recent 8s (Shazam needs ~3s; a no-match still earns the retry).
+  // Measured live 2026-11-20: an 8s room-mic clip no-matched on Shazam
+  // while the 11s retry clip matched — room acoustics need the longer
+  // window more than a mid-mix press needs the shorter one.
+  const MANUAL_CLIP_MS = 12000;
   const exportMs = opts.event
     ? Math.min(nowPlayingSettings.clipDurationMs, DETECTOR_CLIP_MS)
-    : nowPlayingSettings.clipDurationMs;
+    : opts.manual
+      ? Math.min(nowPlayingSettings.clipDurationMs, MANUAL_CLIP_MS)
+      : nowPlayingSettings.clipDurationMs;
   const exportResult = await rollingAudioCapture.exportRecentClipWithDiagnostics(exportMs);
   if (!exportResult.success || !exportResult.clip) {
     setStatus(`Song change detected, but ${exportResult.error}`);
@@ -11687,6 +11760,18 @@ const runNowPlayingLookup = async (
         continue;
       }
       const result = await window.visualSynth.identifyNowPlaying(buildResult.request);
+      // Every provider attempt is recorded: a live set's log must show WHY a
+      // lookup matched or missed (which provider, what audio it was sent).
+      sessionLog.log(result.matched ? 'info' : 'warn', 'song.lookup_result', {
+        provider,
+        trigger: opts.manual ? 'manual' : opts.isRetry ? 'retry' : 'auto',
+        matched: result.matched,
+        title: result.title ?? null,
+        artist: result.artist ?? null,
+        error: result.error ? String(result.error).slice(0, 120) : null,
+        mimeType: buildResult.request.mimeType,
+        durationMs: buildResult.request.durationMs
+      });
       if (result.matched) {
         await consumeNowPlayingResult(result, 'Now playing');
         return;
@@ -12556,7 +12641,11 @@ document.addEventListener('keydown', (event) => {
     event.stopPropagation();
     return;
   }
-  if (key === ' ') {
+  // SHIFT+Space, not bare Space: Serato DJ's spacebar plays/pauses the left
+  // deck, and a bare-space binding here silently STARTED the auto-advancing
+  // live playlist when a DJ hit space with VisualSynth focused — the
+  // "slideshow running with no slideshow built" report.
+  if (key === ' ' && event.shiftKey) {
     event.preventDefault();
     event.stopPropagation();
     if (livePlaylistActive) {
@@ -13419,6 +13508,32 @@ modeButtons.forEach((button) => {
 });
 
 
+// Manual song detect — the DJ's override for hot mixes the auto-detector
+// can't hear as a change. Runs the full lookup chain (free Shazam first,
+// then the paid provider) on the most recent audio and updates the overlay.
+if (transportDetect) {
+  transportDetect.addEventListener('click', async () => {
+    if (!isNowPlayingLookupConfigured(nowPlayingSettings)) {
+      setStatus('Song detection is off — enable Now Playing (System tab) to identify songs.');
+      return;
+    }
+    if (nowPlayingLookupInFlight) {
+      setStatus('Already identifying a song…');
+      return;
+    }
+    transportDetect.disabled = true;
+    transportDetect.textContent = 'Detecting…';
+    sessionLog.log('info', 'song.manual_detect', { scene: currentProject.activeSceneId });
+    setStatus('Identifying song…');
+    try {
+      await runNowPlayingLookup(Date.now(), { manual: true });
+    } finally {
+      transportDetect.disabled = false;
+      transportDetect.textContent = 'Detect Song';
+    }
+  });
+}
+
 transportTap.addEventListener('click', () => {
   if (bpmSource !== 'manual') {
     setStatus('Tap tempo is only available in Manual BPM mode.');
@@ -13857,6 +13972,19 @@ const initBpmNetworking = async () => {
 
 const updateTransportUI = () => {
   transportPauseButton.textContent = isPlaying ? 'Pause' : 'Resume';
+  // PAUSED is not a quiet state: it freezes ALL audio analysis (BPM,
+  // detection, visuals) and an ambiguous empty BPM field reads as a bug
+  // mid-set. Pulse the transport + mark the BPM field.
+  const transportEl = document.querySelector('.transport');
+  if (transportEl) {
+    transportEl.classList.toggle('transport-paused', !isPlaying);
+  }
+  if (!isPlaying) {
+    transportBpmInput.placeholder = 'PAUSED';
+    transportBpmInput.value = '';
+  } else {
+    transportBpmInput.placeholder = '';
+  }
 };
 
 let slideshowPicker: SlideshowPicker | null = null;
@@ -13944,7 +14072,11 @@ const initShortcuts = () => {
     if (!event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'p') {
       void takeScreenshot();
     }
-    if (!event.ctrlKey && !event.metaKey && event.code === 'Space') {
+    // Pause/resume is SHIFT+Space, not bare Space: Serato DJ uses the
+    // spacebar to play/pause its left deck, so a DJ pressing space with
+    // VisualSynth focused silently froze the visuals AND all audio analysis
+    // (BPM, song detection) mid-set — seen live 2026-11-20.
+    if (!event.ctrlKey && !event.metaKey && event.shiftKey && event.code === 'Space') {
       event.preventDefault();
       if (isPlaying) {
         isPlaying = false;

@@ -512,9 +512,15 @@ export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOption
     // leaking into the fullscreen composite.
     const enabledAttribs = new Set<number>();
     const enableAttr = (loc: number) => { enabledAttribs.add(loc); gl.enableVertexAttribArray(loc); };
+    // NO gl.getParameter readback of the blend func: in Chromium that is a
+    // synchronous round-trip to the GPU process that waits for the whole
+    // GPU queue to drain. With another GPU app running (Serato) plus the
+    // output window, two such syncs per frame held the preview at ~1 fps
+    // (live CPU profile 2026-11-20: 98% of main-thread time in getParameter).
+    // The caller contract makes the readback unnecessary: the milkdrop warp
+    // pass disables BLEND before shapes/waves run, and every later blend user
+    // sets its own blendFunc before enabling. isEnabled is client-cached.
     const blendWasEnabled = gl.isEnabled(gl.BLEND);
-    const prevSrc = gl.getParameter(gl.BLEND_SRC_RGB);
-    const prevDst = gl.getParameter(gl.BLEND_DST_RGB);
 
     try {
     for (const [index, shape] of shapes.entries()) {
@@ -708,8 +714,13 @@ export const createMilkwaveShapeRenderer = (options: MilkwaveShapeRendererOption
       // Restore GL state so the milkwave blend/attrib setup doesn't leak into
       // the caller's comp/feedback fullscreen pass.
       for (const loc of enabledAttribs) gl.disableVertexAttribArray(loc);
-      if (blendWasEnabled) gl.enable(gl.BLEND); else gl.disable(gl.BLEND);
-      gl.blendFunc(prevSrc as number, prevDst as number);
+      if (blendWasEnabled) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      } else {
+        gl.disable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ZERO); // WebGL default
+      }
     }
 
     return { renderedShapes, renderedBorders, ignoredTexturedShapes, evaluatedShapes, evaluatedPoints };

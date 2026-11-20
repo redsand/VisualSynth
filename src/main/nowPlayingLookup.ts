@@ -294,6 +294,14 @@ const decodeAudioBlob = (request: NowPlayingRecognitionRequest): Blob =>
     type: request.mimeType || 'audio/webm'
   });
 
+// Upload filename must match the payload: the renderer now sends a WAV built
+// from the clean PCM capture (a recent-window slice of MediaRecorder webm
+// chunks has no EBML header — only the first chunk carries it — so every
+// clip after the first minute was undecodable and AudD answered "could not
+// fingerprint").
+const uploadFilename = (request: NowPlayingRecognitionRequest): string =>
+  request.mimeType === 'audio/wav' ? 'clip.wav' : 'clip.webm';
+
 const postCustomLookup = async (
   request: NowPlayingRecognitionRequest,
   fetchImpl: typeof fetch
@@ -358,7 +366,7 @@ const postAudDLookup = async (
   const form = new FormData();
   form.set('api_token', request.apiKey);
   form.set('return', 'apple_music,spotify');
-  form.set('file', audioBlob, 'clip.webm');
+  form.set('file', audioBlob, uploadFilename(request));
 
   const startTime = Date.now();
   const response = await fetchImpl('https://api.audd.io/', {
@@ -520,7 +528,7 @@ const postAcrCloudLookup = async (
   const signature = buildAcrCloudSignature(request, timestamp);
   const form = new FormData();
   const audioBlob = decodeAudioBlob(request);
-  form.set('sample', audioBlob, 'clip.webm');
+  form.set('sample', audioBlob, uploadFilename(request));
   form.set('sample_bytes', String(Buffer.from(request.audioBase64, 'base64').byteLength));
   form.set('access_key', request.apiKey);
   form.set('data_type', 'audio');

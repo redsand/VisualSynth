@@ -4,7 +4,7 @@
 
 | Shortcut | Action |
 |----------|--------|
-| `Space` | Pause/Resume playback |
+| `Shift+Space` | Pause/Resume playback (bare Space is left free for Serato DJ) |
 | `F` | Toggle fullscreen (output window) |
 | `R` | Toggle recording |
 | `P` | Take screenshot |

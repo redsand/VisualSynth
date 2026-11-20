@@ -84,7 +84,7 @@ TOP BAR:
 [Logo] [Performance|Scene|Design|Matrix|System] [BPM] [Transport] [Output] [Health]
 
 STATUS BAR:
-Ready | Space: pause | F: fullscreen | R: record | P: screenshot | Ctrl+S save | Ctrl+O open
+Ready | Shift+Space: pause | F: fullscreen | R: record | P: screenshot | Ctrl+S save | Ctrl+O open
 ```
 
 ### Top Bar Controls
@@ -798,7 +798,7 @@ VisualSynth auto-saves recovery snapshots:
 
 | Shortcut | Action |
 |----------|--------|
-| `Space` | Pause/Resume |
+| `Shift+Space` | Pause/Resume (bare Space is left free for Serato DJ) |
 | `F` | Toggle fullscreen (output window) |
 | `R` | Toggle recording |
 | `P` | Take screenshot |

@@ -333,9 +333,15 @@ export const createMilkwaveWaveRenderer = (options: MilkwaveWaveRendererOptions 
     // The caller (milkdrop comp/feedback pass) expects BLEND to be off;
     // leaving it enabled with an additive blendFunc leaked into the
     // fullscreen composite and corrupted the feedback loop.
+    // NO gl.getParameter readback of the blend func: in Chromium that is a
+    // synchronous round-trip to the GPU process that waits for the whole
+    // GPU queue to drain. With another GPU app running (Serato) plus the
+    // output window, two such syncs per frame held the preview at ~1 fps
+    // (live CPU profile 2026-11-20: 98% of main-thread time in getParameter).
+    // The caller contract makes the readback unnecessary: the milkdrop warp
+    // pass disables BLEND before shapes/waves run, and every later blend user
+    // sets its own blendFunc before enabling. isEnabled is client-cached.
     const blendWasEnabled = gl.isEnabled(gl.BLEND);
-    const prevSrc = gl.getParameter(gl.BLEND_SRC_RGB);
-    const prevDst = gl.getParameter(gl.BLEND_DST_RGB);
     gl.enable(gl.BLEND);
 
     let renderedWaves = 0;
@@ -452,8 +458,13 @@ export const createMilkwaveWaveRenderer = (options: MilkwaveWaveRendererOptions 
       // into the caller's passes.
       gl.disableVertexAttribArray(posLoc);
       gl.disableVertexAttribArray(colorLoc);
-      if (blendWasEnabled) gl.enable(gl.BLEND); else gl.disable(gl.BLEND);
-      gl.blendFunc(prevSrc as number, prevDst as number);
+      if (blendWasEnabled) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      } else {
+        gl.disable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ZERO); // WebGL default
+      }
     }
 
     return { renderedWaves, renderedPoints, evaluatedPoints };

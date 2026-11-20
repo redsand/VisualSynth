@@ -414,6 +414,39 @@ body {
   color: #b8c6d8;
 }
 
+/* "I'm alive and working" — Listening/Learning/Weak pulse so an empty BPM
+   field reads as calculating, not broken (user request: a DJ needs to KNOW
+   the app is listening at a glance). Stable is calm — no pulse needed. */
+@keyframes transport-state-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.transport-state-listening,
+.transport-state-learning,
+.transport-state-weak {
+  animation: transport-state-pulse 1.6s ease-in-out infinite;
+}
+
+/* PAUSED must be unmistakable: pausing freezes ALL audio analysis (BPM,
+   detection, visuals) and an ambiguous empty BPM read as a bug in live use.
+   The pause button pulses and the BPM input shows it. */
+@keyframes transport-paused-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.7); }
+  50% { box-shadow: 0 0 12px 2px rgba(255, 77, 77, 0.55); }
+}
+.transport-paused #transport-pause {
+  animation: transport-paused-pulse 1.2s ease-in-out infinite;
+  border-color: #ff4d4d;
+  color: #ffb3b3;
+}
+.transport-paused #transport-bpm {
+  color: #ff8a8a;
+}
+.transport-paused #transport-bpm::placeholder {
+  color: #ff8a8a;
+  opacity: 1;
+}
+
 .transport-label {
   display: flex;
   flex-direction: column;
@@ -3683,8 +3716,12 @@ body[data-mode='matrix'] .safe-mode {
   color: #ff6b9d;
 }
 
+/* Live mode locks the ENGINE picker (no accidental engine swaps mid-set).
+   Scoped to the engine label only: the same .visual-mode-group container
+   also holds the project Open/Save quick actions, which locking the whole
+   group dimmed and disabled as collateral — a DJ must be able to save. */
 body[data-mode="live"] .engine-select-group,
-body[data-mode="live"] .visual-mode-group {
+body[data-mode="live"] .visual-mode-group .visual-mode-route {
   opacity: 0.4;
   pointer-events: none;
 }
