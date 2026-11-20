@@ -101,6 +101,7 @@ import type { Store } from './state/store';
 import { sessionHealthService } from './sessionHealthService';
 import { createTransitionTracer, type TransitionSource } from './render/transitionTracer';
 import { sessionLog, initSessionLog } from './sessionLog';
+import { createAdaptiveFpsState, tickFpsGovernor, shouldRenderFrame } from '../shared/adaptiveFps';
 
 declare global {
   interface Window {
@@ -893,6 +894,12 @@ let beatSensitivity = 1.5;
 let beatFilterRange: 'full' | 'bass' | 'mids' = 'full';
 let beatHoldOffMs = 0;
 let lastBeatTime = 0;
+// Adaptive GPU-sharing governor state (see shared/adaptiveFps.ts) — the
+// frame cap is decided automatically from delivered fps + render
+// work-time, never by the user.
+const fpsGovernorState = createAdaptiveFpsState();
+let lastGovernoredRenderMs = 0;
+let lastRenderWorkMs = 0;
 // Throttle + dedupe for the per-scene shader-failure logger below: one
 // record per (scene, statuses) change, checked at most once a second.
 let lastShaderFailureCheckAt = 0;
@@ -9760,8 +9767,8 @@ const broadcastCurrentOutputState = () => {
     if (currentProject.sdf?.enabled) {
       generatorIds.add('gen-sdf');
     }
-    outputChannel.postMessage(
-      buildRendererOutputBroadcastPayload({
+    outputChannel.postMessage({
+      ...buildRendererOutputBroadcastPayload({
         renderState: lastOutputRenderState,
         project: currentProject,
         scene: broadcastScene,
@@ -9771,8 +9778,9 @@ const broadcastCurrentOutputState = () => {
         activeGeneratorIds: [...generatorIds],
         shaderVariantKey: getRendererShaderVariantKey(),
         transition: getLatestTransitionPayload()
-      })
-    );
+      }),
+      fpsCap: fpsGovernorState.cap
+    });
   });
 };
 
@@ -14390,6 +14398,17 @@ const getChemistryModeIndex = (tags: string[] = []) => {
 };
 
 const render = (time: number) => {
+  // Adaptive GPU sharing (Serato DJ alongside): the governor decides the
+  // effective frame cap from delivered fps + our own render work-time;
+  // pacing skips the heavy pipeline when we're ahead of the cap budget.
+  // No user setting — it engages and releases on its own.
+  if (!shouldRenderFrame(fpsGovernorState.cap, time, lastGovernoredRenderMs)) {
+    requestAnimationFrame(render);
+    return;
+  }
+  lastGovernoredRenderMs = time;
+  const governorWorkStart = performance.now();
+
   const delta = time - lastTime;
   lastTime = time;
   // One low-pass frame token for this animation frame, shared by all three
@@ -14403,6 +14422,27 @@ const render = (time: number) => {
     fpsLabel.textContent = `FPS: ${currentFps}`;
     healthFps.textContent = `FPS: ${currentFps}`;
     sessionHealthService.updateFps(currentFps, delta);
+    // Feed the adaptive GPU governor once per fps measurement (~1s). On a
+    // transition, log it and push the new cap to the output window so both
+    // renderers pace together.
+    const decision = tickFpsGovernor(fpsGovernorState, {
+      deliveredFps: currentFps,
+      renderWorkMs: lastRenderWorkMs,
+      nowMs: time,
+      dtS: Math.max(0.25, Math.min(2, delta / 1000))
+    });
+    if (decision.transition) {
+      sessionLog.log('info', 'perf.fps_governor', {
+        action: decision.transition,
+        cap: decision.cap,
+        deliveredFps: currentFps,
+        renderWorkMs: Number(lastRenderWorkMs.toFixed(1))
+      });
+      setStatus(decision.transition === 'engage'
+        ? 'Frame cap engaged (30 fps) to share the GPU with another app'
+        : 'Frame cap released — full frame rate restored');
+      outputChannel.postMessage({ fpsCap: decision.cap });
+    }
   }
   if (!isPlaying) {
     requestAnimationFrame(render);
@@ -15541,8 +15581,10 @@ const render = (time: number) => {
     if (currentProject.sdf?.enabled) {
       generatorIds.add('gen-sdf');
     }
-    outputChannel.postMessage(
-      buildRendererOutputBroadcastPayload({
+    // Include the governor's current cap on every broadcast so an output
+    // window opened mid-session picks up an already-engaged cap.
+    outputChannel.postMessage({
+      ...buildRendererOutputBroadcastPayload({
         renderState: outputData.renderState,
         project: currentProject,
         scene: broadcastScene,
@@ -15552,9 +15594,14 @@ const render = (time: number) => {
         activeGeneratorIds: [...generatorIds],
         shaderVariantKey: getRendererShaderVariantKey(),
         transition: getLatestTransitionPayload()
-      })
-    );
+      }),
+      fpsCap: fpsGovernorState.cap
+    });
   }
+
+  // Governor input: this frame's own heavy-work duration (ms). Smoothed
+  // inside the governor; drives the cap-release decision.
+  lastRenderWorkMs = performance.now() - governorWorkStart;
 
   requestAnimationFrame(render);
 };

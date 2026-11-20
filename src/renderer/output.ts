@@ -1,4 +1,5 @@
 import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
+import { shouldRenderFrame } from '../shared/adaptiveFps';
 import type { AssetItem, OverlayConfig } from '../shared/project';
 import { createSafeModeRenderer } from './safeModeRenderer';
 import { createOverlayRenderer } from './overlayRenderer';
@@ -520,6 +521,9 @@ channel.onmessage = (event) => {
   }
 
   // Handle special broadcast-only fields (palette, generators, assets, overlays)
+  if (typeof (data as any).fpsCap === 'number') {
+    previewFpsCap = (data as any).fpsCap;
+  }
   if (Array.isArray((data as any).paletteColors) && renderer?.setPalette) {
     const colors = (data as any).paletteColors as string[];
     if (colors.length >= 5) {
@@ -671,9 +675,19 @@ const updateFallbackState = (now: number) => {
 
 let lastDebugUpdate = 0;
 let frameCount = 0;
+// Frame pacing shared with the preview window: the adaptive GPU governor
+// (in the preview renderer) broadcasts its cap; the output paces to match
+// so both windows yield the GPU together.
+let previewFpsCap = 0;
+let lastGovernoredRenderMs = 0;
 let lastVariantMismatchKey = '';
 
 const render = (time: number) => {
+  if (!shouldRenderFrame(previewFpsCap, time, lastGovernoredRenderMs)) {
+    requestAnimationFrame(render);
+    return;
+  }
+  lastGovernoredRenderMs = time;
   const now = performance.now();
   const didResize = resizeCanvasToDisplaySize(canvas);
   if (didResize) {

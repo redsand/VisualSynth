@@ -559,6 +559,12 @@ const buildShowProject = (auditDirs: Array<{ dir: string; screenProject: string 
     name: 'Unique 100 — Fresh Scenes',
     createdAt: base.createdAt,
     updatedAt: new Date().toISOString(),
+    // The show base (the user's live project) ships tempoSync source
+    // 'manual' — inherited as-is, loading the show pins BPM to 120 and the
+    // tempo-synced modulators never follow the music. A listening show
+    // wants AUTO detection (manualBpm still available as the no-audio
+    // fallback via getActiveBpm).
+    tempoSync: { bpm: base.tempoSync?.bpm ?? 120, source: 'auto' },
     scenes: [],
     activeSceneId: ''
   };
