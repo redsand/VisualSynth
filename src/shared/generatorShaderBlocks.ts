@@ -6032,7 +6032,9 @@ uniform float uBoidsVisualRange;
     float headDist = length(centered - (boidPos + boidDir * 0.03));
     float tailDist = length(centered - (boidPos - boidDir * 0.02));
     float body = smoothstep(0.04, 0.015, dist) * 0.5 + smoothstep(0.02, 0.005, headDist);
-    float trail = exp(-dist * 50.0) * 0.15;
+    // Soft halo so a flock of small boids still reads on a big screen
+    // (pads with few boids measured near-black, 2026-11-21).
+    float trail = exp(-dist * 50.0) * 0.15 + exp(-dist * 14.0) * 0.12;
     vec3 boidColor = getPaletteColor(i / count + audio * 0.15);
     col += boidColor * (body + trail) * (0.6 + audio * 0.4);
   }
@@ -6078,13 +6080,15 @@ vec3 flowField(vec2 uv, float t) {
     float bandAudio = uSpectrum[specIdx];
     vec2 field = curlNoise(pos * scale, t * speed * 0.2) * (1.0 + bandAudio * 0.5);
     vec2 dir = normalize(field + 0.0001);
-    for (float s = 0.0; s < 3.0; s++) {
+    // 6 steps of 0.03 (was 3 x 0.02): strokes long enough to read as flow,
+    // plus a soft glow around each — hairline strokes measured near-black.
+    for (float s = 0.0; s < 6.0; s++) {
       prevPos = pos;
-      pos += dir * 0.02 * (1.0 + audio * 0.3);
+      pos += dir * 0.03 * (1.0 + audio * 0.3);
       dir = normalize(curlNoise(pos * scale, t * speed * 0.2) * (1.0 + bandAudio * 0.5) + 0.0001);
       float lineDist = sdSegment(centered, prevPos, pos);
-      float line = smoothstep(0.005, 0.001, lineDist);
-      float fade = 1.0 - s * 0.33;
+      float line = smoothstep(0.005, 0.001, lineDist) + exp(-lineDist * 60.0) * 0.35;
+      float fade = 1.0 - s * 0.15;
       vec3 lineColor = getPaletteColor(i / count + s * 0.03);
       col += lineColor * line * fade * 0.4;
       if (pos.x < -1.5 || pos.x > 1.5 || pos.y < -1.5 || pos.y > 1.5) break;
