@@ -3373,6 +3373,10 @@ const globalMidiTargets = [
   { id: 'step.engine', label: 'Engine Dial' },
   { id: 'scene.take', label: 'Take Cued Scene Live' },
   { id: 'scene.skip', label: 'Skip to Next Scene (rotation)' },
+  { id: 'slideshow.start', label: 'Slideshow Start (timed)' },
+  { id: 'slideshow.stop', label: 'Slideshow Stop (timed)' },
+  { id: 'rotation.start', label: 'Rotation Start (song change)' },
+  { id: 'rotation.stop', label: 'Rotation Stop (song change)' },
   ...Array.from({ length: 16 }, (_, i) => ({ id: `palette.slot.${i + 1}`, label: `Palette Pad ${i + 1}` })),
   ...Array.from({ length: 16 }, (_, i) => ({ id: `livepad.slot.${i + 1}`, label: `Scene Pad ${i + 1}` })),
   { id: 'style.contrast', label: 'Style Contrast' },
@@ -9365,6 +9369,28 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     skipToNextScene();
     return;
   }
+  if (target === 'slideshow.start' || target === 'slideshow.stop') {
+    if (value <= 0) return;
+    // Timed slideshow (Live playlist): start only starts, stop only stops.
+    if (target === 'slideshow.start') {
+      if (livePlaylistActive) setStatus('Slideshow already running');
+      else startLivePlaylist();
+    } else if (livePlaylistActive) {
+      stopLivePlaylist();
+    } else {
+      setStatus('Slideshow already stopped');
+    }
+    return;
+  }
+  if (target === 'rotation.start' || target === 'rotation.stop') {
+    if (value <= 0) return;
+    // Play starts and Stop stops (never toggles, so a double press is safe);
+    // goes through the topbar Rotation button so behaviour stays identical.
+    const want = target === 'rotation.start';
+    if (nowPlayingSettings.slideshowEnabled !== want) rotationButton?.click();
+    else setStatus(want ? 'Rotation already running' : 'Rotation already stopped');
+    return;
+  }
   if (target === 'scene.take') {
     if (value <= 0) return;
     if (previewSceneId && previewSceneId !== currentProject.activeSceneId) {
@@ -9814,7 +9840,11 @@ const initMidiQuickSetup = () => {
     ['step.palette', 'Palette dial', 'Turn the dial for palettes'],
     ['step.engine', 'Engine dial', 'Turn the dial for engines'],
     ['scene.take', 'Take cue', 'Press the button that takes the cue live'],
-    ['scene.skip', 'Skip scene', 'Press the button that skips a bad scene (cuts to the next one now)']
+    ['scene.skip', 'Skip scene', 'Press the button that skips a bad scene (cuts to the next one now)'],
+    ['slideshow.start', 'Slideshow start', 'Press the button that starts the timed slideshow (e.g. Play)'],
+    ['slideshow.stop', 'Slideshow stop', 'Press the button that stops the timed slideshow (e.g. Stop)'],
+    ['rotation.start', 'Rotation start', 'Press the button that turns on rotate-on-song-change'],
+    ['rotation.stop', 'Rotation stop', 'Press the button that turns off rotate-on-song-change']
   ];
   for (const [target, label, hint] of items) {
     const button = document.createElement('button');
@@ -11490,6 +11520,18 @@ rotationButton?.addEventListener('click', async () => {
  * to a beat: it exists to get a bad-looking scene off screen now.
  */
 const skipToNextScene = () => {
+  if (livePlaylistActive) {
+    // Timed slideshow running: move it on one pad now and restart its timer.
+    const pads = getLivePadEntries();
+    if (pads.length > 1) {
+      livePlaylistIndex = (livePlaylistIndex + 1) % pads.length;
+      triggerLivePad(pads[livePlaylistIndex].index);
+      scheduleNextLivePlaylistEntry();
+      const name = currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId)?.name ?? '';
+      setStatus(`Skipped to: ${name}`);
+      return;
+    }
+  }
   const rotating = nowPlayingSettings.slideshowEnabled && nowPlayingSettings.slideshowSceneIds.length > 0;
   let targetId: string | null = null;
   if (rotating) {

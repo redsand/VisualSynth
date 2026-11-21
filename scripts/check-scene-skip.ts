@@ -65,9 +65,34 @@ const projectPath = process.argv.find((a) => a.startsWith('--project='))?.slice(
     const a = proj().activeSceneId;
     send([0x90, 60, 100]); send([0x80, 60, 0]); await wait(700);
     const b = proj().activeSceneId;
+    // Play/Stop: learn both, then Stop turns rotation off, Play turns it on,
+    // and a second Play keeps it on (no toggling).
+    const learn = async (label: string, note: number) => {
+      const btn = Array.from(document.querySelectorAll('#midi-quick-setup button')).find((x) => x.textContent?.trim() === label) as HTMLButtonElement | undefined;
+      if (!btn) return false;
+      btn.click(); await wait(100); send([0x90, note, 100]); send([0x80, note, 0]); await wait(300); return true;
+    };
+    const rotOn = () => document.getElementById('topbar-rotation')?.getAttribute('aria-pressed') === 'true';
+    const learnedPlay = await learn('Rotation start', 61);
+    const learnedStop = await learn('Rotation stop', 62);
+    send([0x90, 62, 100]); await wait(300); const afterStop = rotOn();
+    send([0x90, 61, 100]); await wait(300); const afterPlay = rotOn();
+    send([0x90, 61, 100]); await wait(300); const afterPlayAgain = rotOn();
+    // Timed slideshow: Play starts, Skip advances it, Stop stops.
+    const learnedSsPlay = await learn('Slideshow start', 63);
+    const learnedSsStop = await learn('Slideshow stop', 64);
+    send([0x90, 63, 100]); await wait(700);
+    const ssStartScene = proj().activeSceneId;
+    const ssStatusStart = document.getElementById('status')?.textContent ?? '';
+    send([0x90, 60, 100]); await wait(700);
+    const ssSkipped = proj().activeSceneId !== ssStartScene;
+    send([0x90, 64, 100]); await wait(300);
+    const ssStatusStop = document.getElementById('status')?.textContent ?? '';
     const status = document.getElementById('status')?.textContent ?? '';
     return { mapped, offStep1: i1 - i0, offStep2Keyboard: i2 - i1, rotationOn, rotationIdsKnown: rotationIds.length,
-      onA: a, onB: b, onAdvancedAlongList: rotationIds.indexOf(b) === (rotationIds.indexOf(a) + 1) % rotationIds.length, status: status.slice(0, 80) };
+      onA: a, onB: b, onAdvancedAlongList: rotationIds.indexOf(b) === (rotationIds.indexOf(a) + 1) % rotationIds.length,
+      learnedPlay, learnedStop, afterStop, afterPlay, afterPlayAgain,
+      learnedSsPlay, learnedSsStop, ssStatusStart: ssStatusStart.slice(0, 60), ssSkipped, ssStatusStop: ssStatusStop.slice(0, 40), status: status.slice(0, 80) };
   });
   console.log(JSON.stringify(r, null, 1));
   await browser.close();
