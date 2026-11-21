@@ -2363,52 +2363,122 @@ const renderPresetPreview = () => {
 
 const getLivePresets = () => presetLibrary.filter(p => p.presetMode === 'live');
 
+// ── Live scene pads ─────────────────────────────────────────────────────────
+// 16 pads holding scenes FROM THE CURRENT SHOW. A pad cuts to its scene; it
+// never loads a preset as a new project (the old preset pads replaced the
+// whole project and wiped the scene timeline). Assign by dragging a scene
+// card onto a pad, right-click → pick, or "Fill from show".
+const LIVE_PAD_COUNT = 16;
+interface LivePadEntry { index: number; sceneId: string; name: string }
+const getLivePadIds = (): Array<string | null> => {
+  const ids = (currentProject.livePads ?? []).slice(0, LIVE_PAD_COUNT);
+  while (ids.length < LIVE_PAD_COUNT) ids.push(null);
+  return ids.map((id) => (id && currentProject.scenes.some((s) => s.id === id) ? id : null));
+};
+const getLivePadEntries = (): LivePadEntry[] =>
+  getLivePadIds().flatMap((id, index) => {
+    const scene = id ? currentProject.scenes.find((s) => s.id === id) : undefined;
+    return scene ? [{ index, sceneId: scene.id, name: scene.name }] : [];
+  });
+const setLivePad = (index: number, sceneId: string | null) => {
+  const ids = getLivePadIds();
+  ids[index] = sceneId;
+  currentProject.livePads = ids;
+  renderLivePadGrid();
+  renderLivePlaylistList();
+};
+const triggerLivePad = (index: number) => {
+  const sceneId = getLivePadIds()[index];
+  if (!sceneId) return;
+  sessionLog.log('info', 'live.pad_triggered', { pad: index + 1, sceneId });
+  applyScene(sceneId);
+  renderLivePadGrid();
+  renderLivePlaylistList();
+};
+
 let livePlaylistActive = false;
 let livePlaylistIndex = 0;
 let livePlaylistTimer: ReturnType<typeof setTimeout> | null = null;
 let activeLivePresetPath = '';
 
 const renderLivePadGrid = () => {
-  const presets = getLivePresets();
-  const sortKey = liveSortSelect?.value ?? 'name';
-  const sorted = [...presets].sort((a, b) => {
-    if (sortKey === 'bpm') {
-      const bpmA = parseInt(a.searchText.match(/(\d{2,3})\s*bpm/i)?.[1] ?? '120');
-      const bpmB = parseInt(b.searchText.match(/(\d{2,3})\s*bpm/i)?.[1] ?? '120');
-      return bpmA - bpmB;
-    }
-    if (sortKey === 'energy') {
-      const energyOrder = { low: 0, medium: 1, high: 2, peak: 3 };
-      return (energyOrder[a.energy] ?? 0) - (energyOrder[b.energy] ?? 0);
-    }
-    if (sortKey === 'pad') {
-      return (a.midiPadIndex ?? 99) - (b.midiPadIndex ?? 99);
-    }
-    return a.name.localeCompare(b.name);
-  });
-
+  if (!livePadGrid) return;
   livePadGrid.innerHTML = '';
-  if (sorted.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'matrix-empty';
-    empty.textContent = 'No live presets found. Add presets with presetMode: "live".';
-    livePadGrid.appendChild(empty);
-    return;
-  }
-
-  sorted.forEach((preset) => {
+  const ids = getLivePadIds();
+  ids.forEach((sceneId, index) => {
+    const scene = sceneId ? currentProject.scenes.find((s) => s.id === sceneId) : undefined;
     const pad = document.createElement('button');
     pad.type = 'button';
-    pad.className = 'live-pad' + (preset.path === activeLivePresetPath ? ' live-pad-active' : '');
-    const hue = hashPreset(preset.name) % 360;
-    pad.style.setProperty('--pad-hue', String(hue));
-    pad.innerHTML = `
-      <span class="live-pad-name">${preset.name}</span>
-      <span class="live-pad-meta">${preset.energy ?? ''}${preset.midiPadIndex !== undefined ? ' · Pad ' + preset.midiPadIndex : ''}</span>
-    `;
-    pad.addEventListener('click', () => triggerLivePreset(preset));
+    pad.className = 'live-pad' + (scene ? '' : ' live-pad-empty') + (scene && scene.id === currentProject.activeSceneId ? ' live-pad-active' : '');
+    if (scene) pad.style.setProperty('--pad-hue', String(hashPreset(scene.name) % 360));
+    const key = index < 10 ? String((index + 1) % 10) : 'QWERTY'[index - 10];
+    pad.innerHTML = `<span class="live-pad-name"></span><span class="live-pad-meta">Pad ${index + 1} · ${key}</span>`;
+    (pad.querySelector('.live-pad-name') as HTMLElement).textContent = scene ? scene.name : 'Empty';
+    pad.title = scene ? `${scene.name} — click to cut live · right-click to change` : 'Drop a scene here, or right-click to pick one';
+    if (scene) {
+      const clear = document.createElement('span');
+      clear.className = 'live-pad-clear';
+      clear.textContent = '✕';
+      clear.title = 'Clear this pad';
+      clear.addEventListener('click', (event) => { event.stopPropagation(); setLivePad(index, null); });
+      pad.appendChild(clear);
+    }
+    pad.addEventListener('click', () => { if (scene) triggerLivePad(index); else openLivePadPicker(pad, index); });
+    pad.addEventListener('contextmenu', (event) => { event.preventDefault(); openLivePadPicker(pad, index); });
+    pad.addEventListener('dragover', (event) => {
+      if (event.dataTransfer?.types.includes('application/x-vs-scene')) { event.preventDefault(); pad.classList.add('live-pad-drop'); }
+    });
+    pad.addEventListener('dragleave', () => pad.classList.remove('live-pad-drop'));
+    pad.addEventListener('drop', (event) => {
+      pad.classList.remove('live-pad-drop');
+      const dropped = event.dataTransfer?.getData('application/x-vs-scene');
+      if (dropped) { event.preventDefault(); setLivePad(index, dropped); }
+    });
     livePadGrid.appendChild(pad);
   });
+};
+
+document.getElementById('live-pads-fill')?.addEventListener('click', () => {
+  const ids = getLivePadIds();
+  const used = new Set(ids.filter(Boolean));
+  const pool = currentProject.scenes.map((s) => s.id).filter((id) => !used.has(id));
+  for (let i = 0; i < ids.length && pool.length > 0; i++) if (!ids[i]) ids[i] = pool.shift()!;
+  currentProject.livePads = ids;
+  renderLivePadGrid();
+  renderLivePlaylistList();
+  setStatus(`Live pads filled: ${ids.filter(Boolean).length}/${LIVE_PAD_COUNT}`);
+});
+document.getElementById('live-pads-clear')?.addEventListener('click', () => {
+  currentProject.livePads = [];
+  renderLivePadGrid();
+  renderLivePlaylistList();
+  setStatus('Live pads cleared (scenes are still in the show).');
+});
+
+/** Scene picker anchored to a pad (right-click / empty-pad click). */
+const openLivePadPicker = (anchor: HTMLElement, index: number) => {
+  document.querySelector('.live-pad-picker')?.remove();
+  const picker = document.createElement('select');
+  picker.className = 'live-pad-picker';
+  picker.size = Math.min(12, currentProject.scenes.length + 1);
+  picker.innerHTML = '<option value="">— Empty —</option>';
+  for (const scene of currentProject.scenes) {
+    const option = document.createElement('option');
+    option.value = scene.id;
+    option.textContent = scene.name;
+    picker.appendChild(option);
+  }
+  picker.value = getLivePadIds()[index] ?? '';
+  const rect = anchor.getBoundingClientRect();
+  picker.style.left = `${Math.round(rect.left)}px`;
+  picker.style.top = `${Math.round(rect.bottom + 4)}px`;
+  const close = () => { picker.remove(); document.removeEventListener('mousedown', outside, true); };
+  const outside = (event: MouseEvent) => { if (event.target !== picker && !picker.contains(event.target as Node)) close(); };
+  picker.addEventListener('change', () => { setLivePad(index, picker.value || null); close(); });
+  picker.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
+  document.body.appendChild(picker);
+  document.addEventListener('mousedown', outside, true);
+  picker.focus();
 };
 
 const triggerLivePreset = async (preset: PresetIndexEntry) => {
@@ -2438,33 +2508,36 @@ const triggerLivePreset = async (preset: PresetIndexEntry) => {
 
 const scheduleNextLivePlaylistEntry = () => {
   if (livePlaylistTimer) clearTimeout(livePlaylistTimer);
-  const presets = getLivePresets();
-  if (presets.length === 0) return;
+  const pads = getLivePadEntries();
+  if (pads.length === 0) return;
   const bars = parseInt(livePlaylistDuration?.value ?? '8') || 8;
   const bpm = currentProject.tempoSync?.bpm ?? 120;
   const barMs = (60000 / bpm) * 4;
-  const durationMs = bars * barMs;
-
   livePlaylistTimer = setTimeout(() => {
-    livePlaylistIndex = (livePlaylistIndex + 1) % presets.length;
-    triggerLivePreset(presets[livePlaylistIndex]);
-  }, durationMs);
+    if (!livePlaylistActive) return;
+    const current = getLivePadEntries();
+    if (current.length === 0) return;
+    livePlaylistIndex = (livePlaylistIndex + 1) % current.length;
+    triggerLivePad(current[livePlaylistIndex].index);
+    scheduleNextLivePlaylistEntry();
+  }, bars * barMs);
 };
 
 const startLivePlaylist = () => {
   livePlaylistActive = true;
-  const presets = getLivePresets();
-  if (presets.length === 0) {
-    setStatus('No live presets to play.');
+  const pads = getLivePadEntries();
+  if (pads.length === 0) {
+    setStatus('Assign scenes to the live pads first (drag a scene card onto a pad, or Fill from show).');
     livePlaylistActive = false;
     return;
   }
   livePlaylistIndex = 0;
   const bars = parseInt(livePlaylistDuration?.value ?? '8') || 8;
   const transitionMs = parseInt(livePlaylistTransition?.value ?? '200') || 200;
-  sessionLog.log('info', 'live.playlist_started', { duration: bars, transition: transitionMs });
-  triggerLivePreset(presets[0]);
-  setStatus('Live playlist started.');
+  sessionLog.log('info', 'live.playlist_started', { duration: bars, transition: transitionMs, pads: pads.length });
+  triggerLivePad(pads[0].index);
+  scheduleNextLivePlaylistEntry();
+  setStatus(`Live playlist: ${pads.length} pads, ${bars} bars each.`);
 };
 
 const stopLivePlaylist = () => {
@@ -2527,21 +2600,23 @@ const renderLiveFxToggles = () => {
 const renderLivePlaylistList = () => {
   if (!livePlaylistList) return;
   livePlaylistList.innerHTML = '';
-  const presets = getLivePresets();
-  if (presets.length === 0) {
+  const pads = getLivePadEntries();
+  if (pads.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'matrix-empty';
-    empty.textContent = 'No live presets available.';
+    empty.textContent = 'Playlist plays your assigned pads in order. Assign scenes to pads first.';
     livePlaylistList.appendChild(empty);
     return;
   }
-  presets.forEach((preset, index) => {
+  pads.forEach((pad, order) => {
     const row = document.createElement('div');
-    row.className = 'playlist-entry' + (preset.path === activeLivePresetPath ? ' playlist-entry-active' : '');
-    row.innerHTML = `<span class="playlist-index">${index + 1}</span><span class="playlist-name">${preset.name}</span><span class="playlist-energy">${preset.energy}</span>`;
+    row.className = 'playlist-entry' + (pad.sceneId === currentProject.activeSceneId ? ' playlist-entry-active' : '');
+    row.innerHTML = '<span class="playlist-index"></span><span class="playlist-name"></span>';
+    (row.querySelector('.playlist-index') as HTMLElement).textContent = `Pad ${pad.index + 1}`;
+    (row.querySelector('.playlist-name') as HTMLElement).textContent = pad.name;
     row.addEventListener('click', () => {
-      livePlaylistIndex = index;
-      triggerLivePreset(preset);
+      livePlaylistIndex = order;
+      triggerLivePad(pad.index);
     });
     livePlaylistList.appendChild(row);
   });
@@ -3279,6 +3354,7 @@ const globalMidiTargets = [
   { id: 'step.engine', label: 'Engine Dial' },
   { id: 'scene.take', label: 'Take Cued Scene Live' },
   ...Array.from({ length: 16 }, (_, i) => ({ id: `palette.slot.${i + 1}`, label: `Palette Pad ${i + 1}` })),
+  ...Array.from({ length: 16 }, (_, i) => ({ id: `livepad.slot.${i + 1}`, label: `Scene Pad ${i + 1}` })),
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
   { id: 'style.paletteShift', label: 'Palette Shift' },
@@ -3903,7 +3979,11 @@ const updateOutputUI = () => {
   outputScaleSelect.value = String(outputConfig.scale);
   outputRouteButton.classList.toggle('is-active', outputOpen);
   outputRouteButton.setAttribute('aria-pressed', String(outputOpen));
-  outputRouteButton.title = outputOpen ? 'Close the output window' : 'Open the output window (mirrors the preview)';
+  outputRouteButton.title = outputOpen ? 'Output is live — click to close the output window' : 'Open the output window (mirrors the preview)';
+  outputRouteButton.innerHTML = outputOpen
+    ? '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  outputRouteButton.setAttribute('aria-label', outputOpen ? 'Close output' : 'Open output');
   guardrailHint.textContent = `Output scale: ${Math.round(outputConfig.scale * 100)}%`;
   updateOutputResolution();
 };
@@ -5025,7 +5105,40 @@ const addModConnection = () => {
   setStatus('Mod connection added.');
 };
 
+// ── Per-device MIDI profiles ────────────────────────────────────────────────
+// Mappings belong to the CONTROLLER, not the project: each device (by the name
+// it reports, e.g. "JP-1") keeps its own profile, loaded when it connects and
+// saved on every mapping change — so a controller works the same in every
+// project, and a second controller never overwrites the first one's layout.
+const MIDI_PROFILES_KEY = 'vs.midiProfiles.v1';
+let activeMidiDeviceName: string | null = null;
+const readMidiProfiles = (): Record<string, MidiMapping[]> => {
+  try { return JSON.parse(localStorage.getItem(MIDI_PROFILES_KEY) ?? '{}') ?? {}; } catch { return {}; }
+};
+const saveMidiProfile = () => {
+  if (!activeMidiDeviceName) return;
+  try {
+    const all = readMidiProfiles();
+    all[activeMidiDeviceName] = currentProject.midiMappings;
+    localStorage.setItem(MIDI_PROFILES_KEY, JSON.stringify(all));
+  } catch { /* storage unavailable: mappings still live in the project */ }
+};
+const activateMidiProfile = (deviceName: string | null | undefined) => {
+  activeMidiDeviceName = deviceName?.trim() || null;
+  if (!activeMidiDeviceName) return;
+  const profile = readMidiProfiles()[activeMidiDeviceName];
+  if (profile) {
+    currentProject.midiMappings = JSON.parse(JSON.stringify(profile));
+    renderMidiMappings();
+    setStatus(`MIDI profile loaded: ${activeMidiDeviceName} (${profile.length} mappings)`);
+  } else {
+    saveMidiProfile(); // first time: this device starts from the project's mappings
+    setStatus(`MIDI connected: ${activeMidiDeviceName} — new profile (use Quick setup to map it)`);
+  }
+};
+
 const renderMidiMappings = () => {
+  saveMidiProfile();
   midiMapList.innerHTML = '';
   if (currentProject.midiMappings.length === 0) {
     const empty = document.createElement('div');
@@ -9189,6 +9302,11 @@ const addGenerator = (id: GeneratorId) => {
 };
 
 const applyMidiTargetValue = (target: string, value: number, isToggle = false) => {
+  if (target.startsWith('livepad.slot.')) {
+    if (value <= 0) return;
+    triggerLivePad(Number(target.slice('livepad.slot.'.length)) - 1);
+    return;
+  }
   if (target.startsWith('palette.slot.')) {
     if (value <= 0) return; // pad release
     const slot = Number(target.slice('palette.slot.'.length));
@@ -9644,6 +9762,7 @@ const initMidiQuickSetup = () => {
   if (!host || host.dataset.bound) return;
   host.dataset.bound = '1';
   const items: Array<[string, string, string]> = [
+    [SCENE_PAD_BANK_LEARN, 'Scene pads (16)', 'Press the FIRST of your 16 pads (they will trigger Live scene pads 1-16)'],
     [PALETTE_BANK_LEARN, 'Palette pads (16)', 'Press the FIRST of your 16 pads'],
     ['step.scene', 'Scene dial', 'Turn the dial for scene cueing'],
     ['step.palette', 'Palette dial', 'Turn the dial for palettes'],
@@ -11287,6 +11406,22 @@ function updateRotationButton() {
     ? `Rotation ON: next scene on each song change (${rotationSceneIds().length} scenes). Click to stop.`
     : 'Rotation OFF: click to advance to the next scene on each song change';
 }
+/** Turn rotation on (if off) and continue it from `sceneId` on the next song. */
+const startRotationFrom = async (sceneId: string) => {
+  const ids = rotationSceneIds();
+  const list = ids.includes(sceneId) ? ids : [...ids, sceneId];
+  const saved = await window.visualSynth.saveNowPlayingSettings({
+    ...nowPlayingSettings,
+    slideshowEnabled: true,
+    slideshowSceneIds: list
+  });
+  applyNowPlayingSettings(saved);
+  slideshowSongIndex = list.indexOf(sceneId);
+  updateRotationButton();
+  const name = currentProject.scenes.find((s) => s.id === sceneId)?.name ?? '';
+  setStatus(`Activated ${name} — rotation continues from here on the next song`);
+};
+
 rotationButton?.addEventListener('click', async () => {
   const enabling = !nowPlayingSettings.slideshowEnabled;
   const saved = await window.visualSynth.saveNowPlayingSettings({
@@ -12232,6 +12367,7 @@ const startMidiInput = async () => {
     (input as MIDIInput).onmidimessage = (event: MIDIMessageEvent) =>
       handleMidiMessage(Array.from((event as MIDIMessageEvent).data ?? []), event.timeStamp ?? performance.now());
     setStatus(`MIDI connected: ${input.name ?? 'Unknown'}`);
+    activateMidiProfile(input.name);
   } else {
     const ports = await window.visualSynth.listNodeMidi();
     if (ports.length === 0) {
@@ -12249,6 +12385,7 @@ const startMidiInput = async () => {
     const result = await window.visualSynth.openNodeMidi(portIndex);
     if (result.opened) {
       setStatus(`node-midi connected: ${ports[0].name}`);
+      activateMidiProfile(ports[0].name);
     }
     window.visualSynth.onNodeMidiMessage((message) =>
       handleMidiMessage(message, performance.now())
@@ -12263,6 +12400,7 @@ const startMidiInput = async () => {
 const ccEdgeState = new WeakMap<MidiMapping, number>();
 const midiStepStates = new WeakMap<MidiMapping, MidiStepState>();
 const PALETTE_BANK_LEARN = 'palette.bank';
+const SCENE_PAD_BANK_LEARN = 'livepad.bank';
 
 /** Cue a scene for preview (the output keeps the program until Take). */
 const cueSceneFromController = (sceneId: string) => {
@@ -12302,25 +12440,29 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
   const messageType = status & 0xf0;
   const channel = getMidiChannel(status);
 
-  if (learnTarget?.target === PALETTE_BANK_LEARN && messageType === 0x90 && data2 > 0) {
+  const bankPrefix = learnTarget?.target === PALETTE_BANK_LEARN ? 'palette.slot.'
+    : learnTarget?.target === SCENE_PAD_BANK_LEARN ? 'livepad.slot.' : null;
+  if (bankPrefix && messageType === 0x90 && data2 > 0) {
     // One press maps a whole 16-pad bank: pads are consecutive notes on
-    // virtually every controller (e.g. 36-51), first pad = palette 1.
-    currentProject.midiMappings = currentProject.midiMappings.filter((m) => !m.target.startsWith('palette.slot.'));
+    // virtually every controller (e.g. 36-51), first pad = slot 1.
+    currentProject.midiMappings = currentProject.midiMappings.filter(
+      (m) => !m.target.startsWith(bankPrefix) && !(m.message === 'note' && m.channel === channel && m.control >= data1 && m.control < data1 + 16)
+    );
     for (let i = 0; i < 16; i++) {
       currentProject.midiMappings.push({
         id: `map-${Date.now()}-${i}`, message: 'note', channel, control: data1 + i,
-        target: `palette.slot.${i + 1}`, mode: 'toggle'
+        target: `${bankPrefix}${i + 1}`, mode: 'toggle'
       } as (typeof currentProject.midiMappings)[number]);
     }
     renderMidiMappings();
-    setStatus(`Mapped 16 palette pads: notes ${data1}-${data1 + 15} → palettes 1-16`);
+    setStatus(`Mapped 16 ${bankPrefix === 'palette.slot.' ? 'palette' : 'scene'} pads: notes ${data1}-${data1 + 15}`);
     learnTarget = null;
     midiLearnEnabled = false;
     updateMidiLearnToggle();
     updateMappingHud();
     return;
   }
-  if (learnTarget && learnTarget.target !== PALETTE_BANK_LEARN && (messageType === 0x90 || messageType === 0xb0)) {
+  if (learnTarget && !bankPrefix && (messageType === 0x90 || messageType === 0xb0)) {
     const mapping = {
       id: `map-${Date.now()}`,
       message: messageType === 0x90 ? 'note' : 'cc',
@@ -12832,6 +12974,9 @@ if (presetLoadProjectButton) {
       applyScene(addedSceneId);
       lastOutputBroadcast = 0;
       broadcastCurrentOutputState();
+      // Activate = "play this now, then keep the show going": the scene joins
+      // the rotation and the rotation continues FROM it on the next song.
+      await startRotationFrom(addedSceneId);
     }
     renderPresetQuickFilters();
     renderPresetPreview();
@@ -12903,8 +13048,7 @@ document.addEventListener('keydown', (event) => {
   const isTypingTarget = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable;
   if (isTypingTarget) return;
 
-  const presets = getLivePresets();
-  if (presets.length === 0) return;
+  const padIds = getLivePadIds();
 
   const numMap: Record<string, number> = {
     '1': 0, '2': 1, '3': 2, '4': 3, '5': 4,
@@ -12915,10 +13059,9 @@ document.addEventListener('keydown', (event) => {
   const key = event.key.toLowerCase();
   if (key in numMap) {
     const idx = numMap[key];
-    if (idx < presets.length) {
+    if (idx < LIVE_PAD_COUNT && padIds[idx]) {
       event.preventDefault();
-      livePlaylistIndex = idx;
-      triggerLivePreset(presets[idx]);
+      triggerLivePad(idx);
     }
     // Reserve numMap keys for live-preset triggers in live mode and stop
     // propagation so they don't fall through to the global window shortcuts
@@ -14265,7 +14408,12 @@ const initBpmNetworking = async () => {
 };
 
 const updateTransportUI = () => {
-  transportPauseButton.textContent = isPlaying ? 'Pause' : 'Resume';
+  // Icon-only transport: ❚❚ while playing (click to pause), ▶ while paused.
+  transportPauseButton.innerHTML = isPlaying
+    ? '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  transportPauseButton.title = isPlaying ? 'Pause visuals (Shift+Space)' : 'Resume visuals (Shift+Space)';
+  transportPauseButton.setAttribute('aria-label', isPlaying ? 'Pause' : 'Resume');
   // PAUSED is not a quiet state: it freezes ALL audio analysis (BPM,
   // detection, visuals) and an ambiguous empty BPM field reads as a bug
   // mid-set. Pulse the transport + mark the BPM field.

@@ -589,6 +589,8 @@ export interface VisualSynthProject {
   scenes: SceneConfig[];
   modMatrix: ModConnection[];
   midiMappings: MidiMapping[];
+  /** Live-mode scene pads (scene ids, null = empty). See projectSchema. */
+  livePads?: Array<string | null>;
   activeSceneId: string;
   activeModeId: string;
   activeEngineId: string;

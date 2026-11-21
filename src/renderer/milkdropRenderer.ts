@@ -752,6 +752,69 @@ ${nativePrelude ? `\n${nativePrelude}\n` : ''}
 };
 
 
+
+/** See the feedback-topology note in render(): MilkDrop-exact comp is opt-in. */
+const COMP_DISPLAY_ONLY = false;
+
+/**
+ * MilkDrop per-vertex MOTION warp for custom warp shaders.
+ *
+ * In MilkDrop a warp shader's `uv` arrives already moved by the per-frame
+ * motion variables (zoom/zoomexp, sx/sy, warp, rot, cx/cy, dx/dy). The
+ * translated shaders here start from `vec2 uv = vUv;` — the raw grid — so for
+ * every preset with a custom warp shader (and no per-pixel code) the per-frame
+ * motion was computed and uploaded but never applied: the feedback trails
+ * stopped moving and the scene froze once they saturated (02_MW_new02A1
+ * froze ~5s in, 2026-11-20). Inject the motion warp (butterchurn's port of
+ * MilkDrop's vertex math, driven by the live uBase* uniforms) and start `uv`
+ * from it. Comp shaders correctly keep the unwarped uv.
+ */
+const MOTION_WARP_UNIFORMS: Array<[string, string]> = [
+  ['uTime', 'float'], ['uBaseZoom', 'float'], ['uBaseZoomexp', 'float'], ['uBaseRot', 'float'],
+  ['uBaseCx', 'float'], ['uBaseCy', 'float'], ['uBaseDx', 'float'], ['uBaseDy', 'float'],
+  ['uBaseSx', 'float'], ['uBaseSy', 'float'], ['uBaseWarp', 'float'],
+  ['uWarpAnimSpeed', 'float'], ['uWarpScale', 'float']
+];
+const MOTION_WARP_FUNCTION = `
+vec2 mdMotionWarpUv(vec2 uv0) {
+  vec2 p = uv0 * 2.0 - 1.0;
+  float rad = length(p) * 0.7071;
+  float zoom2 = pow(max(uBaseZoom, 0.0001), pow(max(uBaseZoomexp, 0.0001), rad * 2.0 - 1.0));
+  vec2 uv = p * 0.5 / zoom2 + 0.5;
+  vec2 c = vec2(uBaseCx, uBaseCy);
+  uv = (uv - c) / vec2(max(abs(uBaseSx), 0.0001) * sign(uBaseSx + 1e-9), max(abs(uBaseSy), 0.0001) * sign(uBaseSy + 1e-9)) + c;
+  if (uBaseWarp != 0.0) {
+    float wt = uTime * uWarpAnimSpeed;
+    float ws = 1.0 / max(uWarpScale, 0.0001);
+    vec4 f = vec4(11.68 + 4.0 * cos(uTime * 1.413 + 10.0), 8.77 + 3.0 * cos(uTime * 1.113 + 7.0),
+                  10.54 + 3.0 * cos(uTime * 1.233 + 3.0), 11.49 + 4.0 * cos(uTime * 0.933 + 5.0));
+    uv.x += uBaseWarp * 0.0035 * sin(wt * 0.333 + ws * (p.x * f.x - p.y * f.w));
+    uv.y += uBaseWarp * 0.0035 * cos(wt * 0.375 - ws * (p.x * f.z + p.y * f.y));
+    uv.x += uBaseWarp * 0.0035 * cos(wt * 0.753 - ws * (p.x * f.y - p.y * f.z));
+    uv.y += uBaseWarp * 0.0035 * sin(wt * 0.825 + ws * (p.x * f.x + p.y * f.w));
+  }
+  vec2 d = uv - c;
+  float cr = cos(uBaseRot);
+  float sr = sin(uBaseRot);
+  uv = vec2(d.x * cr - d.y * sr, d.x * sr + d.y * cr) + c;
+  uv -= vec2(uBaseDx, uBaseDy);
+  return uv;
+}
+`;
+export const injectMotionWarp = (source: string): string => {
+  const mainIdx = source.search(/void\s+main\s*\(\s*\)\s*\{/);
+  if (mainIdx < 0) return source;
+  const startLine = /vec2\s+uv\s*=\s*vUv\s*;/;
+  const afterMain = source.slice(mainIdx);
+  if (!startLine.test(afterMain) || source.includes('mdMotionWarpUv')) return source;
+  const decls = MOTION_WARP_UNIFORMS
+    .filter(([name]) => !new RegExp(`uniform\\s+\\w+\\s+${name}\\b`).test(source))
+    .map(([name, type]) => `uniform ${type} ${name};`)
+    .join('\n');
+  const before = source.slice(0, mainIdx);
+  return `${before}${decls}\n${MOTION_WARP_FUNCTION}\n${afterMain.replace(startLine, 'vec2 uv = mdMotionWarpUv(vUvOriginal);')}`;
+};
+
 /** Fallback warp shader when custom shader fails to compile */
 const createFallbackWarpShader = (): string => `#version 300 es
 precision highp float;
@@ -811,6 +874,13 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
   
   let mainFbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   let warpFbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
+  // Comp output (DISPLAY only). MilkDrop's comp shader never feeds back: the
+  // feedback state is the warp pass + shapes/waves (mainFbo); comp renders the
+  // displayed image from it. Rendering comp into mainFbo made gain/brightening
+  // comps (e.g. `ret *= 1.8`) compound every frame — scenes flooded to one
+  // flat colour and froze within seconds (01_MW_new30z_ende 2, 2026-11-20).
+  let compFbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
+  let displayFbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   let blur1Fbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   let blur2Fbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
   let blur3Fbo: { fbo: WebGLFramebuffer; texture: WebGLTexture } | null = null;
@@ -994,7 +1064,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (width === lastWidth && height === lastHeight && mainFbo) return;
 
     // Delete old framebuffers to prevent leaks
-    [mainFbo, warpFbo, blur1Fbo, blur2Fbo, blur3Fbo, blur1TempFbo, blur2TempFbo, blur3TempFbo].forEach(fbo => {
+    [mainFbo, warpFbo, compFbo, blur1Fbo, blur2Fbo, blur3Fbo, blur1TempFbo, blur2TempFbo, blur3TempFbo].forEach(fbo => {
       if (fbo) {
         untrackFramebuffer(fbo.fbo);
         untrackTexture(fbo.texture);
@@ -1003,8 +1073,10 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       }
     });
 
+    displayFbo = null; // pointed at a framebuffer just deleted above
     mainFbo = createFramebuffer(gl, width, height, trackFramebuffer, trackTexture);
     warpFbo = createFramebuffer(gl, width, height, trackFramebuffer, trackTexture);
+    compFbo = createFramebuffer(gl, width, height, trackFramebuffer, trackTexture);
     blur1Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2)), trackFramebuffer, trackTexture);
     blur2Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 4)), Math.max(1, Math.floor(height / 4)), trackFramebuffer, trackTexture);
     blur3Fbo = createFramebuffer(gl, Math.max(1, Math.floor(width / 8)), Math.max(1, Math.floor(height / 8)), trackFramebuffer, trackTexture);
@@ -1093,6 +1165,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
         console.warn('[MilkDrop] Failed to patch warp shader, using raw source:', err);
         patchedWarp = shaderData.warp;
       }
+      patchedWarp = injectMotionWarp(patchedWarp);
       const warpPatchedDiagnostics = analyzeMilkwaveShaderSource({
         source: patchedWarp,
         pass: 'warp',
@@ -1675,10 +1748,23 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       }
     }
 
-    // Always render comp to mainFbo (for feedback loop), then blit to screen if needed.
+    // Feedback topology. MilkDrop: feedback = warp + shapes/waves, comp is
+    // display-only. Tried as the default 2026-11-20: it fixed gain-runaway
+    // presets (01_MW_new30z flooding) but left 44/86 scenes of the user's show
+    // dark/static — the library was screened and tuned on comp-feedback and
+    // other pipeline differences rely on it. Default stays comp-feedback;
+    // COMP_DISPLAY_ONLY keeps the MilkDrop path for a future per-preset switch.
+    const compFeedsBack = !COMP_DISPLAY_ONLY && Boolean(compProgram);
+    if (warpFbo && mainFbo && !compFeedsBack) {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, warpFbo.fbo);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, mainFbo.fbo);
+      gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    }
     // Comp is another fullscreen pass; the shape/wave renderers above may have
     // left BLEND enabled, so disable defensively before drawing the composite.
-    gl.bindFramebuffer(gl.FRAMEBUFFER, mainFbo?.fbo ?? null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, (compFeedsBack ? mainFbo?.fbo : compFbo?.fbo) ?? null);
     gl.viewport(0, 0, width, height);
     gl.disable(gl.BLEND);
 
@@ -1709,18 +1795,12 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
       gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.disableVertexAttribArray(posLoc);
-    } else if (warpFbo && mainFbo) {
-      // No comp shader — copy warp output directly to mainFbo for feedback
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, warpFbo.fbo);
-      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, mainFbo.fbo);
-      gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
-      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     }
+    displayFbo = compProgram && compFbo && !compFeedsBack ? compFbo : mainFbo;
 
-    // Blit mainFbo to screen if needed
-    if (outputToScreen && mainFbo) {
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, mainFbo.fbo);
+    // Blit the displayed image to screen if needed
+    if (outputToScreen && displayFbo) {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, displayFbo.fbo);
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
       gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
@@ -1778,6 +1858,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     gl.uniform1f(loc('uBaseSx'), customVars['sx'] ?? Number(p.sx ?? 1));
     gl.uniform1f(loc('uBaseSy'), customVars['sy'] ?? Number(p.sy ?? 1));
     gl.uniform1f(loc('uBaseWarp'), customVars['warp'] ?? Number(p.warp ?? 0));
+    gl.uniform1f(loc('uWarpAnimSpeed'), Number(p.fWarpAnimSpeed ?? 1));
+    gl.uniform1f(loc('uWarpScale'), Number(p.fWarpScale ?? 1));
     // EEL-driven decay (per-frame `decay` writes now take effect; was baked
     // at compile time from fDecay).
     gl.uniform1f(loc('uBaseDecay'), Math.min(1.0, Math.max(0.1, customVars['decay'] ?? Number(p.fDecay ?? 0.98))));
@@ -1823,8 +1905,9 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     });
   };
 
+  /** The DISPLAYED image (comp output, or the feedback frame when no comp). */
   const getMainTexture = (): WebGLTexture | null => {
-    return mainFbo?.texture ?? null;
+    return displayFbo?.texture ?? mainFbo?.texture ?? null;
   };
 
   const clear = () => {
@@ -1840,7 +1923,7 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     if (noiseVolLqTexture) { untrackTexture(noiseVolLqTexture); gl.deleteTexture(noiseVolLqTexture); }
     if (noiseVolHqTexture) { untrackTexture(noiseVolHqTexture); gl.deleteTexture(noiseVolHqTexture); }
 
-    [mainFbo, warpFbo, blur1Fbo, blur2Fbo, blur3Fbo, blur1TempFbo, blur2TempFbo, blur3TempFbo].forEach(fbo => {
+    [mainFbo, warpFbo, compFbo, blur1Fbo, blur2Fbo, blur3Fbo, blur1TempFbo, blur2TempFbo, blur3TempFbo].forEach(fbo => {
       if (fbo) {
         untrackFramebuffer(fbo.fbo);
         untrackTexture(fbo.texture);
@@ -1868,6 +1951,8 @@ export const createMilkDropRenderer = (options: MilkDropRendererOptions) => {
     noiseVolHqTexture = null;
     mainFbo = null;
     warpFbo = null;
+    compFbo = null;
+    displayFbo = null;
     blur1Fbo = null;
     blur2Fbo = null;
     blur3Fbo = null;

@@ -910,6 +910,9 @@ export const projectSchema = z.object({
   scenes: z.array(sceneSchema).min(1),
   modMatrix: z.array(modConnectionSchema).default([]),
   midiMappings: z.array(midiMappingSchema).default([]),
+  // Live-mode scene pads: up to 16 scene ids (null = empty pad). Pads CUT to
+  // scenes already in the show — they never replace or clear the timeline.
+  livePads: z.array(z.string().nullable()).max(16).default([]),
   activeSceneId: z.string().default(''),
   // Visual modes were removed from the UI (palette + engine styling replaced
   // them). The field is kept so older projects load unchanged; new projects

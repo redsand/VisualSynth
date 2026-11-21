@@ -130,6 +130,12 @@ export const renderSceneTimelineItems = ({
     item.appendChild(meta);
     item.appendChild(progress);
     item.appendChild(remove);
+    // Drag a scene card onto a Live scene pad to assign it.
+    item.draggable = true;
+    item.addEventListener('dragstart', (event) => {
+      event.dataTransfer?.setData('application/x-vs-scene', scene.id);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+    });
     item.addEventListener('click', () => onSelect(scene.id, scene.name));
     item.addEventListener('dblclick', () => onActivate(scene.id, scene.name));
     item.addEventListener('contextmenu', (event) => {

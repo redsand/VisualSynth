@@ -43,9 +43,9 @@
               <span id="transport-bpm-state" class="transport-state transport-state-learning">Learning</span>
               <button type="button" id="transport-tap">Tap</button>
               <button type="button" id="transport-detect" class="icon-button" title="Detect song now (asks Serato first, then listens)" aria-label="Detect song"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="7"/><path d="M21 21l-5.2-5.2"/><path d="M9.5 13.2V7.6l3.6-1v5.2"/><circle cx="8.4" cy="13.2" r="1.1" fill="currentColor"/><circle cx="12" cy="11.8" r="1.1" fill="currentColor"/></svg></button>
-              <button type="button" id="transport-pause">Pause</button>
+              <button type="button" id="transport-pause" class="icon-button" aria-label="Pause"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
             </div>
-          <button type="button" id="output-route" class="output-route-button" aria-pressed="false" title="Open the output window (mirrors the preview)">Output</button>
+          <button type="button" id="output-route" class="output-route-button" aria-pressed="false" title="Open the output window (mirrors the preview)" aria-label="Open output"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
           <div class="visual-mode-group">
             <label class="visual-mode-route">
               Engine
@@ -183,18 +183,13 @@
               <div class="output-hint" style="margin-top:4px;font-size:10px;opacity:0.6;">Keys: 1-0 pads 1-10 | Q-P pads 11-20 | Shift+Space play/stop playlist</div>
             </div>
             <div class="panel-block">
-              <h3>Preset Pads</h3>
-              <div class="scene-row">
-                <label class="scene-inline">
-                  Sort
-                  <select id="live-sort">
-                    <option value="name">Name</option>
-                    <option value="bpm">BPM</option>
-                    <option value="energy">Energy</option>
-                    <option value="pad">MIDI Pad</option>
-                  </select>
-                </label>
+              <h3>Scene Pads</h3>
+              <div class="scene-row live-pad-actions">
+                <button type="button" id="live-pads-fill" title="Fill empty pads with scenes from the show, in timeline order">Fill from show</button>
+                <button type="button" id="live-pads-clear" title="Empty all 16 pads (scenes stay in the show)">Clear pads</button>
+                <select id="live-sort" class="hidden" aria-hidden="true"><option value="name">Name</option></select>
               </div>
+              <p class="live-pad-hint">Drag a scene card onto a pad, or right-click a pad. Pads cut to scenes in this show — the timeline is never changed.</p>
               <div id="live-pad-grid" class="live-pad-grid"></div>
             </div>
             <div class="panel-block">

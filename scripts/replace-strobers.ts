@@ -164,12 +164,25 @@ if (mode === 'pool') {
   if (!out) throw new Error('--out= required');
   const size = Number(arg('size') ?? 60);
   const used = taken(targets);
-  const pool = collectCandidates()
+  // --list=<file>: exact preset basenames (one per line) — e.g. presets whose
+  // batch-report status is 'working' — instead of the report/library scan.
+  // --skip=<n>: skip the first n unscreened library presets (next batch).
+  const listFile = arg('list');
+  const skipUnscreened = Number(arg('skip') ?? 0);
+  const pool = (listFile
+    ? fs.readFileSync(listFile, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean).map((b) => {
+        const presetPath = path.join(PRESET_DIR, b);
+        let name = b;
+        try { name = JSON.parse(fs.readFileSync(presetPath, 'utf8')).metadata?.name || b; } catch { /* keep basename */ }
+        return { presetPath, name, score: 1, group: groupOf(name) } as Candidate;
+      })
+    : collectCandidates())
     .filter((c) => !used.paths.has(path.basename(c.presetPath)) && !used.names.has(nameKey(c.name)))
     .sort((a, b) => b.score - a.score);
   // Fill past the verified reports with UNSCREENED certified-safe presets —
   // the flash audit v2 run on the pool also rejects black/static/broken ones.
-  if (pool.length < size) {
+  if (!listFile && pool.length < size) {
+    let skipped = 0;
     const have = new Set(pool.map((c) => c.presetPath));
     const all = fs.readdirSync(PRESET_DIR).filter((f) => f.endsWith('.json') && f.includes('milkwave'));
     // Deterministic stride through the library (not just the alphabetical head).
@@ -188,6 +201,7 @@ if (mode === 'pool') {
       if (!preset?.metadata || cert === 'degraded' || cert === 'archived') continue;
       const name = preset.metadata.name || path.basename(f, '.json');
       if (used.names.has(nameKey(name))) continue;
+      if (skipped < skipUnscreened) { skipped += 1; continue; }
       pool.push({ presetPath, name, score: 0, group: groupOf(name) });
     }
   }
@@ -213,8 +227,9 @@ if (mode === 'pool') {
   const flashFile = arg('pool-flash');
   const strobers = new Set((arg('strobers') ?? '').split(',').map((s) => s.trim()).filter(Boolean));
   if (!poolFile || !flashFile || strobers.size === 0) throw new Error('--pool=, --pool-flash=, --strobers= required');
-  const pool = readProject(poolFile).project.scenes;
-  const flash = JSON.parse(fs.readFileSync(flashFile, 'utf8')) as Array<{
+  // Comma lists: several pools / screening results merged (first name wins).
+  const pool = poolFile.split(',').flatMap((f) => readProject(f).project.scenes);
+  const flash = flashFile.split(',').flatMap((f) => JSON.parse(fs.readFileSync(f, 'utf8'))) as Array<{
     name: string; perSec60: number; meanLuma?: number; motion?: number; compile?: { warp: string | null; comp: string | null } | null;
   }>;
   // Clean = no strobing AND visible AND moving AND shaders compiled (a

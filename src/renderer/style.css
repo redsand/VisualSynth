@@ -3716,15 +3716,9 @@ body[data-mode='matrix'] .safe-mode {
   color: #ff6b9d;
 }
 
-/* Live mode locks the ENGINE picker (no accidental engine swaps mid-set).
-   Scoped to the engine label only: the same .visual-mode-group container
-   also holds the project Open/Save quick actions, which locking the whole
-   group dimmed and disabled as collateral — a DJ must be able to save. */
-body[data-mode="live"] .engine-select-group,
-body[data-mode="live"] .visual-mode-group .visual-mode-route {
-  opacity: 0.4;
-  pointer-events: none;
-}
+/* The Engine picker stays live in Live mode: engines (and palettes) are
+   performance controls — the DJ changes them mid-set, by mouse or by the MIDI
+   Engine Dial. (It used to be dimmed + click-locked here; 2026-11-20.) */
 
 .playlist-entry {
   display: flex;
@@ -3873,3 +3867,16 @@ body[data-mode="live"] .visual-mode-group .visual-mode-route {
 .midi-quick-setup-label { font-size: 12px; opacity: 0.75; }
 .midi-quick-setup { display: flex; gap: 6px; flex-wrap: wrap; }
 .midi-quick-setup button { font-size: 12px; padding: 3px 9px; }
+
+/* Live scene pads (16): scenes from the show; never replace the project. */
+.live-pad-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.live-pad-hint { font-size: 11px; opacity: 0.6; margin: 4px 0 8px; }
+.live-pad { position: relative; }
+.live-pad-empty { opacity: 0.45; border-style: dashed; }
+.live-pad-drop { outline: 2px solid #f5b942; outline-offset: -2px; }
+.live-pad-clear { position: absolute; top: 2px; right: 5px; font-size: 11px; opacity: 0; cursor: pointer; }
+.live-pad:hover .live-pad-clear { opacity: 0.8; }
+.live-pad-picker {
+  position: fixed; z-index: 50; min-width: 220px; max-width: 320px;
+  background: #0f1724; color: #e6eefc; border: 1px solid #2b3d55; border-radius: 8px; padding: 4px;
+}

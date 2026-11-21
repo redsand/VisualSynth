@@ -11,9 +11,12 @@ import puppeteer from 'puppeteer';
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
   await page.evaluateOnNewDocument(() => {
-    const input: any = { id: 'fake-pad', name: 'Fake 16-pad + dial', type: 'input', onmidimessage: null };
+    const input: any = { id: 'fake-pad', name: 'JP-1', type: 'input', onmidimessage: null };
+    const other: any = { id: 'other-pad', name: 'Other Controller', type: 'input', onmidimessage: null };
     (window as any).__fakeMidi = input;
-    (navigator as any).requestMIDIAccess = async () => ({ inputs: new Map([['fake-pad', input]]), outputs: new Map(), onstatechange: null, sysexEnabled: false });
+    (window as any).__otherMidi = other;
+    try { localStorage.removeItem('vs.midiProfiles.v1'); } catch { /* fresh profile store */ }
+    (navigator as any).requestMIDIAccess = async () => ({ inputs: new Map([['fake-pad', input], ['other-pad', other]]), outputs: new Map(), onstatechange: null, sysexEnabled: false });
     (window as any).visualSynth = { listPresets: async () => [], onCloseRequested: () => {}, autosaveProject: async () => ({ saved: false }), closeNodeMidi: async () => {} };
   });
   await page.goto('file://' + path.join(process.cwd(), 'dist/renderer/index.html'), { waitUntil: 'load' });
@@ -65,6 +68,15 @@ import puppeteer from 'puppeteer';
     const p1 = proj().palettes.findIndex((p: any) => p.id === proj().activePaletteId);
     out.paletteDialAbsolute = { from: p0, to: p1 };
     out.mappings = proj().midiMappings.length;
+    // Per-device profiles: a second controller gets its own (seeded) profile;
+    // clearing it must not touch JP-1's; reconnecting JP-1 restores its layout.
+    sel.value = 'other-pad'; (document.getElementById('toggle-midi') as HTMLButtonElement).click(); await wait(200);
+    w.__visualSynthCaptureApi.getCurrentProject().midiMappings.length = 0;
+    proj().midiMappings = [];
+    (document.querySelector('#midi-map-add') as HTMLButtonElement | null)?.click(); await wait(100);
+    const otherCount = JSON.parse(localStorage.getItem('vs.midiProfiles.v1') ?? '{}')['Other Controller']?.length ?? null;
+    sel.value = 'fake-pad'; (document.getElementById('toggle-midi') as HTMLButtonElement).click(); await wait(200);
+    out.profiles = { otherProfileMappings: otherCount, jp1Restored: proj().midiMappings.length, stored: Object.keys(JSON.parse(localStorage.getItem('vs.midiProfiles.v1') ?? '{}')) };
     return out;
   });
   console.log(JSON.stringify(r, null, 1));

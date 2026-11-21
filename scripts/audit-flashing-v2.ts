@@ -42,6 +42,11 @@ if (!PROJECT_PATH) throw new Error('--project= required');
 const ONLY = opt('only')?.split(',').filter(Boolean) ?? null;
 const SECONDS = Number(opt('seconds', '8'));
 const JSON_OUT = opt('json');
+// --late=<s>: also sample a LATE window this many seconds after the scene
+// starts (catches scenes that move at first, then freeze/flood/die).
+const LATE = Number(opt('late', '0'));
+// --shard=i/n: audit every n-th scene starting at i (parallel runs).
+const SHARD = (opt('shard') ?? '0/1').split('/').map(Number);
 
 const GW = 24;
 const GH = 16;
@@ -138,7 +143,8 @@ const main = async () => {
   const project = JSON.parse(fs.readFileSync(PROJECT_PATH, 'utf8'));
   const proj = project.project ?? project;
   const scenes = proj.scenes.filter((s: any) =>
-    !ONLY || ONLY.some((sub) => String(s.name).toLowerCase().includes(sub.toLowerCase())));
+    !ONLY || ONLY.some((sub) => String(s.name).toLowerCase().includes(sub.toLowerCase())))
+    .filter((_: any, i: number) => i % SHARD[1] === SHARD[0]);
   console.log(`flash-auditing v2: ${scenes.length} scenes, ${SECONDS}s each, per-frame ${GW}x${GH}`);
 
   // Hang/crash-capable presets exist in the unscreened pool: every scene step
@@ -196,7 +202,8 @@ const main = async () => {
     try {
     await withTimeout(page.evaluate((id: string) => (window as any).__visualSynthCaptureApi.applyScene(id), scene.id), 20000);
     await new Promise((r) => setTimeout(r, 2500));
-    const frames: Frame[] = await withTimeout(page.evaluate((secs: number, gw: number, gh: number) => new Promise<any>((resolve) => {
+    const sceneStart = Date.now() - 2500;
+    const capture = (secs: number): Promise<Frame[]> => withTimeout(page.evaluate((secs: number, gw: number, gh: number) => new Promise<any>((resolve) => {
       const src = document.getElementById('gl-canvas') as HTMLCanvasElement;
       const tmp = document.createElement('canvas');
       tmp.width = gw; tmp.height = gh;
@@ -212,7 +219,8 @@ const main = async () => {
         if (t - t0 < secs * 1000) requestAnimationFrame(tick); else resolve(out);
       };
       requestAnimationFrame(tick);
-    }), SECONDS, GW, GH), (SECONDS + 25) * 1000);
+    }), secs, GW, GH), (secs + 25) * 1000);
+    const frames = await capture(SECONDS);
     // Visibility + health (for screening NEW scenes, not just strobing ones):
     // mean luma, frame-to-frame motion, and the MilkDrop compile status.
     let lumaSum = 0, motionSum = 0;
@@ -228,6 +236,37 @@ const main = async () => {
     }
     const meanLuma = frames.length ? lumaSum / frames.length : 0;
     const motion = frames.length > 1 ? motionSum / (frames.length - 1) : 0;
+    const stats = (fs: Frame[]) => {
+      let l = 0, m = 0;
+      for (let i = 0; i < fs.length; i++) {
+        const px = fs[i].px; let ll = 0, dd = 0;
+        for (let j = 0; j < px.length; j += 3) {
+          ll += (px[j] + px[j + 1] + px[j + 2]) / 3;
+          if (i > 0) dd += Math.abs(px[j] - fs[i - 1].px[j]) + Math.abs(px[j + 1] - fs[i - 1].px[j + 1]);
+        }
+        l += ll / (px.length / 3); if (i > 0) m += dd / (px.length / 3) / 2;
+      }
+      return { luma: fs.length ? l / fs.length : 0, motion: fs.length > 1 ? m / (fs.length - 1) : 0 };
+    };
+    // Visual fingerprint for duplicate detection: per-cell mean colour and
+    // per-cell temporal spread over the early window (an 8x? coarse grid).
+    const fingerprint = (fs: Frame[]) => {
+      const cells = GW * GH;
+      const mean = new Array(cells * 3).fill(0), sq = new Array(cells * 3).fill(0);
+      for (const f of fs) for (let j = 0; j < cells * 3; j++) { mean[j] += f.px[j]; sq[j] += f.px[j] * f.px[j]; }
+      const n = Math.max(1, fs.length);
+      return { mean: mean.map((v) => Math.round(v / n)), std: sq.map((v, j) => Math.round(Math.sqrt(Math.max(0, v / n - (mean[j] / n) ** 2)))) };
+    };
+    let late: { luma: number; motion: number } | null = null;
+    let lateFp: ReturnType<typeof fingerprint> | null = null;
+    if (LATE > 0) {
+      const waitMs = LATE * 1000 - (Date.now() - sceneStart);
+      if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+      const lateFrames = await capture(3);
+      late = stats(lateFrames);
+      lateFp = fingerprint(lateFrames);
+    }
+    const fp = fingerprint(frames);
     const compile = await withTimeout(page.evaluate(() => {
       const d = (window as any).__visualSynthCaptureApi.getDiagnostics?.() ?? {};
       const r = d.milkdropCompileReport ?? d.milkdrop?.compileReport ?? null;
@@ -242,9 +281,11 @@ const main = async () => {
     const flagged = worst.perSec > FLAG_FLASHES_PER_SEC;
     const flagged60 = !flagged && perSec60 > FLAG_FLASHES_PER_SEC;
     results.push({ name: scene.name, flagged, flagged60, fps: Math.round(fps), perSec: worst.perSec, perSec60, region: worst.region, kind: worst.kind,
-      meanLuma: Math.round(meanLuma), motion: +motion.toFixed(2), compile } as any);
+      meanLuma: Math.round(meanLuma), motion: +motion.toFixed(2), compile,
+      lateLuma: late ? Math.round(late.luma) : null, lateMotion: late ? +late.motion.toFixed(2) : null,
+      fp, lateFp, presetPath: scene.presetPath ?? null } as any);
     console.log(`${flagged ? 'FLAG  ' : flagged60 ? 'FLAG60' : '   .  '} ${String(scene.name).slice(0, 44).padEnd(44)} ` +
-      `${String(worst.perSec).padStart(2)}/s (${String(perSec60).padStart(2)}/s@60) ${worst.kind || '-'} ${worst.region || '-'} fps=${Math.round(fps)} luma=${Math.round(meanLuma)} motion=${motion.toFixed(1)} compile=${compile ? `${compile.warp}/${compile.comp}` : '?'}`);
+      `${String(worst.perSec).padStart(2)}/s (${String(perSec60).padStart(2)}/s@60) ${worst.kind || '-'} ${worst.region || '-'} fps=${Math.round(fps)} luma=${Math.round(meanLuma)} motion=${motion.toFixed(1)}${late ? ` late:luma=${Math.round(late.luma)} motion=${late.motion.toFixed(2)}` : ''} compile=${compile ? `${compile.warp}/${compile.comp}` : '?'}`);
     } catch (error) {
       console.log(`CRASH  ${String(scene.name).slice(0, 44).padEnd(44)} ${String((error as Error).message).slice(0, 80)} — relaunching`);
       results.push({ name: scene.name, flagged: true, flagged60: false, fps: 0, perSec: 99, perSec60: 99, region: 'crash', kind: 'crash', crashed: true } as any);
