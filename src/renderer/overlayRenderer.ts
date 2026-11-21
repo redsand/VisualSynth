@@ -189,12 +189,39 @@ export const createOverlayRenderer = (opts: OverlayRendererOptions) => {
     else canvas.style.cursor = 'default';
   });
 
+  // Per-frame cost matters here — draw() runs every frame in both windows.
+  // Assigning canvas.width/height (even to the same value) reallocates the
+  // GPU backing store, and the text path used to build a fresh canvas per
+  // overlay per frame; both were measurable with the output at 2560x1440.
+  let drewSomethingLastFrame = true;
+  const textCache = new Map<string, HTMLCanvasElement>();
+  const cachedTextCanvas = (o: OverlayConfig, w: number, h: number) => {
+    const key = [o.id, o.text, o.fontSize, o.fontWeight, o.fontFamily, o.fontColor, o.textShadow, w, h].join('|');
+    let c = textCache.get(key);
+    if (!c) {
+      for (const k of textCache.keys()) if (k.startsWith(`${o.id}|`)) textCache.delete(k);
+      c = renderTextCanvas(o, w, h);
+      textCache.set(key, c);
+    }
+    return c;
+  };
+
   const draw = () => {
-    canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1);
-    canvas.height = canvas.clientHeight * (window.devicePixelRatio || 1);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+    const targetH = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+    const resized = canvas.width !== targetW || canvas.height !== targetH;
+    if (resized) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
 
     const overlays = getOverlays();
+    const anyEnabled = overlays.some((o) => o.enabled);
+    if (!anyEnabled && !drewSomethingLastFrame && !resized) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drewSomethingLastFrame = anyEnabled;
+
     for (const o of overlays) {
       if (!o.enabled) continue;
       // Skip FX-included overlays from this canvas (they'd be in the GL pipeline)
@@ -216,7 +243,7 @@ export const createOverlayRenderer = (opts: OverlayRendererOptions) => {
           ctx.drawImage(img, r.x, r.y, r.w, r.h);
         }
       } else if (o.type === 'text' && o.text) {
-        const textCanvas = renderTextCanvas(o, Math.max(1, Math.round(r.w)), Math.max(1, Math.round(r.h)));
+        const textCanvas = cachedTextCanvas(o, Math.max(1, Math.round(r.w)), Math.max(1, Math.round(r.h)));
         ctx.drawImage(textCanvas, r.x, r.y, r.w, r.h);
       }
 

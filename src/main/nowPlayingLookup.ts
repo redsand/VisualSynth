@@ -813,6 +813,26 @@ export const identifyNowPlaying = async (
   }
 };
 
+// DJ edits carry pool/edit noise in their titles — "(Clean)", "[Intro
+// Clean]", " - Tall Boys Up Edit", "Lincoln Baio Halloween Remix", "ft. X" —
+// which breaks catalog search: measured on a live Serato set (2026-11-20),
+// raw titles found 2 of 6 covers plus one WRONG cover (Nelly's "Intro"
+// instead of "Country Grammar"); cleaned titles found 6 of 6. An edit's
+// audience-facing identity is the song it edits, so search for that.
+const EDIT_WORDS = /\b(clean|dirty|explicit|intro|outro|edit|remix|mix|vip|extended|redrum|bootleg|mashup|transition|acapella|instrumental|version|quick hit|hype|short)\b/i;
+export const cleanTrackForSearch = (
+  artist?: string,
+  title?: string
+): { artist?: string; title?: string } => {
+  let t = (title ?? '').replace(/[([][^)\]]*[)\]]/g, ' ');
+  const dash = t.search(/\s+-\s+/);
+  if (dash > 0 && EDIT_WORDS.test(t.slice(dash))) t = t.slice(0, dash);
+  const a = (artist ?? '').split(/\s+(?:ft\.?|feat\.?|featuring|&|x|vs\.?)\s+/i)[0];
+  const ct = t.replace(/\s{2,}/g, ' ').trim();
+  const ca = a.trim();
+  return { artist: ca || undefined, title: ct || undefined };
+};
+
 export const enrichNowPlayingArtwork = async (
   request: NowPlayingArtworkLookupRequest,
   fetchImpl: typeof fetch = fetch
@@ -823,9 +843,16 @@ export const enrichNowPlayingArtwork = async (
       return musicBrainzResult;
     }
 
-    const itunesResult = await lookupItunesArtwork(request, fetchImpl);
-    if (itunesResult?.artworkUrl || itunesResult?.artistImageUrl) {
-      return itunesResult;
+    // Cleaned query first (edit/pool noise stripped, album dropped — DJ-pool
+    // album fields are often the pool name), raw query as the backup.
+    const cleaned = cleanTrackForSearch(request.artist, request.title);
+    const cleanedRequest = { ...request, artist: cleaned.artist, title: cleaned.title, album: undefined };
+    const changed = cleaned.artist !== request.artist || cleaned.title !== request.title || Boolean(request.album);
+    for (const attempt of changed ? [cleanedRequest, request] : [request]) {
+      const itunesResult = await lookupItunesArtwork(attempt, fetchImpl);
+      if (itunesResult?.artworkUrl || itunesResult?.artistImageUrl) {
+        return itunesResult;
+      }
     }
 
     return {};

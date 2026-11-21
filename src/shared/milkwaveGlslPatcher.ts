@@ -3756,7 +3756,7 @@ const injectMissingHelpers = (source: string): string => {
 /** Exported for debugging; not part of public API. */
 export const _preprocess = preprocess;
 
-export const patchMilkDropGlsl = (source: string): string => {
+const patchMilkDropGlslUncached = (source: string): string => {
   if (!source || !source.includes('#version 300 es')) return source;
 
   // Phase 1: Minimal string preprocessing (only what prevents parsing)
@@ -3774,5 +3774,25 @@ export const patchMilkDropGlsl = (source: string): string => {
   // `( vec2(...)`. A literal-first group like `(1.0/uAspect.x)` gets no such
   // space. This space is semantically inert in GLSL and is the generator's
   // consistent output, so callers/tests that assert these forms must expect it.
+  return out;
+};
+
+// The patch is a pure function of its source, but it parses and rewrites the
+// whole shader AST (~200ms for a large preset) and runs on EVERY scene cut,
+// blocking the render loop and the output broadcast. Cache by source text.
+const PATCH_CACHE_MAX = 64;
+const patchCache = new Map<string, string>();
+export const patchMilkDropGlsl = (source: string): string => {
+  const hit = patchCache.get(source);
+  if (hit !== undefined) {
+    patchCache.delete(source); // refresh LRU position
+    patchCache.set(source, hit);
+    return hit;
+  }
+  const out = patchMilkDropGlslUncached(source);
+  patchCache.set(source, out);
+  if (patchCache.size > PATCH_CACHE_MAX) {
+    patchCache.delete(patchCache.keys().next().value as string);
+  }
   return out;
 };

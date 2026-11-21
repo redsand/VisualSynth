@@ -25,10 +25,15 @@ export type {
   RenderState,
 } from './renderState';
 
-export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement) => {
-  const dpr = window.devicePixelRatio || 1;
-  const width = Math.floor(canvas.clientWidth * dpr);
-  const height = Math.floor(canvas.clientHeight * dpr);
+/**
+ * Size the drawing buffer to the element's on-screen size times `renderScale`:
+ * < 1 renders fewer pixels than displayed (the output window's 1080p cap);
+ * > 1 renders more (the preview rendering at the mirrored output's resolution).
+ */
+export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement, renderScale = 1) => {
+  const dpr = (window.devicePixelRatio || 1) * Math.min(4, Math.max(0.25, renderScale));
+  const width = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  const height = Math.max(1, Math.floor(canvas.clientHeight * dpr));
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;

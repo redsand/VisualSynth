@@ -679,6 +679,7 @@ let frameCount = 0;
 // (in the preview renderer) broadcasts its cap; the output paces to match
 // so both windows yield the GPU together.
 let previewFpsCap = 0;
+const OUTPUT_MAX_RENDER_WIDTH = 1920;
 let lastGovernoredRenderMs = 0;
 let lastVariantMismatchKey = '';
 
@@ -689,7 +690,13 @@ const render = (time: number) => {
   }
   lastGovernoredRenderMs = time;
   const now = performance.now();
-  const didResize = resizeCanvasToDisplaySize(canvas);
+  // Cap the output's render resolution at 1080p width: a 1280x720 window on
+  // a Retina display otherwise renders 2560x1440 (3.7 Mpx/frame), which with
+  // Serato DJ sharing the GPU held the output at ~24 fps (2026-11-20). A
+  // 1080p projector is unaffected (scale stays 1).
+  const nativeWidth = canvas.clientWidth * (window.devicePixelRatio || 1);
+  const outputRenderScale = nativeWidth > OUTPUT_MAX_RENDER_WIDTH ? OUTPUT_MAX_RENDER_WIDTH / nativeWidth : 1;
+  const didResize = resizeCanvasToDisplaySize(canvas, outputRenderScale);
   if (didResize) {
     diag.logEvent('canvas-resize', `${canvas.width}x${canvas.height}`);
     lastCanvasWidth  = canvas.width;

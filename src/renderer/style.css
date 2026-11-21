@@ -3770,3 +3770,100 @@ body[data-mode="live"] .visual-mode-group .visual-mode-route {
 .playlist-entry-active .playlist-name {
   color: #ff6b9d;
 }
+
+/* Detect Song: icon-only transport button; pulses while a lookup runs. */
+#transport-detect.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  min-width: 32px;
+}
+#transport-detect.is-detecting {
+  animation: transport-detect-pulse 0.9s ease-in-out infinite;
+  opacity: 1;
+}
+@keyframes transport-detect-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(80, 200, 255, 0.0); color: inherit; }
+  50% { box-shadow: 0 0 0 4px rgba(80, 200, 255, 0.35); color: #6fd3ff; }
+}
+
+/* Top-bar Output button: lit while the output window is open. */
+.output-route-button.is-active {
+  background: #1f6f43;
+  border-color: #39c07a;
+  color: #eafff3;
+  box-shadow: 0 0 0 1px rgba(57, 192, 122, 0.4);
+}
+
+/* Cue monitor: the cued (not-yet-live) scene, laid over the preview while
+   the output window keeps playing the program. */
+.cue-canvas {
+  position: absolute;
+  z-index: 2;
+  border-radius: 12px;
+  pointer-events: none;
+  outline: 2px solid #f5b942;
+  outline-offset: -2px;
+}
+.cue-canvas.hidden { display: none; }
+
+/* Top-bar Rotation toggle with scene count; lit while rotation is on. */
+.rotation-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  padding: 0 8px;
+}
+.rotation-button .rotation-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.rotation-button.is-active {
+  background: #1f6f43;
+  border-color: #39c07a;
+  color: #eafff3;
+}
+
+/* Program monitor: 2D copy of the program frame shown in the preview while
+   the output mirror is open (same presentation path as the output). */
+.program-monitor {
+  position: absolute;
+  z-index: 1;
+  border-radius: 12px;
+  pointer-events: none;
+}
+.program-monitor.hidden { display: none; }
+
+/* CUE badge: preview shows a cued scene, not the live output. */
+.cue-badge {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  background: rgba(30, 22, 6, 0.88);
+  border: 1px solid #f5b942;
+  color: #ffe7b0;
+  font-size: 12px;
+  max-width: 80%;
+}
+.cue-badge.hidden { display: none; }
+.cue-badge-label { font-weight: 700; color: #f5b942; letter-spacing: 0.08em; }
+.cue-badge-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cue-badge button {
+  border-radius: 999px;
+  padding: 2px 10px;
+  border: 1px solid #f5b942;
+  background: #f5b942;
+  color: #1a1204;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cue-badge .cue-cancel { background: transparent; color: #ffe7b0; padding: 2px 8px; }

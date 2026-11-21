@@ -84,6 +84,10 @@ contextBridge.exposeInMainWorld('visualSynth', {
     ipcRenderer.invoke('now-playing:settings:set', settings) as Promise<NowPlayingSettings>,
   fetchNowPlayingMetadata: (endpoint: string, secret?: string) =>
     ipcRenderer.invoke('now-playing:metadata:get', endpoint, secret) as Promise<NowPlayingRecognitionResponse>,
+  extractEmbeddedArtwork: (filePath: string, artist?: string) =>
+    ipcRenderer.invoke('now-playing:embedded-artwork', filePath, artist) as Promise<{ filePath?: string; rejected?: string }>,
+  readSeratoNowPlaying: () =>
+    ipcRenderer.invoke('now-playing:serato:get') as Promise<{ matched: boolean; live?: boolean; title?: string; artist?: string; album?: string; provider: string; sessionFile?: string; filePath?: string; error?: string }>,
   testNowPlayingFile: (request: Omit<NowPlayingRecognitionRequest, 'audioBase64' | 'mimeType' | 'durationMs' | 'detectedAt'> & {
     initialPath?: string;
   }) =>

@@ -30,6 +30,8 @@ import {
 import type { NowPlayingRecognitionRequest, NowPlayingSettings } from '../shared/nowPlaying';
 import { loadNowPlayingSettings, saveNowPlayingSettings } from './nowPlayingSettingsStore';
 import { installAndLaunchWhatsNowPlaying, openWhatsNowPlayingFolder } from './companionTools';
+import { readSeratoNowPlaying, readSeratoRecentTracks } from './seratoNowPlaying';
+import { embeddedCoverForTrack, observeTrackArtwork } from './embeddedArtwork';
 import { initSessionLogger, sessionLogger, shaderFailureLogger, type ShaderFailureEntry } from './sessionLogger';
 
 const isDev = !app.isPackaged;
@@ -272,14 +274,36 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // The main window drives the whole show (audio analysis, scene clock,
+      // output broadcasts). Chromium throttles windows it considers hidden —
+      // e.g. covered by Serato DJ or by a fullscreen output — which slowed
+      // the render loop and left the output seconds behind (2026-11-20).
+      backgroundThrottling: false
     }
   });
 
   const indexPath = path.join(__dirname, '../../renderer/index.html');
   void mainWindow.loadFile(indexPath);
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    // The output MIRROR: the renderer opens a same-process child window and
+    // copies its rendered frame into it every frame, so the output is always
+    // exactly the preview (no second render pipeline, no drift, no lag).
+    if (frameName === OUTPUT_MIRROR_FRAME_NAME && url === 'about:blank') {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale),
+          height: Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale),
+          parent: mainWindow ?? undefined,
+          backgroundColor: '#000000',
+          autoHideMenuBar: true,
+          title: 'VisualSynth Output',
+          webPreferences: { backgroundThrottling: false }
+        }
+      };
+    }
     // Only forward http/https URLs to the OS browser. Without this scheme
     // validation, a page could open arbitrary-scheme URLs (file:, javascript:,
     // custom handlers) via shell.openExternal.
@@ -292,6 +316,25 @@ const createWindow = () => {
       /* malformed URL: ignore rather than forward */
     }
     return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('did-create-window', (win, details) => {
+    if (details.frameName !== OUTPUT_MIRROR_FRAME_NAME) return;
+    if (outputWindow && outputWindow !== win) {
+      try { outputWindow.close(); } catch { /* already gone */ }
+    }
+    outputWindow = win;
+    outputConfig = { ...outputConfig, enabled: true };
+    win.on('closed', () => {
+      if (outputWindow === win) {
+        outputWindow = null;
+        outputConfig = { ...outputConfig, enabled: false };
+        if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+          mainWindow.webContents.send('output:closed');
+        }
+      }
+    });
+    applyOutputConfig(outputConfig);
   });
 
   mainWindow.on('close', (event) => {
@@ -328,6 +371,8 @@ const createWindow = () => {
   }
 };
 
+const OUTPUT_MIRROR_FRAME_NAME = 'visualsynth-output-mirror';
+
 const createOutputWindow = () => {
   if (outputWindow) {
     outputWindow.focus();
@@ -344,7 +389,9 @@ const createOutputWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // The projector output must never be throttled for being occluded.
+      backgroundThrottling: false
     }
   });
 
@@ -363,6 +410,13 @@ const createOutputWindow = () => {
 
   applyOutputConfig(outputConfig);
 };
+
+// Never throttle the show for being covered: on macOS Chromium marks
+// windows behind other apps (Serato DJ) or behind a fullscreen output as
+// hidden and slows their timers/frames. Must be set before app ready.
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 app.whenReady().then(() => {
   const recoveryPath = path.join(app.getPath('userData'), 'sessions', 'recovery.json');
@@ -1057,6 +1111,29 @@ ipcMain.handle('now-playing:settings:set', (_event, settings: Partial<NowPlaying
 
 ipcMain.handle('now-playing:metadata:get', (_event, endpoint: string, secret?: string) => {
   return fetchNowPlayingMetadataBridge(endpoint, secret);
+});
+
+// Serato DJ now-playing read straight from its history session file — names
+// DJ edits/remixes that no fingerprint catalog knows.
+ipcMain.handle('now-playing:serato:get', () => readSeratoNowPlaying());
+
+// Embedded cover art for the file the DJ software reports, with DJ-pool logo
+// rejection. Pool-logo memory is seeded once from recent Serato history so a
+// logo is known before it could reach the screen.
+let poolLogoSeeding: Promise<void> | null = null;
+ipcMain.handle('now-playing:embedded-artwork', async (_event, filePath: string, artist?: string) => {
+  if (typeof filePath !== 'string' || !/\.(mp3|m4a|mp4|aac|alac)$/i.test(filePath) || !fs.existsSync(filePath)) {
+    return { rejected: 'no-art' };
+  }
+  if (!poolLogoSeeding) {
+    poolLogoSeeding = readSeratoRecentTracks(80).then((tracks) => {
+      for (const t of tracks) {
+        if (fs.existsSync(t.filePath)) observeTrackArtwork(t.filePath, t.artist);
+      }
+    }).catch(() => {});
+  }
+  await poolLogoSeeding;
+  return embeddedCoverForTrack(filePath, artist, ASSET_STORAGE);
 });
 
 ipcMain.handle(

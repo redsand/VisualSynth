@@ -56,7 +56,6 @@ import {
   applySlideshowDefaults
 } from '../shared/slideshow';
 import { createSlideshowPicker, SlideshowPicker } from './ui/slideshowPicker';
-import { renderSlideshowRoster } from './ui/slideshowRoster';
 import { getCertificationColor } from '../shared/certification';
 import { syncActiveSceneLookSection } from '../shared/sceneLookSync';
 import { getModeVisibility, UiMode } from '../shared/uiModes';
@@ -69,6 +68,8 @@ import { selectStartupProject } from './startupProject';
 import { applyStartupSelection } from './startupProjectApply';
 import { applyLoadableProjectRuntime } from './projectApplyRuntime';
 import { initializeOutputSession } from './outputSessionRuntime';
+import { openOutputMirror, type OutputMirror } from './outputMirror';
+import { createAdaptiveResolutionState, resolutionScale, tickResolutionGovernor } from '../shared/adaptiveResolution';
 import {
   nextFrameDropScore,
   resolveFrameCadence,
@@ -101,7 +102,7 @@ import type { Store } from './state/store';
 import { sessionHealthService } from './sessionHealthService';
 import { createTransitionTracer, type TransitionSource } from './render/transitionTracer';
 import { sessionLog, initSessionLog } from './sessionLog';
-import { createAdaptiveFpsState, tickFpsGovernor, shouldRenderFrame } from '../shared/adaptiveFps';
+import { createAdaptiveFpsState, shouldRenderFrame } from '../shared/adaptiveFps';
 
 declare global {
   interface Window {
@@ -173,6 +174,8 @@ declare global {
       getNowPlayingSettings: () => Promise<NowPlayingSettings>;
       saveNowPlayingSettings: (settings: Partial<NowPlayingSettings>) => Promise<NowPlayingSettings>;
       fetchNowPlayingMetadata: (endpoint: string, secret?: string) => Promise<NowPlayingRecognitionResponse>;
+      readSeratoNowPlaying: () => Promise<{ matched: boolean; live?: boolean; title?: string; artist?: string; album?: string; provider: string; sessionFile?: string; filePath?: string; error?: string }>;
+      extractEmbeddedArtwork: (filePath: string, artist?: string) => Promise<{ filePath?: string; rejected?: string }>;
       testNowPlayingFile: (
         request: Omit<NowPlayingRecognitionRequest, 'audioBase64' | 'mimeType' | 'durationMs' | 'detectedAt'> & {
           initialPath?: string;
@@ -349,7 +352,7 @@ const transportDetect = document.getElementById('transport-detect') as HTMLButto
 const transportBpmInput = document.getElementById('transport-bpm') as HTMLInputElement;
 const transportBpmState = document.getElementById('transport-bpm-state') as HTMLSpanElement;
 const transportPauseButton = document.getElementById('transport-pause') as HTMLButtonElement;
-const outputRouteSelect = document.getElementById('output-route') as HTMLSelectElement;
+const outputRouteButton = document.getElementById('output-route') as HTMLButtonElement;
 const topbarOpenProjectButton = document.getElementById('topbar-open-project') as HTMLButtonElement | null;
 const topbarSaveProjectButton = document.getElementById('topbar-save-project') as HTMLButtonElement | null;
 const engineSelect = document.getElementById('engine-select') as HTMLSelectElement | null;
@@ -428,7 +431,6 @@ const slideshowPickerOverlay = document.getElementById('slideshow-picker') as HT
 const slideshowPickerSearch = document.getElementById('slideshow-picker-search') as HTMLInputElement | null;
 const slideshowPickerResults = document.getElementById('slideshow-picker-results') as HTMLDivElement | null;
 const slideshowPickerStatus = document.getElementById('slideshow-picker-status') as HTMLDivElement | null;
-const slideshowRosterHost = document.getElementById('slideshow-roster') as HTMLDivElement | null;
 const nowPlayingSlideshowEnabledInput = document.getElementById('now-playing-slideshow-enabled') as HTMLInputElement | null;
 const nowPlayingSlideshowScenesSelect = document.getElementById('now-playing-slideshow-scenes') as HTMLSelectElement | null;
 const nowPlayingSlideshowGroup = document.getElementById('slideshow-scene-select-group') as HTMLDivElement | null;
@@ -816,6 +818,8 @@ let sceneStripView: 'cards' | 'list' =
   (localStorage.getItem('vs.sceneStrip.view') as 'cards' | 'list' | null) ?? 'cards';
 let selectedSceneId: string | null = null;
 let previewSceneId: string | null = null;
+/** Output mirror window (preferred); null when closed or using the legacy window. */
+let outputMirror: OutputMirror | null = null;
 let outputConfig: OutputConfig = { ...DEFAULT_OUTPUT_CONFIG };
 let outputOpen = false;
 const outputChannel = new BroadcastChannel('visualsynth-output');
@@ -899,6 +903,7 @@ let lastBeatTime = 0;
 // frame cap is decided automatically from delivered fps + render
 // work-time, never by the user.
 const fpsGovernorState = createAdaptiveFpsState();
+const resolutionGovernorState = createAdaptiveResolutionState();
 let lastGovernoredRenderMs = 0;
 let lastRenderWorkMs = 0;
 // Throttle + dedupe for the per-scene shader-failure logger below: one
@@ -3887,7 +3892,9 @@ const updateOutputUI = () => {
   outputToggleButton.textContent = outputOpen ? 'Close Output' : 'Open Output';
   outputFullscreenToggle.checked = outputConfig.fullscreen;
   outputScaleSelect.value = String(outputConfig.scale);
-  outputRouteSelect.value = outputOpen ? 'output' : 'preview';
+  outputRouteButton.classList.toggle('is-active', outputOpen);
+  outputRouteButton.setAttribute('aria-pressed', String(outputOpen));
+  outputRouteButton.title = outputOpen ? 'Close the output window' : 'Open the output window (mirrors the preview)';
   guardrailHint.textContent = `Output scale: ${Math.round(outputConfig.scale * 100)}%`;
   updateOutputResolution();
 };
@@ -3906,14 +3913,7 @@ const renderSceneStrip = () => {
   // The roster lives in the top bar (visible in show modes) and must stay in
   // sync with every scene mutation — renderSceneStrip is invoked at each of
   // those call sites, so this one hook covers adds/removes/exchanges/loads.
-  if (slideshowRosterHost) {
-    renderSlideshowRoster({
-      host: slideshowRosterHost,
-      getProject: () => currentProject,
-      onQueue: (sceneId) => queueSceneSwitch(sceneId),
-      onRemove: (sceneId) => removeScene(sceneId)
-    });
-  }
+  updateRotationButton();
   if (!sceneStripCards || !sceneStripList) return;
   sceneStripCards.innerHTML = '';
   sceneStripList.innerHTML = '';
@@ -4293,14 +4293,7 @@ const renderSceneTimeline = () => {
 
       const scene = currentProject.scenes.find((s) => s.id === sceneId);
       if (scene) {
-        compileSceneShaders(
-          renderer,
-          scene,
-          currentProject,
-          currentProject.customShaderBlocks ?? [],
-          currentProject.sdf?.enabled ?? false,
-          true // forceSync for immediate preview feedback
-        );
+        compileSceneForPreview(scene);
       }
       renderSceneStrip();
       setStatus(`Scene preview: ${sceneName}`);
@@ -9787,7 +9780,7 @@ const broadcastCurrentOutputState = () => {
   });
 };
 
-const applyPaletteSelection = (paletteId: string) => {
+const applyPaletteSelection = (paletteId: string, opts: { userPick?: boolean } = {}) => {
   const palette =
     currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
   if (!palette) return;
@@ -9799,10 +9792,19 @@ const applyPaletteSelection = (paletteId: string) => {
   if (mixerSelect && mixerSelect.value !== palette.id) mixerSelect.value = palette.id;
 
   const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
-  if (paletteApplyToggle.checked && scene) {
+  // A scene with its OWN palette (scene.look.activePaletteId) wins over the
+  // project palette in both the preview render and the periodic output
+  // broadcast — so picking a palette in Live mode snapped straight back
+  // (2026-11-20). A USER pick always applies to the scene on screen;
+  // programmatic calls (initPalettes on scene change) must not, or every
+  // scene switch would overwrite the incoming scene's own palette.
+  if (scene && (paletteApplyToggle.checked || (opts.userPick && scene.look?.activePaletteId))) {
     scene.look = {
       ...scene.look,
-      palettes: cloneValue(currentProject.palettes),
+      palettes: (() => {
+        const list = scene.look?.palettes ?? cloneValue(currentProject.palettes);
+        return list.some((p) => p.id === palette.id) ? list : [...list, cloneValue(palette)];
+      })(),
       activePaletteId: palette.id
     };
   }
@@ -9854,7 +9856,7 @@ const initPalettes = () => {
   else chemistrySelect.value = 'analog';
 
   paletteSelect.onchange = () => {
-    applyPaletteSelection(paletteSelect.value);
+    applyPaletteSelection(paletteSelect.value, { userPick: true });
     // Keep the mixer's mirrored palette select in sync (the mixer panel owns a
     // duplicate of this control; without this, changing it here leaves the
     // mixer showing the previous palette until it is next rebuilt).
@@ -9904,7 +9906,7 @@ function renderPerfPaletteGrid() {
     }).join(', ');
     swatch.style.background = `linear-gradient(to right, ${gradient})`;
     swatch.addEventListener('click', () => {
-      applyPaletteSelection(palette.id);
+      applyPaletteSelection(palette.id, { userPick: true });
       paletteSelect.value = palette.id;
       renderPerfPaletteGrid();
       setStatus(`Palette: ${palette.name}`);
@@ -10419,10 +10421,32 @@ const setOutputEnabled = async (enabled: boolean) => {
     return;
   }
   if (enabled) {
-    const result = await window.visualSynth.openOutput({ ...outputConfig, enabled: true });
-    outputOpen = result.opened;
-    outputConfig = result.config;
+    // Mirror first: one render, copied to the output every frame (always in
+    // sync with the preview). The legacy independent output window is only a
+    // fallback if the mirror window cannot be opened.
+    outputConfig = await window.visualSynth.setOutputConfig({ ...outputConfig, enabled: true });
+    outputMirror = openOutputMirror({
+      width: Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale),
+      height: Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale),
+      getOverlays: () => (currentProject.overlays ?? []).filter(
+        (o) => !o.targetSceneId || o.targetSceneId === currentProject.activeSceneId
+      )
+    });
+    if (outputMirror) {
+      outputOpen = true;
+      outputConfig = { ...outputConfig, enabled: true };
+      sessionLog.log('info', 'output.opened', { mode: 'mirror' });
+    } else {
+      const result = await window.visualSynth.openOutput({ ...outputConfig, enabled: true });
+      outputOpen = result.opened;
+      outputConfig = result.config;
+      sessionLog.log('warn', 'output.opened', { mode: 'legacy-fallback' });
+    }
   } else {
+    if (outputMirror) {
+      outputMirror.close();
+      outputMirror = null;
+    }
     await window.visualSynth.closeOutput();
     outputOpen = false;
     outputConfig = { ...outputConfig, enabled: false };
@@ -11164,6 +11188,37 @@ let slideshowSongIndex = -1;
  * stale mid-show — live-mode preset triggers replace the whole project — so
  * advanceSlideshowOnSongChange skips ids that no longer resolve.
  */
+// Top-bar Rotation toggle (right of Save): scene rotation on song change.
+// Replaces the always-visible chip strip, which duplicated the Scene
+// Timeline and cut on a single click (2026-11-20).
+const rotationButton = document.getElementById('topbar-rotation') as HTMLButtonElement | null;
+const rotationCount = document.getElementById('topbar-rotation-count') as HTMLSpanElement | null;
+const rotationSceneIds = () => {
+  const ids = nowPlayingSettings.slideshowSceneIds.filter((id) => currentProject.scenes.some((s) => s.id === id));
+  return ids.length > 0 ? ids : currentProject.scenes.map((s) => s.id);
+};
+function updateRotationButton() {
+  if (!rotationButton) return;
+  const on = nowPlayingSettings.slideshowEnabled;
+  rotationButton.classList.toggle('is-active', on);
+  rotationButton.setAttribute('aria-pressed', String(on));
+  if (rotationCount) rotationCount.textContent = String(rotationSceneIds().length);
+  rotationButton.title = on
+    ? `Rotation ON: next scene on each song change (${rotationSceneIds().length} scenes). Click to stop.`
+    : 'Rotation OFF: click to advance to the next scene on each song change';
+}
+rotationButton?.addEventListener('click', async () => {
+  const enabling = !nowPlayingSettings.slideshowEnabled;
+  const saved = await window.visualSynth.saveNowPlayingSettings({
+    ...nowPlayingSettings,
+    slideshowEnabled: enabling,
+    slideshowSceneIds: enabling ? rotationSceneIds() : nowPlayingSettings.slideshowSceneIds
+  });
+  applyNowPlayingSettings(saved);
+  updateRotationButton();
+  setStatus(enabling ? 'Rotation on: scenes advance on each song change' : 'Rotation off');
+});
+
 const advanceSlideshowForNewSong = () => {
   if (!nowPlayingSettings.slideshowEnabled || nowPlayingSettings.slideshowSceneIds.length === 0) {
     return;
@@ -11226,6 +11281,12 @@ const consumeNowPlayingResult = async (
     advanceSlideshowForNewSong();
   }
 
+  // Title first: the artwork lookup is a network round trip (+ embedded-art
+  // extraction), and waiting on it made the new title appear seconds after
+  // the song change. Show the new title now and hide the previous track's
+  // art (it would sit next to the wrong title); the art fills in below.
+  updateNowPlayingOverlays({ title: result.title, artist: result.artist, album: result.album, hideArtwork: true });
+
   let artworkResult = result;
   const missingArtwork =
     !result.artworkUrl ||
@@ -11257,6 +11318,18 @@ const consumeNowPlayingResult = async (
     if (cached.cached) {
       artworkPath = cached.filePath;
     }
+  }
+  // Web lookup found nothing (common for edits) → the cover embedded in the
+  // actual file the DJ software is playing, with DJ-pool logos rejected.
+  if (!artworkPath && result.sourceFilePath) {
+    try {
+      const embedded = await window.visualSynth.extractEmbeddedArtwork?.(result.sourceFilePath, result.artist);
+      if (embedded?.filePath) artworkPath = embedded.filePath;
+      sessionLog.log('info', 'song.artwork_embedded', {
+        used: Boolean(embedded?.filePath),
+        rejected: embedded?.rejected ?? null
+      });
+    } catch { /* artwork is best-effort */ }
   }
 
   updateNowPlayingOverlays({
@@ -11309,6 +11382,7 @@ const updateNowPlayingOverlays = (track: {
   artist?: string;
   album?: string;
   artworkPath?: string;
+  hideArtwork?: boolean;
 }) => {
   if (!nowPlayingSettings.autoCreateOverlays) return;
 
@@ -11322,6 +11396,8 @@ const updateNowPlayingOverlays = (track: {
   if (track.artworkPath) {
     artworkOverlay.assetPath = track.artworkPath;
     artworkOverlay.enabled = true;
+  } else if (track.hideArtwork) {
+    artworkOverlay.enabled = false;
   }
 };
 
@@ -11679,12 +11755,23 @@ const runNowPlayingLookup = async (
   // the cooldowns and same-song check exist to stop false AUTO firings
   // from burning lookups, not to override a human who just mixed in a
   // track the detector can't hear as a change (hot mixes, same-BPM blends).
+  // Serato is authoritative while live: a fingerprint of an EDIT matches the
+  // original release (or nothing) and would overwrite the exact title Serato
+  // already reported. Auto/retry lookups stand down; the manual button asks
+  // Serato first (see transportDetect).
+  const trigger = opts.manual ? 'manual' : opts.isRetry ? 'retry' : 'auto';
+  const logSkip = (reason: string) => sessionLog.log('info', 'song.lookup_skipped', { trigger, reason });
+  if (!opts.manual && isSeratoLive()) { logSkip('serato-authoritative'); return; }
   if (!opts.manual) {
     // The base cooldown rate-limits detector firings; a bounded no-match retry
     // (one per firing, ~10s later) is allowed through — it's the only way an
     // unlucky clip gets a second chance.
-    if (!opts.isRetry && detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) return;
+    if (!opts.isRetry && detectedAt - lastNowPlayingLookupAt < nowPlayingSettings.cooldownMs) {
+      logSkip(`cooldown (${Math.round((detectedAt - lastNowPlayingLookupAt) / 1000)}s since last lookup)`);
+      return;
+    }
     if (isNowPlayingMetadataSourceConfigured(nowPlayingSettings) && detectedAt - lastMetadataTrackAt < 5000) {
+      logSkip('metadata bridge just reported');
       return;
     }
   }
@@ -11694,7 +11781,7 @@ const runNowPlayingLookup = async (
     resetGateRetry(nowPlayingGate);
   } else if (opts.isRetry) {
     // Retries still respect the gate's adaptive backoff…
-    if (detectedAt < nowPlayingGate.adaptiveCooldownUntil) return;
+    if (detectedAt < nowPlayingGate.adaptiveCooldownUntil) { logSkip('adaptive backoff'); return; }
   } else {
     // …while a fresh firing cancels any pending retry, resets the retry
     // budget, and asks the gate whether a recognition request is warranted
@@ -11712,6 +11799,7 @@ const runNowPlayingLookup = async (
       detectedAt
     );
     if (gate.skip) {
+      logSkip(gate.reason ?? 'gated');
       setStatus(`Song change detected, but ${gate.reason?.toLowerCase() ?? 'gated'}.`);
       return;
     }
@@ -11792,6 +11880,59 @@ const runNowPlayingLookup = async (
   }
 };
 
+// Serato DJ now-playing: polled automatically whenever song detection is on
+// (no setting — if Serato has a history session, it's used). Serato names
+// what the DJ actually loaded, including edits no fingerprint catalog has,
+// so a Serato track goes through the same authoritative 'bridge' path as
+// the What's Now Playing metadata bridge (seeding the gate so fingerprint
+// lookups don't re-identify it).
+let seratoPollInFlight = false;
+let lastSeratoPollAt = 0;
+let lastSeratoTrackKey = '';
+let seratoSourceAnnounced = false;
+/** Last time Serato reported ANY track — Serato is "live" while recent. */
+let lastSeratoSeenAt = 0;
+const SERATO_LIVE_WINDOW_MS = 15 * 60 * 1000;
+const isSeratoLive = () => Date.now() - lastSeratoSeenAt < SERATO_LIVE_WINDOW_MS;
+const pollSeratoNowPlaying = async () => {
+  if (!nowPlayingSettings.enabled || seratoPollInFlight) return;
+  const now = Date.now();
+  if (now - lastSeratoPollAt < 1000) return;
+  lastSeratoPollAt = now;
+  seratoPollInFlight = true;
+  try {
+    const result = await window.visualSynth.readSeratoNowPlaying?.();
+    // Only a LIVE Serato (app running, current track recent) is authoritative.
+    // When it isn't, return without touching lastSeratoSeenAt so microphone
+    // fingerprinting takes over.
+    if (!result?.matched || !result.live) {
+      if (lastSeratoSeenAt > 0) {
+        lastSeratoSeenAt = 0;
+        sessionLog.log('info', 'song.source_microphone', { reason: result?.matched ? 'serato-not-running-or-stale' : 'no-serato-track' });
+      }
+      return;
+    }
+    lastSeratoSeenAt = Date.now();
+    if (!seratoSourceAnnounced) {
+      seratoSourceAnnounced = true;
+      sessionLog.log('info', 'song.source_serato', { sessionFile: result.sessionFile ?? null });
+    }
+    const trackKey = [result.artist ?? '', result.title ?? '', result.album ?? ''].join('::');
+    if (!trackKey.replace(/:/g, '').trim() || trackKey === lastSeratoTrackKey) return;
+    lastSeratoTrackKey = trackKey;
+    sessionLog.log('info', 'song.serato_track', { title: result.title ?? null, artist: result.artist ?? null });
+    await consumeNowPlayingResult(
+      { matched: true, title: result.title, artist: result.artist, album: result.album, provider: 'Serato', sourceFilePath: result.filePath },
+      'Serato',
+      'bridge'
+    );
+  } catch (error) {
+    console.warn('[Now Playing] Serato poll failed:', error);
+  } finally {
+    seratoPollInFlight = false;
+  }
+};
+
 const pollNowPlayingMetadataSource = async () => {
   if (!isNowPlayingMetadataSourceConfigured(nowPlayingSettings)) return;
   if (nowPlayingMetadataPollInFlight) return;
@@ -11856,7 +11997,12 @@ const setupAudio = async (deviceId?: string) => {
         setStatus('Song change detected. Configure Now Playing in the System tab to enable lookup.');
         return;
       }
-      void runNowPlayingLookup(event.detectedAt, { event });
+      // Wall clock, NOT event.detectedAt: the detector stamps performance.now()
+      // (ms since page load) while manual/retry lookups stamp Date.now(). Mixing
+      // the two made every auto lookup after the first manual press or retry
+      // look ~56 years older than the last lookup → silently "in cooldown"
+      // forever (auto-detect never looked up again; 2026-11-20 live log).
+      void runNowPlayingLookup(Date.now(), { event });
     });
   }
 };
@@ -13006,7 +13152,7 @@ sceneViewSelect.addEventListener('change', () => {
     previewSceneId = sceneId;
     const scene = currentProject.scenes.find(s => s.id === sceneId);
     if (scene) {
-      compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
+      compileSceneForPreview(scene);
       updateSceneContextUI(scene);
       renderLayerList();
       setStatus(`Viewing scene: ${scene.name}`);
@@ -13022,7 +13168,7 @@ if (sceneEditSelect) {
       previewSceneId = sceneId;
       const scene = currentProject.scenes.find(s => s.id === sceneId);
       if (scene) {
-        compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
+        compileSceneForPreview(scene);
         updateSceneContextUI(scene);
         renderLayerList();
         setStatus(`Editing scene: ${scene.name}`);
@@ -13522,14 +13668,22 @@ if (transportDetect) {
       return;
     }
     transportDetect.disabled = true;
-    transportDetect.textContent = 'Detecting…';
+    transportDetect.classList.add('is-detecting');
     sessionLog.log('info', 'song.manual_detect', { scene: currentProject.activeSceneId });
     setStatus('Identifying song…');
     try {
-      await runNowPlayingLookup(Date.now(), { manual: true });
+      // Serato knows exactly what's loaded (edits included) — ask it first.
+      lastSeratoPollAt = 0;
+      lastSeratoTrackKey = '';
+      await pollSeratoNowPlaying();
+      if (isSeratoLive()) {
+        sessionLog.log('info', 'song.manual_detect_result', { source: 'serato' });
+      } else {
+        await runNowPlayingLookup(Date.now(), { manual: true });
+      }
     } finally {
       transportDetect.disabled = false;
-      transportDetect.textContent = 'Detect Song';
+      transportDetect.classList.remove('is-detecting');
     }
   });
 }
@@ -13594,8 +13748,8 @@ tempoInput.addEventListener('change', () => {
   updateBpmDisplay();
 });
 
-outputRouteSelect.addEventListener('change', async () => {
-  await setOutputEnabled(outputRouteSelect.value === 'output');
+outputRouteButton.addEventListener('click', async () => {
+  await setOutputEnabled(!outputOpen);
 });
 
 outputToggleButton.addEventListener('click', async () => {
@@ -13889,6 +14043,7 @@ const initOutputConfig = async () => {
       await syncOutputConfig(config);
     },
     onOutputClosed: () => {
+      outputMirror = null;
       outputOpen = false;
       outputConfig = { ...outputConfig, enabled: false };
       updateOutputUI();
@@ -14128,6 +14283,123 @@ const initPanelCollapse = () => {
 };
 
 const canvas = document.getElementById('gl-canvas') as HTMLCanvasElement;
+
+// ── Cue monitor ─────────────────────────────────────────────────────────────
+// With the output window open (mirror), the main renderer ALWAYS draws the
+// live program — that frame is what the output shows. Clicking a different
+// scene CUES it: a second, half-resolution renderer draws it in a canvas laid
+// over the preview, and the output keeps playing the program. Taking the scene
+// live (cut) makes cue == program and the cue canvas hides, so the preview is
+// back in lockstep with the output.
+const CUE_RENDER_SCALE = 0.5;
+let cueRenderer: ReturnType<typeof createGLRenderer> | null = null;
+let cueCanvas: HTMLCanvasElement | null = null;
+let cueCompiledSceneId: string | null = null;
+const getCueRenderer = () => {
+  if (cueRenderer) return cueRenderer;
+  cueCanvas = document.createElement('canvas');
+  cueCanvas.id = 'cue-canvas';
+  cueCanvas.className = 'cue-canvas hidden';
+  canvas.insertAdjacentElement('afterend', cueCanvas);
+  cueRenderer = createGLRenderer(cueCanvas, {
+    onError: (err, type) => console.warn('[Cue] shader error', type, err)
+  });
+  return cueRenderer;
+};
+// Program monitor: while the output mirror is open the preview shows a 2D
+// copy of the program frame, drawn in the SAME task as the output's copy.
+// Showing the WebGL canvas directly in the preview while the output showed a
+// copy left the output a frame or two behind on every cut (2026-11-20): the
+// two windows presented different pipelines. Same copy → same frame.
+let programMonitor: HTMLCanvasElement | null = null;
+let programMonitorCtx: CanvasRenderingContext2D | null = null;
+const presentProgramMonitor = (show: boolean) => {
+  if (!show) {
+    if (programMonitor && !programMonitor.classList.contains('hidden')) programMonitor.classList.add('hidden');
+    return;
+  }
+  if (!programMonitor) {
+    programMonitor = document.createElement('canvas');
+    programMonitor.id = 'program-monitor';
+    programMonitor.className = 'program-monitor hidden';
+    canvas.insertAdjacentElement('afterend', programMonitor);
+    programMonitorCtx = programMonitor.getContext('2d', { alpha: false });
+  }
+  if (!programMonitorCtx) return;
+  programMonitor.classList.remove('hidden');
+  programMonitor.style.left = `${canvas.offsetLeft}px`;
+  programMonitor.style.top = `${canvas.offsetTop}px`;
+  programMonitor.style.width = `${canvas.offsetWidth}px`;
+  programMonitor.style.height = `${canvas.offsetHeight}px`;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.floor(canvas.offsetWidth * dpr));
+  const h = Math.max(1, Math.floor(canvas.offsetHeight * dpr));
+  if (programMonitor.width !== w || programMonitor.height !== h) {
+    programMonitor.width = w;
+    programMonitor.height = h;
+  }
+  programMonitorCtx.drawImage(canvas, 0, 0, w, h);
+};
+
+// CUE badge over the preview: says the preview is NOT what the room sees,
+// with Take (cut to the cued scene) and ✕ (back to the program view).
+let cueBadge: HTMLDivElement | null = null;
+let cueBadgeSceneId: string | null = null;
+const updateCueBadge = (cueSceneId: string | null) => {
+  if (!cueSceneId) {
+    if (cueBadge && !cueBadge.classList.contains('hidden')) cueBadge.classList.add('hidden');
+    cueBadgeSceneId = null;
+    return;
+  }
+  if (!cueBadge) {
+    cueBadge = document.createElement('div');
+    cueBadge.className = 'cue-badge hidden';
+    cueBadge.innerHTML =
+      '<span class="cue-badge-label">CUE</span><span class="cue-badge-name"></span>' +
+      '<button type="button" class="cue-take" title="Take this scene live (cut)">Take</button>' +
+      '<button type="button" class="cue-cancel" title="Back to the live (program) view">✕</button>';
+    canvas.parentElement?.appendChild(cueBadge);
+    cueBadge.querySelector('.cue-take')?.addEventListener('click', () => {
+      if (previewSceneId && previewSceneId !== currentProject.activeSceneId) {
+        const name = currentProject.scenes.find((s) => s.id === previewSceneId)?.name ?? '';
+        applyScene(previewSceneId);
+        setStatus(`Took live: ${name}`);
+      }
+    });
+    cueBadge.querySelector('.cue-cancel')?.addEventListener('click', () => {
+      previewSceneId = currentProject.activeSceneId;
+      renderSceneTimeline();
+      setStatus('Preview back on the live output');
+    });
+  }
+  cueBadge.classList.remove('hidden');
+  if (cueBadgeSceneId !== cueSceneId) {
+    cueBadgeSceneId = cueSceneId;
+    const nameEl = cueBadge.querySelector('.cue-badge-name');
+    if (nameEl) nameEl.textContent = currentProject.scenes.find((s) => s.id === cueSceneId)?.name ?? '';
+  }
+};
+
+const isCueing = () =>
+  Boolean(outputMirror && previewSceneId && previewSceneId !== currentProject.activeSceneId);
+const cueScenePalette = (scene: (typeof currentProject.scenes)[number]) => {
+  const list = scene.look?.palettes ?? currentProject.palettes;
+  const id = scene.look?.activePaletteId ?? currentProject.activePaletteId;
+  return (list.find((p) => p.id === id) ?? currentProject.palettes.find((p) => p.id === id) ?? currentProject.palettes[0])?.colors;
+};
+/** Compile a scene for PREVIEWING: into the cue renderer while the output is live. */
+const compileSceneForPreview = (scene: (typeof currentProject.scenes)[number]) => {
+  if (outputMirror) {
+    if (scene.id === currentProject.activeSceneId) return; // program renderer already has it
+    const cue = getCueRenderer();
+    compileSceneShaders(cue, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
+    const colors = cueScenePalette(scene);
+    if (colors) cue.setPalette?.(colors as any);
+    cueCompiledSceneId = scene.id;
+    return;
+  }
+  compileSceneShaders(renderer, scene, currentProject, currentProject.customShaderBlocks ?? [], currentProject.sdf?.enabled ?? false, true);
+};
 const visualizerCanvas = document.getElementById('visualizer-canvas') as HTMLCanvasElement;
 const fadeOverlay = document.getElementById('fade-overlay') as HTMLDivElement;
 updateWebglDiagnostics();
@@ -14206,13 +14478,14 @@ const debugOverlay = createDebugOverlay((flags) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let selectedOverlayId: string | null = null;
 
+const getVisibleOverlays = () => {
+  const overlays = currentProject.overlays ?? [];
+  const targetScene = previewSceneId ?? currentProject.activeSceneId;
+  return overlays.filter(o => !o.targetSceneId || o.targetSceneId === targetScene);
+};
 const overlayRenderer = createOverlayRenderer({
   canvas: overlayCanvas,
-  getOverlays: () => {
-    const overlays = currentProject.overlays ?? [];
-    const targetScene = previewSceneId ?? currentProject.activeSceneId;
-    return overlays.filter(o => !o.targetSceneId || o.targetSceneId === targetScene);
-  },
+  getOverlays: getVisibleOverlays,
   onOverlayUpdate: (id, changes) => {
     const overlays = currentProject.overlays ?? [];
     const idx = overlays.findIndex(o => o.id === id);
@@ -14557,23 +14830,22 @@ const render = (time: number) => {
     // Feed the adaptive GPU governor once per fps measurement (~1s). On a
     // transition, log it and push the new cap to the output window so both
     // renderers pace together.
-    const decision = tickFpsGovernor(fpsGovernorState, {
+    // Adaptive RESOLUTION (not frame cap): under GPU saturation — e.g. next
+    // to Serato DJ — lower render resolution to keep motion at full frame
+    // rate. The old frame-cap governor (fpsGovernorState) stays disengaged:
+    // it judged headroom from CPU work, which is always light when the GPU is
+    // the bottleneck, and flip-flopped without helping.
+    const resDecision = tickResolutionGovernor(resolutionGovernorState, {
       deliveredFps: currentFps,
-      renderWorkMs: lastRenderWorkMs,
       nowMs: time,
       dtS: Math.max(0.25, Math.min(2, delta / 1000))
     });
-    if (decision.transition) {
-      sessionLog.log('info', 'perf.fps_governor', {
-        action: decision.transition,
-        cap: decision.cap,
-        deliveredFps: currentFps,
-        renderWorkMs: Number(lastRenderWorkMs.toFixed(1))
+    if (resDecision.change) {
+      sessionLog.log('info', 'perf.resolution_governor', {
+        action: resDecision.change,
+        scale: resDecision.scale,
+        deliveredFps: currentFps
       });
-      setStatus(decision.transition === 'engage'
-        ? 'Frame cap engaged (30 fps) to share the GPU with another app'
-        : 'Frame cap released — full frame rate restored');
-      outputChannel.postMessage({ fpsCap: decision.cap });
     }
   }
   if (!isPlaying) {
@@ -14594,7 +14866,9 @@ const render = (time: number) => {
     timeMs: time,
     lastWatchdogUpdateAt: lastWatchdogUpdate,
     lastAutosaveAt,
-    outputOpen,
+    // The mirror copies frames directly; the 77KB state broadcast is only
+    // needed by the legacy independent output window.
+    outputOpen: outputOpen && !outputMirror,
     lastBroadcastAt: lastOutputBroadcast,
     isPlaying,
     transportTimeMs,
@@ -14784,7 +15058,18 @@ const render = (time: number) => {
     }
   }
 
-  resizeCanvasToDisplaySize(canvas);
+  // Full resolution even while the output is open: MilkDrop presets draw at
+  // fixed PIXEL scales (reaction-diffusion blobs, grain), so a half-res
+  // preview rendered visibly different patterns than the output (2026-11-20).
+  // While mirroring, the show renders at the OUTPUT's resolution (capped at
+  // 1080p width) and the preview displays it scaled down — one render serves
+  // both screens, so the projector stays sharp and pixel-scale presets look
+  // identical on both.
+  const previewDeviceWidth = canvas.clientWidth * (window.devicePixelRatio || 1);
+  const mirrorScale = outputMirror && previewDeviceWidth > 0
+    ? Math.max(1, outputMirror.targetWidth() / previewDeviceWidth)
+    : 1;
+  resizeCanvasToDisplaySize(canvas, mirrorScale * resolutionScale(resolutionGovernorState));
   const blendSnapshot = sceneManager.getBlendSnapshot(transportTimeMs);
   const activeStyle =
     currentProject.stylePresets?.find((preset) => preset.id === currentProject.activeStylePresetId) ??
@@ -15491,7 +15776,10 @@ const render = (time: number) => {
       ? buildRenderStateForScene(outputScene, delta / 1000, modFrame)
       : activeSceneData;
   lastOutputRenderState = outputData.renderState;
-  const renderState = previewData.renderState;
+  // Cueing with the output open: the main renderer (→ output mirror) draws the
+  // PROGRAM; the cued scene renders on the cue monitor after the main frame.
+  const cueing = isCueing();
+  const renderState = cueing ? outputData.renderState : previewData.renderState;
   latestCaptureRenderSnapshot = {
     timeMs: renderState.timeMs,
     rms: renderState.rms,
@@ -15549,6 +15837,26 @@ const render = (time: number) => {
    
   // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
   renderer.render(renderState);
+  if (cueing) {
+    const cuedScene = previewScene;
+    if (cuedScene && cueCompiledSceneId !== cuedScene.id) compileSceneForPreview(cuedScene);
+    if (cueRenderer && cueCanvas) {
+      if (cueCanvas.classList.contains('hidden')) cueCanvas.classList.remove('hidden');
+      cueCanvas.style.left = `${canvas.offsetLeft}px`;
+      cueCanvas.style.top = `${canvas.offsetTop}px`;
+      cueCanvas.style.width = `${canvas.offsetWidth}px`;
+      cueCanvas.style.height = `${canvas.offsetHeight}px`;
+      resizeCanvasToDisplaySize(cueCanvas, CUE_RENDER_SCALE);
+      const cueState = previewData.renderState;
+      if (cueState.milkDropShaderData && !cueRenderer.isContextLost?.()) {
+        cueRenderer.updateMilkDropShaders?.(cueState.milkDropShaderData);
+      }
+      cueRenderer.render(cueState);
+    }
+  } else if (cueCanvas && !cueCanvas.classList.contains('hidden')) {
+    cueCanvas.classList.add('hidden');
+  }
+  updateCueBadge(cueing ? previewSceneId : null);
 
   // Cap the program cache so it doesn't grow unbounded as shader variants
   // compile over many scene/generator switches (GPU memory leak in the live
@@ -15558,7 +15866,14 @@ const render = (time: number) => {
   renderer.trimProgramCache?.(4);
 
   if (postTransitionFramesLeft > 0 && transitionTracerSeq !== null) {
-    const brightness = renderer.captureFrameBrightness?.() ?? { avgBrightness: 0, nonBlackRatio: 0 };
+    // captureFrameBrightness is a synchronous readPixels — a full GPU sync.
+    // Sampling all 5 post-transition frames stalled every cut ~270ms (live
+    // profile 2026-11-20), delaying the output broadcast. Measure once, on the
+    // last frame; earlier frames carry the "unknown = not black" value so the
+    // tracer's black-frame check only judges real measurements.
+    const brightness = postTransitionFramesLeft === 1
+      ? renderer.captureFrameBrightness?.() ?? { avgBrightness: 0, nonBlackRatio: 0 }
+      : { avgBrightness: 1, nonBlackRatio: 1 };
     const renderSnapshot = renderer.getLastRenderSnapshot?.();
     const activeScene_ = currentProject.scenes.find(s => s.id === currentProject.activeSceneId);
     const activeGens = activeScene_ ? [...collectSceneGeneratorIds(activeScene_)] : [];
@@ -15606,6 +15921,15 @@ const render = (time: number) => {
   updateSceneTimelineProgress(blendSnapshot);
   drawVisualizer(blendSnapshot?.visualizer ?? currentProject.visualizer);
   overlayRenderer.draw();
+  presentProgramMonitor(Boolean(outputMirror));
+  if (outputMirror && !outputMirror.present(canvas)) {
+    // Output window closed by the user (window X): main also sends
+    // output:closed, but don't wait a frame for it.
+    outputMirror = null;
+    outputOpen = false;
+    outputConfig = { ...outputConfig, enabled: false };
+    updateOutputUI();
+  }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -15776,11 +16100,13 @@ const init = async () => {
   try {
     const savedNowPlayingSettings = await window.visualSynth.getNowPlayingSettings();
     applyNowPlayingSettings(savedNowPlayingSettings);
+    updateRotationButton();
   } catch {
     updateNowPlayingStatusText();
   }
   window.setInterval(() => {
     void pollNowPlayingMetadataSource();
+    void pollSeratoNowPlaying();
   }, 1000);
 
   updateLoadingProgress(5, 'Setting up interface...');
@@ -15885,7 +16211,7 @@ const init = async () => {
     },
     onPaletteChange: (paletteId: string) => {
       paletteSelect.value = paletteId;
-      applyPaletteSelection(paletteId);
+      applyPaletteSelection(paletteId, { userPick: true });
     },
     onChemistryChange: (chemistry: string) => {
       currentProject.colorChemistry = [chemistry];

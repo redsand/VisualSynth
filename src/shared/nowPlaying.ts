@@ -25,6 +25,8 @@ export interface NowPlayingRecognitionResponse {
   /** Offset of the matched sample within the submitted clip (ACRCloud) */
   timeOffsetMs?: number;
   provider?: string;
+  /** Local audio file the DJ software reports playing (embedded-art fallback) */
+  sourceFilePath?: string;
   raw?: unknown;
   error?: string;
 }
