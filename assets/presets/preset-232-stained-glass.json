@@ -35,7 +35,7 @@
     "transition_in": { "durationMs": 600, "curve": "easeInOut" },
     "transition_out": { "durationMs": 600, "curve": "easeInOut" },
     "trigger": { "type": "manual" },
-    "assigned_layers": { "core": ["gen-stained-glass"], "support": ["gen-plasma"], "atmosphere": [] },
+    "assigned_layers": { "core": ["gen-stained-glass"], "support": ["layer-plasma"], "atmosphere": [] },
     "layers": [
       {
         "id": "gen-stained-glass",
@@ -49,14 +49,13 @@
         "params": { "opacity": 1, "speed": 0.4, "scale": 1.0, "lightAngle": 0.6, "leadWidth": 0.3 }
       },
       {
-        "id": "gen-plasma",
+        "id": "layer-plasma",
         "name": "Plasma Background",
         "role": "support",
         "enabled": true,
         "opacity": 0.2,
         "blendMode": "multiply",
         "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-plasma",
         "params": { "opacity": 0.2, "speed": 0.2, "scale": 2.0, "complexity": 0.4, "colorShift": 0.5 }
       }
     ]
@@ -71,7 +70,7 @@
   "macros": [
     { "id": "macro-1", "name": "Light Sweep", "value": 0.5, "targets": [{ "target": "stained-glass.lightAngle", "amount": 0.6 }] },
     { "id": "macro-2", "name": "Lead Width", "value": 0.3, "targets": [{ "target": "stained-glass.leadWidth", "amount": 0.5 }] },
-    { "id": "macro-3", "name": "Plasma Warmth", "value": 0.2, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.3 }] }
+    { "id": "macro-3", "name": "Plasma Warmth", "value": 0.2, "targets": [{ "target": "layer-plasma.opacity", "amount": 0.3 }] }
   ],
   "name": "Stained Glass",
   "createdAt": "2026-04-16T00:00:00.000Z",

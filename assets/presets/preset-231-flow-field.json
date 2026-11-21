@@ -35,7 +35,7 @@
     "transition_in": { "durationMs": 600, "curve": "easeInOut" },
     "transition_out": { "durationMs": 600, "curve": "easeInOut" },
     "trigger": { "type": "manual" },
-    "assigned_layers": { "core": ["gen-flow-field"], "support": ["gen-plasma"], "atmosphere": [] },
+    "assigned_layers": { "core": ["gen-flow-field"], "support": ["layer-plasma"], "atmosphere": [] },
     "layers": [
       {
         "id": "gen-flow-field",
@@ -49,14 +49,13 @@
         "params": { "opacity": 1, "speed": 0.7, "scale": 1.2, "curlIntensity": 0.8, "lineCount": 200 }
       },
       {
-        "id": "gen-plasma",
+        "id": "layer-plasma",
         "name": "Plasma Background",
         "role": "support",
         "enabled": true,
         "opacity": 0.25,
         "blendMode": "multiply",
         "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-plasma",
         "params": { "opacity": 0.25, "speed": 0.3, "scale": 1.8, "complexity": 0.5, "colorShift": 0.3 }
       }
     ]
@@ -71,7 +70,7 @@
   "macros": [
     { "id": "macro-1", "name": "Curl Force", "value": 0.6, "targets": [{ "target": "flow-field.curlIntensity", "amount": 0.7 }] },
     { "id": "macro-2", "name": "Stream Count", "value": 0.5, "targets": [{ "target": "flow-field.lineCount", "amount": 0.5 }] },
-    { "id": "macro-3", "name": "Plasma Depth", "value": 0.25, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.4 }] }
+    { "id": "macro-3", "name": "Plasma Depth", "value": 0.25, "targets": [{ "target": "layer-plasma.opacity", "amount": 0.4 }] }
   ],
   "name": "Flow Field",
   "createdAt": "2026-04-16T00:00:00.000Z",

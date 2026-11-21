@@ -1,6 +1,6 @@
 {
   "version": 6,
-  "metadata": { "certification": "archived",
+  "metadata": {
     "version": 6,
     "name": "Crosshatch",
     "createdAt": "2026-04-16T00:00:00.000Z",
@@ -35,7 +35,7 @@
     "transition_in": { "durationMs": 600, "curve": "easeInOut" },
     "transition_out": { "durationMs": 600, "curve": "easeInOut" },
     "trigger": { "type": "manual" },
-    "assigned_layers": { "core": ["gen-crosshatch"], "support": ["gen-plasma"], "atmosphere": [] },
+    "assigned_layers": { "core": ["gen-crosshatch"], "support": ["layer-plasma"], "atmosphere": [] },
     "layers": [
       {
         "id": "gen-crosshatch",
@@ -49,14 +49,13 @@
         "params": { "opacity": 1, "speed": 0.5, "density": 0.7, "angle1": 0.3, "angle2": 0.8 }
       },
       {
-        "id": "gen-plasma",
+        "id": "layer-plasma",
         "name": "Plasma Background",
         "role": "support",
         "enabled": true,
         "opacity": 0.15,
         "blendMode": "multiply",
         "transform": { "x": 0, "y": 0, "scale": 1, "rotation": 0 },
-        "generatorId": "gen-plasma",
         "params": { "opacity": 0.15, "speed": 0.15, "scale": 2.0, "complexity": 0.3, "colorShift": 0.7 }
       }
     ]
@@ -71,7 +70,7 @@
   "macros": [
     { "id": "macro-1", "name": "Hatch Density", "value": 0.5, "targets": [{ "target": "crosshatch.density", "amount": 0.6 }] },
     { "id": "macro-2", "name": "Angle Shift", "value": 0.5, "targets": [{ "target": "crosshatch.angle1", "amount": 0.5 }, { "target": "crosshatch.angle2", "amount": 0.3 }] },
-    { "id": "macro-3", "name": "Plasma Tint", "value": 0.15, "targets": [{ "target": "gen-plasma.opacity", "amount": 0.3 }] }
+    { "id": "macro-3", "name": "Plasma Tint", "value": 0.15, "targets": [{ "target": "layer-plasma.opacity", "amount": 0.3 }] }
   ],
   "name": "Crosshatch",
   "createdAt": "2026-04-16T00:00:00.000Z",

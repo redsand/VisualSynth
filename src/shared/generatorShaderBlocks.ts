@@ -6412,6 +6412,11 @@ uniform float uShatterRotation;
   float cycleLen = 4.0 / speed;
   float cycleT = mod(t, cycleLen);
   float impact = cycleT * speed;
+  // Cycle phases are per-frame, not per-shard — declared once here because the
+  // crack loop below uses them too (declared inside the shard loop, the shader
+  // failed to compile: "'shatterT' : undeclared identifier", 2026-11-21).
+  float assembleT = smoothstep(cycleLen * 0.7, cycleLen, cycleT);
+  float shatterT = smoothstep(0.0, 0.5, impact);
 
   for (float i = 0.0; i < 20.0; i++) {
     if (i >= shardCount) break;
@@ -6420,8 +6425,6 @@ uniform float uShatterRotation;
     float hash3 = fract(sin(i * 419.3) * 43758.5453);
     vec2 origin = vec2(hash1 * 2.0 - 1.0, hash2 * 2.0 - 1.0) * 0.25;
     vec2 dir = normalize(origin + 0.0001);
-    float assembleT = smoothstep(cycleLen * 0.7, cycleLen, cycleT);
-    float shatterT = smoothstep(0.0, 0.5, impact);
     float progress = mix(shatterT * clamp(impact - i * 0.15, 0.0, 3.0), 0.0, assembleT);
     vec2 offset = dir * progress * spread;
     float shardRot = rot * progress * (hash3 - 0.5) * 2.0;

@@ -1,6 +1,6 @@
 {
   "version": 6,
-  "metadata": { "certification": "archived",
+  "metadata": {
     "version": 6,
     "name": "Shatter",
     "createdAt": "2026-04-16T00:00:00.000Z",
@@ -70,7 +70,7 @@
           "gen-shatter"
         ],
         "support": [
-          "gen-plasma"
+          "layer-plasma"
         ],
         "atmosphere": []
       },
@@ -98,7 +98,7 @@
           }
         },
         {
-          "id": "gen-plasma",
+          "id": "layer-plasma",
           "name": "Plasma Background",
           "role": "support",
           "enabled": true,
@@ -110,7 +110,6 @@
             "scale": 1,
             "rotation": 0
           },
-          "generatorId": "gen-plasma",
           "params": {
             "opacity": 0.35,
             "speed": 0.8,
@@ -179,7 +178,7 @@
       "value": 0.35,
       "targets": [
         {
-          "target": "gen-plasma.opacity",
+          "target": "layer-plasma.opacity",
           "amount": 0.5
         }
       ]

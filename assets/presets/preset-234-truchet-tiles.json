@@ -70,7 +70,7 @@
           "gen-truchet-tiles"
         ],
         "support": [
-          "gen-plasma"
+          "layer-plasma"
         ],
         "atmosphere": []
       },
@@ -98,7 +98,7 @@
           }
         },
         {
-          "id": "gen-plasma",
+          "id": "layer-plasma",
           "name": "Plasma Background",
           "role": "support",
           "enabled": true,
@@ -110,7 +110,6 @@
             "scale": 1,
             "rotation": 0
           },
-          "generatorId": "gen-plasma",
           "params": {
             "opacity": 0.3,
             "speed": 0.5,
@@ -179,7 +178,7 @@
       "value": 0.3,
       "targets": [
         {
-          "target": "gen-plasma.opacity",
+          "target": "layer-plasma.opacity",
           "amount": 0.4
         }
       ]
