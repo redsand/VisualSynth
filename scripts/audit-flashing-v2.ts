@@ -214,6 +214,7 @@ const main = async () => {
     }
     // Measure the SCENE, not the global beat punch (see glRenderer).
     (window as any).__vsDisableBeatPulse = true;
+    (window as any).__vsDisablePrewarm = true;
     window.visualSynth = {
       ...(window.visualSynth ?? {}), listPresets: async () => [], onCloseRequested: () => {},
       showSaveDialog: async () => ({ result: 'cancel' }), saveProject: async () => ({ canceled: true }),
@@ -231,6 +232,15 @@ const main = async () => {
   const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
     Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`timeout ${ms}ms`)), ms))]);
   await boot();
+  // Project sanity: if the project fails validation the app silently stays on
+  // its default scene and every measurement is of the wrong screen (a whole
+  // 938-scene run was invalid this way, 2026-11-21). Refuse to continue.
+  const loaded = await page.evaluate(() => (window as any).__visualSynthCaptureApi.getDiagnostics?.()?.sceneCount ?? -1);
+  if (loaded !== proj.scenes.length) {
+    console.error(`PROJECT DID NOT LOAD: app has ${loaded} scenes, project has ${proj.scenes.length} (validation failure?) — aborting`);
+    await browser.close();
+    process.exit(2);
+  }
   // Audio sanity: a reactivity audit is meaningless if the music isn't
   // reaching the app.
   const levels: number[] = await page.evaluate(async () => {

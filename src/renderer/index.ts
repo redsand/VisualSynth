@@ -12745,6 +12745,9 @@ let applyProjectGeneration = 0;
 const scheduleShaderPrewarm = (generation: number) => {
   const scenes = currentProject.scenes.filter((s) => s._shaderData);
   if (scenes.length === 0 || !renderer?.warmMilkDropShaders) return;
+  // Audits load projects with hundreds of candidate scenes; pre-compiling all
+  // of them starves the render loop and skews frame-rate-based measurements.
+  if ((window as any).__vsDisablePrewarm) return;
   let index = 0;
   let compiled = 0;
   const started = performance.now();
