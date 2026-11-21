@@ -357,7 +357,11 @@ const main = async () => {
     } catch (error) {
       console.log(`CRASH  ${String(scene.name).slice(0, 44).padEnd(44)} ${String((error as Error).message).slice(0, 80)} — relaunching`);
       results.push({ name: scene.name, flagged: true, flagged60: false, fps: 0, perSec: 99, perSec60: 99, region: 'crash', kind: 'crash', crashed: true } as any);
-      try { await browser.close(); } catch { /* already gone */ }
+      // Bounded close: a hung GPU renderer makes browser.close() wait forever
+      // (5 shards sat hung for 90 min, 2026-11-21). Force-kill after 5s.
+      const proc = browser.process();
+      await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 5000))]);
+      try { proc?.kill('SIGKILL'); } catch { /* already gone */ }
       await boot();
     }
     if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(results, null, 2)); // incremental
