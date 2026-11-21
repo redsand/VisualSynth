@@ -11,6 +11,7 @@ type SafeModeRenderer = {
   precompileVariant: () => void;
   setCustomShaderBlocks: () => void;
   updateMilkDropShaders: () => void;
+  warmMilkDropShaders: (shaderData?: unknown) => number;
   getMilkDropCompileReport: () => null;
   getMilkDropNativeRuntimeReport: () => null;
   getProgramCacheSize: () => number;
@@ -63,6 +64,7 @@ export const createSafeModeRenderer = (canvas: HTMLCanvasElement, message = 'Saf
   precompileVariant: () => {},
   setCustomShaderBlocks: () => {},
   updateMilkDropShaders: () => {},
+  warmMilkDropShaders: () => 0,
   getMilkDropCompileReport: () => null,
   getMilkDropNativeRuntimeReport: () => null,
   getProgramCacheSize: () => 0,

@@ -564,6 +564,15 @@ void main() {
   let lastMilkDropComp = '';
   let milkDropCompositeProgram: WebGLProgram | null = null;
 
+  /** Pre-compile a scene's MilkDrop programs (cache) without switching to it. */
+  const warmMilkDropShaders = (shaderData: MilkDropShaderData | null): number => {
+    if (!shaderData || gl.isContextLost()) return 0;
+    if (!milkDropRenderer) {
+      milkDropRenderer = createMilkDropRenderer({ canvas, onError: options.onError });
+    }
+    try { return milkDropRenderer.warmShaders(shaderData); } catch { return 0; }
+  };
+
   const updateMilkDropShaders = (shaderData: MilkDropShaderData | null) => {
     if (!shaderData) {
       if (milkDropEnabled) {
@@ -1905,6 +1914,7 @@ void main() {
     precompileVariant,
     setCustomShaderBlocks,
     updateMilkDropShaders,
+    warmMilkDropShaders,
     getResourceCounts,
     getProgramCacheSize,
     trimProgramCache,

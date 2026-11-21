@@ -12634,6 +12634,32 @@ const serializeProject = () => {
   return JSON.stringify(buildProjectSnapshotForSave(), null, 2);
 };
 
+// Autosave serialization: embedded assets (images, ~80% of a show's bytes)
+// are stringified once and reused until they change; the rest is compact.
+let autosaveAssetsKey = '';
+let autosaveAssetsJson = '[]';
+let lastAutosaveBody = '';
+const ASSETS_PLACEHOLDER = '"__VS_AUTOSAVE_ASSETS__"';
+const runAutosave = () => {
+  try {
+    const snapshot = buildProjectSnapshotForSave() as any;
+    const assets: any[] = Array.isArray(snapshot.assets) ? snapshot.assets : [];
+    const key = assets.map((a) => `${a.id}:${(a.embeddedData ?? '').length}:${a.path ?? ''}`).join('|');
+    if (key !== autosaveAssetsKey) {
+      autosaveAssetsKey = key;
+      autosaveAssetsJson = JSON.stringify(assets);
+    }
+    const { updatedAt, ...rest } = snapshot;
+    const body = JSON.stringify({ ...rest, assets: '__VS_AUTOSAVE_ASSETS__' });
+    if (body === lastAutosaveBody) return; // nothing changed since last autosave
+    lastAutosaveBody = body;
+    const payload = body.slice(0, -1) + `,"updatedAt":${JSON.stringify(updatedAt ?? new Date().toISOString())}}`;
+    void window.visualSynth.autosaveProject(payload.replace(ASSETS_PLACEHOLDER, () => autosaveAssetsJson));
+  } catch (error) {
+    console.warn('[Autosave] failed:', error);
+  }
+};
+
 // Load-generation token for applyProject. applyProject is async and is often
 // invoked fire-and-forget (preset load, recovery, rapid manual loads). Two
 // concurrent loads interleave across the awaits inside applyLoadableProjectRuntime
@@ -12642,6 +12668,29 @@ const serializeProject = () => {
 // increments this counter; late-finishing loads see a stale generation and
 // become no-ops so the last-initiated load is the one that takes effect.
 let applyProjectGeneration = 0;
+
+// Background shader pre-compile, one scene per task, with progress. A newer
+// project load cancels it (generation token).
+const scheduleShaderPrewarm = (generation: number) => {
+  const scenes = currentProject.scenes.filter((s) => s._shaderData);
+  if (scenes.length === 0 || !renderer?.warmMilkDropShaders) return;
+  let index = 0;
+  let compiled = 0;
+  const started = performance.now();
+  const step = () => {
+    if (generation !== applyProjectGeneration) return;
+    if (index >= scenes.length) {
+      sessionLog.log('info', 'shader.prewarm_done', { scenes: scenes.length, compiled, ms: Math.round(performance.now() - started) });
+      setStatus(`Scenes ready: ${scenes.length} pre-compiled for instant cuts.`);
+      return;
+    }
+    compiled += renderer.warmMilkDropShaders?.(scenes[index]._shaderData as any) ?? 0;
+    index += 1;
+    if (index % 5 === 0 || index === scenes.length) setStatus(`Preparing scenes ${index}/${scenes.length}…`);
+    setTimeout(step, 30);
+  };
+  setTimeout(step, 1500); // let the first scene render first
+};
 
 const applyProject = async (project: VisualSynthProject) => {
   const myGen = ++applyProjectGeneration;
@@ -12689,6 +12738,9 @@ const applyProject = async (project: VisualSynthProject) => {
 
   currentProject = applied.project;
   outputConfig = applied.outputConfig;
+  // Pre-compile every scene's MilkDrop shaders now (soundcheck), so no first
+  // cut during the show stalls ~0.5s on a GPU-driver compile.
+  scheduleShaderPrewarm(myGen);
 
   // Self-heal projects saved before now-playing overlays became global: clear
   // scene scoping on the two managed overlay ids (matched by id, never by
@@ -15242,8 +15294,10 @@ const render = (time: number) => {
 
   if (cadence.shouldAutosave) {
     lastAutosaveAt = time;
-    const payload = serializeProject();
-    void window.visualSynth.autosaveProject(payload);
+    // Off the render path (next task), compact, assets cached, skipped when
+    // unchanged — was a ~1.3s pretty-printed 19MB stringify inside the render
+    // loop every 2 minutes (a visible freeze mid-show, 2026-11-20).
+    setTimeout(runAutosave, 0);
   }
   if (time - lastSummaryUpdate > 500) {
     lastSummaryUpdate = time;
