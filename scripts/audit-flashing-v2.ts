@@ -45,6 +45,8 @@ const JSON_OUT = opt('json');
 // --late=<s>: also sample a LATE window this many seconds after the scene
 // starts (catches scenes that move at first, then freeze/flood/die).
 const LATE = Number(opt('late', '0'));
+// --settle=<ms>: wait after a scene switch before measuring (default 2500).
+const SETTLE_MS = Number(opt('settle', '2500'));
 // --shard=i/n: audit every n-th scene starting at i (parallel runs).
 const SHARD = (opt('shard') ?? '0/1').split('/').map(Number);
 
@@ -251,8 +253,8 @@ const main = async () => {
     if (done.has(scene.name)) continue;
     try {
     await withTimeout(page.evaluate((id: string) => (window as any).__visualSynthCaptureApi.applyScene(id), scene.id), 20000);
-    await new Promise((r) => setTimeout(r, 2500));
-    const sceneStart = Date.now() - 2500;
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    const sceneStart = Date.now() - SETTLE_MS;
     const capture = (secs: number): Promise<Frame[]> => withTimeout(page.evaluate((secs: number, gw: number, gh: number) => new Promise<any>((resolve) => {
       const src = document.getElementById('gl-canvas') as HTMLCanvasElement;
       const tmp = document.createElement('canvas');
