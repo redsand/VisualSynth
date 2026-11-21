@@ -709,8 +709,9 @@ const render = (time: number) => {
   // diverged from the preview (milkdrop warp/comp passes never ran here).
   // updateMilkDropShaders compiles GL programs and has no internal
   // context-lost guard, so skip it while the context is lost or mid-restore.
-  if (state.milkDropShaderData && !renderer.isContextLost?.()) {
-    renderer.updateMilkDropShaders?.(state.milkDropShaderData);
+  if (!renderer.isContextLost?.()) {
+    // null clears a previous MilkDrop scene so it is not drawn over generators.
+    renderer.updateMilkDropShaders?.(state.milkDropShaderData ?? null);
   }
 
   renderer.render({

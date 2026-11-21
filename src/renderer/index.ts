@@ -16389,8 +16389,11 @@ const render = (time: number) => {
   // guard (unlike render(), which no-ops when lost/restoring). Skip it while the
   // context is lost or mid-restore so we don't issue GL compile/create calls on
   // a dead device. render() below already no-ops via its own guard.
-  if (renderState.milkDropShaderData && !renderer.isContextLost?.()) {
-    renderer.updateMilkDropShaders?.(renderState.milkDropShaderData);
+  // Always pass the scene's MilkDrop data — including null. Skipping null left
+  // the previous MilkDrop scene loaded, and it was composited OVER the next
+  // generator scene (Organic Wormhole showed black / the old scene, 2026-11-21).
+  if (!renderer.isContextLost?.()) {
+    renderer.updateMilkDropShaders?.(renderState.milkDropShaderData ?? null);
   }
    
   // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
@@ -16413,8 +16416,8 @@ const render = (time: number) => {
       cueCanvas.style.height = `${canvas.offsetHeight}px`;
       resizeCanvasToDisplaySize(cueCanvas, CUE_RENDER_SCALE);
       const cueState = previewData.renderState;
-      if (cueState.milkDropShaderData && !cueRenderer.isContextLost?.()) {
-        cueRenderer.updateMilkDropShaders?.(cueState.milkDropShaderData);
+      if (!cueRenderer.isContextLost?.()) {
+        cueRenderer.updateMilkDropShaders?.(cueState.milkDropShaderData ?? null); // null clears (see above)
       }
       cueRenderer.render(cueState);
     }

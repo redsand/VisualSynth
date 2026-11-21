@@ -58,6 +58,8 @@ export interface SeratoNowPlaying {
   sessionFile?: string;
   deck?: number;
   startedAt?: number;
+  /** still loaded on a deck (history end_time < 0) — not finished yet */
+  open?: boolean;
   /** absolute path of the audio file Serato is playing (for embedded art) */
   filePath?: string;
   error?: string;
@@ -112,6 +114,7 @@ export const readSeratoLibraryNowPlaying = (
             source: 'library',
             deck: Number(row.deck) || undefined,
             startedAt: Number(row.start_time) || undefined,
+            open: Number(row.end_time) < 0,
             // portable_id is the volume-relative path ("Users/…"): root it.
             filePath: row.portable_id ? `/${String(row.portable_id).replace(/^\/+/, '')}` : undefined
           });
@@ -288,12 +291,16 @@ export const SERATO_STALE_TRACK_MS = 15 * 60 * 1000;
  * once Serato was closed (2026-11-20).
  */
 export const isSeratoResultLive = (
-  result: Pick<SeratoNowPlaying, 'matched' | 'startedAt'>,
+  result: Pick<SeratoNowPlaying, 'matched' | 'startedAt' | 'open'>,
   running: boolean,
   nowMs = Date.now()
 ): boolean => {
   if (!running || !result.matched) return false;
   if (!result.startedAt) return true; // legacy session files carry no clock we trust
+  // Still loaded on a deck: live however long ago it was loaded. Serato does
+  // NOT add a new history entry when a loaded track is replayed, so the age
+  // rule wrongly expired a replayed track (2026-11-21).
+  if (result.open) return true;
   return nowMs - result.startedAt * 1000 < SERATO_STALE_TRACK_MS;
 };
 

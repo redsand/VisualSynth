@@ -148,5 +148,9 @@ describe('Serato liveness (who owns song detection)', () => {
     // Running but idle for longer than any track → NOT live (mic takes over)
     expect(isSeratoResultLive({ matched: true, startedAt: startedSec(SERATO_STALE_TRACK_MS + 1000) }, true, now)).toBe(false);
     expect(isSeratoResultLive({ matched: false }, true, now)).toBe(false);
+    // Still loaded on a deck (replayed without reloading → no new history
+    // entry): live however old, while Serato runs; not live once it quits.
+    expect(isSeratoResultLive({ matched: true, open: true, startedAt: startedSec(SERATO_STALE_TRACK_MS * 3) }, true, now)).toBe(true);
+    expect(isSeratoResultLive({ matched: true, open: true, startedAt: startedSec(SERATO_STALE_TRACK_MS * 3) }, false, now)).toBe(false);
   });
 });
