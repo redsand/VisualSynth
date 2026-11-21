@@ -14480,6 +14480,57 @@ const presentProgramMonitor = (show: boolean) => {
   programMonitorCtx.drawImage(canvas, 0, 0, w, h);
 };
 
+// Preview fit: the picture is the largest 16:9 rectangle that fits the
+// preview panel, centred, and every layer drawn over it (overlays, visualizer,
+// cue monitor, program monitor) is pinned to exactly that rectangle. The
+// canvas used to be width:100% with a height from its aspect ratio, leaving a
+// tall empty strip under it — and the overlay layer covered the whole panel,
+// so now-playing titles were drawn in that strip instead of on the picture
+// (and in different positions than on the output). 2026-11-20.
+const PREVIEW_ASPECT = 16 / 9;
+const PREVIEW_FIT_EXCLUDED_MODES = new Set(['matrix', 'mapping']);
+const fitPreviewLayers = () => {
+  const host = canvas.parentElement;
+  const layers = [overlayCanvas, document.getElementById('visualizer-canvas') as HTMLCanvasElement | null];
+  const excluded = PREVIEW_FIT_EXCLUDED_MODES.has(document.body.dataset.mode ?? '') || host?.id !== 'visual-preview';
+  if (excluded || !host) {
+    for (const el of [canvas, ...layers]) {
+      if (!el) continue;
+      el.style.removeProperty('width'); el.style.removeProperty('height');
+      el.style.removeProperty('left'); el.style.removeProperty('top'); el.style.removeProperty('inset');
+    }
+    return;
+  }
+  const pad = 10;
+  const availW = Math.max(0, host.clientWidth - pad * 2);
+  const availH = Math.max(0, host.clientHeight - pad * 2);
+  if (availW === 0 || availH === 0) return;
+  let w = availW;
+  let h = w / PREVIEW_ASPECT;
+  if (h > availH) { h = availH; w = h * PREVIEW_ASPECT; }
+  const left = Math.round((host.clientWidth - w) / 2);
+  const top = Math.round((host.clientHeight - h) / 2);
+  canvas.style.position = 'absolute';
+  canvas.style.left = `${left}px`;
+  canvas.style.top = `${top}px`;
+  canvas.style.width = `${Math.round(w)}px`;
+  canvas.style.height = `${Math.round(h)}px`;
+  for (const el of layers) {
+    if (!el) continue;
+    el.style.inset = 'auto';
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.style.width = `${Math.round(w)}px`;
+    el.style.height = `${Math.round(h)}px`;
+  }
+};
+{
+  const host = canvas.parentElement;
+  if (host && typeof ResizeObserver !== 'undefined') new ResizeObserver(() => fitPreviewLayers()).observe(host);
+  new MutationObserver(() => fitPreviewLayers()).observe(document.body, { attributes: true, attributeFilter: ['data-mode'] });
+  requestAnimationFrame(() => fitPreviewLayers());
+}
+
 // CUE badge over the preview: says the preview is NOT what the room sees,
 // with Take (cut to the cued scene) and ✕ (back to the program view).
 let cueBadge: HTMLDivElement | null = null;

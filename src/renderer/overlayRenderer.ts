@@ -32,15 +32,33 @@ const loadImage = (path: string): HTMLImageElement | null => {
   return img;
 };
 
-const renderTextCanvas = (overlay: OverlayConfig, w: number, h: number): HTMLCanvasElement => {
+/**
+ * Font sizes are authored against the 1280 px reference output width and
+ * scaled to whatever canvas they are drawn on. Fixed pixel sizes made text
+ * relatively huge on the preview (and clipped in its box) yet small on a
+ * 2560 px Retina/fullscreen output — the two windows never matched.
+ */
+const TEXT_REFERENCE_WIDTH = 1280;
+
+const renderTextCanvas = (overlay: OverlayConfig, w: number, h: number, scale = 1): HTMLCanvasElement => {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
   const ctx = c.getContext('2d');
   if (!ctx) return c;
-  const fontSize = overlay.fontSize ?? 24;
   const weight = overlay.fontWeight === 'bold' ? 'bold' : 'normal';
-  ctx.font = `${weight} ${fontSize}px ${overlay.fontFamily ?? 'sans-serif'}`;
+  const family = overlay.fontFamily ?? 'sans-serif';
+  const text = overlay.text ?? '';
+  const lines = text.split('\n');
+  // Shrink-to-fit: long now-playing titles/albums must stay inside the box.
+  let fontSize = (overlay.fontSize ?? 24) * scale;
+  ctx.font = `${weight} ${fontSize}px ${family}`;
+  const widest = Math.max(1, ...lines.map((line) => ctx.measureText(line).width));
+  const fit = Math.min(1, (w - 8) / widest, (h - 8) / (lines.length * fontSize * 1.2));
+  if (fit < 1) {
+    fontSize = Math.max(6, fontSize * fit);
+    ctx.font = `${weight} ${fontSize}px ${family}`;
+  }
   ctx.fillStyle = overlay.fontColor ?? '#ffffff';
   ctx.textBaseline = 'top';
   if (overlay.textShadow) {
@@ -49,8 +67,6 @@ const renderTextCanvas = (overlay: OverlayConfig, w: number, h: number): HTMLCan
     ctx.shadowOffsetX = 1;
     ctx.shadowOffsetY = 1;
   }
-  const text = overlay.text ?? '';
-  const lines = text.split('\n');
   const lineHeight = fontSize * 1.2;
   lines.forEach((line, i) => {
     ctx.fillText(line, 4, 4 + i * lineHeight);
@@ -196,11 +212,12 @@ export const createOverlayRenderer = (opts: OverlayRendererOptions) => {
   let drewSomethingLastFrame = true;
   const textCache = new Map<string, HTMLCanvasElement>();
   const cachedTextCanvas = (o: OverlayConfig, w: number, h: number) => {
-    const key = [o.id, o.text, o.fontSize, o.fontWeight, o.fontFamily, o.fontColor, o.textShadow, w, h].join('|');
+    const scale = canvas.width / TEXT_REFERENCE_WIDTH;
+    const key = [o.id, o.text, o.fontSize, o.fontWeight, o.fontFamily, o.fontColor, o.textShadow, w, h, scale.toFixed(3)].join('|');
     let c = textCache.get(key);
     if (!c) {
       for (const k of textCache.keys()) if (k.startsWith(`${o.id}|`)) textCache.delete(k);
-      c = renderTextCanvas(o, w, h);
+      c = renderTextCanvas(o, w, h, scale);
       textCache.set(key, c);
     }
     return c;
