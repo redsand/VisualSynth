@@ -3880,3 +3880,13 @@ body[data-mode='matrix'] .safe-mode {
   position: fixed; z-index: 50; min-width: 220px; max-width: 320px;
   background: #0f1724; color: #e6eefc; border: 1px solid #2b3d55; border-radius: 8px; padding: 4px;
 }
+
+/* Control HUD (preview only): what the dial/pad/palette just did. */
+.control-hud {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  z-index: 7; padding: 6px 14px; border-radius: 999px;
+  background: rgba(8, 12, 20, 0.82); border: 1px solid #3b5679; color: #eaf3ff;
+  font-size: 14px; font-weight: 600; letter-spacing: 0.02em; pointer-events: none;
+  opacity: 0; transition: opacity 0.18s ease;
+}
+.control-hud.visible { opacity: 1; }

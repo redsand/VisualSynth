@@ -2369,6 +2369,24 @@ const getLivePresets = () => presetLibrary.filter(p => p.presetMode === 'live');
 // whole project and wiped the scene timeline). Assign by dragging a scene
 // card onto a pad, right-click → pick, or "Fill from show".
 const LIVE_PAD_COUNT = 16;
+
+// Control HUD: brief label on the PREVIEW (never the output) when a dial, pad
+// or palette changes from the controller, so the DJ sees what they just did.
+let controlHud: HTMLDivElement | null = null;
+let controlHudTimer: ReturnType<typeof setTimeout> | null = null;
+const showControlHud = (text: string) => {
+  const host = document.getElementById('visual-preview');
+  if (!host) return;
+  if (!controlHud) {
+    controlHud = document.createElement('div');
+    controlHud.className = 'control-hud';
+    host.appendChild(controlHud);
+  }
+  controlHud.textContent = text;
+  controlHud.classList.add('visible');
+  if (controlHudTimer) clearTimeout(controlHudTimer);
+  controlHudTimer = setTimeout(() => controlHud?.classList.remove('visible'), 1100);
+};
 interface LivePadEntry { index: number; sceneId: string; name: string }
 const getLivePadIds = (): Array<string | null> => {
   const ids = (currentProject.livePads ?? []).slice(0, LIVE_PAD_COUNT);
@@ -2390,6 +2408,7 @@ const setLivePad = (index: number, sceneId: string | null) => {
 const triggerLivePad = (index: number) => {
   const sceneId = getLivePadIds()[index];
   if (!sceneId) return;
+  showControlHud(`Pad ${index + 1} · ${currentProject.scenes.find((s) => s.id === sceneId)?.name ?? ''}`);
   sessionLog.log('info', 'live.pad_triggered', { pad: index + 1, sceneId });
   applyScene(sceneId);
   renderLivePadGrid();
@@ -9332,6 +9351,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
       applyPaletteSelection(palette.id, { userPick: true });
       paletteSelect.value = palette.id;
       setStatus(`Palette: ${palette.name}`);
+      showControlHud(`Palette · ${palette.name}`);
     } else if (slot === 16) {
       // Projects ship 15 palettes: the 16th pad returns the scene to its own
       // palette (undo a live recolour) instead of doing nothing.
@@ -9723,6 +9743,7 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     return;
   }
   if (target === 'style.paletteShift') {
+    showControlHud(`Hue ${Math.round((Math.max(0, Math.min(127, value)) / 127) * 100)}%`);
     styleShift.value = String(scaleMidiValue(value, -0.5, 0.5));
     applyStyleControls();
     return;
@@ -9731,6 +9752,8 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
   if (fxTarget) {
     fxTarget.input.value = String(scaleMidiValue(value, fxTarget.min, fxTarget.max));
     fxTarget.commit();
+    const dial = FX_DIAL_TARGETS.find(([t]) => t === target);
+    showControlHud(`${dial?.[1] ?? target} ${Math.round((Math.max(0, Math.min(127, value)) / 127) * 100)}%`);
     return;
   }
   if (target.startsWith('macro-')) {

@@ -49,6 +49,7 @@ import puppeteer from 'puppeteer';
     const before = snap();
     send([0xb0, 70, 127]); await wait(400);                    // dial 1 = kaleidoscope full
     const after = snap();
+    const hudText = document.querySelector('.control-hud.visible')?.textContent ?? null;
     let diff = 0; for (let i = 0; i < before.length; i += 4) diff += Math.abs(before[i] - after[i]) + Math.abs(before[i + 1] - after[i + 1]);
     const kaleidoOnPad1 = (proj().scenes.find((sc: any) => sc.id === pads[0])?.look?.effects?.kaleidoscope ?? 0);
     send([0x90, 37, 100]); await wait(700);                     // pad 2
@@ -56,7 +57,7 @@ import puppeteer from 'puppeteer';
     send([0x90, 36, 100]); await wait(700);                     // back to pad 1
     const kaleidoBackOnPad1 = proj().effects?.kaleidoscope ?? 0;
     return { statusAfterConnect: statusAfterConnect.slice(0, 90), sceneMaps, padsFilled, cutToPad5, paletteMaps, palette5,
-      dialMaps, dialVisiblyChangesMilkwave: +(diff / (before.length / 4)).toFixed(1), kaleidoOnPad1, kaleidoOnPad2, kaleidoBackOnPad1 };
+      hudText, dialMaps, dialVisiblyChangesMilkwave: +(diff / (before.length / 4)).toFixed(1), kaleidoOnPad1, kaleidoOnPad2, kaleidoBackOnPad1 };
   });
   console.log(JSON.stringify(r, null, 1));
   await browser.close();
