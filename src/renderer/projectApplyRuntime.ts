@@ -16,6 +16,7 @@ export type ApplyLoadableProjectRuntimeResult =
       ok: true;
       project: VisualSynthProject;
       outputConfig: OutputConfig;
+      skippedScenes?: string[];
     }
   | {
       ok: false;
@@ -86,6 +87,7 @@ export const applyLoadableProjectRuntime = async (
   return {
     ok: true,
     project: normalized,
-    outputConfig
+    outputConfig,
+    ...(resolved.skippedScenes ? { skippedScenes: resolved.skippedScenes } : {})
   };
 };

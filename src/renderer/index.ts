@@ -12812,6 +12812,10 @@ const applyProject = async (project: VisualSynthProject) => {
 
   currentProject = applied.project;
   outputConfig = applied.outputConfig;
+  if (applied.skippedScenes?.length) {
+    sessionLog.log('warn', 'project.scenes_skipped', { scenes: applied.skippedScenes });
+    setTimeout(() => setStatus(`Loaded — skipped ${applied.skippedScenes!.length} invalid scene(s): ${applied.skippedScenes!.slice(0, 3).join(', ')}`), 2500);
+  }
   // Pre-compile every scene's MilkDrop shaders now (soundcheck), so no first
   // cut during the show stalls ~0.5s on a GPU-driver compile.
   scheduleShaderPrewarm(myGen);
