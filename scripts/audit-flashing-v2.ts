@@ -179,6 +179,8 @@ const main = async () => {
       };
       (window.navigator.mediaDevices as any).enumerateDevices = async () => [{ deviceId: 'default', kind: 'audioinput', label: 'flash probe' }];
     }
+    // Measure the SCENE, not the global beat punch (see glRenderer).
+    (window as any).__vsDisableBeatPulse = true;
     window.visualSynth = {
       ...(window.visualSynth ?? {}), listPresets: async () => [], onCloseRequested: () => {},
       showSaveDialog: async () => ({ result: 'cancel' }), saveProject: async () => ({ canceled: true }),

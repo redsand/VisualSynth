@@ -30,6 +30,14 @@ export type {
  * < 1 renders fewer pixels than displayed (the output window's 1080p cap);
  * > 1 renders more (the preview rendering at the mirrored output's resolution).
  */
+/**
+ * Global beat punch on milkwave scenes. Audits disable it
+ * (window.__vsDisableBeatPulse) so a frozen scene can't pass the motion
+ * check on beat pulses alone.
+ */
+let beatPulseEnabled = true;
+export const setBeatPulseEnabled = (enabled: boolean) => { beatPulseEnabled = enabled; };
+
 export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement, renderScale = 1) => {
   const dpr = (window.devicePixelRatio || 1) * Math.min(4, Math.max(0.25, renderScale));
   const width = Math.max(1, Math.floor(canvas.clientWidth * dpr));
@@ -1445,6 +1453,11 @@ uniform float uEngineVignette;
 uniform float uEngineCA;
 uniform float uTime;
 uniform vec2 uResolution;
+// Beat punch (0..1, jumps to 1 on each detected beat, decays in ~170ms).
+// Every milkwave scene pulses in time with the music regardless of how
+// reactive the preset's own code is. Kept well under the photosensitivity
+// line: <=2% zoom and <=8% brightness lift.
+uniform float uBeatPulse;
 out vec4 fragColor;
 
 float hash21(vec2 p) {
@@ -1460,7 +1473,9 @@ vec3 paletteRamp(float t) {
 }
 
 void main() {
-  vec3 color = texture(uTexture, vUv).rgb;
+  float beat = clamp(uBeatPulse, 0.0, 1.0);
+  vec2 uvBeat = (vUv - 0.5) * (1.0 - 0.02 * beat) + 0.5;
+  vec3 color = texture(uTexture, uvBeat).rgb;
 
   // MilkDrop comp gamma (fidelity: presets authored with fGammaAdj ~2 look
   // far brighter than intended when this is skipped).
@@ -1493,6 +1508,7 @@ void main() {
     color.b = mix(color.b, texture(uTexture, vUv - caOffset).b, caBlend * 0.5);
   }
 
+  color *= 1.0 + 0.08 * beat;
   fragColor = vec4(color, 1.0) * uOpacity;
 }`
             );
@@ -1521,6 +1537,7 @@ void main() {
             gl.uniform1f(mdUniform('uEngineCA'), state.engineCA ?? 0);
             gl.uniform1f(mdUniform('uTime'), (state.timeMs ?? 0) / 1000);
             gl.uniform2f(mdUniform('uResolution'), canvas.width, canvas.height);
+            gl.uniform1f(mdUniform('uBeatPulse'), beatPulseEnabled ? (state.glyphBeat ?? 0) : 0);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, mdTexture);
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);

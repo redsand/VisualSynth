@@ -22,7 +22,7 @@ import type { ModConnection, MidiMapping } from '../shared/project';
 import { SceneManager, captureSceneSnapshot } from './scene/SceneManager';
 import { renderSceneTimelineItems } from './scene/sceneTimeline';
 import { projectSchema } from '../shared/projectSchema';
-import { createGLRenderer, RenderState, resizeCanvasToDisplaySize } from './glRenderer';
+import { createGLRenderer, RenderState, resizeCanvasToDisplaySize, setBeatPulseEnabled } from './glRenderer';
 import { compileSceneShaders, primeProjectShaders } from './shaderLifecycle';
 import { getFxUniformsDeclarations } from '../shared/shaderUtils';
 import { createDebugOverlay } from './render/debugOverlay';
@@ -16174,6 +16174,7 @@ const render = (time: number) => {
   }
    
   // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
+  setBeatPulseEnabled(!(window as any).__vsDisableBeatPulse);
   renderer.render(renderState);
   if (cueing) {
     const cuedScene = previewScene;
