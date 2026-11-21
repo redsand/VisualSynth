@@ -57,6 +57,8 @@ for (const r of audit as Row[]) byName.set(r.name, r);
 
 const ok = (s: string | null | undefined) => !s || s === 'success' || s === 'not_requested';
 const MIN_STRUCTURE = Number(opt('min-structure') ?? 11);
+const MIN_REACT_CORR = Number(opt('min-react-corr') ?? 0.15);
+const MIN_REACT_RATIO = Number(opt('min-react-ratio') ?? 1.15);
 const structureOf = (fp?: { mean: number[] } | null) => {
   if (!fp?.mean?.length) return 0;
   const lum: number[] = [];
@@ -81,6 +83,12 @@ const reasons = (r: Row | undefined, name: string): string[] => {
   if (r.meanLuma > LUMA[1] || late > LUMA[1]) out.push('blown out');
   if (r.motion < MIN_MOTION || (r.lateMotion ?? r.motion) < MIN_MOTION) out.push(r.motion >= MIN_MOTION ? 'freezes' : 'static');
   if (meta[name] && meta[name].reactive === false) out.push('not music-reactive');
+  // Measured reactivity (audits run after 2026-11-20 record r.react): the
+  // picture must visibly respond to the music, not just mention bass in code.
+  const react = (r as any).react as { corr: number; ratio: number } | null | undefined;
+  if (react && react.corr < MIN_REACT_CORR && react.ratio < MIN_REACT_RATIO) {
+    out.push(`flat to music (corr ${react.corr}, ratio ${react.ratio})`);
+  }
   // Structure: spatial variation of the coarse image. Flat fills, near-black
   // frames and blurry blobs score < MIN_STRUCTURE (calibrated by eye on a
   // contact sheet, 2026-11-20: every scene rejected as flat/empty/blob was

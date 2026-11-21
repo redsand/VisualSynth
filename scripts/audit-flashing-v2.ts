@@ -52,7 +52,37 @@ const GW = 24;
 const GH = 16;
 const FLAG_FLASHES_PER_SEC = 3; // WCAG: no more than three flashes in any one-second period
 
-interface Frame { t: number; px: number[] } // RGB bytes, GW*GH*3
+interface Frame { t: number; px: number[]; level?: number | null } // RGB bytes, GW*GH*3; audio level
+
+// Measured audio reactivity: does the picture respond to the music? Uses the
+// app's per-frame audio level (window.__vsAudioLevel) against per-frame visual
+// change and brightness. corr = strongest Pearson correlation; ratio = mean
+// visual change in the loudest 30% of frames / in the quietest 30%.
+const reactivity = (fs: Frame[]): { corr: number; ratio: number } | null => {
+  const pts: Array<{ lv: number; mo: number; lu: number }> = [];
+  for (let i = 1; i < fs.length; i++) {
+    const lv = fs[i].level;
+    if (typeof lv !== 'number' || !Number.isFinite(lv)) continue;
+    let mo = 0, lu = 0;
+    const a = fs[i].px, b = fs[i - 1].px;
+    for (let j = 0; j < a.length; j++) { mo += Math.abs(a[j] - b[j]); lu += a[j]; }
+    pts.push({ lv, mo: mo / a.length, lu: lu / a.length });
+  }
+  if (pts.length < 30) return null;
+  const pearson = (x: number[], y: number[]) => {
+    const mx = x.reduce((p, v) => p + v, 0) / x.length, my = y.reduce((p, v) => p + v, 0) / y.length;
+    let sxy = 0, sxx = 0, syy = 0;
+    for (let i = 0; i < x.length; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; syy += (y[i] - my) ** 2; }
+    return sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : 0;
+  };
+  const lv = pts.map((p) => p.lv);
+  const corr = Math.max(Math.abs(pearson(lv, pts.map((p) => p.mo))), Math.abs(pearson(lv, pts.map((p) => p.lu))));
+  const sorted = [...pts].sort((a, b) => a.lv - b.lv);
+  const k = Math.max(1, Math.floor(sorted.length * 0.3));
+  const quiet = sorted.slice(0, k).reduce((p, v) => p + v.mo, 0) / k;
+  const loud = sorted.slice(-k).reduce((p, v) => p + v.mo, 0) / k;
+  return { corr: +corr.toFixed(3), ratio: +(loud / Math.max(0.01, quiet)).toFixed(2), levelMin: +Math.min(...lv).toFixed(3), levelMax: +Math.max(...lv).toFixed(3), n: pts.length } as any;
+};
 
 const srgbToLinear = (c: number) => {
   const v = c / 255;
@@ -168,8 +198,9 @@ const main = async () => {
         const ctx = new AudioContext();
         const dest = ctx.createMediaStreamDestination();
         try {
-          const bytes = new Uint8Array(atob(w).length);
-          for (let i = 0; i < bytes.length; i++) bytes[i] = w.charCodeAt(i);
+          // Decode the base64 WAV (was w.charCodeAt — the base64 TEXT — so
+          // decodeAudioData failed silently and every audit ran in silence).
+          const bytes = Uint8Array.from(atob(w), (c) => c.charCodeAt(0));
           const buf = await ctx.decodeAudioData(bytes.buffer);
           if (ctx.state === 'suspended') await ctx.resume();
           const src = ctx.createBufferSource();
@@ -198,6 +229,15 @@ const main = async () => {
   const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
     Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`timeout ${ms}ms`)), ms))]);
   await boot();
+  // Audio sanity: a reactivity audit is meaningless if the music isn't
+  // reaching the app.
+  const levels: number[] = await page.evaluate(async () => {
+    const v: number[] = [];
+    for (let i = 0; i < 10; i++) { v.push(Number((window as any).__vsAudioLevel ?? -1)); await new Promise((r) => setTimeout(r, 100)); }
+    return v;
+  });
+  const spread = Math.max(...levels) - Math.min(...levels);
+  console.log(`audio check: bass level ${Math.min(...levels).toFixed(3)}..${Math.max(...levels).toFixed(3)}${spread < 0.02 ? '  ** NO MUSIC REACHING THE APP **' : ''}`);
 
   const results: Array<{ name: string; flagged: boolean; flagged60: boolean; fps: number; perSec: number; perSec60: number; region: string; kind: string }> = [];
   // --resume: keep results already in --json and skip those scenes (a killed
@@ -225,7 +265,7 @@ const main = async () => {
         const d = ctx.getImageData(0, 0, gw, gh).data;
         const px: number[] = new Array(gw * gh * 3);
         for (let i = 0, j = 0; i < d.length; i += 4, j += 3) { px[j] = d[i]; px[j + 1] = d[i + 1]; px[j + 2] = d[i + 2]; }
-        out.push({ t, px });
+        out.push({ t, px, level: (window as any).__vsAudioLevel ?? null });
         if (t - t0 < secs * 1000) requestAnimationFrame(tick); else resolve(out);
       };
       requestAnimationFrame(tick);
@@ -269,7 +309,13 @@ const main = async () => {
     };
     let late: { luma: number; motion: number } | null = null;
     let lateFp: ReturnType<typeof fingerprint> | null = null;
-    if (LATE > 0) {
+    // --early-exit: a scene already plainly dead or dangerous in the early
+    // window can't pass — skip the (long) late wait. Most library presets
+    // fail this way, so screening large pools is several times faster.
+    const earlyWorst = analyse(frames);
+    const earlyDead = process.argv.includes('--early-exit') &&
+      (meanLuma < 8 || motion < 0.08 || Math.round(earlyWorst.perSec * Math.max(1, 60 / Math.max(1, frames.length / Math.max(0.001, (frames[frames.length - 1]?.t - frames[0]?.t) / 1000)))) >= 12);
+    if (LATE > 0 && !earlyDead) {
       const waitMs = LATE * 1000 - (Date.now() - sceneStart);
       if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
       const lateFrames = await capture(3);
@@ -293,7 +339,7 @@ const main = async () => {
     results.push({ name: scene.name, flagged, flagged60, fps: Math.round(fps), perSec: worst.perSec, perSec60, region: worst.region, kind: worst.kind,
       meanLuma: Math.round(meanLuma), motion: +motion.toFixed(2), compile,
       lateLuma: late ? Math.round(late.luma) : null, lateMotion: late ? +late.motion.toFixed(2) : null,
-      fp, lateFp, presetPath: scene.presetPath ?? null } as any);
+      fp, lateFp, presetPath: scene.presetPath ?? null, react: reactivity(frames) } as any);
     console.log(`${flagged ? 'FLAG  ' : flagged60 ? 'FLAG60' : '   .  '} ${String(scene.name).slice(0, 44).padEnd(44)} ` +
       `${String(worst.perSec).padStart(2)}/s (${String(perSec60).padStart(2)}/s@60) ${worst.kind || '-'} ${worst.region || '-'} fps=${Math.round(fps)} luma=${Math.round(meanLuma)} motion=${motion.toFixed(1)}${late ? ` late:luma=${Math.round(late.luma)} motion=${late.motion.toFixed(2)}` : ''} compile=${compile ? `${compile.warp}/${compile.comp}` : '?'}`);
     } catch (error) {

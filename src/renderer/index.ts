@@ -16229,6 +16229,12 @@ const render = (time: number) => {
    
   // console.log('[Render] Rendering scene:', activeScene?.id, 'with palette:', activeScene?.look?.activePaletteId ?? 'project default');
   setBeatPulseEnabled(!(window as any).__vsDisableBeatPulse);
+  // Audit hook: current audio level, read per frame by the reactivity audit
+  // (scripts/audit-flashing-v2.ts) to measure whether a scene responds to music.
+  // rms is auto-levelled/smoothed (barely moves); bass energy and peak are what
+  // visuals actually react to, so the audit gets the raw-ish band levels.
+  (window as any).__vsAudioLevel = audioState.energyLow;
+  (window as any).__vsAudioPeak = audioState.peak;
   renderer.render(renderState);
   if (cueing) {
     const cuedScene = previewScene;

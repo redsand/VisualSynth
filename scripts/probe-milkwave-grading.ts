@@ -39,8 +39,9 @@ const main = async () => {
         const ctx = new AudioContext();
         const dest = ctx.createMediaStreamDestination();
         try {
-          const bytes = new Uint8Array(atob(w).length);
-          for (let i = 0; i < bytes.length; i++) bytes[i] = w.charCodeAt(i);
+          // Decode the base64 WAV (was w.charCodeAt — the base64 TEXT — so
+          // decodeAudioData failed silently and every audit ran in silence).
+          const bytes = Uint8Array.from(atob(w), (c) => c.charCodeAt(0));
           const buf = await ctx.decodeAudioData(bytes.buffer);
           if (ctx.state === 'suspended') await ctx.resume();
           const src = ctx.createBufferSource();
