@@ -5132,10 +5132,17 @@ const activateMidiProfile = (deviceName: string | null | undefined) => {
     renderMidiMappings();
     setStatus(`MIDI profile loaded: ${activeMidiDeviceName} (${profile.length} mappings)`);
   } else {
-    saveMidiProfile(); // first time: this device starts from the project's mappings
-    setStatus(`MIDI connected: ${activeMidiDeviceName} — new profile (use Quick setup to map it)`);
+    // Instant setup: a controller with no profile maps itself from its first
+    // pad press (16 pads → scene pads 1-16); the first press on a different
+    // 16-note bank maps that bank to palettes. No Mapping-panel visit needed.
+    currentProject.midiMappings = [];
+    midiInstantSetup = 'scenes';
+    saveMidiProfile();
+    setStatus(`MIDI: ${activeMidiDeviceName} — press your FIRST pad to set it up (pads → scenes)`);
   }
 };
+/** 'scenes' → next note maps the scene-pad bank; 'palettes' → next new bank maps palettes. */
+let midiInstantSetup: 'scenes' | 'palettes' | null = null;
 
 const renderMidiMappings = () => {
   saveMidiProfile();
@@ -9783,6 +9790,7 @@ const initMidiQuickSetup = () => {
 };
 
 const armMidiLearn = (target: string, label: string) => {
+  midiInstantSetup = null; // manual mapping takes over from instant setup
   midiLearnEnabled = true;
   learnTarget = { target, label };
   updateMidiLearnToggle();
@@ -12440,6 +12448,20 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
   const messageType = status & 0xf0;
   const channel = getMidiChannel(status);
 
+  // Instant setup (new controller): first pad → scene bank, then a press on a
+  // DIFFERENT 16-note bank → palette bank.
+  if (!learnTarget && midiInstantSetup && messageType === 0x90 && data2 > 0) {
+    const mappedNote = currentProject.midiMappings.some((m) => m.message === 'note' && m.channel === channel && m.control === data1);
+    if (midiInstantSetup === 'scenes' || !mappedNote) {
+      learnTarget = { target: midiInstantSetup === 'scenes' ? SCENE_PAD_BANK_LEARN : PALETTE_BANK_LEARN, label: 'instant setup' };
+      const stage = midiInstantSetup;
+      midiInstantSetup = stage === 'scenes' ? 'palettes' : null;
+      if (stage === 'scenes' && getLivePadEntries().length === 0) {
+        // Make the pads useful immediately: fill empty scene pads from the show.
+        document.getElementById('live-pads-fill')?.dispatchEvent(new Event('click'));
+      }
+    }
+  }
   const bankPrefix = learnTarget?.target === PALETTE_BANK_LEARN ? 'palette.slot.'
     : learnTarget?.target === SCENE_PAD_BANK_LEARN ? 'livepad.slot.' : null;
   if (bankPrefix && messageType === 0x90 && data2 > 0) {
@@ -12455,7 +12477,9 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
       } as (typeof currentProject.midiMappings)[number]);
     }
     renderMidiMappings();
-    setStatus(`Mapped 16 ${bankPrefix === 'palette.slot.' ? 'palette' : 'scene'} pads: notes ${data1}-${data1 + 15}`);
+    setStatus(bankPrefix === 'livepad.slot.'
+      ? `Pads ready: notes ${data1}-${data1 + 15} → scene pads 1-16. (Switch to your other pad bank and press a pad to map palettes.)`
+      : `Palette pads ready: notes ${data1}-${data1 + 15} → palettes 1-16 (pad 16 restores the scene's palette).`);
     learnTarget = null;
     midiLearnEnabled = false;
     updateMidiLearnToggle();
