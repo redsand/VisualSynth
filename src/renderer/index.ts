@@ -3372,6 +3372,7 @@ const globalMidiTargets = [
   { id: 'step.palette', label: 'Palette Dial' },
   { id: 'step.engine', label: 'Engine Dial' },
   { id: 'scene.take', label: 'Take Cued Scene Live' },
+  { id: 'scene.skip', label: 'Skip to Next Scene (rotation)' },
   ...Array.from({ length: 16 }, (_, i) => ({ id: `palette.slot.${i + 1}`, label: `Palette Pad ${i + 1}` })),
   ...Array.from({ length: 16 }, (_, i) => ({ id: `livepad.slot.${i + 1}`, label: `Scene Pad ${i + 1}` })),
   { id: 'style.contrast', label: 'Style Contrast' },
@@ -9359,6 +9360,11 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
     }
     return;
   }
+  if (target === 'scene.skip') {
+    if (value <= 0) return;
+    skipToNextScene();
+    return;
+  }
   if (target === 'scene.take') {
     if (value <= 0) return;
     if (previewSceneId && previewSceneId !== currentProject.activeSceneId) {
@@ -9807,7 +9813,8 @@ const initMidiQuickSetup = () => {
     ['step.scene', 'Scene dial', 'Turn the dial for scene cueing'],
     ['step.palette', 'Palette dial', 'Turn the dial for palettes'],
     ['step.engine', 'Engine dial', 'Turn the dial for engines'],
-    ['scene.take', 'Take cue', 'Press the button that takes the cue live']
+    ['scene.take', 'Take cue', 'Press the button that takes the cue live'],
+    ['scene.skip', 'Skip scene', 'Press the button that skips a bad scene (cuts to the next one now)']
   ];
   for (const [target, label, hint] of items) {
     const button = document.createElement('button');
@@ -11475,6 +11482,38 @@ rotationButton?.addEventListener('click', async () => {
   updateRotationButton();
   setStatus(enabling ? 'Rotation on: scenes advance on each song change' : 'Rotation off');
 });
+
+/**
+ * Panic/skip button: cut straight to the next scene. With rotation on it
+ * moves along the rotation list (and the next song continues from there);
+ * otherwise it steps to the next scene in the project. Immediate, not queued
+ * to a beat: it exists to get a bad-looking scene off screen now.
+ */
+const skipToNextScene = () => {
+  const rotating = nowPlayingSettings.slideshowEnabled && nowPlayingSettings.slideshowSceneIds.length > 0;
+  let targetId: string | null = null;
+  if (rotating) {
+    const ids = nowPlayingSettings.slideshowSceneIds;
+    const at = ids.indexOf(currentProject.activeSceneId);
+    const from = at >= 0 ? at : slideshowSongIndex;
+    for (let step = 1; step <= ids.length; step += 1) {
+      const index = (from + step) % ids.length;
+      if (currentProject.scenes.some((scene) => scene.id === ids[index]) && ids[index] !== currentProject.activeSceneId) {
+        targetId = ids[index];
+        slideshowSongIndex = index;
+        break;
+      }
+    }
+  } else if (currentProject.scenes.length > 1) {
+    const at = currentProject.scenes.findIndex((scene) => scene.id === currentProject.activeSceneId);
+    targetId = currentProject.scenes[(at + 1) % currentProject.scenes.length].id;
+  }
+  if (!targetId) return;
+  if (sceneSelect) sceneSelect.value = targetId;
+  applyScene(targetId);
+  const name = currentProject.scenes.find((scene) => scene.id === targetId)?.name ?? '';
+  setStatus(`Skipped to: ${name}`);
+};
 
 const advanceSlideshowForNewSong = () => {
   if (!nowPlayingSettings.slideshowEnabled || nowPlayingSettings.slideshowSceneIds.length === 0) {
@@ -13203,6 +13242,13 @@ document.addEventListener('keydown', (event) => {
   // deck, and a bare-space binding here silently STARTED the auto-advancing
   // live playlist when a DJ hit space with VisualSynth focused — the
   // "slideshow running with no slideshow built" report.
+  // SHIFT+N: skip a bad-looking scene now (same as the MIDI 'Skip scene').
+  if (event.shiftKey && key.toLowerCase() === 'n' && !isTypingTarget) {
+    event.preventDefault();
+    event.stopPropagation();
+    skipToNextScene();
+    return;
+  }
   if (key === ' ' && event.shiftKey) {
     event.preventDefault();
     event.stopPropagation();
