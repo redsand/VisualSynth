@@ -1549,8 +1549,16 @@ void main() {
   // Palette grade: remap luminance through the active palette ramp,
   // preserving the image's structure. This is what makes the palette
   // selector affect milkwave scenes.
+  // Luminance-PRESERVING palette tint: take the palette's hue for this
+  // brightness but keep the pixel's own brightness. Mapping luminance straight
+  // onto the ramp pushed bright scenes to the ramp's top colour (often white)
+  // and dark areas to its bottom colour — scenes washed out to flat white or
+  // lost their structure (2026-11-20 contact-sheet review). Structure stays;
+  // the palette still visibly recolours.
   float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  vec3 graded = paletteRamp(luma);
+  vec3 ramp = paletteRamp(luma);
+  float rampLuma = dot(ramp, vec3(0.2126, 0.7152, 0.0722));
+  vec3 graded = clamp(ramp * (luma / max(rampLuma, 0.04)), 0.0, 1.0);
   color = mix(color, graded, uPaletteMix);
 
   // Engine finish — mirrors mainTemplate.glsl exactly.

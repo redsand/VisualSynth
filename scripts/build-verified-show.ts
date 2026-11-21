@@ -136,12 +136,21 @@ for (const c of passing) {
 // palette across the show makes every scene the same hue. Rotate the
 // template's palettes across scenes (scene-scoped look), so consecutive
 // scenes differ in colour; live palette picks still override per scene.
-const palettes: any[] = template.palettes ?? [];
+// Only palettes whose ramp STARTS DARK: the milkwave palette grade maps
+// luminance onto the ramp, so a bright first colour turns a scene's dark
+// areas bright — verified 2026-11-20: every scene graded with Desert Bloom /
+// Voltage / Citrus Pop / Ember came out blown-out or flat; dark-start palettes
+// (Heat, Grayscale, Synthwave, Ocean, Aurora…) kept their structure.
+const hexLuma = (hex: string) => {
+  const v = parseInt(hex.replace('#', ''), 16);
+  return (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255;
+};
+const palettes: any[] = (template.palettes ?? []).filter((p: any) => hexLuma(p.colors?.[0] ?? '#000000') < 0.25);
 const scenes = chosen.map((c, i) => {
   const scene = { ...c.scene, id: `scene-${i + 1}`, scene_id: `scene-${i + 1}` };
   if (palettes.length > 1 && opt('palette-variety') !== 'off') {
-    const palette = palettes[(i * 7) % palettes.length]; // stride 7: neighbours differ
-    scene.look = { ...(scene.look ?? {}), palettes: JSON.parse(JSON.stringify(palettes)), activePaletteId: palette.id };
+    const palette = palettes[(i * 3) % palettes.length]; // stride: neighbours differ
+    scene.look = { ...(scene.look ?? {}), palettes: JSON.parse(JSON.stringify(template.palettes)), activePaletteId: palette.id };
   }
   return scene;
 });
