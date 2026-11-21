@@ -24,6 +24,7 @@ ap.add_argument('--veto', default=None)
 ap.add_argument('--out', required=True)
 ap.add_argument('--max-noise', type=int, default=2, help='keep at most N names in --noise list')
 ap.add_argument('--noise', default=None, help='file of grainy-noise scene names (look-alike family)')
+ap.add_argument('--keep', default=None, help='file of scene names approved by eye; only HARD safety rules (flashing, black, frozen) then apply')
 args = ap.parse_args()
 
 show = json.load(open(args.show))
@@ -56,8 +57,26 @@ def fails(r):
     if rx and rx['corr'] < 0.15 and rx['ratio'] < 1.15: w.append('flat to music')
     return w
 
+def hard_fails(r):
+    # Safety and life only — quality was judged by eye on the contact sheet.
+    if r is None or r.get('crashed') or 'meanLuma' not in r: return ['not verified']
+    w = []
+    reg = r.get('region') or ''
+    big = reg == 'full' or reg.startswith('q-')
+    if (big and r['perSec60'] > 3) or r['perSec60'] >= 8: w.append(f"flashing {r['perSec60']}/s")
+    late = r['lateLuma'] if r.get('lateLuma') is not None else r['meanLuma']
+    lm = r['lateMotion'] if r.get('lateMotion') is not None else r['motion']
+    if min(r['meanLuma'], late) < 8: w.append('black')
+    if min(r['motion'], lm) < 0.1: w.append('frozen')
+    return w
+
+approved = set(l.strip() for l in open(args.keep)) if args.keep else None
 kept, dropped, noise_kept = [], [], 0
 for s in show['scenes']:
+    if approved is not None:
+        why = hard_fails(rows.get(s['name'])) if s['name'] in approved else ['not approved by eye']
+        (dropped if why else kept).append((s, why))
+        continue
     why = fails(rows.get(s['name']))
     if s['name'] in veto: why.append('vetoed by eye (contact sheet)')
     if s['name'] in noise:
