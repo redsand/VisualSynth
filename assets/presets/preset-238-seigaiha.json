@@ -65,8 +65,8 @@
   "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 1 },
   "tempoSync": { "bpm": 105, "source": "manual" },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "seigaiha.waveCount", "param": "waveCount" }, "amount": 0.3 },
-    { "source": "audio.rms", "target": { "type": "seigaiha.lineWeight", "param": "lineWeight" }, "amount": 0.2 }
+    { "source": "audio.rms", "target": { "type": "seigaiha", "param": "waveCount" }, "amount": 0.3 },
+    { "source": "audio.rms", "target": { "type": "seigaiha", "param": "lineWeight" }, "amount": 0.2 }
   ],
   "macros": [
     { "id": "macro-1", "name": "Wave Layers", "value": 0.5, "targets": [{ "target": "seigaiha.waveCount", "amount": 0.6 }] },

@@ -65,8 +65,8 @@
   "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 1 },
   "tempoSync": { "bpm": 100, "source": "manual" },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "stained-glass.lightAngle", "param": "lightAngle" }, "amount": 0.4 },
-    { "source": "audio.rms", "target": { "type": "stained-glass.leadWidth", "param": "leadWidth" }, "amount": 0.15 }
+    { "source": "audio.rms", "target": { "type": "stained-glass", "param": "lightAngle" }, "amount": 0.4 },
+    { "source": "audio.rms", "target": { "type": "stained-glass", "param": "leadWidth" }, "amount": 0.15 }
   ],
   "macros": [
     { "id": "macro-1", "name": "Light Sweep", "value": 0.5, "targets": [{ "target": "stained-glass.lightAngle", "amount": 0.6 }] },

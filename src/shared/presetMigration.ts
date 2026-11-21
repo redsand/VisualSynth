@@ -908,7 +908,10 @@ export const validatePreset = (preset: any): { valid: boolean; warnings: string[
         errors.push(`Modulation has invalid target: ${JSON.stringify(mod.target)}`);
         continue;
       }
-      const layerType = parsedTarget.type ?? parsedTarget.layerType;
+      // Tolerate the dotted form ({ type: 'boids.speed', param: 'speed' }):
+      // ten built-in pad presets shipped that way and failed validation, so
+      // their pads never loaded (2026-11-20). The layer is the part before '.'.
+      const layerType = String(parsedTarget.type ?? parsedTarget.layerType ?? '').split('.')[0];
       const param = parsedTarget.param;
       if (!layerTypeExists(layerType)) {
         errors.push(`Modulation target has unknown layer type: ${layerType}`);

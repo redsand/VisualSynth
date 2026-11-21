@@ -65,8 +65,8 @@
   "roleWeights": { "core": 1, "support": 0.3, "atmosphere": 1 },
   "tempoSync": { "bpm": 110, "source": "manual" },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "crosshatch.density", "param": "density" }, "amount": 0.35 },
-    { "source": "audio.rms", "target": { "type": "crosshatch.angle1", "param": "angle1" }, "amount": 0.2 }
+    { "source": "audio.rms", "target": { "type": "crosshatch", "param": "density" }, "amount": 0.35 },
+    { "source": "audio.rms", "target": { "type": "crosshatch", "param": "angle1" }, "amount": 0.2 }
   ],
   "macros": [
     { "id": "macro-1", "name": "Hatch Density", "value": 0.5, "targets": [{ "target": "crosshatch.density", "amount": 0.6 }] },

@@ -65,8 +65,8 @@
   "roleWeights": { "core": 1, "support": 0.4, "atmosphere": 1 },
   "tempoSync": { "bpm": 120, "source": "manual" },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "spectrogram.freqScale", "param": "freqScale" }, "amount": 0.25 },
-    { "source": "audio.rms", "target": { "type": "spectrogram.history", "param": "history" }, "amount": 0.2 }
+    { "source": "audio.rms", "target": { "type": "spectrogram", "param": "freqScale" }, "amount": 0.25 },
+    { "source": "audio.rms", "target": { "type": "spectrogram", "param": "history" }, "amount": 0.2 }
   ],
   "macros": [
     { "id": "macro-1", "name": "Freq Scale", "value": 0.5, "targets": [{ "target": "spectrogram.freqScale", "amount": 0.6 }] },

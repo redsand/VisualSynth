@@ -65,8 +65,8 @@
   "roleWeights": { "core": 1, "support": 0.5, "atmosphere": 1 },
   "tempoSync": { "bpm": 120, "source": "manual" },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "flow-field.curlIntensity", "param": "curlIntensity" }, "amount": 0.35 },
-    { "source": "audio.rms", "target": { "type": "flow-field.lineCount", "param": "lineCount" }, "amount": 0.2 }
+    { "source": "audio.rms", "target": { "type": "flow-field", "param": "curlIntensity" }, "amount": 0.35 },
+    { "source": "audio.rms", "target": { "type": "flow-field", "param": "lineCount" }, "amount": 0.2 }
   ],
   "macros": [
     { "id": "macro-1", "name": "Curl Force", "value": 0.6, "targets": [{ "target": "flow-field.curlIntensity", "amount": 0.7 }] },

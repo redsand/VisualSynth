@@ -136,7 +136,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "truchet-tiles.arcWidth",
+        "type": "truchet-tiles",
         "param": "arcWidth"
       },
       "amount": 0.3
@@ -144,7 +144,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "truchet-tiles.speed",
+        "type": "truchet-tiles",
         "param": "speed"
       },
       "amount": 0.25

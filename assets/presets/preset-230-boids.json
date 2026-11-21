@@ -65,8 +65,8 @@
   "roleWeights": { "core": 1, "support": 0.5, "atmosphere": 1 },
   "tempoSync": { "bpm": 120, "source": "manual" },
   "modulations": [
-    { "source": "audio.rms", "target": { "type": "boids.speed", "param": "speed" }, "amount": 0.3 },
-    { "source": "audio.rms", "target": { "type": "boids.cohesion", "param": "cohesion" }, "amount": 0.2 }
+    { "source": "audio.rms", "target": { "type": "boids", "param": "speed" }, "amount": 0.3 },
+    { "source": "audio.rms", "target": { "type": "boids", "param": "cohesion" }, "amount": 0.2 }
   ],
   "macros": [
     { "id": "macro-1", "name": "Flock Density", "value": 0.5, "targets": [{ "target": "boids.count", "amount": 0.6 }] },

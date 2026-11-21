@@ -136,7 +136,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "shatter.spread",
+        "type": "shatter",
         "param": "spread"
       },
       "amount": 0.4
@@ -144,7 +144,7 @@
     {
       "source": "audio.rms",
       "target": {
-        "type": "shatter.shardCount",
+        "type": "shatter",
         "param": "shardCount"
       },
       "amount": 0.25
