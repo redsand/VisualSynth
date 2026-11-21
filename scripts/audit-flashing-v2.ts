@@ -200,7 +200,15 @@ const main = async () => {
   await boot();
 
   const results: Array<{ name: string; flagged: boolean; flagged60: boolean; fps: number; perSec: number; perSec60: number; region: string; kind: string }> = [];
+  // --resume: keep results already in --json and skip those scenes (a killed
+  // run continues where it stopped instead of starting over).
+  if (process.argv.includes('--resume') && JSON_OUT && fs.existsSync(JSON_OUT)) {
+    try { results.push(...JSON.parse(fs.readFileSync(JSON_OUT, 'utf8'))); } catch { /* start fresh */ }
+    console.log(`resume: ${results.length} scenes already audited`);
+  }
+  const done = new Set(results.map((r) => r.name));
   for (const scene of scenes as any[]) {
+    if (done.has(scene.name)) continue;
     try {
     await withTimeout(page.evaluate((id: string) => (window as any).__visualSynthCaptureApi.applyScene(id), scene.id), 20000);
     await new Promise((r) => setTimeout(r, 2500));
