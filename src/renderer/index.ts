@@ -70,6 +70,7 @@ import { applyLoadableProjectRuntime } from './projectApplyRuntime';
 import { initializeOutputSession } from './outputSessionRuntime';
 import { openOutputMirror, type OutputMirror } from './outputMirror';
 import { createAdaptiveResolutionState, resolutionScale, tickResolutionGovernor } from '../shared/adaptiveResolution';
+import { createMidiStepState, stepFromCc, stepIndex, type MidiStepState } from '../shared/midiStep';
 import {
   nextFrameDropScore,
   resolveFrameCadence,
@@ -3270,6 +3271,14 @@ const getTargetDefaults = (targetId: string) =>
   modTargetOptions.find((item) => item.id === targetId) ?? { min: 0, max: 1 };
 
 const globalMidiTargets = [
+  // Performance-controller targets (see src/shared/midiStep.ts): endless or
+  // ordinary dials step through lists; pads pick palettes; one button takes
+  // the cued scene live.
+  { id: 'step.scene', label: 'Scene Dial (cue next/prev)' },
+  { id: 'step.palette', label: 'Palette Dial' },
+  { id: 'step.engine', label: 'Engine Dial' },
+  { id: 'scene.take', label: 'Take Cued Scene Live' },
+  ...Array.from({ length: 16 }, (_, i) => ({ id: `palette.slot.${i + 1}`, label: `Palette Pad ${i + 1}` })),
   { id: 'style.contrast', label: 'Style Contrast' },
   { id: 'style.saturation', label: 'Style Saturation' },
   { id: 'style.paletteShift', label: 'Palette Shift' },
@@ -9180,6 +9189,30 @@ const addGenerator = (id: GeneratorId) => {
 };
 
 const applyMidiTargetValue = (target: string, value: number, isToggle = false) => {
+  if (target.startsWith('palette.slot.')) {
+    if (value <= 0) return; // pad release
+    const slot = Number(target.slice('palette.slot.'.length));
+    const palette = currentProject.palettes[slot - 1];
+    if (palette) {
+      applyPaletteSelection(palette.id, { userPick: true });
+      paletteSelect.value = palette.id;
+      setStatus(`Palette: ${palette.name}`);
+    } else if (slot === 16) {
+      // Projects ship 15 palettes: the 16th pad returns the scene to its own
+      // palette (undo a live recolour) instead of doing nothing.
+      restoreScenePalette();
+    }
+    return;
+  }
+  if (target === 'scene.take') {
+    if (value <= 0) return;
+    if (previewSceneId && previewSceneId !== currentProject.activeSceneId) {
+      const name = currentProject.scenes.find((s) => s.id === previewSceneId)?.name ?? '';
+      applyScene(previewSceneId);
+      setStatus(`Took live: ${name}`);
+    }
+    return;
+  }
   if (target === 'layer-plasma.enabled') {
     const scene = currentProject.scenes.find((item) => item.id === currentProject.activeSceneId);
     if (scene) {
@@ -9604,6 +9637,32 @@ const applyMidiTargetValue = (target: string, value: number, isToggle = false) =
   }
 };
 
+// Quick setup for a performance controller: one click arms learn for the
+// common targets (palette pad bank, scene/palette/engine dials, take).
+const initMidiQuickSetup = () => {
+  const host = document.getElementById('midi-quick-setup');
+  if (!host || host.dataset.bound) return;
+  host.dataset.bound = '1';
+  const items: Array<[string, string, string]> = [
+    [PALETTE_BANK_LEARN, 'Palette pads (16)', 'Press the FIRST of your 16 pads'],
+    ['step.scene', 'Scene dial', 'Turn the dial for scene cueing'],
+    ['step.palette', 'Palette dial', 'Turn the dial for palettes'],
+    ['step.engine', 'Engine dial', 'Turn the dial for engines'],
+    ['scene.take', 'Take cue', 'Press the button that takes the cue live']
+  ];
+  for (const [target, label, hint] of items) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.title = hint;
+    button.addEventListener('click', () => {
+      armMidiLearn(target, label);
+      setStatus(`MIDI Learn: ${hint}`);
+    });
+    host.appendChild(button);
+  }
+};
+
 const armMidiLearn = (target: string, label: string) => {
   midiLearnEnabled = true;
   learnTarget = { target, label };
@@ -9613,6 +9672,7 @@ const armMidiLearn = (target: string, label: string) => {
 };
 
 const initLearnables = () => {
+  initMidiQuickSetup();
   // Only bind elements that haven't been bound yet. renderLayerList rebuilds the
   // layer toggle checkboxes (new DOM nodes with data-learn-target) on every
   // call; without re-binding, MIDI-learn clicks on layer toggles stop working
@@ -9780,6 +9840,21 @@ const broadcastCurrentOutputState = () => {
   });
 };
 
+const scenePaletteOriginals = new Map<string, string>();
+/** Restore the active scene's own palette after live recolouring. */
+const restoreScenePalette = () => {
+  const scene = currentProject.scenes.find((s) => s.id === currentProject.activeSceneId);
+  const original = scene ? scenePaletteOriginals.get(scene.id) : undefined;
+  if (!scene || !original) {
+    setStatus('Scene palette is already its own.');
+    return;
+  }
+  applyPaletteSelection(original, { userPick: true });
+  paletteSelect.value = original;
+  scenePaletteOriginals.delete(scene.id);
+  setStatus(`Palette restored: ${currentProject.palettes.find((p) => p.id === original)?.name ?? original}`);
+};
+
 const applyPaletteSelection = (paletteId: string, opts: { userPick?: boolean } = {}) => {
   const palette =
     currentProject.palettes.find((item) => item.id === paletteId) ?? currentProject.palettes[0];
@@ -9799,6 +9874,11 @@ const applyPaletteSelection = (paletteId: string, opts: { userPick?: boolean } =
   // programmatic calls (initPalettes on scene change) must not, or every
   // scene switch would overwrite the incoming scene's own palette.
   if (scene && (paletteApplyToggle.checked || (opts.userPick && scene.look?.activePaletteId))) {
+    // Remember the scene's own palette the first time it is recoloured live,
+    // so it can be restored (palette pad 16 / restoreScenePalette).
+    if (scene.look?.activePaletteId && !scenePaletteOriginals.has(scene.id)) {
+      scenePaletteOriginals.set(scene.id, scene.look.activePaletteId);
+    }
     scene.look = {
       ...scene.look,
       palettes: (() => {
@@ -12181,6 +12261,40 @@ const startMidiInput = async () => {
 // re-triggering on every knob tick. WeakMap so entries are reclaimed when a
 // mapping object is replaced/removed.
 const ccEdgeState = new WeakMap<MidiMapping, number>();
+const midiStepStates = new WeakMap<MidiMapping, MidiStepState>();
+const PALETTE_BANK_LEARN = 'palette.bank';
+
+/** Cue a scene for preview (the output keeps the program until Take). */
+const cueSceneFromController = (sceneId: string) => {
+  const scene = currentProject.scenes.find((s) => s.id === sceneId);
+  if (!scene) return;
+  selectedSceneId = sceneId;
+  previewSceneId = sceneId;
+  compileSceneForPreview(scene);
+  renderSceneTimeline();
+  setStatus(`Cue: ${scene.name}`);
+};
+
+const applyMidiStep = (target: string, steps: number) => {
+  if (target === 'step.scene') {
+    const scenes = currentProject.scenes;
+    const from = scenes.findIndex((s) => s.id === (previewSceneId ?? currentProject.activeSceneId));
+    const next = scenes[stepIndex(Math.max(0, from), steps, scenes.length)];
+    if (next) cueSceneFromController(next.id);
+  } else if (target === 'step.palette') {
+    const palettes = currentProject.palettes;
+    const from = palettes.findIndex((p) => p.id === currentProject.activePaletteId);
+    const next = palettes[stepIndex(Math.max(0, from), steps, palettes.length)];
+    if (next) {
+      applyPaletteSelection(next.id, { userPick: true });
+      paletteSelect.value = next.id;
+      setStatus(`Palette: ${next.name}`);
+    }
+  } else if (target === 'step.engine' && engineSelect && engineSelect.options.length > 0) {
+    engineSelect.selectedIndex = stepIndex(Math.max(0, engineSelect.selectedIndex), steps, engineSelect.options.length);
+    engineSelect.dispatchEvent(new Event('change'));
+  }
+};
 
 const handleMidiMessage = (message: number[], eventTime: number) => {
   const [status, data1, data2 = 0] = message;
@@ -12188,7 +12302,25 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
   const messageType = status & 0xf0;
   const channel = getMidiChannel(status);
 
-  if (learnTarget && (messageType === 0x90 || messageType === 0xb0)) {
+  if (learnTarget?.target === PALETTE_BANK_LEARN && messageType === 0x90 && data2 > 0) {
+    // One press maps a whole 16-pad bank: pads are consecutive notes on
+    // virtually every controller (e.g. 36-51), first pad = palette 1.
+    currentProject.midiMappings = currentProject.midiMappings.filter((m) => !m.target.startsWith('palette.slot.'));
+    for (let i = 0; i < 16; i++) {
+      currentProject.midiMappings.push({
+        id: `map-${Date.now()}-${i}`, message: 'note', channel, control: data1 + i,
+        target: `palette.slot.${i + 1}`, mode: 'toggle'
+      } as (typeof currentProject.midiMappings)[number]);
+    }
+    renderMidiMappings();
+    setStatus(`Mapped 16 palette pads: notes ${data1}-${data1 + 15} → palettes 1-16`);
+    learnTarget = null;
+    midiLearnEnabled = false;
+    updateMidiLearnToggle();
+    updateMappingHud();
+    return;
+  }
+  if (learnTarget && learnTarget.target !== PALETTE_BANK_LEARN && (messageType === 0x90 || messageType === 0xb0)) {
     const mapping = {
       id: `map-${Date.now()}`,
       message: messageType === 0x90 ? 'note' : 'cc',
@@ -12236,6 +12368,13 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
       }
       if (mapping.message === 'cc' && messageType === 0xb0) {
         if (mapping.control !== data1) return;
+        if (mapping.target.startsWith('step.')) {
+          let state = midiStepStates.get(mapping);
+          if (!state) { state = createMidiStepState(); midiStepStates.set(mapping, state); }
+          const steps = stepFromCc(state, data2);
+          if (steps !== 0) applyMidiStep(mapping.target, steps);
+          return;
+        }
         const v = data2 / 127;
         if (mapping.mode === 'toggle') {
           // Flip on the rising edge (crossing 0.5 upward) so one knob gesture

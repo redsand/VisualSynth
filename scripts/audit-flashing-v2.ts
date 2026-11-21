@@ -141,12 +141,18 @@ const main = async () => {
     !ONLY || ONLY.some((sub) => String(s.name).toLowerCase().includes(sub.toLowerCase())));
   console.log(`flash-auditing v2: ${scenes.length} scenes, ${SECONDS}s each, per-frame ${GW}x${GH}`);
 
-  const browser = await puppeteer.launch({
+  // Hang/crash-capable presets exist in the unscreened pool: every scene step
+  // is bounded, and a crashed or hung browser is relaunched (the scene is
+  // recorded as CRASH — never a replacement candidate).
+  let browser!: Awaited<ReturnType<typeof puppeteer.launch>>;
+  let page!: Awaited<ReturnType<typeof browser.newPage>>;
+  const boot = async () => {
+  browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling',
       '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows']
   });
-  const page = await browser.newPage();
+  page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
   const wav = fs.existsSync(WAV) ? fs.readFileSync(WAV).toString('base64') : '';
   await page.evaluateOnNewDocument((w: string) => {
@@ -180,12 +186,17 @@ const main = async () => {
   await page.waitForFunction(() => Boolean((window as any).__visualSynthInitialized), { timeout: 120000 });
   await page.evaluate(async (p: unknown) => { await (window as any).__visualSynthCaptureApi.applyProject(p); }, proj);
   await new Promise((r) => setTimeout(r, 3000));
+  };
+  const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+    Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error(`timeout ${ms}ms`)), ms))]);
+  await boot();
 
   const results: Array<{ name: string; flagged: boolean; flagged60: boolean; fps: number; perSec: number; perSec60: number; region: string; kind: string }> = [];
   for (const scene of scenes as any[]) {
-    await page.evaluate((id: string) => (window as any).__visualSynthCaptureApi.applyScene(id), scene.id);
+    try {
+    await withTimeout(page.evaluate((id: string) => (window as any).__visualSynthCaptureApi.applyScene(id), scene.id), 20000);
     await new Promise((r) => setTimeout(r, 2500));
-    const frames: Frame[] = await page.evaluate((secs: number, gw: number, gh: number) => new Promise<any>((resolve) => {
+    const frames: Frame[] = await withTimeout(page.evaluate((secs: number, gw: number, gh: number) => new Promise<any>((resolve) => {
       const src = document.getElementById('gl-canvas') as HTMLCanvasElement;
       const tmp = document.createElement('canvas');
       tmp.width = gw; tmp.height = gh;
@@ -201,16 +212,46 @@ const main = async () => {
         if (t - t0 < secs * 1000) requestAnimationFrame(tick); else resolve(out);
       };
       requestAnimationFrame(tick);
-    }), SECONDS, GW, GH);
+    }), SECONDS, GW, GH), (SECONDS + 25) * 1000);
+    // Visibility + health (for screening NEW scenes, not just strobing ones):
+    // mean luma, frame-to-frame motion, and the MilkDrop compile status.
+    let lumaSum = 0, motionSum = 0;
+    for (let i = 0; i < frames.length; i++) {
+      const px = frames[i].px;
+      let l = 0, d = 0;
+      for (let j = 0; j < px.length; j += 3) {
+        l += (px[j] + px[j + 1] + px[j + 2]) / 3;
+        if (i > 0) d += Math.abs(px[j] - frames[i - 1].px[j]) + Math.abs(px[j + 1] - frames[i - 1].px[j + 1]);
+      }
+      lumaSum += l / (px.length / 3);
+      if (i > 0) motionSum += d / (px.length / 3) / 2;
+    }
+    const meanLuma = frames.length ? lumaSum / frames.length : 0;
+    const motion = frames.length > 1 ? motionSum / (frames.length - 1) : 0;
+    const compile = await withTimeout(page.evaluate(() => {
+      const d = (window as any).__visualSynthCaptureApi.getDiagnostics?.() ?? {};
+      const r = d.milkdropCompileReport ?? d.milkdrop?.compileReport ?? null;
+      // A pass that was never requested keeps the default 'failed' status.
+      const st = (x: any) => (x && x.requested === false ? 'not_requested' : x?.status ?? null);
+      return r ? { warp: st(r.warp), comp: st(r.comp) } : null;
+    }), 10000);
     const spanS = frames.length > 1 ? (frames[frames.length - 1].t - frames[0].t) / 1000 : 1;
     const fps = frames.length / Math.max(0.001, spanS);
     const worst = analyse(frames);
     const perSec60 = Math.round(worst.perSec * Math.max(1, 60 / Math.max(1, fps)));
     const flagged = worst.perSec > FLAG_FLASHES_PER_SEC;
     const flagged60 = !flagged && perSec60 > FLAG_FLASHES_PER_SEC;
-    results.push({ name: scene.name, flagged, flagged60, fps: Math.round(fps), perSec: worst.perSec, perSec60, region: worst.region, kind: worst.kind });
+    results.push({ name: scene.name, flagged, flagged60, fps: Math.round(fps), perSec: worst.perSec, perSec60, region: worst.region, kind: worst.kind,
+      meanLuma: Math.round(meanLuma), motion: +motion.toFixed(2), compile } as any);
     console.log(`${flagged ? 'FLAG  ' : flagged60 ? 'FLAG60' : '   .  '} ${String(scene.name).slice(0, 44).padEnd(44)} ` +
-      `${String(worst.perSec).padStart(2)}/s (${String(perSec60).padStart(2)}/s@60) ${worst.kind || '-'} ${worst.region || '-'} fps=${Math.round(fps)}`);
+      `${String(worst.perSec).padStart(2)}/s (${String(perSec60).padStart(2)}/s@60) ${worst.kind || '-'} ${worst.region || '-'} fps=${Math.round(fps)} luma=${Math.round(meanLuma)} motion=${motion.toFixed(1)} compile=${compile ? `${compile.warp}/${compile.comp}` : '?'}`);
+    } catch (error) {
+      console.log(`CRASH  ${String(scene.name).slice(0, 44).padEnd(44)} ${String((error as Error).message).slice(0, 80)} — relaunching`);
+      results.push({ name: scene.name, flagged: true, flagged60: false, fps: 0, perSec: 99, perSec60: 99, region: 'crash', kind: 'crash', crashed: true } as any);
+      try { await browser.close(); } catch { /* already gone */ }
+      await boot();
+    }
+    if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(results, null, 2)); // incremental
   }
   if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(results, null, 2));
   const flagged = results.filter((r) => r.flagged || r.flagged60);

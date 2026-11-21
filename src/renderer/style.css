@@ -3867,3 +3867,9 @@ body[data-mode="live"] .visual-mode-group .visual-mode-route {
   cursor: pointer;
 }
 .cue-badge .cue-cancel { background: transparent; color: #ffe7b0; padding: 2px 8px; }
+
+/* MIDI quick setup: one-click learn for a performance controller. */
+.midi-quick-setup-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
+.midi-quick-setup-label { font-size: 12px; opacity: 0.75; }
+.midi-quick-setup { display: flex; gap: 6px; flex-wrap: wrap; }
+.midi-quick-setup button { font-size: 12px; padding: 3px 9px; }
