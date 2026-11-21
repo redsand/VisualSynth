@@ -5137,12 +5137,22 @@ const activateMidiProfile = (deviceName: string | null | undefined) => {
     // 16-note bank maps that bank to palettes. No Mapping-panel visit needed.
     currentProject.midiMappings = [];
     midiInstantSetup = 'scenes';
+    midiDialSetupPending = true;
     saveMidiProfile();
     setStatus(`MIDI: ${activeMidiDeviceName} — press your FIRST pad to set it up (pads → scenes)`);
   }
 };
 /** 'scenes' → next note maps the scene-pad bank; 'palettes' → next new bank maps palettes. */
 let midiInstantSetup: 'scenes' | 'palettes' | null = null;
+/** New controller: the first knob turned maps it + the next 7 CCs to the 8 FX dials. */
+let midiDialSetupPending = false;
+// The 8 performance FX (work on every scene incl. milkwave; values are kept
+// per scene, so each scene/pad remembers its own dial settings).
+const FX_DIAL_TARGETS: Array<[string, string]> = [
+  ['effects.kaleidoscope', 'Kaleidoscope'], ['effects.feedback', 'Twist'], ['effects.persistence', 'Zoom'],
+  ['effects.chroma', 'Chroma'], ['effects.bloom', 'Glow'], ['effects.blur', 'Blur'],
+  ['effects.posterize', 'Posterize'], ['style.paletteShift', 'Hue']
+];
 
 const renderMidiMappings = () => {
   saveMidiProfile();
@@ -9791,6 +9801,7 @@ const initMidiQuickSetup = () => {
 
 const armMidiLearn = (target: string, label: string) => {
   midiInstantSetup = null; // manual mapping takes over from instant setup
+  midiDialSetupPending = false;
   midiLearnEnabled = true;
   learnTarget = { target, label };
   updateMidiLearnToggle();
@@ -12448,6 +12459,19 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
   const messageType = status & 0xf0;
   const channel = getMidiChannel(status);
 
+  if (!learnTarget && midiDialSetupPending && messageType === 0xb0 &&
+      !currentProject.midiMappings.some((m) => m.message === 'cc' && m.channel === channel && m.control === data1)) {
+    midiDialSetupPending = false;
+    FX_DIAL_TARGETS.forEach(([target], i) => {
+      currentProject.midiMappings.push({
+        id: `map-${Date.now()}-dial${i}`, message: 'cc', channel, control: data1 + i, target, mode: 'momentary'
+      } as (typeof currentProject.midiMappings)[number]);
+    });
+    if (!effectsEnabled.checked) { effectsEnabled.checked = true; applyEffectControls(); }
+    renderMidiMappings();
+    setStatus(`Dials ready: CC ${data1}-${data1 + 7} → ${FX_DIAL_TARGETS.map(([, l]) => l).join(', ')} (saved per scene)`);
+    return;
+  }
   // Instant setup (new controller): first pad → scene bank, then a press on a
   // DIFFERENT 16-note bank → palette bank.
   if (!learnTarget && midiInstantSetup && messageType === 0x90 && data2 > 0) {

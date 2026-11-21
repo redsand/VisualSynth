@@ -40,7 +40,23 @@ import puppeteer from 'puppeteer';
     const paletteMaps = proj().midiMappings.filter((m: any) => m.target.startsWith('palette.slot.')).length;
     send([0x90, 56, 100]); await wait(300);
     const palette5 = proj().activePaletteId === proj().palettes[4]?.id;
-    return { statusAfterConnect: statusAfterConnect.slice(0, 90), sceneMaps, padsFilled, cutToPad5, paletteMaps, palette5 };
+    // 8 dials: first knob turned maps CC 70-77 to the FX; FX are per scene.
+    const pads = proj().livePads;
+    send([0x90, 36, 100]); await wait(700); // cut to pad 1
+    const snap = () => { const c = document.getElementById('gl-canvas') as HTMLCanvasElement; const t = document.createElement('canvas'); t.width = 32; t.height = 18; const x = t.getContext('2d')!; x.drawImage(c, 0, 0, 32, 18); return Array.from(x.getImageData(0, 0, 32, 18).data); };
+    send([0xb0, 70, 0]); await wait(300);
+    const dialMaps = proj().midiMappings.filter((m: any) => m.message === 'cc').length;
+    const before = snap();
+    send([0xb0, 70, 127]); await wait(400);                    // dial 1 = kaleidoscope full
+    const after = snap();
+    let diff = 0; for (let i = 0; i < before.length; i += 4) diff += Math.abs(before[i] - after[i]) + Math.abs(before[i + 1] - after[i + 1]);
+    const kaleidoOnPad1 = (proj().scenes.find((sc: any) => sc.id === pads[0])?.look?.effects?.kaleidoscope ?? 0);
+    send([0x90, 37, 100]); await wait(700);                     // pad 2
+    const kaleidoOnPad2 = proj().effects?.kaleidoscope ?? 0;
+    send([0x90, 36, 100]); await wait(700);                     // back to pad 1
+    const kaleidoBackOnPad1 = proj().effects?.kaleidoscope ?? 0;
+    return { statusAfterConnect: statusAfterConnect.slice(0, 90), sceneMaps, padsFilled, cutToPad5, paletteMaps, palette5,
+      dialMaps, dialVisiblyChangesMilkwave: +(diff / (before.length / 4)).toFixed(1), kaleidoOnPad1, kaleidoOnPad2, kaleidoBackOnPad1 };
   });
   console.log(JSON.stringify(r, null, 1));
   await browser.close();

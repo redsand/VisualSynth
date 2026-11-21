@@ -1467,7 +1467,45 @@ uniform vec2 uResolution;
 // reactive the preset's own code is. Kept well under the photosensitivity
 // line: <=2% zoom and <=8% brightness lift.
 uniform float uBeatPulse;
+// Performance FX on milkwave scenes (the generator pipeline's post-FX are drawn
+// UNDER the milkwave composite, so they never showed on milkwave scenes).
+// Driven by the same per-scene effect values as the FX panel / 8 MIDI dials.
+uniform float uFxKaleido;   // effects.kaleidoscope
+uniform float uFxTwist;     // effects.feedback
+uniform float uFxZoom;      // effects.persistence
+uniform float uFxChroma;    // effects.chroma (0..0.5)
+uniform float uFxBloom;     // effects.bloom
+uniform float uFxBlur;      // effects.blur
+uniform float uFxPosterize; // effects.posterize
+uniform float uFxHue;       // style.paletteShift (0..1 = full turn)
 out vec4 fragColor;
+
+vec2 fxWarpUv(vec2 uv) {
+  if (uFxZoom > 0.01) uv = (uv - 0.5) * (1.0 - 0.45 * uFxZoom) + 0.5;
+  if (uFxTwist > 0.01) {
+    vec2 c = uv - 0.5;
+    float r = length(c);
+    float a = atan(c.y, c.x) + uFxTwist * 4.0 * max(0.0, 0.7 - r);
+    uv = vec2(cos(a), sin(a)) * r + 0.5;
+  }
+  if (uFxKaleido > 0.01) {
+    vec2 k = uv - 0.5;
+    float r = length(k);
+    float slices = floor(mix(2.0, 12.0, uFxKaleido));
+    float seg = 6.2831853 / slices;
+    float a = mod(atan(k.y, k.x), seg);
+    a = abs(a - seg * 0.5);
+    uv = vec2(cos(a), sin(a)) * r + 0.5;
+  }
+  return uv;
+}
+
+vec3 hueRotate(vec3 c, float turns) {
+  float a = turns * 6.2831853;
+  float cs = cos(a), sn = sin(a);
+  vec3 k = vec3(0.57735);
+  return c * cs + cross(k, c) * sn + k * dot(k, c) * (1.0 - cs);
+}
 
 float hash21(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -1483,8 +1521,26 @@ vec3 paletteRamp(float t) {
 
 void main() {
   float beat = clamp(uBeatPulse, 0.0, 1.0);
-  vec2 uvBeat = (vUv - 0.5) * (1.0 - 0.02 * beat) + 0.5;
+  vec2 fxUv = fxWarpUv(vUv);
+  vec2 uvBeat = (fxUv - 0.5) * (1.0 - 0.02 * beat) + 0.5;
   vec3 color = texture(uTexture, uvBeat).rgb;
+  if (uFxBlur > 0.01) {
+    float d = uFxBlur * 0.012;
+    color = (color * 2.0 + texture(uTexture, uvBeat + vec2(d, 0.0)).rgb + texture(uTexture, uvBeat - vec2(d, 0.0)).rgb
+      + texture(uTexture, uvBeat + vec2(0.0, d)).rgb + texture(uTexture, uvBeat - vec2(0.0, d)).rgb) / 6.0;
+  }
+  if (uFxChroma > 0.005) {
+    vec2 dir = (uvBeat - 0.5) * uFxChroma * 0.08;
+    color.r = texture(uTexture, uvBeat + dir).r;
+    color.b = texture(uTexture, uvBeat - dir).b;
+  }
+  if (uFxBloom > 0.01) {
+    float d = 0.02;
+    vec3 glow = texture(uTexture, uvBeat + vec2(d, d)).rgb + texture(uTexture, uvBeat + vec2(-d, d)).rgb
+      + texture(uTexture, uvBeat + vec2(d, -d)).rgb + texture(uTexture, uvBeat + vec2(-d, -d)).rgb;
+    color += max(glow * 0.25 - 0.45, 0.0) * uFxBloom * 1.6;
+  }
+  if (uFxHue > 0.001) color = clamp(hueRotate(color, uFxHue), 0.0, 1.0);
 
   // MilkDrop comp gamma (fidelity: presets authored with fGammaAdj ~2 look
   // far brighter than intended when this is skipped).
@@ -1517,6 +1573,10 @@ void main() {
     color.b = mix(color.b, texture(uTexture, vUv - caOffset).b, caBlend * 0.5);
   }
 
+  if (uFxPosterize > 0.01) {
+    float levels = mix(24.0, 3.0, uFxPosterize);
+    color = floor(color * levels + 0.5) / levels;
+  }
   color *= 1.0 + 0.08 * beat;
   fragColor = vec4(color, 1.0) * uOpacity;
 }`
@@ -1547,6 +1607,15 @@ void main() {
             gl.uniform1f(mdUniform('uTime'), (state.timeMs ?? 0) / 1000);
             gl.uniform2f(mdUniform('uResolution'), canvas.width, canvas.height);
             gl.uniform1f(mdUniform('uBeatPulse'), beatPulseEnabled ? (state.glyphBeat ?? 0) : 0);
+            const fxOn = state.effectsEnabled !== false;
+            gl.uniform1f(mdUniform('uFxKaleido'), fxOn ? state.kaleidoscope ?? 0 : 0);
+            gl.uniform1f(mdUniform('uFxTwist'), fxOn ? state.feedback ?? 0 : 0);
+            gl.uniform1f(mdUniform('uFxZoom'), fxOn ? state.persistence ?? 0 : 0);
+            gl.uniform1f(mdUniform('uFxChroma'), fxOn ? state.chroma ?? 0 : 0);
+            gl.uniform1f(mdUniform('uFxBloom'), fxOn ? state.bloom ?? 0 : 0);
+            gl.uniform1f(mdUniform('uFxBlur'), fxOn ? state.blur ?? 0 : 0);
+            gl.uniform1f(mdUniform('uFxPosterize'), fxOn ? state.posterize ?? 0 : 0);
+            gl.uniform1f(mdUniform('uFxHue'), state.paletteShift ?? 0);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, mdTexture);
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
