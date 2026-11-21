@@ -132,7 +132,28 @@ interface Peak {
   bandIndex: number;
 }
 
+/**
+ * Signature length limits.
+ *
+ * SEGMENT (3.1 s / 255 peaks) is shazamio's per-window limit — shazamio
+ * LOOPS over successive 3.1 s windows until one matches. Our port kept the
+ * limit but only ever sent the first window, so every lookup fingerprinted
+ * just the OLDEST 3.1 s of the clip: fine for a clean digital clip, but a
+ * laptop mic in a loud room rarely yields enough clean peaks in 3 s, and on a
+ * hot mix the oldest seconds are the outgoing track (2026-11-20: room-mic
+ * lookups never matched while Serato/clean clips did).
+ *
+ * FULL (12 s, no peak cap) is SongRec's single-signature mode — built for
+ * microphone recognition and accepted by the same endpoint.
+ */
+export const SIGNATURE_LIMITS = {
+  segment: { maxSeconds: 3.1, maxPeaks: 255 },
+  full: { maxSeconds: 12, maxPeaks: Number.POSITIVE_INFINITY }
+} as const;
+
 export class ShazamSignatureGenerator {
+  constructor(private readonly limits: { maxSeconds: number; maxPeaks: number } = SIGNATURE_LIMITS.full) {}
+
   // Sample ring buffer (2048 samples)
   private readonly sampleRing = new Float64Array(FFT_SIZE);
   private ringWritePos = 0;
@@ -179,9 +200,9 @@ export class ShazamSignatureGenerator {
     return this.numSamplesIngested / 16000;
   }
 
-  /** Returns true once we've processed enough to stop (3.1 s or 255 peaks). */
+  /** True once the configured signature length (or peak cap) is reached. */
   get isFull(): boolean {
-    return this.durationSeconds >= 3.1 || this.totalPeaks >= 255;
+    return this.durationSeconds >= this.limits.maxSeconds || this.totalPeaks >= this.limits.maxPeaks;
   }
 
   /**
@@ -198,7 +219,7 @@ export class ShazamSignatureGenerator {
   feed(samples: Int16Array): void {
     let offset = 0;
     while (offset < samples.length && !this.isFull) {
-      const remaining = Math.ceil((3.1 * 16000) - this.numSamplesIngested);
+      const remaining = Math.ceil((this.limits.maxSeconds * 16000) - this.numSamplesIngested);
       const batch = Math.min(HOP_SIZE, samples.length - offset, remaining);
       for (let i = 0; i < batch; i++) {
         this.sampleRing[this.ringWritePos] = samples[offset + i];

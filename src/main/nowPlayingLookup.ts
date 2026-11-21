@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { NowPlayingRecognitionRequest, NowPlayingRecognitionResponse } from '../shared/nowPlaying';
-import { ShazamSignatureGenerator, SHAZAM_SAMPLE_RATE } from '../shared/shazamSignature';
+import { ShazamSignatureGenerator, SIGNATURE_LIMITS, SHAZAM_SAMPLE_RATE } from '../shared/shazamSignature';
 
 // SSRF guard for user-supplied recognition/metadata endpoints. Enforces
 // http/https and blocks the link-local 169.254.0.0/16 range (which includes the
@@ -615,10 +615,19 @@ const SHAZAM_USER_AGENTS = [
   'Dalvik/2.1.0 (Linux; U; Android 12; SM-S908B Build/SP1A.210812.016)',
 ];
 
+// Shazam's free endpoint rate-limits hard (HTTP 429 after a burst). While
+// limited, skip it outright so the paid provider (AudD) answers immediately
+// instead of after a refused round trip.
+const SHAZAM_RATE_LIMIT_BACKOFF_MS = 120_000;
+let shazamBackoffUntil = 0;
+
 const postShazamLookup = async (
   request: NowPlayingRecognitionRequest,
   fetchImpl: typeof fetch
 ): Promise<NowPlayingRecognitionResponse> => {
+  if (Date.now() < shazamBackoffUntil) {
+    return { matched: false, provider: 'Shazam', error: 'Shazam rate-limited (backing off).' };
+  }
   if (request.mimeType !== 'audio/pcm-s16le') {
     return {
       matched: false,
@@ -632,9 +641,12 @@ const postShazamLookup = async (
 
   console.log(`[Shazam] Received PCM: ${s16.length} samples (${(s16.length / 16000).toFixed(1)}s)`);
 
-  // Build signature
-  const gen = new ShazamSignatureGenerator();
-  gen.feed(s16);
+  // Build signature from the MOST RECENT audio (the newest seconds are the
+  // song now playing; the oldest may still be the outgoing track).
+  const maxSamples = Math.floor(SIGNATURE_LIMITS.full.maxSeconds * SHAZAM_SAMPLE_RATE);
+  const recent = s16.length > maxSamples ? s16.subarray(s16.length - maxSamples) : s16;
+  const gen = new ShazamSignatureGenerator(SIGNATURE_LIMITS.full);
+  gen.feed(recent);
   const sigBytes = gen.encode();
   const sigBase64 = Buffer.from(sigBytes).toString('base64');
   const sampleMs = Math.trunc(gen.numSamples / SHAZAM_SAMPLE_RATE * 1000);
@@ -689,6 +701,7 @@ const postShazamLookup = async (
       .filter(Boolean)
       .join(' ');
     console.error(`[Shazam] HTTP ${response.status} from amp.shazam.com — headers: ${headerDump || 'none'} — body: ${errBody.slice(0, 500)}`);
+    if (response.status === 429) shazamBackoffUntil = Date.now() + SHAZAM_RATE_LIMIT_BACKOFF_MS;
     return {
       matched: false,
       error: `Shazam request failed (HTTP ${response.status}).`

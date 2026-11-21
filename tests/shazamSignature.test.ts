@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SHAZAM_SAMPLE_RATE, ShazamSignatureGenerator } from '../src/shared/shazamSignature';
+import { SHAZAM_SAMPLE_RATE, SIGNATURE_LIMITS, ShazamSignatureGenerator } from '../src/shared/shazamSignature';
 
 /**
  * Regression tests for the Shazam fingerprint generator.
@@ -43,12 +43,20 @@ describe('ShazamSignatureGenerator', () => {
     expect(gen.totalPeaks).toBe(0);
   });
 
-  it('stops ingesting at 3.1 seconds', () => {
-    const gen = new ShazamSignatureGenerator();
+  it('segment limits stop ingesting at 3.1 seconds (shazamio window)', () => {
+    const gen = new ShazamSignatureGenerator(SIGNATURE_LIMITS.segment);
     gen.feed(makeSweepTone(10, 20000));
 
     expect(gen.numSamples).toBeLessThanOrEqual(Math.ceil(3.1 * SHAZAM_SAMPLE_RATE));
     expect(gen.durationSeconds).toBeLessThanOrEqual(3.2);
+  });
+
+  it('defaults to a full 12 s signature (room-mic audio needs the length)', () => {
+    const gen = new ShazamSignatureGenerator();
+    gen.feed(makeSweepTone(15, 20000));
+
+    expect(gen.durationSeconds).toBeGreaterThan(11.9);
+    expect(gen.numSamples).toBeLessThanOrEqual(12 * SHAZAM_SAMPLE_RATE);
   });
 
   it('encodes the fixed magic header and a non-trivial payload', () => {
