@@ -3756,6 +3756,41 @@ const injectMissingHelpers = (source: string): string => {
 /** Exported for debugging; not part of public API. */
 export const _preprocess = preprocess;
 
+// ── Final fix-ups (after the AST pass) ──────────────────────────────────────
+// Three translation gaps that left show scenes on a fallback warp shader
+// (2026-11-22: love demon4, MilkDrop2077 rmx, Windmill).
+
+/** MilkDrop texsize is vec4(w, h, 1/w, 1/h); ours is vec2. Resolve any swizzle. */
+export const resolveTexSizeSwizzles = (src: string): string =>
+  src.replace(/\buTexSize\.([xyzw]{1,4})\b/g, (match, swz: string) => {
+    if (!/[zw]/.test(swz)) return match;
+    const part = (c: string) => (c === 'x' ? 'uTexSize.x' : c === 'y' ? 'uTexSize.y' : c === 'z' ? '(1.0/uTexSize.x)' : '(1.0/uTexSize.y)');
+    const parts = swz.split('').map(part);
+    return parts.length === 1 ? parts[0] : `vec${parts.length}(${parts.join(', ')})`;
+  });
+
+const KNOWN_SAMPLER_RE = /^sampler_(main|blur[123]|noise_(lq|mq|hq|lq_lite)|noisevol_(lq|mq|hq)|(fc|pc|fw|pw|FC|PC|FW|PW)_main|(fw|pw)_noise_(lq|mq|hq)|rand\d\d)$/;
+/** An undeclared custom texture (e.g. sampler_Pattern_001) used anywhere, not just inside texture(). */
+export const aliasUndeclaredSamplers = (src: string): string => {
+  const names = new Set(src.match(/\bsampler_\w+\b/g) ?? []);
+  let out = src;
+  for (const name of names) {
+    if (name === 'sampler_state' || KNOWN_SAMPLER_RE.test(name)) continue;
+    const declared = new RegExp(`(uniform\\s+\\w*sampler\\w*\\s+${name}\\b|#\\s*define\\s+${name}\\b)`).test(out);
+    if (declared) continue;
+    out = out.replace(new RegExp(`\\b${name}\\b`, 'g'), 'sampler_noise_lq');
+  }
+  return out;
+};
+
+const CONSTRUCTOR_WORDS = new Set(['vec2', 'vec3', 'vec4', 'ivec2', 'ivec3', 'ivec4', 'mat2', 'mat3', 'mat4', 'float', 'int', 'bool', 'true', 'false']);
+/** HLSL allows `const float2 p = float2(q1, q2)`; GLSL ES needs a compile-time constant. */
+export const dropNonConstantConst = (src: string): string =>
+  src.replace(/\bconst\s+((?:i?vec|mat)[234]|float|int|bool)\s+(\w+)\s*=\s*([^;]*);/g, (match, type: string, name: string, init: string) => {
+    const idents = init.match(/(?<![\w.])[A-Za-z_]\w*/g) ?? [];
+    return idents.every((id) => CONSTRUCTOR_WORDS.has(id)) ? match : `${type} ${name} = ${init};`;
+  });
+
 const patchMilkDropGlslUncached = (source: string): string => {
   if (!source || !source.includes('#version 300 es')) return source;
 
@@ -3763,7 +3798,7 @@ const patchMilkDropGlslUncached = (source: string): string => {
   const preprocessed = preprocess(source);
 
   // Phase 2: AST transforms (all structural fixes)
-  const out = astTransform(preprocessed);
+  const out = dropNonConstantConst(aliasUndeclaredSamplers(resolveTexSizeSwizzles(astTransform(preprocessed))));
 
   // The @shaderfrog/glsl-parser generator renders a group node as
   // `generate(lp) + generate(expression) + generate(rp)`. When the group's

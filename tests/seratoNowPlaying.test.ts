@@ -114,6 +114,23 @@ describe('Serato now-playing reader', () => {
     expect(now).toMatchObject({ matched: true, title: 'All N My Grill (Clean)', artist: 'Missy Elliott', source: 'library' });
   });
 
+  it.skipIf(!hasSqlite)('library: reads the track BPM when the library has it', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-serato-lib-'));
+    const db = path.join(dir, 'master.sqlite');
+    execFileSync('/usr/bin/sqlite3', [db,
+      'CREATE TABLE history_entry (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, artist TEXT, album TEXT, ' +
+      'start_time INTEGER, end_time INTEGER, played INTEGER, deck TEXT, portable_id TEXT, bpm REAL);' +
+      "INSERT INTO history_entry (name, artist, album, start_time, end_time, played, deck, portable_id, bpm) VALUES ('Liquid Roller', 'DnB Artist', '', 1000, -1, 1, '1', '', 174.0);"]);
+    expect(await readSeratoLibraryNowPlaying(db)).toMatchObject({ matched: true, title: 'Liquid Roller', bpm: 174 });
+  });
+
+  it.skipIf(!hasSqlite)('library: still reads the title when there is no bpm column', async () => {
+    const db = makeLibrary("INSERT INTO history_entry (name, artist, start_time, end_time, played, deck) VALUES ('No BPM Here', 'A', 1000, -1, 1, '1');");
+    const now = await readSeratoLibraryNowPlaying(db);
+    expect(now).toMatchObject({ matched: true, title: 'No BPM Here' });
+    expect(now?.bpm).toBeUndefined();
+  });
+
   it.skipIf(!hasSqlite)('library: a cued-but-unplayed track on the other deck does not steal now-playing', async () => {
     const db = makeLibrary(
       "INSERT INTO history_entry (name, artist, start_time, end_time, played, deck) VALUES " +

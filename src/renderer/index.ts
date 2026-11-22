@@ -892,6 +892,11 @@ const SCENE_MOD_COOLDOWN_MS = 1500;
 let sdfPanel: { render: () => void } | null = null;
 let mixerPanel: { render: () => void; updateMeters: (rms: number, peak: number, bands: number[]) => void } | null = null;
 let autoBpm: number | null = null;
+// Tempo of the track Serato is playing (from its library), used by Auto while
+// Serato is live. Beat detection read drum & bass (170+) as ~98-105 "Weak" at
+// the 2026-11-21 show; Serato already knows the exact tempo.
+let seratoBpm: number | null = null;
+const effectiveAutoBpm = () => seratoBpm ?? autoBpm;
 let networkBpm: number | null = null;
 let bpmRange: BpmRange = { min: 80, max: 150 };
 let bpmSource: 'manual' | 'auto' | 'network' = 'auto';
@@ -2011,7 +2016,7 @@ const updateBpmSourceUI = () => {
   transportBpmInput.disabled = false;
   transportTap.classList.toggle('hidden', !isManual);
   if (!isManual) {
-    const liveBpm = bpmSource === 'network' ? networkBpm : autoBpm;
+    const liveBpm = bpmSource === 'network' ? networkBpm : effectiveAutoBpm();
     transportBpmInput.value = liveBpm ? liveBpm.toFixed(1) : '';
   } else {
     transportBpmInput.value = tempoInput.value;
@@ -7897,12 +7902,12 @@ const updateBpmRangeUI = () => {
 
 const updateBpmDisplay = () => {
   const sourceLabel =
-    bpmSource === 'manual' ? 'Manual' : bpmSource === 'auto' ? 'Auto' : 'Network';
+    bpmSource === 'manual' ? 'Manual' : bpmSource === 'auto' ? (seratoBpm ? 'Serato' : 'Auto') : 'Network';
   const value =
     bpmSource === 'manual'
       ? Number(tempoInput.value) || 0
       : bpmSource === 'auto'
-        ? autoBpm ?? 0
+        ? effectiveAutoBpm() ?? 0
         : networkBpm ?? 0;
   if (bpmSource === 'manual') {
     transportBpmInput.value = String(Number(tempoInput.value) || 120);
@@ -7932,6 +7937,9 @@ const updateBpmDisplay = () => {
   if (bpmSource === 'manual') {
     stateLabel = 'Manual';
     stateClass = 'transport-state-idle';
+  } else if (bpmSource === 'auto' && seratoBpm) {
+    stateLabel = 'Serato';
+    stateClass = 'transport-state-stable';
   } else if (bpmSource === 'network') {
     stateLabel = networkBpm ? 'Network' : 'Waiting';
     stateClass = networkBpm ? 'transport-state-stable' : 'transport-state-learning';
@@ -7993,7 +8001,7 @@ const formatDurationMs = (ms: number) => {
 
 const getActiveBpm = () => {
   if (bpmSource === 'network' && networkBpm) return networkBpm;
-  if (bpmSource === 'auto' && autoBpm) return autoBpm;
+  if (bpmSource === 'auto' && effectiveAutoBpm()) return effectiveAutoBpm()!;
   return Number(tempoInput.value) || 120;
 };
 
@@ -12297,6 +12305,11 @@ const pollSeratoNowPlaying = async () => {
     // Only a LIVE Serato (app running, current track recent) is authoritative.
     // When it isn't, return without touching lastSeratoSeenAt so microphone
     // fingerprinting takes over.
+    const nextSeratoBpm = result?.matched && result.live && result.bpm && result.bpm > 0 ? result.bpm : null;
+    if (nextSeratoBpm !== seratoBpm) {
+      sessionLog.log('info', 'tempo.serato', { bpm: nextSeratoBpm, title: result?.title ?? null });
+      seratoBpm = nextSeratoBpm;
+    }
     if (!result?.matched || !result.live) {
       if (lastSeratoSeenAt > 0) {
         lastSeratoSeenAt = 0;
@@ -15571,7 +15584,8 @@ const render = (time: number) => {
       sessionLog.log('info', 'perf.resolution_governor', {
         action: resDecision.change,
         scale: resDecision.scale,
-        deliveredFps: currentFps
+        deliveredFps: currentFps,
+        scene: currentProject.scenes.find((sc) => sc.id === currentProject.activeSceneId)?.name ?? null
       });
     }
   }
@@ -15604,7 +15618,7 @@ const render = (time: number) => {
   if (cadence.shouldUpdateWatchdog) {
     lastWatchdogUpdate = time;
     if (frameDropScore > 0.3) {
-      sessionLog.log('warn', 'perf.watchdog_alert', { frameDropScore, fps: currentFps });
+      sessionLog.log('warn', 'perf.watchdog_alert', { frameDropScore, fps: currentFps, scene: currentProject.scenes.find((sc) => sc.id === currentProject.activeSceneId)?.name ?? null });
       watchdogLabel.textContent = 'Watchdog: Frame drops detected — try lowering output scale.';
       watchdogLabel.classList.add('watchdog-warning');
       healthWatchdog.textContent = 'Watchdog: Warning';

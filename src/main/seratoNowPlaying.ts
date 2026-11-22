@@ -60,6 +60,8 @@ export interface SeratoNowPlaying {
   startedAt?: number;
   /** still loaded on a deck (history end_time < 0) — not finished yet */
   open?: boolean;
+  /** the track's analysed BPM from Serato's library (file tempo, not pitch-adjusted) */
+  bpm?: number;
   /** absolute path of the audio file Serato is playing (for embedded art) */
   filePath?: string;
   error?: string;
@@ -70,9 +72,11 @@ export const defaultSeratoLibraryDb = (): string =>
 
 // Still-open AND played first (what the room hears), newest start first.
 // end_time = -1 marks the open entry; a loaded-but-unplayed cue sorts below.
-const NOW_PLAYING_SQL =
-  'SELECT name, artist, album, start_time, end_time, deck, played, portable_id FROM history_entry ' +
-  'WHERE start_time > 0 ORDER BY (end_time < 0 AND played = 1) DESC, start_time DESC, id DESC LIMIT 1;';
+const NOW_PLAYING_ORDER = 'FROM history_entry WHERE start_time > 0 ORDER BY (end_time < 0 AND played = 1) DESC, start_time DESC, id DESC LIMIT 1;';
+const NOW_PLAYING_SQL = `SELECT name, artist, album, start_time, end_time, deck, played, portable_id, bpm ${NOW_PLAYING_ORDER}`;
+// Same query without the bpm column, for a library schema that lacks it — a
+// missing column must never cost us the track title.
+const NOW_PLAYING_SQL_NO_BPM = `SELECT name, artist, album, start_time, end_time, deck, played, portable_id ${NOW_PLAYING_ORDER}`;
 
 const SQLITE_BIN = '/usr/bin/sqlite3';
 
@@ -87,11 +91,15 @@ export const readSeratoLibraryNowPlaying = (
       return;
     }
     // mode=ro + -readonly: never write or lock Serato's live database.
-    execFile(
+    const run = (sql: string, retryWithoutBpm: boolean) => execFile(
       sqliteBin,
-      ['-readonly', '-json', `file:${dbPath}?mode=ro`, NOW_PLAYING_SQL],
+      ['-readonly', '-json', `file:${dbPath}?mode=ro`, sql],
       { timeout: 3000, maxBuffer: 64 * 1024 },
-      (error, stdout) => {
+      (error, stdout, stderr) => {
+        if (error && retryWithoutBpm && /no such column: bpm/i.test(`${stderr ?? ''} ${error.message}`)) {
+          run(NOW_PLAYING_SQL_NO_BPM, false);
+          return;
+        }
         if (error) {
           resolve({ matched: false, provider: 'Serato', source: 'library', error: String(error.message).slice(0, 160) });
           return;
@@ -115,6 +123,7 @@ export const readSeratoLibraryNowPlaying = (
             deck: Number(row.deck) || undefined,
             startedAt: Number(row.start_time) || undefined,
             open: Number(row.end_time) < 0,
+            bpm: Number(row.bpm) > 0 ? Number(row.bpm) : undefined,
             // portable_id is the volume-relative path ("Users/…"): root it.
             filePath: row.portable_id ? `/${String(row.portable_id).replace(/^\/+/, '')}` : undefined
           });
@@ -123,6 +132,7 @@ export const readSeratoLibraryNowPlaying = (
         }
       }
     );
+    run(NOW_PLAYING_SQL, true);
   });
 
 const FIELD_PATH = 0x02;

@@ -1,3 +1,4 @@
+import { resolveTexSizeSwizzles } from './milkwaveGlslPatcher';
 import type { MilkPresetData } from './milkwaveParser';
 import type { MilkwaveIR, MilkwaveSupportTier, MilkwaveShaderPassKind } from './milkwaveIr';
 import { buildMilkwaveIR } from './milkwaveIr';
@@ -278,10 +279,7 @@ const processMilkwaveCode = (code: string): string => {
   );
 
   // uTexSize is vec2 but MilkDrop texsize is vec4(w,h,1/w,1/h) — fix .z/.w/.zw swizzle
-  result = result.replace(/\buTexSize\.zw\b/g, '(vec2(1.0)/uTexSize)');
-  result = result.replace(/\buTexSize\.z\b/g, '(1.0/uTexSize.x)');
-  result = result.replace(/\buTexSize\.w\b/g, '(1.0/uTexSize.y)');
-  result = result.replace(/\buTexSize\.xyzw\b/g, 'vec4(uTexSize, 1.0/uTexSize)');
+  result = resolveTexSizeSwizzles(result);
 
   // Boolean NOT on floats: !var → (var == 0.0 ? 1.0 : 0.0)
   result = result.replace(/(?<![!=<>])!([a-zA-Z_]\w*)(?!\s*=)/g, '($1 == 0.0 ? 1.0 : 0.0)');

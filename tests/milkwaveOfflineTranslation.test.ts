@@ -83,7 +83,7 @@ describe('Milkwave offline translation', () => {
 
     expect(dialectSource).toContain('(1.0/uTexSize.x)');
     expect(dialectSource).toContain('(1.0/uTexSize.y)');
-    expect(dialectSource).toContain('(vec2(1.0)/uTexSize)');
+    expect(dialectSource).toContain('vec2((1.0/uTexSize.x), (1.0/uTexSize.y))'); // .zw = (1/w, 1/h)
     expect(dialectSource).not.toContain('uTexSize.z');
     expect(dialectSource).not.toContain('uTexSize.w');
   });
