@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, powerMonitor, shell, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -418,6 +418,37 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
+// Main-process freeze watchdog. The main process owns the windows: when it
+// stalls, macOS shows the spinning wheel and the output stops updating, yet
+// the renderer's own logs look normal. Log every stall over 500ms.
+const startMainStallWatchdog = () => {
+  const TICK_MS = 250;
+  let expected = Date.now() + TICK_MS;
+  setInterval(() => {
+    const now = Date.now();
+    const lag = now - expected;
+    expected = now + TICK_MS;
+    if (lag > 500) {
+      try { sessionLogger.writeEntry({ level: 'warn', event: 'main.stall', data: { ms: lag } }); } catch { /* best-effort */ }
+    }
+  }, TICK_MS).unref?.();
+};
+
+// Machine state: sleep/wake, power source, thermal pressure, screen lock.
+const wireSystemEventLogging = () => {
+  const log = (event: string, data: Record<string, unknown> = {}) => {
+    try { sessionLogger.writeEntry({ level: 'info', event, data }); } catch { /* best-effort */ }
+  };
+  powerMonitor.on('suspend', () => log('system.sleep'));
+  powerMonitor.on('resume', () => log('system.wake'));
+  powerMonitor.on('on-ac', () => log('system.power', { source: 'ac' }));
+  powerMonitor.on('on-battery', () => log('system.power', { source: 'battery' }));
+  powerMonitor.on('lock-screen', () => log('system.lock'));
+  powerMonitor.on('unlock-screen', () => log('system.unlock'));
+  powerMonitor.on('thermal-state-change', (state: unknown) => log('system.thermal', { state: (state as { state?: string })?.state ?? String(state) }));
+  log('system.state', { onBattery: powerMonitor.isOnBatteryPower(), thermal: powerMonitor.getCurrentThermalState?.() ?? 'unknown' });
+};
+
 app.whenReady().then(() => {
   const recoveryPath = path.join(app.getPath('userData'), 'sessions', 'recovery.json');
   sessionLogger.writeEntry({
@@ -429,6 +460,8 @@ app.whenReady().then(() => {
       recoveryFound: fs.existsSync(recoveryPath),
     },
   });
+  startMainStallWatchdog();
+  wireSystemEventLogging();
   // Gate media (microphone/camera) permission to the app's own local origin.
   // The window loads from file://; any remote/unknown origin that ever ends up
   // in a webContents must not be granted device access unconditionally.
@@ -695,27 +728,37 @@ ipcMain.handle('project:save', async (_event, payload: string, filePath?: string
   }
 });
 
+// Autosave runs every ~2 minutes during a show. It used to parse the 17MB
+// payload, schema-validate every scene, pretty-print it again and write it
+// synchronously — all on the main process, which also drives window
+// compositing on macOS: each autosave froze the app (spinning wheel, blank
+// output) mid-show (2026-11-21). Now the renderer's string is written as-is,
+// asynchronously (temp file + rename, still atomic). Load-time validation
+// already guards against a corrupt recovery file.
+let autosaveInFlight = false;
 ipcMain.handle('project:autosave', async (_event, payload: string) => {
   if (!mainWindow) return { saved: false };
+  if (autosaveInFlight) return { saved: false, skipped: 'busy' };
+  autosaveInFlight = true;
+  const started = Date.now();
   try {
-    const project = deserializeProject(payload);
-    const baseDir = app.getPath('userData');
-    const sessionDir = path.join(baseDir, 'sessions');
-    fs.mkdirSync(sessionDir, { recursive: true });
+    const sessionDir = path.join(app.getPath('userData'), 'sessions');
+    await fs.promises.mkdir(sessionDir, { recursive: true });
     const filePath = path.join(sessionDir, 'recovery.json');
-    // Validate the project shape before persisting so a structurally corrupt
-    // in-memory state is surfaced (logged) rather than silently resurrected.
-    // Recovery is a safety net, so we still save the original object on
-    // validation failure rather than dropping the user's work — safeParse is
-    // run for diagnostics, not as a gate.
-    const validation = projectSchema.safeParse(project);
-    if (!validation.success) {
-      console.error('[Main] Autosave validation warning:', validation.error.flatten());
-    }
-    writeFileAtomic(filePath, JSON.stringify(project, null, 2));
+    const tmp = path.join(sessionDir, `.recovery.json.${process.pid}.tmp`);
+    await fs.promises.writeFile(tmp, payload, 'utf-8');
+    await fs.promises.rename(tmp, filePath);
+    try {
+      sessionLogger.writeEntry({ level: 'info', event: 'autosave.written', data: { ms: Date.now() - started, bytes: payload.length } });
+    } catch { /* best-effort */ }
     return { saved: true, filePath };
   } catch (error) {
+    try {
+      sessionLogger.writeEntry({ level: 'error', event: 'autosave.failed', data: { error: String(error).slice(0, 200) } });
+    } catch { /* best-effort */ }
     return { saved: false };
+  } finally {
+    autosaveInFlight = false;
   }
 });
 

@@ -96,6 +96,7 @@ import {
   nowPlayingTrackKey
 } from '../shared/nowPlayingGate';
 import { createNowPlayingOverlayConfig, migrateProjectNowPlayingOverlays } from '../shared/nowPlayingOverlays';
+import { cleanArtistForDisplay, cleanTitleForDisplay } from '../shared/trackDisplay';
 import type { SongChangeEvent } from './audio/songChangeDetector';
 import { createRollingAudioCapture, decodeClipToPcmWithDiagnostics, type ExportResult, type RecentAudioClip } from './audio/rollingAudioCapture';
 import { getAudioEngine, createAudioEngine } from './audio/AudioEngine';
@@ -2409,8 +2410,8 @@ const triggerLivePad = (index: number) => {
   const sceneId = getLivePadIds()[index];
   if (!sceneId) return;
   showControlHud(`Pad ${index + 1} · ${currentProject.scenes.find((s) => s.id === sceneId)?.name ?? ''}`);
-  sessionLog.log('info', 'live.pad_triggered', { pad: index + 1, sceneId });
-  applyScene(sceneId);
+  sessionLog.log('info', 'live.pad_triggered', { pad: index + 1, sceneId, trigger: pendingSceneTrigger ?? 'ui' });
+  withSceneTrigger('live-pad', () => applyScene(sceneId));
   renderLivePadGrid();
   renderLivePlaylistList();
 };
@@ -2525,38 +2526,54 @@ const triggerLivePreset = async (preset: PresetIndexEntry) => {
   }
 };
 
+// Timed slideshow: walks EVERY scene in the show, in order, holding each for
+// the number of SECONDS in the Playlist box. It used to cycle only the Live
+// pads (14 of 60 scenes) and read the box as bars at 120 BPM — at a 6-hour
+// show most scenes never appeared and "8" meant 16s (2026-11-21).
+const getSlideshowSceneIds = () => currentProject.scenes.map((scene) => scene.id);
+const getSlideshowSeconds = () => {
+  const value = parseFloat(livePlaylistDuration?.value ?? '30');
+  return Math.min(3600, Math.max(2, Number.isFinite(value) ? value : 30));
+};
+const playSlideshowScene = (index: number) => {
+  const ids = getSlideshowSceneIds();
+  const sceneId = ids[index];
+  if (!sceneId) return;
+  sessionLog.log('info', 'live.slideshow_scene', { index: index + 1, of: ids.length, sceneId, seconds: getSlideshowSeconds() });
+  withSceneTrigger('slideshow', () => applyScene(sceneId));
+  renderLivePadGrid();
+  renderLivePlaylistList();
+};
+
 const scheduleNextLivePlaylistEntry = () => {
   if (livePlaylistTimer) clearTimeout(livePlaylistTimer);
-  const pads = getLivePadEntries();
-  if (pads.length === 0) return;
-  const bars = parseInt(livePlaylistDuration?.value ?? '8') || 8;
-  const bpm = currentProject.tempoSync?.bpm ?? 120;
-  const barMs = (60000 / bpm) * 4;
+  if (getSlideshowSceneIds().length === 0) return;
   livePlaylistTimer = setTimeout(() => {
     if (!livePlaylistActive) return;
-    const current = getLivePadEntries();
-    if (current.length === 0) return;
-    livePlaylistIndex = (livePlaylistIndex + 1) % current.length;
-    triggerLivePad(current[livePlaylistIndex].index);
+    const ids = getSlideshowSceneIds();
+    if (ids.length === 0) return;
+    livePlaylistIndex = (livePlaylistIndex + 1) % ids.length;
+    playSlideshowScene(livePlaylistIndex);
     scheduleNextLivePlaylistEntry();
-  }, bars * barMs);
+  }, getSlideshowSeconds() * 1000);
 };
 
 const startLivePlaylist = () => {
-  livePlaylistActive = true;
-  const pads = getLivePadEntries();
-  if (pads.length === 0) {
-    setStatus('Assign scenes to the live pads first (drag a scene card onto a pad, or Fill from show).');
-    livePlaylistActive = false;
+  const ids = getSlideshowSceneIds();
+  if (ids.length === 0) {
+    setStatus('No scenes in the show to play.');
     return;
   }
-  livePlaylistIndex = 0;
-  const bars = parseInt(livePlaylistDuration?.value ?? '8') || 8;
-  const transitionMs = parseInt(livePlaylistTransition?.value ?? '200') || 200;
-  sessionLog.log('info', 'live.playlist_started', { duration: bars, transition: transitionMs, pads: pads.length });
-  triggerLivePad(pads[0].index);
+  livePlaylistActive = true;
+  // Start from the scene on screen (no jump); the next one comes after the dwell.
+  const at = ids.indexOf(currentProject.activeSceneId);
+  livePlaylistIndex = at >= 0 ? at : 0;
+  if (at < 0) playSlideshowScene(0);
+  const seconds = getSlideshowSeconds();
+  sessionLog.log('info', 'live.playlist_started', { seconds, scenes: ids.length, from: livePlaylistIndex + 1, by: pendingSceneTrigger ?? 'ui' });
   scheduleNextLivePlaylistEntry();
-  setStatus(`Live playlist: ${pads.length} pads, ${bars} bars each.`);
+  renderLivePlaylistList();
+  setStatus(`Slideshow: all ${ids.length} scenes, ${seconds}s each.`);
 };
 
 const stopLivePlaylist = () => {
@@ -2565,7 +2582,7 @@ const stopLivePlaylist = () => {
     clearTimeout(livePlaylistTimer);
     livePlaylistTimer = null;
   }
-  sessionLog.log('info', 'live.playlist_stopped', {});
+  sessionLog.log('info', 'live.playlist_stopped', { by: pendingSceneTrigger ?? 'ui', index: livePlaylistIndex + 1 });
   setStatus('Live playlist stopped.');
 };
 
@@ -2619,23 +2636,24 @@ const renderLiveFxToggles = () => {
 const renderLivePlaylistList = () => {
   if (!livePlaylistList) return;
   livePlaylistList.innerHTML = '';
-  const pads = getLivePadEntries();
-  if (pads.length === 0) {
+  const scenes = currentProject.scenes;
+  if (scenes.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'matrix-empty';
-    empty.textContent = 'Playlist plays your assigned pads in order. Assign scenes to pads first.';
+    empty.textContent = 'The slideshow plays every scene in the show, in order.';
     livePlaylistList.appendChild(empty);
     return;
   }
-  pads.forEach((pad, order) => {
+  scenes.forEach((scene, order) => {
     const row = document.createElement('div');
-    row.className = 'playlist-entry' + (pad.sceneId === currentProject.activeSceneId ? ' playlist-entry-active' : '');
+    row.className = 'playlist-entry' + (scene.id === currentProject.activeSceneId ? ' playlist-entry-active' : '');
     row.innerHTML = '<span class="playlist-index"></span><span class="playlist-name"></span>';
-    (row.querySelector('.playlist-index') as HTMLElement).textContent = `Pad ${pad.index + 1}`;
-    (row.querySelector('.playlist-name') as HTMLElement).textContent = pad.name;
+    (row.querySelector('.playlist-index') as HTMLElement).textContent = String(order + 1);
+    (row.querySelector('.playlist-name') as HTMLElement).textContent = scene.name;
     row.addEventListener('click', () => {
       livePlaylistIndex = order;
-      triggerLivePad(pad.index);
+      playSlideshowScene(order);
+      if (livePlaylistActive) scheduleNextLivePlaylistEntry();
     });
     livePlaylistList.appendChild(row);
   });
@@ -5151,6 +5169,7 @@ const activateMidiProfile = (deviceName: string | null | undefined) => {
   activeMidiDeviceName = deviceName?.trim() || null;
   if (!activeMidiDeviceName) return;
   const profile = readMidiProfiles()[activeMidiDeviceName];
+  sessionLog.log('info', 'midi.device_connected', { device: activeMidiDeviceName, profileMappings: profile?.length ?? 0 });
   if (profile) {
     currentProject.midiMappings = JSON.parse(JSON.stringify(profile));
     renderMidiMappings();
@@ -7338,6 +7357,17 @@ const applyPlasmaShaderFromScene = async (scene: SceneConfig) => {
 
 let syncRendererPalette: (() => void) | undefined;
 
+// Who started a scene change. Callers wrap the change in withSceneTrigger so
+// the log can tell slideshow / rotation / pad / MIDI / keyboard / skip apart;
+// nested triggers compose ("midi:skip"). Every change was logged as "manual"
+// before (1,023 of 1,032 at the 2026-11-21 show).
+let pendingSceneTrigger: string | null = null;
+const withSceneTrigger = <T,>(trigger: string, fn: () => T): T => {
+  const prev = pendingSceneTrigger;
+  pendingSceneTrigger = prev ? `${prev}:${trigger}` : trigger;
+  try { return fn(); } finally { pendingSceneTrigger = prev; }
+};
+
 const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean; transitionSource?: TransitionSource } = {}) => {
   if (!preservePresetPreviewState && presetPreviewBaseProject) {
     clearPresetPreviewState();
@@ -7353,6 +7383,7 @@ const applyScene = (sceneId: string, options: { skipShaderWarmup?: boolean; tran
     toSceneId: sceneId,
     toSceneName: scene.name,
     source: options.transitionSource ?? 'manual',
+    trigger: pendingSceneTrigger ?? (options.transitionSource === 'slideshow' ? 'rotation' : options.transitionSource) ?? 'ui',
   });
   const prevGenIds = prevScene ? [...collectSceneGeneratorIds(prevScene)] : [];
   if (currentProject.sdf?.enabled) {
@@ -7935,6 +7966,22 @@ const updateBpmDisplay = () => {
   }
   transportBpmState.textContent = stateLabel;
   transportBpmState.className = `transport-state ${stateClass}`;
+  logTempo(value, sourceLabel, stateLabel);
+};
+
+// Tempo visibility: log when the BPM moves by >= 1, the lock state changes, or
+// the source changes (at most every 10s unless the source changed). Only two
+// tempo events were logged in a whole show before (2026-11-21).
+let lastTempoLog = { at: 0, bpm: 0, state: '', source: '' };
+let lastTempoState = '';
+const logTempo = (bpm: number, source: string, state: string) => {
+  lastTempoState = state;
+  const now = Date.now();
+  const moved = Math.abs(bpm - lastTempoLog.bpm) >= 1 || state !== lastTempoLog.state;
+  const sourceChanged = source !== lastTempoLog.source;
+  if (!sourceChanged && (!moved || now - lastTempoLog.at < 10000)) return;
+  lastTempoLog = { at: now, bpm, state, source };
+  sessionLog.log('info', 'tempo.update', { bpm: +bpm.toFixed(1), source, state, range: `${bpmRange.min}-${bpmRange.max}` });
 };
 
 const formatDurationMs = (ms: number) => {
@@ -11510,6 +11557,7 @@ rotationButton?.addEventListener('click', async () => {
   });
   applyNowPlayingSettings(saved);
   updateRotationButton();
+  sessionLog.log('info', 'rotation.toggled', { enabled: enabling, scenes: rotationSceneIds().length, by: pendingSceneTrigger ?? 'ui' });
   setStatus(enabling ? 'Rotation on: scenes advance on each song change' : 'Rotation off');
 });
 
@@ -11519,13 +11567,14 @@ rotationButton?.addEventListener('click', async () => {
  * otherwise it steps to the next scene in the project. Immediate, not queued
  * to a beat: it exists to get a bad-looking scene off screen now.
  */
-const skipToNextScene = () => {
+const skipToNextScene = () => withSceneTrigger('skip', skipToNextSceneNow);
+function skipToNextSceneNow() {
   if (livePlaylistActive) {
-    // Timed slideshow running: move it on one pad now and restart its timer.
-    const pads = getLivePadEntries();
-    if (pads.length > 1) {
-      livePlaylistIndex = (livePlaylistIndex + 1) % pads.length;
-      triggerLivePad(pads[livePlaylistIndex].index);
+    // Timed slideshow running: move it on one scene now and restart its timer.
+    const ids = getSlideshowSceneIds();
+    if (ids.length > 1) {
+      livePlaylistIndex = (livePlaylistIndex + 1) % ids.length;
+      playSlideshowScene(livePlaylistIndex);
       scheduleNextLivePlaylistEntry();
       const name = currentProject.scenes.find((scene) => scene.id === currentProject.activeSceneId)?.name ?? '';
       setStatus(`Skipped to: ${name}`);
@@ -11555,7 +11604,7 @@ const skipToNextScene = () => {
   applyScene(targetId);
   const name = currentProject.scenes.find((scene) => scene.id === targetId)?.name ?? '';
   setStatus(`Skipped to: ${name}`);
-};
+}
 
 const advanceSlideshowForNewSong = () => {
   if (!nowPlayingSettings.slideshowEnabled || nowPlayingSettings.slideshowSceneIds.length === 0) {
@@ -11725,10 +11774,15 @@ const updateNowPlayingOverlays = (track: {
   if (!nowPlayingSettings.autoCreateOverlays) return;
 
   const titleOverlay = ensureNowPlayingOverlay('text', nowPlayingSettings.titleOverlayId);
-  const title = track.title?.trim() || 'Unknown Track';
-  const artist = track.artist?.trim() || 'Unknown Artist';
-  const albumLine = track.album?.trim() ? `\n${track.album.trim()}` : '';
-  titleOverlay.text = `${title}\n${artist}${albumLine}`;
+  // Crowd-facing: song + artist only. No clean/dirty, intro/extended or
+  // DJ-pool tags, and no album line (pool files put the pool's name there).
+  const title = cleanTitleForDisplay(track.title) || 'Unknown Track';
+  const artist = cleanArtistForDisplay(track.artist) || 'Unknown Artist';
+  const shownText = `${title}\n${artist}`;
+  if (titleOverlay.text !== shownText) {
+    sessionLog.log('info', 'overlay.track_text', { text: shownText, rawTitle: track.title ?? null, rawArtist: track.artist ?? null });
+  }
+  titleOverlay.text = shownText;
 
   const artworkOverlay = ensureNowPlayingOverlay('image', nowPlayingSettings.artworkOverlayId);
   if (track.artworkPath) {
@@ -12557,6 +12611,24 @@ const applyMidiStep = (target: string, steps: number) => {
   }
 };
 
+// MIDI visibility: each mapped action that fires (notes always, CC/dials at
+// most once a second per control) and each UNMAPPED message (so a button
+// that sends something unexpected — e.g. a transport button — shows up).
+const midiLogLast = new Map<string, number>();
+const logMidiMessage = (messageType: number, channel: number, data1: number, data2: number) => {
+  const kind = messageType === 0x90 ? (data2 > 0 ? 'note' : 'note-off') : messageType === 0x80 ? 'note-off' : messageType === 0xb0 ? 'cc' : `0x${messageType.toString(16)}`;
+  if (kind === 'note-off') return;
+  const targets = currentProject.midiMappings
+    .filter((m) => m.channel === channel && m.control === data1 && ((m.message === 'note' && kind === 'note') || (m.message === 'cc' && kind === 'cc')))
+    .map((m) => m.target);
+  const key = `${kind}:${channel}:${data1}`;
+  const now = Date.now();
+  const minGap = targets.length === 0 ? 5000 : kind === 'cc' ? 1000 : 0;
+  if (minGap && now - (midiLogLast.get(key) ?? 0) < minGap) return;
+  midiLogLast.set(key, now);
+  sessionLog.log('info', targets.length ? 'midi.action' : 'midi.unmapped', { device: activeMidiDeviceName, kind, channel, control: data1, value: data2, targets });
+};
+
 const handleMidiMessage = (message: number[], eventTime: number) => {
   const [status, data1, data2 = 0] = message;
   lastMidiLatencyMs = Math.max(0, performance.now() - eventTime);
@@ -12605,6 +12677,7 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
       } as (typeof currentProject.midiMappings)[number]);
     }
     renderMidiMappings();
+    sessionLog.log('info', 'midi.mapping_learned', { device: activeMidiDeviceName, target: `${bankPrefix}1-16`, message: 'note', channel, control: data1 });
     setStatus(bankPrefix === 'livepad.slot.'
       ? `Pads ready: notes ${data1}-${data1 + 15} → scene pads 1-16. (Switch to your other pad bank and press a pad to map palettes.)`
       : `Palette pads ready: notes ${data1}-${data1 + 15} → palettes 1-16 (pad 16 restores the scene's palette).`);
@@ -12628,7 +12701,8 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
     );
     currentProject.midiMappings.push(mapping);
         renderMidiMappings();
-        setStatus(`Mapped ${learnTarget.label} to ${mapping.message.toUpperCase()} ${mapping.control}`);      
+        setStatus(`Mapped ${learnTarget.label} to ${mapping.message.toUpperCase()} ${mapping.control}`);
+        sessionLog.log('info', 'midi.mapping_learned', { device: activeMidiDeviceName, target: mapping.target, message: mapping.message, channel, control: mapping.control });      
         learnTarget = null;
         midiLearnEnabled = false;
         updateMidiLearnToggle();
@@ -12700,10 +12774,11 @@ const handleMidiMessage = (message: number[], eventTime: number) => {
     });
   };
 
-  applyMappings();
+  logMidiMessage(messageType, channel, data1, data2);
+  withSceneTrigger('midi', applyMappings);
 
   if (messageType === 0x90 && data2 > 0) {
-    handlePadTrigger(mapPadWithBank(data1, activePadBank), data2 / 127);
+    withSceneTrigger('midi', () => handlePadTrigger(mapPadWithBank(data1, activePadBank), data2 / 127));
   }
 };
 
@@ -13272,7 +13347,7 @@ document.addEventListener('keydown', (event) => {
     const idx = numMap[key];
     if (idx < LIVE_PAD_COUNT && padIds[idx]) {
       event.preventDefault();
-      triggerLivePad(idx);
+      withSceneTrigger('keyboard', () => triggerLivePad(idx));
     }
     // Reserve numMap keys for live-preset triggers in live mode and stop
     // propagation so they don't fall through to the global window shortcuts
@@ -13288,19 +13363,115 @@ document.addEventListener('keydown', (event) => {
   if (event.shiftKey && key.toLowerCase() === 'n' && !isTypingTarget) {
     event.preventDefault();
     event.stopPropagation();
-    skipToNextScene();
+    withSceneTrigger('keyboard', () => skipToNextScene());
     return;
   }
   if (key === ' ' && event.shiftKey) {
     event.preventDefault();
     event.stopPropagation();
-    if (livePlaylistActive) {
-      stopLivePlaylist();
-    } else {
-      startLivePlaylist();
-    }
+    withSceneTrigger('keyboard', () => {
+      if (livePlaylistActive) {
+        stopLivePlaylist();
+      } else {
+        startLivePlaylist();
+      }
+    });
     return;
   }
+});
+
+// ── Show visibility ─────────────────────────────────────────────────────────
+// What a log needs to explain a night: a heartbeat of the app's state, what
+// the crowd actually saw, settings changed mid-set, and anything that threw.
+// (Gap report for the 2026-11-21 show: none of these were recorded.)
+
+// Output picture health, sampled every 10s from the canvas the output mirrors.
+const healthCanvas = document.createElement('canvas');
+healthCanvas.width = 32;
+healthCanvas.height = 18;
+const healthCtx = healthCanvas.getContext('2d', { willReadFrequently: true });
+let lastHealthPixels: Uint8ClampedArray | null = null;
+let outputHealth = { luma: -1, motion: -1, blackSamples: 0, frozenSamples: 0 };
+const sampleOutputHealth = () => {
+  if (!healthCtx) return;
+  try {
+    healthCtx.drawImage(canvas, 0, 0, 32, 18);
+    const px = healthCtx.getImageData(0, 0, 32, 18).data;
+    let luma = 0;
+    let motion = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      luma += (px[i] + px[i + 1] + px[i + 2]) / 3;
+      if (lastHealthPixels) motion += Math.abs(px[i] - lastHealthPixels[i]) + Math.abs(px[i + 1] - lastHealthPixels[i + 1]) + Math.abs(px[i + 2] - lastHealthPixels[i + 2]);
+    }
+    const n = px.length / 4;
+    luma /= n;
+    motion = lastHealthPixels ? motion / (n * 3) : -1;
+    lastHealthPixels = new Uint8ClampedArray(px);
+    outputHealth.luma = Math.round(luma);
+    outputHealth.motion = +motion.toFixed(2);
+    outputHealth.blackSamples = luma < 6 ? outputHealth.blackSamples + 1 : 0;
+    outputHealth.frozenSamples = motion >= 0 && motion < 0.05 ? outputHealth.frozenSamples + 1 : 0;
+    const scene = currentProject.scenes.find((sc) => sc.id === currentProject.activeSceneId)?.name ?? '';
+    if (outputHealth.blackSamples === 2) sessionLog.log('warn', 'output.looks_black', { scene, luma: outputHealth.luma });
+    if (outputHealth.frozenSamples === 3) sessionLog.log('warn', 'output.looks_frozen', { scene, luma: outputHealth.luma });
+  } catch { /* canvas not readable this tick */ }
+};
+setInterval(sampleOutputHealth, 10000);
+
+// Heartbeat: the app's state every 30s.
+setInterval(() => {
+  const nameOf = (id: string | null | undefined) => (id ? currentProject.scenes.find((sc) => sc.id === id)?.name ?? id : null);
+  sessionLog.log('info', 'heartbeat', {
+    scene: nameOf(currentProject.activeSceneId),
+    preview: previewSceneId && previewSceneId !== currentProject.activeSceneId ? nameOf(previewSceneId) : null,
+    fps: Math.round(currentFps),
+    renderScale: +resolutionScale(resolutionGovernorState).toFixed(2),
+    bpm: +getActiveBpm().toFixed(1),
+    bpmSource,
+    tempoState: lastTempoState,
+    audio: { level: +audioState.energyLow.toFixed(3), rms: +audioState.rms.toFixed(3) },
+    slideshow: livePlaylistActive ? { seconds: getSlideshowSeconds(), at: livePlaylistIndex + 1, of: currentProject.scenes.length } : null,
+    rotation: nowPlayingSettings.slideshowEnabled,
+    outputOpen,
+    cueing: isCueing(),
+    palette: currentProject.activePaletteId ?? null,
+    outputLuma: outputHealth.luma,
+    outputMotion: outputHealth.motion,
+    midiDevice: activeMidiDeviceName
+  });
+}, 30000);
+
+// Settings changed mid-set: any select / number / checkbox / slider with an id.
+// Sliders and number boxes are logged once they settle (1s), not every step.
+const settingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+document.addEventListener('change', (event) => {
+  const el = event.target as HTMLInputElement | HTMLSelectElement | null;
+  if (!el?.id) return;
+  const isSelect = el instanceof HTMLSelectElement;
+  const type = isSelect ? 'select' : (el as HTMLInputElement).type;
+  if (!isSelect && !['checkbox', 'number', 'range', 'radio'].includes(type)) return;
+  const value = type === 'checkbox' || type === 'radio' ? (el as HTMLInputElement).checked : el.value;
+  clearTimeout(settingTimers.get(el.id));
+  settingTimers.set(el.id, setTimeout(() => {
+    settingTimers.delete(el.id);
+    sessionLog.log('info', 'settings.changed', { id: el.id, value });
+  }, type === 'range' || type === 'number' ? 1000 : 0));
+}, true);
+
+// Anything that throws in the app window (first 5 of each message).
+const errorCounts = new Map<string, number>();
+const logUncaught = (kind: string, message: string, detail: Record<string, unknown> = {}) => {
+  const key = `${kind}:${message}`.slice(0, 300);
+  const count = (errorCounts.get(key) ?? 0) + 1;
+  errorCounts.set(key, count);
+  if (count <= 5) sessionLog.log('error', 'renderer.uncaught', { kind, message: message.slice(0, 300), count, ...detail });
+};
+window.addEventListener('error', (event) => {
+  logUncaught('error', String(event.message ?? event.error ?? 'unknown'), { source: event.filename ?? null, line: event.lineno ?? null });
+});
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason as { message?: string } | undefined;
+  logUncaught('promise', String(reason?.message ?? event.reason ?? 'unknown'));
 });
 
 if (applyTemplateButton) {

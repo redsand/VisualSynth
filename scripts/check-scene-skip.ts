@@ -22,6 +22,7 @@ const projectPath = process.argv.find((a) => a.startsWith('--project='))?.slice(
     (window as any).visualSynth = {
       listPresets: async () => [], onCloseRequested: () => {}, autosaveProject: async () => ({ saved: false }), closeNodeMidi: async () => {},
       saveNowPlayingSettings: async (s: unknown) => s,
+      getSessionId: async () => 'e2e', writeSessionLog: (e: unknown) => { ((window as any).__logs ??= []).push(e); },
       checkAssetPaths: async (p: string[]) => Object.fromEntries(p.map((x) => [x, true])),
       setOutputConfig: async (c: any) => ({ ...c, enabled: false }), openOutput: async (c: any) => ({ opened: false, config: c }), closeOutput: async () => ({ closed: true })
     };
@@ -95,5 +96,17 @@ const projectPath = process.argv.find((a) => a.startsWith('--project='))?.slice(
       learnedSsPlay, learnedSsStop, ssStatusStart: ssStatusStart.slice(0, 60), ssSkipped, ssStatusStop: ssStatusStop.slice(0, 40), status: status.slice(0, 80) };
   });
   console.log(JSON.stringify(r, null, 1));
+  // Logging visibility: who changed scenes, MIDI, slideshow, heartbeat, output health.
+  await new Promise((res) => setTimeout(res, 32000));
+  const logs = await page.evaluate(() => (window as any).__logs ?? []);
+  const count: Record<string, number> = {};
+  for (const e of logs) count[e.event] = (count[e.event] ?? 0) + 1;
+  const triggers: Record<string, number> = {};
+  for (const e of logs.filter((x: any) => x.event === 'scene.switch')) triggers[e.data.trigger] = (triggers[e.data.trigger] ?? 0) + 1;
+  const hb = logs.find((e: any) => e.event === 'heartbeat');
+  console.log('LOG events', JSON.stringify(count));
+  console.log('LOG scene.switch triggers', JSON.stringify(triggers));
+  console.log('LOG heartbeat', JSON.stringify(hb?.data ?? null));
+  console.log('LOG midi sample', JSON.stringify(logs.filter((e: any) => e.event.startsWith('midi.')).slice(0, 3).map((e: any) => [e.event, e.data.targets ?? e.data.target])));
   await browser.close();
 })().catch((e) => { console.error(String(e).slice(0, 300)); process.exit(1); });
