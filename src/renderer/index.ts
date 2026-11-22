@@ -10371,9 +10371,13 @@ const initMacros = () => {
   // Update Macro Hero Grid Visibility
   const heroItems = macroHero?.querySelectorAll('.macro-hero-item');
   heroItems?.forEach((item, index) => {
-      (item as HTMLElement).style.opacity = index < engineMacroCount ? '1' : '0.2';
-      (item as HTMLElement).style.pointerEvents = index < engineMacroCount ? 'auto' : 'none';
+      // Inactive macros are hidden, not dimmed: dimmed sliders showing "0.50"
+      // read as broken controls (Mixer tab, 2026-11-22).
+      (item as HTMLElement).classList.toggle('hidden', index >= engineMacroCount);
   });
+  // No active macros (engine "None"): hide the whole block so the panel opens
+  // on controls that work.
+  macroHero?.classList.toggle('macro-hero-empty', engineMacroCount === 0);
 
   initLearnables();
   updateMacroPreviews();
@@ -10516,7 +10520,7 @@ const syncMacroHeroFromProject = () => {
     const value = currentProject.macros[index]?.value ?? 0;
     input.value = String(value);
     const valueLabel = macroHeroValues[index];
-    if (valueLabel) valueLabel.textContent = formatMacroPreviewValue(value, '0.00');
+    if (valueLabel) valueLabel.textContent = `${Math.round(value * 100)}%`;
   });
 };
 
@@ -10526,7 +10530,7 @@ const updateMacroFromHero = (index: number, value: number) => {
   const slider = macroInputs[index];
   if (slider) slider.value = String(value);
   const valueLabel = macroHeroValues[index];
-  if (valueLabel) valueLabel.textContent = formatMacroPreviewValue(value, '0.00');
+  if (valueLabel) valueLabel.textContent = `${Math.round(value * 100)}%`;
   updateMacroPreviews();
   syncMacrosToActiveScene();
 };

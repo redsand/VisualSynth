@@ -3909,3 +3909,8 @@ body[data-mode='matrix'] .safe-mode {
   text-align: right;
   opacity: 0.8;
 }
+
+/* Scene Macros with no active macro (engine "None") are hidden entirely. */
+.macro-hero.macro-hero-empty {
+  display: none;
+}
