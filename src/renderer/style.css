@@ -3899,9 +3899,19 @@ body[data-mode='matrix'] .safe-mode {
 
 .mixer-fx-row {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
+}
+
+/* Slider on its own full-width line: at 72px wide (squeezed between label
+   and value) the thumb covered a third of the track and 0 never looked
+   like the far left. */
+.mixer-fx-row input[type='range'] {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  margin: 0;
 }
 
 .mixer-fx-row output {

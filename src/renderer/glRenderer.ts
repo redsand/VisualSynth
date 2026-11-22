@@ -1524,23 +1524,24 @@ void main() {
   vec2 fxUv = fxWarpUv(vUv);
   vec2 uvBeat = (fxUv - 0.5) * (1.0 - 0.02 * beat) + 0.5;
   vec3 color = texture(uTexture, uvBeat).rgb;
+  // Scene FX strengths were measured on real show scenes (2026-11-22): Blur
+  // reached only 1.2% of the screen, Chroma ~2%, Glow had a brightness cutoff
+  // that dark MilkDrop scenes never crossed, and Hue was undone by the palette
+  // grade below. At 100% each must be obvious; low values stay gentle.
   if (uFxBlur > 0.01) {
-    float d = uFxBlur * 0.012;
-    color = (color * 2.0 + texture(uTexture, uvBeat + vec2(d, 0.0)).rgb + texture(uTexture, uvBeat - vec2(d, 0.0)).rgb
-      + texture(uTexture, uvBeat + vec2(0.0, d)).rgb + texture(uTexture, uvBeat - vec2(0.0, d)).rgb) / 6.0;
+    float d = uFxBlur * 0.035;
+    vec3 acc = color * 2.0;
+    acc += texture(uTexture, uvBeat + vec2(d, 0.0)).rgb + texture(uTexture, uvBeat - vec2(d, 0.0)).rgb;
+    acc += texture(uTexture, uvBeat + vec2(0.0, d)).rgb + texture(uTexture, uvBeat - vec2(0.0, d)).rgb;
+    acc += texture(uTexture, uvBeat + vec2(d, d) * 0.7).rgb + texture(uTexture, uvBeat - vec2(d, d) * 0.7).rgb;
+    acc += texture(uTexture, uvBeat + vec2(d, -d) * 0.7).rgb + texture(uTexture, uvBeat - vec2(d, -d) * 0.7).rgb;
+    color = acc / 10.0;
   }
   if (uFxChroma > 0.005) {
-    vec2 dir = (uvBeat - 0.5) * uFxChroma * 0.08;
+    vec2 dir = (uvBeat - 0.5) * uFxChroma * 0.3;
     color.r = texture(uTexture, uvBeat + dir).r;
     color.b = texture(uTexture, uvBeat - dir).b;
   }
-  if (uFxBloom > 0.01) {
-    float d = 0.02;
-    vec3 glow = texture(uTexture, uvBeat + vec2(d, d)).rgb + texture(uTexture, uvBeat + vec2(-d, d)).rgb
-      + texture(uTexture, uvBeat + vec2(d, -d)).rgb + texture(uTexture, uvBeat + vec2(-d, -d)).rgb;
-    color += max(glow * 0.25 - 0.45, 0.0) * uFxBloom * 1.6;
-  }
-  if (uFxHue > 0.001) color = clamp(hueRotate(color, uFxHue), 0.0, 1.0);
 
   // MilkDrop comp gamma (fidelity: presets authored with fGammaAdj ~2 look
   // far brighter than intended when this is skipped).
@@ -1560,6 +1561,23 @@ void main() {
   float rampLuma = dot(ramp, vec3(0.2126, 0.7152, 0.0722));
   vec3 graded = clamp(ramp * (luma / max(rampLuma, 0.04)), 0.0, 1.0);
   color = mix(color, graded, uPaletteMix);
+  // Hue goes AFTER the palette grade, which recolours by brightness and used
+  // to erase the rotation entirely.
+  if (abs(uFxHue) > 0.001) color = clamp(hueRotate(color, uFxHue), 0.0, 1.0); // slider below 50% = negative turn
+  if (uFxBloom > 0.01) {
+    vec3 glow = vec3(0.0);
+    for (int i = 0; i < 8; i++) {
+      float a = float(i) * 0.785398;
+      glow += texture(uTexture, uvBeat + vec2(cos(a), sin(a)) * 0.05).rgb;
+      glow += texture(uTexture, uvBeat + vec2(cos(a + 0.39), sin(a + 0.39)) * 0.11).rgb;
+    }
+    glow /= 16.0;
+    // Added AFTER the comp gamma and palette grade (a gamma of ~2.5 used to
+    // crush the faint halo to nothing), and not put through the gamma itself.
+    // Screen blend: lifts light areas into a halo without a brightness cutoff.
+    vec3 lifted = glow * (1.0 + 2.0 * uFxBloom);
+    color = 1.0 - (1.0 - color) * (1.0 - clamp(lifted * uFxBloom, 0.0, 0.95));
+  }
 
   // Engine finish — mirrors mainTemplate.glsl exactly.
   float energy = max(color.r, max(color.g, color.b));
@@ -1582,7 +1600,7 @@ void main() {
   }
 
   if (uFxPosterize > 0.01) {
-    float levels = mix(24.0, 3.0, uFxPosterize);
+    float levels = mix(24.0, 2.0, uFxPosterize);
     color = floor(color * levels + 0.5) / levels;
   }
   color *= 1.0 + 0.08 * beat;

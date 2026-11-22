@@ -5228,13 +5228,19 @@ const readFxPercent = (target: string): number => {
   if (!fx) return 0;
   return Math.round(((Number(fx.input.value) - fx.min) / Math.max(1e-6, fx.max - fx.min)) * 100);
 };
+// Hue is a rotation: the middle is "no change", so show degrees, not 50%.
+const formatMixerFx = (target: string, pct: number) => {
+  if (target !== 'style.paletteShift') return `${pct}%`;
+  const deg = Math.round((pct - 50) * 3.6);
+  return deg === 0 ? '0°' : `${deg > 0 ? '+' : ''}${deg}°`;
+};
 const syncMixerFx = () => {
   for (const [target, slider] of mixerFxSliders) {
     if (document.activeElement === slider) continue;
     const pct = Math.max(0, Math.min(100, readFxPercent(target)));
     slider.value = String(pct);
     const out = slider.parentElement?.querySelector('output');
-    if (out) out.textContent = `${pct}%`;
+    if (out) out.textContent = formatMixerFx(target, pct);
   }
 };
 const buildMixerFx = () => {
@@ -5248,7 +5254,7 @@ const buildMixerFx = () => {
     slider.id = `mixer-fx-${target.replace(/\W+/g, '-')}`;
     slider.addEventListener('input', () => {
       applyMidiTargetValue(target, (Number(slider.value) / 100) * 127);
-      (row.querySelector('output') as HTMLElement).textContent = `${slider.value}%`;
+      (row.querySelector('output') as HTMLElement).textContent = formatMixerFx(target, Number(slider.value));
     });
     mixerFxSliders.set(target, slider);
     mixerFxHost.appendChild(row);
@@ -10307,9 +10313,16 @@ function renderPerfPaletteGrid() {
 }
 
 const applyStyleControls = () => {
-  if (!activeStyleId) return;
-  const preset = currentProject.stylePresets.find((item) => item.id === activeStyleId);
-  if (!preset) return;
+  // A project can arrive with no style presets at all (the Nov 21 show did):
+  // create the active one instead of silently dropping the change — Hue (dial
+  // 8 / Mixer) did nothing on every scene because of this (2026-11-22).
+  if (!activeStyleId) activeStyleId = currentProject.activeStylePresetId || 'style-neutral';
+  let preset = currentProject.stylePresets.find((item) => item.id === activeStyleId);
+  if (!preset) {
+    preset = { id: activeStyleId, name: 'Neutral', settings: { contrast: 1, saturation: 1, paletteShift: 0 } };
+    currentProject.stylePresets = [...(currentProject.stylePresets ?? []), preset];
+    currentProject.activeStylePresetId = activeStyleId;
+  }
   preset.settings.contrast = Number(styleContrast.value);
   preset.settings.saturation = Number(styleSaturation.value);
   preset.settings.paletteShift = Number(styleShift.value);
