@@ -4426,6 +4426,18 @@ const renderSceneTimeline = () => {
     previewedSceneId: previewSceneId,
     onSelect: (sceneId, sceneName) => {
       selectedSceneId = sceneId;
+      // Cueing (preview a scene while the audience keeps watching another)
+      // only means something when the Output window is open. Without it, a
+      // cue split what the DJ saw from what the FX sliders/dials changed: the
+      // preview showed the cued scene while Kaleidoscope edited the live one
+      // (2026-11-22, "I move the kaleidoscope but no change"). So with no
+      // output, a click takes the scene live.
+      if (!outputMirror) {
+        withSceneTrigger('timeline-click', () => applyScene(sceneId));
+        renderSceneStrip();
+        setStatus(`Activated: ${sceneName}`);
+        return;
+      }
       previewSceneId = sceneId;
 
       const scene = currentProject.scenes.find((s) => s.id === sceneId);
@@ -10830,6 +10842,7 @@ const setOutputEnabled = async (enabled: boolean) => {
       outputMirror.close();
       outputMirror = null;
     }
+    endCueWithoutOutput();
     await window.visualSynth.closeOutput();
     outputOpen = false;
     outputConfig = { ...outputConfig, enabled: false };
@@ -14778,6 +14791,7 @@ const initOutputConfig = async () => {
     },
     onOutputClosed: () => {
       outputMirror = null;
+      endCueWithoutOutput();
       outputOpen = false;
       outputConfig = { ...outputConfig, enabled: false };
       updateOutputUI();
@@ -15170,6 +15184,14 @@ const updateCueBadge = (cueSceneId: string | null) => {
   }
 };
 
+// With no Output window there is nothing to cue against: return the preview
+// to the live scene so what the DJ sees is what the controls change.
+const endCueWithoutOutput = () => {
+  if (previewSceneId && previewSceneId !== currentProject.activeSceneId) {
+    previewSceneId = currentProject.activeSceneId;
+    renderSceneStrip();
+  }
+};
 const isCueing = () =>
   Boolean(outputMirror && previewSceneId && previewSceneId !== currentProject.activeSceneId);
 const cueScenePalette = (scene: (typeof currentProject.scenes)[number]) => {
@@ -16729,6 +16751,7 @@ const render = (time: number) => {
     // Output window closed by the user (window X): main also sends
     // output:closed, but don't wait a frame for it.
     outputMirror = null;
+    endCueWithoutOutput();
     outputOpen = false;
     outputConfig = { ...outputConfig, enabled: false };
     updateOutputUI();
