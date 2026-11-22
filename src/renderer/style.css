@@ -3890,3 +3890,22 @@ body[data-mode='matrix'] .safe-mode {
   opacity: 0; transition: opacity 0.18s ease;
 }
 .control-hud.visible { opacity: 1; }
+
+/* Mixer tab: on-screen versions of the 8 controller FX dials. */
+.mixer-fx-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.mixer-fx-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.mixer-fx-row output {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  opacity: 0.8;
+}

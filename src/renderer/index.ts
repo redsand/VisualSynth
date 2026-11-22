@@ -1934,6 +1934,7 @@ const applyPlaylistOverrides = (project: VisualSynthProject) => {
 };
 
 const setMode = (mode: UiMode) => {
+  if (mode === 'mixer') queueMicrotask(buildMixerFx);
   activeMode = mode;
   const visibility = getModeVisibility(mode);
   document.body.dataset.mode = mode;
@@ -5201,6 +5202,51 @@ const FX_DIAL_TARGETS: Array<[string, string]> = [
   ['effects.chroma', 'Chroma'], ['effects.bloom', 'Glow'], ['effects.blur', 'Blur'],
   ['effects.posterize', 'Posterize'], ['style.paletteShift', 'Hue']
 ];
+
+// Mixer tab, right side: on-screen versions of the 8 controller FX dials (the
+// pane used to be an empty "Mixer Controls" heading). Uses the dials' own path
+// (applyMidiTargetValue), so values are saved per scene exactly like a dial.
+const mixerFxHost = document.getElementById('mixer-fx-controls');
+const mixerFxSliders = new Map<string, HTMLInputElement>();
+const readFxPercent = (target: string): number => {
+  if (target === 'style.paletteShift') {
+    return Math.round(((Number(styleShift.value) + 0.5) / 1) * 100);
+  }
+  const fx = fxMidiTargetMap[target];
+  if (!fx) return 0;
+  return Math.round(((Number(fx.input.value) - fx.min) / Math.max(1e-6, fx.max - fx.min)) * 100);
+};
+const syncMixerFx = () => {
+  for (const [target, slider] of mixerFxSliders) {
+    if (document.activeElement === slider) continue;
+    const pct = Math.max(0, Math.min(100, readFxPercent(target)));
+    slider.value = String(pct);
+    const out = slider.parentElement?.querySelector('output');
+    if (out) out.textContent = `${pct}%`;
+  }
+};
+const buildMixerFx = () => {
+  if (!mixerFxHost || mixerFxHost.childElementCount > 0) return;
+  for (const [target, label] of FX_DIAL_TARGETS) {
+    const row = document.createElement('label');
+    row.className = 'scene-label mixer-fx-row';
+    row.innerHTML = '<span class="mixer-fx-name"></span><input type="range" min="0" max="100" step="1" /><output></output>';
+    (row.querySelector('.mixer-fx-name') as HTMLElement).textContent = label;
+    const slider = row.querySelector('input') as HTMLInputElement;
+    slider.id = `mixer-fx-${target.replace(/\W+/g, '-')}`;
+    slider.addEventListener('input', () => {
+      applyMidiTargetValue(target, (Number(slider.value) / 100) * 127);
+      (row.querySelector('output') as HTMLElement).textContent = `${slider.value}%`;
+    });
+    mixerFxSliders.set(target, slider);
+    mixerFxHost.appendChild(row);
+  }
+  syncMixerFx();
+  // Follow scene changes and controller dials while the Mixer tab is open.
+  setInterval(() => {
+    if (!document.getElementById('mode-mixer-right')?.classList.contains('hidden')) syncMixerFx();
+  }, 500);
+};
 
 const renderMidiMappings = () => {
   saveMidiProfile();

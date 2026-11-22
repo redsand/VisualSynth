@@ -1,3 +1,4 @@
+import { Worker } from 'worker_threads';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -621,6 +622,66 @@ const SHAZAM_USER_AGENTS = [
 const SHAZAM_RATE_LIMIT_BACKOFF_MS = 120_000;
 let shazamBackoffUntil = 0;
 
+// Fingerprint in a worker thread so the main process (which drives the
+// windows) never stalls on it. Falls back to doing it inline if the worker
+// can't start, so a lookup never fails because of this.
+type SignatureResult = { sigBase64: string; numSamples: number; totalPeaks: number };
+let signatureWorker: Worker | null = null;
+let signatureWorkerBroken = false;
+let signatureRequestId = 0;
+const pendingSignatures = new Map<number, { resolve: (r: SignatureResult) => void; reject: (e: Error) => void }>();
+const buildSignatureInline = (pcm: Int16Array): SignatureResult => {
+  const gen = new ShazamSignatureGenerator(SIGNATURE_LIMITS.full);
+  gen.feed(pcm);
+  return { sigBase64: Buffer.from(gen.encode()).toString('base64'), numSamples: gen.numSamples, totalPeaks: gen.totalPeaks };
+};
+const getSignatureWorker = (): Worker | null => {
+  if (signatureWorkerBroken) return null;
+  if (signatureWorker) return signatureWorker;
+  try {
+    const worker = new Worker(path.join(__dirname, 'shazamSignatureWorker.js'));
+    worker.on('message', (msg: { id: number; ok: boolean; error?: string } & Partial<SignatureResult>) => {
+      const pending = pendingSignatures.get(msg.id);
+      if (!pending) return;
+      pendingSignatures.delete(msg.id);
+      if (msg.ok) pending.resolve({ sigBase64: msg.sigBase64!, numSamples: msg.numSamples!, totalPeaks: msg.totalPeaks! });
+      else pending.reject(new Error(msg.error ?? 'signature worker failed'));
+    });
+    const fail = (error: unknown) => {
+      signatureWorkerBroken = true;
+      signatureWorker = null;
+      for (const [, pending] of pendingSignatures) pending.reject(error instanceof Error ? error : new Error(String(error)));
+      pendingSignatures.clear();
+    };
+    worker.on('error', fail);
+    worker.on('exit', (code) => { if (code !== 0) fail(new Error(`signature worker exited ${code}`)); else signatureWorker = null; });
+    worker.unref();
+    signatureWorker = worker;
+    return worker;
+  } catch {
+    signatureWorkerBroken = true;
+    return null;
+  }
+};
+export const buildShazamSignature = async (pcm: Int16Array): Promise<SignatureResult> => {
+  const worker = getSignatureWorker();
+  if (!worker) return buildSignatureInline(pcm);
+  const id = ++signatureRequestId;
+  const copy = pcm.slice(); // own buffer, transferred to the worker
+  try {
+    return await new Promise<SignatureResult>((resolve, reject) => {
+      const timer = setTimeout(() => { pendingSignatures.delete(id); reject(new Error('signature worker timeout')); }, 15000);
+      pendingSignatures.set(id, {
+        resolve: (r) => { clearTimeout(timer); resolve(r); },
+        reject: (e) => { clearTimeout(timer); reject(e); }
+      });
+      worker.postMessage({ id, pcm: copy.buffer }, [copy.buffer]);
+    });
+  } catch {
+    return buildSignatureInline(pcm);
+  }
+};
+
 const postShazamLookup = async (
   request: NowPlayingRecognitionRequest,
   fetchImpl: typeof fetch
@@ -645,10 +706,8 @@ const postShazamLookup = async (
   // song now playing; the oldest may still be the outgoing track).
   const maxSamples = Math.floor(SIGNATURE_LIMITS.full.maxSeconds * SHAZAM_SAMPLE_RATE);
   const recent = s16.length > maxSamples ? s16.subarray(s16.length - maxSamples) : s16;
-  const gen = new ShazamSignatureGenerator(SIGNATURE_LIMITS.full);
-  gen.feed(recent);
-  const sigBytes = gen.encode();
-  const sigBase64 = Buffer.from(sigBytes).toString('base64');
+  const gen = await buildShazamSignature(recent);
+  const sigBase64 = gen.sigBase64;
   const sampleMs = Math.trunc(gen.numSamples / SHAZAM_SAMPLE_RATE * 1000);
 
   console.log(`[Shazam] Generated fingerprint: ${gen.totalPeaks} peaks, ${sampleMs}ms duration`);
