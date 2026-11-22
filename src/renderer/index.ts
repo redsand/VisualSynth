@@ -176,7 +176,7 @@ declare global {
       getNowPlayingSettings: () => Promise<NowPlayingSettings>;
       saveNowPlayingSettings: (settings: Partial<NowPlayingSettings>) => Promise<NowPlayingSettings>;
       fetchNowPlayingMetadata: (endpoint: string, secret?: string) => Promise<NowPlayingRecognitionResponse>;
-      readSeratoNowPlaying: () => Promise<{ matched: boolean; live?: boolean; title?: string; artist?: string; album?: string; provider: string; sessionFile?: string; filePath?: string; error?: string }>;
+      readSeratoNowPlaying: () => Promise<{ matched: boolean; live?: boolean; title?: string; artist?: string; album?: string; provider: string; sessionFile?: string; filePath?: string; bpm?: number; error?: string }>;
       extractEmbeddedArtwork: (filePath: string, artist?: string) => Promise<{ filePath?: string; rejected?: string }>;
       testNowPlayingFile: (
         request: Omit<NowPlayingRecognitionRequest, 'audioBase64' | 'mimeType' | 'durationMs' | 'detectedAt'> & {

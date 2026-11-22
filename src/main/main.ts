@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, powerMonitor, shell, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, powerMonitor, screen, shell, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -220,13 +220,33 @@ const gatherAssetMetadata = (filePath: string) => {
   return metadata;
 };
 
+// Output fullscreen took several clicks at the 2026-11-21 show. Causes: it was
+// requested the instant the window was created (macOS drops a fullscreen
+// request on a window that isn't shown yet), and every config change first
+// resized the window to 1280x720 — which fights an in-flight fullscreen
+// transition. Now: never resize a fullscreen window, only request a change
+// when the state differs, and re-request once if macOS dropped it.
 const applyOutputConfig = (config: OutputConfig) => {
   outputConfig = { ...outputConfig, ...config, scale: clampScale(config.scale ?? outputConfig.scale) };
-  if (!outputWindow) return;
-  const width = Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale);
-  const height = Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale);
-  outputWindow.setContentSize(width, height);
-  outputWindow.setFullScreen(outputConfig.fullscreen);
+  const win = outputWindow;
+  if (!win || win.isDestroyed()) return;
+  const wantFullscreen = Boolean(outputConfig.fullscreen);
+  if (!wantFullscreen && !win.isFullScreen()) {
+    const width = Math.round(OUTPUT_BASE_WIDTH * outputConfig.scale);
+    const height = Math.round(OUTPUT_BASE_HEIGHT * outputConfig.scale);
+    const [cw, ch] = win.getContentSize();
+    if (cw !== width || ch !== height) win.setContentSize(width, height);
+  }
+  if (win.isFullScreen() !== wantFullscreen) {
+    win.setFullScreen(wantFullscreen);
+    setTimeout(() => {
+      if (win.isDestroyed() || Boolean(outputConfig.fullscreen) !== wantFullscreen) return;
+      if (win.isFullScreen() !== wantFullscreen) {
+        try { sessionLogger.writeEntry({ level: 'warn', event: 'output.fullscreen_retry', data: { want: wantFullscreen } }); } catch { /* best-effort */ }
+        win.setFullScreen(wantFullscreen);
+      }
+    }, 1200);
+  }
 };
 
 // Wire crash/hang resilience on a window's renderer. Without this, a crashed or
@@ -325,6 +345,15 @@ const createWindow = () => {
     }
     outputWindow = win;
     outputConfig = { ...outputConfig, enabled: true };
+    const logOutput = (event: string) => {
+      try {
+        const b = win.getBounds();
+        sessionLogger.writeEntry({ level: 'info', event, data: { fullscreen: win.isFullScreen(), width: b.width, height: b.height, display: screen.getDisplayMatching(b).id } });
+      } catch { /* best-effort */ }
+    };
+    win.on('enter-full-screen', () => logOutput('output.fullscreen_entered'));
+    win.on('leave-full-screen', () => logOutput('output.fullscreen_left'));
+    win.on('moved', () => logOutput('output.window_moved'));
     win.on('closed', () => {
       if (outputWindow === win) {
         outputWindow = null;
@@ -334,7 +363,10 @@ const createWindow = () => {
         }
       }
     });
-    applyOutputConfig(outputConfig);
+    // Apply size/fullscreen once the window is actually on screen — a
+    // fullscreen request on a not-yet-shown window is silently dropped.
+    if (win.isVisible()) setTimeout(() => applyOutputConfig(outputConfig), 250);
+    else win.once('show', () => setTimeout(() => applyOutputConfig(outputConfig), 250));
   });
 
   mainWindow.on('close', (event) => {
