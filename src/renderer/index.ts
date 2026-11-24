@@ -434,8 +434,6 @@ const slideshowPickerSearch = document.getElementById('slideshow-picker-search')
 const slideshowPickerResults = document.getElementById('slideshow-picker-results') as HTMLDivElement | null;
 const slideshowPickerStatus = document.getElementById('slideshow-picker-status') as HTMLDivElement | null;
 const nowPlayingSlideshowEnabledInput = document.getElementById('now-playing-slideshow-enabled') as HTMLInputElement | null;
-const nowPlayingSlideshowScenesSelect = document.getElementById('now-playing-slideshow-scenes') as HTMLSelectElement | null;
-const nowPlayingSlideshowGroup = document.getElementById('slideshow-scene-select-group') as HTMLDivElement | null;
 const quantizeHud = document.getElementById('quantize-hud') as HTMLDivElement;
 const safeModeBanner = document.getElementById('safe-mode-banner') as HTMLDivElement;
 const mappingHud = document.getElementById('mapping-hud') as HTMLDivElement;
@@ -11462,21 +11460,10 @@ const syncNowPlayingProviderFields = () => {
   nowPlayingProviderHint.textContent = baseHint + freeFirstHint;
 };
 
-/** Populate the slideshow-on-new-song controls from live settings + scenes. */
+/** Populate the next-scene-on-new-song checkbox from live settings. */
 const syncNowPlayingSlideshowFields = () => {
-  if (!nowPlayingSlideshowEnabledInput || !nowPlayingSlideshowScenesSelect || !nowPlayingSlideshowGroup) {
-    return;
-  }
+  if (!nowPlayingSlideshowEnabledInput) return;
   nowPlayingSlideshowEnabledInput.checked = nowPlayingSettings.slideshowEnabled;
-  nowPlayingSlideshowScenesSelect.innerHTML = '';
-  currentProject.scenes.forEach((scene) => {
-    const option = document.createElement('option');
-    option.value = scene.id;
-    option.textContent = scene.name;
-    option.selected = nowPlayingSettings.slideshowSceneIds.includes(scene.id);
-    nowPlayingSlideshowScenesSelect.appendChild(option);
-  });
-  nowPlayingSlideshowGroup.classList.toggle('hidden', !nowPlayingSettings.slideshowEnabled);
 };
 
 const openNowPlayingModal = () => {
@@ -11574,9 +11561,7 @@ const buildNowPlayingDraftSettings = (): NowPlayingSettings => ({
   artworkPreference: nowPlayingArtworkPreferenceSelect.value as NowPlayingSettings['artworkPreference'],
   autoCreateOverlays: nowPlayingAutoOverlaysInput.checked,
   slideshowEnabled: nowPlayingSlideshowEnabledInput?.checked ?? nowPlayingSettings.slideshowEnabled,
-  slideshowSceneIds: nowPlayingSlideshowScenesSelect
-    ? Array.from(nowPlayingSlideshowScenesSelect.selectedOptions).map((option) => option.value)
-    : nowPlayingSettings.slideshowSceneIds
+  slideshowSceneIds: [] // rotation always follows the scene timeline
 });
 
 type NowPlayingResultSource = 'recognition' | 'bridge' | 'test';
@@ -11602,14 +11587,10 @@ let slideshowSongIndex = -1;
 // Timeline and cut on a single click (2026-11-20).
 const rotationButton = document.getElementById('topbar-rotation') as HTMLButtonElement | null;
 const rotationCount = document.getElementById('topbar-rotation-count') as HTMLSpanElement | null;
-// The rotation list is saved with the Now Playing settings and outlives the
-// project it was made for. A list with one valid scene left the rotation
-// "changing" Liquid Canvas -> Liquid Canvas on every song (2026-11-24). Fewer
-// than two valid scenes means: rotate through the whole show.
-const rotationSceneIds = () => {
-  const ids = nowPlayingSettings.slideshowSceneIds.filter((id) => currentProject.scenes.some((s) => s.id === id));
-  return ids.length >= 2 ? ids : currentProject.scenes.map((s) => s.id);
-};
+// On each new song: the next scene in the timeline, looping to the first at
+// the end. There is no separate scene list any more (a saved list outlived its
+// project and pinned rotation to one scene, 2026-11-24); a saved one is ignored.
+const rotationSceneIds = () => currentProject.scenes.map((s) => s.id);
 function updateRotationButton() {
   if (!rotationButton) return;
   const on = nowPlayingSettings.slideshowEnabled;
@@ -11622,15 +11603,13 @@ function updateRotationButton() {
 }
 /** Turn rotation on (if off) and continue it from `sceneId` on the next song. */
 const startRotationFrom = async (sceneId: string) => {
-  const ids = rotationSceneIds();
-  const list = ids.includes(sceneId) ? ids : [...ids, sceneId];
   const saved = await window.visualSynth.saveNowPlayingSettings({
     ...nowPlayingSettings,
     slideshowEnabled: true,
-    slideshowSceneIds: list
+    slideshowSceneIds: []
   });
   applyNowPlayingSettings(saved);
-  slideshowSongIndex = list.indexOf(sceneId);
+  slideshowSongIndex = rotationSceneIds().indexOf(sceneId);
   updateRotationButton();
   const name = currentProject.scenes.find((s) => s.id === sceneId)?.name ?? '';
   setStatus(`Activated ${name} — rotation continues from here on the next song`);
@@ -11641,7 +11620,7 @@ rotationButton?.addEventListener('click', async () => {
   const saved = await window.visualSynth.saveNowPlayingSettings({
     ...nowPlayingSettings,
     slideshowEnabled: enabling,
-    slideshowSceneIds: enabling ? rotationSceneIds() : nowPlayingSettings.slideshowSceneIds
+    slideshowSceneIds: []
   });
   applyNowPlayingSettings(saved);
   updateRotationButton();
@@ -14243,11 +14222,6 @@ nowPlayingModal.addEventListener('click', (event) => {
   }
 });
 
-if (nowPlayingSlideshowEnabledInput && nowPlayingSlideshowGroup) {
-  nowPlayingSlideshowEnabledInput.addEventListener('change', () => {
-    nowPlayingSlideshowGroup.classList.toggle('hidden', !nowPlayingSlideshowEnabledInput.checked);
-  });
-}
 
 requestMicPermissionButton.addEventListener('click', async () => {
   try {

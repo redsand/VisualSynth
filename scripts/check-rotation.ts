@@ -1,7 +1,6 @@
-// E2E (live report 2026-11-24): with rotation on, each NEW song must move to
-// a different scene, continuing from the one on screen — even when the saved
-// rotation list is stale (one scene), which made every song "switch" to the
-// first scene.
+// E2E: with rotation on, each NEW song moves to the NEXT scene in the
+// timeline and loops to the first after the last — even with a stale saved
+// one-scene list (live report 2026-11-24: every song went to the first scene).
 // Usage: npm run build && ts-node --transpile-only scripts/check-rotation.ts
 import fs from 'fs';
 import os from 'os';
@@ -32,7 +31,9 @@ import puppeteer from 'puppeteer';
     const api = (window as any).__visualSynthCaptureApi;
     const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
     const active = () => { const p = api.getCurrentProject(); return p.scenes.find((s: any) => s.id === p.activeSceneId)?.name; };
-    const start = api.getCurrentProject().scenes[5].id;
+    // Start two scenes before the end, so the run crosses the loop point.
+    const scenes = api.getCurrentProject().scenes;
+    const start = scenes[scenes.length - 2].id;
     await api.applyScene(start); await wait(800);
     const seen = [active()];
     for (const [t, a] of [['Song One', 'A'], ['Song Two', 'B'], ['Song Three', 'C'], ['Song Four', 'D']]) {
@@ -41,11 +42,13 @@ import puppeteer from 'puppeteer';
       seen.push(active());
     }
     const count = document.getElementById('topbar-rotation-count')?.textContent;
-    return { seen, rotationCount: count, total: api.getCurrentProject().scenes.length };
+    const names = scenes.map((x: any) => x.name);
+    const n = names.length;
+    const expected = [n - 2, n - 1, 0, 1, 2].map((i) => names[i]); // next in timeline, loop to first
+    return { seen, expected, rotationCount: count, total: n };
   });
   console.log(JSON.stringify(r));
-  const distinct = new Set(r.seen).size === r.seen.length;
-  const pass = distinct && Number(r.rotationCount) === r.total;
+  const pass = JSON.stringify(r.seen) === JSON.stringify(r.expected) && Number(r.rotationCount) === r.total;
   console.log(pass ? 'PASS' : 'FAIL');
   await browser.close();
   process.exit(pass ? 0 : 1);

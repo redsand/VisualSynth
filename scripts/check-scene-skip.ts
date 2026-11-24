@@ -60,7 +60,8 @@ const projectPath = process.argv.find((a) => a.startsWith('--project='))?.slice(
     const realSave = w.visualSynth.saveNowPlayingSettings;
     w.visualSynth.saveNowPlayingSettings = async (s: any) => { saved = s; return realSave(s); };
     (document.getElementById('topbar-rotation') as HTMLButtonElement)?.click(); await wait(300);
-    const rotationIds: string[] = saved?.slideshowSceneIds ?? [];
+    // Rotation always follows the scene timeline (no saved scene list).
+    const rotationIds: string[] = proj().scenes.map((s: any) => s.id);
     const rotationOn = Boolean(saved?.slideshowEnabled);
     send([0x90, 60, 100]); send([0x80, 60, 0]); await wait(700);
     const a = proj().activeSceneId;
