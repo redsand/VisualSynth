@@ -3761,6 +3761,18 @@ export const _preprocess = preprocess;
 // (2026-11-22: love demon4, MilkDrop2077 rmx, Windmill).
 
 /** MilkDrop texsize is vec4(w, h, 1/w, 1/h); ours is vec2. Resolve any swizzle. */
+/**
+ * Real MilkDrop shader code present? Classic presets carry _shaderData with
+ * EMPTY warp and comp (only per-frame code, waves, shapes). Compiling those
+ * empty shaders rendered solid black — but only after another MilkDrop
+ * preset had run (the renderer skipped them on a fresh start because '' ==
+ * its initial last-compiled source), so the same preset was visible or black
+ * depending on what played before it (2026-11-24). Treat them as "no MilkDrop
+ * shaders" so the built-in renderer always draws them.
+ */
+export const hasMilkDropShaderCode = (data: { warp?: string | null; comp?: string | null } | null | undefined): boolean =>
+  Boolean(data && ((data.warp ?? '').trim() || (data.comp ?? '').trim()));
+
 export const resolveTexSizeSwizzles = (src: string): string =>
   src.replace(/\buTexSize\.([xyzw]{1,4})\b/g, (match, swz: string) => {
     if (!/[zw]/.test(swz)) return match;

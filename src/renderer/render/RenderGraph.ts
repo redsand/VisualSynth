@@ -1,3 +1,4 @@
+import { hasMilkDropShaderCode } from '../../shared/milkwaveGlslPatcher';
 import { getActiveScene } from '../shaderLifecycle';
 import { applyModMatrix, ModSmoothEntry, ModMatrixContext } from '../../shared/modMatrix';
 import { resolveModTargetRange } from '../../shared/modTargets';
@@ -2167,7 +2168,7 @@ export class RenderGraph {
       debugTint: this.debugTint ? 1 : 0,
       shapeBurstSpawnTimes: this.shapeBurstSpawnTimes,
       shapeBurstActives: this.shapeBurstActives,
-      milkDropShaderData: activeScene?._shaderData ?? null,
+      milkDropShaderData: hasMilkDropShaderCode(activeScene?._shaderData) ? activeScene!._shaderData! : null,
       genUniforms,
       ...scopedFxUniforms,
       // Asset binding diagnostics

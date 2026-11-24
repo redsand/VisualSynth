@@ -52,6 +52,8 @@ export const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement, renderScale
 
 export interface RendererOptions {
   onError?: (error: string, type: 'vertex' | 'fragment' | 'link' | 'shapes' | 'waves') => void;
+  /** A MilkDrop preset's own shaders could not be used; the built-in renderer draws it instead. */
+  onMilkDropUnusable?: (info: { warpStatus?: string; compStatus?: string }) => void;
 }
 
 export interface RenderDebugSnapshot {
@@ -618,11 +620,22 @@ void main() {
       } else {
         console.log('[GLRenderer] MilkDrop shaders compiled successfully');
       }
-      
-      currentMilkDropShaderData = shaderData;
-      milkDropEnabled = true;
+
       lastMilkDropWarp = shaderData.warp;
       lastMilkDropComp = shaderData.comp;
+      // Nothing of the preset's own shaders survived (a stage failed, or both
+      // fell back to defaults): those defaults render near-black. Draw the
+      // preset with the built-in renderer instead. lastMilkDrop* stay set, so
+      // this is decided once per preset, not retried every frame.
+      const unusable = warpStatus === 'failed' || compStatus === 'failed' || (warpStatus === 'fallback' && compStatus === 'fallback');
+      if (unusable) {
+        options.onMilkDropUnusable?.({ warpStatus, compStatus });
+        currentMilkDropShaderData = null;
+        milkDropEnabled = false;
+        return;
+      }
+      currentMilkDropShaderData = shaderData;
+      milkDropEnabled = true;
     }
   };
 

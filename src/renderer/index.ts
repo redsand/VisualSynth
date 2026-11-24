@@ -104,6 +104,7 @@ import type { Store } from './state/store';
 import { sessionHealthService } from './sessionHealthService';
 import { createTransitionTracer, type TransitionSource } from './render/transitionTracer';
 import { sessionLog, initSessionLog } from './sessionLog';
+import { hasMilkDropShaderCode } from '../shared/milkwaveGlslPatcher';
 import { createAdaptiveFpsState, shouldRenderFrame } from '../shared/adaptiveFps';
 
 declare global {
@@ -15235,6 +15236,10 @@ const fadeOverlay = document.getElementById('fade-overlay') as HTMLDivElement;
 updateWebglDiagnostics();
 try {
   renderer = createGLRenderer(canvas, {
+    onMilkDropUnusable: ({ warpStatus, compStatus }) => {
+      const scene = currentProject.scenes.find((sc) => sc.id === currentProject.activeSceneId)?.name ?? null;
+      sessionLog.log('warn', 'milkdrop.using_builtin_renderer', { scene, warpStatus, compStatus });
+    },
     onError: (err, type) => {
       lastShaderError = `[${type}] ${err}`;
       setStatus(`Shader error: ${err.substring(0, 40)}...`);
@@ -16459,7 +16464,7 @@ const render = (time: number) => {
     genUniforms,
     shapeBurstSpawnTimes,
     shapeBurstActives,
-    milkDropShaderData: renderScene?._shaderData ?? null,
+    milkDropShaderData: hasMilkDropShaderCode(renderScene?._shaderData) ? renderScene!._shaderData! : null,
     spectrum: audioState.spectrum,
     contrast: moddedStyle.contrast,
     saturation: moddedStyle.saturation,
