@@ -122,3 +122,27 @@ describe('genUniformResolver — every registered generator gets an Enabled key'
     expect(checked).toBeGreaterThan(100); // registry has 140+ generators
   });
 });
+
+// The Performance Mixer's role weights must reach MilkDrop (milkwave) scenes:
+// their layer id takes a special branch that used to ignore the weight
+// (2026-11-24: "the performance mixer doesn't do anything" on milkwave).
+describe('milkwave layer and the Performance Mixer', () => {
+  const resolveWith = (core: number, opacity = 1) =>
+    resolveGenUniforms({
+      layers: [{ id: 'layer-milkwave', enabled: true, opacity, role: 'core', params: {} }],
+      modValue: noModValue,
+      midiSum: noMidi,
+      macroSum: noMacro,
+      getLayerParamNumber: (layer: any, key: string, fallback: number) => (typeof layer?.params?.[key] === 'number' ? layer.params[key] : fallback),
+      findLayerById: (ls: any[] | undefined, id: string) => ls?.find((l) => l.generatorId === id || l.id === id),
+      buildLegacyTarget: (layerType: string, param: string) => `layer-${layerType}.${param}`,
+      roleWeights: { core, support: 1, atmosphere: 1 }
+    });
+
+  it('scales milkwave opacity by the core weight (down and up)', () => {
+    expect(resolveWith(1).MilkwaveOpacity).toBeCloseTo(1);
+    expect(resolveWith(0.5).MilkwaveOpacity).toBeCloseTo(0.5);
+    expect(resolveWith(1.55).MilkwaveOpacity).toBeCloseTo(1.55); // > 1 = brightness boost in the composite
+    expect(resolveWith(1.5, 0.5).MilkwaveOpacity).toBeCloseTo(0.75); // layer strength x role weight
+  });
+});

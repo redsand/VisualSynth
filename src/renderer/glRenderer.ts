@@ -844,10 +844,16 @@ void main() {
 
     // --- Dynamic gen-* uniforms from resolveGenUniforms() ---
     if (state.genUniforms) {
+      // When the REAL MilkDrop render is active it is composited on top; the
+      // base pass must not also draw the approximate gen-milkwave fallback.
+      // Both used to run: at full strength the real one hid it, but lowering
+      // the Milkwave strength or the Performance Mixer's Core weight revealed
+      // the fallback as a "backup / safe-mode look" (2026-11-24).
+      const realMilkDrop = Boolean(milkDropEnabled && milkDropRenderer && currentMilkDropShaderData);
       for (const key in state.genUniforms) {
         const loc = getLocation(`u${key}`);
         if (loc) {
-          gl.uniform1f(loc, state.genUniforms[key]);
+          gl.uniform1f(loc, realMilkDrop && key === 'MilkwaveEnabled' ? 0 : state.genUniforms[key]);
         }
       }
     }
@@ -1608,7 +1614,10 @@ void main() {
     color = floor(color * levels + 0.5) / levels;
   }
   color *= 1.0 + 0.08 * beat;
-  fragColor = vec4(color, 1.0) * uOpacity;
+  // uOpacity = layer opacity x Performance Mixer role weight (0..2). Up to 1
+  // it fades the scene over black; above 1 it brightens it instead of being
+  // clipped (a Core weight of 1.55 used to change nothing).
+  fragColor = vec4(clamp(color * max(uOpacity, 1.0), 0.0, 1.0), 1.0) * min(uOpacity, 1.0);
 }`
             );
           }

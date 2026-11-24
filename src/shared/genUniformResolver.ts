@@ -185,7 +185,13 @@ export const resolveGenUniforms = (deps: ResolverDeps): Record<string, number> =
         typeof layer?.id === 'string' &&
         LAYER_ID_ALIASES[blockId]?.includes(layer.id)
       ) {
-        value = layer?.opacity ?? baseValue;
+        // Milkwave layers take the role weight too (Performance Mixer). This
+        // branch used to return plain layer opacity, so the Mixer's Core
+        // weight did nothing on MilkDrop scenes (2026-11-24).
+        const rw = deps.roleWeights ?? { core: 1, support: 1, atmosphere: 1 };
+        const role: string = layer?.role ?? 'core';
+        const roleWeight = role === 'core' ? rw.core : role === 'atmosphere' ? rw.atmosphere : rw.support;
+        value = (layer?.opacity ?? baseValue) * roleWeight;
       } else if (param.id === 'opacity') {
         const layerOpacity = layer?.opacity ?? 1;
         const role: string = layer?.role ?? 'support';
