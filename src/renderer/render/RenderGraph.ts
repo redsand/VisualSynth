@@ -1989,7 +1989,11 @@ export class RenderGraph {
     const moddedPersistence = getFxVal(trailsLayer, 'fx-trails.persistence', effects.persistence);
 
     const hasActiveScene = Boolean(activeScene);
-    const plasmaEnabled = plasmaLayer?.enabled ?? true;
+    // Plasma renders ONLY when the scene has a plasma layer. It used to default ON,
+    // so it drew under every MilkDrop scene and every generator scene without
+    // one; lowering the Milkwave strength revealed it as the 'fallback look'
+    // (2026-11-24). Empty is black, like every other layer.
+    const plasmaEnabled = plasmaLayer?.enabled ?? false;
     const spectrumEnabled = spectrumLayer?.enabled ?? false;
     const origamiEnabled = origamiLayer?.enabled ?? false;
     const glyphEnabled = glyphLayer?.enabled ?? false;

@@ -1565,18 +1565,22 @@ void main() {
   // to erase the rotation entirely.
   if (abs(uFxHue) > 0.001) color = clamp(hueRotate(color, uFxHue), 0.0, 1.0); // slider below 50% = negative turn
   if (uFxBloom > 0.01) {
-    vec3 glow = vec3(0.0);
-    for (int i = 0; i < 8; i++) {
-      float a = float(i) * 0.785398;
-      glow += texture(uTexture, uvBeat + vec2(cos(a), sin(a)) * 0.05).rgb;
-      glow += texture(uTexture, uvBeat + vec2(cos(a + 0.39), sin(a + 0.39)) * 0.11).rgb;
-    }
-    glow /= 16.0;
-    // Added AFTER the comp gamma and palette grade (a gamma of ~2.5 used to
-    // crush the faint halo to nothing), and not put through the gamma itself.
-    // Screen blend: lifts light areas into a halo without a brightness cutoff.
-    vec3 lifted = glow * (1.0 + 2.0 * uFxBloom);
-    color = 1.0 - (1.0 - color) * (1.0 - clamp(lifted * uFxBloom, 0.0, 0.95));
+    // Wide halo: 8 fixed taps around the pixel.
+    vec2 r1 = vec2(0.05, 0.05 * uResolution.x / max(uResolution.y, 1.0));
+    vec2 r2 = r1 * 2.2;
+    vec3 glow = texture(uTexture, uvBeat + vec2(r1.x, 0.0)).rgb + texture(uTexture, uvBeat - vec2(r1.x, 0.0)).rgb
+      + texture(uTexture, uvBeat + vec2(0.0, r1.y)).rgb + texture(uTexture, uvBeat - vec2(0.0, r1.y)).rgb
+      + texture(uTexture, uvBeat + r2 * 0.707).rgb + texture(uTexture, uvBeat - r2 * 0.707).rgb
+      + texture(uTexture, uvBeat + vec2(r2.x, -r2.y) * 0.707).rgb + texture(uTexture, uvBeat + vec2(-r2.x, r2.y) * 0.707).rgb;
+    glow = clamp(glow / 8.0, 0.0, 1.0);
+    color = clamp(color, 0.0, 1.0);
+    // Added AFTER the comp gamma and palette grade (a gamma of ~2.5 crushed
+    // the faint halo to nothing). Screen blend, BOUNDED: the amount grows as
+    // bloom^1.5 and never exceeds 55%. Unbounded (up to 95%), the show's
+    // project Glow 0.63 turned bright scenes like "black holes" solid white
+    // and frozen (2026-11-24).
+    float amount = 0.55 * pow(clamp(uFxBloom, 0.0, 1.0), 1.5);
+    color = 1.0 - (1.0 - color) * (1.0 - glow * amount);
   }
 
   // Engine finish — mirrors mainTemplate.glsl exactly.

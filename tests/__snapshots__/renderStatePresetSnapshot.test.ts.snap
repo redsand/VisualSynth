@@ -69,7 +69,7 @@ exports[`render-state preset snapshots > produces a stable render-state snapshot
   "particleSpeed": 0.35,
   "particlesEnabled": true,
   "persistence": 0.25,
-  "plasmaEnabled": true,
+  "plasmaEnabled": false,
   "plasmaOpacity": 1,
   "portalEnabled": false,
   "portalOpacity": 0,
