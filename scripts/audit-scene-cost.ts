@@ -67,8 +67,12 @@ const main = async () => {
       ...(window.visualSynth ?? {}), listPresets: async () => [], onCloseRequested: () => {},
       showSaveDialog: async () => ({ result: 'cancel' }), saveProject: async () => ({ canceled: true }),
       saveProjectAs: async () => ({ canceled: true }), confirmClose: async () => {},
-      autosaveProject: async () => ({ saved: false })
+      autosaveProject: async () => ({ saved: false }),
+      checkAssetPaths: async (p: string[]) => Object.fromEntries(p.map((x) => [x, true])),
+      setOutputConfig: async (c: any) => ({ ...c, enabled: false }), openOutput: async (c: any) => ({ opened: false, config: c }), closeOutput: async () => ({ closed: true })
     } as any;
+    // Measure each scene on its own: background pre-compiling competes for the GPU.
+    (window as any).__vsDisablePrewarm = true;
   }, wav);
   await page.goto('file://' + path.join(DIST_DIR, 'index.html'), { waitUntil: 'load', timeout: 60000 });
   await page.waitForFunction(() => Boolean((window as any).__visualSynthInitialized), { timeout: 120000 });

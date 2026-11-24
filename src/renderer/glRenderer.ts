@@ -1617,7 +1617,9 @@ void main() {
   // uOpacity = layer opacity x Performance Mixer role weight (0..2). Up to 1
   // it fades the scene over black; above 1 it brightens it instead of being
   // clipped (a Core weight of 1.55 used to change nothing).
-  fragColor = vec4(clamp(color * max(uOpacity, 1.0), 0.0, 1.0), 1.0) * min(uOpacity, 1.0);
+  // The boost is capped at 1.5x: presets can store strengths near 2.0, which
+  // were silently clipped before and must not suddenly double in brightness.
+  fragColor = vec4(clamp(color * clamp(uOpacity, 1.0, 1.5), 0.0, 1.0), 1.0) * min(uOpacity, 1.0);
 }`
             );
           }
