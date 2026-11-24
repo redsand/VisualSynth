@@ -12229,9 +12229,12 @@ const nowPlayingProviderChain = (): NowPlayingSettings['provider'][] => {
 
 const runNowPlayingLookup = async (
   detectedAt: number,
-  opts: { event?: SongChangeEvent; isRetry?: boolean; manual?: boolean } = {}
+  opts: { event?: SongChangeEvent; isRetry?: boolean; manual?: boolean; initial?: boolean } = {}
 ) => {
   if (!isNowPlayingLookupConfigured(nowPlayingSettings)) return;
+  // 'initial' = identify the song already playing (no change was detected).
+  // Gated like a retry: skips the per-firing cooldown, respects backoff.
+  if (opts.initial) opts = { ...opts, isRetry: true };
   if (nowPlayingLookupInFlight) return;
   // A MANUAL lookup (the DJ pressed Detect Song) skips every gate below:
   // the cooldowns and same-song check exist to stop false AUTO firings
@@ -12241,7 +12244,7 @@ const runNowPlayingLookup = async (
   // original release (or nothing) and would overwrite the exact title Serato
   // already reported. Auto/retry lookups stand down; the manual button asks
   // Serato first (see transportDetect).
-  const trigger = opts.manual ? 'manual' : opts.isRetry ? 'retry' : 'auto';
+  const trigger = opts.manual ? 'manual' : opts.initial ? 'initial' : opts.isRetry ? 'retry' : 'auto';
   const logSkip = (reason: string) => sessionLog.log('info', 'song.lookup_skipped', { trigger, reason });
   if (!opts.manual && isSeratoLive()) { logSkip('serato-authoritative'); return; }
   if (!opts.manual) {
@@ -13512,6 +13515,28 @@ const sampleOutputHealth = () => {
   } catch { /* canvas not readable this tick */ }
 };
 setInterval(sampleOutputHealth, 10000);
+
+// Identify the song ALREADY playing. Lookups only ran on a detected change, so
+// the first song (and any song playing when detection was switched on) was
+// never identified — it only seemed to work because a detector misfire fired
+// ~33s after start (fixed 2026-11-24). After 15s of continuous music with no
+// identified track, look it up; retry every 60s until one is identified.
+let musicSinceMs = 0;
+let lastInitialLookupAt = 0;
+setInterval(() => {
+  const now = Date.now();
+  const hearingMusic = audioState.rms >= (nowPlayingSettings.silenceThreshold ?? 0.025);
+  if (!hearingMusic) { musicSinceMs = 0; return; }
+  if (!musicSinceMs) musicSinceMs = now;
+  if ((window as any).__vsTraceInitial) console.log('[InitialSongId] tick', { rms: audioState.rms, musicFor: now - musicSinceMs, key: nowPlayingGate.currentTrackKey, configured: isNowPlayingLookupConfigured(nowPlayingSettings), inFlight: nowPlayingLookupInFlight });
+  if (nowPlayingGate.currentTrackKey) return;               // already identified
+  if (now - musicSinceMs < 15000) return;                    // let the song settle
+  if (now - lastInitialLookupAt < 60000) return;             // at most once a minute
+  if (!isNowPlayingLookupConfigured(nowPlayingSettings) || nowPlayingLookupInFlight) return;
+  lastInitialLookupAt = now;
+  console.log('[InitialSongId] looking up the song already playing');
+  void runNowPlayingLookup(now, { initial: true });
+}, 5000);
 
 // Heartbeat: the app's state every 30s.
 setInterval(() => {
