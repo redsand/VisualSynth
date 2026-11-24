@@ -11602,9 +11602,13 @@ let slideshowSongIndex = -1;
 // Timeline and cut on a single click (2026-11-20).
 const rotationButton = document.getElementById('topbar-rotation') as HTMLButtonElement | null;
 const rotationCount = document.getElementById('topbar-rotation-count') as HTMLSpanElement | null;
+// The rotation list is saved with the Now Playing settings and outlives the
+// project it was made for. A list with one valid scene left the rotation
+// "changing" Liquid Canvas -> Liquid Canvas on every song (2026-11-24). Fewer
+// than two valid scenes means: rotate through the whole show.
 const rotationSceneIds = () => {
   const ids = nowPlayingSettings.slideshowSceneIds.filter((id) => currentProject.scenes.some((s) => s.id === id));
-  return ids.length > 0 ? ids : currentProject.scenes.map((s) => s.id);
+  return ids.length >= 2 ? ids : currentProject.scenes.map((s) => s.id);
 };
 function updateRotationButton() {
   if (!rotationButton) return;
@@ -11665,10 +11669,10 @@ function skipToNextSceneNow() {
       return;
     }
   }
-  const rotating = nowPlayingSettings.slideshowEnabled && nowPlayingSettings.slideshowSceneIds.length > 0;
+  const rotating = nowPlayingSettings.slideshowEnabled;
   let targetId: string | null = null;
   if (rotating) {
-    const ids = nowPlayingSettings.slideshowSceneIds;
+    const ids = rotationSceneIds();
     const at = ids.indexOf(currentProject.activeSceneId);
     const from = at >= 0 ? at : slideshowSongIndex;
     for (let step = 1; step <= ids.length; step += 1) {
@@ -11691,13 +11695,15 @@ function skipToNextSceneNow() {
 }
 
 const advanceSlideshowForNewSong = () => {
-  if (!nowPlayingSettings.slideshowEnabled || nowPlayingSettings.slideshowSceneIds.length === 0) {
-    return;
-  }
+  if (!nowPlayingSettings.slideshowEnabled) return;
+  const ids = rotationSceneIds();
+  if (ids.length < 2) return;
+  // Continue from the scene on screen, and never "switch" to that same scene.
+  const at = ids.indexOf(currentProject.activeSceneId);
   const { sceneId, nextIndex } = advanceSlideshowOnSongChange(
-    nowPlayingSettings.slideshowSceneIds,
-    slideshowSongIndex,
-    (sceneId) => currentProject.scenes.find((scene) => scene.id === sceneId)
+    ids,
+    at >= 0 ? at : slideshowSongIndex,
+    (id) => (id === currentProject.activeSceneId ? undefined : currentProject.scenes.find((scene) => scene.id === id))
   );
   if (!sceneId) return;
   slideshowSongIndex = nextIndex;
@@ -17220,6 +17226,10 @@ const init = async () => {
 
   // Expose capture API for screenshot automation
   (window as any).__visualSynthCaptureApi = {
+    // Test hook: deliver an identified track exactly as a song recognition
+    // would (overlay, rotation advance), for end-to-end checks.
+    simulateRecognizedTrack: (title: string, artist: string) =>
+      consumeNowPlayingResult({ matched: true, title, artist, provider: 'test' } as NowPlayingRecognitionResponse, 'Now playing', 'recognition'),
     applyProject: async (project: VisualSynthProject, options: { skipRecovery?: boolean } = {}) => {
       if (options.skipRecovery) {
         console.log('[Capture API] Skipping recovery session as requested');

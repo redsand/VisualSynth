@@ -99,11 +99,13 @@ describe('recordRecognition', () => {
 });
 
 describe('effectiveCooldownMs', () => {
-  it('doubles per same-track streak and caps at five minutes', () => {
+  // Capped at 60s (was 5 minutes): a DJ changes tracks every 2-4 minutes,
+  // and a long cap left the app deaf when the next song started.
+  it('doubles per same-track streak and caps at one minute', () => {
     expect(effectiveCooldownMs(settings, 0)).toBe(settings.cooldownMs);
-    expect(effectiveCooldownMs(settings, 1)).toBe(settings.cooldownMs * 2);
-    expect(effectiveCooldownMs(settings, 4)).toBe(settings.cooldownMs * 16);
-    expect(effectiveCooldownMs(settings, 20)).toBe(5 * 60 * 1000);
+    expect(effectiveCooldownMs(settings, 1)).toBe(Math.min(settings.cooldownMs * 2, 60_000));
+    expect(effectiveCooldownMs(settings, 4)).toBe(Math.min(settings.cooldownMs * 16, 60_000));
+    expect(effectiveCooldownMs(settings, 20)).toBe(60 * 1000);
   });
 });
 
@@ -146,7 +148,7 @@ describe('recordNoMatch', () => {
     expect(outcome.backoffUntil).toBeUndefined();
   });
 
-  it('backs off for two minutes after repeated no-matches', () => {
+  it('backs off for one minute after repeated no-matches', () => {
     const state = createNowPlayingGateState();
     // Firing 1: the initial no-match schedules the bounded retry…
     const first = recordNoMatch(state, 10_000);
@@ -156,11 +158,11 @@ describe('recordNoMatch', () => {
     expect(retry.scheduleRetryInMs).toBeUndefined();
     expect(retry.backoffUntil).toBeUndefined();
     // Firing 2 (fresh retry budget): its no-match is the third consecutive
-    // failed request — back off for two minutes instead of retrying again.
+    // failed request — back off for a minute instead of retrying again.
     resetGateRetry(state);
     const second = recordNoMatch(state, 50_000);
 
-    expect(second.backoffUntil).toBe(50_000 + 120_000);
+    expect(second.backoffUntil).toBe(50_000 + 60_000);
     expect(state.adaptiveCooldownUntil).toBe(second.backoffUntil);
 
     // During backoff, lookups are gated off entirely.

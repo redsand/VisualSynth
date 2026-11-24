@@ -39,9 +39,13 @@ export interface GateSongChangeEvent {
   nextSignature: number[];
 }
 
-const MAX_ADAPTIVE_COOLDOWN_MS = 5 * 60 * 1000;
+// Both caps are 60s: a DJ changes tracks every 2-4 minutes. A 5-minute cap
+// (doubling on each same-track re-identification) and a 2-minute no-match
+// backoff left the app deaf when the next song started (live log 2026-11-24,
+// worsened by detector misfires re-identifying the same track every ~33s).
+const MAX_ADAPTIVE_COOLDOWN_MS = 60 * 1000;
 const NO_MATCH_RETRY_DELAY_MS = 10_000;
-const NO_MATCH_BACKOFF_MS = 120_000;
+const NO_MATCH_BACKOFF_MS = 60_000;
 const NO_MATCH_BACKOFF_STREAK = 3;
 const MAX_RETRY_PER_DETECTION = 1;
 /** Fraction of changeThreshold below which a firing reads as "same song" */

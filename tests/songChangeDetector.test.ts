@@ -53,6 +53,30 @@ describe('songChangeDetector', () => {
     expect(hits[0]).toBeGreaterThanOrEqual(5000);
   });
 
+  // Live log 2026-11-24: after the first baseline nudge the distance sat at
+  // ~0.25 on the SAME song and a "song change" fired every ~33s. A steady song
+  // must stay quiet for minutes, and a real change must still be caught.
+  it('stays quiet on one song for minutes (baseline nudges keep mass) and still catches a change', () => {
+    const hits: Array<{ at: number; distance: number }> = [];
+    const detector = createSongChangeDetector({
+      windowMs: 3000,
+      minTrackMs: 30000,
+      confirmWindows: 2,
+      changeThreshold: 0.15,
+      onSongChange: ({ detectedAt, distance }) => hits.push({ at: detectedAt, distance })
+    });
+    // Song A: a fixed spectral shape with small frame-to-frame jitter.
+    const songA = (i: number) => Array.from({ length: 64 }, (_, k) => Math.max(0, Math.exp(-((k - 12) ** 2) / 40) + 0.3 * Math.exp(-((k - 40) ** 2) / 60) + 0.02 * Math.sin(i * 1.7 + k)));
+    const songB = (i: number) => Array.from({ length: 64 }, (_, k) => Math.max(0, Math.exp(-((k - 50) ** 2) / 30) + 0.4 * Math.exp(-((k - 25) ** 2) / 20) + 0.02 * Math.cos(i * 1.3 + k)));
+    let t = 0;
+    for (let i = 0; i < 1600; i += 1, t += 100) detector.update({ nowMs: t, rms: 0.4 + 0.05 * Math.sin(i / 3), spectrum: songA(i) }); // 160s of song A
+    expect(hits).toHaveLength(0);
+    const changeAt = t;
+    for (let i = 0; i < 600; i += 1, t += 100) detector.update({ nowMs: t, rms: 0.4 + 0.05 * Math.sin(i / 3), spectrum: songB(i) }); // 60s of song B
+    expect(hits).toHaveLength(1);
+    expect(hits[0].at).toBeGreaterThanOrEqual(changeAt);
+  });
+
   it('ignores silent frames', () => {
     const hits: number[] = [];
     const detector = createSongChangeDetector({

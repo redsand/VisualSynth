@@ -212,9 +212,15 @@ export const createSongChangeDetector = (options: SongChangeDetectorOptions = {}
       // and eventually fire. Same-song drift below the nudge zone keeps the
       // baseline warm without letting a slow crossfade sneak under the gate.
       if (distance < changeThreshold * 0.4) {
-        baselineSignature = normalizeVector(
-          baselineSignature.map((value, index) => value * 0.9 + signature[index] * 0.1)
-        );
+        // Renormalize PER BLOCK, exactly like the baseline above. A whole-vector
+        // normalize here halved each block's mass, so after the first nudge
+        // every same-song window read ~0.25 (> the 0.15 threshold): a "song
+        // change" fired every ~33s whatever was playing, re-identifying the
+        // same track until lookups backed off and a REAL change was missed
+        // (live log, 2026-11-24).
+        const nudged = baselineSignature.map((value, index) => value * 0.9 + signature[index] * 0.1);
+        const size = Math.floor(nudged.length / 2);
+        baselineSignature = [...normalizeVector(nudged.slice(0, size)), ...normalizeVector(nudged.slice(size))];
       }
     }
 
