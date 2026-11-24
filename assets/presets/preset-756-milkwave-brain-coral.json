@@ -85,9 +85,9 @@
         {
           "id": "layer-milkwave",
           "name": "Milkwave",
-          "role": "support",
+          "role": "core",
           "enabled": true,
-          "opacity": 1.7,
+          "opacity": 1,
           "blendMode": "screen",
           "transform": {
             "x": 0,
@@ -106,7 +106,7 @@
               "rotation": 0
             },
             "zoom": 0.999514,
-            "rotation": 0.000001,
+            "rotation": 1e-06,
             "warp": 0.01,
             "decay": 1,
             "gamma": 1.7,
@@ -563,7 +563,7 @@
       "fZoomExponent": 1,
       "fShader": 0,
       "zoom": 0.999514,
-      "rot": 0.000001,
+      "rot": 1e-06,
       "cx": 0.5,
       "cy": 0.5,
       "dx": 0,

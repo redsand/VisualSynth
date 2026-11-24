@@ -77,9 +77,9 @@
         {
           "id": "layer-milkwave",
           "name": "Milkwave",
-          "role": "support",
+          "role": "core",
           "enabled": true,
-          "opacity": 1.46,
+          "opacity": 1,
           "blendMode": "screen",
           "transform": {
             "x": 0,

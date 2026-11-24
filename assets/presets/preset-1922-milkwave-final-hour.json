@@ -85,7 +85,7 @@
         {
           "id": "layer-milkwave",
           "name": "Milkwave",
-          "role": "support",
+          "role": "core",
           "enabled": true,
           "opacity": 1,
           "blendMode": "screen",
@@ -497,7 +497,7 @@
       "cx": 0.5,
       "cy": 0.5,
       "dx": 0,
-      "dy": 0.00001,
+      "dy": 1e-05,
       "warp": 0.01,
       "sx": 1,
       "sy": 1,

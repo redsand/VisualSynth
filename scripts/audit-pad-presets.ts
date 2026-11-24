@@ -89,7 +89,7 @@ const JSON_OUT = opt('json');
             let t = 0; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const yy = Math.min(17, by * 4 + y); t += acc[yy * 32 + bx * 4 + x]; }
             sig.push(Math.round(t / 16 / 8));
           }
-          res({ luma: Math.round(lu / fr), motion: +(mo / Math.max(1, n)).toFixed(2), structure: +Math.sqrt(v / 576).toFixed(1), detail: +(det / dn).toFixed(2), sig: sig.join('') });
+          res({ luma: Math.round(lu / fr), motion: +(mo / Math.max(1, n)).toFixed(2), structure: +Math.sqrt(v / 576).toFixed(1), detail: +(det / dn).toFixed(2), sig: sig.join(''), fps: Math.round(fr / Math.max(0.001, (t - t0) / 1000)) });
         }
       };
       requestAnimationFrame(tick);
@@ -101,7 +101,7 @@ const JSON_OUT = opt('json');
       await new Promise((r) => setTimeout(r, Math.max(0, (LATE - 7) * 1000)));
       const late = await measure(3);
       results.push({ file: f, name: raw.metadata?.name, early, late });
-      console.log(`${String(raw.metadata?.name).padEnd(24)} early luma=${early.luma} motion=${early.motion} | late luma=${late.luma} motion=${late.motion} structure=${late.structure} detail=${late.detail}`);
+      console.log(`${String(raw.metadata?.name).padEnd(24)} early luma=${early.luma} motion=${early.motion} | late luma=${late.luma} motion=${late.motion} structure=${late.structure} detail=${late.detail} fps=${late.fps}`);
     } catch (e) {
       results.push({ file: f, name: raw.metadata?.name, crashed: String((e as Error).message).slice(0, 80) });
       console.log(`CRASH ${f}: ${String((e as Error).message).slice(0, 160)}`);
