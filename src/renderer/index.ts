@@ -12316,7 +12316,7 @@ const runNowPlayingLookup = async (
       // lookup matched or missed (which provider, what audio it was sent).
       sessionLog.log(result.matched ? 'info' : 'warn', 'song.lookup_result', {
         provider,
-        trigger: opts.manual ? 'manual' : opts.isRetry ? 'retry' : 'auto',
+        trigger,
         matched: result.matched,
         title: result.title ?? null,
         artist: result.artist ?? null,
