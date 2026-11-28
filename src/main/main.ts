@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, powerMonitor, screen, shell, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, powerMonitor, powerSaveBlocker, screen, shell, session } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -345,6 +345,7 @@ const createWindow = () => {
     }
     outputWindow = win;
     outputConfig = { ...outputConfig, enabled: true };
+    setDisplayAwake(true);
     const logOutput = (event: string) => {
       try {
         const b = win.getBounds();
@@ -356,6 +357,7 @@ const createWindow = () => {
     win.on('moved', () => logOutput('output.window_moved'));
     win.on('closed', () => {
       if (outputWindow === win) {
+        setDisplayAwake(false);
         outputWindow = null;
         outputConfig = { ...outputConfig, enabled: false };
         if (mainWindow && !mainWindow.webContents.isDestroyed()) {
@@ -453,6 +455,11 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 // Main-process freeze watchdog. The main process owns the windows: when it
 // stalls, macOS shows the spinning wheel and the output stops updating, yet
 // the renderer's own logs look normal. Log every stall over 500ms.
+// A gap of more than a minute is not a freeze the app caused: the Mac slept or
+// macOS suspended the process (App Nap). Those were logged as 10-17 minute
+// "stalls" every quarter hour while the app sat open overnight (Nov 22-23).
+const SUSPENDED_GAP_MS = 60_000;
+let systemSuspendedAt = 0;
 const startMainStallWatchdog = () => {
   const TICK_MS = 250;
   let expected = Date.now() + TICK_MS;
@@ -460,10 +467,34 @@ const startMainStallWatchdog = () => {
     const now = Date.now();
     const lag = now - expected;
     expected = now + TICK_MS;
-    if (lag > 500) {
-      try { sessionLogger.writeEntry({ level: 'warn', event: 'main.stall', data: { ms: lag } }); } catch { /* best-effort */ }
-    }
+    if (lag <= 500) return;
+    const suspended = lag >= SUSPENDED_GAP_MS || (systemSuspendedAt > 0 && now - systemSuspendedAt < lag + 5000);
+    try {
+      sessionLogger.writeEntry(suspended
+        ? { level: 'info', event: 'main.suspended', data: { ms: lag } }
+        : { level: 'warn', event: 'main.stall', data: { ms: lag } });
+    } catch { /* best-effort */ }
   }, TICK_MS).unref?.();
+};
+
+// Live-show protection. macOS may App-Nap (throttle) an app it considers idle
+// — e.g. VisualSynth behind Serato DJ — and the display may dim or sleep
+// mid-set. Never let the process be suspended while it runs, and keep the
+// display awake while the Output window is open.
+let appSuspensionBlocker: number | null = null;
+let displaySleepBlocker: number | null = null;
+const startAppSuspensionBlocker = () => {
+  if (appSuspensionBlocker === null) appSuspensionBlocker = powerSaveBlocker.start('prevent-app-suspension');
+};
+const setDisplayAwake = (on: boolean) => {
+  if (on && displaySleepBlocker === null) {
+    displaySleepBlocker = powerSaveBlocker.start('prevent-display-sleep');
+    try { sessionLogger.writeEntry({ level: 'info', event: 'system.display_kept_awake', data: { on: true } }); } catch { /* best-effort */ }
+  } else if (!on && displaySleepBlocker !== null) {
+    powerSaveBlocker.stop(displaySleepBlocker);
+    displaySleepBlocker = null;
+    try { sessionLogger.writeEntry({ level: 'info', event: 'system.display_kept_awake', data: { on: false } }); } catch { /* best-effort */ }
+  }
 };
 
 // Machine state: sleep/wake, power source, thermal pressure, screen lock.
@@ -471,7 +502,7 @@ const wireSystemEventLogging = () => {
   const log = (event: string, data: Record<string, unknown> = {}) => {
     try { sessionLogger.writeEntry({ level: 'info', event, data }); } catch { /* best-effort */ }
   };
-  powerMonitor.on('suspend', () => log('system.sleep'));
+  powerMonitor.on('suspend', () => { systemSuspendedAt = Date.now(); log('system.sleep'); });
   powerMonitor.on('resume', () => log('system.wake'));
   powerMonitor.on('on-ac', () => log('system.power', { source: 'ac' }));
   powerMonitor.on('on-battery', () => log('system.power', { source: 'battery' }));
@@ -494,6 +525,7 @@ app.whenReady().then(() => {
   });
   startMainStallWatchdog();
   wireSystemEventLogging();
+  startAppSuspensionBlocker();
   // Gate media (microphone/camera) permission to the app's own local origin.
   // The window loads from file://; any remote/unknown origin that ever ends up
   // in a webContents must not be granted device access unconditionally.
